@@ -475,9 +475,9 @@ class Environment {
             return x - Math.floor(x);
         };
 
-        const gridSize = 35; // Expanded manifold
+        const gridSize = 20; // Expanded manifold
         const cellSize = 4;
-        const MAX_LIGHTS = 48;
+        const MAX_LIGHTS = 50;
         let lightsAdded = 0;
 
         const wallGeo = new THREE.BoxGeometry(cellSize, 3, cellSize);
@@ -524,15 +524,19 @@ class Environment {
 
                 if (isWall) {
                     if (random() > 0.88) {
-                        // Procedural Archway (Holes in walls) - Height reduced to prevent intersection with the roof block
-                        const p1 = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.4, cellSize), this.structMat);
-                        p1.position.set(x * cellSize - 1.6, 1.2, z * cellSize);
+                        // Procedural Archway (Dynamically Scaled)
+                        const pillarWidth = 0.8;
+// Calculate the exact edge offset regardless of how large the cell becomes
+                        const offset = (cellSize / 2) - (pillarWidth / 2);
+
+                        const p1 = new THREE.Mesh(new THREE.BoxGeometry(pillarWidth, 2.4, cellSize), this.structMat);
+                        p1.position.set(x * cellSize - offset, 1.2, z * cellSize);
                         p1.castShadow = p1.receiveShadow = true;
                         this.scene.add(p1); this.walls.push(p1); p1.updateMatrixWorld();
                         this.wallBoxes.push(new THREE.Box3().setFromObject(p1));
 
-                        const p2 = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.4, cellSize), this.structMat);
-                        p2.position.set(x * cellSize + 1.6, 1.2, z * cellSize);
+                        const p2 = new THREE.Mesh(new THREE.BoxGeometry(pillarWidth, 2.4, cellSize), this.structMat);
+                        p2.position.set(x * cellSize + offset, 1.2, z * cellSize);
                         p2.castShadow = p2.receiveShadow = true;
                         this.scene.add(p2); this.walls.push(p2); p2.updateMatrixWorld();
                         this.wallBoxes.push(new THREE.Box3().setFromObject(p2));
