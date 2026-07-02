@@ -29,4 +29,3 @@ The UI provides a structural control panel.
 
 ## Dependencies
 * `Three.js (r128)` - Loaded via local minfied js.
-* `TailwindCSS` - Loaded via CDN (UI styling only).
