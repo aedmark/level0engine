@@ -40,6 +40,9 @@
             border: 1px solid #d4c382;
             padding: 1.5rem;
             width: 320px;
+            max-width: calc(100vw - 4rem); /* Prevents horizontal blowout inside the 2rem padded wrapper */
+            max-height: 60vh; /* Keeps the bottom visible in landscape */
+            overflow-y: auto; /* Allows scrolling if the content is taller than the viewport */
             box-shadow: 0 0 15px rgba(212, 195, 130, 0.2);
             backdrop-filter: blur(4px);
         }
@@ -169,6 +172,7 @@
             margin-bottom: 1rem;
             -webkit-appearance: none;
         }
+
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
             width: 12px;
@@ -176,16 +180,46 @@
             background: #d4c382;
             cursor: pointer;
         }
+
+        /* Mobile Control Zones */
+        #mobile-ui {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 5; /* Lowered to sit beneath the z-index: 10 UI layer */
+            display: flex;
+            pointer-events: none;
+        }
+
+        .touch-zone {
+            flex: 1;
+            height: 100%;
+            pointer-events: auto; /* Capture touch events */
+            touch-action: none; /* Amputate native browser scrolling/zooming */
+        }
+
+        #menuToggleBtn {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            width: auto;
+            pointer-events: auto;
+            z-index: 20;
+            touch-action: manipulation; /* Intercepts the raw touch instantly */
+        }
     </style>
 </head>
 <body>
-
+<div id="mobile-ui">
+    <div id="touch-left" class="touch-zone"></div>
+    <div id="touch-right" class="touch-zone"></div>
+</div>
 <div id="canvas-container"></div>
 <div class="vhs-overlay"></div>
 <div class="noise"></div>
 <div id="flash-overlay"></div>
 
 <div id="ui-layer">
+    <button id="menuToggleBtn" class="btn">MENU</button>
     <div class="control-panel">
         <h1>LEVEL 0 ENGINE</h1>
 

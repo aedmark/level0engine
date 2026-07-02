@@ -77,6 +77,8 @@ class RenderEngine {
         window.addEventListener('resize', () => this.resize(), false);
     }
 
+
+
     resize() {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
@@ -103,6 +105,87 @@ class RenderEngine {
         this.renderer.render(this.postScene, this.postCamera);
     }
 }
+
+// Mobile Touch Variables
+let touchMove = { active: false, id: null, startX: 0, startY: 0, deltaX: 0, deltaY: 0 };
+let touchLook = { active: false, id: null, startX: 0, startY: 0, lastX: 0, lastY: 0 };
+
+const zoneLeft = document.getElementById('touch-left');
+const zoneRight = document.getElementById('touch-right');
+
+// --- LEFT ZONE: MOVEMENT ---
+zoneLeft.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const touch = e.changedTouches[0];
+    touchMove.active = true;
+    touchMove.id = touch.identifier;
+    touchMove.startX = touch.clientX;
+    touchMove.startY = touch.clientY;
+});
+
+zoneLeft.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        if (touch.identifier === touchMove.id) {
+            // Calculate drag distance (capped at 50 pixels for max speed)
+            touchMove.deltaX = Math.max(-50, Math.min(50, touch.clientX - touchMove.startX));
+            touchMove.deltaY = Math.max(-50, Math.min(50, touch.clientY - touchMove.startY));
+        }
+    }
+});
+
+zoneLeft.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === touchMove.id) {
+            touchMove.active = false;
+            touchMove.deltaX = 0;
+            touchMove.deltaY = 0;
+        }
+    }
+});
+
+// --- RIGHT ZONE: CAMERA ROTATION ---
+zoneRight.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const touch = e.changedTouches[0];
+    touchLook.active = true;
+    touchLook.id = touch.identifier;
+    touchLook.lastX = touch.clientX;
+    touchLook.lastY = touch.clientY;
+});
+
+zoneRight.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        if (touch.identifier === touchLook.id) {
+            // Calculate frame-by-frame delta for rotation
+            const movementX = touch.clientX - touchLook.lastX;
+            const movementY = touch.clientY - touchLook.lastY;
+
+            // Apply directly to camera
+            engine.camera.rotation.order = "YXZ"; // Forces vertical posture, eliminates roll/tilt
+            engine.camera.rotation.y -= movementX * 0.002;
+            engine.camera.rotation.x -= movementY * 0.002;
+
+            // Clamp pitch to prevent breaking the neck
+            engine.camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, engine.camera.rotation.x));
+            touchLook.lastX = touch.clientX;
+            touchLook.lastY = touch.clientY;
+        }
+    }
+});
+
+zoneRight.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === touchLook.id) {
+            touchLook.active = false;
+        }
+    }
+});
 
 // ==========================================
 // MODULE 2: PLAYER CONTROLLER
@@ -131,9 +214,12 @@ class PlayerController {
         document.addEventListener('keyup', (e) => this.onKeyUp(e));
 
         // Pointer Lock Events
-        this.domElement.addEventListener('click', () => this.domElement.requestPointerLock());
+        // Route the click through the mobile overlay to the document body
+        const touchSurface = document.getElementById('mobile-ui');
+        touchSurface.addEventListener('click', () => document.body.requestPointerLock());
         document.addEventListener('pointerlockchange', () => {
-            this.isLocked = (document.pointerLockElement === this.domElement);
+            // Track lock state against the body, not the buried canvas
+            this.isLocked = (document.pointerLockElement === document.body);
         });
         document.addEventListener('mousemove', (e) => this.onMouseMove(e));
 
@@ -208,8 +294,18 @@ class PlayerController {
         this.direction.normalize();
 
         const currentSpeed = this.isRunning ? 75.0 : 40.0;
+
+        // --- DESKTOP KEYBOARD INJECTION ---
         if (this.moveForward || this.moveBackward) this.velocity.z -= this.direction.z * currentSpeed * delta;
         if (this.moveLeft || this.moveRight) this.velocity.x -= this.direction.x * currentSpeed * delta;
+
+        // --- MOBILE MOVEMENT INJECTION ---
+        if (touchMove.active) {
+            // Divide by 50 (your max pixel cap) to normalize the thumb drag into a -1.0 to 1.0 ratio
+            // DeltaY is negative when pushing up (forward), which maps perfectly to standard 3D Z-depth.
+            this.velocity.z += (touchMove.deltaY / 50) * currentSpeed * delta;
+            this.velocity.x += (touchMove.deltaX / 50) * currentSpeed * delta;
+        }
 
         const euler = new THREE.Euler(0, this.camera.rotation.y, 0, 'YXZ');
         const moveDelta = new THREE.Vector3(-this.velocity.x * delta, 0, this.velocity.z * delta);
@@ -433,6 +529,16 @@ class Environment {
         this.generate();
 
         // Bind UI
+        const toggleBtn = document.getElementById('menuToggleBtn');
+        const toggleMenu = (e) => {
+            e.preventDefault(); // Prevents the browser from double-firing a synthetic click
+            const panel = document.querySelector('.control-panel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        };
+
+        // Listen to the raw pointer press, not the delayed click evaluation
+        toggleBtn.addEventListener('pointerdown', toggleMenu);
+
         document.getElementById('generateBtn').addEventListener('click', () => {
             this.initAudio();
             this.generate();
