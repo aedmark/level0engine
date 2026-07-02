@@ -7,8 +7,9 @@ There are no external image assets. There are no imported audio files. There are
 ## Core Philosophy
 This engine is built on absolute architectural minimalism.
 * **Procedural Geometry:** The maze is generated via a Julia Set fractal algorithm. It is infinite, chaotic, and deterministic based on the provided architecture seed.
-* **Procedural Textures:** Wallpaper, carpet, and ceiling tiles are drawn pixel-by-pixel using the HTML5 Canvas API and injected directly into WebGL memory.
+* **Procedural Textures:** Wallpaper, structural concrete, damp carpet, and ceiling tiles are drawn pixel-by-pixel using the HTML5 Canvas API and injected directly into WebGL memory.
 * **Procedural Audio:** The ambient drone is not an MP3. It is a live digital signal processor (DSP) combining a 60Hz sine wave, 120Hz sawtooth harmonics, a 1200Hz triangle wave ballast whine, and a Low-Frequency Oscillator (LFO) to simulate the breathing hum of decaying fluorescent lights.
+* **Native Post-Processing:** The engine features a custom `WebGLRenderTarget` pipeline, routing the primary camera through a raw GLSL fragment shader to apply dynamic Chromatic Aberration, crawling static, CRT scanlines, and a heavy vignette.
 
 ## Usage
 
