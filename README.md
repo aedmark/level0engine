@@ -1,10 +1,10 @@
-# Procedural Liminal Engine (Level 0)
+# Level 0 Engine: Procedural Liminal Space Simulator
 
 A zero-dependency, mathematically pure, procedural 3D environment generator running entirely in a single HTML file. 
 
 There are no external image assets. There are no imported audio files. There are no build tools, package managers, or framework abstractions. Everything you see and hear is generated locally in the browser via raw physics, procedural mathematics, and the Web Audio API.
 
-## Core Philosophy: Synergetic Language & Systems Heuristics (S.L.A.S.H.)
+## Core Philosophy
 This engine is built on absolute architectural minimalism.
 * **Procedural Geometry:** The maze is generated via a Julia Set fractal algorithm. It is infinite, chaotic, and deterministic based on the provided architecture seed.
 * **Procedural Textures:** Wallpaper, carpet, and ceiling tiles are drawn pixel-by-pixel using the HTML5 Canvas API and injected directly into WebGL memory.
