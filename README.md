@@ -28,5 +28,5 @@ The UI provides a structural control panel.
 * **Capture Asset:** Triggers a simulated camera flash and downloads a mathematically pure `.png` of your exact coordinates.
 
 ## Dependencies
-* `Three.js (r128)` - Loaded via CDN.
+* `Three.js (r128)` - Loaded via local minfied js.
 * `TailwindCSS` - Loaded via CDN (UI styling only).
