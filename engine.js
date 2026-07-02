@@ -225,7 +225,7 @@ class Environment {
         osc3.connect(whineGain);
 
         const mainGain = this.audioCtx.createGain();
-        mainGain.gain.value = 0.12;
+        mainGain.gain.value = 0.04; // Lowered baseline hum
 
         const lfo = this.audioCtx.createOscillator();
         lfo.type = 'sine';
@@ -385,7 +385,7 @@ class Environment {
 
         const gridSize = 25;
         const cellSize = 4;
-        const MAX_LIGHTS = 48;
+        const MAX_LIGHTS = 42;
         let lightsAdded = 0;
 
         const wallGeo = new THREE.BoxGeometry(cellSize, 3, cellSize);
@@ -459,7 +459,7 @@ class Environment {
                         panelMat = new THREE.MeshStandardMaterial({
                             color: 0xffffe0,
                             emissive: 0xffffe0,
-                            emissiveIntensity: 0.8,
+                            emissiveIntensity: 0.4,
                             roughness: 0.3,
                             metalness: 0.1
                         });
@@ -469,14 +469,14 @@ class Environment {
                         this.scene.add(panel);
                         this.walls.push(panel);
 
-                        const light = new THREE.PointLight(0xfff5c2, 1.0, 20);
+                        const light = new THREE.PointLight(0xfff5c2, 0.6, 20);
                         light.position.set(x * cellSize, 2.8, z * cellSize);
                         light.castShadow = false;
                         light.userData = {
                             flickerOffset: random() * 500,
                             material: panelMat,
                             isFaulty: random() > 0.75,
-                            baseIntensity: 1.0
+                            baseIntensity: 0.6
                         };
                         this.scene.add(light);
                         this.lights.push(light);
@@ -488,8 +488,14 @@ class Environment {
 
     captureAsset() {
         const flash = document.getElementById('flash-overlay');
+
+        // Instant strike: kill the CSS transition temporarily
+        flash.style.transition = 'none';
         flash.style.opacity = '1';
+
         setTimeout(() => {
+            // Restore the slow decay for the cool-down
+            flash.style.transition = 'opacity 0.8s ease-out';
             flash.style.opacity = '0';
         }, 50);
 
@@ -514,11 +520,11 @@ class Environment {
                     light.userData.material.emissiveIntensity = 0.05;
                 } else {
                     light.intensity = light.userData.baseIntensity + (Math.sin(time * 120) * 0.05);
-                    light.userData.material.emissiveIntensity = 0.8;
+                    light.userData.material.emissiveIntensity = 0.4;
                 }
             } else {
                 light.intensity = light.userData.baseIntensity + (Math.sin(time * 120) * 0.02);
-                light.userData.material.emissiveIntensity = 0.8;
+                light.userData.material.emissiveIntensity = 0.4;
             }
         });
     }
