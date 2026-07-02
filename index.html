@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procedural Liminal Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="./three.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 2rem;
+        }
+
+        .control-panel {
+            pointer-events: auto;
+            background: rgba(20, 20, 15, 0.85);
+            border: 1px solid #d4c382;
+            padding: 1.5rem;
+            width: 320px;
+            box-shadow: 0 0 15px rgba(212, 195, 130, 0.2);
+            backdrop-filter: blur(4px);
+        }
+
+        .btn {
+            background: #2a2a20;
+            color: #d4c382;
+            border: 1px solid #d4c382;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            width: 100%;
+            text-transform: uppercase;
+            font-weight: bold;
+            transition: all 0.2s;
+            margin-top: 0.5rem;
+        }
+
+        .btn:hover {
+            background: #d4c382;
+            color: #111;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        /* CSS based VHS Grain and Vignette */
+        .vhs-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            /* Expanded the gradient from 20% to 50% to remove the "halo" effect */
+            background: radial-gradient(circle, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.85) 150%);
+            mix-blend-mode: multiply;
+        }
+
+        .noise {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 6;
+            opacity: 0.08;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* Camera Flash Overlay */
+        #flash-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: white;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.8s ease-out;
+        }
+
+        input[type=text] {
+            width: 100%;
+            background: #111;
+            color: #d4c382;
+            border: 1px solid #d4c382;
+            padding: 0.5rem;
+            outline: none;
+            font-family: 'Courier New', Courier, monospace;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+        }
+
+        input[type=text]:focus {
+            background: #222;
+        }
+
+        input[type=range] {
+            width: 100%;
+            accent-color: #d4c382;
+            background: #333;
+            height: 4px;
+            outline: none;
+            margin-bottom: 1rem;
+            -webkit-appearance: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            background: #d4c382;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+<div class="vhs-overlay"></div>
+<div class="noise"></div>
+<div id="flash-overlay"></div>
+
+<div id="ui-layer">
+    <div class="control-panel">
+        <h1 class="text-xl font-bold text-[#d4c382] mb-4 tracking-widest border-b border-[#d4c382] pb-2">LEVEL 0
+            ENGINE</h1>
+
+        <label class="block text-xs text-[#a89f68] mb-1">Architecture Seed (String)</label>
+        <input type="text" id="seedInput" value="ASYMPTOTIC">
+        <label class="block text-xs text-[#a89f68] mb-1">Fog Density</label>
+        <input type="range" id="fogSlider" min="1" max="10" value="5">
+
+        <div class="mt-4">
+            <button id="generateBtn" class="btn">Rebuild Geometry</button>
+            <button id="captureBtn" class="btn mt-2" style="background: #4a452a;">Capture Asset</button>
+        </div>
+
+        <div class="mt-4 text-[10px] text-[#7a7558] leading-tight">
+            <p>WASD to Move. Shift to Run. Mouse Drag to Look.</p>
+            <p class="mt-1">100% Procedural Math. Zero Generative AI. Zero Stolen Assets.</p>
+        </div>
+    </div>
+
+    <div class="text-[#d4c382] text-xs opacity-50 flex justify-between w-full pr-8">
+        <span>SYS.STATUS: OPERATIONAL</span>
+        <span id="coords">X: 0.00 | Z: 0.00</span>
+    </div>
+</div>
+
+<script src="./engine.js"></script>
+</body>
+</html>
