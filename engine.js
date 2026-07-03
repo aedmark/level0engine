@@ -606,6 +606,11 @@ class Environment {
         this.lights = [];
         this.wallBoxes = [];
 
+        // Return the player to the mathematical center (the guaranteed safe zone)
+        this.camera.position.set(0, 1.6, 0);
+        // Kill any residual movement momentum to prevent immediate clipping
+        this.player.velocity.set(0, 0, 0);
+
         const seedString = document.getElementById('seedInput').value || "ASYMPTOTIC";
 
         let baseSeed = 0;
@@ -673,21 +678,36 @@ class Environment {
                 if (random() > 0.85) isWall = !isWall;
                 if (isWall) {
                     const structRoll = random();
-                    if (structRoll > 0.90) {
+
+                    if (structRoll > 0.95) {
+                        // The Pillars
+                        // X and Z axes scale independently between 0.5 and 2.5 units
+                        const pWidth = 0.5 + (random() * 2.0);
+                        const pDepth = 0.5 + (random() * 2.0);
+                        const pillar = buildWall(pWidth, pDepth, wallMat);
+                        pillar.position.set(x * cellSize, 1.5, z * cellSize);
+                        pillar.castShadow = pillar.receiveShadow = true;
+                        this.scene.add(pillar); this.walls.push(pillar); pillar.updateMatrixWorld();
+                        this.wallBoxes.push(new THREE.Box3().setFromObject(pillar));
+                    }
+                    else if (structRoll > 0.90) {
                         // Procedural Archway (Dynamically Scaled)
                         const pillarWidth = 0.8;
                         const offset = (cellSize / 2) - (pillarWidth / 2);
                         const gap = cellSize - (pillarWidth * 2);
-                        const p1 = new THREE.Mesh(new THREE.BoxGeometry(pillarWidth, 3.0, cellSize), wallMat);
+
+                        const p1 = buildWall(pillarWidth, cellSize, wallMat);
                         p1.position.set(x * cellSize - offset, 1.5, z * cellSize);
                         p1.castShadow = p1.receiveShadow = true;
                         this.scene.add(p1); this.walls.push(p1); p1.updateMatrixWorld();
                         this.wallBoxes.push(new THREE.Box3().setFromObject(p1));
-                        const p2 = new THREE.Mesh(new THREE.BoxGeometry(pillarWidth, 3.0, cellSize), wallMat);
+
+                        const p2 = buildWall(pillarWidth, cellSize, wallMat);
                         p2.position.set(x * cellSize + offset, 1.5, z * cellSize);
                         p2.castShadow = p2.receiveShadow = true;
                         this.scene.add(p2); this.walls.push(p2); p2.updateMatrixWorld();
                         this.wallBoxes.push(new THREE.Box3().setFromObject(p2));
+
                         // Header exactly spans the gap, eliminating boundary clipping.
                         const top = new THREE.Mesh(new THREE.BoxGeometry(gap, 0.3, cellSize), this.headerMat);
                         top.position.set(x * cellSize, 2.85, z * cellSize);
@@ -700,22 +720,25 @@ class Environment {
                         const pillarWidth = 1.2;
                         const offset = (cellSize / 2) - (pillarWidth / 2);
                         const gap = cellSize - (pillarWidth * 2);
-                        const p1 = new THREE.Mesh(new THREE.BoxGeometry(pillarWidth, 3.0, cellSize), wallMat);
+
+                        const p1 = buildWall(pillarWidth, cellSize, wallMat);
                         p1.position.set(x * cellSize - offset, 1.5, z * cellSize);
                         p1.castShadow = p1.receiveShadow = true;
                         this.scene.add(p1); this.walls.push(p1); p1.updateMatrixWorld();
                         this.wallBoxes.push(new THREE.Box3().setFromObject(p1));
-                        const p2 = new THREE.Mesh(new THREE.BoxGeometry(pillarWidth, 3.0, cellSize), wallMat);
+
+                        const p2 = buildWall(pillarWidth, cellSize, wallMat);
                         p2.position.set(x * cellSize + offset, 1.5, z * cellSize);
                         p2.castShadow = p2.receiveShadow = true;
                         this.scene.add(p2); this.walls.push(p2); p2.updateMatrixWorld();
                         this.wallBoxes.push(new THREE.Box3().setFromObject(p2));
+
                         const top = new THREE.Mesh(new THREE.BoxGeometry(gap, 0.3, cellSize), this.headerMat);
                         top.position.set(x * cellSize, 2.85, z * cellSize);
                         top.castShadow = top.receiveShadow = true;
                         this.scene.add(top); this.walls.push(top); top.updateMatrixWorld();
                         this.wallBoxes.push(new THREE.Box3().setFromObject(top));
-                        // The procedural corporate woodgrain door.
+
                         const doorGeo = new THREE.BoxGeometry(1.5, 2.7, 0.1);
                         doorGeo.translate(0.75, 0, 0);
                         const door = new THREE.Mesh(doorGeo, this.doorMat);
@@ -754,6 +777,26 @@ class Environment {
                         top.castShadow = top.receiveShadow = true;
                         this.scene.add(top); this.walls.push(top); top.updateMatrixWorld();
                         this.wallBoxes.push(new THREE.Box3().setFromObject(top));
+                    }
+                    else if (structRoll > 0.65) {
+                        // The HVAC
+                        const wall = new THREE.Mesh(wallGeo, wallMat);
+                        wall.position.set(x * cellSize, 1.5, z * cellSize);
+                        wall.castShadow = wall.receiveShadow = true;
+                        this.scene.add(wall); this.walls.push(wall); wall.updateMatrixWorld();
+                        this.wallBoxes.push(new THREE.Box3().setFromObject(wall));
+
+                        // Instantiate the zero-albedo void
+                        const ventMat = new THREE.MeshStandardMaterial({ color: 0x020202, roughness: 1.0 });
+
+                        // Protrude slightly (0.1) from the drywall to avoid z-fighting
+                        const ventGeo = new THREE.BoxGeometry(cellSize + 0.1, 0.4, cellSize + 0.1);
+                        const vent = new THREE.Mesh(ventGeo, ventMat);
+
+                        // Dynamically snap to ceiling or floor
+                        const isCeiling = random() > 0.5;
+                        vent.position.set(x * cellSize, isCeiling ? 2.6 : 0.4, z * cellSize);
+                        this.scene.add(vent); this.walls.push(vent);
                     }
                     else {
                         // Standard Wall
