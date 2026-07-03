@@ -914,47 +914,39 @@ class Environment {
         }, 10);
     }
 
+    // engine.js - Optimized Light Update
     updateLights(time) {
         let ambientLightLevel = 0;
+        const cameraPos = this.camera.position;
 
+        // Optimized: Only process lights within a 20-unit radius
         this.lights.forEach(light => {
-            // Distance calculation for acoustic dynamics
-            const dist = this.camera.position.distanceTo(light.position);
+            const dist = cameraPos.distanceTo(light.position);
+
             if (dist < 20) {
                 ambientLightLevel += (20 - dist) / 20;
-            }
 
-            if (light.userData.isFaulty) {
-                // 2% chance every frame to pick a completely new random target intensity
-                if (Math.random() < 0.02) {
-                    light.userData.targetIntensity = Math.random() < 0.4 ? 0.05 : light.userData.baseIntensity + (Math.random() * 0.4);
+                if (light.userData.isFaulty) {
+                    if (Math.random() < 0.02) {
+                        light.userData.targetIntensity = Math.random() < 0.4 ? 0.05 : light.userData.baseIntensity + (Math.random() * 0.4);
+                    }
+                    light.intensity += (light.userData.targetIntensity - light.intensity) * 0.4;
+                    light.userData.material.emissiveIntensity = Math.max(0.05, light.intensity * 0.6);
+                } else {
+                    light.intensity = light.userData.baseIntensity + (Math.sin(time * 120 + light.userData.flickerOffset) * 0.02);
+                    light.userData.material.emissiveIntensity = 0.4;
                 }
-
-                // Smoothly lerp towards the target to create sporadic snaps and stutters
-                light.intensity += (light.userData.targetIntensity - light.intensity) * 0.4;
-                light.userData.material.emissiveIntensity = Math.max(0.05, light.intensity * 0.6);
-            } else {
-                light.intensity = light.userData.baseIntensity + (Math.sin(time * 120 + light.userData.flickerOffset) * 0.02);
-                light.userData.material.emissiveIntensity = 0.4;
             }
         });
 
-        // The psychological audio loop: The darker it is, the louder it sings
+        // Audio dynamics loop remains unchanged as it relies on ambientLightLevel
         if (this.audioInitialized && this.mainGain) {
             const darkness = Math.max(0, 1.0 - (ambientLightLevel * 0.25));
             this.mainGain.gain.setTargetAtTime(0.01 + (darkness * 0.08), this.audioCtx.currentTime, 0.5);
             this.whineGain.gain.setTargetAtTime(0.001 + (darkness * 0.008), this.audioCtx.currentTime, 0.5);
-
-            // The kinetic audio loop: Route physical exertion into the acoustic low-pass filter
             if (this.kineticFilter) {
-                // Calculate absolute physical speed (0.0 to roughly 1.0+)
                 const speed = Math.sqrt(this.player.velocity.x ** 2 + this.player.velocity.z ** 2);
-
-                // We only scale the AMPLITUDE of the pulse based on the player's speed.
                 const exertionPulse = Math.sin(time * 12.0) * (speed * 80);
-
-                // Baseline frequency of 250Hz. Lowered the speed multiplier to prevent high-pitched screaming,
-                // and increased the WebAudio time constant from 0.1 to 0.4 for a smoother physical glide.
                 const targetFreq = Math.max(100, 250 + (speed * 150) + exertionPulse);
                 this.kineticFilter.frequency.setTargetAtTime(targetFreq, this.audioCtx.currentTime, 5.0);
             }
