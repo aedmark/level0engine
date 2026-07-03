@@ -424,7 +424,6 @@ class Environment {
             wallCtx.fill();
         }
 
-        // PINKER: Clone the canvas state *before* painting the baseboards.
         const headerCanvas = document.createElement('canvas');
         headerCanvas.width = 512;
         headerCanvas.height = 512;
@@ -433,7 +432,8 @@ class Environment {
         const headerTexture = new THREE.CanvasTexture(headerCanvas);
         headerTexture.wrapS = THREE.RepeatWrapping;
         headerTexture.wrapT = THREE.RepeatWrapping;
-        headerTexture.repeat.set(4, 1);
+        headerTexture.repeat.set(4, 0.1);
+        headerTexture.offset.set(0, 0.9);
         this.headerMat = new THREE.MeshStandardMaterial({map: headerTexture, roughness: 0.8});
 
         // Continue painting the baseboards onto the original wall canvas
@@ -446,7 +446,7 @@ class Environment {
 
         this.wallTexture = new THREE.CanvasTexture(wallCanvas);
         this.wallTexture.wrapS = THREE.RepeatWrapping;
-        this.wallTexture.wrapT = THREE.RepeatWrapping;
+        this.wallTexture.wrapT = THREE.ClampToEdgeWrapping;
         this.wallTexture.repeat.set(4, 1);
 
         // 2. Damp Carpet Texture
@@ -501,7 +501,7 @@ class Environment {
         structTexture.repeat.set(4, 4);
         this.structMat = new THREE.MeshStandardMaterial({map: structTexture, roughness: 1.0});
 
-        // 5. Procedural Door Texture (Corporate Woodgrain)
+        // 5. Procedural Door Texture
         const doorCanvas = document.createElement('canvas');
         doorCanvas.width = 256;
         doorCanvas.height = 512;
@@ -624,6 +624,15 @@ class Environment {
         const MAX_LIGHTS = 69;
         let lightsAdded = 0;
 
+        const buildWall = (w, d, mat) => {
+            const geo = new THREE.BoxGeometry(w, 3.0, d);
+            const uv = geo.attributes.uv;
+            // Normalize the U-axis to the physical world-scale (1 unit = 0.25 repeats)
+            for (let i = 0; i < 8; i++) uv.setX(i, uv.getX(i) * (d / cellSize)); // Left/Right faces
+            for (let i = 16; i < 24; i++) uv.setX(i, uv.getX(i) * (w / cellSize)); // Front/Back faces
+            return new THREE.Mesh(geo, mat);
+        };
+
         const wallGeo = new THREE.BoxGeometry(cellSize, 3, cellSize);
         const wallMat = new THREE.MeshStandardMaterial({
             map: this.wallTexture,
@@ -726,16 +735,19 @@ class Environment {
                         // Calculate the negative space span for the header
                         const gapW = (dir === 0) ? (cellSize - wallThick * 2) : cellSize;
                         const gapD = (dir === 0) ? cellSize : (cellSize - wallThick * 2);
-                        const p1 = new THREE.Mesh(new THREE.BoxGeometry(w1, 3.0, d1), wallMat);
+
+                        const p1 = buildWall(w1, d1, wallMat);
                         p1.position.set(x * cellSize - (dir === 0 ? offset : 0), 1.5, z * cellSize - (dir === 1 ? offset : 0));
                         p1.castShadow = p1.receiveShadow = true;
                         this.scene.add(p1); this.walls.push(p1); p1.updateMatrixWorld();
                         this.wallBoxes.push(new THREE.Box3().setFromObject(p1));
-                        const p2 = new THREE.Mesh(new THREE.BoxGeometry(w1, 3.0, d1), wallMat);
+
+                        const p2 = buildWall(w1, d1, wallMat);
                         p2.position.set(x * cellSize + (dir === 0 ? offset : 0), 1.5, z * cellSize + (dir === 1 ? offset : 0));
                         p2.castShadow = p2.receiveShadow = true;
                         this.scene.add(p2); this.walls.push(p2); p2.updateMatrixWorld();
                         this.wallBoxes.push(new THREE.Box3().setFromObject(p2));
+
                         // Header slots securely into the calculated gap
                         const top = new THREE.Mesh(new THREE.BoxGeometry(gapW, 0.3, gapD), this.headerMat);
                         top.position.set(x * cellSize, 2.85, z * cellSize);
