@@ -1,6 +1,6 @@
-// ==========================================
-// MODULE 1: CORE RENDER ENGINE (WITH VHS POST-PROCESSING)
-// ==========================================
+// engine.jo - Level 0 Engine
+// MODULE 1: CORE RENDER ENGINE
+
 class RenderEngine {
     constructor() {
         this.clock = new THREE.Clock();
@@ -76,8 +76,6 @@ class RenderEngine {
 
         window.addEventListener('resize', () => this.resize(), false);
     }
-
-
 
     resize() {
         this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -187,16 +185,14 @@ zoneRight.addEventListener('touchend', (e) => {
     }
 });
 
-// ==========================================
 // MODULE 2: PLAYER CONTROLLER
-// ==========================================
+
 class PlayerController {
     constructor(camera, domElement) {
         this.camera = camera;
         this.domElement = domElement;
         this.velocity = new THREE.Vector3();
         this.direction = new THREE.Vector3();
-
         this.moveForward = false;
         this.moveBackward = false;
         this.moveLeft = false;
@@ -204,7 +200,6 @@ class PlayerController {
         this.isRunning = false;
         this.isLocked = false;
         this.playerRadius = 0.4;
-
         this.bindEvents();
     }
 
@@ -288,11 +283,9 @@ class PlayerController {
     update(delta, wallBoxes) {
         this.velocity.x -= this.velocity.x * 10.0 * delta;
         this.velocity.z -= this.velocity.z * 10.0 * delta;
-
         this.direction.z = Number(this.moveForward) - Number(this.moveBackward);
         this.direction.x = Number(this.moveRight) - Number(this.moveLeft);
         this.direction.normalize();
-
         const currentSpeed = this.isRunning ? 75.0 : 40.0;
 
         // --- DESKTOP KEYBOARD INJECTION ---
@@ -301,7 +294,7 @@ class PlayerController {
 
         // --- MOBILE MOVEMENT INJECTION ---
         if (touchMove.active) {
-            // Divide by 50 (your max pixel cap) to normalize the thumb drag into a -1.0 to 1.0 ratio
+            // Divide by 50 to normalize the thumb drag into a -1.0 to 1.0 ratio
             // DeltaY is negative when pushing up (forward), which maps perfectly to standard 3D Z-depth.
             this.velocity.z += (touchMove.deltaY / 50) * currentSpeed * delta;
             this.velocity.x += (touchMove.deltaX / 50) * currentSpeed * delta;
@@ -310,10 +303,9 @@ class PlayerController {
         const euler = new THREE.Euler(0, this.camera.rotation.y, 0, 'YXZ');
         const moveDelta = new THREE.Vector3(-this.velocity.x * delta, 0, this.velocity.z * delta);
         moveDelta.applyEuler(euler);
-
         const feetY = this.camera.position.y - 1.6; // Baseline floor
 
-        // X Collision (Raised by 0.6 to clear steps)
+        // X Collision
         let hitX = false;
         let boxX = new THREE.Box3(
             new THREE.Vector3(this.camera.position.x + moveDelta.x - this.playerRadius, feetY + 0.6, this.camera.position.z - this.playerRadius),
@@ -322,7 +314,7 @@ class PlayerController {
         for (let box of wallBoxes) { if (boxX.intersectsBox(box)) { hitX = true; break; } }
         if (!hitX) this.camera.position.x += moveDelta.x;
 
-        // Z Collision (Raised by 0.6)
+        // Z Collision
         let hitZ = false;
         let boxZ = new THREE.Box3(
             new THREE.Vector3(this.camera.position.x - this.playerRadius, feetY + 0.6, this.camera.position.z + moveDelta.z - this.playerRadius),
@@ -333,10 +325,9 @@ class PlayerController {
 
         // Y Step-up Interpolation (Gravity Mapping)
         let floorBox = new THREE.Box3(
-            new THREE.Vector3(this.camera.position.x - 0.1, -10, this.camera.position.z - 0.1),
-            new THREE.Vector3(this.camera.position.x + 0.1, feetY + 1.2, this.camera.position.z + 0.1)
+            new THREE.Vector3(this.camera.position.x - this.playerRadius, -10, this.camera.position.z - this.playerRadius),
+            new THREE.Vector3(this.camera.position.x + this.playerRadius, feetY + 1.2, this.camera.position.z + this.playerRadius)
         );
-
         let targetFeetY = 0;
         for (let box of wallBoxes) {
             if (floorBox.intersectsBox(box) && box.max.y > targetFeetY && box.max.y <= feetY + 1.2) {
@@ -345,15 +336,14 @@ class PlayerController {
         }
 
         // Smoothly glide up or down the steps
-        this.camera.position.y += ((targetFeetY + 1.6) - this.camera.position.y) * 12.0 * delta;
-
+        const targetCamY = Math.min(targetFeetY + 1.6, 2.8);
+        this.camera.position.y += (targetCamY - this.camera.position.y) * 12.0 * delta;
         document.getElementById('coords').innerText = `X: ${this.camera.position.x.toFixed(2)} | Z: ${this.camera.position.z.toFixed(2)}`;
     }
 }
 
-// ==========================================
 // MODULE 3: ENVIRONMENT & MEMORY MANAGER
-// ==========================================
+
 class Environment {
     constructor(engine, player) {
         this.engine = engine;
@@ -370,14 +360,11 @@ class Environment {
     initAudio() {
         if (this.audioInitialized) return;
         this.audioInitialized = true;
-
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         this.audioCtx = new AudioContext();
-
         const osc1 = this.audioCtx.createOscillator();
         osc1.type = 'sine';
         osc1.frequency.value = 60;
-
         const osc2 = this.audioCtx.createOscillator();
         osc2.type = 'sawtooth';
         osc2.frequency.value = 120;
@@ -385,17 +372,14 @@ class Environment {
         filter.type = 'lowpass';
         filter.frequency.value = 250;
         osc2.connect(filter);
-
         const osc3 = this.audioCtx.createOscillator();
         osc3.type = 'triangle';
         osc3.frequency.value = 1200;
         this.whineGain = this.audioCtx.createGain();
         this.whineGain.gain.value = 0.005;
         osc3.connect(this.whineGain);
-
         this.mainGain = this.audioCtx.createGain();
         this.mainGain.gain.value = 0.04; // Base baseline
-
         const lfo = this.audioCtx.createOscillator();
         lfo.type = 'sine';
         lfo.frequency.value = 0.1;
@@ -403,12 +387,10 @@ class Environment {
         lfoGain.gain.value = 0.04;
         lfo.connect(lfoGain);
         lfoGain.connect(this.mainGain.gain);
-
         osc1.connect(this.mainGain);
         filter.connect(this.mainGain);
         this.whineGain.connect(this.mainGain);
         this.mainGain.connect(this.audioCtx.destination);
-
         osc1.start();
         osc2.start();
         osc3.start();
@@ -421,10 +403,8 @@ class Environment {
         wallCanvas.width = 512;
         wallCanvas.height = 512;
         const wallCtx = wallCanvas.getContext('2d');
-
         wallCtx.fillStyle = '#d4c382';
         wallCtx.fillRect(0, 0, 512, 512);
-
         wallCtx.lineWidth = 4;
         for (let i = 0; i < 512; i += 16) {
             wallCtx.strokeStyle = (i % 32 === 0) ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)';
@@ -444,6 +424,19 @@ class Environment {
             wallCtx.fill();
         }
 
+        // PINKER: Clone the canvas state *before* painting the baseboards.
+        const headerCanvas = document.createElement('canvas');
+        headerCanvas.width = 512;
+        headerCanvas.height = 512;
+        headerCanvas.getContext('2d').drawImage(wallCanvas, 0, 0);
+
+        const headerTexture = new THREE.CanvasTexture(headerCanvas);
+        headerTexture.wrapS = THREE.RepeatWrapping;
+        headerTexture.wrapT = THREE.RepeatWrapping;
+        headerTexture.repeat.set(4, 1);
+        this.headerMat = new THREE.MeshStandardMaterial({map: headerTexture, roughness: 0.8});
+
+        // Continue painting the baseboards onto the original wall canvas
         wallCtx.fillStyle = '#4a3d24';
         wallCtx.fillRect(0, 480, 512, 32);
         wallCtx.fillStyle = '#3a2d14';
@@ -496,7 +489,7 @@ class Environment {
         structCanvas.width = 256;
         structCanvas.height = 256;
         const structCtx = structCanvas.getContext('2d');
-        structCtx.fillStyle = '#5c5441'; // Darker, contrasting concrete/wood
+        structCtx.fillStyle = '#5c5441';
         structCtx.fillRect(0, 0, 256, 256);
         for (let i = 0; i < 5000; i++) {
             structCtx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.05)';
@@ -508,17 +501,62 @@ class Environment {
         structTexture.repeat.set(4, 4);
         this.structMat = new THREE.MeshStandardMaterial({map: structTexture, roughness: 1.0});
 
+        // 5. Procedural Door Texture (Corporate Woodgrain)
+        const doorCanvas = document.createElement('canvas');
+        doorCanvas.width = 256;
+        doorCanvas.height = 512;
+        const doorCtx = doorCanvas.getContext('2d');
+        doorCtx.fillStyle = '#4a3219';
+        doorCtx.fillRect(0, 0, 256, 512);
+
+        // Organic wood grain via segmented alpha strokes and curves.
+        doorCtx.lineWidth = 1.5;
+        for (let i = 0; i < 800; i++) {
+            doorCtx.strokeStyle = Math.random() > 0.5 ? `rgba(0,0,0,${Math.random() * 0.15})` : `rgba(255,255,255,${Math.random() * 0.05})`;
+            doorCtx.beginPath();
+            let x = Math.random() * 256;
+            let y = Math.random() * 512;
+            let length = Math.random() * 100 + 20;
+            doorCtx.moveTo(x, y);
+            // Slight Bezier curve to simulate natural knotting and fiber flow
+            doorCtx.bezierCurveTo(x + (Math.random() * 10 - 5), y + length / 2, x + (Math.random() * 10 - 5), y + length / 2, x + (Math.random() * 4 - 2), y + length);
+            doorCtx.stroke();
+        }
+
+        // Recessed Panels
+        doorCtx.fillStyle = 'rgba(0,0,0,0.3)';
+        doorCtx.fillRect(32, 32, 192, 200);
+        doorCtx.fillRect(32, 260, 192, 220);
+
+        // Highlights for the panels to fake depth.
+        doorCtx.fillStyle = 'rgba(255,255,255,0.05)';
+        doorCtx.fillRect(32, 32, 192, 4); // Top highlight
+        doorCtx.fillRect(32, 32, 4, 200); // Left highlight
+        doorCtx.fillRect(32, 260, 192, 4); // Top highlight
+        doorCtx.fillRect(32, 260, 4, 220); // Left highlight
+
+        // Brass Knob
+        doorCtx.fillStyle = '#8a7e32';
+        doorCtx.beginPath();
+        doorCtx.arc(210, 260, 12, 0, Math.PI * 2);
+        doorCtx.fill();
+
+        const doorTexture = new THREE.CanvasTexture(doorCanvas);
+        this.doorMat = new THREE.MeshStandardMaterial({map: doorTexture, roughness: 0.9});
+
         // Install Environment Geometry
         carpetTexture.repeat.set(50, 50); // Expanded UV repeat
 
-        const floorGeo = new THREE.PlaneGeometry(250, 250); // Expanded physical grid
+        // Dynamically scale the bounding planes to safely encapsulate a grid of 40 (40 * 4 = 160 units).
+        // A 300x300 plane provides a massive, impenetrable horizon without rendering infinite geometry.
+        const floorGeo = new THREE.PlaneGeometry(300, 300);
         const floorMat = new THREE.MeshStandardMaterial({map: carpetTexture, roughness: 1.0});
         const floor = new THREE.Mesh(floorGeo, floorMat);
         floor.rotation.x = -Math.PI / 2;
         floor.receiveShadow = true;
         this.scene.add(floor);
 
-        const ceilGeo = new THREE.PlaneGeometry(250, 250); // Expanded physical grid
+        const ceilGeo = new THREE.PlaneGeometry(300, 300);
         const ceilMat = new THREE.MeshStandardMaterial({map: ceilingTexture, roughness: 0.9});
         const ceiling = new THREE.Mesh(ceilGeo, ceilMat);
         ceiling.rotation.x = Math.PI / 2;
@@ -553,7 +591,7 @@ class Environment {
     }
 
     generate() {
-        // WEBGL AUTOPHAGY: Eradicate previous geometries and materials to prevent memory leak
+        // Eradicate previous geometries and materials to prevent memory leak
         this.walls.forEach(w => {
             if (w.geometry) w.geometry.dispose();
             if (w.material) w.material.dispose();
@@ -581,9 +619,9 @@ class Environment {
             return x - Math.floor(x);
         };
 
-        const gridSize = 20; // Expanded manifold
+        const gridSize = 42;
         const cellSize = 4;
-        const MAX_LIGHTS = 50;
+        const MAX_LIGHTS = 69;
         let lightsAdded = 0;
 
         const wallGeo = new THREE.BoxGeometry(cellSize, 3, cellSize);
@@ -612,9 +650,7 @@ class Environment {
                     this.wallBoxes.push(new THREE.Box3().setFromObject(wall));
                     continue;
                 }
-
                 if (Math.abs(x) < 2 && Math.abs(z) < 2) continue;
-
                 let zx = x * 0.15;
                 let zy = z * 0.15;
                 let iter = 0;
@@ -624,35 +660,90 @@ class Environment {
                     zx = xt;
                     iter++;
                 }
-
                 let isWall = iter > 8;
                 if (random() > 0.85) isWall = !isWall;
-
                 if (isWall) {
-                    if (random() > 0.88) {
+                    const structRoll = random();
+                    if (structRoll > 0.90) {
                         // Procedural Archway (Dynamically Scaled)
                         const pillarWidth = 0.8;
-// Calculate the exact edge offset regardless of how large the cell becomes
                         const offset = (cellSize / 2) - (pillarWidth / 2);
-
-                        const p1 = new THREE.Mesh(new THREE.BoxGeometry(pillarWidth, 2.4, cellSize), this.structMat);
-                        p1.position.set(x * cellSize - offset, 1.2, z * cellSize);
+                        const gap = cellSize - (pillarWidth * 2);
+                        const p1 = new THREE.Mesh(new THREE.BoxGeometry(pillarWidth, 3.0, cellSize), wallMat);
+                        p1.position.set(x * cellSize - offset, 1.5, z * cellSize);
                         p1.castShadow = p1.receiveShadow = true;
                         this.scene.add(p1); this.walls.push(p1); p1.updateMatrixWorld();
                         this.wallBoxes.push(new THREE.Box3().setFromObject(p1));
-
-                        const p2 = new THREE.Mesh(new THREE.BoxGeometry(pillarWidth, 2.4, cellSize), this.structMat);
-                        p2.position.set(x * cellSize + offset, 1.2, z * cellSize);
+                        const p2 = new THREE.Mesh(new THREE.BoxGeometry(pillarWidth, 3.0, cellSize), wallMat);
+                        p2.position.set(x * cellSize + offset, 1.5, z * cellSize);
                         p2.castShadow = p2.receiveShadow = true;
                         this.scene.add(p2); this.walls.push(p2); p2.updateMatrixWorld();
                         this.wallBoxes.push(new THREE.Box3().setFromObject(p2));
-
-                        const top = new THREE.Mesh(new THREE.BoxGeometry(cellSize, 0.6, cellSize), this.structMat);
-                        top.position.set(x * cellSize, 2.7, z * cellSize);
+                        // Header exactly spans the gap, eliminating boundary clipping.
+                        const top = new THREE.Mesh(new THREE.BoxGeometry(gap, 0.3, cellSize), this.headerMat);
+                        top.position.set(x * cellSize, 2.85, z * cellSize);
                         top.castShadow = top.receiveShadow = true;
                         this.scene.add(top); this.walls.push(top); top.updateMatrixWorld();
                         this.wallBoxes.push(new THREE.Box3().setFromObject(top));
-                    } else {
+                    }
+                    else if (structRoll > 0.82) {
+                        // Procedural Doorway with an Ajar Door
+                        const pillarWidth = 1.2;
+                        const offset = (cellSize / 2) - (pillarWidth / 2);
+                        const gap = cellSize - (pillarWidth * 2);
+                        const p1 = new THREE.Mesh(new THREE.BoxGeometry(pillarWidth, 3.0, cellSize), wallMat);
+                        p1.position.set(x * cellSize - offset, 1.5, z * cellSize);
+                        p1.castShadow = p1.receiveShadow = true;
+                        this.scene.add(p1); this.walls.push(p1); p1.updateMatrixWorld();
+                        this.wallBoxes.push(new THREE.Box3().setFromObject(p1));
+                        const p2 = new THREE.Mesh(new THREE.BoxGeometry(pillarWidth, 3.0, cellSize), wallMat);
+                        p2.position.set(x * cellSize + offset, 1.5, z * cellSize);
+                        p2.castShadow = p2.receiveShadow = true;
+                        this.scene.add(p2); this.walls.push(p2); p2.updateMatrixWorld();
+                        this.wallBoxes.push(new THREE.Box3().setFromObject(p2));
+                        const top = new THREE.Mesh(new THREE.BoxGeometry(gap, 0.3, cellSize), this.headerMat);
+                        top.position.set(x * cellSize, 2.85, z * cellSize);
+                        top.castShadow = top.receiveShadow = true;
+                        this.scene.add(top); this.walls.push(top); top.updateMatrixWorld();
+                        this.wallBoxes.push(new THREE.Box3().setFromObject(top));
+                        // The procedural corporate woodgrain door.
+                        const doorGeo = new THREE.BoxGeometry(1.5, 2.7, 0.1);
+                        doorGeo.translate(0.75, 0, 0);
+                        const door = new THREE.Mesh(doorGeo, this.doorMat);
+                        door.position.set(x * cellSize - 0.8, 1.35, z * cellSize + 1.95);
+                        door.rotation.y = Math.PI / 4;
+                        door.castShadow = door.receiveShadow = true;
+                        this.scene.add(door); this.walls.push(door); door.updateMatrixWorld();
+                        this.wallBoxes.push(new THREE.Box3().setFromObject(door));
+                    }
+                    else if (structRoll > 0.74) {
+                        // Narrow Hallway Segment
+                        const dir = Math.floor(random() * 2); // 0 = N/S, 1 = E/W
+                        const wallThick = 0.5;
+                        const offset = (cellSize / 2) - (wallThick / 2);
+                        const w1 = (dir === 0) ? wallThick : cellSize;
+                        const d1 = (dir === 0) ? cellSize : wallThick;
+                        // Calculate the negative space span for the header
+                        const gapW = (dir === 0) ? (cellSize - wallThick * 2) : cellSize;
+                        const gapD = (dir === 0) ? cellSize : (cellSize - wallThick * 2);
+                        const p1 = new THREE.Mesh(new THREE.BoxGeometry(w1, 3.0, d1), wallMat);
+                        p1.position.set(x * cellSize - (dir === 0 ? offset : 0), 1.5, z * cellSize - (dir === 1 ? offset : 0));
+                        p1.castShadow = p1.receiveShadow = true;
+                        this.scene.add(p1); this.walls.push(p1); p1.updateMatrixWorld();
+                        this.wallBoxes.push(new THREE.Box3().setFromObject(p1));
+                        const p2 = new THREE.Mesh(new THREE.BoxGeometry(w1, 3.0, d1), wallMat);
+                        p2.position.set(x * cellSize + (dir === 0 ? offset : 0), 1.5, z * cellSize + (dir === 1 ? offset : 0));
+                        p2.castShadow = p2.receiveShadow = true;
+                        this.scene.add(p2); this.walls.push(p2); p2.updateMatrixWorld();
+                        this.wallBoxes.push(new THREE.Box3().setFromObject(p2));
+                        // Header slots securely into the calculated gap
+                        const top = new THREE.Mesh(new THREE.BoxGeometry(gapW, 0.3, gapD), this.headerMat);
+                        top.position.set(x * cellSize, 2.85, z * cellSize);
+                        top.castShadow = top.receiveShadow = true;
+                        this.scene.add(top); this.walls.push(top); top.updateMatrixWorld();
+                        this.wallBoxes.push(new THREE.Box3().setFromObject(top));
+                    }
+                    else {
                         // Standard Wall
                         const wall = new THREE.Mesh(wallGeo, wallMat);
                         wall.position.set(x * cellSize, 1.5, z * cellSize);
@@ -662,41 +753,37 @@ class Environment {
                         wall.updateMatrixWorld();
                         this.wallBoxes.push(new THREE.Box3().setFromObject(wall));
                     }
-                } else if (random() > 0.985) { // Extremely rare (1.5% chance)
+                }
+                else if (random() > 0.999) { // Extremely rare (.1% chance)
                     // Procedural Stairs - Authentic directional staircase
-                    const stepCount = 5;
+                    const stepCount = 10;
                     const stepDepth = cellSize / stepCount;
-                    const stepHeight = 0.35;
+                    const stepHeight = 3.0 / stepCount;
                     const dir = Math.floor(random() * 4); // 0=N, 1=E, 2=S, 3=W
-
                     for (let s = 0; s < stepCount; s++) {
                         const h = (s + 1) * stepHeight;
 
                         // Flip geometry dimensions based on N/S vs E/W
                         const wX = (dir % 2 === 0) ? cellSize : stepDepth;
                         const wZ = (dir % 2 === 0) ? stepDepth : cellSize;
-
                         const step = new THREE.Mesh(new THREE.BoxGeometry(wX, h, wZ), this.structMat);
 
                         // Calculate offset from the center of the cell
                         let offset = (cellSize / 2) - (stepDepth / 2) - (s * stepDepth);
                         if (dir === 2 || dir === 3) offset = -offset; // Reverse direction
-
                         const posX = x * cellSize + ((dir % 2 !== 0) ? offset : 0);
                         const posZ = z * cellSize + ((dir % 2 === 0) ? offset : 0);
-
                         step.position.set(posX, h / 2, posZ);
                         step.castShadow = step.receiveShadow = true;
-
                         this.scene.add(step);
                         this.walls.push(step);
                         step.updateMatrixWorld();
                         this.wallBoxes.push(new THREE.Box3().setFromObject(step));
                     }
-                } else if (random() > 0.85) {
+                }
+                else if (random() > 0.85) {
                     const isBroken = random() > 0.95;
                     let panelMat;
-
                     if (isBroken) {
                         panelMat = new THREE.MeshStandardMaterial({
                             color: 0x333322,
@@ -775,8 +862,8 @@ class Environment {
             }
 
             if (light.userData.isFaulty) {
-                // 5% chance every frame to pick a completely new random target intensity
-                if (Math.random() < 0.05) {
+                // 2% chance every frame to pick a completely new random target intensity
+                if (Math.random() < 0.02) {
                     light.userData.targetIntensity = Math.random() < 0.4 ? 0.05 : light.userData.baseIntensity + (Math.random() * 0.4);
                 }
 
@@ -798,9 +885,8 @@ class Environment {
     }
 }
 
-// ==========================================
 // SYSTEM BOOTSTRAP
-// ==========================================
+
 const engine = new RenderEngine();
 const player = new PlayerController(engine.camera, engine.renderer.domElement);
 const environment = new Environment(engine, player);
