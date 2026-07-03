@@ -3,6 +3,7 @@
 
 class RenderEngine {
     constructor() {
+        this.aspectRatio = 'auto'; // Default state
         this.clock = new THREE.Clock();
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0xa89f68);
@@ -75,13 +76,38 @@ class RenderEngine {
         this.postScene.add(postPlane);
 
         window.addEventListener('resize', () => this.resize(), false);
+
+        // Force an initial dimension calculation on boot
+        setTimeout(() => this.resize(), 0);
     }
 
     resize() {
-        this.camera.aspect = window.innerWidth / window.innerHeight;
+        let w = window.innerWidth;
+        let h = window.innerHeight;
+
+        // Calculate letterboxing/pillarboxing if a strict aspect ratio is enforced
+        if (this.aspectRatio !== 'auto') {
+            const windowAspect = w / h;
+            if (windowAspect > this.aspectRatio) {
+                // Window is wider than needed; clamp width (pillarbox)
+                w = h * this.aspectRatio;
+            } else {
+                // Window is taller than needed; clamp height (letterbox)
+                h = w / this.aspectRatio;
+            }
+        }
+
+        // Apply physical dimensions to the wrapper to crop the overlays perfectly
+        const wrapper = document.getElementById('screen-wrapper');
+        if (wrapper) {
+            wrapper.style.width = `${w}px`;
+            wrapper.style.height = `${h}px`;
+        }
+
+        this.camera.aspect = w / h;
         this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.target.setSize(window.innerWidth, window.innerHeight); // Keep offscreen target matched to monitor resolution
+        this.renderer.setSize(w, h);
+        this.target.setSize(w, h);
     }
 
     get delta() {
@@ -104,87 +130,6 @@ class RenderEngine {
     }
 }
 
-// Mobile Touch Variables
-let touchMove = { active: false, id: null, startX: 0, startY: 0, deltaX: 0, deltaY: 0 };
-let touchLook = { active: false, id: null, startX: 0, startY: 0, lastX: 0, lastY: 0 };
-
-const zoneLeft = document.getElementById('touch-left');
-const zoneRight = document.getElementById('touch-right');
-
-// --- LEFT ZONE: MOVEMENT ---
-zoneLeft.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    const touch = e.changedTouches[0];
-    touchMove.active = true;
-    touchMove.id = touch.identifier;
-    touchMove.startX = touch.clientX;
-    touchMove.startY = touch.clientY;
-});
-
-zoneLeft.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-    for (let i = 0; i < e.changedTouches.length; i++) {
-        const touch = e.changedTouches[i];
-        if (touch.identifier === touchMove.id) {
-            // Calculate drag distance (capped at 50 pixels for max speed)
-            touchMove.deltaX = Math.max(-50, Math.min(50, touch.clientX - touchMove.startX));
-            touchMove.deltaY = Math.max(-50, Math.min(50, touch.clientY - touchMove.startY));
-        }
-    }
-});
-
-zoneLeft.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    for (let i = 0; i < e.changedTouches.length; i++) {
-        if (e.changedTouches[i].identifier === touchMove.id) {
-            touchMove.active = false;
-            touchMove.deltaX = 0;
-            touchMove.deltaY = 0;
-        }
-    }
-});
-
-// --- RIGHT ZONE: CAMERA ROTATION ---
-zoneRight.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    const touch = e.changedTouches[0];
-    touchLook.active = true;
-    touchLook.id = touch.identifier;
-    touchLook.lastX = touch.clientX;
-    touchLook.lastY = touch.clientY;
-});
-
-zoneRight.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-    for (let i = 0; i < e.changedTouches.length; i++) {
-        const touch = e.changedTouches[i];
-        if (touch.identifier === touchLook.id) {
-            // Calculate frame-by-frame delta for rotation
-            const movementX = touch.clientX - touchLook.lastX;
-            const movementY = touch.clientY - touchLook.lastY;
-
-            // Apply directly to camera
-            engine.camera.rotation.order = "YXZ"; // Forces vertical posture, eliminates roll/tilt
-            engine.camera.rotation.y -= movementX * 0.002;
-            engine.camera.rotation.x -= movementY * 0.002;
-
-            // Clamp pitch to prevent breaking the neck
-            engine.camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, engine.camera.rotation.x));
-            touchLook.lastX = touch.clientX;
-            touchLook.lastY = touch.clientY;
-        }
-    }
-});
-
-zoneRight.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    for (let i = 0; i < e.changedTouches.length; i++) {
-        if (e.changedTouches[i].identifier === touchLook.id) {
-            touchLook.active = false;
-        }
-    }
-});
-
 // MODULE 2: PLAYER CONTROLLER
 
 class PlayerController {
@@ -200,6 +145,11 @@ class PlayerController {
         this.isRunning = false;
         this.isLocked = false;
         this.playerRadius = 0.4;
+
+        // Mobile Touch State
+        this.touchMove = { active: false, id: null, startX: 0, startY: 0, deltaX: 0, deltaY: 0 };
+        this.touchLook = { active: false, id: null, startX: 0, startY: 0, lastX: 0, lastY: 0 };
+
         this.bindEvents();
     }
 
@@ -221,6 +171,84 @@ class PlayerController {
         // Window Blur
         window.addEventListener('blur', () => {
             this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = this.isRunning = false;
+        });
+
+        // Delegate mobile inputs
+        this.bindTouchEvents();
+    }
+
+    bindTouchEvents() {
+        const zoneLeft = document.getElementById('touch-left');
+        const zoneRight = document.getElementById('touch-right');
+
+        // --- LEFT ZONE: MOVEMENT ---
+        zoneLeft.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.changedTouches[0];
+            this.touchMove.active = true;
+            this.touchMove.id = touch.identifier;
+            this.touchMove.startX = touch.clientX;
+            this.touchMove.startY = touch.clientY;
+        }, { passive: false });
+
+        zoneLeft.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === this.touchMove.id) {
+                    this.touchMove.deltaX = Math.max(-50, Math.min(50, touch.clientX - this.touchMove.startX));
+                    this.touchMove.deltaY = Math.max(-50, Math.min(50, touch.clientY - this.touchMove.startY));
+                }
+            }
+        }, { passive: false });
+
+        zoneLeft.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === this.touchMove.id) {
+                    this.touchMove.active = false;
+                    this.touchMove.deltaX = 0;
+                    this.touchMove.deltaY = 0;
+                }
+            }
+        });
+
+        // --- RIGHT ZONE: CAMERA ROTATION ---
+        zoneRight.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.changedTouches[0];
+            this.touchLook.active = true;
+            this.touchLook.id = touch.identifier;
+            this.touchLook.lastX = touch.clientX;
+            this.touchLook.lastY = touch.clientY;
+        }, { passive: false });
+
+        zoneRight.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === this.touchLook.id) {
+                    const movementX = touch.clientX - this.touchLook.lastX;
+                    const movementY = touch.clientY - this.touchLook.lastY;
+
+                    this.camera.rotation.order = "YXZ";
+                    this.camera.rotation.y -= movementX * 0.002;
+                    this.camera.rotation.x -= movementY * 0.002;
+                    this.camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.camera.rotation.x));
+
+                    this.touchLook.lastX = touch.clientX;
+                    this.touchLook.lastY = touch.clientY;
+                }
+            }
+        }, { passive: false });
+
+        zoneRight.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === this.touchLook.id) {
+                    this.touchLook.active = false;
+                }
+            }
         });
     }
 
@@ -293,11 +321,11 @@ class PlayerController {
         if (this.moveLeft || this.moveRight) this.velocity.x -= this.direction.x * currentSpeed * delta;
 
         // --- MOBILE MOVEMENT INJECTION ---
-        if (touchMove.active) {
+        if (this.touchMove.active) {
             // Divide by 50 to normalize the thumb drag into a -1.0 to 1.0 ratio
             // DeltaY is negative when pushing up (forward), which maps perfectly to standard 3D Z-depth.
-            this.velocity.z += (touchMove.deltaY / 50) * currentSpeed * delta;
-            this.velocity.x += (touchMove.deltaX / 50) * currentSpeed * delta;
+            this.velocity.z += (this.touchMove.deltaY / 50) * currentSpeed * delta;
+            this.velocity.x += (this.touchMove.deltaX / 50) * currentSpeed * delta;
         }
 
         const euler = new THREE.Euler(0, this.camera.rotation.y, 0, 'YXZ');
@@ -305,20 +333,21 @@ class PlayerController {
         moveDelta.applyEuler(euler);
         const feetY = this.camera.position.y - 1.6; // Baseline floor
 
-        // X Collision
+        // X Collision (Shrink Z radius slightly to prevent microscopic seam snagging)
         let hitX = false;
+        const snagShrink = 0.05;
         let boxX = new THREE.Box3(
-            new THREE.Vector3(this.camera.position.x + moveDelta.x - this.playerRadius, feetY + 0.6, this.camera.position.z - this.playerRadius),
-            new THREE.Vector3(this.camera.position.x + moveDelta.x + this.playerRadius, feetY + 2.5, this.camera.position.z + this.playerRadius)
+            new THREE.Vector3(this.camera.position.x + moveDelta.x - this.playerRadius, feetY + 0.6, this.camera.position.z - this.playerRadius + snagShrink),
+            new THREE.Vector3(this.camera.position.x + moveDelta.x + this.playerRadius, feetY + 2.5, this.camera.position.z + this.playerRadius - snagShrink)
         );
         for (let box of wallBoxes) { if (boxX.intersectsBox(box)) { hitX = true; break; } }
         if (!hitX) this.camera.position.x += moveDelta.x;
 
-        // Z Collision
+        // Z Collision (Shrink X radius slightly to prevent microscopic seam snagging)
         let hitZ = false;
         let boxZ = new THREE.Box3(
-            new THREE.Vector3(this.camera.position.x - this.playerRadius, feetY + 0.6, this.camera.position.z + moveDelta.z - this.playerRadius),
-            new THREE.Vector3(this.camera.position.x + this.playerRadius, feetY + 2.5, this.camera.position.z + moveDelta.z + this.playerRadius)
+            new THREE.Vector3(this.camera.position.x - this.playerRadius + snagShrink, feetY + 0.6, this.camera.position.z + moveDelta.z - this.playerRadius),
+            new THREE.Vector3(this.camera.position.x + this.playerRadius - snagShrink, feetY + 2.5, this.camera.position.z + moveDelta.z + this.playerRadius)
         );
         for (let box of wallBoxes) { if (boxZ.intersectsBox(box)) { hitZ = true; break; } }
         if (!hitZ) this.camera.position.z += moveDelta.z;
@@ -368,10 +397,13 @@ class Environment {
         const osc2 = this.audioCtx.createOscillator();
         osc2.type = 'sawtooth';
         osc2.frequency.value = 120;
-        const filter = this.audioCtx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.value = 250;
-        osc2.connect(filter);
+
+        // Expose the filter to the class topology so we can mutate it in the update loop
+        this.kineticFilter = this.audioCtx.createBiquadFilter();
+        this.kineticFilter.type = 'lowpass';
+        this.kineticFilter.frequency.value = 250;
+        osc2.connect(this.kineticFilter);
+
         const osc3 = this.audioCtx.createOscillator();
         osc3.type = 'triangle';
         osc3.frequency.value = 1200;
@@ -388,7 +420,10 @@ class Environment {
         lfo.connect(lfoGain);
         lfoGain.connect(this.mainGain.gain);
         osc1.connect(this.mainGain);
-        filter.connect(this.mainGain);
+
+        // Connect the newly exposed kinetic filter
+        this.kineticFilter.connect(this.mainGain);
+
         this.whineGain.connect(this.mainGain);
         this.mainGain.connect(this.audioCtx.destination);
         osc1.start();
@@ -482,7 +517,8 @@ class Environment {
         const ceilingTexture = new THREE.CanvasTexture(ceilingCanvas);
         ceilingTexture.wrapS = THREE.RepeatWrapping;
         ceilingTexture.wrapT = THREE.RepeatWrapping;
-        ceilingTexture.repeat.set(50, 50); // Expanded UV repeat
+        // A 300x300 plane divided by 300 repeats = 1x1 unit tiles (approx 3x3 ft)
+        ceilingTexture.repeat.set(300, 300);
 
         // 4. Structural Texture (Stairs & Arches)
         const structCanvas = document.createElement('canvas');
@@ -544,6 +580,39 @@ class Environment {
         const doorTexture = new THREE.CanvasTexture(doorCanvas);
         this.doorMat = new THREE.MeshStandardMaterial({map: doorTexture, roughness: 0.9});
 
+        // 6. Procedural HVAC Vent Texture (Optical Recess)
+        const ventCanvas = document.createElement('canvas');
+        ventCanvas.width = 256;
+        ventCanvas.height = 256;
+        const ventCtx = ventCanvas.getContext('2d');
+
+        // Outer rim (flush with wall)
+        ventCtx.fillStyle = '#1a1a1a';
+        ventCtx.fillRect(0, 0, 256, 256);
+
+        // Deep void (fake recess)
+        ventCtx.fillStyle = '#050505';
+        ventCtx.fillRect(16, 16, 224, 224);
+
+        // Louvers (horizontal slats)
+        ventCtx.fillStyle = '#2a2a2a';
+        for (let i = 24; i < 240; i += 24) {
+            ventCtx.fillRect(20, i, 216, 12);
+            // Highlight to fake dimensional thickness
+            ventCtx.fillStyle = '#4a4a4a';
+            ventCtx.fillRect(20, i, 216, 2);
+            ventCtx.fillStyle = '#2a2a2a';
+        }
+
+        // Industrial Grime
+        for (let i = 0; i < 2000; i++) {
+            ventCtx.fillStyle = 'rgba(0,0,0,0.5)';
+            ventCtx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
+        }
+
+        const ventTexture = new THREE.CanvasTexture(ventCanvas);
+        this.ventMat = new THREE.MeshStandardMaterial({map: ventTexture, roughness: 0.7, metalness: 0.4});
+
         // Install Environment Geometry
         carpetTexture.repeat.set(50, 50); // Expanded UV repeat
 
@@ -584,6 +653,18 @@ class Environment {
         document.getElementById('fogSlider').addEventListener('input', (e) => {
             this.scene.fog.density = e.target.value / 100;
         });
+
+        document.getElementById('fovSlider').addEventListener('input', (e) => {
+            this.camera.fov = Number(e.target.value);
+            this.camera.updateProjectionMatrix();
+        });
+
+        document.getElementById('aspectSelect').addEventListener('change', (e) => {
+            const val = e.target.value;
+            this.engine.aspectRatio = val === 'auto' ? 'auto' : parseFloat(val);
+            this.engine.resize();
+        });
+
         document.getElementById('captureBtn').addEventListener('click', () => this.captureAsset());
 
         document.addEventListener('click', () => this.initAudio(), {once: true});
@@ -611,7 +692,7 @@ class Environment {
         // Kill any residual movement momentum to prevent immediate clipping
         this.player.velocity.set(0, 0, 0);
 
-        const seedString = document.getElementById('seedInput').value || "ASYMPTOTIC";
+        const seedString = document.getElementById('seedInput').value || "ASYNC RESEARCH INSTITUTE";
 
         let baseSeed = 0;
         for (let i = 0; i < seedString.length; i++) {
@@ -650,6 +731,54 @@ class Environment {
         const cx = Math.sin(baseSeed) * 0.8;
         const cy = Math.cos(baseSeed * 0.5) * 0.8;
 
+        // THE GENERATION MATRIX: Decoupling rules from execution
+        const addGeometry = (mesh) => {
+            mesh.castShadow = mesh.receiveShadow = true;
+            this.scene.add(mesh);
+            this.walls.push(mesh);
+            mesh.updateMatrixWorld();
+            this.wallBoxes.push(new THREE.Box3().setFromObject(mesh));
+        };
+
+        const structuralMatrix = [
+            { prob: 0.95, build: (x, z) => {
+                    const pillar = buildWall(0.5 + (random() * 2.0), 0.5 + (random() * 2.0), wallMat);
+                    pillar.position.set(x * cellSize, 1.5, z * cellSize);
+                    addGeometry(pillar);
+                }},
+            { prob: 0.90, build: (x, z) => {
+                    const pW = 0.8, offset = (cellSize / 2) - (pW / 2), gap = cellSize - (pW * 2);
+                    const p1 = buildWall(pW, cellSize, wallMat); p1.position.set(x * cellSize - offset, 1.5, z * cellSize); addGeometry(p1);
+                    const p2 = buildWall(pW, cellSize, wallMat); p2.position.set(x * cellSize + offset, 1.5, z * cellSize); addGeometry(p2);
+                    const top = new THREE.Mesh(new THREE.BoxGeometry(gap, 0.3, cellSize), this.headerMat); top.position.set(x * cellSize, 2.85, z * cellSize); addGeometry(top);
+                }},
+            { prob: 0.82, build: (x, z) => {
+                    const pW = 1.2, offset = (cellSize / 2) - (pW / 2), gap = cellSize - (pW * 2);
+                    const p1 = buildWall(pW, cellSize, wallMat); p1.position.set(x * cellSize - offset, 1.5, z * cellSize); addGeometry(p1);
+                    const p2 = buildWall(pW, cellSize, wallMat); p2.position.set(x * cellSize + offset, 1.5, z * cellSize); addGeometry(p2);
+                    const top = new THREE.Mesh(new THREE.BoxGeometry(gap, 0.3, cellSize), this.headerMat); top.position.set(x * cellSize, 2.85, z * cellSize); addGeometry(top);
+                    const doorGeo = new THREE.BoxGeometry(1.5, 2.7, 0.1); doorGeo.translate(0.75, 0, 0);
+                    const door = new THREE.Mesh(doorGeo, this.doorMat); door.position.set(x * cellSize - 0.8, 1.35, z * cellSize + 1.95); door.rotation.y = Math.PI / 4; addGeometry(door);
+                }},
+            { prob: 0.74, build: (x, z) => {
+                    const dir = Math.floor(random() * 2), offset = (cellSize / 2) - 0.25;
+                    const w1 = dir === 0 ? 0.5 : cellSize, d1 = dir === 0 ? cellSize : 0.5;
+                    const gapW = dir === 0 ? cellSize - 1.0 : cellSize, gapD = dir === 0 ? cellSize : cellSize - 1.0;
+                    const p1 = buildWall(w1, d1, wallMat); p1.position.set(x * cellSize - (dir === 0 ? offset : 0), 1.5, z * cellSize - (dir === 1 ? offset : 0)); addGeometry(p1);
+                    const p2 = buildWall(w1, d1, wallMat); p2.position.set(x * cellSize + (dir === 0 ? offset : 0), 1.5, z * cellSize + (dir === 1 ? offset : 0)); addGeometry(p2);
+                    const top = new THREE.Mesh(new THREE.BoxGeometry(gapW, 0.3, gapD), this.headerMat); top.position.set(x * cellSize, 2.85, z * cellSize); addGeometry(top);
+                }},
+            { prob: 0.65, build: (x, z) => {
+                    const wall = new THREE.Mesh(wallGeo, wallMat); wall.position.set(x * cellSize, 1.5, z * cellSize); addGeometry(wall);
+                    const ventDir = Math.floor(random() * 2);
+                    const ventGeo = new THREE.BoxGeometry(ventDir === 0 ? 1.2 : cellSize + 0.1, 0.4, ventDir === 0 ? cellSize + 0.1 : 1.2);
+                    const vent = new THREE.Mesh(ventGeo, this.ventMat); vent.position.set(x * cellSize, random() > 0.5 ? 2.6 : 0.4, z * cellSize); addGeometry(vent);
+                }},
+            { prob: 0.00, build: (x, z) => {
+                    const wall = new THREE.Mesh(wallGeo, wallMat); wall.position.set(x * cellSize, 1.5, z * cellSize); addGeometry(wall);
+                }}
+        ];
+
         for (let x = -halfGrid - 1; x <= halfGrid + 1; x++) {
             for (let z = -halfGrid - 1; z <= halfGrid + 1; z++) {
                 const isBoundary = (x === -halfGrid - 1 || x === halfGrid + 1 || z === -halfGrid - 1 || z === halfGrid + 1);
@@ -678,136 +807,9 @@ class Environment {
                 if (random() > 0.85) isWall = !isWall;
                 if (isWall) {
                     const structRoll = random();
-
-                    if (structRoll > 0.95) {
-                        // The Pillars
-                        // X and Z axes scale independently between 0.5 and 2.5 units
-                        const pWidth = 0.5 + (random() * 2.0);
-                        const pDepth = 0.5 + (random() * 2.0);
-                        const pillar = buildWall(pWidth, pDepth, wallMat);
-                        pillar.position.set(x * cellSize, 1.5, z * cellSize);
-                        pillar.castShadow = pillar.receiveShadow = true;
-                        this.scene.add(pillar); this.walls.push(pillar); pillar.updateMatrixWorld();
-                        this.wallBoxes.push(new THREE.Box3().setFromObject(pillar));
-                    }
-                    else if (structRoll > 0.90) {
-                        // Procedural Archway (Dynamically Scaled)
-                        const pillarWidth = 0.8;
-                        const offset = (cellSize / 2) - (pillarWidth / 2);
-                        const gap = cellSize - (pillarWidth * 2);
-
-                        const p1 = buildWall(pillarWidth, cellSize, wallMat);
-                        p1.position.set(x * cellSize - offset, 1.5, z * cellSize);
-                        p1.castShadow = p1.receiveShadow = true;
-                        this.scene.add(p1); this.walls.push(p1); p1.updateMatrixWorld();
-                        this.wallBoxes.push(new THREE.Box3().setFromObject(p1));
-
-                        const p2 = buildWall(pillarWidth, cellSize, wallMat);
-                        p2.position.set(x * cellSize + offset, 1.5, z * cellSize);
-                        p2.castShadow = p2.receiveShadow = true;
-                        this.scene.add(p2); this.walls.push(p2); p2.updateMatrixWorld();
-                        this.wallBoxes.push(new THREE.Box3().setFromObject(p2));
-
-                        // Header exactly spans the gap, eliminating boundary clipping.
-                        const top = new THREE.Mesh(new THREE.BoxGeometry(gap, 0.3, cellSize), this.headerMat);
-                        top.position.set(x * cellSize, 2.85, z * cellSize);
-                        top.castShadow = top.receiveShadow = true;
-                        this.scene.add(top); this.walls.push(top); top.updateMatrixWorld();
-                        this.wallBoxes.push(new THREE.Box3().setFromObject(top));
-                    }
-                    else if (structRoll > 0.82) {
-                        // Procedural Doorway with an Ajar Door
-                        const pillarWidth = 1.2;
-                        const offset = (cellSize / 2) - (pillarWidth / 2);
-                        const gap = cellSize - (pillarWidth * 2);
-
-                        const p1 = buildWall(pillarWidth, cellSize, wallMat);
-                        p1.position.set(x * cellSize - offset, 1.5, z * cellSize);
-                        p1.castShadow = p1.receiveShadow = true;
-                        this.scene.add(p1); this.walls.push(p1); p1.updateMatrixWorld();
-                        this.wallBoxes.push(new THREE.Box3().setFromObject(p1));
-
-                        const p2 = buildWall(pillarWidth, cellSize, wallMat);
-                        p2.position.set(x * cellSize + offset, 1.5, z * cellSize);
-                        p2.castShadow = p2.receiveShadow = true;
-                        this.scene.add(p2); this.walls.push(p2); p2.updateMatrixWorld();
-                        this.wallBoxes.push(new THREE.Box3().setFromObject(p2));
-
-                        const top = new THREE.Mesh(new THREE.BoxGeometry(gap, 0.3, cellSize), this.headerMat);
-                        top.position.set(x * cellSize, 2.85, z * cellSize);
-                        top.castShadow = top.receiveShadow = true;
-                        this.scene.add(top); this.walls.push(top); top.updateMatrixWorld();
-                        this.wallBoxes.push(new THREE.Box3().setFromObject(top));
-
-                        const doorGeo = new THREE.BoxGeometry(1.5, 2.7, 0.1);
-                        doorGeo.translate(0.75, 0, 0);
-                        const door = new THREE.Mesh(doorGeo, this.doorMat);
-                        door.position.set(x * cellSize - 0.8, 1.35, z * cellSize + 1.95);
-                        door.rotation.y = Math.PI / 4;
-                        door.castShadow = door.receiveShadow = true;
-                        this.scene.add(door); this.walls.push(door); door.updateMatrixWorld();
-                        this.wallBoxes.push(new THREE.Box3().setFromObject(door));
-                    }
-                    else if (structRoll > 0.74) {
-                        // Narrow Hallway Segment
-                        const dir = Math.floor(random() * 2); // 0 = N/S, 1 = E/W
-                        const wallThick = 0.5;
-                        const offset = (cellSize / 2) - (wallThick / 2);
-                        const w1 = (dir === 0) ? wallThick : cellSize;
-                        const d1 = (dir === 0) ? cellSize : wallThick;
-                        // Calculate the negative space span for the header
-                        const gapW = (dir === 0) ? (cellSize - wallThick * 2) : cellSize;
-                        const gapD = (dir === 0) ? cellSize : (cellSize - wallThick * 2);
-
-                        const p1 = buildWall(w1, d1, wallMat);
-                        p1.position.set(x * cellSize - (dir === 0 ? offset : 0), 1.5, z * cellSize - (dir === 1 ? offset : 0));
-                        p1.castShadow = p1.receiveShadow = true;
-                        this.scene.add(p1); this.walls.push(p1); p1.updateMatrixWorld();
-                        this.wallBoxes.push(new THREE.Box3().setFromObject(p1));
-
-                        const p2 = buildWall(w1, d1, wallMat);
-                        p2.position.set(x * cellSize + (dir === 0 ? offset : 0), 1.5, z * cellSize + (dir === 1 ? offset : 0));
-                        p2.castShadow = p2.receiveShadow = true;
-                        this.scene.add(p2); this.walls.push(p2); p2.updateMatrixWorld();
-                        this.wallBoxes.push(new THREE.Box3().setFromObject(p2));
-
-                        // Header slots securely into the calculated gap
-                        const top = new THREE.Mesh(new THREE.BoxGeometry(gapW, 0.3, gapD), this.headerMat);
-                        top.position.set(x * cellSize, 2.85, z * cellSize);
-                        top.castShadow = top.receiveShadow = true;
-                        this.scene.add(top); this.walls.push(top); top.updateMatrixWorld();
-                        this.wallBoxes.push(new THREE.Box3().setFromObject(top));
-                    }
-                    else if (structRoll > 0.65) {
-                        // The HVAC
-                        const wall = new THREE.Mesh(wallGeo, wallMat);
-                        wall.position.set(x * cellSize, 1.5, z * cellSize);
-                        wall.castShadow = wall.receiveShadow = true;
-                        this.scene.add(wall); this.walls.push(wall); wall.updateMatrixWorld();
-                        this.wallBoxes.push(new THREE.Box3().setFromObject(wall));
-
-                        // Instantiate the zero-albedo void
-                        const ventMat = new THREE.MeshStandardMaterial({ color: 0x020202, roughness: 1.0 });
-
-                        // Protrude slightly (0.1) from the drywall to avoid z-fighting
-                        const ventGeo = new THREE.BoxGeometry(cellSize + 0.1, 0.4, cellSize + 0.1);
-                        const vent = new THREE.Mesh(ventGeo, ventMat);
-
-                        // Dynamically snap to ceiling or floor
-                        const isCeiling = random() > 0.5;
-                        vent.position.set(x * cellSize, isCeiling ? 2.6 : 0.4, z * cellSize);
-                        this.scene.add(vent); this.walls.push(vent);
-                    }
-                    else {
-                        // Standard Wall
-                        const wall = new THREE.Mesh(wallGeo, wallMat);
-                        wall.position.set(x * cellSize, 1.5, z * cellSize);
-                        wall.castShadow = wall.receiveShadow = true;
-                        this.scene.add(wall);
-                        this.walls.push(wall);
-                        wall.updateMatrixWorld();
-                        this.wallBoxes.push(new THREE.Box3().setFromObject(wall));
-                    }
+                    // Search the matrix and execute the first matching structural probability
+                    const structure = structuralMatrix.find(s => structRoll >= s.prob);
+                    if (structure) structure.build(x, z);
                 }
                 else if (random() > 0.999) { // Extremely rare (.1% chance)
                     // Procedural Stairs - Authentic directional staircase
@@ -837,10 +839,11 @@ class Environment {
                     }
                 }
                 else if (random() > 0.85) {
-                    const isBroken = random() > 0.95;
-                    let panelMat;
+                    // Increased broken chance to 10% to add more dead visual variety
+                    const isBroken = random() > 0.90;
+
                     if (isBroken) {
-                        panelMat = new THREE.MeshStandardMaterial({
+                        const panelMat = new THREE.MeshStandardMaterial({
                             color: 0x333322,
                             emissive: 0x000000,
                             emissiveIntensity: .05,
@@ -851,8 +854,9 @@ class Environment {
                         if (random() > 0.5) panel.rotation.y = Math.PI / 2;
                         this.scene.add(panel);
                         this.walls.push(panel);
-                    } else if (this.lights.length < MAX_LIGHTS) {
-                        panelMat = new THREE.MeshStandardMaterial({
+                    } else {
+                        // Always construct the emissive mesh to fake the ambient ceiling light
+                        const panelMat = new THREE.MeshStandardMaterial({
                             color: 0xffffe0,
                             emissive: 0xffffe0,
                             emissiveIntensity: 0.4,
@@ -865,18 +869,22 @@ class Environment {
                         this.scene.add(panel);
                         this.walls.push(panel);
 
-                        const light = new THREE.PointLight(0xfff5c2, 0.6, 20);
-                        light.position.set(x * cellSize, 2.8, z * cellSize);
-                        light.castShadow = false;
-                        light.userData = {
-                            flickerOffset: random() * 500,
-                            material: panelMat,
-                            isFaulty: random() > 0.75,
-                            baseIntensity: 0.6,
-                            targetIntensity: 0.6
-                        };
-                        this.scene.add(light);
-                        this.lights.push(light);
+                        // Only ~25% of lit panels receive an expensive physical PointLight.
+                        // This prevents MAX_LIGHTS from being exhausted in the first quadrant.
+                        if (this.lights.length < MAX_LIGHTS && random() > 0.75) {
+                            const light = new THREE.PointLight(0xfff5c2, 0.6, 20);
+                            light.position.set(x * cellSize, 2.8, z * cellSize);
+                            light.castShadow = false;
+                            light.userData = {
+                                flickerOffset: random() * 500,
+                                material: panelMat,
+                                isFaulty: random() > 0.75,
+                                baseIntensity: 0.6,
+                                targetIntensity: 0.6
+                            };
+                            this.scene.add(light);
+                            this.lights.push(light);
+                        }
                     }
                 }
             }
@@ -936,6 +944,20 @@ class Environment {
             const darkness = Math.max(0, 1.0 - (ambientLightLevel * 0.25));
             this.mainGain.gain.setTargetAtTime(0.01 + (darkness * 0.08), this.audioCtx.currentTime, 0.5);
             this.whineGain.gain.setTargetAtTime(0.001 + (darkness * 0.008), this.audioCtx.currentTime, 0.5);
+
+            // The kinetic audio loop: Route physical exertion into the acoustic low-pass filter
+            if (this.kineticFilter) {
+                // Calculate absolute physical speed (0.0 to roughly 1.0+)
+                const speed = Math.sqrt(this.player.velocity.x ** 2 + this.player.velocity.z ** 2);
+
+                // We only scale the AMPLITUDE of the pulse based on the player's speed.
+                const exertionPulse = Math.sin(time * 12.0) * (speed * 80);
+
+                // Baseline frequency of 250Hz. Lowered the speed multiplier to prevent high-pitched screaming,
+                // and increased the WebAudio time constant from 0.1 to 0.4 for a smoother physical glide.
+                const targetFreq = Math.max(100, 250 + (speed * 150) + exertionPulse);
+                this.kineticFilter.frequency.setTargetAtTime(targetFreq, this.audioCtx.currentTime, 5.0);
+            }
         }
     }
 }
@@ -961,3 +983,26 @@ function animate() {
 }
 
 animate();
+
+// VHS Clock Tick
+function updateVHSTime() {
+    const now = new Date();
+    const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+    const month = months[now.getMonth()];
+    const day = String(now.getDate()).padStart(2, '0');
+    const year = now.getFullYear();
+
+    let hours = now.getHours();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12; // The hour '0' should be '12'
+    const mins = String(now.getMinutes()).padStart(2, '0');
+    const secs = String(now.getSeconds()).padStart(2, '0');
+
+    const vhsTimeDisplay = document.getElementById('vhs-time');
+    if (vhsTimeDisplay) {
+        vhsTimeDisplay.innerText = `${ampm} ${String(hours).padStart(2, '0')}:${mins}:${secs} \u00A0\u00A0 ${month} ${day} ${year}`;
+    }
+}
+setInterval(updateVHSTime, 1000);
+updateVHSTime(); // Initialize immediately
