@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Level 0 Engine v0.0.6</title>
+    <title>Level 0 Engine v0.0.8</title>
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#000000">
     <script src="./three.min.js"></script>
@@ -42,6 +42,13 @@
             width: 100%;
             height: 100%;
             z-index: 1;
+        }
+
+        /* Ensure the canvas stretches to fill the container regardless of internal resolution */
+        #canvas-container canvas {
+            width: 100% !important;
+            height: 100% !important;
+            image-rendering: pixelated; /* Enhances the retro look when downscaled */
         }
 
         #ui-layer {
@@ -169,6 +176,15 @@
             animation: phosphor-flicker 120s infinite;
         }
 
+        /* Responsive Scaling for Mobile Landscape */
+        @media (max-width: 900px), (max-height: 500px) {
+            .status-bar {
+                font-size: 0.5rem; /* Drastically scale down the text */
+                padding: 0 1.2rem; /* Reduce the horizontal padding */
+                bottom: 1rem;      /* Tuck the text closer to the bottom edge */
+            }
+        }
+
         /* CSS based VHS Grain and Vignette */
         .vhs-overlay {
             position: absolute;
@@ -270,12 +286,84 @@
             z-index: 20;
             touch-action: manipulation; /* Intercepts the raw touch instantly */
         }
+
+        /* Landscape Enforcement Overlay */
+        #orientation-warning {
+            display: none; /* Hidden by default */
+            position: absolute;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: #000;
+            color: #d4c382;
+            z-index: 99999; /* Highest priority layer */
+            text-align: center;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        #orientation-warning h2 { margin-bottom: 0.5rem; letter-spacing: 0.1em; }
+        #orientation-warning p { font-size: 0.9rem; line-height: 1.5; color: #a89f68; }
+
+        /* Trigger the overlay only when the screen is taller than it is wide */
+        @media (orientation: portrait) {
+            #orientation-warning {
+                display: flex;
+            }
+        }
+
+        /* Mobile Action Buttons */
+        .mobile-action-btn {
+            display: none; /* Hidden by default to keep the desktop screen clean */
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(20, 20, 15, 0.7);
+            border: 2px solid #d4c382;
+            color: #d4c382;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            font-weight: bold;
+            pointer-events: auto;
+            z-index: 30;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* The visually "pressed" or toggled state */
+        .mobile-action-btn.active {
+            background: #d4c382;
+            color: #000;
+        }
+
+        /* Positioned slightly above the thumb resting zones */
+        #mobile-run { left: 2rem; bottom: 8rem; }
+        #mobile-crouch { right: 2rem; bottom: 8rem; }
+
+        /* Hardware Detection: Only show buttons if the user has a touch screen (coarse pointer) */
+        @media (pointer: coarse) {
+            .mobile-action-btn {
+                display: block;
+            }
+        }
     </style>
 </head>
 <body>
+<!-- The Portrait Mode Blocker -->
+<div id="orientation-warning">
+    <h2>SYSTEM ERROR</h2>
+    <p>PORTRAIT ORIENTATION NOT SUPPORTED.<br>PLEASE ROTATE YOUR DEVICE.</p>
+</div>
+
 <div id="mobile-ui">
     <div id="touch-left" class="touch-zone"></div>
     <div id="touch-right" class="touch-zone"></div>
+    <!-- Mobile Action Toggles -->
+    <button id="mobile-run" class="mobile-action-btn">RUN</button>
+    <button id="mobile-crouch" class="mobile-action-btn">CROUCH</button>
 </div>
 
 <!-- The Cinematic Aperture -->
@@ -313,6 +401,18 @@
 
         <label>Camera FOV</label>
         <input type="range" id="fovSlider" min="40" max="120" value="75">
+
+        <label>Internal Resolution</label>
+        <select id="resolutionSelect">
+            <option value="1.0">100% (Native)</option>
+            <option value="0.5">50% (Retro / Performance)</option>
+            <option value="0.25">25% (PS1 / Extreme Performance)</option>
+        </select>
+
+        <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; cursor: pointer;">
+            <input type="checkbox" id="headBobToggle" checked style="width: auto; margin: 0;">
+            Enable Somatic Head Bob
+        </label>
 
         <div class="btn-container">
             <button id="generateBtn" class="btn">Rebuild Geometry</button>

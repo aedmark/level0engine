@@ -2,7 +2,7 @@
     "name": "Level 0 Engine",
     "short_name": "Level 0",
     "description": "Procedural Liminal Space Simulator",
-    "start_url": "./index.html",
+    "start_url": ".",
     "display": "fullscreen",
     "background_color": "#000000",
     "theme_color": "#000000",

@@ -1,9 +1,10 @@
-// engine.jo - Level 0 Engine
-// MODULE 1: CORE RENDER ENGINE
+// engine.js - Level 0 Engine v0.0.8
 
+// MODULE 1: CORE RENDER ENGINE
 class RenderEngine {
     constructor() {
         this.aspectRatio = 'auto'; // Default state
+        this.resolutionScale = 1.0; // Default rendering scale
         this.clock = new THREE.Clock();
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0xa89f68);
@@ -17,16 +18,14 @@ class RenderEngine {
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
         const ambient = new THREE.AmbientLight(0xffffe0, 0.45);
         this.scene.add(ambient);
-
         // POST-PROCESSING PIPELINE
         this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
         this.postScene = new THREE.Scene();
         this.postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-
         this.postMaterial = new THREE.ShaderMaterial({
             uniforms: {
-                tDiffuse: { value: this.target.texture },
-                time: { value: 0.0 }
+                tDiffuse: {value: this.target.texture},
+                time: {value: 0.0}
             },
             vertexShader: `
                 varying vec2 vUv;
@@ -39,44 +38,35 @@ class RenderEngine {
                 uniform sampler2D tDiffuse;
                 uniform float time;
                 varying vec2 vUv;
-
                 float hash(vec2 p) {
                     vec3 p3  = fract(vec3(p.xyx) * .1031);
                     p3 += dot(p3, p3.yzx + 33.33);
                     return fract((p3.x + p3.y) * p3.z);
                 }
-
                 void main() {
                     vec2 uv = vUv;
-
                     // 1. VHS Chromatic Aberration (RGB shift scales with distance from center)
                     vec2 offset = vec2(0.003, 0.0) * (uv.x - 0.5) * 2.0; 
                     float r = texture2D(tDiffuse, uv + offset).r;
                     float g = texture2D(tDiffuse, uv).g;
                     float b = texture2D(tDiffuse, uv - offset).b;
                     vec3 col = vec3(r, g, b);
-
                     // 2. Animated Crawling Static
                     float noise = hash(uv * vec2(800.0, 800.0) + time * 15.0);
                     col += (noise - 0.5) * 0.07;
-
                     // 3. Rolling CRT Scanlines
                     float scanline = sin(uv.y * 800.0 - time * 10.0) * 0.02;
                     col -= scanline;
-
                     // 4. Claustrophobic Vignette
                     float dist = distance(uv, vec2(0.5));
                     col *= smoothstep(0.8, 0.25, dist * dist + 0.3);
-
                     gl_FragColor = vec4(col, 1.0);
                 }
             `
         });
         const postPlane = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.postMaterial);
         this.postScene.add(postPlane);
-
         window.addEventListener('resize', () => this.resize(), false);
-
         // Force an initial dimension calculation on boot
         setTimeout(() => this.resize(), 0);
     }
@@ -84,7 +74,6 @@ class RenderEngine {
     resize() {
         let w = window.innerWidth;
         let h = window.innerHeight;
-
         // Calculate letterboxing/pillarboxing if a strict aspect ratio is enforced
         if (this.aspectRatio !== 'auto') {
             const windowAspect = w / h;
@@ -96,18 +85,19 @@ class RenderEngine {
                 h = w / this.aspectRatio;
             }
         }
-
         // Apply physical dimensions to the wrapper to crop the overlays perfectly
         const wrapper = document.getElementById('screen-wrapper');
         if (wrapper) {
             wrapper.style.width = `${w}px`;
             wrapper.style.height = `${h}px`;
         }
-
         this.camera.aspect = w / h;
         this.camera.updateProjectionMatrix();
-        this.renderer.setSize(w, h);
-        this.target.setSize(w, h);
+
+        // Apply resolution scaling for performance and retro aesthetics
+        const scale = this.resolutionScale;
+        this.renderer.setSize(w * scale, h * scale, false); // false prevents overriding physical CSS size
+        this.target.setSize(w * scale, h * scale);
     }
 
     get delta() {
@@ -122,7 +112,6 @@ class RenderEngine {
         // Pass 1: Render true 3D scene to the offscreen target
         this.renderer.setRenderTarget(this.target);
         this.renderer.render(this.scene, this.camera);
-
         // Pass 2: Update time variable, apply ShaderMaterial, and render to the physical screen
         this.postMaterial.uniforms.time.value = this.time;
         this.renderer.setRenderTarget(null);
@@ -131,7 +120,6 @@ class RenderEngine {
 }
 
 // MODULE 2: PLAYER CONTROLLER
-
 class PlayerController {
     constructor(camera, domElement) {
         this.camera = camera;
@@ -143,13 +131,13 @@ class PlayerController {
         this.moveLeft = false;
         this.moveRight = false;
         this.isRunning = false;
+        this.isCrouching = false;
         this.isLocked = false;
         this.playerRadius = 0.4;
-
+        this.enableHeadBob = true; // Motion sickness accessibility state
         // Mobile Touch State
-        this.touchMove = { active: false, id: null, startX: 0, startY: 0, deltaX: 0, deltaY: 0 };
-        this.touchLook = { active: false, id: null, startX: 0, startY: 0, lastX: 0, lastY: 0 };
-
+        this.touchMove = {active: false, id: null, startX: 0, startY: 0, deltaX: 0, deltaY: 0};
+        this.touchLook = {active: false, id: null, startX: 0, startY: 0, lastX: 0, lastY: 0};
         this.bindEvents();
     }
 
@@ -157,7 +145,6 @@ class PlayerController {
         // WASD Key Events
         document.addEventListener('keydown', (e) => this.onKeyDown(e));
         document.addEventListener('keyup', (e) => this.onKeyUp(e));
-
         // Pointer Lock Events
         // Route the click through the mobile overlay to the document body
         const touchSurface = document.getElementById('mobile-ui');
@@ -167,12 +154,10 @@ class PlayerController {
             this.isLocked = (document.pointerLockElement === document.body);
         });
         document.addEventListener('mousemove', (e) => this.onMouseMove(e));
-
         // Window Blur
         window.addEventListener('blur', () => {
             this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = this.isRunning = false;
         });
-
         // Delegate mobile inputs
         this.bindTouchEvents();
     }
@@ -180,6 +165,39 @@ class PlayerController {
     bindTouchEvents() {
         const zoneLeft = document.getElementById('touch-left');
         const zoneRight = document.getElementById('touch-right');
+        const runBtn = document.getElementById('mobile-run');
+        const crouchBtn = document.getElementById('mobile-crouch');
+
+        // --- MOBILE ACTION TOGGLES ---
+        if (runBtn && crouchBtn) {
+            runBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault(); // Prevents the screen from interpreting this as a "look" click
+                e.stopPropagation();
+
+                this.isRunning = !this.isRunning;
+                runBtn.classList.toggle('active', this.isRunning);
+
+                // Smart cancellation: Running forces you to stop crouching
+                if (this.isRunning && this.isCrouching) {
+                    this.isCrouching = false;
+                    crouchBtn.classList.remove('active');
+                }
+            }, {passive: false});
+
+            crouchBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                this.isCrouching = !this.isCrouching;
+                crouchBtn.classList.toggle('active', this.isCrouching);
+
+                // Smart cancellation: Crouching forces you to stop running
+                if (this.isCrouching && this.isRunning) {
+                    this.isRunning = false;
+                    runBtn.classList.remove('active');
+                }
+            }, {passive: false});
+        }
 
         // --- LEFT ZONE: MOVEMENT ---
         zoneLeft.addEventListener('touchstart', (e) => {
@@ -189,19 +207,18 @@ class PlayerController {
             this.touchMove.id = touch.identifier;
             this.touchMove.startX = touch.clientX;
             this.touchMove.startY = touch.clientY;
-        }, { passive: false });
-
+        }, {passive: false});
         zoneLeft.addEventListener('touchmove', (e) => {
             e.preventDefault();
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
                 if (touch.identifier === this.touchMove.id) {
-                    this.touchMove.deltaX = Math.max(-50, Math.min(50, touch.clientX - this.touchMove.startX));
-                    this.touchMove.deltaY = Math.max(-50, Math.min(50, touch.clientY - this.touchMove.startY));
+                    // Expanded virtual joystick radius to 120 pixels for high-DPI screens
+                    this.touchMove.deltaX = Math.max(-120, Math.min(120, touch.clientX - this.touchMove.startX));
+                    this.touchMove.deltaY = Math.max(-120, Math.min(120, touch.clientY - this.touchMove.startY));
                 }
             }
-        }, { passive: false });
-
+        }, {passive: false});
         zoneLeft.addEventListener('touchend', (e) => {
             e.preventDefault();
             for (let i = 0; i < e.changedTouches.length; i++) {
@@ -212,7 +229,6 @@ class PlayerController {
                 }
             }
         });
-
         // --- RIGHT ZONE: CAMERA ROTATION ---
         zoneRight.addEventListener('touchstart', (e) => {
             e.preventDefault();
@@ -221,8 +237,7 @@ class PlayerController {
             this.touchLook.id = touch.identifier;
             this.touchLook.lastX = touch.clientX;
             this.touchLook.lastY = touch.clientY;
-        }, { passive: false });
-
+        }, {passive: false});
         zoneRight.addEventListener('touchmove', (e) => {
             e.preventDefault();
             for (let i = 0; i < e.changedTouches.length; i++) {
@@ -230,18 +245,18 @@ class PlayerController {
                 if (touch.identifier === this.touchLook.id) {
                     const movementX = touch.clientX - this.touchLook.lastX;
                     const movementY = touch.clientY - this.touchLook.lastY;
-
                     this.camera.rotation.order = "YXZ";
-                    this.camera.rotation.y -= movementX * 0.002;
-                    this.camera.rotation.x -= movementY * 0.002;
-                    this.camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.camera.rotation.x));
 
+                    // Increased sensitivity multiplier from 0.002 to 0.008 for responsive mobile turning
+                    this.camera.rotation.y -= movementX * 0.020;
+                    this.camera.rotation.x -= movementY * 0.020;
+
+                    this.camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.camera.rotation.x));
                     this.touchLook.lastX = touch.clientX;
                     this.touchLook.lastY = touch.clientY;
                 }
             }
-        }, { passive: false });
-
+        }, {passive: false});
         zoneRight.addEventListener('touchend', (e) => {
             e.preventDefault();
             for (let i = 0; i < e.changedTouches.length; i++) {
@@ -254,10 +269,11 @@ class PlayerController {
 
     onKeyDown(event) {
         const key = event.code;
-        if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD'].includes(key)) {
+        if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyC'].includes(key)) {
             event.preventDefault();
         }
         if (event.key === 'Shift') this.isRunning = true;
+        if (event.code === 'KeyC') this.isCrouching = !this.isCrouching;
         switch (key) {
             case 'ArrowUp':
             case 'KeyW':
@@ -309,30 +325,38 @@ class PlayerController {
     }
 
     update(delta, wallBoxes) {
+        delta = Math.min(delta, 0.05);
         this.velocity.x -= this.velocity.x * 10.0 * delta;
         this.velocity.z -= this.velocity.z * 10.0 * delta;
         this.direction.z = Number(this.moveForward) - Number(this.moveBackward);
         this.direction.x = Number(this.moveRight) - Number(this.moveLeft);
         this.direction.normalize();
-        const currentSpeed = this.isRunning ? 75.0 : 40.0;
-
+        const currentSpeed = this.isCrouching ? 20.0 : (this.isRunning ? 75.0 : 40.0);
         // --- DESKTOP KEYBOARD INJECTION ---
         if (this.moveForward || this.moveBackward) this.velocity.z -= this.direction.z * currentSpeed * delta;
         if (this.moveLeft || this.moveRight) this.velocity.x -= this.direction.x * currentSpeed * delta;
-
         // --- MOBILE MOVEMENT INJECTION ---
         if (this.touchMove.active) {
-            // Divide by 50 to normalize the thumb drag into a -1.0 to 1.0 ratio
-            // DeltaY is negative when pushing up (forward), which maps perfectly to standard 3D Z-depth.
-            this.velocity.z += (this.touchMove.deltaY / 50) * currentSpeed * delta;
-            this.velocity.x += (this.touchMove.deltaX / 50) * currentSpeed * delta;
-        }
+            // Deadzone threshold (ignore tiny micro-movements to prevent drift)
+            const deadzone = 10;
+            let normX = 0;
+            let normY = 0;
 
+            if (Math.abs(this.touchMove.deltaX) > deadzone) {
+                // Shift the value down by the deadzone, then divide by the new 120 max limit
+                normX = (this.touchMove.deltaX - (Math.sign(this.touchMove.deltaX) * deadzone)) / 110;
+            }
+            if (Math.abs(this.touchMove.deltaY) > deadzone) {
+                normY = (this.touchMove.deltaY - (Math.sign(this.touchMove.deltaY) * deadzone)) / 110;
+            }
+
+            this.velocity.z += normY * currentSpeed * delta;
+            this.velocity.x += normX * currentSpeed * delta;
+        }
         const euler = new THREE.Euler(0, this.camera.rotation.y, 0, 'YXZ');
         const moveDelta = new THREE.Vector3(-this.velocity.x * delta, 0, this.velocity.z * delta);
         moveDelta.applyEuler(euler);
         const feetY = this.camera.position.y - 1.6; // Baseline floor
-
         const px = this.camera.position.x;
         const pz = this.camera.position.z;
         const localBoxes = [];
@@ -342,25 +366,38 @@ class PlayerController {
             }
         }
 
-        // X Collision (Shrink Z radius slightly to prevent microscopic seam snagging)
+        const visualHeight = this.isCrouching ? 0.8 : 1.6;
+        const physicalTop = this.isCrouching ? 1.2 : 2.5;
+
+        // X Collision mutation
         let hitX = false;
         const snagShrink = 0.05;
         let boxX = new THREE.Box3(
             new THREE.Vector3(this.camera.position.x + moveDelta.x - this.playerRadius, feetY + 0.6, this.camera.position.z - this.playerRadius + snagShrink),
-            new THREE.Vector3(this.camera.position.x + moveDelta.x + this.playerRadius, feetY + 2.5, this.camera.position.z + this.playerRadius - snagShrink)
+            new THREE.Vector3(this.camera.position.x + moveDelta.x + this.playerRadius, feetY + physicalTop, this.camera.position.z + this.playerRadius - snagShrink)
         );
-        for (let box of localBoxes) { if (boxX.intersectsBox(box)) { hitX = true; break; } }
+        for (let box of localBoxes) {
+            if (boxX.intersectsBox(box)) {
+                hitX = true;
+                break;
+            }
+        }
         if (!hitX) this.camera.position.x += moveDelta.x;
 
-        // Z Collision (Shrink X radius slightly to prevent microscopic seam snagging)
+        // Z Collision mutation
         let hitZ = false;
         let boxZ = new THREE.Box3(
             new THREE.Vector3(this.camera.position.x - this.playerRadius + snagShrink, feetY + 0.6, this.camera.position.z + moveDelta.z - this.playerRadius),
-            new THREE.Vector3(this.camera.position.x + this.playerRadius - snagShrink, feetY + 2.5, this.camera.position.z + moveDelta.z + this.playerRadius)
+            new THREE.Vector3(this.camera.position.x + this.playerRadius - snagShrink, feetY + physicalTop, this.camera.position.z + moveDelta.z + this.playerRadius)
         );
-        for (let box of wallBoxes) { if (boxZ.intersectsBox(box)) { hitZ = true; break; } }
+        // Fix: Cast against localBoxes instead of the massive global wallBoxes array
+        for (let box of localBoxes) {
+            if (boxZ.intersectsBox(box)) {
+                hitZ = true;
+                break;
+            }
+        }
         if (!hitZ) this.camera.position.z += moveDelta.z;
-
         // Y Step-up Interpolation (Gravity Mapping)
         let floorBox = new THREE.Box3(
             new THREE.Vector3(this.camera.position.x - this.playerRadius, -10, this.camera.position.z - this.playerRadius),
@@ -372,21 +409,19 @@ class PlayerController {
                 targetFeetY = box.max.y;
             }
         }
-
-        // SCHUR: The Somatic Head Bob. Track the physical velocity and map it to a sine wave.
+        // The Somatic Head Bob. Track the physical velocity and map it to a sine wave.
         const actualSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
         this.headBobTimer = (this.headBobTimer || 0) + actualSpeed * delta;
-        const bobOffset = actualSpeed > 0.5 ? Math.sin(this.headBobTimer * 2.5) * 0.05 : 0;
-
+        // Toggle head bob based on user accessibility preference
+        const bobOffset = (this.enableHeadBob && actualSpeed > 0.5) ? Math.sin(this.headBobTimer * 2.5) * 0.05 : 0;
         // Smoothly glide up or down the steps, adding the physical breathing mass
-        const targetCamY = Math.min(targetFeetY + 1.6, 2.8) + bobOffset;
+        const targetCamY = Math.min(targetFeetY + visualHeight, 2.8) + bobOffset;
         this.camera.position.y += (targetCamY - this.camera.position.y) * 12.0 * delta;
         document.getElementById('coords').innerText = `X: ${this.camera.position.x.toFixed(2)} | Z: ${this.camera.position.z.toFixed(2)}`;
     }
 }
 
 // MODULE 3: ENVIRONMENT & MEMORY MANAGER
-
 class Environment {
     constructor(engine, player) {
         this.engine = engine;
@@ -411,13 +446,11 @@ class Environment {
         const osc2 = this.audioCtx.createOscillator();
         osc2.type = 'sawtooth';
         osc2.frequency.value = 120;
-
         // Expose the filter to the class topology so we can mutate it in the update loop
         this.kineticFilter = this.audioCtx.createBiquadFilter();
         this.kineticFilter.type = 'lowpass';
         this.kineticFilter.frequency.value = 250;
         osc2.connect(this.kineticFilter);
-
         const osc3 = this.audioCtx.createOscillator();
         osc3.type = 'triangle';
         osc3.frequency.value = 1200;
@@ -434,10 +467,8 @@ class Environment {
         lfo.connect(lfoGain);
         lfoGain.connect(this.mainGain.gain);
         osc1.connect(this.mainGain);
-
         // Connect the newly exposed kinetic filter
         this.kineticFilter.connect(this.mainGain);
-
         this.whineGain.connect(this.mainGain);
         this.mainGain.connect(this.audioCtx.destination);
         osc1.start();
@@ -472,19 +503,16 @@ class Environment {
             wallCtx.arc(Math.random() * 512, 450 + Math.random() * 62, Math.random() * 50, 0, Math.PI * 2);
             wallCtx.fill();
         }
-
         const headerCanvas = document.createElement('canvas');
         headerCanvas.width = 512;
         headerCanvas.height = 512;
         headerCanvas.getContext('2d').drawImage(wallCanvas, 0, 0);
-
         const headerTexture = new THREE.CanvasTexture(headerCanvas);
         headerTexture.wrapS = THREE.RepeatWrapping;
         headerTexture.wrapT = THREE.RepeatWrapping;
         headerTexture.repeat.set(4, 0.1);
         headerTexture.offset.set(0, 0.9);
         this.headerMat = new THREE.MeshStandardMaterial({map: headerTexture, roughness: 0.8});
-
         // Continue painting the baseboards onto the original wall canvas
         wallCtx.fillStyle = '#4a3d24';
         wallCtx.fillRect(0, 480, 512, 32);
@@ -492,12 +520,10 @@ class Environment {
         wallCtx.fillRect(0, 476, 512, 4);
         wallCtx.fillStyle = 'rgba(0,0,0,0.15)';
         wallCtx.fillRect(255, 0, 2, 512);
-
         this.wallTexture = new THREE.CanvasTexture(wallCanvas);
         this.wallTexture.wrapS = THREE.RepeatWrapping;
         this.wallTexture.wrapT = THREE.ClampToEdgeWrapping;
         this.wallTexture.repeat.set(4, 1);
-
         // 2. Damp Carpet Texture
         const carpetCanvas = document.createElement('canvas');
         carpetCanvas.width = 512;
@@ -513,7 +539,6 @@ class Environment {
         carpetTexture.wrapS = THREE.RepeatWrapping;
         carpetTexture.wrapT = THREE.RepeatWrapping;
         carpetTexture.repeat.set(20, 20);
-
         // 3. Ceiling Tile Texture
         const ceilingCanvas = document.createElement('canvas');
         ceilingCanvas.width = 256;
@@ -533,7 +558,6 @@ class Environment {
         ceilingTexture.wrapT = THREE.RepeatWrapping;
         // A 300x300 plane divided by 300 repeats = 1x1 unit tiles (approx 3x3 ft)
         ceilingTexture.repeat.set(300, 300);
-
         // 4. Structural Texture (Stairs & Arches)
         const structCanvas = document.createElement('canvas');
         structCanvas.width = 256;
@@ -550,7 +574,6 @@ class Environment {
         structTexture.wrapT = THREE.RepeatWrapping;
         structTexture.repeat.set(4, 4);
         this.structMat = new THREE.MeshStandardMaterial({map: structTexture, roughness: 1.0});
-
         // 5. Procedural Door Texture
         const doorCanvas = document.createElement('canvas');
         doorCanvas.width = 256;
@@ -558,7 +581,6 @@ class Environment {
         const doorCtx = doorCanvas.getContext('2d');
         doorCtx.fillStyle = '#4a3219';
         doorCtx.fillRect(0, 0, 256, 512);
-
         // Organic wood grain via segmented alpha strokes and curves.
         doorCtx.lineWidth = 1.5;
         for (let i = 0; i < 800; i++) {
@@ -572,42 +594,34 @@ class Environment {
             doorCtx.bezierCurveTo(x + (Math.random() * 10 - 5), y + length / 2, x + (Math.random() * 10 - 5), y + length / 2, x + (Math.random() * 4 - 2), y + length);
             doorCtx.stroke();
         }
-
         // Recessed Panels
         doorCtx.fillStyle = 'rgba(0,0,0,0.3)';
         doorCtx.fillRect(32, 32, 192, 200);
         doorCtx.fillRect(32, 260, 192, 220);
-
         // Highlights for the panels to fake depth.
         doorCtx.fillStyle = 'rgba(255,255,255,0.05)';
         doorCtx.fillRect(32, 32, 192, 4); // Top highlight
         doorCtx.fillRect(32, 32, 4, 200); // Left highlight
         doorCtx.fillRect(32, 260, 192, 4); // Top highlight
         doorCtx.fillRect(32, 260, 4, 220); // Left highlight
-
         // Brass Knob
         doorCtx.fillStyle = '#8a7e32';
         doorCtx.beginPath();
         doorCtx.arc(210, 260, 12, 0, Math.PI * 2);
         doorCtx.fill();
-
         const doorTexture = new THREE.CanvasTexture(doorCanvas);
         this.doorMat = new THREE.MeshStandardMaterial({map: doorTexture, roughness: 0.9});
-
         // 6. Procedural HVAC Vent Texture (Optical Recess)
         const ventCanvas = document.createElement('canvas');
         ventCanvas.width = 256;
         ventCanvas.height = 256;
         const ventCtx = ventCanvas.getContext('2d');
-
         // Outer rim (flush with wall)
         ventCtx.fillStyle = '#1a1a1a';
         ventCtx.fillRect(0, 0, 256, 256);
-
         // Deep void (fake recess)
         ventCtx.fillStyle = '#050505';
         ventCtx.fillRect(16, 16, 224, 224);
-
         // Louvers (horizontal slats)
         ventCtx.fillStyle = '#2a2a2a';
         for (let i = 24; i < 240; i += 24) {
@@ -617,39 +631,33 @@ class Environment {
             ventCtx.fillRect(20, i, 216, 2);
             ventCtx.fillStyle = '#2a2a2a';
         }
-
         // Industrial Grime
         for (let i = 0; i < 2000; i++) {
             ventCtx.fillStyle = 'rgba(0,0,0,0.5)';
             ventCtx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
         }
-
         const ventTexture = new THREE.CanvasTexture(ventCanvas);
         this.ventMat = new THREE.MeshStandardMaterial({map: ventTexture, roughness: 0.7, metalness: 0.4});
-
         // 7. Procedural Emissive Light Panel (Prismatic Diffuser)
         const lightCanvas = document.createElement('canvas');
         lightCanvas.width = 128;
         lightCanvas.height = 256;
         const lightCtx = lightCanvas.getContext('2d');
-
         // Base Emissive Hue
         lightCtx.fillStyle = '#ffffe0';
         lightCtx.fillRect(0, 0, 128, 256);
-
         // Prismatic Diffuser (Faint Diamond Grid)
         lightCtx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
         lightCtx.lineWidth = 1;
         lightCtx.beginPath();
         // Intersecting strokes to create the plastic light cover
-        for(let i = -256; i < 256; i += 8) {
+        for (let i = -256; i < 256; i += 8) {
             lightCtx.moveTo(0, i);
             lightCtx.lineTo(128, i + 128); // Diagonal down-right
             lightCtx.moveTo(128, i);
             lightCtx.lineTo(0, i + 128);   // Diagonal down-left
         }
         lightCtx.stroke();
-
         // Dark Beveled Edge & Frame
         lightCtx.strokeStyle = '#1a1a1a';
         lightCtx.lineWidth = 8;
@@ -657,9 +665,7 @@ class Environment {
         lightCtx.strokeStyle = '#4a4a4a';
         lightCtx.lineWidth = 4;
         lightCtx.strokeRect(4, 4, 120, 248);
-
         const lightTexture = new THREE.CanvasTexture(lightCanvas);
-
         // We define the base materials once to prevent memory leaks during procedural generation.
         this.baseLightMat = new THREE.MeshStandardMaterial({
             map: lightTexture,
@@ -670,7 +676,6 @@ class Environment {
             roughness: 0.3,
             metalness: 0.1
         });
-
         this.baseBrokenLightMat = new THREE.MeshStandardMaterial({
             map: lightTexture,
             emissiveMap: lightTexture,
@@ -679,16 +684,13 @@ class Environment {
             emissiveIntensity: 0.01,
             roughness: 0.8
         });
-
         // The structural housing. Non-emissive, dark plastic to wrap the sides.
         this.baseHousingMat = new THREE.MeshStandardMaterial({
             color: 0x1a1a1a,
             roughness: 0.9
         });
-
         // Install Environment Geometry
         carpetTexture.repeat.set(50, 50); // Expanded UV repeat
-
         // Dynamically scale the bounding planes to safely encapsulate a grid of 40 (40 * 4 = 160 units).
         // A 300x300 plane provides a massive, impenetrable horizon without rendering infinite geometry.
         const floorGeo = new THREE.PlaneGeometry(300, 300);
@@ -697,19 +699,17 @@ class Environment {
         floor.rotation.x = -Math.PI / 2;
         floor.receiveShadow = true;
         this.scene.add(floor);
-
         const ceilGeo = new THREE.PlaneGeometry(300, 300);
         const ceilMat = new THREE.MeshStandardMaterial({map: ceilingTexture, roughness: 0.9});
         const ceiling = new THREE.Mesh(ceilGeo, ceilMat);
         ceiling.rotation.x = Math.PI / 2;
         ceiling.position.y = 3;
         this.scene.add(ceiling);
-
         // Atmospheric Particulates. A single, mathematically efficient points cloud.
         const dustGeo = new THREE.BufferGeometry();
         const dustCount = 600;
         const dustPos = new Float32Array(dustCount * 3);
-        for(let i = 0; i < dustCount * 3; i++) {
+        for (let i = 0; i < dustCount * 3; i++) {
             // Scatter the particles within a 20-unit localized bounding box
             dustPos[i] = (Math.random() - 0.5) * 30.0;
         }
@@ -723,13 +723,10 @@ class Environment {
         });
         this.dustCloud = new THREE.Points(dustGeo, dustMat);
         this.scene.add(this.dustCloud);
-
         // Track the base fog density so we can modulate it without breaking the UI.
         this.baseFogDensity = 0.05;
-
         // Boot Generation
         this.generate();
-
         // Bind UI
         const toggleBtn = document.getElementById('menuToggleBtn');
         const toggleMenu = (e) => {
@@ -737,10 +734,8 @@ class Environment {
             const panel = document.querySelector('.control-panel');
             panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
         };
-
         // Listen to the raw pointer press, not the delayed click evaluation
         toggleBtn.addEventListener('pointerdown', toggleMenu);
-
         document.getElementById('generateBtn').addEventListener('click', () => {
             this.initAudio();
             this.generate();
@@ -748,20 +743,27 @@ class Environment {
         document.getElementById('fogSlider').addEventListener('input', (e) => {
             this.baseFogDensity = e.target.value / 100;
         });
-
         document.getElementById('fovSlider').addEventListener('input', (e) => {
             this.camera.fov = Number(e.target.value);
             this.camera.updateProjectionMatrix();
         });
-
         document.getElementById('aspectSelect').addEventListener('change', (e) => {
             const val = e.target.value;
             this.engine.aspectRatio = val === 'auto' ? 'auto' : parseFloat(val);
             this.engine.resize();
         });
 
-        document.getElementById('captureBtn').addEventListener('click', () => this.captureAsset());
+        // Listen for resolution changes and recalculate the RenderTarget
+        document.getElementById('resolutionSelect').addEventListener('change', (e) => {
+            this.engine.resolutionScale = parseFloat(e.target.value);
+            this.engine.resize();
+        });
 
+        // Listen for accessibility motion toggle
+        document.getElementById('headBobToggle').addEventListener('change', (e) => {
+            this.player.enableHeadBob = e.target.checked;
+        });
+        document.getElementById('captureBtn').addEventListener('click', () => this.captureAsset());
         document.addEventListener('click', () => this.initAudio(), {once: true});
         document.addEventListener('keydown', () => this.initAudio(), {once: true});
     }
@@ -777,18 +779,14 @@ class Environment {
             if (l.userData.material) l.userData.material.dispose();
             this.scene.remove(l);
         });
-
         this.walls = [];
         this.lights = [];
         this.wallBoxes = [];
-
         // Return the player to the mathematical center (the guaranteed safe zone)
         this.camera.position.set(0, 1.6, 0);
         // Kill any residual movement momentum to prevent immediate clipping
         this.player.velocity.set(0, 0, 0);
-
         const seedString = document.getElementById('seedInput').value || "ASYNC RESEARCH INSTITUTE";
-
         let baseSeed = 0;
         for (let i = 0; i < seedString.length; i++) {
             baseSeed = ((baseSeed << 5) - baseSeed) + seedString.charCodeAt(i);
@@ -799,12 +797,12 @@ class Environment {
             let x = Math.sin(prngSeed++) * 10000;
             return x - Math.floor(x);
         };
-
         const gridSize = 42;
         const cellSize = 4;
         const MAX_LIGHTS = 69;
+        const MAX_SHADOWS = 4; // Hardware limit safeguard
         let lightsAdded = 0;
-
+        let shadowLightsAdded = 0;
         const buildWall = (w, d, mat) => {
             const geo = new THREE.BoxGeometry(w, 3.0, d);
             const uv = geo.attributes.uv;
@@ -813,7 +811,6 @@ class Environment {
             for (let i = 16; i < 24; i++) uv.setX(i, uv.getX(i) * (w / cellSize)); // Front/Back faces
             return new THREE.Mesh(geo, mat);
         };
-
         const wallGeo = new THREE.BoxGeometry(cellSize, 3, cellSize);
         const wallMat = new THREE.MeshStandardMaterial({
             map: this.wallTexture,
@@ -823,10 +820,8 @@ class Environment {
         // 0.98 x 1.98 perfectly fits a 1x2 ceiling tile slot while leaving a 0.01 structural gap.
         const panelGeo = new THREE.BoxGeometry(0.98, 0.05, 1.98);
         const halfGrid = Math.floor(gridSize / 2);
-
         const cx = Math.sin(baseSeed) * 0.8;
         const cy = Math.cos(baseSeed * 0.5) * 0.8;
-
         // THE GENERATION MATRIX: Decoupling rules from execution
         const addGeometry = (mesh) => {
             mesh.castShadow = mesh.receiveShadow = true;
@@ -835,46 +830,84 @@ class Environment {
             mesh.updateMatrixWorld();
             this.wallBoxes.push(new THREE.Box3().setFromObject(mesh));
         };
-
         const structuralMatrix = [
-            { prob: 0.95, build: (x, z) => {
+            {
+                prob: 0.95, build: (x, z) => {
                     const pillar = buildWall(0.5 + (random() * 2.0), 0.5 + (random() * 2.0), wallMat);
                     pillar.position.set(x * cellSize, 1.5, z * cellSize);
                     addGeometry(pillar);
-                }},
-            { prob: 0.90, build: (x, z) => {
+                }
+            },
+            {
+                prob: 0.90, build: (x, z) => {
                     const pW = 0.8, offset = (cellSize / 2) - (pW / 2), gap = cellSize - (pW * 2);
-                    const p1 = buildWall(pW, cellSize, wallMat); p1.position.set(x * cellSize - offset, 1.5, z * cellSize); addGeometry(p1);
-                    const p2 = buildWall(pW, cellSize, wallMat); p2.position.set(x * cellSize + offset, 1.5, z * cellSize); addGeometry(p2);
-                    const top = new THREE.Mesh(new THREE.BoxGeometry(gap, 0.3, cellSize), this.headerMat); top.position.set(x * cellSize, 2.85, z * cellSize); addGeometry(top);
-                }},
-            { prob: 0.82, build: (x, z) => {
+                    const p1 = buildWall(pW, cellSize, wallMat);
+                    p1.position.set(x * cellSize - offset, 1.5, z * cellSize);
+                    addGeometry(p1);
+                    const p2 = buildWall(pW, cellSize, wallMat);
+                    p2.position.set(x * cellSize + offset, 1.5, z * cellSize);
+                    addGeometry(p2);
+                    const top = new THREE.Mesh(new THREE.BoxGeometry(gap, 0.3, cellSize), this.headerMat);
+                    top.position.set(x * cellSize, 2.85, z * cellSize);
+                    addGeometry(top);
+                }
+            },
+            {
+                prob: 0.82, build: (x, z) => {
                     const pW = 1.2, offset = (cellSize / 2) - (pW / 2), gap = cellSize - (pW * 2);
-                    const p1 = buildWall(pW, cellSize, wallMat); p1.position.set(x * cellSize - offset, 1.5, z * cellSize); addGeometry(p1);
-                    const p2 = buildWall(pW, cellSize, wallMat); p2.position.set(x * cellSize + offset, 1.5, z * cellSize); addGeometry(p2);
-                    const top = new THREE.Mesh(new THREE.BoxGeometry(gap, 0.3, cellSize), this.headerMat); top.position.set(x * cellSize, 2.85, z * cellSize); addGeometry(top);
-                    const doorGeo = new THREE.BoxGeometry(1.5, 2.7, 0.1); doorGeo.translate(0.75, 0, 0);
-                    const door = new THREE.Mesh(doorGeo, this.doorMat); door.position.set(x * cellSize - 0.8, 1.35, z * cellSize + 1.95); door.rotation.y = Math.PI / 4; addGeometry(door);
-                }},
-            { prob: 0.74, build: (x, z) => {
+                    const p1 = buildWall(pW, cellSize, wallMat);
+                    p1.position.set(x * cellSize - offset, 1.5, z * cellSize);
+                    addGeometry(p1);
+                    const p2 = buildWall(pW, cellSize, wallMat);
+                    p2.position.set(x * cellSize + offset, 1.5, z * cellSize);
+                    addGeometry(p2);
+                    const top = new THREE.Mesh(new THREE.BoxGeometry(gap, 0.3, cellSize), this.headerMat);
+                    top.position.set(x * cellSize, 2.85, z * cellSize);
+                    addGeometry(top);
+                    const doorGeo = new THREE.BoxGeometry(1.5, 2.7, 0.1);
+                    doorGeo.translate(0.75, 0, 0);
+                    const door = new THREE.Mesh(doorGeo, this.doorMat);
+                    door.position.set(x * cellSize - 0.8, 1.35, z * cellSize + 1.95);
+                    door.rotation.y = Math.PI / 4;
+                    addGeometry(door);
+                }
+            },
+            {
+                prob: 0.74, build: (x, z) => {
                     const dir = Math.floor(random() * 2), offset = (cellSize / 2) - 0.25;
                     const w1 = dir === 0 ? 0.5 : cellSize, d1 = dir === 0 ? cellSize : 0.5;
                     const gapW = dir === 0 ? cellSize - 1.0 : cellSize, gapD = dir === 0 ? cellSize : cellSize - 1.0;
-                    const p1 = buildWall(w1, d1, wallMat); p1.position.set(x * cellSize - (dir === 0 ? offset : 0), 1.5, z * cellSize - (dir === 1 ? offset : 0)); addGeometry(p1);
-                    const p2 = buildWall(w1, d1, wallMat); p2.position.set(x * cellSize + (dir === 0 ? offset : 0), 1.5, z * cellSize + (dir === 1 ? offset : 0)); addGeometry(p2);
-                    const top = new THREE.Mesh(new THREE.BoxGeometry(gapW, 0.3, gapD), this.headerMat); top.position.set(x * cellSize, 2.85, z * cellSize); addGeometry(top);
-                }},
-            { prob: 0.65, build: (x, z) => {
-                    const wall = new THREE.Mesh(wallGeo, wallMat); wall.position.set(x * cellSize, 1.5, z * cellSize); addGeometry(wall);
+                    const p1 = buildWall(w1, d1, wallMat);
+                    p1.position.set(x * cellSize - (dir === 0 ? offset : 0), 1.5, z * cellSize - (dir === 1 ? offset : 0));
+                    addGeometry(p1);
+                    const p2 = buildWall(w1, d1, wallMat);
+                    p2.position.set(x * cellSize + (dir === 0 ? offset : 0), 1.5, z * cellSize + (dir === 1 ? offset : 0));
+                    addGeometry(p2);
+                    const top = new THREE.Mesh(new THREE.BoxGeometry(gapW, 0.3, gapD), this.headerMat);
+                    top.position.set(x * cellSize, 2.85, z * cellSize);
+                    addGeometry(top);
+                }
+            },
+            {
+                prob: 0.65, build: (x, z) => {
+                    const wall = new THREE.Mesh(wallGeo, wallMat);
+                    wall.position.set(x * cellSize, 1.5, z * cellSize);
+                    addGeometry(wall);
                     const ventDir = Math.floor(random() * 2);
                     const ventGeo = new THREE.BoxGeometry(ventDir === 0 ? 1.2 : cellSize + 0.1, 0.4, ventDir === 0 ? cellSize + 0.1 : 1.2);
-                    const vent = new THREE.Mesh(ventGeo, this.ventMat); vent.position.set(x * cellSize, random() > 0.5 ? 2.6 : 0.4, z * cellSize); addGeometry(vent);
-                }},
-            { prob: 0.00, build: (x, z) => {
-                    const wall = new THREE.Mesh(wallGeo, wallMat); wall.position.set(x * cellSize, 1.5, z * cellSize); addGeometry(wall);
-                }}
+                    const vent = new THREE.Mesh(ventGeo, this.ventMat);
+                    vent.position.set(x * cellSize, random() > 0.5 ? 2.6 : 0.4, z * cellSize);
+                    addGeometry(vent);
+                }
+            },
+            {
+                prob: 0.00, build: (x, z) => {
+                    const wall = new THREE.Mesh(wallGeo, wallMat);
+                    wall.position.set(x * cellSize, 1.5, z * cellSize);
+                    addGeometry(wall);
+                }
+            }
         ];
-
         for (let x = -halfGrid - 1; x <= halfGrid + 1; x++) {
             for (let z = -halfGrid - 1; z <= halfGrid + 1; z++) {
                 const isBoundary = (x === -halfGrid - 1 || x === halfGrid + 1 || z === -halfGrid - 1 || z === halfGrid + 1);
@@ -906,8 +939,7 @@ class Environment {
                     // Search the matrix and execute the first matching structural probability
                     const structure = structuralMatrix.find(s => structRoll >= s.prob);
                     if (structure) structure.build(x, z);
-                }
-                else if (random() > 0.999) { // Extremely rare (.1% chance)
+                } else if (random() > 0.999) { // Extremely rare (.1% chance)
                     // Procedural Stairs - Authentic directional staircase
                     const stepCount = 10;
                     const stepDepth = cellSize / stepCount;
@@ -915,12 +947,10 @@ class Environment {
                     const dir = Math.floor(random() * 4); // 0=N, 1=E, 2=S, 3=W
                     for (let s = 0; s < stepCount; s++) {
                         const h = (s + 1) * stepHeight;
-
                         // Flip geometry dimensions based on N/S vs E/W
                         const wX = (dir % 2 === 0) ? cellSize : stepDepth;
                         const wZ = (dir % 2 === 0) ? stepDepth : cellSize;
                         const step = new THREE.Mesh(new THREE.BoxGeometry(wX, h, wZ), this.structMat);
-
                         // Calculate offset from the center of the cell
                         let offset = (cellSize / 2) - (stepDepth / 2) - (s * stepDepth);
                         if (dir === 2 || dir === 3) offset = -offset; // Reverse direction
@@ -933,11 +963,9 @@ class Environment {
                         step.updateMatrixWorld();
                         this.wallBoxes.push(new THREE.Box3().setFromObject(step));
                     }
-                }
-                else if (random() > 0.85) {
+                } else if (random() > 0.85) {
                     const isBroken = random() > 0.90;
                     const isRotated = random() > 0.5;
-
                     // The Geometric Offset.
                     // The tile grid boundaries rest on integers. A 1x2 panel requires a 0.5 unit offset
                     // on its minor axis to socket perfectly into the drop-ceiling void.
@@ -945,11 +973,9 @@ class Environment {
                     const offsetZ = isRotated ? 0.5 : 0.0;
                     const posX = (x * cellSize) + offsetX;
                     const posZ = (z * cellSize) + offsetZ;
-
                     // We clone the prototype material so the stochastic update loop
                     // doesn't bleed the dynamic emissive state across all geometries simultaneously.
                     const activeMat = isBroken ? this.baseBrokenLightMat.clone() : this.baseLightMat.clone();
-
                     // Serve the materials in a 6-face array.
                     // Three.js Box order: [+x, -x, +y, -y, +z, -z]
                     // We only want the emissive diffuser on the bottom face (-y).
@@ -961,17 +987,30 @@ class Environment {
                         this.baseHousingMat, // Front  (+z)
                         this.baseHousingMat  // Back   (-z)
                     ];
-
                     const panel = new THREE.Mesh(panelGeo, matArray);
                     panel.position.set(posX, 2.98, posZ);
                     if (isRotated) panel.rotation.y = Math.PI / 2;
                     this.scene.add(panel);
                     this.walls.push(panel);
-
                     if (!isBroken && this.lights.length < MAX_LIGHTS && random() > 0.75) {
                         const light = new THREE.PointLight(0xfff5c2, 0.6, 20);
                         light.position.set(posX, 2.8, posZ);
-                        light.castShadow = false;
+
+                        // Calculate squared distance from spawn (0,0) to find the closest lights
+                        const distFromSpawnSq = (posX * posX) + (posZ * posZ);
+
+                        // Only enable shadows for nearby lights, up to our hardware limit
+                        if (distFromSpawnSq < 600 && shadowLightsAdded < MAX_SHADOWS) {
+                            light.castShadow = true;
+                            light.shadow.mapSize.width = 256;
+                            light.shadow.mapSize.height = 256;
+                            light.shadow.camera.near = 0.5;
+                            light.shadow.camera.far = 20;
+                            light.shadow.bias = -0.005;
+                            shadowLightsAdded++;
+                        } else {
+                            light.castShadow = false;
+                        }
                         light.userData = {
                             flickerOffset: random() * 500,
                             material: activeMat,
@@ -989,17 +1028,14 @@ class Environment {
 
     captureAsset() {
         const flash = document.getElementById('flash-overlay');
-
         // Instant strike: kill the CSS transition temporarily
         flash.style.transition = 'none';
         flash.style.opacity = '1';
-
         setTimeout(() => {
             // Restore the slow decay for the cool-down
             flash.style.transition = 'opacity 0.8s ease-out';
             flash.style.opacity = '0';
         }, 50);
-
         setTimeout(() => {
             this.engine.render();
             const dataURL = this.engine.renderer.domElement.toDataURL('image/png');
@@ -1013,31 +1049,25 @@ class Environment {
     updateLights(time) {
         let ambientLightLevel = 0;
         const cameraPos = this.camera.position;
-
         // Instantiate the raycaster and tracking vectors once lazily
         // to avoid crippling the Garbage Collector during the render loop.
         if (!this.audioRaycaster) {
             this.audioRaycaster = new THREE.Raycaster();
             this.audioDirection = new THREE.Vector3();
         }
-
         let nearestLight = null;
         let minLightDist = Infinity;
-
         // Only process lights within a 20-unit radius
         this.lights.forEach(light => {
             const distSq = cameraPos.distanceToSquared(light.position);
-
             if (distSq < 400) {
                 const dist = Math.sqrt(distSq);
                 ambientLightLevel += (20 - dist) / 20;
-
                 // Track the absolute closest active light for our audio raycast
                 if (dist < minLightDist) {
                     minLightDist = dist;
                     nearestLight = light;
                 }
-
                 if (light.userData.isFaulty) {
                     if (Math.random() < 0.02) {
                         light.userData.targetIntensity = Math.random() < 0.4 ? 0.05 : light.userData.baseIntensity + (Math.random() * 0.4);
@@ -1050,55 +1080,43 @@ class Environment {
                 }
             }
         });
-
         // The Structural Raycast. Find if matter exists between the player and the sound.
         let isOccluded = false;
         if (nearestLight && minLightDist > 1.0) {
             this.audioDirection.subVectors(nearestLight.position, cameraPos).normalize();
             this.audioRaycaster.set(cameraPos, this.audioDirection);
             this.audioRaycaster.far = minLightDist;
-
             // Cast against the global walls array. Three.js internal sphere-culling keeps this cheap.
             const hits = this.audioRaycaster.intersectObjects(this.walls);
             if (hits.length > 0) isOccluded = true;
         }
-
         if (this.audioInitialized && this.mainGain) {
             // Geodesic proximity mapping. Inverse distance to the nearest active light.
             // Clamped to a maximum range of 20 units. 1.0 = right underneath it, 0.0 = far away.
             const proximity = Math.max(0, 1.0 - (minLightDist / 20.0));
-
             // Modulate the amplitude.
             this.mainGain.gain.setTargetAtTime(0.005 + (proximity * 0.02), this.audioCtx.currentTime, 0.5);
-
             // If occluded, choke it. If visible, scale the whine purely by how close you are to the bulb.
             const whineTarget = isOccluded ? 0.0001 : 0.0005 + (proximity * 0.003);
             this.whineGain.gain.setTargetAtTime(whineTarget, this.audioCtx.currentTime, 0.2);
-
             if (this.kineticFilter) {
                 // Systemic damping. The velocity vectors were blowing out the DSP target frequency.
                 const speed = Math.sqrt(this.player.velocity.x ** 2 + this.player.velocity.z ** 2);
                 const exertionPulse = Math.sin(time * 8.0) * (speed * 5); // Reduced pulse frequency and amplitude
-
                 // Muffle the kinetic filter. Drop the ceiling on the high frequencies.
                 const baseFreq = isOccluded ? 120 : 250;
                 const speedScale = isOccluded ? 2 : 8; // Drastically reduced from 150 to prevent acoustic spikes
-
                 const targetFreq = Math.max(100, baseFreq + (speed * speedScale) + exertionPulse);
                 const timeConstant = isOccluded ? 0.2 : 3.0; // Snap down instantly when occluded, recover smoothly
-
                 this.kineticFilter.frequency.setTargetAtTime(targetFreq, this.audioCtx.currentTime, timeConstant);
             }
         }
-
         // Stir the pot. The dust cloud physically envelopes the player, rotating slowly.
         if (this.dustCloud) {
             this.dustCloud.position.copy(cameraPos);
             this.dustCloud.rotation.y = time * 0.05;
             this.dustCloud.rotation.z = time * 0.02;
-        }
-
-        // Autonomic Fog. The environment physically breathes around the observer.
+        }        // Autonomic Fog. The environment physically breathes around the observer.
         if (this.baseFogDensity !== undefined) {
             // A slow respiratory cycle that modulates the current base density by +/- 30%
             const fogBreath = Math.sin(time * 0.05) * (this.baseFogDensity * 0.3);
@@ -1108,22 +1126,17 @@ class Environment {
 }
 
 // SYSTEM BOOTSTRAP
-
 const engine = new RenderEngine();
 const player = new PlayerController(engine.camera, engine.renderer.domElement);
 const environment = new Environment(engine, player);
-
 environment.setup();
 
 function animate() {
     requestAnimationFrame(animate);
-
     const delta = engine.delta;
     const time = engine.time;
-
     player.update(delta, environment.wallBoxes);
     environment.updateLights(time);
-
     engine.render();
 }
 
@@ -1142,11 +1155,11 @@ function updateVHSTime() {
     hours = hours ? hours : 12; // The hour '0' should be '12'
     const mins = String(now.getMinutes()).padStart(2, '0');
     const secs = String(now.getSeconds()).padStart(2, '0');
-
     const vhsTimeDisplay = document.getElementById('vhs-time');
     if (vhsTimeDisplay) {
         vhsTimeDisplay.innerText = `${ampm} ${String(hours).padStart(2, '0')}:${mins}:${secs} \u00A0\u00A0 ${month} ${day} ${year}`;
     }
 }
+
 setInterval(updateVHSTime, 1000);
 updateVHSTime(); // Initialize immediately

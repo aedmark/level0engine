@@ -1,10 +1,12 @@
 // sw.js - Thermodynamic Cache
-const CACHE_NAME = 'level-0-v1';
+
+const CACHE_NAME = 'level-0-v8';
 const ASSETS = [
     './',
     './index.html',
     './engine.js',
-    './three.min.js'
+    './three.min.js',
+    './manifest.json'
 ];
 
 self.addEventListener('install', (e) => {
@@ -27,6 +29,21 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
     e.respondWith(
-        caches.match(e.request).then((res) => res || fetch(e.request))
+        // ignoreSearch: true forces the cache to ignore Neocities cache-busting query strings
+        caches.match(e.request, { ignoreSearch: true }).then((res) => {
+            if (res) return res;
+
+            return fetch(e.request).catch((error) => {
+                console.warn('Network request failed:', e.request.url);
+
+                // If the failed request was a navigation request (page load), force the cached index
+                if (e.request.mode === 'navigate') {
+                    return caches.match('./index.html');
+                }
+
+                // Always return a valid Response to prevent ERR_FAILED crashes
+                return new Response('Offline content missing', { status: 503, statusText: 'Service Unavailable' });
+            });
+        })
     );
 });

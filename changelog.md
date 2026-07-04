@@ -1,5 +1,26 @@
 # Level 0 Engine Changelog
 
+## [v0.0.8] - 2026-07-03
+
+### Added
+- [UI] Added dynamic internal resolution scaling (Native, 50%, 25%) via `#canvas-container canvas` CSS pixelation and Three.js `.setSize(..., false)`. This drastically boosts mobile GPU performance while organically enhancing the retro VHS aesthetic.
+- [UI] Added an accessibility toggle for the Somatic Head Bob to assist players prone to motion sickness.
+- [UI] Implemented on-screen action buttons ("RUN" and "CROUCH") with smart cancellation logic. These are dynamically hidden from desktop users via the `@media (pointer: coarse)` CSS hardware detection query.
+- [SYSTEM] Added strict landscape orientation enforcement using `@media (orientation: portrait)` to display a retro system warning overlay if a mobile device is held vertically.
+- [WEBGL] Enabled true point light shadows to drastically enhance the liminal atmosphere.
+
+### Changed
+- [CONTROLS] Increased the mobile virtual joystick radius from 50px to 120px and added a 10px deadzone for smoother, high-DPI thumb navigation.
+- [CONTROLS] Boosted the right-thumb camera rotation sensitivity multiplier from `0.002` to `0.020`, allowing players to comfortably check 90-degree corners in a single swipe.
+- [UI] Added responsive CSS media queries to the `.status-bar` to dynamically scale down VHS fonts and padding on smaller landscape screens, preventing the text from obstructing the viewport.
+- [SYSTEM] Updated `manifest.json` `start_url` to `.` for better offline directory routing.
+
+### Fixed
+- [WEBGL] Mitigated "delta time explosions" (physics catapulting the player out of bounds) by explicitly clamping the `delta` multiplier to a maximum of `0.05` to survive expensive shader compilation lag spikes.
+- [WEBGL] Fixed GPU shader compilation crashes (`MAX_FRAGMENT_UNIFORM_VECTORS`) by limiting high-resolution cubemap shadows to a maximum of 4 lights closest to the player's spawn point.
+- [PHYSICS] Fixed a severe Z-axis collision lag spike by casting against the spatially filtered `localBoxes` array instead of the massive global `wallBoxes` array.
+- [SYSTEM] Fixed PWA `ERR_FAILED` crashes on Neocities by caching `manifest.json`, bumping the `sw.js` cache version, wrapping the fetch listener in a `.catch()` block, and utilizing `ignoreSearch: true` to safely bypass host-injected cache-busting query strings.
+
 ## [v0.0.7] - 2026-07-03
 
 ### Added
