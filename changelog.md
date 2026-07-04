@@ -1,5 +1,26 @@
 # Level 0 Engine Changelog
 
+## [v0.0.7] - 2026-07-03
+
+### Added
+- [SYSTEM] Integrated a Progressive Web App (PWA) `manifest.json` and a Thermodynamic Cache Service Worker (`sw.js`) to amputate browser UI chrome and enable native OS installation.
+- [AUDIO] Implemented Volumetric Audio Raycasting. The engine now casts a dynamic geodesic ray to the nearest light source, physically muffling high-frequency DSP signals when the player breaks line-of-sight behind structural geometry.
+- [TEXTURES] Created the Procedural Fluorescent Diffuser. Constructed a diamond-grid prismatic cover and a dark institutional plastic housing using a hidden canvas and a 6-face `THREE.MeshStandardMaterial` array.
+- [ENVIRONMENT] Added Atmospheric Particulates. Instantiated a single `THREE.Points` cloud of 800 localized microscopic dust motes that tether to the camera and slowly rotate to simulate stale, unventilated air.
+- [PHYSICS] Added Somatic Head Bob. Tethered the camera's Y-axis interpolation to the player's physical kinetic velocity vector using a low-amplitude sine wave, simulating physical mass without requiring new WebGL geometry.
+
+### Changed
+- [GEOMETRY] Refactored emissive light panel geometry. Scaled the fixture to `0.98 x 1.98` and applied a `0.5` unit minor-axis offset to seamlessly socket into a standard 1x2 drop-ceiling tile void.
+- [AUDIO] Dampened the LFO phase loop and amplitude to simulate a slow ambient breath rather than a high-frequency, nauseating wave.
+- [AUDIO] Replaced the aggregated ambient light volume logic with a strict geodesic proximity multiplier tied to `minLightDist`.
+- [AUDIO] Dampened kinetic exertion multipliers in the biquad filter to prevent acoustic blowout while sprinting.
+- [ENVIRONMENT] Re-routed the UI fog slider to update a `baseFogDensity` state variable, enabling the volumetric fog to autonomically "breathe" (+/- 30%) on a slow sine-wave loop without snapping the UI state.
+
+### Fixed
+- [PERFORMANCE] Replaced an expensive square root calculation (`distanceTo`) in the autophagic light culling loop with a mathematically cheaper squared distance comparison (`distanceToSquared`).
+- [PHYSICS] Implemented Broad-Phase Spatial Filtering. The AABB collision detector now spatially isolates the `wallBoxes` array, restricting intersection tests strictly to geometry within a 6.0 unit radius of the player.
+- [PERFORMANCE] Eliminated garbage-collection memory leaks in the generation loop by extracting the instantiation of the `MeshStandardMaterial` to the setup phase and utilizing `.clone()` for individual light meshes.
+
 ## [v0.0.6] - 2026-07-03
 
 ### Added

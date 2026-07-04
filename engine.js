@@ -333,6 +333,15 @@ class PlayerController {
         moveDelta.applyEuler(euler);
         const feetY = this.camera.position.y - 1.6; // Baseline floor
 
+        const px = this.camera.position.x;
+        const pz = this.camera.position.z;
+        const localBoxes = [];
+        for (let i = 0; i < wallBoxes.length; i++) {
+            if (Math.abs(wallBoxes[i].max.x - px) < 6.0 && Math.abs(wallBoxes[i].max.z - pz) < 6.0) {
+                localBoxes.push(wallBoxes[i]);
+            }
+        }
+
         // X Collision (Shrink Z radius slightly to prevent microscopic seam snagging)
         let hitX = false;
         const snagShrink = 0.05;
@@ -340,7 +349,7 @@ class PlayerController {
             new THREE.Vector3(this.camera.position.x + moveDelta.x - this.playerRadius, feetY + 0.6, this.camera.position.z - this.playerRadius + snagShrink),
             new THREE.Vector3(this.camera.position.x + moveDelta.x + this.playerRadius, feetY + 2.5, this.camera.position.z + this.playerRadius - snagShrink)
         );
-        for (let box of wallBoxes) { if (boxX.intersectsBox(box)) { hitX = true; break; } }
+        for (let box of localBoxes) { if (boxX.intersectsBox(box)) { hitX = true; break; } }
         if (!hitX) this.camera.position.x += moveDelta.x;
 
         // Z Collision (Shrink X radius slightly to prevent microscopic seam snagging)
@@ -364,8 +373,13 @@ class PlayerController {
             }
         }
 
-        // Smoothly glide up or down the steps
-        const targetCamY = Math.min(targetFeetY + 1.6, 2.8);
+        // SCHUR: The Somatic Head Bob. Track the physical velocity and map it to a sine wave.
+        const actualSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
+        this.headBobTimer = (this.headBobTimer || 0) + actualSpeed * delta;
+        const bobOffset = actualSpeed > 0.5 ? Math.sin(this.headBobTimer * 2.5) * 0.05 : 0;
+
+        // Smoothly glide up or down the steps, adding the physical breathing mass
+        const targetCamY = Math.min(targetFeetY + 1.6, 2.8) + bobOffset;
         this.camera.position.y += (targetCamY - this.camera.position.y) * 12.0 * delta;
         document.getElementById('coords').innerText = `X: ${this.camera.position.x.toFixed(2)} | Z: ${this.camera.position.z.toFixed(2)}`;
     }
@@ -411,12 +425,12 @@ class Environment {
         this.whineGain.gain.value = 0.005;
         osc3.connect(this.whineGain);
         this.mainGain = this.audioCtx.createGain();
-        this.mainGain.gain.value = 0.04; // Base baseline
+        this.mainGain.gain.value = 0.015; // Lowered baseline. We are simmering, not boiling.
         const lfo = this.audioCtx.createOscillator();
         lfo.type = 'sine';
-        lfo.frequency.value = 0.1;
+        lfo.frequency.value = 0.05; // Slowed the phase loop from 0.1 to 0.05. A long, slow breath.
         const lfoGain = this.audioCtx.createGain();
-        lfoGain.gain.value = 0.04;
+        lfoGain.gain.value = 0.008; // Drastically reduced amplitude. The LFO should whisper, not shout.
         lfo.connect(lfoGain);
         lfoGain.connect(this.mainGain.gain);
         osc1.connect(this.mainGain);
@@ -613,6 +627,65 @@ class Environment {
         const ventTexture = new THREE.CanvasTexture(ventCanvas);
         this.ventMat = new THREE.MeshStandardMaterial({map: ventTexture, roughness: 0.7, metalness: 0.4});
 
+        // 7. Procedural Emissive Light Panel (Prismatic Diffuser)
+        const lightCanvas = document.createElement('canvas');
+        lightCanvas.width = 128;
+        lightCanvas.height = 256;
+        const lightCtx = lightCanvas.getContext('2d');
+
+        // Base Emissive Hue
+        lightCtx.fillStyle = '#ffffe0';
+        lightCtx.fillRect(0, 0, 128, 256);
+
+        // Prismatic Diffuser (Faint Diamond Grid)
+        lightCtx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
+        lightCtx.lineWidth = 1;
+        lightCtx.beginPath();
+        // Intersecting strokes to create the plastic light cover
+        for(let i = -256; i < 256; i += 8) {
+            lightCtx.moveTo(0, i);
+            lightCtx.lineTo(128, i + 128); // Diagonal down-right
+            lightCtx.moveTo(128, i);
+            lightCtx.lineTo(0, i + 128);   // Diagonal down-left
+        }
+        lightCtx.stroke();
+
+        // Dark Beveled Edge & Frame
+        lightCtx.strokeStyle = '#1a1a1a';
+        lightCtx.lineWidth = 8;
+        lightCtx.strokeRect(0, 0, 128, 256);
+        lightCtx.strokeStyle = '#4a4a4a';
+        lightCtx.lineWidth = 4;
+        lightCtx.strokeRect(4, 4, 120, 248);
+
+        const lightTexture = new THREE.CanvasTexture(lightCanvas);
+
+        // We define the base materials once to prevent memory leaks during procedural generation.
+        this.baseLightMat = new THREE.MeshStandardMaterial({
+            map: lightTexture,
+            emissiveMap: lightTexture,
+            color: 0xffffe0,
+            emissive: 0xffffe0,
+            emissiveIntensity: 0.4,
+            roughness: 0.3,
+            metalness: 0.1
+        });
+
+        this.baseBrokenLightMat = new THREE.MeshStandardMaterial({
+            map: lightTexture,
+            emissiveMap: lightTexture,
+            color: 0x555544,
+            emissive: 0xffffe0,
+            emissiveIntensity: 0.01,
+            roughness: 0.8
+        });
+
+        // The structural housing. Non-emissive, dark plastic to wrap the sides.
+        this.baseHousingMat = new THREE.MeshStandardMaterial({
+            color: 0x1a1a1a,
+            roughness: 0.9
+        });
+
         // Install Environment Geometry
         carpetTexture.repeat.set(50, 50); // Expanded UV repeat
 
@@ -631,6 +704,28 @@ class Environment {
         ceiling.rotation.x = Math.PI / 2;
         ceiling.position.y = 3;
         this.scene.add(ceiling);
+
+        // Atmospheric Particulates. A single, mathematically efficient points cloud.
+        const dustGeo = new THREE.BufferGeometry();
+        const dustCount = 600;
+        const dustPos = new Float32Array(dustCount * 3);
+        for(let i = 0; i < dustCount * 3; i++) {
+            // Scatter the particles within a 20-unit localized bounding box
+            dustPos[i] = (Math.random() - 0.5) * 30.0;
+        }
+        dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+        const dustMat = new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 0.05,
+            transparent: true,
+            opacity: 0.10,
+            depthWrite: false
+        });
+        this.dustCloud = new THREE.Points(dustGeo, dustMat);
+        this.scene.add(this.dustCloud);
+
+        // Track the base fog density so we can modulate it without breaking the UI.
+        this.baseFogDensity = 0.05;
 
         // Boot Generation
         this.generate();
@@ -651,7 +746,7 @@ class Environment {
             this.generate();
         });
         document.getElementById('fogSlider').addEventListener('input', (e) => {
-            this.scene.fog.density = e.target.value / 100;
+            this.baseFogDensity = e.target.value / 100;
         });
 
         document.getElementById('fovSlider').addEventListener('input', (e) => {
@@ -725,7 +820,8 @@ class Environment {
             color: 0xffffff,
             roughness: 0.8
         });
-        const panelGeo = new THREE.BoxGeometry(1.2, 0.05, 2.4);
+        // 0.98 x 1.98 perfectly fits a 1x2 ceiling tile slot while leaving a 0.01 structural gap.
+        const panelGeo = new THREE.BoxGeometry(0.98, 0.05, 1.98);
         const halfGrid = Math.floor(gridSize / 2);
 
         const cx = Math.sin(baseSeed) * 0.8;
@@ -839,52 +935,52 @@ class Environment {
                     }
                 }
                 else if (random() > 0.85) {
-                    // Increased broken chance to 10% to add more dead visual variety
                     const isBroken = random() > 0.90;
+                    const isRotated = random() > 0.5;
 
-                    if (isBroken) {
-                        const panelMat = new THREE.MeshStandardMaterial({
-                            color: 0x333322,
-                            emissive: 0x000000,
-                            emissiveIntensity: .05,
-                            roughness: 0.8
-                        });
-                        const panel = new THREE.Mesh(panelGeo, panelMat);
-                        panel.position.set(x * cellSize, 2.98, z * cellSize);
-                        if (random() > 0.5) panel.rotation.y = Math.PI / 2;
-                        this.scene.add(panel);
-                        this.walls.push(panel);
-                    } else {
-                        // Always construct the emissive mesh to fake the ambient ceiling light
-                        const panelMat = new THREE.MeshStandardMaterial({
-                            color: 0xffffe0,
-                            emissive: 0xffffe0,
-                            emissiveIntensity: 0.4,
-                            roughness: 0.3,
-                            metalness: 0.1
-                        });
-                        const panel = new THREE.Mesh(panelGeo, panelMat);
-                        panel.position.set(x * cellSize, 2.98, z * cellSize);
-                        if (random() > 0.5) panel.rotation.y = Math.PI / 2;
-                        this.scene.add(panel);
-                        this.walls.push(panel);
+                    // The Geometric Offset.
+                    // The tile grid boundaries rest on integers. A 1x2 panel requires a 0.5 unit offset
+                    // on its minor axis to socket perfectly into the drop-ceiling void.
+                    const offsetX = isRotated ? 0.0 : 0.5;
+                    const offsetZ = isRotated ? 0.5 : 0.0;
+                    const posX = (x * cellSize) + offsetX;
+                    const posZ = (z * cellSize) + offsetZ;
 
-                        // Only ~25% of lit panels receive an expensive physical PointLight.
-                        // This prevents MAX_LIGHTS from being exhausted in the first quadrant.
-                        if (this.lights.length < MAX_LIGHTS && random() > 0.75) {
-                            const light = new THREE.PointLight(0xfff5c2, 0.6, 20);
-                            light.position.set(x * cellSize, 2.8, z * cellSize);
-                            light.castShadow = false;
-                            light.userData = {
-                                flickerOffset: random() * 500,
-                                material: panelMat,
-                                isFaulty: random() > 0.75,
-                                baseIntensity: 0.6,
-                                targetIntensity: 0.6
-                            };
-                            this.scene.add(light);
-                            this.lights.push(light);
-                        }
+                    // We clone the prototype material so the stochastic update loop
+                    // doesn't bleed the dynamic emissive state across all geometries simultaneously.
+                    const activeMat = isBroken ? this.baseBrokenLightMat.clone() : this.baseLightMat.clone();
+
+                    // Serve the materials in a 6-face array.
+                    // Three.js Box order: [+x, -x, +y, -y, +z, -z]
+                    // We only want the emissive diffuser on the bottom face (-y).
+                    const matArray = [
+                        this.baseHousingMat, // Right  (+x)
+                        this.baseHousingMat, // Left   (-x)
+                        this.baseHousingMat, // Top    (+y) - Hidden in ceiling
+                        activeMat,           // Bottom (-y) - Facing the player
+                        this.baseHousingMat, // Front  (+z)
+                        this.baseHousingMat  // Back   (-z)
+                    ];
+
+                    const panel = new THREE.Mesh(panelGeo, matArray);
+                    panel.position.set(posX, 2.98, posZ);
+                    if (isRotated) panel.rotation.y = Math.PI / 2;
+                    this.scene.add(panel);
+                    this.walls.push(panel);
+
+                    if (!isBroken && this.lights.length < MAX_LIGHTS && random() > 0.75) {
+                        const light = new THREE.PointLight(0xfff5c2, 0.6, 20);
+                        light.position.set(posX, 2.8, posZ);
+                        light.castShadow = false;
+                        light.userData = {
+                            flickerOffset: random() * 500,
+                            material: activeMat,
+                            isFaulty: random() > 0.75,
+                            baseIntensity: 0.6,
+                            targetIntensity: 0.6
+                        };
+                        this.scene.add(light);
+                        this.lights.push(light);
                     }
                 }
             }
@@ -914,17 +1010,33 @@ class Environment {
         }, 10);
     }
 
-    // engine.js - Optimized Light Update
     updateLights(time) {
         let ambientLightLevel = 0;
         const cameraPos = this.camera.position;
 
-        // Optimized: Only process lights within a 20-unit radius
-        this.lights.forEach(light => {
-            const dist = cameraPos.distanceTo(light.position);
+        // Instantiate the raycaster and tracking vectors once lazily
+        // to avoid crippling the Garbage Collector during the render loop.
+        if (!this.audioRaycaster) {
+            this.audioRaycaster = new THREE.Raycaster();
+            this.audioDirection = new THREE.Vector3();
+        }
 
-            if (dist < 20) {
+        let nearestLight = null;
+        let minLightDist = Infinity;
+
+        // Only process lights within a 20-unit radius
+        this.lights.forEach(light => {
+            const distSq = cameraPos.distanceToSquared(light.position);
+
+            if (distSq < 400) {
+                const dist = Math.sqrt(distSq);
                 ambientLightLevel += (20 - dist) / 20;
+
+                // Track the absolute closest active light for our audio raycast
+                if (dist < minLightDist) {
+                    minLightDist = dist;
+                    nearestLight = light;
+                }
 
                 if (light.userData.isFaulty) {
                     if (Math.random() < 0.02) {
@@ -939,17 +1051,58 @@ class Environment {
             }
         });
 
-        // Audio dynamics loop remains unchanged as it relies on ambientLightLevel
+        // The Structural Raycast. Find if matter exists between the player and the sound.
+        let isOccluded = false;
+        if (nearestLight && minLightDist > 1.0) {
+            this.audioDirection.subVectors(nearestLight.position, cameraPos).normalize();
+            this.audioRaycaster.set(cameraPos, this.audioDirection);
+            this.audioRaycaster.far = minLightDist;
+
+            // Cast against the global walls array. Three.js internal sphere-culling keeps this cheap.
+            const hits = this.audioRaycaster.intersectObjects(this.walls);
+            if (hits.length > 0) isOccluded = true;
+        }
+
         if (this.audioInitialized && this.mainGain) {
-            const darkness = Math.max(0, 1.0 - (ambientLightLevel * 0.25));
-            this.mainGain.gain.setTargetAtTime(0.01 + (darkness * 0.08), this.audioCtx.currentTime, 0.5);
-            this.whineGain.gain.setTargetAtTime(0.001 + (darkness * 0.008), this.audioCtx.currentTime, 0.5);
+            // Geodesic proximity mapping. Inverse distance to the nearest active light.
+            // Clamped to a maximum range of 20 units. 1.0 = right underneath it, 0.0 = far away.
+            const proximity = Math.max(0, 1.0 - (minLightDist / 20.0));
+
+            // Modulate the amplitude.
+            this.mainGain.gain.setTargetAtTime(0.005 + (proximity * 0.02), this.audioCtx.currentTime, 0.5);
+
+            // If occluded, choke it. If visible, scale the whine purely by how close you are to the bulb.
+            const whineTarget = isOccluded ? 0.0001 : 0.0005 + (proximity * 0.003);
+            this.whineGain.gain.setTargetAtTime(whineTarget, this.audioCtx.currentTime, 0.2);
+
             if (this.kineticFilter) {
+                // Systemic damping. The velocity vectors were blowing out the DSP target frequency.
                 const speed = Math.sqrt(this.player.velocity.x ** 2 + this.player.velocity.z ** 2);
-                const exertionPulse = Math.sin(time * 12.0) * (speed * 80);
-                const targetFreq = Math.max(100, 250 + (speed * 150) + exertionPulse);
-                this.kineticFilter.frequency.setTargetAtTime(targetFreq, this.audioCtx.currentTime, 5.0);
+                const exertionPulse = Math.sin(time * 8.0) * (speed * 5); // Reduced pulse frequency and amplitude
+
+                // Muffle the kinetic filter. Drop the ceiling on the high frequencies.
+                const baseFreq = isOccluded ? 120 : 250;
+                const speedScale = isOccluded ? 2 : 8; // Drastically reduced from 150 to prevent acoustic spikes
+
+                const targetFreq = Math.max(100, baseFreq + (speed * speedScale) + exertionPulse);
+                const timeConstant = isOccluded ? 0.2 : 3.0; // Snap down instantly when occluded, recover smoothly
+
+                this.kineticFilter.frequency.setTargetAtTime(targetFreq, this.audioCtx.currentTime, timeConstant);
             }
+        }
+
+        // Stir the pot. The dust cloud physically envelopes the player, rotating slowly.
+        if (this.dustCloud) {
+            this.dustCloud.position.copy(cameraPos);
+            this.dustCloud.rotation.y = time * 0.05;
+            this.dustCloud.rotation.z = time * 0.02;
+        }
+
+        // Autonomic Fog. The environment physically breathes around the observer.
+        if (this.baseFogDensity !== undefined) {
+            // A slow respiratory cycle that modulates the current base density by +/- 30%
+            const fogBreath = Math.sin(time * 0.05) * (this.baseFogDensity * 0.3);
+            this.scene.fog.density = this.baseFogDensity + fogBreath;
         }
     }
 }
