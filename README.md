@@ -14,7 +14,7 @@ This engine is built on absolute architectural minimalism.
 
 ## Usage
 
-1. Clone the repository or install via browser prompt.
+1. Clone the repository or install as a PWA on supported browsers from here: https://oopismcgoopis/level0.
 2. Open `index.html` in any modern web browser.
 3. **Desktop Controls:**
    * `Click`: Engage Pointer Lock (Look around)
