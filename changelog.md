@@ -1,5 +1,21 @@
 # Level 0 Engine Changelog
 
+## [v0.0.9] - 2026-07-04
+
+### Added
+- [ENVIRONMENT] Implemented Geodesic Chunking. The engine now dynamically generates and culls 16x16 geometry chunks based on the player's somatic coordinates to maintain a strict thermodynamic memory budget.
+- [ENVIRONMENT] Added procedural furniture (Waiting-room chairs and end-tables) utilizing a novel `fabricMat` and a stamped `woodMat` to populate alcoves and corners[cite: 7].
+- [PHYSICS] Added Dynamic Interactive Doors. Doors now execute a kinematic lerp to swing open when the player approaches within 3.5 units, dynamically squashing their AABB collision volumes to allow passage[cite: 7].
+
+### Changed
+- [GEOMETRY] Replaced static floor and ceiling planes with 8000x8000 "Treadmill Planes" that dynamically snap to the player's current chunk, completely bypassing WebGL `Float32` texture precision boundaries[cite: 7].
+- [TEXTURES] Recalculated UV repeats for the floor (2000x2000) and ceiling (8000x8000) to perfectly align 4-unit texture tiles with 64-unit chunk shifts, eliminating visual sliding[cite: 7].
+- [TEXTURES] Decoupled the woodgrain generation algorithm into a standalone `woodMat` and utilized `drawImage()` to stamp the pattern onto the door canvas, optimizing initialization load and allowing furniture upholstery[cite: 7].
+
+### Fixed
+- [WEBGL] Eradicated Z-fighting on the dynamic doorway headers by dropping the door and frame 0.05 units and expanding the jamb depth to 0.32, forcing the trim to sit structurally proud of the drywall[cite: 7].
+- [PERFORMANCE] Plugged severe WebGL memory leaks by explicitly traversing and executing `.dispose()` on all child geometries and materials when a stale chunk is purged from the spatial hash map[cite: 7].
+
 ## [v0.0.8] - 2026-07-03
 
 ### Added

@@ -1,10 +1,13 @@
 // sw.js - Thermodynamic Cache
 
-const CACHE_NAME = 'level-0-v9';
+const CACHE_NAME = 'level-0-v010';
 const ASSETS = [
     './',
     './index.html',
-    './engine.js',
+    './main.js',
+    './Environment.js',
+    './PlayerController.js',
+    './RenderEngine.js',
     './three.min.js',
     './manifest.json'
 ];

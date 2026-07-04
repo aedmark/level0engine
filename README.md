@@ -1,6 +1,6 @@
 # Level 0 Engine: Procedural Liminal Space Simulator v0.0.8
 
-A zero-dependency, mathematically pure, procedural 3D environment generator running entirely in a single HTML file. 
+A minimal-dependency, mathematically pure, procedural 3D environment generator running entirely in a single HTML file. 
 
 There are no external image assets. There are no imported audio files. There are no build tools, package managers, or framework abstractions. Everything you see and hear is generated locally in the browser via raw physics, procedural mathematics, and the Web Audio API.
 
