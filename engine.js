@@ -1136,7 +1136,6 @@ function updateVHSTime() {
     const month = months[now.getMonth()];
     const day = String(now.getDate()).padStart(2, '0');
     const year = now.getFullYear();
-
     let hours = now.getHours();
     const ampm = hours >= 12 ? 'PM' : 'AM';
     hours = hours % 12;
