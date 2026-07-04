@@ -463,10 +463,10 @@ export default class Environment {
         this.dustCloud = new THREE.Points(dustGeo, dustMat);
         this.scene.add(this.dustCloud);
 
-        // Allocate the fixed hardware light pool. Only the first 4 cast shadows.
+        // Allocate the fixed hardware light pool.
         for (let i = 0; i < this.maxActiveLights; i++) {
             const light = new THREE.PointLight(0xfff5c2, 0, 20);
-            if (i < 4) {
+            if (i < 6) {
                 light.castShadow = true;
                 light.shadow.mapSize.width = 256;
                 light.shadow.mapSize.height = 256;
@@ -906,10 +906,18 @@ export default class Environment {
         // Calculate the spatial distance of all theoretical fixtures
         this.fixtureData.forEach(fixture => {
             fixture.distSq = cameraPos.distanceToSquared(fixture.position);
+            // HYSTERESIS: If it held a shadow map last frame, pull it artificially closer to prevent thrashing
+            if (fixture.hasShadow) fixture.distSq -= 40.0;
         });
 
-        // Sort ascending by distance
+        // Sort ascending by biased distance
         this.fixtureData.sort((a, b) => a.distSq - b.distSq);
+
+        // Strip the bias back out so the rendering math remains physically accurate
+        this.fixtureData.forEach(fixture => {
+            if (fixture.hasShadow) fixture.distSq += 40.0;
+            fixture.hasShadow = false; // Reset for this frame's allocation
+        });
 
         let nearestFixture = null;
         let minLightDist = Infinity;
@@ -920,6 +928,8 @@ export default class Environment {
             const fixture = this.fixtureData[i];
 
             if (fixture && fixture.distSq < 400) {
+                if (i < 6) fixture.hasShadow = true; // Tag for next frame's hysteresis
+
                 // Teleport the light
                 light.position.copy(fixture.position);
                 const dist = Math.sqrt(fixture.distSq);
@@ -930,16 +940,20 @@ export default class Environment {
                     nearestFixture = fixture;
                 }
 
+                // THE FADE ENVELOPE: Smoothly scale hardware intensity from 0 to 1 over the outer 8 units
+                const fadeEnvelope = Math.max(0, Math.min(1, (20 - dist) / 8.0));
+
                 if (fixture.isFaulty) {
                     if (Math.random() < 0.02) {
                         fixture.targetIntensity = Math.random() < 0.4 ? 0.05 : fixture.baseIntensity + (Math.random() * 0.4);
                     }
                     fixture.currentIntensity += (fixture.targetIntensity - fixture.currentIntensity) * 0.4;
-                    light.intensity = fixture.currentIntensity;
-                    fixture.material.emissiveIntensity = Math.max(0.05, light.intensity * 0.6);
+                    // Apply fade to hardware light, but keep the physical panel glowing at its true simulated intensity
+                    light.intensity = fixture.currentIntensity * fadeEnvelope;
+                    fixture.material.emissiveIntensity = Math.max(0.05, fixture.currentIntensity * 0.6);
                 } else {
-                    light.intensity = fixture.baseIntensity + (Math.sin(time * 120 + fixture.flickerOffset) * 0.02);
-                    fixture.material.emissiveIntensity = 0.4;
+                    light.intensity = (fixture.baseIntensity + (Math.sin(time * 120 + fixture.flickerOffset) * 0.02)) * fadeEnvelope;
+                    fixture.material.emissiveIntensity = 0.4; // Panel remains visually ON
                 }
             } else {
                 // Shut off idle pool hardware to save GPU cycles

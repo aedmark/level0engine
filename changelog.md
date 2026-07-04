@@ -1,5 +1,23 @@
 # Level 0 Engine Changelog
 
+## [v0.1.0] - 2026-07-04
+
+### Added
+- [ARCHITECTURE] Modularized the monolithic codebase. Split the core logic into discrete ES6 modules (`main.js`, `RenderEngine.js`, `PlayerController.js`, `Environment.js`) using `export default` to drastically reduce cognitive load and establish strict semantic boundaries.
+- [PHYSICS] Implemented Geodesic Spatial Hashing. Replaced the expensive O(N) global `wallBoxes` array with a highly efficient `SpatialHashGrid`, indexing geometry into 4-unit cells.
+- [LIGHTING] Added Spatial Hysteresis to the shadow allocation loop. Fixtures currently holding a shadow map are mathematically biased closer by 40 units during sorting to prevent flickering and thrashing at index boundaries.
+- [LIGHTING] Added a Fade Envelope to the virtual light pool. Hardware `THREE.PointLight` intensities now smoothly scale from 0 to 1 over the outer 8 units of their 20-unit radius, eliminating abrupt popping while the physical ceiling panel's `emissiveIntensity` remains visually constant.
+
+### Changed
+- [SYSTEM] Updated `index.html` to load `main.js` as an ES6 `<script type="module">`.
+- [PHYSICS] Player collision and gravity step-up detection now execute an O(1) grid lookup via `spatialGrid.getNearby(px, pz, 2.0)`, ensuring physics processing cost remains flat regardless of infinite world scale.
+- [SYSTEM] Updated the Thermodynamic Cache in the Service Worker (`sw.js`) to cache the new discrete ES6 modules instead of the deprecated monolith[cite: 10].
+
+### Fixed
+- [PERFORMANCE] Restored the active shadow-casting point light pool back to a strict limit of 4. This resolved severe GPU choking and delta-time capping (the "slow walking" bug) caused by attempting to render 72 shadow passes per frame.
+- [SYSTEM] Repaired fatal ES6 lexical encapsulation errors by ensuring all classes strictly declare `export default`.
+- [SYSTEM] Repaired the Service Worker offline asset array to map to `Environment.js` instead of the non-existent `Engine.js`[cite: 10].
+
 ## [v0.0.9] - 2026-07-04
 
 ### Added
