@@ -21,10 +21,13 @@ export default class RenderEngine {
         this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
         this.postScene = new THREE.Scene();
         this.postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        this.exhaustion = 0.0; // Cross-class bridge variable
+
         this.postMaterial = new THREE.ShaderMaterial({
             uniforms: {
                 tDiffuse: {value: this.target.texture},
-                time: {value: 0.0}
+                time: {value: 0.0},
+                exhaustion: {value: 0.0}
             },
             vertexShader: `
                 varying vec2 vUv;
@@ -36,6 +39,7 @@ export default class RenderEngine {
             fragmentShader: `
                 uniform sampler2D tDiffuse;
                 uniform float time;
+                uniform float exhaustion;
                 varying vec2 vUv;
                 float hash(vec2 p) {
                     vec3 p3  = fract(vec3(p.xyx) * .1031);
@@ -44,12 +48,39 @@ export default class RenderEngine {
                 }
                 void main() {
                     vec2 uv = vUv;
-                    // 1. VHS Chromatic Aberration (RGB shift scales with distance from center)
+                    // 1. VHS Chromatic Aberration & Somatic Blur
                     vec2 offset = vec2(0.003, 0.0) * (uv.x - 0.5) * 2.0; 
-                    float r = texture2D(tDiffuse, uv + offset).r;
-                    float g = texture2D(tDiffuse, uv).g;
-                    float b = texture2D(tDiffuse, uv - offset).b;
-                    vec3 col = vec3(r, g, b);
+                    float blurAmt = exhaustion * 0.012; // Terminal fatigue blur radius
+                    vec3 col = vec3(0.0);
+                    
+                    // Base sharp sample
+                    col.r = texture2D(tDiffuse, uv + offset).r;
+                    col.g = texture2D(tDiffuse, uv).g;
+                    col.b = texture2D(tDiffuse, uv - offset).b;
+                    
+                    if (exhaustion > 0.01) {
+                        vec3 blur = vec3(0.0);
+                        // Cheap 4-tap box blur for retinal fatigue
+                        blur.r += texture2D(tDiffuse, uv + offset + vec2(blurAmt, blurAmt)).r;
+                        blur.g += texture2D(tDiffuse, uv + vec2(blurAmt, blurAmt)).g;
+                        blur.b += texture2D(tDiffuse, uv - offset + vec2(blurAmt, blurAmt)).b;
+                        
+                        blur.r += texture2D(tDiffuse, uv + offset + vec2(-blurAmt, -blurAmt)).r;
+                        blur.g += texture2D(tDiffuse, uv + vec2(-blurAmt, -blurAmt)).g;
+                        blur.b += texture2D(tDiffuse, uv - offset + vec2(-blurAmt, -blurAmt)).b;
+                        
+                        blur.r += texture2D(tDiffuse, uv + offset + vec2(-blurAmt, blurAmt)).r;
+                        blur.g += texture2D(tDiffuse, uv + vec2(-blurAmt, blurAmt)).g;
+                        blur.b += texture2D(tDiffuse, uv - offset + vec2(-blurAmt, blurAmt)).b;
+                        
+                        blur.r += texture2D(tDiffuse, uv + offset + vec2(blurAmt, -blurAmt)).r;
+                        blur.g += texture2D(tDiffuse, uv + vec2(blurAmt, -blurAmt)).g;
+                        blur.b += texture2D(tDiffuse, uv - offset + vec2(blurAmt, -blurAmt)).b;
+                        
+                        // Crossfade sharp vision into blurred vision based on exhaustion
+                        col = mix(col, blur / 4.0, exhaustion);
+                    }
+                    
                     // 2. Animated Crawling Static
                     float noise = hash(uv * vec2(800.0, 800.0) + time * 15.0);
                     col += (noise - 0.5) * 0.07;
@@ -120,8 +151,9 @@ export default class RenderEngine {
         // Pass 1: Render true 3D scene to the offscreen target
         this.renderer.setRenderTarget(this.target);
         this.renderer.render(this.scene, this.camera);
-        // Pass 2: Update time variable, apply ShaderMaterial, and render to the physical screen
+        // Pass 2: Update time variables, apply ShaderMaterial, and render to the physical screen
         this.postMaterial.uniforms.time.value = this.time;
+        this.postMaterial.uniforms.exhaustion.value = this.exhaustion; // Push the somatic state to the GPU
         this.renderer.setRenderTarget(null);
         this.renderer.render(this.postScene, this.postCamera);
     }

@@ -1,5 +1,25 @@
 # Level 0 Engine Changelog
 
+## [v0.1.2] - 2026-07-05
+
+### Added
+- [AUDIO] Synthesized the Resonant Channel (432Hz sine wave) for the Overgrown Atrium to provide a physiological breather.
+- [AUDIO] Added the Anomaly's Acoustic Signature, a stuttering sawtooth wave (digital Geiger-counter) that scales exponentially with proximity.
+- [MECHANICS] Implemented the Metabolic Economy. The player has a finite stamina pool that drains during a panic sprint and recovers slowly while walking or hiding.
+- [MECHANICS] Added the Consumption Event. When the Anomaly overtakes the player, the engine executes a void blackout, mutates the seed with "NULL", and procedurally rebuilds a new reality.
+
+### Changed
+- [AUDIO] Consolidated spatial evaluation into a Unified Thermodynamic Read to prevent atmospheric fog and sector audio from drifting out of phase.
+- [AUDIO] Decoupled environmental audio tracks (Atrium noise, Peace tones) from the hardware light proximity gain, routing them directly to the master output.
+- [WEBGL] Injected the player's exhaustion state into the post-processing shader, applying a dynamic 4-tap box blur to simulate retinal fatigue when stamina drops below 30%.
+- [PHYSICS] Re-calibrated kinetic inflows to allow the player to physically outrun the Anomaly (6.0 units/sec sprint vs 4.2 units/sec pursuit).
+- [TEXTURES] Cloned the fabric material into a dedicated `mossMat` with a 32x32 UV wrap to maintain high-frequency noise across the Atrium macro-foundation.
+
+### Fixed
+- [AUDIO] Linked the kinetic low-pass filter to the player's exhaustion state, mathematically crushing high frequencies to simulate the physical toll of a depleted stamina pool.
+- [GEOMETRY] Enforced strict vertical clearance on Atrium canopy generation. Floating greenery is now physically anchored flush against the 3.0 ceiling to prevent clipping the 1.6 camera viewport.
+- [GEOMETRY] Shattered the rigid cell grid in the Atrium by applying chaotic planar offsets and organic yaw rotations to tree trunks and canopies.
+
 ## [v0.1.1] - 2026-07-05
 
 ### Added

@@ -18,6 +18,12 @@ export default class PlayerController {
         this.enableHeadBob = true;
         this.speedMultiplier = 1.0;
 
+        // Metabolic State
+        this.maxStamina = 100.0;
+        this.stamina = 100.0;
+        this.exhaustion = 0.0;
+        this.isChased = false;
+
         // Mobile Touch State
         this.touchMove = {active: false, id: null, startX: 0, startY: 0, deltaX: 0, deltaY: 0};
         this.touchLook = {active: false, id: null, startX: 0, startY: 0, lastX: 0, lastY: 0};
@@ -223,8 +229,31 @@ export default class PlayerController {
         this.direction.x = Number(this.moveRight) - Number(this.moveLeft);
         if (this.direction.lengthSq() > 0) this.direction.normalize();
 
-        // Kinetic inflows returned to a stable, manageable baseline
-        const currentSpeed = (this.isCrouching ? 30.0 : (this.isRunning ? 112.5 : 60.0)) * this.speedMultiplier;
+        // Re-calibrated kinetic inflows to push terminal sprint velocity beyond the entity's top speed
+        let currentSpeed = (this.isCrouching ? 35.0 : (this.isRunning ? 150.0 : 75.0)) * this.speedMultiplier;
+
+        // Meadows' Metabolic Economy: Drain stamina ONLY when actively hunted and running.
+        const isMoving = this.direction.lengthSq() > 0 || this.touchMove.active;
+        if (this.isRunning && this.isChased && isMoving) {
+            // The Chef's Calibration: 8 seconds of sprint capacity to build a viable gap.
+            this.stamina = Math.max(0, this.stamina - 12.5 * delta);
+            if (this.stamina <= 0.0) {
+                this.isRunning = false; // Force terminal walking state
+                currentSpeed = 75.0 * this.speedMultiplier;
+
+                // Deactivate mobile UI run toggle if present
+                const runBtn = document.getElementById('mobile-run');
+                if (runBtn) runBtn.classList.remove('active');
+            }
+        } else {
+            // Recover stamina when walking, crouching, or hiding
+            this.stamina = Math.min(this.maxStamina, this.stamina + 10.0 * delta); // 10 second recovery
+        }
+
+        // Calculate terminal fatigue scalar (0.0 to 1.0)
+        // Fuller's Threshold: Exhaustion (visual blur and audio choking) only kicks in when stamina drops below 30%
+        const fatigueRatio = this.stamina / this.maxStamina;
+        this.exhaustion = fatigueRatio < 0.3 ? Math.pow(1.0 - (fatigueRatio / 0.3), 2.0) : 0.0;
 
         // DESKTOP KEYBOARD INJECTION
         if (this.moveForward || this.moveBackward) this.velocity.z -= this.direction.z * currentSpeed * delta;

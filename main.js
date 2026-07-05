@@ -17,6 +17,7 @@ function animate() {
     environment.updateInteractives(engine.camera.position, delta);
     environment.updateEntity(engine.camera.position, delta, time);
     player.update(delta, environment.spatialGrid);
+    engine.exhaustion = player.exhaustion; // Bridge the thermodynamic state to the renderer
     environment.updateLights(time);
     engine.render();
 }
