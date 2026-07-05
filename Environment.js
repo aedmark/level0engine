@@ -65,8 +65,11 @@ export default class Environment {
         this.activeChunks = new Map();
         this.currentChunkCoords = { x: null, z: null };
         this.interactiveDoors = [];
-        this.audioCtx = null;
-        this.audioInitialized = false;
+
+        // MEMORY ALLOCATION
+        this.localFixtures = []; // Pre-allocated to prevent GC thrashing
+        this.lastAudioOcclusionTime = 0;
+        this.currentOcclusionState = false;
     }
 
     updateChunks(playerPos) {
@@ -157,108 +160,6 @@ export default class Environment {
                 }
             }
         });
-    }
-
-    initAudio() {
-        if (this.audioInitialized) return;
-        this.audioInitialized = true;
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        this.audioCtx = new AudioContext();
-
-        this.subRumble = this.audioCtx.createOscillator();
-        this.subRumble.type = 'sine';
-        this.subRumble.frequency.value = 60;
-
-        const osc2 = this.audioCtx.createOscillator();
-        osc2.type = 'sawtooth';
-        osc2.frequency.value = 120;
-
-        // Expose the filter to the class topology so we can mutate it in the update loop
-        this.kineticFilter = this.audioCtx.createBiquadFilter();
-        this.kineticFilter.type = 'lowpass';
-        this.kineticFilter.frequency.value = 250;
-        osc2.connect(this.kineticFilter);
-
-        const osc3 = this.audioCtx.createOscillator();
-        osc3.type = 'triangle';
-        osc3.frequency.value = 1200;
-
-        this.whineGain = this.audioCtx.createGain();
-        this.whineGain.gain.value = 0.005;
-        osc3.connect(this.whineGain);
-
-        this.mainGain = this.audioCtx.createGain();
-        this.mainGain.gain.value = 0.015; // Lowered baseline. We are simmering, not boiling.
-
-        const lfo = this.audioCtx.createOscillator();
-        lfo.type = 'sine';
-        lfo.frequency.value = 0.05; // Slowed the phase loop from 0.1 to 0.05. A long, slow breath.
-        const lfoGain = this.audioCtx.createGain();
-        lfoGain.gain.value = 0.008; // Drastically reduced amplitude. The LFO should whisper, not shout.
-        lfo.connect(lfoGain);
-        lfoGain.connect(this.mainGain.gain);
-
-        // The Organic Atrium Synthesis (White Noise Buffer)
-        const bufferSize = this.audioCtx.sampleRate * 2;
-        const noiseBuffer = this.audioCtx.createBuffer(1, bufferSize, this.audioCtx.sampleRate);
-        const output = noiseBuffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
-        this.noiseSrc = this.audioCtx.createBufferSource();
-        this.noiseSrc.buffer = noiseBuffer;
-        this.noiseSrc.loop = true;
-
-        this.noiseFilter = this.audioCtx.createBiquadFilter();
-        this.noiseFilter.type = 'lowpass';
-        this.noiseFilter.frequency.value = 300; // Muffled, damp air
-
-        this.atriumGain = this.audioCtx.createGain();
-        this.atriumGain.gain.value = 0.0; // Start muted
-
-        this.noiseSrc.connect(this.noiseFilter);
-        this.noiseFilter.connect(this.atriumGain);
-        // Fuller's Decoupling: Route environmental tracks directly to the output to bypass light proximity scaling
-        this.atriumGain.connect(this.audioCtx.destination);
-
-        // The Resonant Glimmer (Peaceful Atrium Tones)
-        this.peaceOsc = this.audioCtx.createOscillator();
-        this.peaceOsc.type = 'sine';
-        this.peaceOsc.frequency.value = 432; // Organic resonance
-        this.peaceGain = this.audioCtx.createGain();
-        this.peaceGain.gain.value = 0.0; // Start muted
-
-        this.peaceOsc.connect(this.peaceGain);
-        // Fuller's Decoupling: Direct hardware routing
-        this.peaceGain.connect(this.audioCtx.destination);
-
-        // 12. The Anomaly's Acoustic Signature (Digital Geiger-Chitter)
-        this.entityOsc = this.audioCtx.createOscillator();
-        this.entityOsc.type = 'sawtooth';
-        this.entityOsc.frequency.value = 40; // Harsh, grinding base
-        this.entityLFO = this.audioCtx.createOscillator();
-        this.entityLFO.type = 'square';
-        this.entityLFO.frequency.value = 12; // Stuttering 12Hz chop
-        this.entityLFOGain = this.audioCtx.createGain();
-        this.entityLFOGain.gain.value = 100;
-        this.entityLFO.connect(this.entityLFOGain);
-        this.entityLFOGain.connect(this.entityOsc.frequency);
-        this.entityGain = this.audioCtx.createGain();
-        this.entityGain.gain.value = 0.0; // Start completely silent
-        this.entityOsc.connect(this.entityGain);
-        this.entityGain.connect(this.audioCtx.destination); // Direct unoccluded output
-
-        this.subRumble.connect(this.mainGain);
-        this.kineticFilter.connect(this.mainGain);
-        this.whineGain.connect(this.mainGain);
-        this.mainGain.connect(this.audioCtx.destination);
-
-        this.subRumble.start();
-        osc2.start();
-        osc3.start();
-        lfo.start();
-        this.noiseSrc.start();
-        this.peaceOsc.start();
-        this.entityOsc.start();
-        this.entityLFO.start();
     }
 
     setup() {
@@ -647,8 +548,12 @@ export default class Environment {
         };
         // Listen to the raw pointer press, not the delayed click evaluation
         toggleBtn.addEventListener('pointerdown', toggleMenu);
+
+        // Add hotkey for ergonomic toggle (M)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'm' || e.key === 'M') toggleMenu(e);
+        });
         document.getElementById('generateBtn').addEventListener('click', () => {
-            this.initAudio();
             this.generate();
         });
         document.getElementById('fogSlider').addEventListener('input', (e) => {
@@ -678,8 +583,6 @@ export default class Environment {
             this.player.enableHeadBob = e.target.checked;
         });
         document.getElementById('captureBtn').addEventListener('click', () => this.captureAsset());
-        document.addEventListener('click', () => this.initAudio(), {once: true});
-        document.addEventListener('keydown', () => this.initAudio(), {once: true});
     }
 
     generate() {
@@ -753,32 +656,30 @@ export default class Environment {
             return new THREE.Mesh(geo, mat);
         };
 
+        const stagingMeshes = []; // The Chef's prep table for InstancedMesh compilation
+
         const addGeometry = (mesh) => {
-            mesh.castShadow = mesh.receiveShadow = true;
             mesh.userData.chunkHash = hash;
-            chunkGroup.add(mesh);
-            this.walls.push(mesh);
-            mesh.updateMatrixWorld();
+            mesh.updateMatrixWorld(true);
             const box = new THREE.Box3().setFromObject(mesh);
             box.chunkHash = hash;
             this.spatialGrid.insert(box);
+            stagingMeshes.push(mesh);
         };
 
         const addFurniture = (group) => {
             group.userData.chunkHash = hash;
-            chunkGroup.add(group);
             group.updateMatrixWorld(true);
             const box = new THREE.Box3().setFromObject(group);
             box.chunkHash = hash;
             this.spatialGrid.insert(box); // Enable player collision
 
-            // Propagate shadow casting and audio raycast occlusion to child meshes
             group.traverse((child) => {
                 if (child.isMesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
                     child.userData.chunkHash = hash;
-                    this.walls.push(child);
+                    // Push world transforms to the child for accurate global instancing
+                    child.updateMatrixWorld(true);
+                    stagingMeshes.push(child);
                 }
             });
         };
@@ -1223,6 +1124,53 @@ export default class Environment {
                 }
             }
         }
+
+        // --- S.L.A.S.H. GEODESIC COMPILER (InstancedMesh) ---
+        const instancedGroups = new Map();
+
+        stagingMeshes.forEach(mesh => {
+            // Arrays of materials need a deterministic signature
+            const matSig = Array.isArray(mesh.material) ? mesh.material.map(m => m.uuid).join('_') : mesh.material.uuid;
+            const sig = `${mesh.geometry.uuid}_${matSig}`;
+
+            if (!instancedGroups.has(sig)) {
+                instancedGroups.set(sig, {
+                    geometry: mesh.geometry,
+                    material: mesh.material,
+                    meshes: []
+                });
+            }
+            instancedGroups.get(sig).meshes.push(mesh);
+        });
+
+        const dummy = new THREE.Object3D();
+        instancedGroups.forEach(group => {
+            if (group.meshes.length > 1) {
+                // Collapse multiple meshes into a single geodesic draw call
+                const iMesh = new THREE.InstancedMesh(group.geometry, group.material, group.meshes.length);
+                iMesh.castShadow = true;
+                iMesh.receiveShadow = true;
+                iMesh.userData.chunkHash = hash;
+
+                group.meshes.forEach((mesh, index) => {
+                    // Extract absolute world transforms directly from the pre-calculated matrix
+                    mesh.matrixWorld.decompose(dummy.position, dummy.quaternion, dummy.scale);
+                    dummy.updateMatrix();
+                    iMesh.setMatrixAt(index, dummy.matrix);
+                });
+
+                iMesh.instanceMatrix.needsUpdate = true;
+                chunkGroup.add(iMesh);
+                this.walls.push(iMesh); // Push to raycast array for audio occlusion
+            } else {
+                // Singular unique geometry falls back to standard mesh
+                const mesh = group.meshes[0];
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                chunkGroup.add(mesh);
+                this.walls.push(mesh);
+            }
+        });
     }
 
     captureAsset() {
@@ -1332,22 +1280,22 @@ export default class Environment {
         }
 
         // Calculate spatial distance, but cull fixtures outside rendering relevance to save CPU cycles
-        const localFixtures = [];
+        this.localFixtures.length = 0; // Reuse array to prevent Garbage Collection stutter
         this.fixtureData.forEach(fixture => {
             const distSq = cameraPos.distanceToSquared(fixture.position);
             if (distSq < 900) { // Strict 30-unit volumetric boundary
                 fixture.distSq = fixture.hasShadow ? distSq - 40.0 : distSq;
-                localFixtures.push(fixture);
+                this.localFixtures.push(fixture);
             } else {
                 fixture.hasShadow = false;
             }
         });
 
         // Sort only the local active subset
-        localFixtures.sort((a, b) => a.distSq - b.distSq);
+        this.localFixtures.sort((a, b) => a.distSq - b.distSq);
 
         // Strip the bias back out
-        localFixtures.forEach(fixture => {
+        this.localFixtures.forEach(fixture => {
             if (fixture.hasShadow) fixture.distSq += 40.0;
             fixture.hasShadow = false;
         });
@@ -1358,7 +1306,7 @@ export default class Environment {
         // Snap the hardware light pool to the nearest structural fixtures
         for (let i = 0; i < this.maxActiveLights; i++) {
             const light = this.lightPool[i];
-            const fixture = localFixtures[i];
+            const fixture = this.localFixtures[i];
 
             if (fixture && fixture.distSq < 400) {
                 if (i < 6) fixture.hasShadow = true; // Tag for next frame's hysteresis
@@ -1395,14 +1343,21 @@ export default class Environment {
         }
 
         // The Structural Raycast. Find if matter exists between the player and the sound.
-        let isOccluded = false;
         if (nearestFixture && minLightDist > 1.0) {
-            this.audioDirection.subVectors(nearestFixture.position, cameraPos).normalize();
-            this.audioRaycaster.set(cameraPos, this.audioDirection);
-            this.audioRaycaster.far = minLightDist;
-            const hits = this.audioRaycaster.intersectObjects(this.walls);
-            if (hits.length > 0) isOccluded = true;
+            // Only calculate heavy InstancedMesh occlusion 10 times a second.
+            if (time - this.lastAudioOcclusionTime > 0.1) {
+                this.audioDirection.subVectors(nearestFixture.position, cameraPos).normalize();
+                this.audioRaycaster.set(cameraPos, this.audioDirection);
+                this.audioRaycaster.far = minLightDist;
+                const hits = this.audioRaycaster.intersectObjects(this.walls);
+                this.currentOcclusionState = hits.length > 0;
+                this.lastAudioOcclusionTime = time;
+            }
+        } else {
+            this.currentOcclusionState = false;
         }
+
+        let isOccluded = this.currentOcclusionState;
 
         // UNIFIED THERMODYNAMIC READ: Evaluated once per frame to prevent pseudo-random desynchronization
         const pChunkX = Math.floor(cameraPos.x / (this.chunkSize * this.cellSize));
@@ -1422,7 +1377,6 @@ export default class Environment {
             else if (sectorRoll <= 0.75) { activeSector = "SERVER"; targetFog = 0.08; }
             else { activeSector = "ATRIUM"; targetFog = 0.18; }
         }
-
         // Apply Global Atmosphere
         if (this.baseFogDensity !== undefined) {
             this.baseFogDensity += (targetFog - this.baseFogDensity) * 0.02;
@@ -1430,78 +1384,28 @@ export default class Environment {
             this.scene.fog.density = this.baseFogDensity + fogBreath;
         }
 
-        // Apply Custom DSP Routing
-        if (this.audioInitialized && this.mainGain) {
-            const proximity = Math.max(0, 1.0 - (minLightDist / 20.0));
-            this.mainGain.gain.setTargetAtTime(0.005 + (proximity * 0.02), this.audioCtx.currentTime, 0.5);
-
-            let whineTarget = isOccluded ? 0.0001 : 0.0005 + (proximity * 0.003);
-            let noiseTarget = 0.0;
-            let rumbleFreq = 60;
-            let peaceTarget = 0.0;
-            let baseFreq = isOccluded ? 120 : 250;
-
-            // Acoustic matrix shift based on topological boundaries
-            switch (activeSector) {
-                case "BOARDROOM":
-                    noiseTarget = 0.4; // Scaled for direct destination output
-                    whineTarget = 0.0; // Silence the broken bulbs
-                    break;
-                case "SERVER":
-                    rumbleFreq = 35; // Deep subharmonic server growl
-                    whineTarget = isOccluded ? 0.0005 : 0.002; // Elevated electronic whine
-                    break;
-                case "ATRIUM":
-                    noiseTarget = 0.8; // Damp, atmospheric white noise mixed directly to output
-                    whineTarget = 0.0;
-                    peaceTarget = 0.15; // 432Hz resonant glimmer mixed directly to output
-                    baseFreq = 80;
-                    break;
-                case "ARCHIVE":
-                    baseFreq = 60; // Suffocating structural density
-                    break;
-            }
-
-            this.whineGain.gain.setTargetAtTime(whineTarget, this.audioCtx.currentTime, 0.5);
-            if (this.atriumGain) this.atriumGain.gain.setTargetAtTime(noiseTarget, this.audioCtx.currentTime, 1.0);
-            if (this.peaceGain) this.peaceGain.gain.setTargetAtTime(peaceTarget, this.audioCtx.currentTime, 2.0);
-
-            // Anomaly Proximity Pressure & Acoustic Signature
-            let anomalyPressure = 0;
-            if (this.entityActive) {
-                const distToAnomaly = cameraPos.distanceTo(this.entityGroup.position);
-                if (distToAnomaly < 15.0) anomalyPressure = 1.0 - (distToAnomaly / 15.0);
-
-                if (this.entityGain) {
-                    // Exponential volume curve: silent at 40 units, screaming at 0 units
-                    let entityVol = 0.0;
-                    if (distToAnomaly < 40.0) {
-                        entityVol = Math.pow(1.0 - (distToAnomaly / 40.0), 3.0) * 0.4;
-                    }
-                    this.entityGain.gain.setTargetAtTime(entityVol, this.audioCtx.currentTime, 0.2);
-                }
-            }
-
-            if (this.subRumble) {
-                this.subRumble.frequency.setTargetAtTime(rumbleFreq + (anomalyPressure * 40), this.audioCtx.currentTime, 2.0);
-            }
-
-            if (this.kineticFilter) {
-                const speed = Math.sqrt(this.player.velocity.x ** 2 + this.player.velocity.z ** 2);
-                const exertionPulse = Math.sin(time * 8.0) * (speed * 5);
-                const speedScale = isOccluded ? 2 : 8;
-
-                // The Anomaly and terminal exhaustion violently crush the room's high frequencies
-                const targetFreq = Math.max(40, baseFreq + (speed * speedScale) + exertionPulse - (anomalyPressure * 150) - (this.player.exhaustion * 100));
-                const timeConstant = (isOccluded || activeSector === "ATRIUM" || anomalyPressure > 0 || this.player.exhaustion > 0) ? 0.2 : 3.0;
-                this.kineticFilter.frequency.setTargetAtTime(targetFreq, this.audioCtx.currentTime, timeConstant);
-            }
-        }
-
         if (this.dustCloud) {
             this.dustCloud.position.copy(cameraPos);
             this.dustCloud.rotation.y = time * 0.05;
             this.dustCloud.rotation.z = time * 0.02;
         }
+
+        // Compile Telemetry for the External Acoustic Engine
+        let anomalyPressure = 0;
+        if (this.entityActive) {
+            const distToAnomaly = cameraPos.distanceTo(this.entityGroup.position);
+            if (distToAnomaly < 15.0) anomalyPressure = 1.0 - (distToAnomaly / 15.0);
+        }
+
+        const playerSpeed = Math.sqrt(this.player.velocity.x ** 2 + this.player.velocity.z ** 2);
+
+        return {
+            minLightDist,
+            isOccluded,
+            activeSector,
+            anomalyPressure,
+            playerSpeed,
+            playerExhaustion: this.player.exhaustion
+        };
     }
 }

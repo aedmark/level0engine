@@ -1,5 +1,21 @@
 # Level 0 Engine Changelog
 
+## [v0.1.3] - 2026-07-05
+
+### Added
+- [SYSTEM] Installed a localized persistent Mnemonic Cache (`localStorage`) to continuously track and hydrate player coordinates, generation seeds, and UI parameters between sessions.
+- [UI] Added a manual "PURGE MEMORY" escape hatch to the control panel to allow players to safely wipe their localized save state and reset to the spawn origin.
+- [UI] Bound the 'M' key to a document-level event listener for ergonomic, frictionless control panel toggling.
+- [ARCHITECTURE] Created `AcousticEngine.js`, amputating the Web Audio API synthesis graph from the Environment monolith into a dedicated, decoupled DSP module.
+
+### Changed
+- [PERFORMANCE] Implemented the Geodesic Compiler. Staged procedural geometry (chair legs, tables, shared walls) is now collapsed into `THREE.InstancedMesh` groups, reducing hundreds of identical GPU draw calls down to a single thermodynamic batch.
+- [ARCHITECTURE] Rewrote the `updateLights` telemetry export to feed a clean, sanitized data payload to the external Acoustic Engine, strictly enforcing single-responsibility boundaries.
+
+### Fixed
+- [PERFORMANCE] Eliminated main-thread Garbage Collection (GC) stutters by replacing constant array instantiation in the lighting loop with a single, pre-allocated `localFixtures` memory block.
+- [PERFORMANCE] Throttled the audio raycaster's `intersectObjects` evaluation against heavy `InstancedMesh` geometry from 60Hz down to a 10Hz biological rhythm, drastically reducing CPU occlusion calculations without breaking human auditory perception.
+
 ## [v0.1.2] - 2026-07-05
 
 ### Added

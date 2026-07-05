@@ -162,7 +162,7 @@ export default class PlayerController {
 
     onKeyDown(event) {
         const key = event.code;
-        if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyC'].includes(key)) {
+        if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC'].includes(key)) {
             event.preventDefault();
         }
         if (event.key === 'Shift') this.isRunning = true;

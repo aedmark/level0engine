@@ -1,13 +1,92 @@
 // main.js
 // LEVEL 0 SYSTEM BOOTSTRAP
+
 import RenderEngine from './RenderEngine.js';
 import PlayerController from './PlayerController.js';
 import Environment from './Environment.js';
+import AcousticEngine from './AcousticEngine.js';
 
 const engine = new RenderEngine();
+const acoustics = new AcousticEngine();
 const player = new PlayerController(engine.camera, engine.renderer.domElement);
 const environment = new Environment(engine, player);
+
+// --- PERSISTENCE LAYER ---
+function loadState() {
+    const data = localStorage.getItem('level0_state');
+    if (!data) return null;
+    try {
+        const state = JSON.parse(data);
+        // Hydrate DOM Configuration
+        document.getElementById('seedInput').value = state.seed || "ALMOND WATER";
+        document.getElementById('aspectSelect').value = state.aspect || "auto";
+        document.getElementById('fogSlider').value = state.fog || "5";
+        document.getElementById('fovSlider').value = state.fov || "75";
+        document.getElementById('speedSlider').value = state.speed || "100";
+        document.getElementById('resolutionSelect').value = state.res || "1.0";
+        document.getElementById('headBobToggle').checked = state.headBob !== false;
+
+        // Hydrate Engine Configuration
+        engine.aspectRatio = state.aspect === 'auto' ? 'auto' : parseFloat(state.aspect);
+        engine.resolutionScale = parseFloat(state.res) || 1.0;
+        engine.camera.fov = Number(state.fov) || 75;
+        engine.camera.updateProjectionMatrix();
+        player.speedMultiplier = (Number(state.speed) || 100) / 100;
+        player.enableHeadBob = state.headBob !== false;
+
+        return state;
+    } catch (e) {
+        console.warn("Mnemonic Arcade corrupted. Pruning state.");
+        return null;
+    }
+}
+
+function saveState() {
+    const state = {
+        px: engine.camera.position.x,
+        py: engine.camera.position.y,
+        pz: engine.camera.position.z,
+        rx: engine.camera.rotation.x,
+        ry: engine.camera.rotation.y,
+        stamina: player.stamina,
+        seed: document.getElementById('seedInput').value,
+        aspect: document.getElementById('aspectSelect').value,
+        fog: document.getElementById('fogSlider').value,
+        fov: document.getElementById('fovSlider').value,
+        speed: document.getElementById('speedSlider').value,
+        res: document.getElementById('resolutionSelect').value,
+        headBob: document.getElementById('headBobToggle').checked
+    };
+    localStorage.setItem('level0_state', JSON.stringify(state));
+}
+
+// Pre-Load Configurations
+const savedState = loadState();
+
+// Boot Environment (Triggers generate() and zeroes coordinates)
 environment.setup();
+
+// Post-Boot Spatial Override (Hydrate physical topology and metabolic state)
+if (savedState) {
+    engine.camera.position.set(savedState.px, savedState.py, savedState.pz);
+    engine.camera.rotation.set(savedState.rx, savedState.ry, 0, 'YXZ');
+    player.stamina = savedState.stamina;
+    environment.baseFogDensity = (Number(savedState.fog) || 5) / 100;
+}
+
+// Bind Manual Memory Purge
+document.getElementById('clearSaveBtn')?.addEventListener('click', () => {
+    localStorage.removeItem('level0_state');
+    location.reload();
+});
+
+// Bind Acoustic Initialization to First Interaction
+const bootAudio = () => acoustics.init();
+document.addEventListener('click', bootAudio, { once: true });
+document.addEventListener('keydown', bootAudio, { once: true });
+
+// Engage Autonomic Memory Loop (Save every 2.5 seconds)
+setInterval(saveState, 2500);
 
 function animate() {
     requestAnimationFrame(animate);
@@ -18,7 +97,11 @@ function animate() {
     environment.updateEntity(engine.camera.position, delta, time);
     player.update(delta, environment.spatialGrid);
     engine.exhaustion = player.exhaustion; // Bridge the thermodynamic state to the renderer
-    environment.updateLights(time);
+
+    // Extract telemetry and route it to the external DSP
+    const telemetry = environment.updateLights(time);
+    acoustics.update(telemetry);
+
     engine.render();
 }
 
