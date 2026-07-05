@@ -63,39 +63,52 @@ export default class Environment {
         this.chunkSize = 16;
         this.renderDistance = 1; // 3x3 active chunk grid
         this.activeChunks = new Map();
-        this.currentChunkCoords = { x: null, z: null };
+        this.currentChunkCoords = { x: null, y: null, z: null };
+        this.levelHeight = 4.0; // 3 units of wall + 1 unit of plenum space
         this.interactiveDoors = [];
         this.audioCtx = null;
         this.audioInitialized = false;
+
+        // --- THE AUDITORY ENTITY ---
+        this.entityActive = true;
+        // Spawn the entity 30 units deep into the Z-axis
+        this.entityPos = new THREE.Vector3(0, 1.6, -30);
+        // 2.5 units/sec. Slower than walking (40.0 * delta approx 4 units/s), but inescapable if idle.
+        this.entitySpeed = 2.5;
+        this.entityStunTimer = 0;
     }
 
     updateChunks(playerPos) {
         const chunkX = Math.floor(playerPos.x / (this.chunkSize * 4)); // cellSize is 4
+        // The 0.1 offset prevents vertical flickering when stepping exactly on a floor boundary
+        const chunkY = Math.floor((playerPos.y + 0.1) / this.levelHeight);
         const chunkZ = Math.floor(playerPos.z / (this.chunkSize * 4));
 
-        if (this.currentChunkCoords.x === chunkX && this.currentChunkCoords.z === chunkZ) return;
+        if (this.currentChunkCoords.x === chunkX && this.currentChunkCoords.y === chunkY && this.currentChunkCoords.z === chunkZ) return;
         this.currentChunkCoords.x = chunkX;
+        this.currentChunkCoords.y = chunkY;
         this.currentChunkCoords.z = chunkZ;
-
-        // Snap the infinite treadmill planes to the new chunk center
-        if (this.floor && this.ceiling) {
-            const shiftX = chunkX * (this.chunkSize * 4);
-            const shiftZ = chunkZ * (this.chunkSize * 4);
-            this.floor.position.set(shiftX, 0, shiftZ);
-            this.ceiling.position.set(shiftX, 3, shiftZ);
-        }
 
         const chunksToKeep = new Set();
 
-        for (let x = -this.renderDistance; x <= this.renderDistance; x++) {
-            for (let z = -this.renderDistance; z <= this.renderDistance; z++) {
-                const targetX = chunkX + x;
-                const targetZ = chunkZ + z;
-                const hash = `${targetX},${targetZ}`;
-                chunksToKeep.add(hash);
+        // 3D Geodesic Grid Search. We explicitly render the vertical axis.
+        for (let y = -1; y <= 1; y++) {
+            for (let x = -this.renderDistance; x <= this.renderDistance; x++) {
+                for (let z = -this.renderDistance; z <= this.renderDistance; z++) {
+                    // --- THE CHUNK PRUNE ---
+                    // Prevent GPU death. Only render the full 3x3 grid for the current floor.
+                    // For the floors above and below, ONLY render the immediate central chunk.
+                    if (y !== 0 && (x !== 0 || z !== 0)) continue;
 
-                if (!this.activeChunks.has(hash)) {
-                    this.buildChunk(targetX, targetZ, hash);
+                    const targetX = chunkX + x;
+                    const targetY = chunkY + y;
+                    const targetZ = chunkZ + z;
+                    const hash = `${targetX},${targetY},${targetZ}`;
+                    chunksToKeep.add(hash);
+
+                    if (!this.activeChunks.has(hash)) {
+                        this.buildChunk(targetX, targetY, targetZ, hash);
+                    }
                 }
             }
         }
@@ -180,6 +193,39 @@ export default class Environment {
         this.kineticFilter.connect(this.mainGain);
         this.whineGain.connect(this.mainGain);
         this.mainGain.connect(this.audioCtx.destination);
+
+        // --- THE ENTITY SYNTHESIS ---
+        // A deep, square-wave sub-bass
+        this.entityOsc = this.audioCtx.createOscillator();
+        this.entityOsc.type = 'square';
+        this.entityOsc.frequency.value = 40;
+
+        // The Heartbeat LFO to modulate the frequency
+        this.entityLFO = this.audioCtx.createOscillator();
+        this.entityLFO.type = 'sine';
+        this.entityLFO.frequency.value = 2; // Baseline pulse rate
+
+        this.entityLFOGain = this.audioCtx.createGain();
+        this.entityLFOGain.gain.value = 30; // Modulation depth
+        this.entityLFO.connect(this.entityLFOGain);
+        this.entityLFOGain.connect(this.entityOsc.frequency);
+
+        this.entityGain = this.audioCtx.createGain();
+        this.entityGain.gain.value = 0; // Starts silent
+
+        // Spatial Stereo Panning
+        if (this.audioCtx.createStereoPanner) {
+            this.entityPan = this.audioCtx.createStereoPanner();
+            this.entityOsc.connect(this.entityGain).connect(this.entityPan).connect(this.audioCtx.destination);
+        } else {
+            // Fallback for older Safari
+            this.entityPan = null;
+            this.entityOsc.connect(this.entityGain).connect(this.audioCtx.destination);
+        }
+
+        this.entityOsc.start();
+        this.entityLFO.start();
+
         osc1.start();
         osc2.start();
         osc3.start();
@@ -428,22 +474,14 @@ export default class Environment {
             roughness: 0.9
         });
         // Install Environment Geometry
-        // Expand planes to 8000x8000 to completely bypass the texture clipping boundary.
-        carpetTexture.repeat.set(2000, 2000);
-        const floorGeo = new THREE.PlaneGeometry(8000, 8000);
-        const floorMat = new THREE.MeshStandardMaterial({map: carpetTexture, roughness: 1.0});
-        this.floor = new THREE.Mesh(floorGeo, floorMat);
-        this.floor.rotation.x = -Math.PI / 2;
-        this.floor.receiveShadow = true;
-        this.scene.add(this.floor);
+        // Structural update: The infinite planes are gone. The architecture is now localized.
+        this.sharedFloorGeo = new THREE.PlaneGeometry(this.chunkSize * 4, this.chunkSize * 4);
+        carpetTexture.repeat.set(16, 16);
+        this.floorMat = new THREE.MeshStandardMaterial({map: carpetTexture, roughness: 1.0});
 
-        ceilingTexture.repeat.set(8000, 8000);
-        const ceilGeo = new THREE.PlaneGeometry(8000, 8000);
-        const ceilMat = new THREE.MeshStandardMaterial({map: ceilingTexture, roughness: 0.9});
-        this.ceiling = new THREE.Mesh(ceilGeo, ceilMat);
-        this.ceiling.rotation.x = Math.PI / 2;
-        this.ceiling.position.y = 3;
-        this.scene.add(this.ceiling);
+        this.sharedCeilGeo = new THREE.PlaneGeometry(this.chunkSize * 4, this.chunkSize * 4);
+        ceilingTexture.repeat.set(32, 32);
+        this.ceilMat = new THREE.MeshStandardMaterial({map: ceilingTexture, roughness: 0.9});
         // Atmospheric Particulates. A single, mathematically efficient points cloud.
         const dustGeo = new THREE.BufferGeometry();
         const dustCount = 600;
@@ -466,7 +504,8 @@ export default class Environment {
         // Allocate the fixed hardware light pool.
         for (let i = 0; i < this.maxActiveLights; i++) {
             const light = new THREE.PointLight(0xfff5c2, 0, 20);
-            if (i < 6) {
+            // S.L.A.S.H. PRUNE: Limit active shadow casters to 2 to prevent WebGL draw-call death
+            if (i < 2) {
                 light.castShadow = true;
                 light.shadow.mapSize.width = 256;
                 light.shadow.mapSize.height = 256;
@@ -518,7 +557,16 @@ export default class Environment {
         document.getElementById('headBobToggle').addEventListener('change', (e) => {
             this.player.enableHeadBob = e.target.checked;
         });
+
         document.getElementById('captureBtn').addEventListener('click', () => this.captureAsset());
+
+        // The Tactile Hotkey. Ensure we aren't typing inside a text field.
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'KeyF' && document.activeElement.tagName !== 'INPUT') {
+                this.captureAsset();
+            }
+        });
+
         document.addEventListener('click', () => this.initAudio(), {once: true});
         document.addEventListener('keydown', () => this.initAudio(), {once: true});
     }
@@ -538,7 +586,7 @@ export default class Environment {
         this.walls = [];
         this.fixtureData = [];
         this.spatialGrid.cells.clear();
-        this.currentChunkCoords = { x: null, z: null };
+        this.currentChunkCoords = { x: null, y: null, z: null };
 
         this.camera.position.set(0, 1.6, 0);
         this.player.velocity.set(0, 0, 0);
@@ -567,16 +615,34 @@ export default class Environment {
         }
     }
 
-    buildChunk(chunkX, chunkZ, hash) {
+    buildChunk(chunkX, chunkY, chunkZ, hash) {
         const chunkGroup = new THREE.Group();
+
+        // Elevate the entire chunk group to its proper spatial level
+        const elevation = chunkY * this.levelHeight;
+        chunkGroup.position.y = elevation;
+
         this.scene.add(chunkGroup);
         this.activeChunks.set(hash, chunkGroup);
 
-        let prngSeed = this.baseSeed + (chunkX * 104729) + (chunkZ * 1299827);
+        // PRNG mathematically locks the vertical axis
+        let prngSeed = this.baseSeed + (chunkX * 104729) + (chunkY * 7919) + (chunkZ * 1299827);
         const random = () => {
             let x = Math.sin(prngSeed++) * 10000;
             return x - Math.floor(x);
         };
+
+        // Inject the localized visual planes per chunk
+        const floorMesh = new THREE.Mesh(this.sharedFloorGeo, this.floorMat);
+        floorMesh.rotation.x = -Math.PI / 2;
+        floorMesh.position.set((chunkX * this.chunkSize * this.cellSize) + (this.chunkSize * this.cellSize / 2), 0, (chunkZ * this.chunkSize * this.cellSize) + (this.chunkSize * this.cellSize / 2));
+        floorMesh.receiveShadow = true;
+        chunkGroup.add(floorMesh);
+
+        const ceilMesh = new THREE.Mesh(this.sharedCeilGeo, this.ceilMat);
+        ceilMesh.rotation.x = Math.PI / 2;
+        ceilMesh.position.set(floorMesh.position.x, 3.0, floorMesh.position.z);
+        chunkGroup.add(ceilMesh);
 
         const cx = Math.sin(this.baseSeed) * 0.8;
         const cy = Math.cos(this.baseSeed * 0.5) * 0.8;
@@ -594,7 +660,7 @@ export default class Environment {
             mesh.userData.chunkHash = hash;
             chunkGroup.add(mesh);
             this.walls.push(mesh);
-            mesh.updateMatrixWorld();
+            mesh.updateMatrixWorld(true); // Force parent transform inheritance for exact gravity coordinates
             const box = new THREE.Box3().setFromObject(mesh);
             box.chunkHash = hash;
             this.spatialGrid.insert(box);
@@ -802,27 +868,33 @@ export default class Environment {
 
         for (let x = startX; x < startX + this.chunkSize; x++) {
             for (let z = startZ; z < startZ + this.chunkSize; z++) {
-                if (Math.abs(x) < 2 && Math.abs(z) < 2) continue; // Safe spawn area
-                let zx = x * 0.15;
-                let zy = z * 0.15;
-                let iter = 0;
-                while (zx * zx + zy * zy < 4 && iter < 15) {
-                    let xt = zx * zx - zy * zy + cx;
-                    zy = 2 * zx * zy + cy;
-                    zx = xt;
-                    iter++;
-                }
-                let isWall = iter > 8;
-                if (random() > 0.85) isWall = !isWall;
+                let isAtrium = false;
 
-                if (isWall) {
+                // We wrap the architectural generation in a conditional instead of using 'continue'.
+                // This protects the spawn area from walls, but ensures the floor collider is still built.
+                if (!(Math.abs(x) < 2 && Math.abs(z) < 2)) {
+                    let zx = x * 0.15;
+                    let zy = z * 0.15;
+                    let iter = 0;
+                    while (zx * zx + zy * zy < 4 && iter < 15) {
+                        let xt = zx * zx - zy * zy + cx;
+                        zy = 2 * zx * zy + cy;
+                        zx = xt;
+                        iter++;
+                    }
+                    let isWall = iter > 8;
+                    if (random() > 0.85) isWall = !isWall;
+
+                    if (isWall) {
                     const structRoll = random();
                     const structure = structuralMatrix.find(s => structRoll >= s.prob);
                     if (structure) structure.build(x, z);
-                } else if (random() > 0.999) {
-                    const stepCount = 10;
+                } else if (random() > 0.985) {
+                    isAtrium = true;
+                    // THE ASCENSION SHAFT
+                    const stepCount = 12;
                     const stepDepth = this.cellSize / stepCount;
-                    const stepHeight = 3.0 / stepCount;
+                    const stepHeight = this.levelHeight / stepCount; // Elevate precisely to the next floor
                     const dir = Math.floor(random() * 4);
                     for (let s = 0; s < stepCount; s++) {
                         const h = (s + 1) * stepHeight;
@@ -856,19 +928,35 @@ export default class Environment {
                     chunkGroup.add(panel);
                     this.walls.push(panel);
 
-                    if (!isBroken && random() > 0.95) {
-                        // Store the pure mathematical potential of a light, not the hardware.
-                        this.fixtureData.push({
-                            chunkHash: hash,
-                            position: new THREE.Vector3(posX, 2.8, posZ),
-                            flickerOffset: random() * 500,
-                            material: activeMat,
-                            isFaulty: random() > 0.75,
-                            baseIntensity: 0.6,
-                            targetIntensity: 0.6,
-                            currentIntensity: 0.6
-                        });
+                        if (!isBroken && random() > 0.95) {
+                            // Store the pure mathematical potential of a light, not the hardware.
+                            this.fixtureData.push({
+                                chunkHash: hash,
+                                position: new THREE.Vector3(posX, elevation + 2.8, posZ), // Inherit absolute global elevation
+                                flickerOffset: random() * 500,
+                                material: activeMat,
+                                isFaulty: random() > 0.75,
+                                baseIntensity: 0.6,
+                                targetIntensity: 0.6,
+                                currentIntensity: 0.6
+                            });
+                        }
                     }
+                } // Close the safe spawn conditional block
+
+                // --- THE FLOOR COLLIDER ---
+                // We physically map gravity by establishing mathematical bounds.
+                // If an atrium exists, we prune the floor collider so the player can fall (or climb) through.
+                if (!isAtrium) {
+                    const hSize = this.cellSize / 2;
+                    const cX = x * this.cellSize;
+                    const cZ = z * this.cellSize;
+                    // Note: Box3 is absolute world space.
+                    const min = new THREE.Vector3(cX - hSize, elevation - 0.1, cZ - hSize);
+                    const max = new THREE.Vector3(cX + hSize, elevation, cZ + hSize);
+                    const floorBox = new THREE.Box3(min, max);
+                    floorBox.chunkHash = hash;
+                    this.spatialGrid.insert(floorBox);
                 }
             }
         }
@@ -879,6 +967,51 @@ export default class Environment {
         // Instant strike: kill the CSS transition temporarily
         flash.style.transition = 'none';
         flash.style.opacity = '1';
+
+        // --- THE SPATIAL FLASHBANG ---
+        if (this.entityActive && this.audioInitialized) {
+            const playerPos = this.camera.position;
+            const dist = this.entityPos.distanceTo(playerPos);
+
+            // Evaluate if the Entity is within the 40-unit hearing radius
+            if (dist < 40.0) {
+                // --- THE 2D VECTOR FLATTENING ---
+                // Strip the Y-axis. If the entity is downstairs and you look at the floor,
+                // the 3D dot product fails. We only care about horizontal triangulation.
+                const flatEntityPos = new THREE.Vector3(this.entityPos.x, 0, this.entityPos.z);
+                const flatPlayerPos = new THREE.Vector3(playerPos.x, 0, playerPos.z);
+
+                // 1. Calculate the normalized horizontal vector FROM the player TO the Entity
+                const toEntity = new THREE.Vector3().subVectors(flatEntityPos, flatPlayerPos).normalize();
+
+                // 2. Extract the camera's true forward-facing vector and flatten it
+                const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+                forward.y = 0;
+                forward.normalize();
+
+                // 3. The Dot Product. Widened the forgiveness cone to 0.6.
+                const alignment = toEntity.dot(forward);
+
+                if (alignment > 0.6) {
+                    // Violently repel the Entity backward into the void
+                    this.entityPos.addScaledVector(toEntity, 40.0);
+
+                    // Synthesize acoustic shock in the sub-bass
+                    // Clear pending targets so our hard set doesn't get instantly overridden
+                    this.entityLFO.frequency.cancelScheduledValues(this.audioCtx.currentTime);
+                    this.entityLFO.frequency.setValueAtTime(30, this.audioCtx.currentTime);
+                    this.entityLFO.frequency.exponentialRampToValueAtTime(2, this.audioCtx.currentTime + 3.0);
+
+                    // Temporarily cut the main dread volume to simulate a stunned entity
+                    this.entityGain.gain.cancelScheduledValues(this.audioCtx.currentTime);
+                    this.entityGain.gain.setValueAtTime(0, this.audioCtx.currentTime);
+
+                    // Activate the temporal boundary
+                    this.entityStunTimer = 3.0;
+                }
+            }
+        }
+
         setTimeout(() => {
             // Restore the slow decay for the cool-down
             flash.style.transition = 'opacity 0.8s ease-out';
@@ -894,6 +1027,46 @@ export default class Environment {
         }, 10);
     }
 
+    updateEntity(player, delta) {
+        if (!this.audioInitialized || !this.entityActive) return;
+
+        // --- THE S.L.A.S.H. STUN LOCK ---
+        if (this.entityStunTimer > 0) {
+            this.entityStunTimer -= delta;
+            return; // Sever the loop. No movement, no audio overwrites.
+        }
+
+        const playerPos = player.camera.position;
+        const dist = this.entityPos.distanceTo(playerPos);
+
+        // 1. DYNAMIC PURSUIT: The Entity stops 1 unit away to prevent mathematically crossing the camera origin
+        if (dist > 1.0) {
+            const dir = new THREE.Vector3().subVectors(playerPos, this.entityPos).normalize();
+            // It ignores the spatial hash grid. It phases through the architecture.
+            this.entityPos.addScaledVector(dir, this.entitySpeed * delta);
+        }
+
+        // 2. VOLUME TENSION ENVELOPE
+        // The sound begins fading in at 40 units out.
+        const rawGain = Math.max(0, 1.0 - (dist / 40.0));
+        // Exponential curve: it gets aggressively louder in the final 10 units.
+        this.entityGain.gain.setTargetAtTime(Math.pow(rawGain, 2) * 0.8, this.audioCtx.currentTime, 0.1);
+
+        // The heartbeat LFO accelerates as the distance collapses (from 2hz to ~10hz)
+        this.entityLFO.frequency.setTargetAtTime(2 + (rawGain * 8), this.audioCtx.currentTime, 0.5);
+
+        // 3. SPATIAL PANNING MATH
+        if (this.entityPan) {
+            // Get vector pointing from player to entity
+            const toEntity = new THREE.Vector3().subVectors(this.entityPos, playerPos).normalize();
+            // Extract the camera's local Right vector
+            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(player.camera.quaternion);
+            // The dot product yields a value from -1 (Left) to 1 (Right)
+            const panValue = toEntity.dot(right);
+            this.entityPan.pan.setTargetAtTime(panValue, this.audioCtx.currentTime, 0.1);
+        }
+    }
+
     updateLights(time) {
         let ambientLightLevel = 0;
         const cameraPos = this.camera.position;
@@ -904,10 +1077,18 @@ export default class Environment {
         }
 
         // Calculate the spatial distance of all theoretical fixtures
+        const playerLevel = Math.floor((cameraPos.y + 0.1) / this.levelHeight);
+
         this.fixtureData.forEach(fixture => {
             fixture.distSq = cameraPos.distanceToSquared(fixture.position);
             // HYSTERESIS: If it held a shadow map last frame, pull it artificially closer to prevent thrashing
             if (fixture.hasShadow) fixture.distSq -= 40.0;
+
+            // THE THERMODYNAMIC CULLING
+            // If the fixture is on a different floor, apply a massive mathematical penalty.
+            // This prevents the GPU from computing complex shadow maps for lights blocked by the ceiling.
+            const fixtureLevel = Math.floor(fixture.position.y / this.levelHeight);
+            if (fixtureLevel !== playerLevel) fixture.distSq += 10000.0;
         });
 
         // Sort ascending by biased distance
@@ -928,7 +1109,7 @@ export default class Environment {
             const fixture = this.fixtureData[i];
 
             if (fixture && fixture.distSq < 400) {
-                if (i < 6) fixture.hasShadow = true; // Tag for next frame's hysteresis
+                if (i < 2) fixture.hasShadow = true; // Tag for next frame's hysteresis
 
                 // Teleport the light
                 light.position.copy(fixture.position);
