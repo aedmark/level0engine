@@ -63,51 +63,39 @@ export default class Environment {
         this.chunkSize = 16;
         this.renderDistance = 1; // 3x3 active chunk grid
         this.activeChunks = new Map();
-        this.currentChunkCoords = { x: null, y: null, z: null };
-        this.levelHeight = 4.0; // 3 units of wall + 1 unit of plenum space
+        this.currentChunkCoords = { x: null, z: null };
         this.interactiveDoors = [];
         this.audioCtx = null;
         this.audioInitialized = false;
-
-        // THE ENTITY
-        this.entityActive = true;
-        // Spawn the entity 30 units deep into the Z-axis
-        this.entityPos = new THREE.Vector3(0, 1.6, -30);
-        // 2.5 units/sec. Slower than walking (40.0 * delta approx 4 units/s), but inescapable if idle.
-        this.entitySpeed = 2.5;
-        this.entityStunTimer = 0;
     }
 
     updateChunks(playerPos) {
         const chunkX = Math.floor(playerPos.x / (this.chunkSize * 4)); // cellSize is 4
-        // The 0.1 offset prevents vertical flickering when stepping exactly on a floor boundary
-        const chunkY = Math.floor((playerPos.y + 0.1) / this.levelHeight);
         const chunkZ = Math.floor(playerPos.z / (this.chunkSize * 4));
 
-        if (this.currentChunkCoords.x === chunkX && this.currentChunkCoords.y === chunkY && this.currentChunkCoords.z === chunkZ) return;
+        if (this.currentChunkCoords.x === chunkX && this.currentChunkCoords.z === chunkZ) return;
         this.currentChunkCoords.x = chunkX;
-        this.currentChunkCoords.y = chunkY;
         this.currentChunkCoords.z = chunkZ;
+
+        // Snap the infinite treadmill planes to the new chunk center
+        if (this.floor && this.ceiling) {
+            const shiftX = chunkX * (this.chunkSize * 4);
+            const shiftZ = chunkZ * (this.chunkSize * 4);
+            this.floor.position.set(shiftX, 0, shiftZ);
+            this.ceiling.position.set(shiftX, 3, shiftZ);
+        }
 
         const chunksToKeep = new Set();
 
-        // 3D Geodesic Grid Search. We explicitly render the vertical axis.
-        for (let y = -1; y <= 1; y++) {
-            for (let x = -this.renderDistance; x <= this.renderDistance; x++) {
-                for (let z = -this.renderDistance; z <= this.renderDistance; z++) {
-                    // Prevent GPU death. Only render the full 3x3 grid for the current floor.
-                    // For the floors above and below, ONLY render the immediate central chunk.
-                    if (y !== 0 && (x !== 0 || z !== 0)) continue;
+        for (let x = -this.renderDistance; x <= this.renderDistance; x++) {
+            for (let z = -this.renderDistance; z <= this.renderDistance; z++) {
+                const targetX = chunkX + x;
+                const targetZ = chunkZ + z;
+                const hash = `${targetX},${targetZ}`;
+                chunksToKeep.add(hash);
 
-                    const targetX = chunkX + x;
-                    const targetY = chunkY + y;
-                    const targetZ = chunkZ + z;
-                    const hash = `${targetX},${targetY},${targetZ}`;
-                    chunksToKeep.add(hash);
-
-                    if (!this.activeChunks.has(hash)) {
-                        this.buildChunk(targetX, targetY, targetZ, hash);
-                    }
+                if (!this.activeChunks.has(hash)) {
+                    this.buildChunk(targetX, targetZ, hash);
                 }
             }
         }
@@ -136,7 +124,7 @@ export default class Environment {
     updateInteractives(playerPos, delta) {
         this.interactiveDoors.forEach(door => {
             const dist = playerPos.distanceTo(door.position);
-            // Doors slide open when within 3.5 unit proximity
+            // The Proximity Threshold: Doors slide open when within 3.5 units
             const isOpen = dist < 3.5;
             const targetRot = isOpen ? door.userData.openRot : door.userData.closedRot;
 
@@ -192,39 +180,6 @@ export default class Environment {
         this.kineticFilter.connect(this.mainGain);
         this.whineGain.connect(this.mainGain);
         this.mainGain.connect(this.audioCtx.destination);
-
-        // THE ENTITY SYNTHESIS
-        // A deep, square-wave sub-bass
-        this.entityOsc = this.audioCtx.createOscillator();
-        this.entityOsc.type = 'square';
-        this.entityOsc.frequency.value = 40;
-
-        // The Heartbeat LFO to modulate the frequency
-        this.entityLFO = this.audioCtx.createOscillator();
-        this.entityLFO.type = 'sine';
-        this.entityLFO.frequency.value = 2; // Baseline pulse rate
-
-        this.entityLFOGain = this.audioCtx.createGain();
-        this.entityLFOGain.gain.value = 30; // Modulation depth
-        this.entityLFO.connect(this.entityLFOGain);
-        this.entityLFOGain.connect(this.entityOsc.frequency);
-
-        this.entityGain = this.audioCtx.createGain();
-        this.entityGain.gain.value = 0; // Starts silent
-
-        // Spatial Stereo Panning
-        if (this.audioCtx.createStereoPanner) {
-            this.entityPan = this.audioCtx.createStereoPanner();
-            this.entityOsc.connect(this.entityGain).connect(this.entityPan).connect(this.audioCtx.destination);
-        } else {
-            // Fallback for older Safari
-            this.entityPan = null;
-            this.entityOsc.connect(this.entityGain).connect(this.audioCtx.destination);
-        }
-
-        this.entityOsc.start();
-        this.entityLFO.start();
-
         osc1.start();
         osc2.start();
         osc3.start();
@@ -232,7 +187,7 @@ export default class Environment {
     }
 
     setup() {
-        // Mono-Yellow Wallpaper Texture
+        // 1. Mono-Yellow Wallpaper Texture
         const wallCanvas = document.createElement('canvas');
         wallCanvas.width = 512;
         wallCanvas.height = 512;
@@ -278,7 +233,7 @@ export default class Environment {
         this.wallTexture.wrapS = THREE.RepeatWrapping;
         this.wallTexture.wrapT = THREE.ClampToEdgeWrapping;
         this.wallTexture.repeat.set(4, 1);
-        // Damp Carpet Texture
+        // 2. Damp Carpet Texture
         const carpetCanvas = document.createElement('canvas');
         carpetCanvas.width = 512;
         carpetCanvas.height = 512;
@@ -293,7 +248,7 @@ export default class Environment {
         carpetTexture.wrapS = THREE.RepeatWrapping;
         carpetTexture.wrapT = THREE.RepeatWrapping;
         carpetTexture.repeat.set(20, 20);
-        // Ceiling Tile Texture
+        // 3. Ceiling Tile Texture
         const ceilingCanvas = document.createElement('canvas');
         ceilingCanvas.width = 256;
         ceilingCanvas.height = 256;
@@ -312,7 +267,7 @@ export default class Environment {
         ceilingTexture.wrapT = THREE.RepeatWrapping;
         // A 300x300 plane divided by 300 repeats = 1x1 unit tiles (approx 3x3 ft)
         ceilingTexture.repeat.set(300, 300);
-        // Structural Texture (Stairs & Arches)
+        // 4. Structural Texture (Stairs & Arches)
         const structCanvas = document.createElement('canvas');
         structCanvas.width = 256;
         structCanvas.height = 256;
@@ -328,7 +283,7 @@ export default class Environment {
         structTexture.wrapT = THREE.RepeatWrapping;
         structTexture.repeat.set(4, 4);
         this.structMat = new THREE.MeshStandardMaterial({map: structTexture, roughness: 1.0});
-        // Procedural Wood & Door Textures
+        // 5. Procedural Wood & Door Textures
         const woodCanvas = document.createElement('canvas');
         woodCanvas.width = 256;
         woodCanvas.height = 512;
@@ -375,7 +330,7 @@ export default class Environment {
         doorCtx.fill();
         const doorTexture = new THREE.CanvasTexture(doorCanvas);
         this.doorMat = new THREE.MeshStandardMaterial({map: doorTexture, roughness: 0.9});
-        // Procedural HVAC Vent Texture (Optical Recess)
+        // 6. Procedural HVAC Vent Texture (Optical Recess)
         const ventCanvas = document.createElement('canvas');
         ventCanvas.width = 256;
         ventCanvas.height = 256;
@@ -402,7 +357,7 @@ export default class Environment {
         }
         const ventTexture = new THREE.CanvasTexture(ventCanvas);
         this.ventMat = new THREE.MeshStandardMaterial({map: ventTexture, roughness: 0.7, metalness: 0.4});
-        //Procedural Emissive Light Panel (Prismatic Diffuser)
+        // 7. Procedural Emissive Light Panel (Prismatic Diffuser)
         const lightCanvas = document.createElement('canvas');
         lightCanvas.width = 128;
         lightCanvas.height = 256;
@@ -473,14 +428,22 @@ export default class Environment {
             roughness: 0.9
         });
         // Install Environment Geometry
-        // Structural update: The infinite planes are gone. The architecture is now localized.
-        this.sharedFloorGeo = new THREE.PlaneGeometry(this.chunkSize * 4, this.chunkSize * 4);
-        carpetTexture.repeat.set(16, 16);
-        this.floorMat = new THREE.MeshStandardMaterial({map: carpetTexture, roughness: 1.0});
+        // Expand planes to 8000x8000 to completely bypass the texture clipping boundary.
+        carpetTexture.repeat.set(2000, 2000);
+        const floorGeo = new THREE.PlaneGeometry(8000, 8000);
+        const floorMat = new THREE.MeshStandardMaterial({map: carpetTexture, roughness: 1.0});
+        this.floor = new THREE.Mesh(floorGeo, floorMat);
+        this.floor.rotation.x = -Math.PI / 2;
+        this.floor.receiveShadow = true;
+        this.scene.add(this.floor);
 
-        this.sharedCeilGeo = new THREE.PlaneGeometry(this.chunkSize * 4, this.chunkSize * 4);
-        ceilingTexture.repeat.set(32, 32);
-        this.ceilMat = new THREE.MeshStandardMaterial({map: ceilingTexture, roughness: 0.9});
+        ceilingTexture.repeat.set(8000, 8000);
+        const ceilGeo = new THREE.PlaneGeometry(8000, 8000);
+        const ceilMat = new THREE.MeshStandardMaterial({map: ceilingTexture, roughness: 0.9});
+        this.ceiling = new THREE.Mesh(ceilGeo, ceilMat);
+        this.ceiling.rotation.x = Math.PI / 2;
+        this.ceiling.position.y = 3;
+        this.scene.add(this.ceiling);
         // Atmospheric Particulates. A single, mathematically efficient points cloud.
         const dustGeo = new THREE.BufferGeometry();
         const dustCount = 600;
@@ -503,8 +466,7 @@ export default class Environment {
         // Allocate the fixed hardware light pool.
         for (let i = 0; i < this.maxActiveLights; i++) {
             const light = new THREE.PointLight(0xfff5c2, 0, 20);
-            // Limit active shadow casters to 2 to prevent WebGL draw-call death
-            if (i < 2) {
+            if (i < 6) {
                 light.castShadow = true;
                 light.shadow.mapSize.width = 256;
                 light.shadow.mapSize.height = 256;
@@ -556,16 +518,7 @@ export default class Environment {
         document.getElementById('headBobToggle').addEventListener('change', (e) => {
             this.player.enableHeadBob = e.target.checked;
         });
-
         document.getElementById('captureBtn').addEventListener('click', () => this.captureAsset());
-
-        // The Tactile Hotkey. Ensure we aren't typing inside a text field.
-        document.addEventListener('keydown', (e) => {
-            if (e.code === 'KeyF' && document.activeElement.tagName !== 'INPUT') {
-                this.captureAsset();
-            }
-        });
-
         document.addEventListener('click', () => this.initAudio(), {once: true});
         document.addEventListener('keydown', () => this.initAudio(), {once: true});
     }
@@ -585,7 +538,7 @@ export default class Environment {
         this.walls = [];
         this.fixtureData = [];
         this.spatialGrid.cells.clear();
-        this.currentChunkCoords = { x: null, y: null, z: null };
+        this.currentChunkCoords = { x: null, z: null };
 
         this.camera.position.set(0, 1.6, 0);
         this.player.velocity.set(0, 0, 0);
@@ -614,34 +567,16 @@ export default class Environment {
         }
     }
 
-    buildChunk(chunkX, chunkY, chunkZ, hash) {
+    buildChunk(chunkX, chunkZ, hash) {
         const chunkGroup = new THREE.Group();
-
-        // Elevate the entire chunk group to its proper spatial level
-        const elevation = chunkY * this.levelHeight;
-        chunkGroup.position.y = elevation;
-
         this.scene.add(chunkGroup);
         this.activeChunks.set(hash, chunkGroup);
 
-        // PRNG mathematically locks the vertical axis
-        let prngSeed = this.baseSeed + (chunkX * 104729) + (chunkY * 7919) + (chunkZ * 1299827);
+        let prngSeed = this.baseSeed + (chunkX * 104729) + (chunkZ * 1299827);
         const random = () => {
             let x = Math.sin(prngSeed++) * 10000;
             return x - Math.floor(x);
         };
-
-        // Inject the localized visual planes per chunk
-        const floorMesh = new THREE.Mesh(this.sharedFloorGeo, this.floorMat);
-        floorMesh.rotation.x = -Math.PI / 2;
-        floorMesh.position.set((chunkX * this.chunkSize * this.cellSize) + (this.chunkSize * this.cellSize / 2), 0, (chunkZ * this.chunkSize * this.cellSize) + (this.chunkSize * this.cellSize / 2));
-        floorMesh.receiveShadow = true;
-        chunkGroup.add(floorMesh);
-
-        const ceilMesh = new THREE.Mesh(this.sharedCeilGeo, this.ceilMat);
-        ceilMesh.rotation.x = Math.PI / 2;
-        ceilMesh.position.set(floorMesh.position.x, 3.0, floorMesh.position.z);
-        chunkGroup.add(ceilMesh);
 
         const cx = Math.sin(this.baseSeed) * 0.8;
         const cy = Math.cos(this.baseSeed * 0.5) * 0.8;
@@ -659,7 +594,7 @@ export default class Environment {
             mesh.userData.chunkHash = hash;
             chunkGroup.add(mesh);
             this.walls.push(mesh);
-            mesh.updateMatrixWorld(true); // Force parent transform inheritance for exact gravity coordinates
+            mesh.updateMatrixWorld();
             const box = new THREE.Box3().setFromObject(mesh);
             box.chunkHash = hash;
             this.spatialGrid.insert(box);
@@ -865,45 +800,29 @@ export default class Environment {
         const startX = chunkX * this.chunkSize;
         const startZ = chunkZ * this.chunkSize;
 
-        // Stateless structural hash to mathematically query adjacent floors
-        const checkAtrium = (wx, wy, wz) => {
-            let seed = this.baseSeed + (wx * 104729) + (wy * 7919) + (wz * 1299827);
-            let val = Math.sin(seed) * 10000;
-            return (val - Math.floor(val)) > 0.985;
-        };
-
         for (let x = startX; x < startX + this.chunkSize; x++) {
             for (let z = startZ; z < startZ + this.chunkSize; z++) {
-                let isAtrium = false;
+                if (Math.abs(x) < 2 && Math.abs(z) < 2) continue; // Safe spawn area
+                let zx = x * 0.15;
+                let zy = z * 0.15;
+                let iter = 0;
+                while (zx * zx + zy * zy < 4 && iter < 15) {
+                    let xt = zx * zx - zy * zy + cx;
+                    zy = 2 * zx * zy + cy;
+                    zx = xt;
+                    iter++;
+                }
+                let isWall = iter > 8;
+                if (random() > 0.85) isWall = !isWall;
 
-                // We wrap the architectural generation in a conditional instead of using 'continue'.
-                // This protects the spawn area from walls, but ensures the floor collider is still built.
-                // Force the void strictly to chunkY === 0 to prevent vertical shafts of emptiness.
-                if (!(chunkY === 0 && Math.abs(x) < 2 && Math.abs(z) < 2)) {
-                    let zx = x * 0.15;
-                    let zy = z * 0.15;
-                    let iter = 0;
-                    while (zx * zx + zy * zy < 4 && iter < 15) {
-                        let xt = zx * zx - zy * zy + cx;
-                        zy = 2 * zx * zy + cy;
-                        zx = xt;
-                        iter++;
-                    }
-                    let isWall = iter > 8;
-                    if (random() > 0.85) isWall = !isWall;
-
-                    // Execute stateless evaluation
-                    isAtrium = checkAtrium(x, chunkY, z);
-
-                    if (isWall) {
-                        const structRoll = random();
-                        const structure = structuralMatrix.find(s => structRoll >= s.prob);
-                        if (structure) structure.build(x, z);
-                    } else if (isAtrium) {
-                        // THE ASCENSION SHAFT
-                    const stepCount = 12;
+                if (isWall) {
+                    const structRoll = random();
+                    const structure = structuralMatrix.find(s => structRoll >= s.prob);
+                    if (structure) structure.build(x, z);
+                } else if (random() > 0.999) {
+                    const stepCount = 10;
                     const stepDepth = this.cellSize / stepCount;
-                    const stepHeight = this.levelHeight / stepCount; // Elevate precisely to the next floor
+                    const stepHeight = 3.0 / stepCount;
                     const dir = Math.floor(random() * 4);
                     for (let s = 0; s < stepCount; s++) {
                         const h = (s + 1) * stepHeight;
@@ -937,38 +856,19 @@ export default class Environment {
                     chunkGroup.add(panel);
                     this.walls.push(panel);
 
-                        if (!isBroken && random() > 0.95) {
-                            // Store the pure mathematical potential of a light, not the hardware.
-                            this.fixtureData.push({
-                                chunkHash: hash,
-                                position: new THREE.Vector3(posX, elevation + 2.8, posZ), // Inherit absolute global elevation
-                                flickerOffset: random() * 500,
-                                material: activeMat,
-                                isFaulty: random() > 0.75,
-                                baseIntensity: 0.6,
-                                targetIntensity: 0.6,
-                                currentIntensity: 0.6
-                            });
-                        }
+                    if (!isBroken && random() > 0.95) {
+                        // Store the pure mathematical potential of a light, not the hardware.
+                        this.fixtureData.push({
+                            chunkHash: hash,
+                            position: new THREE.Vector3(posX, 2.8, posZ),
+                            flickerOffset: random() * 500,
+                            material: activeMat,
+                            isFaulty: random() > 0.75,
+                            baseIntensity: 0.6,
+                            targetIntensity: 0.6,
+                            currentIntensity: 0.6
+                        });
                     }
-                } // Close the safe spawn conditional block
-
-                // --- THE FLOOR COLLIDER ---
-                // We physically map gravity by establishing mathematical bounds.
-                // If an atrium exists, we prune the floor collider so the player can fall (or climb) through.
-                const stairsBelow = checkAtrium(x, chunkY - 1, z);
-
-                // If this coordinate is an atrium, or if the floor below built stairs here, leave the hole open.
-                if (!isAtrium && !stairsBelow) {
-                    const hSize = this.cellSize / 2;
-                    const cX = x * this.cellSize;
-                    const cZ = z * this.cellSize;
-                    // Note: Box3 is absolute world space.
-                    const min = new THREE.Vector3(cX - hSize, elevation - 0.1, cZ - hSize);
-                    const max = new THREE.Vector3(cX + hSize, elevation, cZ + hSize);
-                    const floorBox = new THREE.Box3(min, max);
-                    floorBox.chunkHash = hash;
-                    this.spatialGrid.insert(floorBox);
                 }
             }
         }
@@ -979,46 +879,6 @@ export default class Environment {
         // Instant strike: kill the CSS transition temporarily
         flash.style.transition = 'none';
         flash.style.opacity = '1';
-
-        if (this.entityActive && this.audioInitialized) {
-            const playerPos = this.camera.position;
-            const dist = this.entityPos.distanceTo(playerPos);
-
-            // Evaluate if the Entity is within the 40-unit hearing radius
-            if (dist < 40.0) {
-                // Strip the Y-axis. If the entity is downstairs and you look at the floor,
-                // the 3D dot product fails. We only care about horizontal triangulation.
-                const flatEntityPos = new THREE.Vector3(this.entityPos.x, 0, this.entityPos.z);
-                const flatPlayerPos = new THREE.Vector3(playerPos.x, 0, playerPos.z);
-
-                const toEntity = new THREE.Vector3().subVectors(flatEntityPos, flatPlayerPos).normalize();
-
-                const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
-                forward.y = 0;
-                forward.normalize();
-
-                const alignment = toEntity.dot(forward);
-
-                if (alignment > 0.6) {
-                    // Violently repel the Entity backward into the void
-                    this.entityPos.addScaledVector(toEntity, 40.0);
-
-                    // Synthesize acoustic shock in the sub-bass
-                    // Clear pending targets so our hard set doesn't get instantly overridden
-                    this.entityLFO.frequency.cancelScheduledValues(this.audioCtx.currentTime);
-                    this.entityLFO.frequency.setValueAtTime(30, this.audioCtx.currentTime);
-                    this.entityLFO.frequency.exponentialRampToValueAtTime(2, this.audioCtx.currentTime + 3.0);
-
-                    // Temporarily cut the main dread volume to simulate a stunned entity
-                    this.entityGain.gain.cancelScheduledValues(this.audioCtx.currentTime);
-                    this.entityGain.gain.setValueAtTime(0, this.audioCtx.currentTime);
-
-                    // Activate the temporal boundary
-                    this.entityStunTimer = 3.0;
-                }
-            }
-        }
-
         setTimeout(() => {
             // Restore the slow decay for the cool-down
             flash.style.transition = 'opacity 0.8s ease-out';
@@ -1034,46 +894,6 @@ export default class Environment {
         }, 10);
     }
 
-    updateEntity(player, delta) {
-        if (!this.audioInitialized || !this.entityActive) return;
-
-        // STUN LOCK
-        if (this.entityStunTimer > 0) {
-            this.entityStunTimer -= delta;
-            return; // Sever the loop. No movement, no audio overwrites.
-        }
-
-        const playerPos = player.camera.position;
-        const dist = this.entityPos.distanceTo(playerPos);
-
-        // DYNAMIC PURSUIT: The Entity stops 1 unit away to prevent mathematically crossing the camera origin
-        if (dist > 1.0) {
-            const dir = new THREE.Vector3().subVectors(playerPos, this.entityPos).normalize();
-            // It ignores the spatial hash grid. It phases through the architecture.
-            this.entityPos.addScaledVector(dir, this.entitySpeed * delta);
-        }
-
-        // VOLUME TENSION ENVELOPE
-        // The sound begins fading in at 40 units out.
-        const rawGain = Math.max(0, 1.0 - (dist / 40.0));
-        // Exponential curve: it gets aggressively louder in the final 10 units.
-        this.entityGain.gain.setTargetAtTime(Math.pow(rawGain, 2) * 0.8, this.audioCtx.currentTime, 0.1);
-
-        // The heartbeat LFO accelerates as the distance collapses (from 2hz to ~10hz)
-        this.entityLFO.frequency.setTargetAtTime(2 + (rawGain * 8), this.audioCtx.currentTime, 0.5);
-
-        // SPATIAL PANNING MATH
-        if (this.entityPan) {
-            // Get vector pointing from player to entity
-            const toEntity = new THREE.Vector3().subVectors(this.entityPos, playerPos).normalize();
-            // Extract the camera's local Right vector
-            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(player.camera.quaternion);
-            // The dot product yields a value from -1 (Left) to 1 (Right)
-            const panValue = toEntity.dot(right);
-            this.entityPan.pan.setTargetAtTime(panValue, this.audioCtx.currentTime, 0.1);
-        }
-    }
-
     updateLights(time) {
         let ambientLightLevel = 0;
         const cameraPos = this.camera.position;
@@ -1084,16 +904,10 @@ export default class Environment {
         }
 
         // Calculate the spatial distance of all theoretical fixtures
-        const playerLevel = Math.floor((cameraPos.y + 0.1) / this.levelHeight);
-
         this.fixtureData.forEach(fixture => {
             fixture.distSq = cameraPos.distanceToSquared(fixture.position);
+            // HYSTERESIS: If it held a shadow map last frame, pull it artificially closer to prevent thrashing
             if (fixture.hasShadow) fixture.distSq -= 40.0;
-
-            // If the fixture is on a different floor, apply a massive mathematical penalty.
-            // This prevents the GPU from computing complex shadow maps for lights blocked by the ceiling.
-            const fixtureLevel = Math.floor(fixture.position.y / this.levelHeight);
-            if (fixtureLevel !== playerLevel) fixture.distSq += 10000.0;
         });
 
         // Sort ascending by biased distance
@@ -1114,7 +928,7 @@ export default class Environment {
             const fixture = this.fixtureData[i];
 
             if (fixture && fixture.distSq < 400) {
-                if (i < 2) fixture.hasShadow = true; // Tag for next frame's hysteresis
+                if (i < 6) fixture.hasShadow = true; // Tag for next frame's hysteresis
 
                 // Teleport the light
                 light.position.copy(fixture.position);
@@ -1126,7 +940,7 @@ export default class Environment {
                     nearestFixture = fixture;
                 }
 
-                // Smoothly scale hardware intensity from 0 to 1 over the outer 8 units
+                // THE FADE ENVELOPE: Smoothly scale hardware intensity from 0 to 1 over the outer 8 units
                 const fadeEnvelope = Math.max(0, Math.min(1, (20 - dist) / 8.0));
 
                 if (fixture.isFaulty) {
@@ -1147,7 +961,7 @@ export default class Environment {
             }
         }
 
-        // Find if matter exists between the player and the sound.
+        // The Structural Raycast. Find if matter exists between the player and the sound.
         let isOccluded = false;
         if (nearestFixture && minLightDist > 1.0) {
             this.audioDirection.subVectors(nearestFixture.position, cameraPos).normalize();

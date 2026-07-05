@@ -1,28 +1,5 @@
 # Level 0 Engine Changelog
 
-## [v0.1.1] - 2026-07-04
-
-### Added
-
-- [SYSTEM] Integrated a native `localStorage` State Manager to preserve configuration and spatial coordinates across sessions.
-- [SYSTEM] Bound auto-save lifecycle hooks to the window's `blur` and `beforeunload` events to seamlessly preserve player progress without manual intervention.
-- [AUDIO] Deployed the Auditory Entity. A spatial, LFO-modulated square-wave sub-bass threat that phases through geometry to mathematically hunt the player across the geodesic grid.
-- [MECHANIC] Engineered the Spatial Flashbang. Calculates a 2D flattened dot-product between the player's forward vector and the Entity to violently repel the threat and trigger a 3-second acoustic stun lock.
-- [ARCHITECTURE] Implemented 3D Geodesic Stacking. Replaced the infinite horizontal treadmills with localized floor/ceiling meshes, enabling infinitely ascending vertical chunk generation.
-- [CONTROLS] Added a tactile hotkey (`F`) bound directly to the `captureAsset` spatial flashbang mechanic.
-
-### Changed
-
-- [PERFORMANCE] Deployed the S.L.A.S.H. Chunk Prune. Reduced vertical rendering overhead by culling outer chunks on non-active floors, slicing active draw calls from 27 chunks down to 11.
-- [PERFORMANCE] Implemented Thermodynamic Shadow Culling. Heavily penalized light fixtures on adjacent floors and hard-capped active shadow casters to 2, eradicating GPU ROS and preventing draw-call death.
-- [PHYSICS] Integrated the Thermodynamic Floor Collider. Procedurally prunes floor bounding boxes in atrium cells to enable true vertical free-fall and ascension mechanics.
-
-### Fixed
-
-- [PHYSICS] Deployed the S.L.A.S.H. Collider Prune. Amputated thin floor plates (< 0.2 units) from the X and Z collision matrices, allowing the player to seamlessly noclip upward through ceilings via stairs instead of colliding with invisible geometry.
-- [PHYSICS] Repaired the "molasses" gravity anchor by initializing `targetFeetY` to `-Infinity` instead of `0`, successfully unchaining the vertical interpolation array.
-- [TOPOLOGY] Encapsulated the geometric safe-spawn logic inside a conditional block, restoring the missing thermodynamic floor colliders beneath the player's initial spawn coordinates.
-
 ## [v0.1.0] - 2026-07-04
 
 ### Added

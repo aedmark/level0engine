@@ -150,7 +150,7 @@ export default class PlayerController {
 
     onKeyDown(event) {
         const key = event.code;
-        if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyF', 'KeyS', 'ArrowRight', 'KeyD', 'KeyC'].includes(key)) {
+        if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyC'].includes(key)) {
             event.preventDefault();
         }
         if (event.key === 'Shift') this.isRunning = true;
@@ -250,17 +250,11 @@ export default class PlayerController {
         // X Collision mutation
         let hitX = false;
         const snagShrink = 0.05;
-        // Lift the bottom of the horizontal box to feetY + 1.2 to glide over stairs natively.
-        // Lower the top to physicalTop - 0.1 to avoid snagging on the ceiling while climbing.
         let boxX = new THREE.Box3(
-            new THREE.Vector3(this.camera.position.x + moveDelta.x - this.playerRadius, feetY + 1.2, this.camera.position.z - this.playerRadius + snagShrink),
-            new THREE.Vector3(this.camera.position.x + moveDelta.x + this.playerRadius, feetY + physicalTop - 0.1, this.camera.position.z + this.playerRadius - snagShrink)
+            new THREE.Vector3(this.camera.position.x + moveDelta.x - this.playerRadius, feetY + 0.6, this.camera.position.z - this.playerRadius + snagShrink),
+            new THREE.Vector3(this.camera.position.x + moveDelta.x + this.playerRadius, feetY + physicalTop, this.camera.position.z + this.playerRadius - snagShrink)
         );
         for (let box of localBoxes) {
-            if (box.max.y <= feetY + 1.2) continue; // Ignore steps
-            if (box.min.y >= feetY + physicalTop - 0.1) continue; // Ignore ceilings
-            if (box.max.y - box.min.y < 0.2) continue;
-
             if (boxX.intersectsBox(box)) {
                 hitX = true;
                 break;
@@ -271,50 +265,36 @@ export default class PlayerController {
         // Z Collision mutation
         let hitZ = false;
         let boxZ = new THREE.Box3(
-            new THREE.Vector3(this.camera.position.x - this.playerRadius + snagShrink, feetY + 1.2, this.camera.position.z + moveDelta.z - this.playerRadius),
-            new THREE.Vector3(this.camera.position.x + this.playerRadius - snagShrink, feetY + physicalTop - 0.1, this.camera.position.z + moveDelta.z + this.playerRadius)
+            new THREE.Vector3(this.camera.position.x - this.playerRadius + snagShrink, feetY + 0.6, this.camera.position.z + moveDelta.z - this.playerRadius),
+            new THREE.Vector3(this.camera.position.x + this.playerRadius - snagShrink, feetY + physicalTop, this.camera.position.z + moveDelta.z + this.playerRadius)
         );
+        // Fix: Cast against localBoxes instead of the massive global wallBoxes array
         for (let box of localBoxes) {
-            if (box.max.y <= feetY + 1.2) continue; // Ignore steps
-            if (box.min.y >= feetY + physicalTop - 0.1) continue; // Ignore ceilings
-            if (box.max.y - box.min.y < 0.2) continue;
-
             if (boxZ.intersectsBox(box)) {
                 hitZ = true;
                 break;
             }
         }
         if (!hitZ) this.camera.position.z += moveDelta.z;
-
         // Y Step-up Interpolation (Gravity Mapping)
-        // Extend the gravity raycast down to -1000 so we can safely fall into atriums
         let floorBox = new THREE.Box3(
-            new THREE.Vector3(this.camera.position.x - this.playerRadius, -1000, this.camera.position.z - this.playerRadius),
+            new THREE.Vector3(this.camera.position.x - this.playerRadius, -10, this.camera.position.z - this.playerRadius),
             new THREE.Vector3(this.camera.position.x + this.playerRadius, feetY + 1.2, this.camera.position.z + this.playerRadius)
         );
-        // Initialize to absolute mathematical bottom, not 0.
-        let targetFeetY = -Infinity;
+        let targetFeetY = 0;
         for (let box of localBoxes) {
             if (floorBox.intersectsBox(box) && box.max.y > targetFeetY && box.max.y <= feetY + 1.2) {
                 targetFeetY = box.max.y;
             }
         }
-
-        if (targetFeetY === -Infinity) {
-            targetFeetY = feetY - (10.0 * delta); // Freefall velocity
-        }
-
         // The Somatic Head Bob. Track the physical velocity and map it to a sine wave.
         const actualSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
         this.headBobTimer = (this.headBobTimer || 0) + actualSpeed * delta;
         // Toggle head bob based on user accessibility preference
         const bobOffset = (this.enableHeadBob && actualSpeed > 0.5) ? Math.sin(this.headBobTimer * 2.5) * 0.05 : 0;
-
-        // Remove the hardcoded 2.8 ceiling clamp. Allow infinite ascension.
-        const targetCamY = targetFeetY + visualHeight + bobOffset;
+        // Smoothly glide up or down the steps, adding the physical breathing mass
+        const targetCamY = Math.min(targetFeetY + visualHeight, 2.8) + bobOffset;
         this.camera.position.y += (targetCamY - this.camera.position.y) * 12.0 * delta;
-
-        // Expose the vertical trajectory to the diagnostic UI
-        document.getElementById('coords').innerText = `X: ${this.camera.position.x.toFixed(2)} | Y: ${this.camera.position.y.toFixed(2)} | Z: ${this.camera.position.z.toFixed(2)}`;
+        document.getElementById('coords').innerText = `X: ${this.camera.position.x.toFixed(2)} | Z: ${this.camera.position.z.toFixed(2)}`;
     }
 }
