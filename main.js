@@ -15,6 +15,7 @@ function animate() {
     const time = engine.time;
     environment.updateChunks(engine.camera.position);
     environment.updateInteractives(engine.camera.position, delta);
+    environment.updateEntity(engine.camera.position, delta, time);
     player.update(delta, environment.spatialGrid);
     environment.updateLights(time);
     engine.render();

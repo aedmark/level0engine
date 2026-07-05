@@ -1,5 +1,32 @@
 # Level 0 Engine Changelog
 
+## [v0.1.1] - 2026-07-05
+
+### Added
+
+- [ENTITY] Integrated the Null Anomaly, a procedural unlit entity constructed from Platonic solids that actively pathfinds and hunts the player across the grid.
+- [AUDIO] Implemented thermodynamic crossfading and acoustic proximity pressure. The engine dynamically crushes the kinetic low-pass filter and injects a sickening sub-bass throb as the Anomaly approaches the player's coordinates.
+- [ARCHITECTURE] Installed the Sector Matrix to support modular, data-driven "Villages". Added distinct macro-structures with unique generation rules: The Boardroom, The Archive, The Server Farm, and The Overgrown Atrium.
+- [TEXTURES] Procedurally synthesized an Obsidian Corporate Tile and a metallic Server Rack material featuring randomized, blinking diagnostic diodes.
+- [AUDIO] Generated a continuous white-noise buffer using the Web Audio API to natively synthesize the dense, damp acoustics of the Overgrown Atrium.
+
+### Changed
+
+- [PHYSICS] Replaced brittle linear friction subtraction with true continuous exponential decay to mathematically guarantee stability and prevent velocity inversion during heavy frame drops.
+- [GEOMETRY] Drastically increased structural density by tightening fractal generation bounds and shattering contiguous open plains with standalone geometric injections.
+- [ENVIRONMENT] Scaled the Boardroom centerpiece into a massive double-wide array anchored to the grid to eliminate unutilized negative space and establish psychological weight.
+- [CONTROLS] Corrected the mobile touch movement X-axis polarity to establish 1:1 parity with the desktop vector math.
+- [PHYSICS] Stiffened the camera's somatic suspension lerp to prevent the viewport from floating behind the physics body during sudden elevation changes.
+
+### Fixed
+
+- [PERFORMANCE] Replaced the state-mutating `THREE.Clock` with a deterministic `performance.now()` delta, preventing the post-processing shaders from cannibalizing the physics engine's time-step.
+- [PERFORMANCE] Optimized the thermodynamic lighting loop by spatially culling fixtures outside a 30-unit volumetric boundary before executing shadow hysteresis and sorting.
+- [PHYSICS] Added a Kinematic Latch to interactive doors, caching the player's initial approach vector to prevent the hinge polarity from violently snapping back while crossing the threshold.
+- [GEOMETRY] Implemented Geometric Confinement for standalone alcove furniture. Chairs now explicitly spawn within the safe topological pocket of structural dividers rather than clipping through the drywall.
+- [TEXTURES] Wrapped and tiled the procedural HVAC vent canvas to repair extreme visual stretching across macro-structure foundations.
+- [PHYSICS] Secured the player movement vector matrix against `NaN` poisoning by explicitly validating the direction vector's length before normalization.
+
 ## [v0.1.0] - 2026-07-04
 
 ### Added

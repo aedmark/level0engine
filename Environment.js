@@ -126,7 +126,22 @@ export default class Environment {
             const dist = playerPos.distanceTo(door.position);
             // The Proximity Threshold: Doors slide open when within 3.5 units
             const isOpen = dist < 3.5;
-            const targetRot = isOpen ? door.userData.openRot : door.userData.closedRot;
+
+            let targetRot = door.userData.closedRot;
+
+            if (isOpen) {
+                // Meadows' Kinematic Latch: We must hold the state. If we re-evaluate the approach
+                // vector every frame, crossing the threshold violently flips the polarity.
+                if (!door.userData.isLatched) {
+                    const approachZ = playerPos.z - door.position.z;
+                    door.userData.latchedRot = approachZ < 0 ? -(Math.PI / 2) : (Math.PI / 2);
+                    door.userData.isLatched = true;
+                }
+                targetRot = door.userData.latchedRot;
+            } else {
+                // Release the latch once the player leaves the proximity radius
+                door.userData.isLatched = false;
+            }
 
             // Kinematic Lerp
             door.userData.currentRot += (targetRot - door.userData.currentRot) * 8.0 * delta;
@@ -149,25 +164,32 @@ export default class Environment {
         this.audioInitialized = true;
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         this.audioCtx = new AudioContext();
-        const osc1 = this.audioCtx.createOscillator();
-        osc1.type = 'sine';
-        osc1.frequency.value = 60;
+
+        this.subRumble = this.audioCtx.createOscillator();
+        this.subRumble.type = 'sine';
+        this.subRumble.frequency.value = 60;
+
         const osc2 = this.audioCtx.createOscillator();
         osc2.type = 'sawtooth';
         osc2.frequency.value = 120;
+
         // Expose the filter to the class topology so we can mutate it in the update loop
         this.kineticFilter = this.audioCtx.createBiquadFilter();
         this.kineticFilter.type = 'lowpass';
         this.kineticFilter.frequency.value = 250;
         osc2.connect(this.kineticFilter);
+
         const osc3 = this.audioCtx.createOscillator();
         osc3.type = 'triangle';
         osc3.frequency.value = 1200;
+
         this.whineGain = this.audioCtx.createGain();
         this.whineGain.gain.value = 0.005;
         osc3.connect(this.whineGain);
+
         this.mainGain = this.audioCtx.createGain();
         this.mainGain.gain.value = 0.015; // Lowered baseline. We are simmering, not boiling.
+
         const lfo = this.audioCtx.createOscillator();
         lfo.type = 'sine';
         lfo.frequency.value = 0.05; // Slowed the phase loop from 0.1 to 0.05. A long, slow breath.
@@ -175,15 +197,37 @@ export default class Environment {
         lfoGain.gain.value = 0.008; // Drastically reduced amplitude. The LFO should whisper, not shout.
         lfo.connect(lfoGain);
         lfoGain.connect(this.mainGain.gain);
-        osc1.connect(this.mainGain);
-        // Connect the newly exposed kinetic filter
+
+        // The Organic Atrium Synthesis (White Noise Buffer)
+        const bufferSize = this.audioCtx.sampleRate * 2;
+        const noiseBuffer = this.audioCtx.createBuffer(1, bufferSize, this.audioCtx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+        this.noiseSrc = this.audioCtx.createBufferSource();
+        this.noiseSrc.buffer = noiseBuffer;
+        this.noiseSrc.loop = true;
+
+        this.noiseFilter = this.audioCtx.createBiquadFilter();
+        this.noiseFilter.type = 'lowpass';
+        this.noiseFilter.frequency.value = 300; // Muffled, damp air
+
+        this.atriumGain = this.audioCtx.createGain();
+        this.atriumGain.gain.value = 0.0; // Start muted
+
+        this.noiseSrc.connect(this.noiseFilter);
+        this.noiseFilter.connect(this.atriumGain);
+        this.atriumGain.connect(this.mainGain);
+
+        this.subRumble.connect(this.mainGain);
         this.kineticFilter.connect(this.mainGain);
         this.whineGain.connect(this.mainGain);
         this.mainGain.connect(this.audioCtx.destination);
-        osc1.start();
+
+        this.subRumble.start();
         osc2.start();
         osc3.start();
         lfo.start();
+        this.noiseSrc.start();
     }
 
     setup() {
@@ -356,6 +400,9 @@ export default class Environment {
             ventCtx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
         }
         const ventTexture = new THREE.CanvasTexture(ventCanvas);
+        ventTexture.wrapS = THREE.RepeatWrapping;
+        ventTexture.wrapT = THREE.RepeatWrapping;
+        ventTexture.repeat.set(16, 16); // Tile perfectly across the macro-structure foundation
         this.ventMat = new THREE.MeshStandardMaterial({map: ventTexture, roughness: 0.7, metalness: 0.4});
         // 7. Procedural Emissive Light Panel (Prismatic Diffuser)
         const lightCanvas = document.createElement('canvas');
@@ -403,6 +450,59 @@ export default class Environment {
         fabricTexture.wrapT = THREE.RepeatWrapping;
         fabricTexture.repeat.set(2, 2);
         this.fabricMat = new THREE.MeshStandardMaterial({map: fabricTexture, roughness: 0.95});
+
+        // 9. Obsidian Corporate Tile (Sterile, High-Gloss)
+        const tileCanvas = document.createElement('canvas');
+        tileCanvas.width = 256;
+        tileCanvas.height = 256;
+        const tileCtx = tileCanvas.getContext('2d');
+        tileCtx.fillStyle = '#080808';
+        tileCtx.fillRect(0, 0, 256, 256);
+        tileCtx.strokeStyle = '#1a1a1a'; // Faint grout lines
+        tileCtx.lineWidth = 2;
+        tileCtx.strokeRect(0, 0, 256, 256);
+        for (let i = 0; i < 800; i++) {
+            tileCtx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.01)';
+            tileCtx.fillRect(Math.random() * 256, Math.random() * 256, 1, 1);
+        }
+        const tileTexture = new THREE.CanvasTexture(tileCanvas);
+        tileTexture.wrapS = THREE.RepeatWrapping;
+        tileTexture.wrapT = THREE.RepeatWrapping;
+        tileTexture.repeat.set(16, 16); // Tile tightly across the macro-structure
+        this.tileMat = new THREE.MeshStandardMaterial({map: tileTexture, roughness: 0.1, metalness: 0.6});
+
+        // 10. Procedural Server Rack Texture (Metal Chassis & Diodes)
+        const serverCanvas = document.createElement('canvas');
+        serverCanvas.width = 256;
+        serverCanvas.height = 512;
+        const serverCtx = serverCanvas.getContext('2d');
+        // Base metal chassis
+        serverCtx.fillStyle = '#0a0a0a';
+        serverCtx.fillRect(0, 0, 256, 512);
+        // Hardware slots & Bezel lines
+        serverCtx.fillStyle = '#020202';
+        for (let i = 16; i < 500; i += 32) {
+            serverCtx.fillRect(16, i, 224, 24);
+            // Blinking status LEDs (Green, Blue, Red, or dead)
+            if (Math.random() > 0.3) {
+                const colors = ['#00ff00', '#0088ff', '#ff3300', '#444444'];
+                serverCtx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+                serverCtx.fillRect(200, i + 8, 6, 6);
+                // Optical Glow
+                serverCtx.fillStyle = 'rgba(255,255,255,0.3)';
+                serverCtx.fillRect(200, i + 8, 3, 3);
+                serverCtx.fillStyle = '#020202'; // Reset
+            }
+        }
+        serverCtx.strokeStyle = '#1a1a1a';
+        serverCtx.lineWidth = 4;
+        serverCtx.strokeRect(0, 0, 256, 512);
+
+        const serverTexture = new THREE.CanvasTexture(serverCanvas);
+        serverTexture.wrapS = THREE.RepeatWrapping;
+        serverTexture.wrapT = THREE.RepeatWrapping;
+        serverTexture.repeat.set(4, 1); // Wrap 4 rack units wide per block
+        this.serverMat = new THREE.MeshStandardMaterial({map: serverTexture, roughness: 0.3, metalness: 0.8});
 
         // We define the base materials once to prevent memory leaks during procedural generation.
         this.baseLightMat = new THREE.MeshStandardMaterial({
@@ -478,6 +578,24 @@ export default class Environment {
             this.lightPool.push(light);
         }
 
+        // 11. The Null Anomaly (Procedural Entity)
+        this.entityGroup = new THREE.Group();
+        const nullMat = new THREE.MeshBasicMaterial({ color: 0x000000 }); // Unlit void
+        const coreGeo = new THREE.IcosahedronGeometry(0.6, 0);
+        this.entityCore = new THREE.Mesh(coreGeo, nullMat);
+        this.entityGroup.add(this.entityCore);
+
+        this.entityShards = [];
+        for (let i = 0; i < 4; i++) {
+            const shard = new THREE.Mesh(new THREE.TetrahedronGeometry(0.2, 0), nullMat);
+            this.entityShards.push({ mesh: shard, speed: Math.random() * 2.0 + 1.0, offset: Math.random() * Math.PI * 2 });
+            this.entityGroup.add(shard);
+        }
+
+        this.scene.add(this.entityGroup);
+        this.entityActive = false;
+        this.entityTarget = new THREE.Vector3();
+
         // Track the base fog density so we can modulate it without breaking the UI.
         this.baseFogDensity = 0.05;
         // Boot Generation
@@ -501,6 +619,9 @@ export default class Environment {
         document.getElementById('fovSlider').addEventListener('input', (e) => {
             this.camera.fov = Number(e.target.value);
             this.camera.updateProjectionMatrix();
+        });
+        document.getElementById('speedSlider').addEventListener('input', (e) => {
+            this.player.speedMultiplier = Number(e.target.value) / 100;
         });
         document.getElementById('aspectSelect').addEventListener('change', (e) => {
             const val = e.target.value;
@@ -542,6 +663,11 @@ export default class Environment {
 
         this.camera.position.set(0, 1.6, 0);
         this.player.velocity.set(0, 0, 0);
+
+        // Spawn the anomaly in the distance
+        this.entityActive = true;
+        this.entityGroup.position.set(32, 1.5, 32);
+        this.entityTarget.copy(this.entityGroup.position);
 
         const seedString = document.getElementById('seedInput').value || "ASYNC RESEARCH INSTITUTE";
         this.baseSeed = 0;
@@ -709,7 +835,6 @@ export default class Environment {
                     door.userData = {
                         chunkHash: hash,
                         closedRot: 0,
-                        openRot: (random() > 0.5 ? 1 : -1) * (Math.PI / 1.8),
                         currentRot: 0
                     };
 
@@ -770,7 +895,8 @@ export default class Environment {
 
                     // Lonely Waiting-Room Chair
                     if (random() > 0.5) {
-                        const rot = random() > 0.5 ? -Math.PI / 4 : Math.PI / 4;
+                        // Snapped to strict orthogonal geometry to prevent bounding-box corner clipping
+                        const rot = random() > 0.5 ? -Math.PI / 2 : Math.PI / 2;
                         const chair = buildChair(x * this.cellSize + 0.5, 0, z * this.cellSize - 0.5, rot);
                         addFurniture(chair);
                     }
@@ -800,9 +926,169 @@ export default class Environment {
         const startX = chunkX * this.chunkSize;
         const startZ = chunkZ * this.chunkSize;
 
+        // The Sector Matrix: A data-driven registry of specialized architectural modules (Villages)
+        const sectorMatrix = [
+            {
+                name: "THE BOARDROOM",
+                prob: 0.25,
+                foundationMat: this.tileMat, // Replaced the muddy wood with sterile obsidian
+                build: (x, z, localX, localZ) => {
+                    const isPerimeter = localX === 0 || localX === this.chunkSize - 1 || localZ === 0 || localZ === this.chunkSize - 1;
+                    const isDoorway = (localX >= 7 && localX <= 8) || (localZ >= 7 && localZ <= 8);
+
+                    if (isPerimeter && !isDoorway) {
+                        const wall = new THREE.Mesh(this.sharedWallGeo, this.sharedWallMat);
+                        wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                        addGeometry(wall);
+                    }
+                    // Massive double-wide conference array anchoring the cavernous space
+                    else if (!isPerimeter && localX >= 3 && localX <= 12 && (localZ === 7 || localZ === 8)) {
+                        const table = buildTable(x * this.cellSize, 0, z * this.cellSize);
+                        addFurniture(table);
+
+                        // Perimeter seating
+                        if (localZ === 8) {
+                            addFurniture(buildChair(x * this.cellSize, 0, z * this.cellSize + 1.2, 0));
+                        }
+                        if (localZ === 7) {
+                            addFurniture(buildChair(x * this.cellSize, 0, z * this.cellSize - 1.2, Math.PI));
+                        }
+                        // Executive endcaps
+                        if (localX === 3 && localZ === 7) {
+                            addFurniture(buildChair(x * this.cellSize - 1.2, 0, z * this.cellSize + 2.0, -Math.PI / 2));
+                        }
+                        if (localX === 12 && localZ === 8) {
+                            addFurniture(buildChair(x * this.cellSize + 1.2, 0, z * this.cellSize - 2.0, Math.PI / 2));
+                        }
+
+                        // Consistent overhead lighting tracking the massive table
+                        const activeMat = this.baseLightMat.clone();
+                        const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                        panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
+                        chunkGroup.add(panel);
+                        this.walls.push(panel);
+                        this.fixtureData.push({ chunkHash: hash, position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize), flickerOffset: random() * 500, material: activeMat, isFaulty: random() > 0.8, baseIntensity: 0.6, targetIntensity: 0.6, currentIntensity: 0.6 });
+                    }
+                }
+            },
+            {
+                name: "THE ARCHIVE",
+                prob: 0.25,
+                foundationMat: this.structMat,
+                build: (x, z, localX, localZ) => {
+                    if (localX % 3 === 0 && localZ % 3 === 0 && localX > 0 && localZ > 0 && localX < 15 && localZ < 15) {
+                        const pillar = buildWall(this.cellSize * 0.8, this.cellSize * 0.8, this.sharedWallMat);
+                        pillar.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                        addGeometry(pillar);
+                    }
+                    if (localX % 4 === 2 && localZ % 4 === 2 && random() > 0.5) {
+                        const activeMat = this.baseBrokenLightMat.clone();
+                        const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                        panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
+                        chunkGroup.add(panel);
+                        this.walls.push(panel);
+                        this.fixtureData.push({ chunkHash: hash, position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize), flickerOffset: random() * 500, material: activeMat, isFaulty: true, baseIntensity: 0.1, targetIntensity: 0.1, currentIntensity: 0.1 });
+                    }
+                }
+            },
+            {
+                name: "THE SERVER FARM",
+                prob: 0.25,
+                foundationMat: this.ventMat, // Grated industrial flooring
+                build: (x, z, localX, localZ) => {
+                    // Strict linear aisles forming monolithic server racks
+                    if (localX % 4 >= 1 && localX % 4 <= 2 && localZ > 1 && localZ < 14) {
+                        // Apply the dedicated metal diode material instead of the raw structural concrete
+                        const rack = buildWall(this.cellSize, this.cellSize, this.serverMat);
+                        rack.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                        addGeometry(rack);
+                    }
+                    // Blood-red emergency lighting centered over the aisles
+                    if (localX % 4 === 0 && localZ % 3 === 0 && random() > 0.3) {
+                        const activeMat = this.baseLightMat.clone();
+                        activeMat.color.setHex(0xff3333);
+                        activeMat.emissive.setHex(0xff0000);
+                        const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                        panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
+                        chunkGroup.add(panel);
+                        this.walls.push(panel);
+                        this.fixtureData.push({ chunkHash: hash, position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize), flickerOffset: random() * 500, material: activeMat, isFaulty: random() > 0.6, baseIntensity: 0.4, targetIntensity: 0.4, currentIntensity: 0.4 });
+                    }
+                }
+            },
+            {
+                name: "THE OVERGROWN ATRIUM",
+                prob: 0.25,
+                foundationMat: this.fabricMat, // Uncanny green repurposed as damp moss
+                build: (x, z, localX, localZ) => {
+                    // Organic scatter: bypass the grid for natural clustering
+                    if (random() > 0.85) {
+                        // Variable thickness tree trunks
+                        const w = 0.4 + (random() * 0.8);
+                        const d = 0.4 + (random() * 0.8);
+                        const trunk = buildWall(w, d, this.woodMat);
+                        trunk.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                        addGeometry(trunk);
+
+                        // Floating canopy greenery
+                        if (random() > 0.4) {
+                            const canopyGeo = new THREE.BoxGeometry(this.cellSize * (1.0 + random()), 1.0, this.cellSize * (1.0 + random()));
+                            const canopy = new THREE.Mesh(canopyGeo, this.fabricMat);
+                            canopy.position.set(x * this.cellSize, 2.8 + random() * 0.4, z * this.cellSize);
+                            canopy.castShadow = true;
+                            chunkGroup.add(canopy); // Intentionally not added to spatial grid to prevent head-bonking
+                        }
+                    }
+                    // Sunken, suffocated lighting buried in the moss floor
+                    if (random() > 0.95) {
+                        const activeMat = this.baseBrokenLightMat.clone();
+                        const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                        panel.position.set(x * this.cellSize, 0.05, z * this.cellSize);
+                        chunkGroup.add(panel);
+                        this.fixtureData.push({ chunkHash: hash, position: new THREE.Vector3(x * this.cellSize, 0.5, z * this.cellSize), flickerOffset: random() * 500, material: activeMat, isFaulty: true, baseIntensity: 0.15, targetIntensity: 0.15, currentIntensity: 0.15 });
+                    }
+                }
+            }
+        ];
+
+        // 10% chance to spawn a strict architectural macro-structure (except at the spawn origin)
+        const isMacroStructure = random() > 0.90 && (Math.abs(chunkX) > 0 || Math.abs(chunkZ) > 0);
+        let activeSector = null;
+
+        if (isMacroStructure) {
+            const sectorRoll = random();
+            let cumulative = 0;
+            for (const sector of sectorMatrix) {
+                cumulative += sector.prob;
+                if (sectorRoll <= cumulative) {
+                    activeSector = sector;
+                    break;
+                }
+            }
+            if (!activeSector) activeSector = sectorMatrix[0]; // Baseline failsafe
+
+            // THE PLATING: Execute exactly ONCE per macro-chunk, outside the fractal noise loop.
+            const foundationGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
+            const foundation = new THREE.Mesh(foundationGeo, activeSector.foundationMat);
+            foundation.rotation.x = -Math.PI / 2;
+            const centerOffset = (this.chunkSize * this.cellSize) / 2 - (this.cellSize / 2);
+            foundation.position.set(startX * this.cellSize + centerOffset, 0.02, startZ * this.cellSize + centerOffset);
+            foundation.receiveShadow = true;
+            chunkGroup.add(foundation);
+        }
+
         for (let x = startX; x < startX + this.chunkSize; x++) {
             for (let z = startZ; z < startZ + this.chunkSize; z++) {
                 if (Math.abs(x) < 2 && Math.abs(z) < 2) continue; // Safe spawn area
+
+                const localX = x - startX;
+                const localZ = z - startZ;
+
+                if (isMacroStructure) {
+                    activeSector.build(x, z, localX, localZ);
+                    continue; // Skip the fractal noise for this coordinate
+                }
+
                 let zx = x * 0.15;
                 let zy = z * 0.15;
                 let iter = 0;
@@ -812,13 +1098,31 @@ export default class Environment {
                     zx = xt;
                     iter++;
                 }
-                let isWall = iter > 8;
-                if (random() > 0.85) isWall = !isWall;
+                let isWall = iter > 6;
+                if (random() > 0.70) isWall = !isWall;
 
                 if (isWall) {
                     const structRoll = random();
                     const structure = structuralMatrix.find(s => structRoll >= s.prob);
                     if (structure) structure.build(x, z);
+                } else if (random() > 0.80) { // Massive boost to standalone geometry injections for internal variance
+                    // Standalone geometric noise injected into open spaces.
+                    const divW = random() > 0.5 ? this.cellSize * 0.8 : this.cellSize * 0.2;
+                    const divD = divW === this.cellSize * 0.8 ? this.cellSize * 0.2 : this.cellSize * 0.8;
+                    const divider = buildWall(divW, divD, this.sharedWallMat);
+                    divider.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                    addGeometry(divider);
+
+                    if (random() > 0.6) {
+                        // Fuller's Geometric Confinement: Evaluate the mass of the divider and
+                        // place the chair in the safe topological pocket to prevent boundary punching.
+                        const isWide = divW > divD;
+                        const clearX = isWide ? 0.0 : 1.2;
+                        const clearZ = isWide ? 1.2 : 0.0;
+                        const rot = isWide ? 0 : -Math.PI / 2; // Face away from the divider
+                        const chair = buildChair(x * this.cellSize + clearX, 0, z * this.cellSize + clearZ, rot);
+                        addFurniture(chair);
+                    }
                 } else if (random() > 0.999) {
                     const stepCount = 10;
                     const stepDepth = this.cellSize / stepCount;
@@ -894,6 +1198,51 @@ export default class Environment {
         }, 10);
     }
 
+    updateEntity(playerPos, delta, time) {
+        if (!this.entityActive) return;
+
+        // 1. Somatic Pulsing & Rotation
+        this.entityCore.rotation.y = time * 0.8;
+        this.entityCore.rotation.x = time * 0.5;
+        const pulse = 1.0 + Math.sin(time * 4.0) * 0.15;
+        this.entityCore.scale.set(pulse, pulse, pulse);
+
+        this.entityShards.forEach((shardData, i) => {
+            const angle = time * shardData.speed + shardData.offset;
+            shardData.mesh.position.x = Math.cos(angle) * 1.2;
+            shardData.mesh.position.z = Math.sin(angle) * 1.2;
+            shardData.mesh.position.y = Math.sin(time * 3.0 + i) * 0.4;
+            shardData.mesh.rotation.x += delta * 2.0;
+            shardData.mesh.rotation.y += delta * 3.0;
+        });
+
+        // 2. Spatial Pathfinding (The Hunt)
+        const distToPlayer = this.entityGroup.position.distanceTo(playerPos);
+
+        if (distToPlayer < 40.0) {
+            // Relentless direct pursuit if within detection radius
+            this.entityTarget.copy(playerPos);
+        } else if (Math.random() < 0.02) {
+            // Random peripheral wandering to keep it active off-screen
+            this.entityTarget.x += (Math.random() - 0.5) * 15.0;
+            this.entityTarget.z += (Math.random() - 0.5) * 15.0;
+        }
+
+        const dir = new THREE.Vector3().subVectors(this.entityTarget, this.entityGroup.position);
+        dir.y = 0; // Lock to horizontal plane
+        const distToTarget = dir.length();
+
+        if (distToTarget > 0.1) {
+            dir.normalize();
+            // Thermodynamic acceleration: It moves faster the closer it gets to the player
+            const speed = distToPlayer < 15.0 ? 4.5 : 1.5;
+            this.entityGroup.position.addScaledVector(dir, speed * delta);
+        }
+
+        // Hover kinetics
+        this.entityGroup.position.y = 1.5 + Math.sin(time * 2.0) * 0.2;
+    }
+
     updateLights(time) {
         let ambientLightLevel = 0;
         const cameraPos = this.camera.position;
@@ -903,20 +1252,25 @@ export default class Environment {
             this.audioDirection = new THREE.Vector3();
         }
 
-        // Calculate the spatial distance of all theoretical fixtures
+        // Calculate spatial distance, but cull fixtures outside rendering relevance to save CPU cycles
+        const localFixtures = [];
         this.fixtureData.forEach(fixture => {
-            fixture.distSq = cameraPos.distanceToSquared(fixture.position);
-            // HYSTERESIS: If it held a shadow map last frame, pull it artificially closer to prevent thrashing
-            if (fixture.hasShadow) fixture.distSq -= 40.0;
+            const distSq = cameraPos.distanceToSquared(fixture.position);
+            if (distSq < 900) { // Strict 30-unit volumetric boundary
+                fixture.distSq = fixture.hasShadow ? distSq - 40.0 : distSq;
+                localFixtures.push(fixture);
+            } else {
+                fixture.hasShadow = false;
+            }
         });
 
-        // Sort ascending by biased distance
-        this.fixtureData.sort((a, b) => a.distSq - b.distSq);
+        // Sort only the local active subset
+        localFixtures.sort((a, b) => a.distSq - b.distSq);
 
-        // Strip the bias back out so the rendering math remains physically accurate
-        this.fixtureData.forEach(fixture => {
+        // Strip the bias back out
+        localFixtures.forEach(fixture => {
             if (fixture.hasShadow) fixture.distSq += 40.0;
-            fixture.hasShadow = false; // Reset for this frame's allocation
+            fixture.hasShadow = false;
         });
 
         let nearestFixture = null;
@@ -925,7 +1279,7 @@ export default class Environment {
         // Snap the hardware light pool to the nearest structural fixtures
         for (let i = 0; i < this.maxActiveLights; i++) {
             const light = this.lightPool[i];
-            const fixture = this.fixtureData[i];
+            const fixture = localFixtures[i];
 
             if (fixture && fixture.distSq < 400) {
                 if (i < 6) fixture.hasShadow = true; // Tag for next frame's hysteresis
@@ -972,19 +1326,54 @@ export default class Environment {
         }
 
         if (this.audioInitialized && this.mainGain) {
+            // Thermodynamic read: Deduce the player's current sector archetype
+            const pChunkX = Math.floor(cameraPos.x / (this.chunkSize * this.cellSize));
+            const pChunkZ = Math.floor(cameraPos.z / (this.chunkSize * this.cellSize));
+            let pSeed = this.baseSeed + (pChunkX * 104729) + (pChunkZ * 1299827);
+            const pRandom = () => { let x = Math.sin(pSeed++) * 10000; return x - Math.floor(x); };
+            const isMacroLoc = pRandom() > 0.90 && (Math.abs(pChunkX) > 0 || Math.abs(pChunkZ) > 0);
+            const isAtrium = isMacroLoc && pRandom() > 0.75; // Quad-sector balance
+
             const proximity = Math.max(0, 1.0 - (minLightDist / 20.0));
             this.mainGain.gain.setTargetAtTime(0.005 + (proximity * 0.02), this.audioCtx.currentTime, 0.5);
-            const whineTarget = isOccluded ? 0.0001 : 0.0005 + (proximity * 0.003);
+
+            // Crossfade logic: Synthesize the organic space by shifting the soundscape
+            const whineTarget = isAtrium ? 0.0 : (isOccluded ? 0.0001 : 0.0005 + (proximity * 0.003));
             this.whineGain.gain.setTargetAtTime(whineTarget, this.audioCtx.currentTime, 0.2);
+
+            if (this.atriumGain) {
+                const noiseTarget = isAtrium ? 0.015 : 0.0;
+                this.atriumGain.gain.setTargetAtTime(noiseTarget, this.audioCtx.currentTime, 1.0); // Slow, creeping fade
+            }
+
+            if (this.subRumble) {
+                const rumbleTarget = isAtrium ? 35 : 60; // Drop from 60Hz AC mains to a 35Hz sub-bass throb
+                this.subRumble.frequency.setTargetAtTime(rumbleTarget, this.audioCtx.currentTime, 2.0);
+            }
+
+            // Anomaly Proximity Pressure
+            let anomalyPressure = 0;
+            if (this.entityActive) {
+                const distToAnomaly = cameraPos.distanceTo(this.entityGroup.position);
+                if (distToAnomaly < 15.0) anomalyPressure = 1.0 - (distToAnomaly / 15.0);
+            }
 
             if (this.kineticFilter) {
                 const speed = Math.sqrt(this.player.velocity.x ** 2 + this.player.velocity.z ** 2);
                 const exertionPulse = Math.sin(time * 8.0) * (speed * 5);
-                const baseFreq = isOccluded ? 120 : 250;
+                const baseFreq = isAtrium ? 80 : (isOccluded ? 120 : 250); // Heavily muffle the buzz in the damp air
                 const speedScale = isOccluded ? 2 : 8;
-                const targetFreq = Math.max(100, baseFreq + (speed * speedScale) + exertionPulse);
-                const timeConstant = isOccluded ? 0.2 : 3.0;
+
+                // The Anomaly violently crushes the room's high frequencies as it approaches
+                const targetFreq = Math.max(40, baseFreq + (speed * speedScale) + exertionPulse - (anomalyPressure * 150));
+                const timeConstant = (isOccluded || isAtrium || anomalyPressure > 0) ? 0.2 : 3.0;
                 this.kineticFilter.frequency.setTargetAtTime(targetFreq, this.audioCtx.currentTime, timeConstant);
+            }
+
+            // Anomaly induces a sickening sub-bass throb
+            if (this.subRumble) {
+                const rumbleTarget = isAtrium ? 35 : 60;
+                this.subRumble.frequency.setTargetAtTime(rumbleTarget + (anomalyPressure * 40), this.audioCtx.currentTime, 0.5);
             }
         }
 
@@ -994,7 +1383,26 @@ export default class Environment {
             this.dustCloud.rotation.z = time * 0.02;
         }
 
+        // The Thermodynamic State Evaluator: Re-roll the deterministic chunk seed for the player's current coordinates
+        const pChunkX = Math.floor(cameraPos.x / (this.chunkSize * this.cellSize));
+        const pChunkZ = Math.floor(cameraPos.z / (this.chunkSize * this.cellSize));
+        let pSeed = this.baseSeed + (pChunkX * 104729) + (pChunkZ * 1299827);
+        const pRandom = () => { let x = Math.sin(pSeed++) * 10000; return x - Math.floor(x); };
+
+        const isMacro = pRandom() > 0.90 && (Math.abs(pChunkX) > 0 || Math.abs(pChunkZ) > 0);
+        const sectorRoll = pRandom();
+
+        let targetFog = 0.05;
+        if (isMacro) {
+            if (sectorRoll <= 0.25) targetFog = 0.015; // Boardroom clears out
+            else if (sectorRoll <= 0.50) targetFog = 0.12; // Archive suffocates
+            else if (sectorRoll <= 0.75) targetFog = 0.08; // Server Farm sits heavy
+            else targetFog = 0.18; // Atrium is choked with dense, humid spores
+        }
+
         if (this.baseFogDensity !== undefined) {
+            // Smoothly lerp the environmental density toward the localized target
+            this.baseFogDensity += (targetFog - this.baseFogDensity) * 0.02;
             const fogBreath = Math.sin(time * 0.05) * (this.baseFogDensity * 0.3);
             this.scene.fog.density = this.baseFogDensity + fogBreath;
         }

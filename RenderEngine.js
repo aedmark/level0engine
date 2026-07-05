@@ -5,7 +5,6 @@ export default class RenderEngine {
     constructor() {
         this.aspectRatio = 'auto'; // Default state
         this.resolutionScale = 1.0; // Default rendering scale
-        this.clock = new THREE.Clock();
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0xa89f68);
         this.scene.fog = new THREE.FogExp2(0xa89f68, 0.05);
@@ -101,11 +100,20 @@ export default class RenderEngine {
     }
 
     get delta() {
-        return this.clock.getDelta();
+        const now = performance.now();
+        if (!this._lastTime) this._lastTime = now;
+
+        // Calculate true thermodynamic delta and cap at 0.1s to prevent physics explosions on massive frame drops
+        const diff = Math.min((now - this._lastTime) / 1000, 0.1);
+        this._lastTime = now;
+
+        return diff;
     }
 
     get time() {
-        return this.clock.getElapsedTime();
+        // Pure function: querying the time no longer cannibalizes the physics delta
+        if (!this._startTime) this._startTime = performance.now();
+        return (performance.now() - this._startTime) / 1000;
     }
 
     render() {
