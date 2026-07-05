@@ -69,7 +69,7 @@ export default class Environment {
         this.audioCtx = null;
         this.audioInitialized = false;
 
-        // --- THE AUDITORY ENTITY ---
+        // THE ENTITY
         this.entityActive = true;
         // Spawn the entity 30 units deep into the Z-axis
         this.entityPos = new THREE.Vector3(0, 1.6, -30);
@@ -95,7 +95,6 @@ export default class Environment {
         for (let y = -1; y <= 1; y++) {
             for (let x = -this.renderDistance; x <= this.renderDistance; x++) {
                 for (let z = -this.renderDistance; z <= this.renderDistance; z++) {
-                    // --- THE CHUNK PRUNE ---
                     // Prevent GPU death. Only render the full 3x3 grid for the current floor.
                     // For the floors above and below, ONLY render the immediate central chunk.
                     if (y !== 0 && (x !== 0 || z !== 0)) continue;
@@ -137,7 +136,7 @@ export default class Environment {
     updateInteractives(playerPos, delta) {
         this.interactiveDoors.forEach(door => {
             const dist = playerPos.distanceTo(door.position);
-            // The Proximity Threshold: Doors slide open when within 3.5 units
+            // Doors slide open when within 3.5 unit proximity
             const isOpen = dist < 3.5;
             const targetRot = isOpen ? door.userData.openRot : door.userData.closedRot;
 
@@ -194,7 +193,7 @@ export default class Environment {
         this.whineGain.connect(this.mainGain);
         this.mainGain.connect(this.audioCtx.destination);
 
-        // --- THE ENTITY SYNTHESIS ---
+        // THE ENTITY SYNTHESIS
         // A deep, square-wave sub-bass
         this.entityOsc = this.audioCtx.createOscillator();
         this.entityOsc.type = 'square';
@@ -233,7 +232,7 @@ export default class Environment {
     }
 
     setup() {
-        // 1. Mono-Yellow Wallpaper Texture
+        // Mono-Yellow Wallpaper Texture
         const wallCanvas = document.createElement('canvas');
         wallCanvas.width = 512;
         wallCanvas.height = 512;
@@ -279,7 +278,7 @@ export default class Environment {
         this.wallTexture.wrapS = THREE.RepeatWrapping;
         this.wallTexture.wrapT = THREE.ClampToEdgeWrapping;
         this.wallTexture.repeat.set(4, 1);
-        // 2. Damp Carpet Texture
+        // Damp Carpet Texture
         const carpetCanvas = document.createElement('canvas');
         carpetCanvas.width = 512;
         carpetCanvas.height = 512;
@@ -294,7 +293,7 @@ export default class Environment {
         carpetTexture.wrapS = THREE.RepeatWrapping;
         carpetTexture.wrapT = THREE.RepeatWrapping;
         carpetTexture.repeat.set(20, 20);
-        // 3. Ceiling Tile Texture
+        // Ceiling Tile Texture
         const ceilingCanvas = document.createElement('canvas');
         ceilingCanvas.width = 256;
         ceilingCanvas.height = 256;
@@ -313,7 +312,7 @@ export default class Environment {
         ceilingTexture.wrapT = THREE.RepeatWrapping;
         // A 300x300 plane divided by 300 repeats = 1x1 unit tiles (approx 3x3 ft)
         ceilingTexture.repeat.set(300, 300);
-        // 4. Structural Texture (Stairs & Arches)
+        // Structural Texture (Stairs & Arches)
         const structCanvas = document.createElement('canvas');
         structCanvas.width = 256;
         structCanvas.height = 256;
@@ -329,7 +328,7 @@ export default class Environment {
         structTexture.wrapT = THREE.RepeatWrapping;
         structTexture.repeat.set(4, 4);
         this.structMat = new THREE.MeshStandardMaterial({map: structTexture, roughness: 1.0});
-        // 5. Procedural Wood & Door Textures
+        // Procedural Wood & Door Textures
         const woodCanvas = document.createElement('canvas');
         woodCanvas.width = 256;
         woodCanvas.height = 512;
@@ -376,7 +375,7 @@ export default class Environment {
         doorCtx.fill();
         const doorTexture = new THREE.CanvasTexture(doorCanvas);
         this.doorMat = new THREE.MeshStandardMaterial({map: doorTexture, roughness: 0.9});
-        // 6. Procedural HVAC Vent Texture (Optical Recess)
+        // Procedural HVAC Vent Texture (Optical Recess)
         const ventCanvas = document.createElement('canvas');
         ventCanvas.width = 256;
         ventCanvas.height = 256;
@@ -403,7 +402,7 @@ export default class Environment {
         }
         const ventTexture = new THREE.CanvasTexture(ventCanvas);
         this.ventMat = new THREE.MeshStandardMaterial({map: ventTexture, roughness: 0.7, metalness: 0.4});
-        // 7. Procedural Emissive Light Panel (Prismatic Diffuser)
+        //Procedural Emissive Light Panel (Prismatic Diffuser)
         const lightCanvas = document.createElement('canvas');
         lightCanvas.width = 128;
         lightCanvas.height = 256;
@@ -504,7 +503,7 @@ export default class Environment {
         // Allocate the fixed hardware light pool.
         for (let i = 0; i < this.maxActiveLights; i++) {
             const light = new THREE.PointLight(0xfff5c2, 0, 20);
-            // S.L.A.S.H. PRUNE: Limit active shadow casters to 2 to prevent WebGL draw-call death
+            // Limit active shadow casters to 2 to prevent WebGL draw-call death
             if (i < 2) {
                 light.castShadow = true;
                 light.shadow.mapSize.width = 256;
@@ -866,13 +865,21 @@ export default class Environment {
         const startX = chunkX * this.chunkSize;
         const startZ = chunkZ * this.chunkSize;
 
+        // Stateless structural hash to mathematically query adjacent floors
+        const checkAtrium = (wx, wy, wz) => {
+            let seed = this.baseSeed + (wx * 104729) + (wy * 7919) + (wz * 1299827);
+            let val = Math.sin(seed) * 10000;
+            return (val - Math.floor(val)) > 0.985;
+        };
+
         for (let x = startX; x < startX + this.chunkSize; x++) {
             for (let z = startZ; z < startZ + this.chunkSize; z++) {
                 let isAtrium = false;
 
                 // We wrap the architectural generation in a conditional instead of using 'continue'.
                 // This protects the spawn area from walls, but ensures the floor collider is still built.
-                if (!(Math.abs(x) < 2 && Math.abs(z) < 2)) {
+                // Force the void strictly to chunkY === 0 to prevent vertical shafts of emptiness.
+                if (!(chunkY === 0 && Math.abs(x) < 2 && Math.abs(z) < 2)) {
                     let zx = x * 0.15;
                     let zy = z * 0.15;
                     let iter = 0;
@@ -885,13 +892,15 @@ export default class Environment {
                     let isWall = iter > 8;
                     if (random() > 0.85) isWall = !isWall;
 
+                    // Execute stateless evaluation
+                    isAtrium = checkAtrium(x, chunkY, z);
+
                     if (isWall) {
-                    const structRoll = random();
-                    const structure = structuralMatrix.find(s => structRoll >= s.prob);
-                    if (structure) structure.build(x, z);
-                } else if (random() > 0.985) {
-                    isAtrium = true;
-                    // THE ASCENSION SHAFT
+                        const structRoll = random();
+                        const structure = structuralMatrix.find(s => structRoll >= s.prob);
+                        if (structure) structure.build(x, z);
+                    } else if (isAtrium) {
+                        // THE ASCENSION SHAFT
                     const stepCount = 12;
                     const stepDepth = this.cellSize / stepCount;
                     const stepHeight = this.levelHeight / stepCount; // Elevate precisely to the next floor
@@ -947,7 +956,10 @@ export default class Environment {
                 // --- THE FLOOR COLLIDER ---
                 // We physically map gravity by establishing mathematical bounds.
                 // If an atrium exists, we prune the floor collider so the player can fall (or climb) through.
-                if (!isAtrium) {
+                const stairsBelow = checkAtrium(x, chunkY - 1, z);
+
+                // If this coordinate is an atrium, or if the floor below built stairs here, leave the hole open.
+                if (!isAtrium && !stairsBelow) {
                     const hSize = this.cellSize / 2;
                     const cX = x * this.cellSize;
                     const cZ = z * this.cellSize;
@@ -968,28 +980,23 @@ export default class Environment {
         flash.style.transition = 'none';
         flash.style.opacity = '1';
 
-        // --- THE SPATIAL FLASHBANG ---
         if (this.entityActive && this.audioInitialized) {
             const playerPos = this.camera.position;
             const dist = this.entityPos.distanceTo(playerPos);
 
             // Evaluate if the Entity is within the 40-unit hearing radius
             if (dist < 40.0) {
-                // --- THE 2D VECTOR FLATTENING ---
                 // Strip the Y-axis. If the entity is downstairs and you look at the floor,
                 // the 3D dot product fails. We only care about horizontal triangulation.
                 const flatEntityPos = new THREE.Vector3(this.entityPos.x, 0, this.entityPos.z);
                 const flatPlayerPos = new THREE.Vector3(playerPos.x, 0, playerPos.z);
 
-                // 1. Calculate the normalized horizontal vector FROM the player TO the Entity
                 const toEntity = new THREE.Vector3().subVectors(flatEntityPos, flatPlayerPos).normalize();
 
-                // 2. Extract the camera's true forward-facing vector and flatten it
                 const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
                 forward.y = 0;
                 forward.normalize();
 
-                // 3. The Dot Product. Widened the forgiveness cone to 0.6.
                 const alignment = toEntity.dot(forward);
 
                 if (alignment > 0.6) {
@@ -1030,7 +1037,7 @@ export default class Environment {
     updateEntity(player, delta) {
         if (!this.audioInitialized || !this.entityActive) return;
 
-        // --- THE S.L.A.S.H. STUN LOCK ---
+        // STUN LOCK
         if (this.entityStunTimer > 0) {
             this.entityStunTimer -= delta;
             return; // Sever the loop. No movement, no audio overwrites.
@@ -1039,14 +1046,14 @@ export default class Environment {
         const playerPos = player.camera.position;
         const dist = this.entityPos.distanceTo(playerPos);
 
-        // 1. DYNAMIC PURSUIT: The Entity stops 1 unit away to prevent mathematically crossing the camera origin
+        // DYNAMIC PURSUIT: The Entity stops 1 unit away to prevent mathematically crossing the camera origin
         if (dist > 1.0) {
             const dir = new THREE.Vector3().subVectors(playerPos, this.entityPos).normalize();
             // It ignores the spatial hash grid. It phases through the architecture.
             this.entityPos.addScaledVector(dir, this.entitySpeed * delta);
         }
 
-        // 2. VOLUME TENSION ENVELOPE
+        // VOLUME TENSION ENVELOPE
         // The sound begins fading in at 40 units out.
         const rawGain = Math.max(0, 1.0 - (dist / 40.0));
         // Exponential curve: it gets aggressively louder in the final 10 units.
@@ -1055,7 +1062,7 @@ export default class Environment {
         // The heartbeat LFO accelerates as the distance collapses (from 2hz to ~10hz)
         this.entityLFO.frequency.setTargetAtTime(2 + (rawGain * 8), this.audioCtx.currentTime, 0.5);
 
-        // 3. SPATIAL PANNING MATH
+        // SPATIAL PANNING MATH
         if (this.entityPan) {
             // Get vector pointing from player to entity
             const toEntity = new THREE.Vector3().subVectors(this.entityPos, playerPos).normalize();
@@ -1081,10 +1088,8 @@ export default class Environment {
 
         this.fixtureData.forEach(fixture => {
             fixture.distSq = cameraPos.distanceToSquared(fixture.position);
-            // HYSTERESIS: If it held a shadow map last frame, pull it artificially closer to prevent thrashing
             if (fixture.hasShadow) fixture.distSq -= 40.0;
 
-            // THE THERMODYNAMIC CULLING
             // If the fixture is on a different floor, apply a massive mathematical penalty.
             // This prevents the GPU from computing complex shadow maps for lights blocked by the ceiling.
             const fixtureLevel = Math.floor(fixture.position.y / this.levelHeight);
@@ -1121,7 +1126,7 @@ export default class Environment {
                     nearestFixture = fixture;
                 }
 
-                // THE FADE ENVELOPE: Smoothly scale hardware intensity from 0 to 1 over the outer 8 units
+                // Smoothly scale hardware intensity from 0 to 1 over the outer 8 units
                 const fadeEnvelope = Math.max(0, Math.min(1, (20 - dist) / 8.0));
 
                 if (fixture.isFaulty) {
@@ -1142,7 +1147,7 @@ export default class Environment {
             }
         }
 
-        // The Structural Raycast. Find if matter exists between the player and the sound.
+        // Find if matter exists between the player and the sound.
         let isOccluded = false;
         if (nearestFixture && minLightDist > 1.0) {
             this.audioDirection.subVectors(nearestFixture.position, cameraPos).normalize();

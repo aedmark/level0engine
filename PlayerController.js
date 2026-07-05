@@ -247,7 +247,6 @@ export default class PlayerController {
         const visualHeight = this.isCrouching ? 0.8 : 1.6;
         const physicalTop = this.isCrouching ? 1.2 : 2.5;
 
-        // --- THERMODYNAMIC COLLIDER PRUNE ---
         // X Collision mutation
         let hitX = false;
         const snagShrink = 0.05;
