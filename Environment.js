@@ -129,8 +129,8 @@ export default class Environment {
 
     updateInteractives(playerPos, delta) {
         this.interactiveDoors.forEach(door => {
-            const dist = playerPos.distanceTo(door.position);
-            const isOpen = dist < 3.5;
+            const distSq = playerPos.distanceToSquared(door.position);
+            const isOpen = distSq < 12.25;
             let targetRot = door.userData.closedRot;
             if (isOpen) {
                 if (!door.userData.isLatched) {
@@ -579,11 +579,36 @@ export default class Environment {
                         pillar.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                         addGeometry(pillar);
                     }
-                    if (localX === 8 && localZ === 8) {
-                        const waterGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
+                    if (localX % 4 === 2 && localZ % 4 === 2 && random() > 0.4) {
+                        const pSize = this.cellSize * 0.8;
+                        const rimThick = 0.2;
+                        const pHeight = 0.4;
+                        const rimScaleY = pHeight / 3.0;
+
+                        const rimN = buildWall(pSize, rimThick, this.clinicMat);
+                        rimN.position.set(x * this.cellSize, pHeight/2, z * this.cellSize - pSize/2 + rimThick/2);
+                        rimN.scale.y = rimScaleY;
+                        addGeometry(rimN);
+
+                        const rimS = buildWall(pSize, rimThick, this.clinicMat);
+                        rimS.position.set(x * this.cellSize, pHeight/2, z * this.cellSize + pSize/2 - rimThick/2);
+                        rimS.scale.y = rimScaleY;
+                        addGeometry(rimS);
+
+                        const rimE = buildWall(rimThick, pSize - rimThick*2, this.clinicMat);
+                        rimE.position.set(x * this.cellSize + pSize/2 - rimThick/2, pHeight/2, z * this.cellSize);
+                        rimE.scale.y = rimScaleY;
+                        addGeometry(rimE);
+
+                        const rimW = buildWall(rimThick, pSize - rimThick*2, this.clinicMat);
+                        rimW.position.set(x * this.cellSize - pSize/2 + rimThick/2, pHeight/2, z * this.cellSize);
+                        rimW.scale.y = rimScaleY;
+                        addGeometry(rimW);
+
+                        const waterGeo = new THREE.PlaneGeometry(pSize - rimThick, pSize - rimThick);
                         const water = new THREE.Mesh(waterGeo, this.waterMat);
                         water.rotation.x = -Math.PI / 2;
-                        water.position.set(x * this.cellSize, 0.4, z * this.cellSize);
+                        water.position.set(x * this.cellSize, pHeight - 0.05, z * this.cellSize);
                         chunkGroup.add(water);
                     }
                     if (localX % 6 === 0 && localZ % 6 === 0 && random() > 0.4) {
@@ -771,8 +796,45 @@ export default class Environment {
                 }
             },
             {
+                name: "THE MAINTENANCE SHAFTS",
+                prob: 0.08,
+                foundationMat: this.ventMat,
+                build: (x, z, localX, localZ) => {
+                    if (localX % 3 === 0 || localZ % 3 === 0) {
+                        const isNode = localX % 3 === 0 && localZ % 3 === 0;
+                        const w = isNode ? this.cellSize * 0.9 : this.cellSize;
+                        const d = isNode ? this.cellSize * 0.9 : 0.4;
+                        const wall = buildWall(w, isNode ? d : (localX % 3 === 0 ? this.cellSize : 0.4), isNode ? this.hazardMat : this.structMat);
+                        wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                        addGeometry(wall);
+
+                        if (!isNode && random() > 0.5) {
+                            const pipe = new THREE.Mesh(this.pipeGeo, this.rustMat);
+                            pipe.rotation.y = localX % 3 === 0 ? 0 : Math.PI / 2;
+                            pipe.position.set(x * this.cellSize, 2.8, z * this.cellSize);
+                            addGeometry(pipe);
+                        }
+                    } else if (localX % 3 === 1 && localZ % 3 === 1 && random() > 0.8) {
+                        const activeMat = this.baseBrokenLightMat.clone();
+                        const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                        panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
+                        chunkGroup.add(panel);
+                        this.fixtureData.push({
+                            chunkHash: hash,
+                            position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
+                            flickerOffset: random() * 500,
+                            material: activeMat,
+                            isFaulty: true,
+                            baseIntensity: 0.1,
+                            targetIntensity: 0.1,
+                            currentIntensity: 0.1
+                        });
+                    }
+                }
+            },
+            {
                 name: "THE OVERGROWN ATRIUM",
-                prob: 0.17,
+                prob: 0.09,
                 foundationMat: this.mossMat,
                 build: (x, z, localX, localZ) => {
                     if (random() > 0.45) {

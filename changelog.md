@@ -1,5 +1,11 @@
 # Level 0 Engine Changelog
 
+## [v0.1.7] - 2026-07-05
+
+### Changed
+- [ARCHITECTURE] Excised the monolithic infinite water plane in The Poolrooms sector. Replaced it with localized, procedural ceramic containment basins utilizing the `clinicMat` and `waterMat` to distribute structural weight naturally and respect cellular boundaries[cite: 9].
+- [AUDIO] Stabilized the thermodynamic acoustics in The Poolrooms sector. Rebalanced the `peaceGain` target multiplier from 0.35 to 0.03, lowered the baseline frequency to 140Hz, and crushed the 1200Hz triangle whine (`whineTarget` to 0.0002) to eliminate hardware clipping and restore systemic equilibrium[cite: 10].
+
 ## [v0.1.6] - 2026-07-05
 
 ### Added

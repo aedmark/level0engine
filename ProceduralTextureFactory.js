@@ -161,6 +161,16 @@ export default class ProceduralTextureFactory {
             structCtx.arc(Math.random() * 256, Math.random() * 256, Math.random() * 15 + 5, 0, Math.PI * 2);
             structCtx.fill();
         }
+        for (let i = 0; i < 20; i++) {
+            structCtx.strokeStyle = `rgba(100, 40, 20, ${Math.random() * 0.6})`;
+            structCtx.lineWidth = Math.random() * 3 + 1;
+            structCtx.beginPath();
+            let startX = Math.random() * 256;
+            let startY = Math.random() * 256;
+            structCtx.moveTo(startX, startY);
+            structCtx.lineTo(startX, startY + (Math.random() * 100 + 20));
+            structCtx.stroke();
+        }
         const structTexture = new THREE.CanvasTexture(structCanvas);
         structTexture.wrapS = THREE.RepeatWrapping;
         structTexture.wrapT = THREE.RepeatWrapping;
@@ -357,6 +367,32 @@ export default class ProceduralTextureFactory {
             color: 0x1a1a1a,
             roughness: 0.9
         });
+
+        const hazardCanvas = document.createElement('canvas');
+        hazardCanvas.width = 256;
+        hazardCanvas.height = 256;
+        const hazCtx = hazardCanvas.getContext('2d');
+        hazCtx.fillStyle = '#ffcc00';
+        hazCtx.fillRect(0, 0, 256, 256);
+        hazCtx.fillStyle = '#111111';
+        for(let i = -256; i < 512; i += 64) {
+            hazCtx.beginPath();
+            hazCtx.moveTo(i, 0);
+            hazCtx.lineTo(i + 128, 256);
+            hazCtx.lineTo(i + 160, 256);
+            hazCtx.lineTo(i + 32, 0);
+            hazCtx.fill();
+        }
+        for(let i=0; i<3000; i++) {
+            hazCtx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.1)';
+            hazCtx.fillRect(Math.random()*256, Math.random()*256, 2, 2);
+        }
+        const hazardTexture = new THREE.CanvasTexture(hazardCanvas);
+        hazardTexture.wrapS = THREE.RepeatWrapping;
+        hazardTexture.wrapT = THREE.RepeatWrapping;
+        hazardTexture.repeat.set(2, 2);
+        const hazardMat = new THREE.MeshStandardMaterial({map: hazardTexture, roughness: 0.8});
+
         const glowCanvas = document.createElement('canvas');
         glowCanvas.width = 256;
         glowCanvas.height = 256;
@@ -381,7 +417,7 @@ export default class ProceduralTextureFactory {
             carpetTexture, ceilingTexture, headerMat, wallTexture, moldMat, moldGeo,
             ceilingStainMat, ceilingStainGeo, structMat, woodMat, doorMat, ventMat,
             fabricMat, mossMat, tileMat, clinicMat, waterMat, serverMat, baseLightMat,
-            baseBrokenLightMat, baseHousingMat, glowMat, glowGeo
+            baseBrokenLightMat, baseHousingMat, glowMat, glowGeo, hazardMat
         };
     }
 }

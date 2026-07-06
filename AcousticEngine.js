@@ -100,11 +100,11 @@ export default class AcousticEngine {
         let baseFreq = isOccluded ? 120 : 250;
         switch (activeSector) {
             case "POOLROOMS":
-                noiseTarget = 0.1;
-                whineTarget = 0.002;
-                peaceTarget = 0.35;
-                baseFreq = 160;
-                rumbleFreq = 30;
+                noiseTarget = 0.08;
+                whineTarget = 0.0002;
+                peaceTarget = 0.03;
+                baseFreq = 140;
+                rumbleFreq = 40;
                 break;
             case "BOARDROOM":
                 noiseTarget = 0.4;
