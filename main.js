@@ -16,7 +16,7 @@ function loadState() {
     if (!data) return null;
     try {
         const state = JSON.parse(data);
-        document.getElementById('seedInput').value = state.seed || "ALMOND WATER";
+        document.getElementById('seedInput').value = state.seed || "BACKROOMS";
         document.getElementById('aspectSelect').value = state.aspect || "auto";
         document.getElementById('fogSlider').value = state.fog || "5";
         document.getElementById('fovSlider').value = state.fov || "75";

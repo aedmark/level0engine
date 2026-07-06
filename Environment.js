@@ -86,12 +86,6 @@ export default class Environment {
         if (this.currentChunkCoords.x === chunkX && this.currentChunkCoords.z === chunkZ) return;
         this.currentChunkCoords.x = chunkX;
         this.currentChunkCoords.z = chunkZ;
-        if (this.floor && this.ceiling) {
-            const shiftX = chunkX * (this.chunkSize * 4);
-            const shiftZ = chunkZ * (this.chunkSize * 4);
-            this.floor.position.set(shiftX, 0, shiftZ);
-            this.ceiling.position.set(shiftX, 3, shiftZ);
-        }
         const chunksToKeep = new Set();
         for (let x = -this.renderDistance; x <= this.renderDistance; x++) {
             for (let z = -this.renderDistance; z <= this.renderDistance; z++) {
@@ -158,20 +152,10 @@ export default class Environment {
         const assets = ProceduralTextureFactory.generateAssets();
         Object.assign(this, assets);
         const {carpetTexture, ceilingTexture} = assets;
-        carpetTexture.repeat.set(75, 75);
-        const floorGeo = new THREE.PlaneGeometry(300, 300);
-        const floorMat = new THREE.MeshStandardMaterial({map: carpetTexture, roughness: 1.0});
-        this.floor = new THREE.Mesh(floorGeo, floorMat);
-        this.floor.rotation.x = -Math.PI / 2;
-        this.floor.receiveShadow = true;
-        this.scene.add(this.floor);
-        ceilingTexture.repeat.set(300, 300);
-        const ceilGeo = new THREE.PlaneGeometry(300, 300);
-        const ceilMat = new THREE.MeshStandardMaterial({map: ceilingTexture, roughness: 0.9});
-        this.ceiling = new THREE.Mesh(ceilGeo, ceilMat);
-        this.ceiling.rotation.x = Math.PI / 2;
-        this.ceiling.position.y = 3;
-        this.scene.add(this.ceiling);
+        carpetTexture.repeat.set(1, 1);
+        ceilingTexture.repeat.set(1, 1);
+        this.baseFloorMat = new THREE.MeshStandardMaterial({map: carpetTexture, roughness: 1.0});
+        this.baseCeilMat = new THREE.MeshStandardMaterial({map: ceilingTexture, roughness: 0.9});
         const dustGeo = new THREE.BufferGeometry();
         const dustCount = 600;
         const dustPos = new Float32Array(dustCount * 3);
@@ -197,7 +181,8 @@ export default class Environment {
                 light.shadow.mapSize.height = 512;
                 light.shadow.camera.near = 0.5;
                 light.shadow.camera.far = 20;
-                light.shadow.bias = -0.005;
+                light.shadow.bias = -0.0001;
+                light.shadow.normalBias = 0.05;
             }
             this.scene.add(light);
             this.lightPool.push(light);
@@ -298,7 +283,7 @@ export default class Environment {
         }
         this.cellSize = 4;
         if (!this.sharedWallGeo) {
-            this.sharedWallGeo = new THREE.BoxGeometry(this.cellSize, 3, this.cellSize);
+            this.sharedWallGeo = new THREE.BoxGeometry(this.cellSize + 0.02, 3, this.cellSize + 0.02);
             this.sharedWallMat = new THREE.MeshStandardMaterial({
                 map: this.wallTexture,
                 color: 0xffffff,
@@ -315,6 +300,8 @@ export default class Environment {
             this.legGeo = new THREE.BoxGeometry(0.1, 0.4, 0.1);
             this.tableTopGeo = new THREE.BoxGeometry(1.2, 0.05, 1.2);
             this.tableBaseGeo = new THREE.BoxGeometry(0.5, 0.8, 0.5);
+            this.floorTileGeo = new THREE.BoxGeometry(this.cellSize, 0.1, this.cellSize);
+            this.ceilTileGeo = new THREE.BoxGeometry(this.cellSize, 0.1, this.cellSize);
         }
     }
 
@@ -330,7 +317,7 @@ export default class Environment {
         const cx = Math.sin(this.baseSeed) * 0.8;
         const cy = Math.cos(this.baseSeed * 0.5) * 0.8;
         const buildWall = (w, d, mat) => {
-            const geo = new THREE.BoxGeometry(w, 3.0, d);
+            const geo = new THREE.BoxGeometry(w + 0.02, 3.0, d + 0.02);
             const uv = geo.attributes.uv;
             for (let i = 0; i < 8; i++) uv.setX(i, uv.getX(i) * (d / this.cellSize));
             for (let i = 16; i < 24; i++) uv.setX(i, uv.getX(i) * (w / this.cellSize));
@@ -506,35 +493,53 @@ export default class Environment {
                 }
             },
             {
-                prob: 0.48, build: (x, z) => {
+                prob: 0.48, buildVertical: (x, z, isUp) => {
                     const dir = Math.floor(random() * 4);
                     const isZ = dir % 2 === 0;
+
+                    const yCenter = isUp ? 1.5 : -1.5;
+
                     const w1 = buildWall(isZ ? 0.5 : this.cellSize, isZ ? this.cellSize : 0.5, this.sharedWallMat);
-                    w1.position.set(x * this.cellSize + (isZ ? -(this.cellSize / 2) + 0.25 : 0), 1.5, z * this.cellSize + (isZ ? 0 : -(this.cellSize / 2) + 0.25));
+                    w1.position.set(x * this.cellSize + (isZ ? -(this.cellSize / 2) + 0.25 : 0), yCenter, z * this.cellSize + (isZ ? 0 : -(this.cellSize / 2) + 0.25));
                     addGeometry(w1);
                     const w2 = buildWall(isZ ? 0.5 : this.cellSize, isZ ? this.cellSize : 0.5, this.sharedWallMat);
-                    w2.position.set(x * this.cellSize + (isZ ? (this.cellSize / 2) - 0.25 : 0), 1.5, z * this.cellSize + (isZ ? 0 : (this.cellSize / 2) - 0.25));
+                    w2.position.set(x * this.cellSize + (isZ ? (this.cellSize / 2) - 0.25 : 0), yCenter, z * this.cellSize + (isZ ? 0 : (this.cellSize / 2) - 0.25));
                     addGeometry(w2);
                     const w3 = buildWall(isZ ? this.cellSize : 0.5, isZ ? 0.5 : this.cellSize, this.sharedWallMat);
                     const backOffset = (this.cellSize / 2) - 0.25;
                     const sign = (dir === 2 || dir === 3) ? 1 : -1;
-                    w3.position.set(x * this.cellSize + (isZ ? 0 : sign * backOffset), 1.5, z * this.cellSize + (isZ ? sign * backOffset : 0));
+                    w3.position.set(x * this.cellSize + (isZ ? 0 : sign * backOffset), yCenter, z * this.cellSize + (isZ ? sign * backOffset : 0));
                     addGeometry(w3);
+
                     const stepCount = 10;
                     const stepDepth = (this.cellSize - 0.5) / stepCount;
                     const stepHeight = 3.0 / stepCount;
                     const innerW = this.cellSize - 1.0;
+
                     for (let s = 0; s < stepCount; s++) {
                         const h = (s + 1) * stepHeight;
                         const wX = isZ ? innerW : stepDepth;
                         const wZ = isZ ? stepDepth : innerW;
-                        const step = new THREE.Mesh(new THREE.BoxGeometry(wX, h, wZ), this.structMat);
+
+                        const step = new THREE.Mesh(new THREE.BoxGeometry(wX, 0.1, wZ), this.structMat);
                         let offset = (this.cellSize / 2) - (stepDepth / 2) - (s * stepDepth);
                         if (dir === 2 || dir === 3) offset = -offset;
                         const posX = x * this.cellSize + (isZ ? 0 : offset);
                         const posZ = z * this.cellSize + (isZ ? offset : 0);
-                        step.position.set(posX, h / 2, posZ);
+
+                        const stepY = isUp ? (h - stepHeight/2) : (-h + stepHeight/2);
+                        step.position.set(posX, stepY, posZ);
                         addGeometry(step);
+                    }
+
+                    if (isUp) {
+                        const landing = new THREE.Mesh(this.floorTileGeo, this.baseFloorMat);
+                        landing.position.set(x * this.cellSize, 2.95, z * this.cellSize);
+                        addGeometry(landing);
+                    } else {
+                        const landing = new THREE.Mesh(this.floorTileGeo, this.baseFloorMat);
+                        landing.position.set(x * this.cellSize, -3.05, z * this.cellSize);
+                        addGeometry(landing);
                     }
                 }
             },
@@ -825,13 +830,32 @@ export default class Environment {
                 }
             }
             if (!activeSector) activeSector = sectorMatrix[0];
-            const foundationGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
+            const fSize = this.chunkSize * this.cellSize;
+            const centerOffset = fSize / 2 - (this.cellSize / 2);
+
+            const foundationGeo = new THREE.BoxGeometry(fSize, 0.1, fSize);
             const foundation = new THREE.Mesh(foundationGeo, activeSector.foundationMat);
-            foundation.rotation.x = -Math.PI / 2;
-            const centerOffset = (this.chunkSize * this.cellSize) / 2 - (this.cellSize / 2);
-            foundation.position.set(startX * this.cellSize + centerOffset, 0.02, startZ * this.cellSize + centerOffset);
+            foundation.position.set(startX * this.cellSize + centerOffset, -0.05, startZ * this.cellSize + centerOffset);
+            foundation.userData.chunkHash = hash;
+            foundation.updateMatrixWorld(true);
+            const fBox = new THREE.Box3().setFromObject(foundation);
+            fBox.chunkHash = hash;
+            this.spatialGrid.insert(fBox);
             foundation.receiveShadow = true;
             chunkGroup.add(foundation);
+            this.walls.push(foundation);
+
+            const mCeilGeo = new THREE.BoxGeometry(fSize, 0.1, fSize);
+            const mCeil = new THREE.Mesh(mCeilGeo, this.baseCeilMat);
+            mCeil.position.set(startX * this.cellSize + centerOffset, 3.05, startZ * this.cellSize + centerOffset);
+            mCeil.userData.chunkHash = hash;
+            mCeil.updateMatrixWorld(true);
+            const cBox = new THREE.Box3().setFromObject(mCeil);
+            cBox.chunkHash = hash;
+            this.spatialGrid.insert(cBox);
+            mCeil.receiveShadow = true;
+            chunkGroup.add(mCeil);
+            this.walls.push(mCeil);
         }
         for (let x = startX; x < startX + this.chunkSize; x++) {
             for (let z = startZ; z < startZ + this.chunkSize; z++) {
@@ -842,6 +866,7 @@ export default class Environment {
                     activeSector.build(x, z, localX, localZ);
                     continue;
                 }
+
                 let zx = x * 0.15;
                 let zy = z * 0.15;
                 let iter = 0;
@@ -853,10 +878,41 @@ export default class Environment {
                 }
                 let isWall = iter > 6;
                 if (random() > 0.70) isWall = !isWall;
+
+                let omitFloor = false;
+                let omitCeil = false;
+                let selectedStructure = null;
+                let isStairUp = false;
+
                 if (isWall) {
                     const structRoll = random();
-                    const structure = structuralMatrix.find(s => structRoll >= s.prob);
-                    if (structure) structure.build(x, z);
+                    selectedStructure = structuralMatrix.find(s => structRoll >= s.prob);
+                    if (selectedStructure && selectedStructure.prob === 0.48) {
+                        isStairUp = random() > 0.5;
+                        if (isStairUp) omitCeil = true;
+                        else omitFloor = true;
+                    }
+                }
+
+                if (!omitFloor) {
+                    const fTile = new THREE.Mesh(this.floorTileGeo, this.baseFloorMat);
+                    fTile.position.set(x * this.cellSize, -0.05, z * this.cellSize);
+                    addGeometry(fTile);
+                }
+                if (!omitCeil) {
+                    const cTile = new THREE.Mesh(this.ceilTileGeo, this.baseCeilMat);
+                    cTile.position.set(x * this.cellSize, 3.05, z * this.cellSize);
+                    addGeometry(cTile);
+                }
+
+                if (isWall) {
+                    if (selectedStructure) {
+                        if (selectedStructure.prob === 0.48) {
+                            selectedStructure.buildVertical(x, z, isStairUp);
+                        } else {
+                            selectedStructure.build(x, z);
+                        }
+                    }
                 } else {
                     let hasTallObstacle = false;
                     const floorRoll = random();
@@ -1049,7 +1105,14 @@ export default class Environment {
         }
         this.localFixtures.length = 0;
         this.fixtureData.forEach(fixture => {
-            const distSq = cameraPos.distanceToSquared(fixture.position);
+            const dx = Math.abs(cameraPos.x - fixture.position.x);
+            const dz = Math.abs(cameraPos.z - fixture.position.z);
+            if (dx > 30 || dz > 30) {
+                fixture.hasShadow = false;
+                return;
+            }
+
+            const distSq = (dx * dx) + (dz * dz);
             if (distSq < 900) {
                 fixture.distSq = fixture.hasShadow ? distSq - 40.0 : distSq;
                 this.localFixtures.push(fixture);

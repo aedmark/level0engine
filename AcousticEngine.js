@@ -141,7 +141,8 @@ export default class AcousticEngine {
         if (this.kineticFilter) {
             const exertionPulse = Math.sin(performance.now() / 1000 * 8.0) * (playerSpeed * 5);
             const speedScale = isOccluded ? 2 : 8;
-            const targetFreq = Math.max(40, baseFreq + (playerSpeed * speedScale) + exertionPulse - (anomalyPressure * 150) - (playerExhaustion * 100));
+            const rawFreq = baseFreq + (playerSpeed * speedScale) + exertionPulse - (anomalyPressure * 150) - (playerExhaustion * 100);
+            const targetFreq = Math.min(Math.max(40, rawFreq), 2000);
             const timeConstant = (isOccluded || activeSector === "ATRIUM" || anomalyPressure > 0 || playerExhaustion > 0) ? 0.2 : 3.0;
             this.kineticFilter.frequency.setTargetAtTime(targetFreq, time, timeConstant);
         }

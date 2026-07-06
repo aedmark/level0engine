@@ -155,6 +155,12 @@ export default class ProceduralTextureFactory {
             structCtx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.05)';
             structCtx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
         }
+        for (let i = 0; i < 15; i++) {
+            structCtx.fillStyle = `rgba(40, 30, 20, ${Math.random() * 0.4})`;
+            structCtx.beginPath();
+            structCtx.arc(Math.random() * 256, Math.random() * 256, Math.random() * 15 + 5, 0, Math.PI * 2);
+            structCtx.fill();
+        }
         const structTexture = new THREE.CanvasTexture(structCanvas);
         structTexture.wrapS = THREE.RepeatWrapping;
         structTexture.wrapT = THREE.RepeatWrapping;
