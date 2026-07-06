@@ -1,4 +1,4 @@
-# Level 0 Engine: Procedural Liminal Space Simulator v0.1.6
+# Level 0 Engine: Procedural Liminal Space Simulator v0.1.7
 
 A minimal-dependency, mathematically pure, procedural 3D environment generator running entirely natively in the browser via ES6 modules.
 
