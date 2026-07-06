@@ -1,5 +1,38 @@
 # Level 0 Engine Changelog
 
+## [v0.1.5] - 2026-07-05
+
+### Added
+- [ARCHITECTURE] Integrated "The Poolrooms" Biome into the Sector Matrix. Instantiated a monolithic ceramic foundation (`clinicMat`), a translucent water volume (`waterMat`) at `y = 0.4`, and ethereal submerged cyan lighting.
+- [AUDIO] Synthesized a resonant, echoing acoustic profile (160Hz baseline, 30Hz rumble) specifically mapped to the Poolrooms threshold.
+- [ARCHITECTURE] Engineered the "Enclosed Stairwell" module. Replaced free-floating stairs with a fully framed architectural dead-end bounded by three load-bearing walls.
+
+### Changed
+- [ENVIRONMENT] Extracted all DOM mutations (coordinates tracking, mobile UI toggles, seed mutations) out of the physics step and into the `main.js` observer loop, completely decoupling the mathematical state from the browser's layout renderer.
+- [TEXTURES] Excised the continuous 1024x1024 macroscopic mold plane. Replaced it with decoupled, procedurally generated 8x8 organic rot decals that randomly spawn in open spaces to eradicate grid tiling.
+- [LIGHTING] Elevated the global `AmbientLight` baseline from 0.45 to 0.85 to establish standard liminal exposure.
+- [LIGHTING] Expanded the active shadow-casting point light limit from 6 to 15 to multiply intersecting geometric shadow volumes.
+
+### Fixed
+- [PHYSICS] Rerouted the Null Anomaly's consumption event to return a pure spatial signal (`{ consumed: true }`), preventing the entity logic from halting its own thread to execute CSS styling.
+
+## [v0.1.4] - 2026-07-05
+
+### Added
+- [ARCHITECTURE] Installed "The Flange" (`pipeJointGeo`) primitive to cap and interlock overhead pipe segments.
+- [ARCHITECTURE] Integrated continuous coolant pipelines bolted explicitly to the top outer edges of the Server Farm macro-structure racks, providing grounded, logical infrastructure.
+
+### Changed
+- [TEXTURES] Overhauled carpet mildew generation. Applied elliptical scaling and a 3x3 topological wraparound matrix to create organic, feathered moisture stains that seamlessly tile without hard clipping at the canvas boundaries.
+- [TEXTURES] Drastically reduced mildew density (from 25 blooms to 4 per canvas) and increased radius variance to prevent the organic rot from forming an artificial, recognizable grid.
+- [ENTITY] Implemented the Co-Metabolic Mirror. The Null Anomaly's shards now violently jitter and rotate in direct proportion to the player's stamina exhaustion ratio.
+- [WEBGL] Refactored the post-processing box blur fragment shader, utilizing a static GLSL array loop to map texture offsets and dry up redundant procedural math.
+- [PERFORMANCE] Optimized the Entity spatial pathfinding equations, converting expensive `distanceTo` square root operations to `distanceToSquared` to stabilize the CPU loop during active pursuits.
+
+### Fixed
+- [PERFORMANCE] Applied the Treadmill Optimization: Shrunk the infinite floor and ceiling planes from 8000x8000 down to 300x300. This completely eliminates GPU 32-bit floating-point precision loss (PS1 texture jitter) across UV interpolations while still safely encapsulating the 192x192 active render distance.
+- [GEOMETRY] Excised the broken global pipe spawn from the standard probability matrix, eradicating disconnected, floating cylinders from the void.
+
 ## [v0.1.3] - 2026-07-05
 
 ### Added

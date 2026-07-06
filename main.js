@@ -11,13 +11,11 @@ const acoustics = new AcousticEngine();
 const player = new PlayerController(engine.camera, engine.renderer.domElement);
 const environment = new Environment(engine, player);
 
-// --- PERSISTENCE LAYER ---
 function loadState() {
     const data = localStorage.getItem('level0_state');
     if (!data) return null;
     try {
         const state = JSON.parse(data);
-        // Hydrate DOM Configuration
         document.getElementById('seedInput').value = state.seed || "ALMOND WATER";
         document.getElementById('aspectSelect').value = state.aspect || "auto";
         document.getElementById('fogSlider').value = state.fog || "5";
@@ -25,15 +23,12 @@ function loadState() {
         document.getElementById('speedSlider').value = state.speed || "100";
         document.getElementById('resolutionSelect').value = state.res || "1.0";
         document.getElementById('headBobToggle').checked = state.headBob !== false;
-
-        // Hydrate Engine Configuration
         engine.aspectRatio = state.aspect === 'auto' ? 'auto' : parseFloat(state.aspect);
         engine.resolutionScale = parseFloat(state.res) || 1.0;
         engine.camera.fov = Number(state.fov) || 75;
         engine.camera.updateProjectionMatrix();
         player.speedMultiplier = (Number(state.speed) || 100) / 100;
         player.enableHeadBob = state.headBob !== false;
-
         return state;
     } catch (e) {
         console.warn("Mnemonic Arcade corrupted. Pruning state.");
@@ -60,33 +55,38 @@ function saveState() {
     localStorage.setItem('level0_state', JSON.stringify(state));
 }
 
-// Pre-Load Configurations
 const savedState = loadState();
-
-// Boot Environment (Triggers generate() and zeroes coordinates)
 environment.setup();
-
-// Post-Boot Spatial Override (Hydrate physical topology and metabolic state)
 if (savedState) {
     engine.camera.position.set(savedState.px, savedState.py, savedState.pz);
     engine.camera.rotation.set(savedState.rx, savedState.ry, 0, 'YXZ');
     player.stamina = savedState.stamina;
     environment.baseFogDensity = (Number(savedState.fog) || 5) / 100;
 }
-
-// Bind Manual Memory Purge
 document.getElementById('clearSaveBtn')?.addEventListener('click', () => {
     localStorage.removeItem('level0_state');
     location.reload();
 });
-
-// Bind Acoustic Initialization to First Interaction
 const bootAudio = () => acoustics.init();
-document.addEventListener('click', bootAudio, { once: true });
-document.addEventListener('keydown', bootAudio, { once: true });
-
-// Engage Autonomic Memory Loop (Save every 2.5 seconds)
+document.addEventListener('click', bootAudio, {once: true});
+document.addEventListener('keydown', bootAudio, {once: true});
 setInterval(saveState, 2500);
+
+function triggerBlackout() {
+    const flash = document.getElementById('flash-overlay');
+    flash.style.backgroundColor = '#000';
+    flash.style.transition = 'none';
+    flash.style.opacity = '1';
+    setTimeout(() => {
+        flash.style.transition = 'opacity 2.0s ease-in';
+        flash.style.opacity = '0';
+        setTimeout(() => {
+            flash.style.backgroundColor = '#fff';
+        }, 2050);
+    }, 50);
+    const seedInput = document.getElementById('seedInput');
+    seedInput.value = seedInput.value + " NULL";
+}
 
 function animate() {
     requestAnimationFrame(animate);
@@ -94,20 +94,26 @@ function animate() {
     const time = engine.time;
     environment.updateChunks(engine.camera.position);
     environment.updateInteractives(engine.camera.position, delta);
-    environment.updateEntity(engine.camera.position, delta, time);
+    const entityState = environment.updateEntity(engine.camera.position, delta, time);
+    if (entityState && entityState.consumed) {
+        triggerBlackout();
+        environment.generate();
+        return;
+    }
     player.update(delta, environment.spatialGrid);
-    engine.exhaustion = player.exhaustion; // Bridge the thermodynamic state to the renderer
-
-    // Extract telemetry and route it to the external DSP
+    engine.exhaustion = player.exhaustion;
     const telemetry = environment.updateLights(time);
     acoustics.update(telemetry);
-
+    document.getElementById('coords').innerText = `X: ${engine.camera.position.x.toFixed(2)} | Z: ${engine.camera.position.z.toFixed(2)}`;
+    if (!player.isRunning) {
+        const runBtn = document.getElementById('mobile-run');
+        if (runBtn) runBtn.classList.remove('active');
+    }
     engine.render();
 }
 
 animate();
 
-// VHS Clock Tick
 function updateVHSTime() {
     const now = new Date();
     const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
