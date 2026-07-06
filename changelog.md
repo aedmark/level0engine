@@ -1,6 +1,18 @@
 # Level 0 Engine Changelog
 
+## [v0.1.6] - 2026-07-05
 
+### Added
+- [LIGHTING] Synthesized the Optical Fake Bounce Light (`glowMat`). Untracked ceiling panels now project a zero-cost additive radial gradient onto the floor to simulate ambient radiosity without invoking the WebGL shadow map budget.
+
+### Changed
+- [ARCHITECTURE] Decoupled ceiling panel generation from floor decor evaluation. Ceiling panels now spawn independently based on a topological clearance flag (`hasTallObstacle`), preventing them from mathematically clipping into 10-foot tall structural partitions.
+- [ARCHITECTURE] Enforced strict mutual exclusion within the Sector Matrix. Light fixtures and architectural pillars in The Archive, The Clinic, and The Poolrooms are now spatially isolated to prevent overlapping geometry.
+- [LIGHTING] Expanded the volumetric fill light radius from 20 to 30 units and re-anchored all hardware WebGL lights strictly to the physical ceiling fixture (`Y=2.8`) to eliminate artificial floor spotlights.
+
+### Fixed
+- [PHYSICS] Implemented the Cartesian Clearance Protocol. Procedural furniture (chairs, tables) is now mathematically blocked from spawning within a 4.0-unit radius of the player's initial coordinates `(0, 0)`, preventing physical entrapment on the `ALMOND WATER` seed.
+- [WEBGL] Mitigated additive blending artifacts by resetting the `THREE.Color` instance matrix to pure white `(1, 1, 1)` strictly for optical decals, preventing opacity compounding when spatial hashes overlap.
 
 ## [v0.1.5] - 2026-07-05
 
