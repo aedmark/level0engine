@@ -1041,6 +1041,7 @@ export default class Environment {
                 if (!isDecal) this.walls.push(iMesh);
             } else {
                 const mesh = group.meshes[0];
+                mesh.matrixWorld.decompose(mesh.position, mesh.quaternion, mesh.scale);
                 if (!isDecal) {
                     mesh.castShadow = true;
                     mesh.receiveShadow = true;

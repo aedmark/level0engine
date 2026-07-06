@@ -63,14 +63,42 @@ if (savedState) {
     player.stamina = savedState.stamina;
     environment.baseFogDensity = (Number(savedState.fog) || 5) / 100;
 }
-document.getElementById('clearSaveBtn')?.addEventListener('click', () => {
-    localStorage.removeItem('level0_state');
-    location.reload();
-});
 const bootAudio = () => acoustics.init();
 document.addEventListener('click', bootAudio, {once: true});
 document.addEventListener('keydown', bootAudio, {once: true});
-setInterval(saveState, 2500);
+
+// 1. Capture the interval ID so we can mathematically kill it
+const saveInterval = setInterval(saveState, 2500);
+
+// 2. The Scorched Earth Purge
+document.getElementById('clearSaveBtn')?.addEventListener('click', async () => {
+    // Halt the automated memory writer immediately
+    clearInterval(saveInterval);
+
+    // Obliterate the storage ledger
+    localStorage.clear();
+    sessionStorage.clear();
+    sessionStorage.clear();
+
+    // Excise the Service Worker if it exists
+    if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (let registration of registrations) {
+            await registration.unregister();
+        }
+    }
+
+    // Flush the Cache API to destroy stale geometries
+    if ('caches' in window) {
+        const keys = await caches.keys();
+        for (let key of keys) {
+            await caches.delete(key);
+        }
+    }
+
+    // Force a hard navigation reset, bypassing standard reload caches
+    window.location.href = window.location.href.split('?')[0];
+});
 
 function triggerBlackout() {
     const flash = document.getElementById('flash-overlay');

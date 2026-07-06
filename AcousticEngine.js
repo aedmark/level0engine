@@ -26,10 +26,10 @@ export default class AcousticEngine {
         osc3.type = 'triangle';
         osc3.frequency.value = 1200;
         this.whineGain = this.ctx.createGain();
-        this.whineGain.gain.value = 0.005;
+        this.whineGain.gain.value = 0;
         osc3.connect(this.whineGain);
         this.mainGain = this.ctx.createGain();
-        this.mainGain.gain.value = 0.015;
+        this.mainGain.gain.value = 0;
         const lfo = this.ctx.createOscillator();
         lfo.type = 'sine';
         lfo.frequency.value = 0.05;
@@ -77,6 +77,18 @@ export default class AcousticEngine {
         this.kineticFilter.connect(this.mainGain);
         this.whineGain.connect(this.mainGain);
         this.mainGain.connect(this.ctx.destination);
+
+        // ANCHOR THE AUTOMATION TIMELINE
+        // Prevents the Web Audio API from ramping down from a default 1.0 volume
+        const t = this.ctx.currentTime;
+        this.mainGain.gain.setValueAtTime(0, t);
+        this.whineGain.gain.setValueAtTime(0, t);
+        this.atriumGain.gain.setValueAtTime(0, t);
+        this.peaceGain.gain.setValueAtTime(0, t);
+        this.entityGain.gain.setValueAtTime(0, t);
+        this.subRumble.frequency.setValueAtTime(60, t);
+        this.kineticFilter.frequency.setValueAtTime(250, t);
+
         this.subRumble.start();
         osc2.start();
         osc3.start();

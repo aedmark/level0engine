@@ -1,5 +1,15 @@
 # Level 0 Engine Changelog
 
+## [v0.1.8] - 2026-07-05
+
+### Changed
+- [SYSTEM] Overhauled the "PURGE MEMORY" sequence into a Scorched Earth protocol. The teardown sequence now explicitly halts the 2.5-second `saveState` interval to sever the automated stock inflow before annihilating `localStorage`, `sessionStorage`, and the Cache API.
+- [SYSTEM] Added an asynchronous routine to the memory purge to actively unregister stale Service Workers before forcing a hard URL navigation reset, guaranteeing the eradication of poisoned DOM caches.
+
+### Fixed
+- [GEOMETRY] Eradicated the "Origin Table" teleportation anomaly. Singular procedural meshes are now mathematically forced to execute `matrixWorld.decompose()` before being ripped from their parent group and appended to the chunk. This preserves their absolute geodesic map coordinates instead of snapping to a local `(0, 0.8, 0)` vector at the player's spawn.
+- [AUDIO] Fixed a deafening volume spike when the browser initializes the audio context on a hard refresh. The Web Audio API automation timeline is now explicitly anchored at absolute zero via `setValueAtTime(0, ctx.currentTime)` before oscillator activation. This prevents the `mainGain` and `whineGain` nodes from executing a brutal half-second decay from their default 1.0 maximum hardware volume.
+
 ## [v0.1.7] - 2026-07-05
 
 ### Changed
