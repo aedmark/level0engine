@@ -260,10 +260,10 @@ export default class PlayerController {
             }
         }
         if (!hitZ) this.camera.position.z += moveDelta.z;
-        this._vecMin.set(this.camera.position.x - this.playerRadius, feetY - 5.0, this.camera.position.z - this.playerRadius);
+        this._vecMin.set(this.camera.position.x - this.playerRadius, -10, this.camera.position.z - this.playerRadius);
         this._vecMax.set(this.camera.position.x + this.playerRadius, feetY + 1.2, this.camera.position.z + this.playerRadius);
         this._floorBox.set(this._vecMin, this._vecMax);
-        let targetFeetY = -100.0;
+        let targetFeetY = 0;
         for (let box of localBoxes) {
             if (this._floorBox.intersectsBox(box) && box.max.y > targetFeetY && box.max.y <= feetY + 1.2) {
                 targetFeetY = box.max.y;
@@ -272,7 +272,7 @@ export default class PlayerController {
         const actualSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
         this.headBobTimer = (this.headBobTimer || 0) + actualSpeed * delta;
         const bobOffset = (this.enableHeadBob && actualSpeed > 0.5) ? Math.sin(this.headBobTimer * 2.5) * 0.05 : 0;
-        const targetCamY = targetFeetY + visualHeight + bobOffset;
+        const targetCamY = Math.min(targetFeetY + visualHeight, 2.8) + bobOffset;
         const lerpFactor = 1.0 - Math.exp(-12.0 * delta);
         this.camera.position.y += (targetCamY - this.camera.position.y) * lerpFactor;
     }
