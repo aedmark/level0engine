@@ -13,7 +13,12 @@ export default class PlayerController {
         this.moveRight = false;
         this.isRunning = false;
         this.isCrouching = false;
+        this.isSqueezing = false;
+        this.flashlightActive = false;
+        this.flashlightBattery = 100.0;
         this.isLocked = false;
+        this.baseRadius = 0.4;
+        this.squeezeRadius = 0.12;
         this.playerRadius = 0.4;
         this.enableHeadBob = true;
         this.speedMultiplier = 1.0;
@@ -28,6 +33,8 @@ export default class PlayerController {
         this._floorBox = new THREE.Box3();
         this._vecMin = new THREE.Vector3();
         this._vecMax = new THREE.Vector3();
+        this._euler = new THREE.Euler(0, 0, 0, 'YXZ');
+        this._moveDelta = new THREE.Vector3();
         this.bindEvents();
     }
 
@@ -51,6 +58,7 @@ export default class PlayerController {
         const zoneRight = document.getElementById('touch-right');
         const runBtn = document.getElementById('mobile-run');
         const crouchBtn = document.getElementById('mobile-crouch');
+        const flashBtn = document.getElementById('mobile-flashlight');
         if (runBtn && crouchBtn) {
             runBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
@@ -72,6 +80,15 @@ export default class PlayerController {
                     runBtn.classList.remove('active');
                 }
             }, {passive: false});
+
+            if (flashBtn) {
+                flashBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.flashlightActive = !this.flashlightActive;
+                    flashBtn.classList.toggle('active', this.flashlightActive);
+                }, {passive: false});
+            }
         }
         zoneLeft.addEventListener('touchstart', (e) => {
             e.preventDefault();
@@ -137,11 +154,17 @@ export default class PlayerController {
 
     onKeyDown(event) {
         const key = event.code;
-        if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC'].includes(key)) {
+        if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyQ', 'KeyF'].includes(key)) {
             event.preventDefault();
         }
         if (event.key === 'Shift') this.isRunning = true;
         if (event.code === 'KeyC') this.isCrouching = !this.isCrouching;
+        if (event.code === 'KeyQ') this.isSqueezing = true;
+        if (event.code === 'KeyF') {
+            this.flashlightActive = !this.flashlightActive;
+            const flashBtn = document.getElementById('mobile-flashlight');
+            if (flashBtn) flashBtn.classList.toggle('active', this.flashlightActive);
+        }
         switch (key) {
             case 'ArrowUp':
             case 'KeyW':
@@ -164,6 +187,7 @@ export default class PlayerController {
 
     onKeyUp(event) {
         if (event.key === 'Shift') this.isRunning = false;
+        if (event.code === 'KeyQ') this.isSqueezing = false;
         switch (event.code) {
             case 'ArrowUp':
             case 'KeyW':
@@ -200,9 +224,33 @@ export default class PlayerController {
         this.direction.z = Number(this.moveForward) - Number(this.moveBackward);
         this.direction.x = Number(this.moveRight) - Number(this.moveLeft);
         if (this.direction.lengthSq() > 0) this.direction.normalize();
-        let currentSpeed = (this.isCrouching ? 35.0 : (this.isRunning ? 150.0 : 75.0)) * this.speedMultiplier;
+
+        let targetRadius = this.isSqueezing ? this.squeezeRadius : this.baseRadius;
+
+        if (!this.isSqueezing && this.playerRadius < this.baseRadius - 0.01) {
+            const checkY = this.camera.position.y - 1.0;
+            this._vecMin.set(this.camera.position.x - this.baseRadius, checkY, this.camera.position.z - this.baseRadius);
+            this._vecMax.set(this.camera.position.x + this.baseRadius, checkY + 1.5, this.camera.position.z + this.baseRadius);
+            this._floorBox.set(this._vecMin, this._vecMax);
+
+            const clearanceBoxes = spatialGrid.getNearby(this.camera.position.x, this.camera.position.z, 1.0);
+            for (let i = 0; i < clearanceBoxes.length; i++) {
+                if (this._floorBox.intersectsBox(clearanceBoxes[i])) {
+                    targetRadius = this.squeezeRadius;
+                    this.isSqueezing = true;
+                    break;
+                }
+            }
+        }
+        this.playerRadius += (targetRadius - this.playerRadius) * 8.0 * delta;
+        const targetNear = this.isSqueezing ? 0.01 : 0.1;
+        if (this.camera.near !== targetNear) {
+            this.camera.near = targetNear;
+            this.camera.updateProjectionMatrix();
+        }
+        let currentSpeed = (this.isSqueezing ? 25.0 : (this.isCrouching ? 35.0 : (this.isRunning ? 150.0 : 75.0))) * this.speedMultiplier;
         const isMoving = this.direction.lengthSq() > 0 || this.touchMove.active;
-        if (this.isRunning && this.isChased && isMoving) {
+        if (this.isRunning && this.isChased && isMoving && !this.isSqueezing) {
             this.stamina = Math.max(0, this.stamina - 12.5 * delta);
             if (this.stamina <= 0.0) {
                 this.isRunning = false;
@@ -211,6 +259,18 @@ export default class PlayerController {
         } else {
             this.stamina = Math.min(this.maxStamina, this.stamina + 10.0 * delta);
         }
+
+        if (this.flashlightActive) {
+            this.flashlightBattery = Math.max(0, this.flashlightBattery - 1.5 * delta);
+            if (this.flashlightBattery === 0) {
+                this.flashlightActive = false;
+                const flashBtn = document.getElementById('mobile-flashlight');
+                if (flashBtn) flashBtn.classList.remove('active');
+            }
+        } else {
+            this.flashlightBattery = Math.min(100.0, this.flashlightBattery + 0.8 * delta);
+        }
+
         const fatigueRatio = this.stamina / this.maxStamina;
         this.exhaustion = fatigueRatio < 0.3 ? Math.pow(1.0 - (fatigueRatio / 0.3), 2.0) : 0.0;
         if (this.moveForward || this.moveBackward) this.velocity.z -= this.direction.z * currentSpeed * delta;
@@ -228,47 +288,47 @@ export default class PlayerController {
             this.velocity.z += normY * currentSpeed * delta;
             this.velocity.x -= normX * currentSpeed * delta;
         }
-        const euler = new THREE.Euler(0, this.camera.rotation.y, 0, 'YXZ');
-        const moveDelta = new THREE.Vector3(-this.velocity.x * delta, 0, this.velocity.z * delta);
-        moveDelta.applyEuler(euler);
-        const feetY = this.camera.position.y - 1.6;
+        this._euler.set(0, this.camera.rotation.y, 0, 'YXZ');
+        this._moveDelta.set(-this.velocity.x * delta, 0, this.velocity.z * delta).applyEuler(this._euler);
+
+        const moveX = this._moveDelta.x;
+        const moveZ = this._moveDelta.z;
         const px = this.camera.position.x;
         const pz = this.camera.position.z;
+        const feetY = this.camera.position.y - 1.6;
+
         const localBoxes = spatialGrid.getNearby(px, pz, 2.0);
         const visualHeight = this.isCrouching ? 0.8 : 1.6;
         const physicalTop = this.isCrouching ? 1.2 : 2.5;
-        let hitX = false;
-        const snagShrink = 0.05;
-        this._vecMin.set(this.camera.position.x + moveDelta.x - this.playerRadius, feetY + 0.6, this.camera.position.z - this.playerRadius + snagShrink);
-        this._vecMax.set(this.camera.position.x + moveDelta.x + this.playerRadius, feetY + physicalTop, this.camera.position.z + this.playerRadius - snagShrink);
+        const snagShrink = this.isSqueezing ? 0.01 : 0.05;
+
+        this._vecMin.set(px + moveX - this.playerRadius, feetY + 0.6, pz - this.playerRadius + snagShrink);
+        this._vecMax.set(px + moveX + this.playerRadius, feetY + physicalTop, pz + this.playerRadius - snagShrink);
         this._boxX.set(this._vecMin, this._vecMax);
-        for (let box of localBoxes) {
-            if (this._boxX.intersectsBox(box)) {
-                hitX = true;
-                break;
-            }
-        }
-        if (!hitX) this.camera.position.x += moveDelta.x;
-        let hitZ = false;
-        this._vecMin.set(this.camera.position.x - this.playerRadius + snagShrink, feetY + 0.6, this.camera.position.z + moveDelta.z - this.playerRadius);
-        this._vecMax.set(this.camera.position.x + this.playerRadius - snagShrink, feetY + physicalTop, this.camera.position.z + moveDelta.z + this.playerRadius);
+
+        this._vecMin.set(px - this.playerRadius + snagShrink, feetY + 0.6, pz + moveZ - this.playerRadius);
+        this._vecMax.set(px + this.playerRadius - snagShrink, feetY + physicalTop, pz + moveZ + this.playerRadius);
         this._boxZ.set(this._vecMin, this._vecMax);
-        for (let box of localBoxes) {
-            if (this._boxZ.intersectsBox(box)) {
-                hitZ = true;
-                break;
-            }
-        }
-        if (!hitZ) this.camera.position.z += moveDelta.z;
-        this._vecMin.set(this.camera.position.x - this.playerRadius, -10, this.camera.position.z - this.playerRadius);
-        this._vecMax.set(this.camera.position.x + this.playerRadius, feetY + 1.2, this.camera.position.z + this.playerRadius);
+
+        this._vecMin.set(px - this.playerRadius, -10.0, pz - this.playerRadius);
+        this._vecMax.set(px + this.playerRadius, feetY + 1.2, pz + this.playerRadius);
         this._floorBox.set(this._vecMin, this._vecMax);
+
+        let hitX = false;
+        let hitZ = false;
         let targetFeetY = 0;
-        for (let box of localBoxes) {
+
+        for (let i = 0, len = localBoxes.length; i < len; i++) {
+            const box = localBoxes[i];
+            if (!hitX && this._boxX.intersectsBox(box)) hitX = true;
+            if (!hitZ && this._boxZ.intersectsBox(box)) hitZ = true;
             if (this._floorBox.intersectsBox(box) && box.max.y > targetFeetY && box.max.y <= feetY + 1.2) {
                 targetFeetY = box.max.y;
             }
         }
+
+        if (!hitX) this.camera.position.x += moveX;
+        if (!hitZ) this.camera.position.z += moveZ;
         const actualSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
         this.headBobTimer = (this.headBobTimer || 0) + actualSpeed * delta;
         const bobOffset = (this.enableHeadBob && actualSpeed > 0.5) ? Math.sin(this.headBobTimer * 2.5) * 0.05 : 0;

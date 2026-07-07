@@ -10,7 +10,8 @@ export default class RenderEngine {
         this.scene.fog = new THREE.FogExp2(0xa89f68, 0.05);
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
         this.camera.position.y = 1.6;
-        this.renderer = new THREE.WebGLRenderer({antialias: false, preserveDrawingBuffer: true});
+        this.renderer = new THREE.WebGLRenderer({antialias: false, powerPreference: "high-performance"});
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -39,43 +40,46 @@ export default class RenderEngine {
                 uniform float time;
                 uniform float exhaustion;
                 varying vec2 vUv;
+                
                 float hash(vec2 p) {
                     vec3 p3  = fract(vec3(p.xyx) * .1031);
                     p3 += dot(p3, p3.yzx + 33.33);
                     return fract((p3.x + p3.y) * p3.z);
                 }
+                
                 void main() {
                     vec2 uv = vUv;
-                    // 1. VHS Chromatic Aberration & Somatic Blur
-                    // Lowered CA separation radius to prevent the harsh "3D glasses" headache
                     vec2 offset = vec2(0.001, 0.0) * (uv.x - 0.5) * 2.0; 
-                    float blurAmt = exhaustion * 0.012; // Terminal fatigue blur radius
+                    float blurAmt = exhaustion * 0.012; 
                     vec3 col = vec3(0.0);
-                    // Base sharp sample
+                    
+                    // 1. Base Chromatic Aberration
                     col.r = texture2D(tDiffuse, uv + offset).r;
                     col.g = texture2D(tDiffuse, uv).g;
                     col.b = texture2D(tDiffuse, uv - offset).b;
+                    
+                    // 2. Unified Somatic Blur (Ephemeralized 4-tap radial)
                     if (exhaustion > 0.01) {
-                        vec3 blur = vec3(0.0);
-                        vec2 offsets[4] = vec2[](vec2(blurAmt, blurAmt), vec2(-blurAmt, -blurAmt), vec2(-blurAmt, blurAmt), vec2(blurAmt, -blurAmt));
-                        // Optimized matrix iteration to dry up redundant math
-                        for (int i = 0; i < 4; i++) {
-                            blur.r += texture2D(tDiffuse, uv + offset + offsets[i]).r;
-                            blur.g += texture2D(tDiffuse, uv + offsets[i]).g;
-                            blur.b += texture2D(tDiffuse, uv - offset + offsets[i]).b;
-                        }
-                        // Crossfade sharp vision into blurred vision based on exhaustion
-                        col = mix(col, blur / 4.0, exhaustion);
+                        vec3 blur;
+                        blur.r = texture2D(tDiffuse, uv + offset + vec2(blurAmt, blurAmt)).r 
+                               + texture2D(tDiffuse, uv + offset + vec2(-blurAmt, -blurAmt)).r;
+                        blur.g = texture2D(tDiffuse, uv + vec2(-blurAmt, blurAmt)).g 
+                               + texture2D(tDiffuse, uv + vec2(blurAmt, -blurAmt)).g;
+                        blur.b = texture2D(tDiffuse, uv - offset + vec2(blurAmt, -blurAmt)).b 
+                               + texture2D(tDiffuse, uv - offset + vec2(-blurAmt, blurAmt)).b;
+                        
+                        col = mix(col, blur * 0.5, exhaustion);
                     }
-                    // 2. Animated Crawling Static
+                    
+                    // 3. High-Frequency Crawling Static & Rolling Scanlines
                     float noise = hash(uv * vec2(800.0, 800.0) + time * 15.0);
-                    col += (noise - 0.5) * 0.07;
-                    // 3. Rolling CRT Scanlines
                     float scanline = sin(uv.y * 800.0 - time * 10.0) * 0.02;
-                    col -= scanline;
+                    col += (noise - 0.5) * 0.07 - scanline;
+                    
                     // 4. Claustrophobic Vignette
                     float dist = distance(uv, vec2(0.5));
                     col *= smoothstep(0.8, 0.25, dist * dist + 0.3);
+                    
                     gl_FragColor = vec4(col, 1.0);
                 }
             `

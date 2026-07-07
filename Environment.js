@@ -108,13 +108,14 @@ export default class Environment {
             if (!chunksToKeep.has(hash)) {
                 this.scene.remove(chunkGroup);
                 chunkGroup.traverse((child) => {
-                    if (child.geometry) child.geometry.dispose();
+                    if (child.isInstancedMesh) child.dispose();
+                    if (child.geometry && !this.sharedAssets.has(child.geometry.uuid) && !this.geoCache.has(child.geometry.uuid)) {
+                        child.geometry.dispose();
+                    }
                     if (child.material) {
                         const materials = Array.isArray(child.material) ? child.material : [child.material];
                         materials.forEach(m => {
-                            m.dispose();
-                            if (m.map) m.map.dispose();
-                            if (m.emissiveMap) m.emissiveMap.dispose();
+                            if (!this.sharedAssets.has(m.uuid)) m.dispose();
                         });
                     }
                 });
@@ -221,6 +222,20 @@ export default class Environment {
         this.scene.add(this.entityGroup);
         this.entityActive = false;
         this.entityTarget = new THREE.Vector3();
+
+        this.scene.add(this.camera);
+        this.flashlight = new THREE.SpotLight(0xfffae6, 0.0, 45.0, Math.PI / 7, 0.5, 2.0);
+        this.flashlight.position.set(0.3, -0.3, 0);
+        this.flashlight.target.position.set(0.3, -0.3, -1);
+        this.flashlight.castShadow = true;
+        this.flashlight.shadow.mapSize.width = 512;
+        this.flashlight.shadow.mapSize.height = 512;
+        this.flashlight.shadow.camera.near = 0.1;
+        this.flashlight.shadow.camera.far = 45;
+        this.flashlight.shadow.bias = -0.002;
+        this.camera.add(this.flashlight);
+        this.camera.add(this.flashlight.target);
+
         this.baseFogDensity = 0.05;
         this.generate();
         const toggleBtn = document.getElementById('menuToggleBtn');
@@ -274,10 +289,15 @@ export default class Environment {
         this.activeChunks.forEach((chunkGroup) => {
             this.scene.remove(chunkGroup);
             chunkGroup.traverse((child) => {
-                if (child.geometry) child.geometry.dispose();
+                if (child.isInstancedMesh) child.dispose();
+                if (child.geometry && !this.sharedAssets.has(child.geometry.uuid) && (!this.geoCache || !this.geoCache.has(child.geometry.uuid))) {
+                    child.geometry.dispose();
+                }
                 if (child.material) {
-                    if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
-                    else child.material.dispose();
+                    const materials = Array.isArray(child.material) ? child.material : [child.material];
+                    materials.forEach(m => {
+                        if (!this.sharedAssets.has(m.uuid)) m.dispose();
+                    });
                 }
             });
         });
@@ -316,6 +336,15 @@ export default class Environment {
             this.legGeo = new THREE.BoxGeometry(0.1, 0.4, 0.1);
             this.tableTopGeo = new THREE.BoxGeometry(1.2, 0.05, 1.2);
             this.tableBaseGeo = new THREE.BoxGeometry(0.5, 0.8, 0.5);
+            this.wallVentMat = this.ventMat.clone();
+            this.wallVentMat.map = this.ventMat.map.clone();
+            this.wallVentMat.map.repeat.set(2, 0.5);
+            this.geoCache = new Map();
+            this.sharedAssets = new Set();
+            Object.values(this).forEach(v => {
+                if (v && v.isGeometry) this.sharedAssets.add(v.uuid);
+                if (v && v.isMaterial) this.sharedAssets.add(v.uuid);
+            });
         }
     }
 
@@ -331,10 +360,16 @@ export default class Environment {
         const cx = Math.sin(this.baseSeed) * 0.8;
         const cy = Math.cos(this.baseSeed * 0.5) * 0.8;
         const buildWall = (w, d, mat) => {
-            const geo = new THREE.BoxGeometry(w + 0.02, 3.0, d + 0.02);
-            const uv = geo.attributes.uv;
-            for (let i = 0; i < 8; i++) uv.setX(i, uv.getX(i) * (d / this.cellSize));
-            for (let i = 16; i < 24; i++) uv.setX(i, uv.getX(i) * (w / this.cellSize));
+            const key = `${w}_${d}`;
+            let geo = this.geoCache.get(key);
+            if (!geo) {
+                geo = new THREE.BoxGeometry(w + 0.02, 3.0, d + 0.02);
+                const uv = geo.attributes.uv;
+                for (let i = 0; i < 8; i++) uv.setX(i, uv.getX(i) * (d / this.cellSize));
+                for (let i = 16; i < 24; i++) uv.setX(i, uv.getX(i) * (w / this.cellSize));
+                this.geoCache.set(key, geo);
+                this.geoCache.set(geo.uuid, true);
+            }
             return new THREE.Mesh(geo, mat);
         };
         const stagingMeshes = [];
@@ -343,6 +378,7 @@ export default class Environment {
             mesh.updateMatrixWorld(true);
             const box = new THREE.Box3().setFromObject(mesh);
             box.chunkHash = hash;
+            if (mesh.userData.isEntityBlocker) box.isEntityBlocker = true;
             this.spatialGrid.insert(box);
             stagingMeshes.push(mesh);
         };
@@ -544,18 +580,42 @@ export default class Environment {
                     const wall = new THREE.Mesh(this.sharedWallGeo, this.sharedWallMat);
                     wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                     addGeometry(wall);
-                    const ventDir = Math.floor(random() * 2);
-                    const ventGeo = new THREE.BoxGeometry(ventDir === 0 ? 1.2 : this.cellSize + 0.1, 0.4, ventDir === 0 ? this.cellSize + 0.1 : 1.2);
-                    const vent = new THREE.Mesh(ventGeo, this.ventMat);
-                    vent.position.set(x * this.cellSize, random() > 0.5 ? 2.6 : 0.4, z * this.cellSize);
+                    const ventGeo = new THREE.BoxGeometry(1.2, 0.6, 0.1);
+                    const vent = new THREE.Mesh(ventGeo, this.wallVentMat);
+                    const face = Math.floor(random() * 4);
+                    const offset = (this.cellSize / 2) + 0.02;
+                    const heightY = random() > 0.5 ? 2.6 : 0.4;
+                    if (face === 0) {
+                        vent.position.set(x * this.cellSize, heightY, z * this.cellSize + offset);
+                    } else if (face === 1) {
+                        vent.position.set(x * this.cellSize, heightY, z * this.cellSize - offset);
+                    } else if (face === 2) {
+                        vent.rotation.y = Math.PI / 2;
+                        vent.position.set(x * this.cellSize + offset, heightY, z * this.cellSize);
+                    } else {
+                        vent.rotation.y = Math.PI / 2;
+                        vent.position.set(x * this.cellSize - offset, heightY, z * this.cellSize);
+                    }
                     addGeometry(vent);
                 }
             },
             {
                 prob: 0.35, build: (x, z) => {
-                    const wall = new THREE.Mesh(this.sharedWallGeo, this.sharedWallMat);
-                    wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
-                    addGeometry(wall);
+                    const dir = Math.floor(random() * 2);
+                    const isZ = dir === 0;
+                    const w1 = isZ ? 1.75 : this.cellSize;
+                    const d1 = isZ ? this.cellSize : 1.75;
+                    const offset = (1.75 / 2) + 0.25;
+
+                    const block1 = buildWall(w1, d1, this.structMat);
+                    block1.position.set(x * this.cellSize - (isZ ? offset : 0), 1.5, z * this.cellSize - (isZ ? 0 : offset));
+                    block1.userData.isEntityBlocker = true; // The Anomaly cannot pass dense structure
+                    addGeometry(block1);
+
+                    const block2 = buildWall(w1, d1, this.structMat);
+                    block2.position.set(x * this.cellSize + (isZ ? offset : 0), 1.5, z * this.cellSize + (isZ ? 0 : offset));
+                    block2.userData.isEntityBlocker = true;
+                    addGeometry(block2);
                 }
             },
             {
@@ -574,43 +634,26 @@ export default class Environment {
                 prob: 0.16,
                 foundationMat: this.clinicMat,
                 build: (x, z, localX, localZ) => {
-                    if (localX % 6 === 3 && localZ % 6 === 3) {
-                        const pillar = buildWall(this.cellSize, this.cellSize, this.clinicMat);
-                        pillar.position.set(x * this.cellSize, 1.5, z * this.cellSize);
-                        addGeometry(pillar);
-                    }
-                    if (localX % 4 === 2 && localZ % 4 === 2 && random() > 0.4) {
-                        const pSize = this.cellSize * 0.8;
-                        const rimThick = 0.2;
-                        const pHeight = 0.4;
-                        const rimScaleY = pHeight / 3.0;
+                    const terrainNoise = random();
 
-                        const rimN = buildWall(pSize, rimThick, this.clinicMat);
-                        rimN.position.set(x * this.cellSize, pHeight/2, z * this.cellSize - pSize/2 + rimThick/2);
-                        rimN.scale.y = rimScaleY;
-                        addGeometry(rimN);
+                    if (terrainNoise > 0.6) {
+                        const platform = buildWall(this.cellSize, this.cellSize, this.clinicMat);
+                        platform.scale.y = 0.15;
+                        platform.position.set(x * this.cellSize, 0.225, z * this.cellSize);
+                        addGeometry(platform);
 
-                        const rimS = buildWall(pSize, rimThick, this.clinicMat);
-                        rimS.position.set(x * this.cellSize, pHeight/2, z * this.cellSize + pSize/2 - rimThick/2);
-                        rimS.scale.y = rimScaleY;
-                        addGeometry(rimS);
-
-                        const rimE = buildWall(rimThick, pSize - rimThick*2, this.clinicMat);
-                        rimE.position.set(x * this.cellSize + pSize/2 - rimThick/2, pHeight/2, z * this.cellSize);
-                        rimE.scale.y = rimScaleY;
-                        addGeometry(rimE);
-
-                        const rimW = buildWall(rimThick, pSize - rimThick*2, this.clinicMat);
-                        rimW.position.set(x * this.cellSize - pSize/2 + rimThick/2, pHeight/2, z * this.cellSize);
-                        rimW.scale.y = rimScaleY;
-                        addGeometry(rimW);
-
-                        const waterGeo = new THREE.PlaneGeometry(pSize - rimThick, pSize - rimThick);
-                        const water = new THREE.Mesh(waterGeo, this.waterMat);
+                        if (random() > 0.85) {
+                            const pillar = buildWall(0.8, 0.8, this.clinicMat);
+                            pillar.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                            addGeometry(pillar);
+                        }
+                    } else if (terrainNoise < 0.45) {
+                        const water = new THREE.Mesh(new THREE.PlaneGeometry(this.cellSize, this.cellSize), this.waterMat);
                         water.rotation.x = -Math.PI / 2;
-                        water.position.set(x * this.cellSize, pHeight - 0.05, z * this.cellSize);
+                        water.position.set(x * this.cellSize, 0.2, z * this.cellSize);
                         chunkGroup.add(water);
                     }
+
                     if (localX % 6 === 0 && localZ % 6 === 0 && random() > 0.4) {
                         const activeMat = this.baseLightMat.clone();
                         activeMat.color.setHex(0xaaffff);
@@ -638,15 +681,29 @@ export default class Environment {
                 foundationMat: this.clinicMat,
                 build: (x, z, localX, localZ) => {
                     let isClinicWall = false;
-                    if (localX % 5 === 0 && localZ % 5 === 0 && localX > 1 && localX < 14 && localZ > 1 && localZ < 14) {
+                    if (localX % 4 === 0 && localZ % 5 === 0 && localX > 1 && localX < 14 && localZ > 1 && localZ < 14) {
                         isClinicWall = true;
-                        const divW = random() > 0.5 ? this.cellSize : 0.1;
-                        const divD = divW === 0.1 ? this.cellSize : 0.1;
-                        const divider = new THREE.Mesh(new THREE.BoxGeometry(divW, 2.0, divD), this.fabricMat);
-                        divider.position.set(x * this.cellSize, 1.0, z * this.cellSize);
-                        addGeometry(divider);
-                        const chair = buildChair(x * this.cellSize + 0.8, 0, z * this.cellSize + 0.8, random() * Math.PI);
-                        addFurniture(chair);
+
+                        const curtain = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize * 0.9, 2.2, 0.05), this.fabricMat);
+                        curtain.position.set(x * this.cellSize, 1.1, z * this.cellSize - 1.8);
+                        addGeometry(curtain);
+
+                        const cotFrame = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 2.0), this.structMat);
+                        cotFrame.position.set(x * this.cellSize, 0.25, z * this.cellSize);
+                        addGeometry(cotFrame);
+
+                        const mattress = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.15, 1.9), this.fabricMat);
+                        mattress.position.set(x * this.cellSize, 0.575, z * this.cellSize);
+                        addGeometry(mattress);
+
+                        const pole = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.0, 0.08), this.rustMat);
+                        pole.position.set(x * this.cellSize + 0.8, 1.0, z * this.cellSize + 0.8);
+                        addGeometry(pole);
+
+                        if (random() > 0.3) {
+                            const chair = buildChair(x * this.cellSize - 0.8, 0, z * this.cellSize + 0.5, random() * Math.PI);
+                            addFurniture(chair);
+                        }
                     }
                     if (!isClinicWall && localX % 4 === 2 && localZ % 4 === 2 && random() > 0.4) {
                         const activeMat = this.baseLightMat.clone();
@@ -719,11 +776,22 @@ export default class Environment {
                 foundationMat: this.structMat,
                 build: (x, z, localX, localZ) => {
                     let isArchivePillar = false;
-                    if (localX % 3 === 0 && localZ % 3 === 0 && localX > 0 && localZ > 0 && localX < 15 && localZ < 15) {
+                    if (localX % 5 >= 1 && localX % 5 <= 3 && localZ % 2 === 0 && localX > 0 && localX < 15 && localZ > 0 && localZ < 15) {
                         isArchivePillar = true;
-                        const pillar = buildWall(this.cellSize * 0.8, this.cellSize * 0.8, this.sharedWallMat);
-                        pillar.position.set(x * this.cellSize, 1.5, z * this.cellSize);
-                        addGeometry(pillar);
+
+                        const rack = buildWall(this.cellSize, 0.9, this.structMat);
+                        rack.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                        addGeometry(rack);
+
+                        for (let h = 0.4; h < 2.8; h += 0.6) {
+                            if (random() > 0.3) {
+                                const boxW = 0.5 + random() * 0.5;
+                                const box = new THREE.Mesh(new THREE.BoxGeometry(boxW, 0.45, 0.65), this.woodMat);
+                                box.position.set(x * this.cellSize + (random() - 0.5), h, z * this.cellSize + (random() * 0.15 - 0.075));
+                                box.rotation.y = (random() - 0.5) * 0.3;
+                                addGeometry(box);
+                            }
+                        }
                     }
                     if (!isArchivePillar && localX % 4 === 2 && localZ % 4 === 2 && random() > 0.5) {
                         const activeMat = this.baseBrokenLightMat.clone();
@@ -1099,7 +1167,29 @@ export default class Environment {
         if (distToTarget > 0.1) {
             dir.normalize();
             const speed = distToPlayerSq < 225.0 ? 4.2 : 2.0;
-            this.entityGroup.position.addScaledVector(dir, speed * delta);
+            const moveVec = dir.multiplyScalar(speed * delta);
+            const nextPos = this.entityGroup.position.clone().add(moveVec);
+            const entBox = new THREE.Box3(
+                new THREE.Vector3(nextPos.x - 0.6, 0.0, nextPos.z - 0.6),
+                new THREE.Vector3(nextPos.x + 0.6, 3.0, nextPos.z + 0.6)
+            );
+
+            let blocked = false;
+            const localBoxes = this.spatialGrid.getNearby(nextPos.x, nextPos.z, 2.0);
+            for (let i = 0; i < localBoxes.length; i++) {
+                if (localBoxes[i].isEntityBlocker && entBox.intersectsBox(localBoxes[i])) {
+                    blocked = true;
+                    break;
+                }
+            }
+
+            if (!blocked) {
+                this.entityGroup.position.add(moveVec);
+            } else {
+                // Kinetic Deflection: If repelled, force a rapid lateral re-pathing
+                this.entityTarget.x += (Math.random() - 0.5) * 15.0;
+                this.entityTarget.z += (Math.random() - 0.5) * 15.0;
+            }
         }
         this.entityGroup.position.y = 1.5 + Math.sin(time * 2.0) * 0.2;
     }
@@ -1228,6 +1318,30 @@ export default class Environment {
             const distToAnomaly = cameraPos.distanceTo(this.entityGroup.position);
             if (distToAnomaly < 15.0) anomalyPressure = 1.0 - (distToAnomaly / 15.0);
         }
+
+        if (this.flashlight) {
+            // Base brightness heavily reduced from 4.0 to 1.8 for anemic realism
+            let targetIntensity = this.player.flashlightActive ? 1.8 : 0.0;
+
+            if (this.player.flashlightActive) {
+                // Dim the bulb exponentially as battery drops below 30%
+                const batteryFactor = Math.min(1.0, this.player.flashlightBattery / 30.0);
+                targetIntensity *= (0.1 + 0.9 * batteryFactor);
+
+                // Introduce a dying filament sputter when critically low (< 15%)
+                if (this.player.flashlightBattery < 15.0 && Math.random() > 0.8) {
+                    targetIntensity *= 0.1;
+                }
+
+                // Anomaly electromagnetic interference overrides standard battery behavior
+                if (anomalyPressure > 0) {
+                    const flicker = Math.random() > (0.5 - anomalyPressure * 0.4) ? 0.1 : 1.0;
+                    targetIntensity *= flicker * (1.0 - anomalyPressure * 0.7);
+                }
+            }
+            this.flashlight.intensity += (targetIntensity - this.flashlight.intensity) * 0.4;
+        }
+
         const playerSpeed = Math.sqrt(this.player.velocity.x ** 2 + this.player.velocity.z ** 2);
         return {
             minLightDist,

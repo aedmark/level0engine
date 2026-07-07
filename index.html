@@ -137,7 +137,6 @@
             margin-top: 0.25rem;
         }
 
-        /* The Electrical Glitch */
         @keyframes phosphor-flicker {
             0%, 100% { opacity: 0.9; }
             4% { opacity: 0.5; text-shadow: 4px 2px 0px rgba(0,0,0,1), 0 0 4px rgba(255,255,255,0.4); } /* Voltage drop & tracking jump */
@@ -342,6 +341,7 @@
         /* Positioned slightly above the thumb resting zones */
         #mobile-run { left: 2rem; bottom: 8rem; }
         #mobile-crouch { right: 2rem; bottom: 8rem; }
+        #mobile-flashlight { right: 2rem; bottom: 13rem; }
 
         /* Hardware Detection: Only show buttons if the user has a touch screen (coarse pointer) */
         @media (pointer: coarse) {
@@ -361,9 +361,9 @@
 <div id="mobile-ui">
     <div id="touch-left" class="touch-zone"></div>
     <div id="touch-right" class="touch-zone"></div>
-    <!-- Mobile Action Toggles -->
     <button id="mobile-run" class="mobile-action-btn">RUN</button>
     <button id="mobile-crouch" class="mobile-action-btn">CROUCH</button>
+    <button id="mobile-flashlight" class="mobile-action-btn">LIGHT</button>
 </div>
 
 <!-- The Cinematic Aperture -->
@@ -376,6 +376,7 @@
     <!-- Burn the text directly into the cinematic frame -->
     <div class="status-bar">
         <span id="vhs-time">AM 12:00:00 &nbsp;&nbsp; JAN 01 1997</span>
+        <span id="battery-readout">BAT: 100%</span>
         <span id="coords">X: 0.00 | Z: 0.00</span>
     </div>
 </div>
@@ -383,7 +384,7 @@
 <div id="ui-layer">
     <button id="menuToggleBtn" class="btn">MENU</button>
     <div class="control-panel">
-        <h1>LEVEL 0 ENGINE v0.1.8</h1>
+        <h1>LEVEL 0 ENGINE v0.1.9</h1>
 
         <label>Architecture Seed (String)</label>
         <input type="text" id="seedInput" value="APPLEBUTTER">
@@ -424,7 +425,7 @@
         </div>
 
         <div class="instructions">
-            <p align="center">WASD to Move<br>Shift to Run.<br>'C' to Crouch.<br>Left Mouse Button to Look.</p>
+            <p align="center">WASD to Move<br>Shift to Run.<br>'C' to Crouch.<br>'Q' to Squeeze Through<br>'F' for Flashlight.<br>Left Mouse Button to Look.</p>
             <p align="center"><a href="https://github.com/aedmark/level0engine">RETURN TO SOURCE</a></p>
         </div>
     </div>

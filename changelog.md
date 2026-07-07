@@ -1,5 +1,25 @@
 # Level 0 Engine Changelog
 
+## [v0.1.9] - 2026-07-06
+
+### Added
+- [MECHANICS] Implemented the "Squeeze" traversal mechanic (bound to 'Q'). Players can compress their collision cylinder radius from 0.4 to 0.12 to slip through narrow architectural crevices at the cost of severe speed reduction.
+- [MECHANICS] Introduced the Flashlight (bound to 'F' and mobile UI). Features a heavy 1.8 base intensity, battery starvation dimming, dying filament sputter, and piezoelectric kinetic recharge when powered off.
+- [ENTITY] Structural Repulsion: The Anomaly behaves like a 4D shadow through drywall but is fundamentally repelled by load-bearing concrete crevices (`isEntityBlocker`). It cannot squeeze, forcing kinetic deflection and re-pathing.
+- [ENTITY] Electromagnetic Interference: Anomaly proximity now violently throttles the flashlight's voltage, inducing chaotic flickering and severe dimming.
+- [UI] Added real-time Battery Telemetry (`BAT: 100%`) to the VHS status bar overlay and integrated the battery state into the persistent Mnemonic Cache.
+
+### Changed
+- [TEXTURES] Overhauled `structMat` concrete generation. Replaced rudimentary circles with authentic brutalist poured formwork lines, high-frequency aggregate noise, and subtle vertical water stains.
+- [TEXTURES] Globally applied 4x Anisotropic Filtering to all procedural materials (`map` and `emissiveMap`) to eliminate high-frequency Moiré patterns and aliasing at grazing camera angles.
+- [GEOMETRY] Re-engineered The Poolrooms with topographic variance (sunken wading pools and raised tile platforms) and replaced The Clinic's random floating dividers with modular Triage Pods (privacy curtains, cots, IV stands).
+- [GEOMETRY] Transformed The Archive by replacing isolated pillars with continuous, towering rows of metal shelving populated with scattered, rotated cardboard boxes.
+
+### Fixed
+- [WEBGL] Fixed "Void Peeking" during Squeeze mode. The camera's near clipping plane now dynamically shifts to `0.01` exclusively during active compression, snapping back to `0.1` upon release to maintain maximum global Z-buffer depth precision and eliminate distant Z-fighting.
+- [GEOMETRY] Fixed HVAC vent material swallowing. Separated `wallVentMat` to correct 16x16 UV scaling issues, and engineered a single-panel surface mount that offsets exactly `0.02` units from a randomized pillar face to prevent concrete clipping.
+- [PHYSICS] Implemented Meadows' Spatial Constraint: The physics loop now casts a predictive floor box and mathematically prevents the player from exiting Squeeze mode (radius expansion) if they are currently entombed within narrow geometry.
+
 ## [v0.1.8] - 2026-07-05
 
 ### Changed

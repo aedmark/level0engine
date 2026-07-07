@@ -5,6 +5,15 @@ export default class AcousticEngine {
     constructor() {
         this.initialized = false;
         this.ctx = null;
+        this.sectors = {
+            "NORMAL": { noise: 0.0, peace: 0.0, rumble: 60, freq: 250, freqOcc: 120, whine: 0.0005, whineOcc: 0.0001, dynamicWhine: true },
+            "POOLROOMS": { noise: 0.08, peace: 0.03, rumble: 40, freq: 140, freqOcc: 140, whine: 0.0002, whineOcc: 0.0002, dynamicWhine: false },
+            "BOARDROOM": { noise: 0.4, peace: 0.0, rumble: 60, freq: 250, freqOcc: 120, whine: 0.0, whineOcc: 0.0, dynamicWhine: false },
+            "SERVER": { noise: 0.0, peace: 0.0, rumble: 35, freq: 250, freqOcc: 120, whine: 0.002, whineOcc: 0.0005, dynamicWhine: false },
+            "ATRIUM": { noise: 0.8, peace: 0.15, rumble: 60, freq: 80, freqOcc: 80, whine: 0.0, whineOcc: 0.0, dynamicWhine: false },
+            "CLINIC": { noise: 0.1, peace: 0.0, rumble: 60, freq: 180, freqOcc: 180, whine: 0.003, whineOcc: 0.003, dynamicWhine: false },
+            "ARCHIVE": { noise: 0.0, peace: 0.0, rumble: 60, freq: 60, freqOcc: 60, whine: 0.0005, whineOcc: 0.0001, dynamicWhine: false }
+        };
     }
 
     init() {
@@ -78,8 +87,6 @@ export default class AcousticEngine {
         this.whineGain.connect(this.mainGain);
         this.mainGain.connect(this.ctx.destination);
 
-        // ANCHOR THE AUTOMATION TIMELINE
-        // Prevents the Web Audio API from ramping down from a default 1.0 volume
         const t = this.ctx.currentTime;
         this.mainGain.gain.setValueAtTime(0, t);
         this.whineGain.gain.setValueAtTime(0, t);
@@ -104,58 +111,27 @@ export default class AcousticEngine {
         const {minLightDist, isOccluded, activeSector, anomalyPressure, playerSpeed, playerExhaustion} = telemetry;
         const time = this.ctx.currentTime;
         const proximity = Math.max(0, 1.0 - (minLightDist / 20.0));
+        const mix = this.sectors[activeSector] || this.sectors["NORMAL"];
+
         this.mainGain.gain.setTargetAtTime(0.005 + (proximity * 0.02), time, 0.5);
-        let whineTarget = isOccluded ? 0.0001 : 0.0005 + (proximity * 0.003);
-        let noiseTarget = 0.0;
-        let rumbleFreq = 60;
-        let peaceTarget = 0.0;
-        let baseFreq = isOccluded ? 120 : 250;
-        switch (activeSector) {
-            case "POOLROOMS":
-                noiseTarget = 0.08;
-                whineTarget = 0.0002;
-                peaceTarget = 0.03;
-                baseFreq = 140;
-                rumbleFreq = 40;
-                break;
-            case "BOARDROOM":
-                noiseTarget = 0.4;
-                whineTarget = 0.0;
-                break;
-            case "SERVER":
-                rumbleFreq = 35;
-                whineTarget = isOccluded ? 0.0005 : 0.002;
-                break;
-            case "ATRIUM":
-                noiseTarget = 0.8;
-                whineTarget = 0.0;
-                peaceTarget = 0.15;
-                baseFreq = 80;
-                break;
-            case "CLINIC":
-                noiseTarget = 0.1;
-                whineTarget = 0.003;
-                baseFreq = 180;
-                break;
-            case "ARCHIVE":
-                baseFreq = 60;
-                break;
-        }
+
+        const whineTarget = isOccluded ? mix.whineOcc : mix.whine + (mix.dynamicWhine ? proximity * 0.003 : 0.0);
         this.whineGain.gain.setTargetAtTime(whineTarget, time, 0.5);
-        if (this.atriumGain) this.atriumGain.gain.setTargetAtTime(noiseTarget, time, 1.0);
-        if (this.peaceGain) this.peaceGain.gain.setTargetAtTime(peaceTarget, time, 2.0);
+
+        if (this.atriumGain) this.atriumGain.gain.setTargetAtTime(mix.noise, time, 1.0);
+        if (this.peaceGain) this.peaceGain.gain.setTargetAtTime(mix.peace, time, 2.0);
+
         if (this.entityGain) {
-            this.entityGain.gain.setTargetAtTime(anomalyPressure > 0 ? (anomalyPressure * 0.4) : 0, time, 0.2);
+            this.entityGain.gain.setTargetAtTime(anomalyPressure > 0.0 ? anomalyPressure * 0.4 : 0.0, time, 0.2);
         }
         if (this.subRumble) {
-            this.subRumble.frequency.setTargetAtTime(rumbleFreq + (anomalyPressure * 40), time, 2.0);
+            this.subRumble.frequency.setTargetAtTime(mix.rumble + (anomalyPressure * 40.0), time, 2.0);
         }
         if (this.kineticFilter) {
-            const exertionPulse = Math.sin(performance.now() / 1000 * 8.0) * (playerSpeed * 5);
-            const speedScale = isOccluded ? 2 : 8;
-            const rawFreq = baseFreq + (playerSpeed * speedScale) + exertionPulse - (anomalyPressure * 150) - (playerExhaustion * 100);
-            const targetFreq = Math.min(Math.max(40, rawFreq), 2000);
-            const timeConstant = (isOccluded || activeSector === "ATRIUM" || anomalyPressure > 0 || playerExhaustion > 0) ? 0.2 : 3.0;
+            const baseFreq = isOccluded ? mix.freqOcc : mix.freq;
+            const exertionPulse = Math.sin(time * 8.0) * (playerSpeed * 5.0);
+            const targetFreq = Math.min(Math.max(40, baseFreq + (playerSpeed * (isOccluded ? 2.0 : 8.0)) + exertionPulse - (anomalyPressure * 150.0) - (playerExhaustion * 100.0)), 2000);
+            const timeConstant = (isOccluded || activeSector === "ATRIUM" || anomalyPressure > 0.0 || playerExhaustion > 0.0) ? 0.2 : 3.0;
             this.kineticFilter.frequency.setTargetAtTime(targetFreq, time, timeConstant);
         }
     }

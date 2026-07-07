@@ -1,6 +1,6 @@
 // sw.js - Thermodynamic Cache
 
-const CACHE_NAME = 'level019';
+const CACHE_NAME = '019';
 const ASSETS = [
     './',
     './index.html',

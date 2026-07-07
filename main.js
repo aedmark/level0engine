@@ -44,6 +44,7 @@ function saveState() {
         rx: engine.camera.rotation.x,
         ry: engine.camera.rotation.y,
         stamina: player.stamina,
+        battery: player.flashlightBattery,
         seed: document.getElementById('seedInput').value,
         aspect: document.getElementById('aspectSelect').value,
         fog: document.getElementById('fogSlider').value,
@@ -61,26 +62,22 @@ if (savedState) {
     engine.camera.position.set(savedState.px, savedState.py, savedState.pz);
     engine.camera.rotation.set(savedState.rx, savedState.ry, 0, 'YXZ');
     player.stamina = savedState.stamina;
+    if (savedState.battery !== undefined) player.flashlightBattery = savedState.battery;
     environment.baseFogDensity = (Number(savedState.fog) || 5) / 100;
 }
 const bootAudio = () => acoustics.init();
 document.addEventListener('click', bootAudio, {once: true});
 document.addEventListener('keydown', bootAudio, {once: true});
 
-// 1. Capture the interval ID so we can mathematically kill it
 const saveInterval = setInterval(saveState, 2500);
 
-// 2. The Scorched Earth Purge
 document.getElementById('clearSaveBtn')?.addEventListener('click', async () => {
-    // Halt the automated memory writer immediately
     clearInterval(saveInterval);
 
-    // Obliterate the storage ledger
     localStorage.clear();
     sessionStorage.clear();
     sessionStorage.clear();
 
-    // Excise the Service Worker if it exists
     if ('serviceWorker' in navigator) {
         const registrations = await navigator.serviceWorker.getRegistrations();
         for (let registration of registrations) {
@@ -88,7 +85,6 @@ document.getElementById('clearSaveBtn')?.addEventListener('click', async () => {
         }
     }
 
-    // Flush the Cache API to destroy stale geometries
     if ('caches' in window) {
         const keys = await caches.keys();
         for (let key of keys) {
@@ -96,7 +92,6 @@ document.getElementById('clearSaveBtn')?.addEventListener('click', async () => {
         }
     }
 
-    // Force a hard navigation reset, bypassing standard reload caches
     window.location.href = window.location.href.split('?')[0];
 });
 
@@ -133,6 +128,13 @@ function animate() {
     const telemetry = environment.updateLights(time);
     acoustics.update(telemetry);
     document.getElementById('coords').innerText = `X: ${engine.camera.position.x.toFixed(2)} | Z: ${engine.camera.position.z.toFixed(2)}`;
+
+    const batReadout = document.getElementById('battery-readout');
+    if (batReadout) {
+        batReadout.innerText = `BAT: ${Math.floor(player.flashlightBattery)}%`;
+        batReadout.style.color = player.flashlightBattery <= 15 ? '#ff5555' : 'inherit';
+    }
+
     if (!player.isRunning) {
         const runBtn = document.getElementById('mobile-run');
         if (runBtn) runBtn.classList.remove('active');

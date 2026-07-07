@@ -151,26 +151,26 @@ export default class ProceduralTextureFactory {
         const structCtx = structCanvas.getContext('2d');
         structCtx.fillStyle = '#5c5441';
         structCtx.fillRect(0, 0, 256, 256);
-        for (let i = 0; i < 5000; i++) {
-            structCtx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.05)';
-            structCtx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
+
+        for (let y = 0; y < 256; y += (Math.random() * 15 + 10)) {
+            structCtx.fillStyle = `rgba(0, 0, 0, ${Math.random() * 0.15})`;
+            structCtx.fillRect(0, y, 256, Math.random() * 4 + 1);
         }
+
+        for (let i = 0; i < 8000; i++) {
+            structCtx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.08)';
+            const size = Math.random() > 0.8 ? 2 : 1;
+            structCtx.fillRect(Math.random() * 256, Math.random() * 256, size, size);
+        }
+
         for (let i = 0; i < 15; i++) {
-            structCtx.fillStyle = `rgba(40, 30, 20, ${Math.random() * 0.4})`;
-            structCtx.beginPath();
-            structCtx.arc(Math.random() * 256, Math.random() * 256, Math.random() * 15 + 5, 0, Math.PI * 2);
-            structCtx.fill();
+            const grad = structCtx.createLinearGradient(0, 0, 0, 256);
+            grad.addColorStop(0, `rgba(40, 30, 20, ${Math.random() * 0.2})`);
+            grad.addColorStop(1, 'rgba(40, 30, 20, 0)');
+            structCtx.fillStyle = grad;
+            structCtx.fillRect(Math.random() * 256, 0, Math.random() * 12 + 4, 256);
         }
-        for (let i = 0; i < 20; i++) {
-            structCtx.strokeStyle = `rgba(100, 40, 20, ${Math.random() * 0.6})`;
-            structCtx.lineWidth = Math.random() * 3 + 1;
-            structCtx.beginPath();
-            let startX = Math.random() * 256;
-            let startY = Math.random() * 256;
-            structCtx.moveTo(startX, startY);
-            structCtx.lineTo(startX, startY + (Math.random() * 100 + 20));
-            structCtx.stroke();
-        }
+
         const structTexture = new THREE.CanvasTexture(structCanvas);
         structTexture.wrapS = THREE.RepeatWrapping;
         structTexture.wrapT = THREE.RepeatWrapping;
@@ -413,11 +413,19 @@ export default class ProceduralTextureFactory {
         });
         const glowGeo = new THREE.PlaneGeometry(3.8, 3.8);
         glowGeo.rotateX(-Math.PI / 2);
-        return {
+        const assets = {
             carpetTexture, ceilingTexture, headerMat, wallTexture, moldMat, moldGeo,
             ceilingStainMat, ceilingStainGeo, structMat, woodMat, doorMat, ventMat,
             fabricMat, mossMat, tileMat, clinicMat, waterMat, serverMat, baseLightMat,
             baseBrokenLightMat, baseHousingMat, glowMat, glowGeo, hazardMat
         };
+
+        Object.values(assets).forEach(item => {
+            if (item && item.isTexture) item.anisotropy = 4;
+            if (item && item.map && item.map.isTexture) item.map.anisotropy = 4;
+            if (item && item.emissiveMap && item.emissiveMap.isTexture) item.emissiveMap.anisotropy = 4;
+        });
+
+        return assets;
     }
 }
