@@ -3,6 +3,21 @@
 
 export default class ProceduralTextureFactory {
     static generateAssets() {
+        const masterNoise = document.createElement('canvas');
+        masterNoise.width = 512; masterNoise.height = 512;
+        const nCtx = masterNoise.getContext('2d');
+        const nImg = nCtx.createImageData(512, 512);
+        const nData = nImg.data;
+        for(let i = 0; i < nData.length; i += 4) {
+            if (Math.random() > 0.85) {
+                const isDark = Math.random() > 0.5;
+                const val = isDark ? 0 : 255;
+                nData[i] = val; nData[i+1] = val; nData[i+2] = val;
+                nData[i+3] = Math.floor(Math.random() * 50 + 10);
+            }
+        }
+        nCtx.putImageData(nImg, 0, 0);
+
         const wallCanvas = document.createElement('canvas');
         wallCanvas.width = 512;
         wallCanvas.height = 512;
@@ -17,10 +32,9 @@ export default class ProceduralTextureFactory {
             wallCtx.lineTo(i, 512);
             wallCtx.stroke();
         }
-        wallCtx.fillStyle = 'rgba(0,0,0,0.05)';
-        for (let i = 0; i < 7500; i++) wallCtx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
-        wallCtx.fillStyle = 'rgba(255,255,255,0.05)';
-        for (let i = 0; i < 7500; i++) wallCtx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+        wallCtx.globalAlpha = 0.5;
+        wallCtx.drawImage(masterNoise, 0, 0);
+        wallCtx.globalAlpha = 1.0;
         for (let i = 0; i < 150; i++) {
             wallCtx.fillStyle = `rgba(80, 70, 40, ${Math.random() * 0.04})`;
             wallCtx.beginPath();
@@ -138,10 +152,9 @@ export default class ProceduralTextureFactory {
         ceilCtx.strokeStyle = '#b5b1a5';
         ceilCtx.lineWidth = 2;
         ceilCtx.strokeRect(0, 0, 256, 256);
-        for (let i = 0; i < 2000; i++) {
-            ceilCtx.fillStyle = 'rgba(0,0,0,0.03)';
-            ceilCtx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
-        }
+        ceilCtx.globalAlpha = 0.3;
+        ceilCtx.drawImage(masterNoise, 0, 0, 256, 256);
+        ceilCtx.globalAlpha = 1.0;
         const ceilingTexture = new THREE.CanvasTexture(ceilingCanvas);
         ceilingTexture.wrapS = THREE.RepeatWrapping;
         ceilingTexture.wrapT = THREE.RepeatWrapping;
@@ -152,25 +165,17 @@ export default class ProceduralTextureFactory {
         structCtx.fillStyle = '#5c5441';
         structCtx.fillRect(0, 0, 512, 512);
 
-        // 1. Horizontal Stratification (Restored)
         structCtx.fillStyle = 'rgba(0, 0, 0, 0.15)';
         for (let y = 0; y < 512; y += (Math.random() * 30 + 20)) {
             structCtx.fillRect(0, y, 512, Math.random() * 8 + 2);
         }
 
-        // 2. High-Frequency Aggregate (Restored & Grouped)
-        structCtx.fillStyle = 'rgba(0,0,0,0.2)';
-        for (let i = 0; i < 16000; i++) {
-            const size = Math.random() > 0.8 ? 2 : 1;
-            structCtx.fillRect(Math.random() * 512, Math.random() * 512, size, size);
-        }
-        structCtx.fillStyle = 'rgba(255,255,255,0.08)';
-        for (let i = 0; i < 16000; i++) {
-            const size = Math.random() > 0.8 ? 2 : 1;
-            structCtx.fillRect(Math.random() * 512, Math.random() * 512, size, size);
-        }
+        structCtx.globalAlpha = 0.9;
+        structCtx.drawImage(masterNoise, 0, 0);
+        structCtx.scale(-1, 1);
+        structCtx.setTransform(1, 0, 0, 1, 0, 0);
+        structCtx.globalAlpha = 1.0;
 
-        // 3. Vertical Staining & Gradients (With X-Axis Wrapping)
         for (let i = 0; i < 30; i++) {
             const grad = structCtx.createLinearGradient(0, 0, 0, 512);
             grad.addColorStop(0, `rgba(40, 30, 20, ${Math.random() * 0.2})`);
@@ -182,7 +187,6 @@ export default class ProceduralTextureFactory {
 
             structCtx.fillRect(startX, 0, streakW, 512);
 
-            // The Wrap: If the stain bleeds past the right edge, draw the remainder on the left edge
             if (startX + streakW > 512) {
                 structCtx.fillRect(startX - 512, 0, streakW, 512);
             }
@@ -246,10 +250,9 @@ export default class ProceduralTextureFactory {
             ventCtx.fillRect(20, i, 216, 2);
             ventCtx.fillStyle = '#2a2a2a';
         }
-        for (let i = 0; i < 2000; i++) {
-            ventCtx.fillStyle = 'rgba(0,0,0,0.5)';
-            ventCtx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
-        }
+        ventCtx.globalAlpha = 0.7;
+        ventCtx.drawImage(masterNoise, 0, 0, 256, 256);
+        ventCtx.globalAlpha = 1.0;
         const ventTexture = new THREE.CanvasTexture(ventCanvas);
         ventTexture.wrapS = THREE.RepeatWrapping;
         ventTexture.wrapT = THREE.RepeatWrapping;
@@ -284,16 +287,10 @@ export default class ProceduralTextureFactory {
         const fCtx = fabricCanvas.getContext('2d');
         fCtx.fillStyle = '#4c594f';
         fCtx.fillRect(0, 0, 256, 256);
-        fCtx.fillStyle = 'rgba(0,0,0,0.15)';
-        for (let i = 0; i < 7500; i++) {
-            fCtx.fillRect(Math.random() * 256, Math.random() * 256, 1, 4);
-            fCtx.fillRect(Math.random() * 256, Math.random() * 256, 4, 1);
-        }
-        fCtx.fillStyle = 'rgba(255,255,255,0.05)';
-        for (let i = 0; i < 7500; i++) {
-            fCtx.fillRect(Math.random() * 256, Math.random() * 256, 1, 4);
-            fCtx.fillRect(Math.random() * 256, Math.random() * 256, 4, 1);
-        }
+        fCtx.globalAlpha = 0.6;
+        fCtx.drawImage(masterNoise, 0, 0, 256, 1024);
+        fCtx.drawImage(masterNoise, 0, 0, 1024, 256);
+        fCtx.globalAlpha = 1.0;
         const fabricTexture = new THREE.CanvasTexture(fabricCanvas);
         fabricTexture.wrapS = THREE.RepeatWrapping;
         fabricTexture.wrapT = THREE.RepeatWrapping;
@@ -313,10 +310,9 @@ export default class ProceduralTextureFactory {
         tileCtx.strokeStyle = '#1a1a1a';
         tileCtx.lineWidth = 2;
         tileCtx.strokeRect(0, 0, 256, 256);
-        for (let i = 0; i < 800; i++) {
-            tileCtx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.01)';
-            tileCtx.fillRect(Math.random() * 256, Math.random() * 256, 1, 1);
-        }
+        tileCtx.globalAlpha = 0.15;
+        tileCtx.drawImage(masterNoise, 0, 0, 256, 256);
+        tileCtx.globalAlpha = 1.0;
         const tileTexture = new THREE.CanvasTexture(tileCanvas);
         tileTexture.wrapS = THREE.RepeatWrapping;
         tileTexture.wrapT = THREE.RepeatWrapping;
@@ -405,10 +401,9 @@ export default class ProceduralTextureFactory {
             hazCtx.lineTo(i + 32, 0);
             hazCtx.fill();
         }
-        for(let i=0; i<3000; i++) {
-            hazCtx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.1)';
-            hazCtx.fillRect(Math.random()*256, Math.random()*256, 2, 2);
-        }
+        hazCtx.globalAlpha = 0.6;
+        hazCtx.drawImage(masterNoise, 0, 0, 256, 256);
+        hazCtx.globalAlpha = 1.0;
         const hazardTexture = new THREE.CanvasTexture(hazardCanvas);
         hazardTexture.wrapS = THREE.RepeatWrapping;
         hazardTexture.wrapT = THREE.RepeatWrapping;

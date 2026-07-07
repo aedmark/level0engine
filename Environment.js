@@ -18,7 +18,7 @@ class SpatialHashGrid {
         const endZ = Math.floor(box.max.z / this.cellSize);
         for (let x = startX; x <= endX; x++) {
             for (let z = startZ; z <= endZ; z++) {
-                const key = `${x},${z}`;
+                const key = (x << 16) | (z & 0xFFFF);
                 if (!this.cells.has(key)) this.cells.set(key, new Set());
                 this.cells.get(key).add(box);
             }
@@ -43,10 +43,10 @@ class SpatialHashGrid {
         const endZ = Math.floor((z + radius) / this.cellSize);
         for (let cx = startX; cx <= endX; cx++) {
             for (let cz = startZ; cz <= endZ; cz++) {
-                const cell = this.cells.get(`${cx},${cz}`);
+                const key = (cx << 16) | (cz & 0xFFFF);
+                const cell = this.cells.get(key);
                 if (cell) {
                     for (const box of cell) {
-                        // O(1) Check: Has this specific box already been processed in this exact frame query?
                         if (box._queryId !== this.queryId) {
                             box._queryId = this.queryId;
                             this.queryCache.push(box);
@@ -433,7 +433,8 @@ export default class Environment {
         const addGeometry = (mesh) => {
             mesh.userData.chunkHash = hash;
             mesh.updateMatrixWorld(true);
-            const box = new THREE.Box3().setFromObject(mesh);
+            if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+            const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
             box.chunkHash = hash;
             if (mesh.userData.isEntityBlocker) box.isEntityBlocker = true;
             this.spatialGrid.insert(box);
