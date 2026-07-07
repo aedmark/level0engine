@@ -1,5 +1,19 @@
 # Level 0 Engine Changelog
 
+## [v0.2.3] - 2026-07-07
+
+### Added
+- [GEOMETRY] Expanded structural variance: Industrial Archway (prob 0.86), Fabric Cubicle (prob 0.60), and Maintenance Pillar (prob 0.44).
+- [GEOMETRY] Procedural Pipe Routing: Implemented geodesic snapping logic for vertical conduits, aligning them with wall geometry to ensure clean integration with server racks.
+- [INPUT] Remapped Capture Asset shortcut to 'C' and Crouch to 'X'. Centralized event handling via the `capture-screenshot` custom event bus to ensure input consistency.
+
+### Changed
+- [PERFORMANCE] Spatial Grid Overhaul: Eradicated string interpolation in hot physics loops. Switched to O(1) bitwise key generation (`x << 16 | z`) to eliminate garbage collection micro-stutters.
+- [PERFORMANCE] Texture Pipeline: Replaced ~70,000 synchronous `ctx.fillRect()` calls with a single `ImageData` master noise buffer, slashing boot time and main-thread overhead.
+- [RENDERER] Emissive Injection: Injected light-emissive properties into `rustMat` and boosted `HemisphereLight` ground color to prevent piping and dark metallic objects from vanishing into silhouettes in low-ambient zones.
+- [GEOMETRY] Dynamic Wall Scaling: Upgraded `buildWall` closure to accept dynamic height (`h`) parameters, allowing for non-standard wall geometry while automatically scaling UVs to prevent texture stretching.
+- [PERFORMANCE] AABB Optimization: Transitioned bounding box generation to O(1) clone operations by leveraging pre-computed geometry bounds, bypassing expensive `setFromObject` vertex traversals.
+
 ## [v0.2.2] - 2026-07-07
 
 ### Added

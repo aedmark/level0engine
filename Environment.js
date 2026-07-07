@@ -230,7 +230,6 @@ export default class Environment {
         this.scene.add(this.dustCloud);
         for (let i = 0; i < this.maxActiveLights; i++) {
             const radius = i < 10 ? 20 : 30;
-            // The Chef: Inject quadratic decay (2.0) and a richer tungsten hue to stop linear wall bleaching
             const light = new THREE.PointLight(0xffebd6, 0, radius, 2.0);
             if (i < 10) {
                 light.castShadow = true;
@@ -262,7 +261,6 @@ export default class Environment {
         this.scene.add(this.entityGroup);
         this.entityActive = false;
         this.entityTarget = new THREE.Vector3();
-
         this.scene.add(this.camera);
         this.flashlight = new THREE.SpotLight(0xffe8b3, 0.0, 45.0, Math.PI / 7, 0.5, 2.0);
         this.flashlight.position.set(0.3, -0.3, 0);
@@ -275,7 +273,6 @@ export default class Environment {
         this.flashlight.shadow.bias = -0.002;
         this.camera.add(this.flashlight);
         this.camera.add(this.flashlight.target);
-
         this.baseFogDensity = 0.05;
         this.generate();
         const toggleBtn = document.getElementById('menuToggleBtn');
@@ -313,16 +310,20 @@ export default class Environment {
         document.getElementById('headBobToggle').addEventListener('change', (e) => {
             this.player.enableHeadBob = e.target.checked;
         });
-        document.getElementById('captureBtn').addEventListener('click', () => {
+        const capture = () => {
             const flash = document.getElementById('flash-overlay');
+            if (!flash) return;
             flash.style.transition = 'none';
+            flash.style.backgroundColor = '#fff';
             flash.style.opacity = '1';
             setTimeout(() => {
                 flash.style.transition = 'opacity 0.8s ease-out';
                 flash.style.opacity = '0';
             }, 50);
             setTimeout(() => this.captureAsset(), 10);
-        });
+        };
+        document.getElementById('captureBtn').addEventListener('click', capture);
+        document.addEventListener('capture-screenshot', capture);
     }
 
     generate() {
@@ -387,7 +388,15 @@ export default class Environment {
             this.pipeGeo.rotateZ(Math.PI / 2);
             this.pipeJointGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.2, 8);
             this.pipeJointGeo.rotateZ(Math.PI / 2);
-            this.rustMat = new THREE.MeshStandardMaterial({color: 0x2a1515, roughness: 0.9, metalness: 0.6});
+            this.vPipeGeo = new THREE.CylinderGeometry(0.06, 0.06, 3.0, 8);
+            this.rustMat = new THREE.MeshStandardMaterial({
+                color: 0x6b6358,
+                emissive: 0x222222,
+                roughness: 0.4,
+                metalness: 0.85,
+                bumpMap: this.structMat.map,
+                bumpScale: 0.015
+            });
             this.cushionGeo = new THREE.BoxGeometry(0.8, 0.15, 0.8);
             this.backrestGeo = new THREE.BoxGeometry(0.8, 0.8, 0.15);
             this.legGeo = new THREE.BoxGeometry(0.1, 0.4, 0.1);
@@ -416,14 +425,17 @@ export default class Environment {
         };
         const cx = Math.sin(this.baseSeed) * 0.8;
         const cy = Math.cos(this.baseSeed * 0.5) * 0.8;
-        const buildWall = (w, d, mat) => {
-            const key = `${w}_${d}`;
+        const buildWall = (w, d, mat, h = 3.0) => {
+            const key = `${w}_${h}_${d}`;
             let geo = this.geoCache.get(key);
             if (!geo) {
-                geo = new THREE.BoxGeometry(w + 0.02, 3.0, d + 0.02);
+                geo = new THREE.BoxGeometry(w + 0.02, h, d + 0.02);
                 const uv = geo.attributes.uv;
                 for (let i = 0; i < 8; i++) uv.setX(i, uv.getX(i) * (d / this.cellSize));
                 for (let i = 16; i < 24; i++) uv.setX(i, uv.getX(i) * (w / this.cellSize));
+                if (h !== 3.0) {
+                    for (let i = 8; i < 16; i++) uv.setY(i, uv.getY(i) * (h / 3.0));
+                }
                 this.geoCache.set(key, geo);
                 this.geoCache.set(geo.uuid, true);
             }
@@ -513,6 +525,22 @@ export default class Environment {
                 }
             },
             {
+                prob: 0.86, build: (x, z) => {
+                    const isZ = random() > 0.5;
+                    const pW = 0.6;
+                    const offset = (this.cellSize / 2) - (pW / 2);
+                    const p1 = buildWall(isZ ? pW : this.cellSize, isZ ? this.cellSize : pW, this.sharedWallMat);
+                    p1.position.set(x * this.cellSize - (isZ ? offset : 0), 1.5, z * this.cellSize - (isZ ? 0 : offset));
+                    addGeometry(p1);
+                    const p2 = buildWall(isZ ? pW : this.cellSize, isZ ? this.cellSize : pW, this.sharedWallMat);
+                    p2.position.set(x * this.cellSize + (isZ ? offset : 0), 1.5, z * this.cellSize + (isZ ? 0 : offset));
+                    addGeometry(p2);
+                    const header = buildWall(isZ ? this.cellSize - (pW*2) : this.cellSize, isZ ? this.cellSize : this.cellSize - (pW*2), this.headerMat, 0.8);
+                    header.position.set(x * this.cellSize, 2.6, z * this.cellSize);
+                    addGeometry(header);
+                }
+            },
+            {
                 prob: 0.82, build: (x, z) => {
                     const pW = 1.2, offset = (this.cellSize / 2) - (pW / 2), gap = this.cellSize - (pW * 2);
                     const p1 = buildWall(pW, this.cellSize, this.sharedWallMat);
@@ -586,6 +614,18 @@ export default class Environment {
                 }
             },
             {
+                prob: 0.60, build: (x, z) => {
+                    const isZ = random() > 0.5;
+                    const halfWall = buildWall(isZ ? 0.2 : this.cellSize, isZ ? this.cellSize : 0.2, this.fabricMat, 1.2);
+                    halfWall.position.set(x * this.cellSize, 0.6, z * this.cellSize);
+                    addGeometry(halfWall);
+                    if (random() > 0.4) {
+                        const desk = buildTable(x * this.cellSize + (isZ ? 0.8 : 0), 0, z * this.cellSize + (isZ ? 0 : 0.8));
+                        addFurniture(desk);
+                    }
+                }
+            },
+            {
                 prob: 0.55, build: (x, z) => {
                     const back = buildWall(this.cellSize, 0.5, this.sharedWallMat);
                     back.position.set(x * this.cellSize, 1.5, z * this.cellSize - (this.cellSize / 2) + 0.25);
@@ -630,6 +670,22 @@ export default class Environment {
                         const posZ = z * this.cellSize + (isZ ? offset : 0);
                         step.position.set(posX, h / 2, posZ);
                         addGeometry(step);
+                    }
+                }
+            },
+            {
+                prob: 0.44, build: (x, z) => {
+                    const core = buildWall(1.2, 1.2, this.structMat);
+                    core.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                    addGeometry(core);
+                    for(let i = 0; i < 4; i++) {
+                        if (random() > 0.2) {
+                            const pipe = new THREE.Mesh(this.vPipeGeo, this.rustMat);
+                            const px = (i < 2) ? 0.75 : -0.75;
+                            const pz = (i % 2 === 0) ? 0.75 : -0.75;
+                            pipe.position.set(x * this.cellSize + px, 1.5, z * this.cellSize + pz);
+                            addGeometry(pipe);
+                        }
                     }
                 }
             },
@@ -920,12 +976,31 @@ export default class Environment {
                         rack.userData.isEntityBlocker = true;
                         addGeometry(rack);
                     } else {
-                        // Paths get overhead coolant pipes and occasional red emergency lights
-                        if (random() > 0.3) {
+                        const nWall = localZ > 0 && maze[localX][localZ - 1];
+                        const sWall = localZ < this.chunkSize - 1 && maze[localX][localZ + 1];
+                        const eWall = localX < this.chunkSize - 1 && maze[localX + 1][localZ];
+                        const wWall = localX > 0 && maze[localX - 1][localZ];
+
+                        if (nWall || sWall) {
                             const pipe = new THREE.Mesh(this.pipeGeo, this.rustMat);
-                            pipe.rotation.y = random() > 0.5 ? Math.PI / 2 : 0;
-                            pipe.position.set(x * this.cellSize, 2.9, z * this.cellSize);
+                            pipe.position.set(x * this.cellSize, 2.75, z * this.cellSize + (nWall ? -1.2 : 1.2));
                             addGeometry(pipe);
+                            if (random() > 0.4) {
+                                const joint = new THREE.Mesh(this.pipeJointGeo, this.rustMat);
+                                joint.position.copy(pipe.position);
+                                addGeometry(joint);
+                            }
+                        } else if (eWall || wWall) {
+                            const pipe = new THREE.Mesh(this.pipeGeo, this.rustMat);
+                            pipe.rotation.y = Math.PI / 2;
+                            pipe.position.set(x * this.cellSize + (wWall ? -1.2 : 1.2), 2.75, z * this.cellSize);
+                            addGeometry(pipe);
+                            if (random() > 0.4) {
+                                const joint = new THREE.Mesh(this.pipeJointGeo, this.rustMat);
+                                joint.rotation.y = Math.PI / 2;
+                                joint.position.copy(pipe.position);
+                                addGeometry(joint);
+                            }
                         }
 
                         if (random() > 0.8) {

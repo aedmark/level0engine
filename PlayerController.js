@@ -170,11 +170,12 @@ export default class PlayerController {
 
     onKeyDown(event) {
         const key = event.code;
-        if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyQ', 'KeyF'].includes(key)) {
+        if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyQ', 'KeyF'].includes(key)) {
             event.preventDefault();
         }
         if (event.key === 'Shift') this.isRunning = true;
         if (event.code === 'KeyC') this.isCrouching = !this.isCrouching;
+        if (event.code === 'KeyX') document.dispatchEvent(new Event('capture-screenshot'));
         if (event.code === 'KeyQ') this.squeezeIntent = true;
         if (event.code === 'KeyF') {
             this.flashlightActive = !this.flashlightActive;

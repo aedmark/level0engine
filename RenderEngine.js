@@ -23,7 +23,7 @@ export default class RenderEngine {
 
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
 
-        const ambient = new THREE.HemisphereLight(0xfff5c2, 0x8a7a50, 0.65);
+        const ambient = new THREE.HemisphereLight(0xfff5c2, 0x3d3520, 0.85);
         this.scene.add(ambient);
         this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
         this.postScene = new THREE.Scene();
