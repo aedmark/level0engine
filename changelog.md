@@ -1,5 +1,18 @@
 # Level 0 Engine Changelog
 
+## [v0.2.1] - 2026-07-07
+
+### Added
+- [SYSTEM] The Generation Curtain: Repurposed the optical blackout overlay to act as an asynchronous loading screen. The engine now drops a strict visual curtain during initial chunk generation and automatically lifts it only when the baseline spatial queue hits zero.
+
+### Changed
+- [MECHANICS] Somatic Weight Rebalance: Cured the "baby penguin" kinetic anomaly. Throttled physical run/crouch speeds, decoupled the somatic timer from raw velocity to ground the human cadence, and severely mathematically restricted the lateral camera sway to inject true bodily inertia.
+- [ENVIRONMENT] Decoupled Atmospheric Interpolation: Separated the user's UI fog slider intent (`baseFogDensity`) from the engine's real-time spatial interpolation math (`currentFogDensity`). The fog slider now acts as a permanent global multiplier while gracefully allowing sectors to scale their unique atmospheres.
+
+### Fixed
+- [PERFORMANCE] Asynchronous Assembly Pipeline: Smashed the monolithic `buildChunk` execution. The Environment now routes architectural generation through a background queue that explicitly yields to the main thread, permanently eliminating catastrophic browser lock-ups when crossing chunk boundaries.
+- [AUDIO] The Temporal Air-Gap: Fixed a deafening synth blast specific to Firefox upon engine initialization. Explicitly awakened the `AudioContext` and injected a 20-millisecond forward offset into the DSP scheduling math to prevent zero-anchor temporal collisions.
+
 ## [v0.2.0] - 2026-07-06
 
 ### Added

@@ -79,6 +79,9 @@ export default class Environment {
         this.localFixtures = [];
         this.lastAudioOcclusionTime = 0;
         this.currentOcclusionState = false;
+        this.chunkQueue = [];
+        this.isBuildingChunk = false;
+        this.isSpawning = false;
     }
 
     updateChunks(playerPos) {
@@ -100,11 +103,14 @@ export default class Environment {
                 const targetZ = chunkZ + z;
                 const hash = `${targetX},${targetZ}`;
                 chunksToKeep.add(hash);
-                if (!this.activeChunks.has(hash)) {
-                    this.buildChunk(targetX, targetZ, hash);
+                if (!this.activeChunks.has(hash) && !this.chunkQueue.some(q => q.hash === hash)) {
+                    this.chunkQueue.push({ x: targetX, z: targetZ, hash: hash });
                 }
             }
         }
+
+        this.processChunkQueue();
+
         for (const [hash, chunkGroup] of this.activeChunks.entries()) {
             if (!chunksToKeep.has(hash)) {
                 this.scene.remove(chunkGroup);
@@ -154,6 +160,38 @@ export default class Environment {
                 }
             }
         });
+    }
+
+    async processChunkQueue() {
+        if (this.isBuildingChunk) return;
+
+        if (this.chunkQueue.length === 0) {
+            if (this.isSpawning) {
+                this.isSpawning = false;
+                const flash = document.getElementById('flash-overlay');
+                if (flash) {
+                    flash.style.transition = 'opacity 2.0s ease-in';
+                    flash.style.opacity = '0';
+                    setTimeout(() => {
+                        if (flash.style.opacity === '0') flash.style.backgroundColor = '#fff';
+                    }, 2050);
+                }
+            }
+            return;
+        }
+
+        this.isBuildingChunk = true;
+
+        const chunk = this.chunkQueue.shift();
+
+        const currentX = Math.floor(this.camera.position.x / (this.chunkSize * 4));
+        const currentZ = Math.floor(this.camera.position.z / (this.chunkSize * 4));
+        if (Math.abs(chunk.x - currentX) <= this.renderDistance && Math.abs(chunk.z - currentZ) <= this.renderDistance) {
+            await this.buildChunk(chunk.x, chunk.z, chunk.hash);
+        }
+
+        this.isBuildingChunk = false;
+        this.processChunkQueue();
     }
 
     setup() {
@@ -226,7 +264,6 @@ export default class Environment {
         this.entityTarget = new THREE.Vector3();
 
         this.scene.add(this.camera);
-        // Pinker: Shift the flashlight spectrum from surgical white to warm halogen to preserve texture albedo
         this.flashlight = new THREE.SpotLight(0xffe8b3, 0.0, 45.0, Math.PI / 7, 0.5, 2.0);
         this.flashlight.position.set(0.3, -0.3, 0);
         this.flashlight.target.position.set(0.3, -0.3, -1);
@@ -289,6 +326,14 @@ export default class Environment {
     }
 
     generate() {
+        const flash = document.getElementById('flash-overlay');
+        if (flash) {
+            flash.style.transition = 'none';
+            flash.style.backgroundColor = '#000';
+            flash.style.opacity = '1';
+        }
+        this.isSpawning = true;
+
         this.activeChunks.forEach((chunkGroup) => {
             this.scene.remove(chunkGroup);
             chunkGroup.traverse((child) => {
@@ -309,6 +354,8 @@ export default class Environment {
         this.fixtureData = [];
         this.spatialGrid.cells.clear();
         this.currentChunkCoords = {x: null, z: null};
+        this.chunkQueue = [];
+        this.isBuildingChunk = false;
         this.camera.position.set(0, 1.6, 0);
         this.player.velocity.set(0, 0, 0);
         this.entityActive = true;
@@ -353,7 +400,7 @@ export default class Environment {
         }
     }
 
-    buildChunk(chunkX, chunkZ, hash) {
+    async buildChunk(chunkX, chunkZ, hash) {
         const chunkGroup = new THREE.Group();
         this.scene.add(chunkGroup);
         this.activeChunks.set(hash, chunkGroup);
@@ -1069,6 +1116,9 @@ export default class Environment {
                     }
                 }
             }
+
+            await new Promise(resolve => setTimeout(resolve, 0));
+
         }
         const instancedGroups = new Map();
         stagingMeshes.forEach(mesh => {
@@ -1353,9 +1403,12 @@ export default class Environment {
             }
         }
         if (this.baseFogDensity !== undefined) {
-            this.baseFogDensity += (targetFog - this.baseFogDensity) * 0.02;
-            const fogBreath = Math.sin(time * 0.05) * (this.baseFogDensity * 0.3);
-            this.scene.fog.density = this.baseFogDensity + fogBreath;
+            if (this.currentFogDensity === undefined) this.currentFogDensity = targetFog;
+            const userMultiplier = this.baseFogDensity / 0.05;
+            const scaledTargetFog = targetFog * userMultiplier;
+            this.currentFogDensity += (scaledTargetFog - this.currentFogDensity) * 0.02;
+            const fogBreath = Math.sin(time * 0.05) * (this.currentFogDensity * 0.3);
+            this.scene.fog.density = this.currentFogDensity + fogBreath;
         }
         if (this.dustCloud) {
             this.dustCloud.position.copy(cameraPos);

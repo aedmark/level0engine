@@ -94,7 +94,6 @@ export default class AcousticEngine {
         this.kineticFilter.connect(this.mainGain);
         this.whineGain.connect(this.mainGain);
         this.mainGain.connect(this.ctx.destination);
-
         const t = this.ctx.currentTime;
         this.mainGain.gain.setValueAtTime(0, t);
         this.whineGain.gain.setValueAtTime(0, t);
@@ -103,7 +102,6 @@ export default class AcousticEngine {
         this.entityGain.gain.setValueAtTime(0, t);
         this.subRumble.frequency.setValueAtTime(60, t);
         this.kineticFilter.frequency.setValueAtTime(250, t);
-
         this.subRumble.start();
         osc2.start();
         osc3.start();
@@ -113,39 +111,35 @@ export default class AcousticEngine {
         this.entityOsc.start();
         this.entityLFO.start();
         this.exertionLFO.start();
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
     }
 
     update(telemetry) {
-        if (!this.initialized || !this.mainGain) return;
-        const {minLightDist, isOccluded, activeSector, anomalyPressure, playerSpeed, playerExhaustion} = telemetry;
+        if (!this.initialized || !this.mainGain || this.ctx.state === 'suspended') return;
         const time = this.ctx.currentTime;
+        if (time < 0.1) return;
+
+        const {minLightDist, isOccluded, activeSector, anomalyPressure, playerSpeed, playerExhaustion} = telemetry;
         const proximity = Math.max(0, 1.0 - (minLightDist / 20.0));
         const mix = this.sectors[activeSector] || this.sectors["NORMAL"];
-
-        // The Gatekeeper: Only dispatch hardware events if the target has actually shifted.
         const setParam = (key, param, target, timeConstant) => {
             if (Math.abs((this._cache.get(key) || -999) - target) > 0.001) {
-                param.setTargetAtTime(target, time, timeConstant);
+                param.setTargetAtTime(target, time + 0.02, timeConstant);
                 this._cache.set(key, target);
             }
         };
-
         setParam('main', this.mainGain.gain, 0.005 + (proximity * 0.02), 0.5);
-
         const whineTarget = isOccluded ? mix.whineOcc : mix.whine + (mix.dynamicWhine ? proximity * 0.003 : 0.0);
         setParam('whine', this.whineGain.gain, whineTarget, 0.5);
-
         if (this.atriumGain) setParam('atrium', this.atriumGain.gain, mix.noise, 1.0);
         if (this.peaceGain) setParam('peace', this.peaceGain.gain, mix.peace, 2.0);
         if (this.entityGain) setParam('entity', this.entityGain.gain, anomalyPressure > 0.0 ? anomalyPressure * 0.4 : 0.0, 0.2);
         if (this.subRumble) setParam('rumble', this.subRumble.frequency, mix.rumble + (anomalyPressure * 40.0), 2.0);
-
         if (this.kineticFilter) {
             const baseFreq = isOccluded ? mix.freqOcc : mix.freq;
-
-            // Modulate the amplitude of the native hardware LFO, extracting the sine math from Javascript
             setParam('exertion', this.exertionGain.gain, playerSpeed * 5.0, 0.2);
-
             const targetFreq = Math.min(Math.max(40, baseFreq + (playerSpeed * (isOccluded ? 2.0 : 8.0)) - (anomalyPressure * 150.0) - (playerExhaustion * 100.0)), 2000);
             const timeConstant = (isOccluded || activeSector === "ATRIUM" || anomalyPressure > 0.0 || playerExhaustion > 0.0) ? 0.2 : 3.0;
             setParam('kinetic', this.kineticFilter.frequency, targetFreq, timeConstant);

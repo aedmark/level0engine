@@ -96,17 +96,6 @@ document.getElementById('clearSaveBtn')?.addEventListener('click', async () => {
 });
 
 function triggerBlackout() {
-    const flash = document.getElementById('flash-overlay');
-    flash.style.backgroundColor = '#000';
-    flash.style.transition = 'none';
-    flash.style.opacity = '1';
-    setTimeout(() => {
-        flash.style.transition = 'opacity 2.0s ease-in';
-        flash.style.opacity = '0';
-        setTimeout(() => {
-            flash.style.backgroundColor = '#fff';
-        }, 2050);
-    }, 50);
     const seedInput = document.getElementById('seedInput');
     seedInput.value = seedInput.value + " NULL";
 }

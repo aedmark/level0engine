@@ -53,7 +53,6 @@ export default class PlayerController {
             if (!this.isLocked) { this.isPeeking = false; this.targetLean = 0.0; }
         });
 
-        // Peek Mechanics (Right Click)
         document.addEventListener('mousedown', (e) => {
             if (this.isLocked && e.button === 2) this.isPeeking = true;
         });
@@ -228,7 +227,6 @@ export default class PlayerController {
     onMouseMove(e) {
         if (!this.isLocked) return;
         if (this.isPeeking) {
-            // Translate mouse X directly into lateral lean (clamped to ~28 degrees)
             this.targetLean -= e.movementX * 0.002;
             this.targetLean = Math.max(-0.5, Math.min(0.5, this.targetLean));
         } else {
@@ -241,11 +239,8 @@ export default class PlayerController {
 
     update(delta, spatialGrid) {
         delta = Math.min(delta, 0.05);
-
-        // Strip the transient visual lean offset before calculating physical collision
         this.camera.position.x -= this._leanOffset.x;
         this.camera.position.z -= this._leanOffset.z;
-
         const damping = Math.exp(-25.0 * delta);
         this.velocity.x *= damping;
         this.velocity.z *= damping;
@@ -266,7 +261,7 @@ export default class PlayerController {
             for (let i = 0; i < clearanceBoxes.length; i++) {
                 if (this._floorBox.intersectsBox(clearanceBoxes[i])) {
                     targetRadius = this.squeezeRadius;
-                    this.isSqueezing = true; // Force physical compression
+                    this.isSqueezing = true;
                     break;
                 }
             }
@@ -278,13 +273,13 @@ export default class PlayerController {
             this.camera.near = targetNear;
             this.camera.updateProjectionMatrix();
         }
-        let currentSpeed = (this.isSqueezing ? 25.0 : (this.isCrouching ? 35.0 : (this.isRunning ? 150.0 : 75.0))) * this.speedMultiplier;
+        let currentSpeed = (this.isSqueezing ? 20.0 : (this.isCrouching ? 30.0 : (this.isRunning ? 125.0 : 60.0))) * this.speedMultiplier;
         const isMoving = this.direction.lengthSq() > 0 || this.touchMove.active;
         if (this.isRunning && this.isChased && isMoving && !this.isSqueezing) {
             this.stamina = Math.max(0, this.stamina - 12.5 * delta);
             if (this.stamina <= 0.0) {
                 this.isRunning = false;
-                currentSpeed = 75.0 * this.speedMultiplier;
+                currentSpeed = 60.0 * this.speedMultiplier;
             }
         } else {
             this.stamina = Math.min(this.maxStamina, this.stamina + 10.0 * delta);
@@ -303,7 +298,6 @@ export default class PlayerController {
 
         const fatigueRatio = this.stamina / this.maxStamina;
         this.exhaustion = fatigueRatio < 0.3 ? Math.pow(1.0 - (fatigueRatio / 0.3), 2.0) : 0.0;
-        // Unified Kinematic Intent Vector
         let intentX = this.direction.x;
         let intentZ = this.direction.z;
 
@@ -311,10 +305,9 @@ export default class PlayerController {
             const deadzone = 10.0;
             const mapAxis = (px) => Math.abs(px) > deadzone ? (px - Math.sign(px) * deadzone) / 110.0 : 0.0;
             intentX = mapAxis(this.touchMove.deltaX);
-            intentZ = -mapAxis(this.touchMove.deltaY); // Swipe up (neg Y) translates to forward momentum (pos Z intent)
+            intentZ = -mapAxis(this.touchMove.deltaY);
         }
 
-        // Apply thermodynamic acceleration
         this.velocity.x -= intentX * currentSpeed * delta;
         this.velocity.z -= intentZ * currentSpeed * delta;
 
@@ -351,11 +344,9 @@ export default class PlayerController {
         for (let i = 0, len = localBoxes.length; i < len; i++) {
             const box = localBoxes[i];
 
-            // Fast-fail AABB checks: if we already hit a wall on an axis, stop checking that axis entirely.
             if (!hitX && this._boxX.intersectsBox(box)) hitX = true;
             if (!hitZ && this._boxZ.intersectsBox(box)) hitZ = true;
 
-            // Floor evaluation is mathematically heavy. Gate it behind cheap scalar Y-bounds checks first.
             if (box.max.y > targetFeetY && box.max.y <= feetY + 1.2) {
                 if (this._floorBox.intersectsBox(box)) {
                     targetFeetY = box.max.y;
@@ -377,17 +368,14 @@ export default class PlayerController {
             swayRoll = Math.cos(this.headBobTimer * (bobFreq * 0.5)) * (bobAmp * 0.05);
         }
 
-        // Kinematic Peek & Unified Somatic Roll
         this.currentLean += (this.targetLean - this.currentLean) * (1.0 - Math.exp(-15.0 * delta));
 
-        // 1. Unified Roll (Velocity + Lean + Sway)
         const rollDamping = 1.0 - Math.exp(-12.0 * delta);
         const velocityRoll = this.velocity.x * (this.isSqueezing ? 0.005 : 0.015);
         const peekRoll = -this.currentLean * 0.35; // Tilt the head physically opposite to the lean anchor
         this.camera.rotation.z += ((velocityRoll + peekRoll) - this.camera.rotation.z) * rollDamping;
         this.camera.rotation.z += swayRoll;
 
-        // 2. Local Lateral Displacement
         this._euler.set(0, this.camera.rotation.y, 0, 'YXZ');
         const leanLateral = Math.sin(this.currentLean) * 0.8;
         const leanDrop = (1.0 - Math.cos(this.currentLean)) * 0.8;
@@ -396,7 +384,6 @@ export default class PlayerController {
         this.camera.position.x += this._leanOffset.x;
         this.camera.position.z += this._leanOffset.z;
 
-        // 3. Final Y calculation (Applying the lean drop)
         const targetCamY = Math.min(targetFeetY + visualHeight, 2.8) + bobOffset - leanDrop;
         const lerpFactor = 1.0 - Math.exp(-12.0 * delta);
         this.camera.position.y += (targetCamY - this.camera.position.y) * lerpFactor;

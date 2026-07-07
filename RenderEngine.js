@@ -16,17 +16,14 @@ export default class RenderEngine {
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-        // The Chef: Cinematic Color & Contrast Engineering
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.2;
 
-        // Note: If you are using an older build of Three.js (pre-r152),
-        // you may need to use this.renderer.outputEncoding = THREE.sRGBEncoding; instead.
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
 
-        const ambient = new THREE.HemisphereLight(0xfff5c2, 0x2a2515, 0.45);
+        const ambient = new THREE.HemisphereLight(0xfff5c2, 0x8a7a50, 0.65);
         this.scene.add(ambient);
         this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
         this.postScene = new THREE.Scene();
