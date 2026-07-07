@@ -361,6 +361,11 @@ export default class Environment {
         this.entityActive = true;
         this.entityGroup.position.set(32, 1.5, 32);
         this.entityTarget.copy(this.entityGroup.position);
+
+        this.entityBreadcrumbs = [];
+        this.entityBacktrackTimer = 0;
+        this.breadcrumbTimer = 0;
+
         const seedString = document.getElementById('seedInput').value || "ASYNC RESEARCH INSTITUTE";
         this.baseSeed = 0;
         for (let i = 0; i < seedString.length; i++) {
@@ -732,49 +737,81 @@ export default class Environment {
                 prob: 0.16,
                 foundationMat: this.clinicMat,
                 build: (x, z, localX, localZ) => {
-                    let isClinicWall = false;
-                    if (localX % 4 === 0 && localZ % 5 === 0 && localX > 1 && localX < 14 && localZ > 1 && localZ < 14) {
-                        isClinicWall = true;
+                    const isPerimeter = localX === 0 || localX === this.chunkSize - 1 || localZ === 0 || localZ === this.chunkSize - 1;
+                    const isDoorway = (localX >= 7 && localX <= 8) || (localZ >= 7 && localZ <= 8);
 
-                        const curtain = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize * 0.9, 2.2, 0.05), this.fabricMat);
-                        curtain.position.set(x * this.cellSize, 1.1, z * this.cellSize - 1.8);
-                        addGeometry(curtain);
-
-                        const cotFrame = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 2.0), this.structMat);
-                        cotFrame.position.set(x * this.cellSize, 0.25, z * this.cellSize);
-                        addGeometry(cotFrame);
-
-                        const mattress = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.15, 1.9), this.fabricMat);
-                        mattress.position.set(x * this.cellSize, 0.575, z * this.cellSize);
-                        addGeometry(mattress);
-
-                        const pole = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.0, 0.08), this.rustMat);
-                        pole.position.set(x * this.cellSize + 0.8, 1.0, z * this.cellSize + 0.8);
-                        addGeometry(pole);
-
-                        if (random() > 0.3) {
-                            const chair = buildChair(x * this.cellSize - 0.8, 0, z * this.cellSize + 0.5, random() * Math.PI);
-                            addFurniture(chair);
-                        }
+                    if (isPerimeter && !isDoorway) {
+                        const wall = new THREE.Mesh(this.sharedWallGeo, this.sharedWallMat);
+                        wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                        addGeometry(wall);
+                        return;
                     }
-                    if (!isClinicWall && localX % 4 === 2 && localZ % 4 === 2 && random() > 0.4) {
-                        const activeMat = this.baseLightMat.clone();
-                        activeMat.color.setHex(0xd0e8ff);
-                        activeMat.emissive.setHex(0xa0d0ff);
-                        const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
-                        panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
-                        chunkGroup.add(panel);
-                        this.walls.push(panel);
-                        this.fixtureData.push({
-                            chunkHash: hash,
-                            position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
-                            flickerOffset: random() * 500,
-                            material: activeMat,
-                            isFaulty: random() > 0.5,
-                            baseIntensity: 0.5,
-                            targetIntensity: 0.5,
-                            currentIntensity: 0.5
-                        });
+
+                    if (!isPerimeter && !isDoorway) {
+                        if (localX % 2 === 1 && localZ % 2 === 1) {
+                            const curtain = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize * 0.9, 2.2, 0.05), this.fabricMat);
+                            curtain.position.set(x * this.cellSize, 1.1, z * this.cellSize - 1.8);
+                            addGeometry(curtain);
+
+                            const cotFrame = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 2.0), this.structMat);
+                            cotFrame.position.set(x * this.cellSize, 0.25, z * this.cellSize);
+                            addGeometry(cotFrame);
+
+                            const mattress = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.15, 1.9), this.fabricMat);
+                            mattress.position.set(x * this.cellSize, 0.575, z * this.cellSize);
+                            addGeometry(mattress);
+
+                            const pole = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.0, 0.08), this.rustMat);
+                            pole.position.set(x * this.cellSize + 0.8, 1.0, z * this.cellSize + 0.8);
+                            addGeometry(pole);
+
+                            if (random() > 0.3) {
+                                const chair = buildChair(x * this.cellSize - 0.8, 0, z * this.cellSize + 0.5, random() * Math.PI);
+                                addFurniture(chair);
+                            }
+
+                            const activeMat = this.baseLightMat.clone();
+                            activeMat.color.setHex(0xd0e8ff);
+                            activeMat.emissive.setHex(0xa0d0ff);
+                            const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+
+                            panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
+                            chunkGroup.add(panel);
+                            this.walls.push(panel);
+                            this.fixtureData.push({
+                                chunkHash: hash,
+                                position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
+                                flickerOffset: random() * 500,
+                                material: activeMat,
+                                isFaulty: random() > 0.6,
+                                baseIntensity: 0.5,
+                                targetIntensity: 0.5,
+                                currentIntensity: 0.5
+                            });
+                        } else {
+                            const clutterRoll = random();
+                            if (clutterRoll > 0.65) {
+                                const isRotated = random() > 0.5;
+                                const screenW = isRotated ? 0.1 : this.cellSize * 0.8;
+                                const screenD = isRotated ? this.cellSize * 0.8 : 0.1;
+
+                                const screen = new THREE.Mesh(new THREE.BoxGeometry(screenW, 2.4, screenD), this.fabricMat);
+                                screen.position.set(x * this.cellSize, 1.2, z * this.cellSize);
+                                addGeometry(screen);
+                            } else if (clutterRoll > 0.50) {
+                                const boxCount = Math.floor(random() * 3) + 1;
+                                for(let i = 0; i < boxCount; i++) {
+                                    const mBox = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.6), this.woodMat);
+                                    mBox.position.set(x * this.cellSize + (random() * 0.4 - 0.2), 0.25 + (i * 0.5), z * this.cellSize + (random() * 0.4 - 0.2));
+                                    mBox.rotation.y = random() * Math.PI;
+                                    mBox.rotation.x = random() > 0.8 ? Math.PI / 2 : 0;
+                                    addGeometry(mBox);
+                                }
+                            } else if (clutterRoll > 0.40) {
+                                const chair = buildChair(x * this.cellSize, 0, z * this.cellSize, random() * Math.PI * 2);
+                                addFurniture(chair);
+                            }
+                        }
                     }
                 }
             },
@@ -826,41 +863,45 @@ export default class Environment {
                 name: "THE ARCHIVE",
                 prob: 0.17,
                 foundationMat: this.structMat,
-                build: (x, z, localX, localZ) => {
-                    let isArchivePillar = false;
-                    if (localX % 5 >= 1 && localX % 5 <= 3 && localZ % 2 === 0 && localX > 0 && localX < 15 && localZ > 0 && localZ < 15) {
-                        isArchivePillar = true;
+                build: (x, z, localX, localZ, maze) => {
+                    const isWall = maze && maze[localX][localZ];
 
-                        const rack = buildWall(this.cellSize, 0.9, this.structMat);
+                    if (isWall) {
+                        // Monolithic Shelving Unit
+                        const rack = buildWall(this.cellSize * 0.95, this.cellSize * 0.95, this.structMat);
                         rack.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                        rack.userData.isEntityBlocker = true; // The Entity gets trapped in the maze too
                         addGeometry(rack);
 
+                        // Populate with scattered boxes at various heights
                         for (let h = 0.4; h < 2.8; h += 0.6) {
-                            if (random() > 0.3) {
+                            if (random() > 0.4) {
                                 const boxW = 0.5 + random() * 0.5;
                                 const box = new THREE.Mesh(new THREE.BoxGeometry(boxW, 0.45, 0.65), this.woodMat);
-                                box.position.set(x * this.cellSize + (random() - 0.5), h, z * this.cellSize + (random() * 0.15 - 0.075));
-                                box.rotation.y = (random() - 0.5) * 0.3;
+                                box.position.set(x * this.cellSize + (random() * 0.4 - 0.2), h, z * this.cellSize + (random() * 0.4 - 0.2));
+                                box.rotation.y = (random() - 0.5) * 0.5;
                                 addGeometry(box);
                             }
                         }
-                    }
-                    if (!isArchivePillar && localX % 4 === 2 && localZ % 4 === 2 && random() > 0.5) {
-                        const activeMat = this.baseBrokenLightMat.clone();
-                        const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
-                        panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
-                        chunkGroup.add(panel);
-                        this.walls.push(panel);
-                        this.fixtureData.push({
-                            chunkHash: hash,
-                            position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
-                            flickerOffset: random() * 500,
-                            material: activeMat,
-                            isFaulty: true,
-                            baseIntensity: 0.1,
-                            targetIntensity: 0.1,
-                            currentIntensity: 0.1
-                        });
+                    } else {
+                        // Corridor / Path
+                        if (random() > 0.85) {
+                            const activeMat = this.baseBrokenLightMat.clone();
+                            const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                            panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
+                            chunkGroup.add(panel);
+                            this.walls.push(panel);
+                            this.fixtureData.push({
+                                chunkHash: hash,
+                                position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
+                                flickerOffset: random() * 500,
+                                material: activeMat,
+                                isFaulty: true,
+                                baseIntensity: 0.1,
+                                targetIntensity: 0.1,
+                                currentIntensity: 0.1
+                            });
+                        }
                     }
                 }
             },
@@ -868,50 +909,43 @@ export default class Environment {
                 name: "THE SERVER FARM",
                 prob: 0.17,
                 foundationMat: this.ventMat,
-                build: (x, z, localX, localZ) => {
-                    if (localX % 4 >= 1 && localX % 4 <= 2 && localZ > 1 && localZ < 14) {
-                        const rack = buildWall(this.cellSize, this.cellSize, this.serverMat);
+                build: (x, z, localX, localZ, maze) => {
+                    const isWall = maze && maze[localX][localZ];
+
+                    if (isWall) {
+                        // Dense Server Rack
+                        const rack = buildWall(this.cellSize * 0.85, this.cellSize * 0.85, this.serverMat);
                         rack.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                        rack.userData.isEntityBlocker = true;
                         addGeometry(rack);
-                        if (localX % 4 === 1) {
+                    } else {
+                        // Paths get overhead coolant pipes and occasional red emergency lights
+                        if (random() > 0.3) {
                             const pipe = new THREE.Mesh(this.pipeGeo, this.rustMat);
-                            pipe.rotation.y = Math.PI / 2;
-                            pipe.position.set(x * this.cellSize - (this.cellSize / 2) + 0.1, 2.9, z * this.cellSize);
+                            pipe.rotation.y = random() > 0.5 ? Math.PI / 2 : 0;
+                            pipe.position.set(x * this.cellSize, 2.9, z * this.cellSize);
                             addGeometry(pipe);
-                            const joint = new THREE.Mesh(this.pipeJointGeo, this.rustMat);
-                            joint.rotation.y = Math.PI / 2;
-                            joint.position.set(x * this.cellSize - (this.cellSize / 2) + 0.1, 2.9, z * this.cellSize - (this.cellSize / 2));
-                            addGeometry(joint);
                         }
-                        if (localX % 4 === 2) {
-                            const pipe = new THREE.Mesh(this.pipeGeo, this.rustMat);
-                            pipe.rotation.y = Math.PI / 2;
-                            pipe.position.set(x * this.cellSize + (this.cellSize / 2) - 0.1, 2.9, z * this.cellSize);
-                            addGeometry(pipe);
-                            const joint = new THREE.Mesh(this.pipeJointGeo, this.rustMat);
-                            joint.rotation.y = Math.PI / 2;
-                            joint.position.set(x * this.cellSize + (this.cellSize / 2) - 0.1, 2.9, z * this.cellSize - (this.cellSize / 2));
-                            addGeometry(joint);
+
+                        if (random() > 0.8) {
+                            const activeMat = this.baseLightMat.clone();
+                            activeMat.color.setHex(0xff3333);
+                            activeMat.emissive.setHex(0xff0000);
+                            const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                            panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
+                            chunkGroup.add(panel);
+                            this.walls.push(panel);
+                            this.fixtureData.push({
+                                chunkHash: hash,
+                                position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
+                                flickerOffset: random() * 500,
+                                material: activeMat,
+                                isFaulty: random() > 0.6,
+                                baseIntensity: 0.4,
+                                targetIntensity: 0.4,
+                                currentIntensity: 0.4
+                            });
                         }
-                    }
-                    if (localX % 4 === 0 && localZ % 3 === 0 && random() > 0.3) {
-                        const activeMat = this.baseLightMat.clone();
-                        activeMat.color.setHex(0xff3333);
-                        activeMat.emissive.setHex(0xff0000);
-                        const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
-                        panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
-                        chunkGroup.add(panel);
-                        this.walls.push(panel);
-                        this.fixtureData.push({
-                            chunkHash: hash,
-                            position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
-                            flickerOffset: random() * 500,
-                            material: activeMat,
-                            isFaulty: random() > 0.6,
-                            baseIntensity: 0.4,
-                            targetIntensity: 0.4,
-                            currentIntensity: 0.4
-                        });
                     }
                 }
             },
@@ -919,36 +953,67 @@ export default class Environment {
                 name: "THE MAINTENANCE SHAFTS",
                 prob: 0.08,
                 foundationMat: this.ventMat,
-                build: (x, z, localX, localZ) => {
-                    if (localX % 3 === 0 || localZ % 3 === 0) {
-                        const isNode = localX % 3 === 0 && localZ % 3 === 0;
-                        const w = isNode ? this.cellSize * 0.9 : this.cellSize;
-                        const d = isNode ? this.cellSize * 0.9 : 0.4;
-                        const wall = buildWall(w, isNode ? d : (localX % 3 === 0 ? this.cellSize : 0.4), isNode ? this.hazardMat : this.structMat);
-                        wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
-                        addGeometry(wall);
+                build: (x, z, localX, localZ, maze) => {
+                    const isWall = maze && maze[localX][localZ];
 
-                        if (!isNode && random() > 0.5) {
-                            const pipe = new THREE.Mesh(this.pipeGeo, this.rustMat);
-                            pipe.rotation.y = localX % 3 === 0 ? 0 : Math.PI / 2;
-                            pipe.position.set(x * this.cellSize, 2.8, z * this.cellSize);
-                            addGeometry(pipe);
+                    if (isWall) {
+                        const block = buildWall(this.cellSize, this.cellSize, this.structMat);
+                        block.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                        block.userData.isEntityBlocker = true;
+                        addGeometry(block);
+                    } else {
+                        if (random() > 0.4) {
+                            const isZWall = random() > 0.5;
+                            const offset = random() > 0.5 ? 1.8 : -1.8;
+                            const trim = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize, 0.1, 0.4), this.hazardMat);
+                            if (isZWall) {
+                                trim.rotation.y = Math.PI / 2;
+                                trim.position.set(x * this.cellSize + offset, 0.05, z * this.cellSize);
+                            } else {
+                                trim.position.set(x * this.cellSize, 0.05, z * this.cellSize + offset);
+                            }
+                            addGeometry(trim);
                         }
-                    } else if (localX % 3 === 1 && localZ % 3 === 1 && random() > 0.8) {
-                        const activeMat = this.baseBrokenLightMat.clone();
-                        const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
-                        panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
-                        chunkGroup.add(panel);
-                        this.fixtureData.push({
-                            chunkHash: hash,
-                            position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
-                            flickerOffset: random() * 500,
-                            material: activeMat,
-                            isFaulty: true,
-                            baseIntensity: 0.1,
-                            targetIntensity: 0.1,
-                            currentIntensity: 0.1
-                        });
+
+                        if (random() > 0.2) {
+                            const pipe = new THREE.Mesh(this.pipeGeo, this.rustMat);
+                            const isZWall = random() > 0.5;
+                            const offset = random() > 0.5 ? 1.8 : -1.8;
+                            if (isZWall) {
+                                pipe.rotation.y = Math.PI / 2;
+                                pipe.position.set(x * this.cellSize + offset, 2.8, z * this.cellSize);
+                            } else {
+                                pipe.position.set(x * this.cellSize, 2.8, z * this.cellSize + offset);
+                            }
+                            addGeometry(pipe);
+
+                            if (random() > 0.4) {
+                                const joint = new THREE.Mesh(this.pipeJointGeo, this.rustMat);
+                                joint.rotation.y = pipe.rotation.y;
+                                joint.position.copy(pipe.position);
+                                addGeometry(joint);
+                            }
+                        }
+
+                        if (random() > 0.7) {
+                            const activeMat = this.baseLightMat.clone();
+                            activeMat.color.setHex(0xffaa00);
+                            activeMat.emissive.setHex(0xaa5500);
+                            const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                            panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
+                            chunkGroup.add(panel);
+                            this.walls.push(panel);
+                            this.fixtureData.push({
+                                chunkHash: hash,
+                                position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
+                                flickerOffset: random() * 500,
+                                material: activeMat,
+                                isFaulty: true,
+                                baseIntensity: 0.25,
+                                targetIntensity: 0.25,
+                                currentIntensity: 0.25
+                            });
+                        }
                     }
                 }
             },
@@ -996,7 +1061,10 @@ export default class Environment {
             }
         ];
         const isMacroStructure = random() > 0.90 && (Math.abs(chunkX) > 0 || Math.abs(chunkZ) > 0);
+
         let activeSector = null;
+        let sectorMaze = null;
+
         if (isMacroStructure) {
             const sectorRoll = random();
             let cumulative = 0;
@@ -1008,6 +1076,39 @@ export default class Environment {
                 }
             }
             if (!activeSector) activeSector = sectorMatrix[0];
+
+            if (activeSector.name === "THE ARCHIVE" || activeSector.name === "THE SERVER FARM" || activeSector.name === "THE MAINTENANCE SHAFTS") {
+                sectorMaze = Array(this.chunkSize).fill().map(() => Array(this.chunkSize).fill(true));
+
+                const carve = (cx, cz) => {
+                    sectorMaze[cx][cz] = false;
+                    const dirs = [[0, -2], [2, 0], [0, 2], [-2, 0]];
+                    dirs.sort(() => random() - 0.5); // Deterministic PRNG shuffle
+
+                    for (let [dx, dz] of dirs) {
+                        const nx = cx + dx, nz = cz + dz;
+                        if (nx > 0 && nx < this.chunkSize && nz > 0 && nz < this.chunkSize && sectorMaze[nx][nz]) {
+                            sectorMaze[cx + dx/2][cz + dz/2] = false; // Knock down the wall between
+                            carve(nx, nz);
+                        }
+                    }
+                };
+                carve(1, 1);
+
+                for(let i = 0; i < 20; i++) {
+                    let rx = Math.floor(random() * (this.chunkSize - 2)) + 1;
+                    let rz = Math.floor(random() * (this.chunkSize - 2)) + 1;
+                    sectorMaze[rx][rz] = false;
+                }
+
+                for(let i = 1; i < this.chunkSize - 1; i+=3) {
+                    sectorMaze[i][0] = false;
+                    sectorMaze[i][this.chunkSize - 1] = false;
+                    sectorMaze[0][i] = false;
+                    sectorMaze[this.chunkSize - 1][i] = false;
+                }
+            }
+
             const foundationGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
             const foundation = new THREE.Mesh(foundationGeo, activeSector.foundationMat);
             foundation.rotation.x = -Math.PI / 2;
@@ -1022,7 +1123,7 @@ export default class Environment {
                 const localX = x - startX;
                 const localZ = z - startZ;
                 if (isMacroStructure) {
-                    activeSector.build(x, z, localX, localZ);
+                    activeSector.build(x, z, localX, localZ, typeof sectorMaze !== 'undefined' ? sectorMaze : null);
                     continue;
                 }
                 let zx = x * 0.15;
@@ -1186,6 +1287,14 @@ export default class Environment {
 
     updateEntity(playerPos, delta, time) {
         if (!this.entityActive) return;
+
+        this.breadcrumbTimer = (this.breadcrumbTimer || 0) + delta;
+        if (this.breadcrumbTimer > 0.5 && this.entityBacktrackTimer <= 0) {
+            this.breadcrumbTimer = 0;
+            this.entityBreadcrumbs.push(this.entityGroup.position.clone());
+            if (this.entityBreadcrumbs.length > 20) this.entityBreadcrumbs.shift();
+        }
+
         this.entityCore.rotation.y = time * 0.8;
         this.entityCore.rotation.x = time * 0.5;
         const pulse = 1.0 + Math.sin(time * 4.0) * 0.15;
@@ -1207,8 +1316,22 @@ export default class Environment {
             return {consumed: true};
         }
         if (distToPlayerSq < 1600.0) {
-            this.entityTarget.copy(playerPos);
-            this.player.isChased = true;
+            if (this.entityBacktrackTimer > 0) {
+                this.entityBacktrackTimer -= delta;
+                if (this.entityBreadcrumbs.length > 0) {
+                    const targetCrumb = this.entityBreadcrumbs[this.entityBreadcrumbs.length - 1];
+                    this.entityTarget.copy(targetCrumb);
+                    if (this.entityGroup.position.distanceToSquared(targetCrumb) < 1.0) {
+                        this.entityBreadcrumbs.pop();
+                    }
+                } else {
+                    this.entityBacktrackTimer = 0;
+                }
+                this.player.isChased = false;
+            } else {
+                this.entityTarget.copy(playerPos);
+                this.player.isChased = true;
+            }
         } else {
             this.player.isChased = false;
             if (Math.random() < 0.02) {
@@ -1265,7 +1388,9 @@ export default class Environment {
                 } else if (!blockedZ && blockedX) {
                     this.entityGroup.position.z += moveVec.z;
                 } else {
-                    // True corner trap. Inject localized lateral drift to slide off the vertex.
+                    if (this.entityBacktrackTimer <= 0) {
+                        this.entityBacktrackTimer = 5.0;
+                    }
                     this.entityGroup.position.x += (Math.random() - 0.5) * speed * delta;
                     this.entityGroup.position.z += (Math.random() - 0.5) * speed * delta;
                 }
@@ -1397,6 +1522,9 @@ export default class Environment {
             } else if (sectorRoll <= 0.83) {
                 activeSector = "SERVER";
                 targetFog = 0.08;
+            } else if (sectorRoll <= 0.91) {
+                activeSector = "MAINTENANCE";
+                targetFog = 0.10;
             } else {
                 activeSector = "ATRIUM";
                 targetFog = 0.18;

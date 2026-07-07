@@ -1,5 +1,14 @@
 # Level 0 Engine Changelog
 
+## [v0.2.2] - 2026-07-07
+
+### Added
+- [ENTITY] The Minotaur Override: The Null Anomaly now possesses short-term spatial memory. It drops mathematical breadcrumbs while hunting and will actively reverse its polarity to navigate out of enclosed labyrinths and dead ends.
+- [WEBGL] The Slender Effect: Routed the `anomalyPressure` telemetry directly into the Post-Processing pipeline. Proximity to the entity now violently degrades the optical shader, inducing horizontal V-Hold tearing, severe chromatic aberration, exponential static grain, and luminance desaturation.
+
+### Changed
+- [MECHANICS] True Piezoelectric Flashlight: Excised the passive battery recovery timer. The flashlight battery now mathematically requires physical kinetic input to recharge. Players must actively sprint through the dark or violently shake their viewport (angular camera velocity) to generate voltage.
+
 ## [v0.2.1] - 2026-07-07
 
 ### Added

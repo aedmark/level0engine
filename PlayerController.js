@@ -292,8 +292,18 @@ export default class PlayerController {
                 const flashBtn = document.getElementById('mobile-flashlight');
                 if (flashBtn) flashBtn.classList.remove('active');
             }
+            this._lastRotY = this.camera.rotation.y;
+            this._lastRotX = this.camera.rotation.x;
         } else {
-            this.flashlightBattery = Math.min(100.0, this.flashlightBattery + 0.8 * delta);
+            const actualSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
+            const angularSpeed = Math.abs(this.camera.rotation.y - (this._lastRotY || this.camera.rotation.y)) +
+                Math.abs(this.camera.rotation.x - (this._lastRotX || this.camera.rotation.x));
+
+            this._lastRotY = this.camera.rotation.y;
+            this._lastRotX = this.camera.rotation.x;
+
+            const kineticCharge = (actualSpeed * 0.15) + (angularSpeed * 20.0);
+            this.flashlightBattery = Math.min(100.0, this.flashlightBattery + (kineticCharge * delta));
         }
 
         const fatigueRatio = this.stamina / this.maxStamina;

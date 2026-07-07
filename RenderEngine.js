@@ -34,7 +34,8 @@ export default class RenderEngine {
                 tDiffuse: {value: this.target.texture},
                 time: {value: 0.0},
                 exhaustion: {value: 0.0},
-                squeeze: {value: 0.0}
+                squeeze: {value: 0.0},
+                anomaly: {value: 0.0}
             },
             vertexShader: `
                 varying vec2 vUv;
@@ -48,6 +49,7 @@ export default class RenderEngine {
                 uniform float time;
                 uniform float exhaustion;
                 uniform float squeeze;
+                uniform float anomaly;
                 varying vec2 vUv;
                 
                 float random(vec2 st) {
@@ -57,7 +59,12 @@ export default class RenderEngine {
                 void main() {
                     vec2 uv = vUv;
                     
-                    vec2 offset = vec2(0.001 + (squeeze * 0.004), 0.0) * (uv.x - 0.5) * 2.0; 
+                    if (anomaly > 0.01) {
+                        float tear = step(0.9, sin(uv.y * 40.0 + time * 15.0));
+                        uv.x += tear * (random(vec2(time)) - 0.5) * anomaly * 0.3;
+                    }
+
+                    vec2 offset = vec2(0.001 + (squeeze * 0.004) + (anomaly * 0.04), 0.0) * (uv.x - 0.5) * 2.0; 
                     float blurAmt = exhaustion * 0.012; 
                     vec3 col = vec3(0.0);
                     
@@ -78,10 +85,9 @@ export default class RenderEngine {
                     }
                     
                     float noise = random(uv + mod(time, 10.0));
-                    
                     float luminance = dot(col, vec3(0.299, 0.587, 0.114));
                     
-                    col -= (noise * 0.12) * (1.0 - luminance);
+                    col -= (noise * (0.12 + anomaly * 0.8)) * (1.0 - luminance);
                     
                     float scanline = sin(gl_FragCoord.y * 1.5 - time * 10.0) * 0.04;
                     col -= scanline * luminance;
@@ -91,6 +97,9 @@ export default class RenderEngine {
                     
                     float lateralDist = abs(uv.x - 0.5);
                     col *= mix(1.0, smoothstep(0.45, 0.15, lateralDist), squeeze);
+
+                    // OPTICAL PANIC: Crush the colors into a desaturated nightmare near death
+                    col = mix(col, vec3(luminance * 0.6), anomaly * 0.85);
                     
                     col = smoothstep(0.0, 1.0, col);
                     
@@ -146,6 +155,7 @@ export default class RenderEngine {
         this.postMaterial.uniforms.time.value = this.time;
         this.postMaterial.uniforms.exhaustion.value = this.exhaustion;
         this.postMaterial.uniforms.squeeze.value = this.squeeze || 0.0;
+        this.postMaterial.uniforms.anomaly.value = this.anomaly || 0.0; // NEW
         this.renderer.setRenderTarget(null);
         this.renderer.render(this.postScene, this.postCamera);
     }

@@ -120,6 +120,9 @@ function animate() {
 
     const telemetry = environment.updateLights(time);
     acoustics.update(telemetry);
+
+    engine.anomaly = telemetry.anomalyPressure;
+
     document.getElementById('coords').innerText = `X: ${engine.camera.position.x.toFixed(2)} | Z: ${engine.camera.position.z.toFixed(2)}`;
 
     const batReadout = document.getElementById('battery-readout');
