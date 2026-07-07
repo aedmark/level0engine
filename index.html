@@ -6,6 +6,7 @@
     <title>Level 0 Engine</title>
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#000000">
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <script src="./three.min.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
@@ -145,43 +146,78 @@
             16% { opacity: 0.9; }
         }
 
-        .status-bar {
+        .osd-element {
             position: absolute;
+            color: #ffffff;
+            font-family: 'VT323', monospace;
+            font-size: 2.2rem;
+            letter-spacing: 0.05em;
+            opacity: 0.9;
+            text-shadow: 2px 2px 0px rgba(0,0,0,1), 0 0 8px rgba(255,255,255,0.8), 0 0 15px rgba(255,255,255,0.4);
+            z-index: 10;
+            pointer-events: none;
+            animation: phosphor-flicker 120s infinite;
+        }
+
+        #vhs-time {
+            top: 2rem;
+            right: 3rem;
+            text-align: right;
+            line-height: 1.0;
+        }
+
+        .status-bar {
             bottom: 2rem;
             left: 0;
             width: 100%;
             padding: 0 3rem;
             box-sizing: border-box;
-
-            /* The Phosphor Burn */
-            color: #ffffff;
-            font-size: 1.5rem;
-            font-weight: bold;
-            letter-spacing: 0.05em;
-            opacity: 0.9;
-
-            /* Tri-layer Shadow: Hard black drop, intense inner bloom, soft outer halo */
-            text-shadow:
-                    2px 2px 0px rgba(0,0,0,1),
-                    0 0 8px rgba(255,255,255,0.8),
-                    0 0 15px rgba(255,255,255,0.4);
-
             display: flex;
-            justify-content: space-between;
-            z-index: 10;
-            pointer-events: none;
+            justify-content: flex-start;
+            align-items: flex-end;
+        }
 
-            /* Apply the instability loop */
-            animation: phosphor-flicker 120s infinite;
+        #coords {
+            font-size: 1.2rem;
+            opacity: 0.6;
+        }
+
+        /* Visual VHS Battery */
+        #battery-wrapper {
+            top: 2rem;
+            left: 3rem;
+            display: flex;
+            align-items: center;
+            filter: drop-shadow(2px 2px 0px rgba(0,0,0,1)) drop-shadow(0 0 8px rgba(255,255,255,0.8));
+        }
+        #battery-body {
+            width: 50px;
+            height: 22px;
+            border: 2px solid #fff;
+            padding: 2px;
+            box-sizing: border-box;
+        }
+        #battery-level {
+            width: 100%;
+            height: 100%;
+            background-color: #fff;
+            transition: width 0.2s linear, background-color 0.2s;
+        }
+        #battery-tip {
+            width: 4px;
+            height: 10px;
+            background-color: #fff;
         }
 
         /* Responsive Scaling for Mobile Landscape */
         @media (max-width: 900px), (max-height: 500px) {
-            .status-bar {
-                font-size: 0.5rem; /* Drastically scale down the text */
-                padding: 0 1.2rem; /* Reduce the horizontal padding */
-                bottom: 1rem;      /* Tuck the text closer to the bottom edge */
-            }
+            .osd-element { font-size: 1.2rem; }
+            #vhs-time { top: 1rem; right: 1.2rem; }
+            .status-bar { padding: 0 1.2rem; bottom: 1rem; }
+            #coords { font-size: 0.8rem; }
+            #battery-wrapper { top: 1rem; left: 1.2rem; }
+            #battery-body { width: 30px; height: 14px; border-width: 1px; padding: 1px; }
+            #battery-tip { width: 2px; height: 6px; }
         }
 
         /* CSS based VHS Grain and Vignette */
@@ -374,9 +410,14 @@
     <div id="flash-overlay"></div>
 
     <!-- Burn the text directly into the cinematic frame -->
-    <div class="status-bar">
-        <span id="vhs-time">AM 12:00:00 &nbsp;&nbsp; JAN 01 1997</span>
-        <span id="battery-readout">BAT: 100%</span>
+    <span id="vhs-time" class="osd-element">AM 12:00:00 &nbsp;&nbsp; JAN 01 1997</span>
+
+    <div id="battery-wrapper" class="osd-element">
+        <div id="battery-body"><div id="battery-level"></div></div>
+        <div id="battery-tip"></div>
+    </div>
+
+    <div class="status-bar osd-element">
         <span id="coords">X: 0.00 | Z: 0.00</span>
     </div>
 </div>
@@ -384,7 +425,7 @@
 <div id="ui-layer">
     <button id="menuToggleBtn" class="btn">MENU</button>
     <div class="control-panel">
-        <h1>LEVEL 0 ENGINE v0.2.4</h1>
+        <h1>LEVEL 0 ENGINE v0.2.5</h1>
 
         <label>Architecture Seed (String)</label>
         <input type="text" id="seedInput" value="APPLEBUTTER">
@@ -412,6 +453,12 @@
             <option value="0.5">50% (Retro / Performance)</option>
             <option value="0.25">25% (PS1 / Extreme Performance)</option>
         </select>
+
+        <label>Master Volume (%)</label>
+        <input type="range" id="volumeSlider" min="0" max="100" value="100">
+
+        <label>Gamma (Exposure)</label>
+        <input type="range" id="gammaSlider" min="10" max="300" value="120">
 
         <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; cursor: pointer;">
             <input type="checkbox" id="headBobToggle" checked style="width: auto; margin: 0;">

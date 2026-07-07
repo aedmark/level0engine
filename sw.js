@@ -1,6 +1,6 @@
 // sw.js - Thermodynamic Cache
 
-const CACHE_NAME = '024';
+const CACHE_NAME = '025';
 const ASSETS = [
     './',
     './index.html',

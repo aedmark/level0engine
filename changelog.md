@@ -1,5 +1,23 @@
 # Level 0 Engine Changelog
 
+## [v0.2.5] - 2026-07-07
+
+### Added
+
+- [UI] Hardware Control Expose: Injected systemic range inputs for Master Volume and Gamma (Exposure) into the DOM, tethering them directly to the `toneMappingExposure` and DSP `masterGain` chokepoints.
+- [AUDIO] Master Headroom Expansion: Established a unified `masterGain` amplification node, mathematically shifting the absolute volume ceiling by 250% to accommodate weak hardware constraints without flattening dynamic range.
+
+### Changed
+
+- [ARCHITECTURE] Parallel Geodesic Plumbing: Severed the rigid center-line pipe generation causing Z-fighting with ceiling fixtures. Pipelines in the Server Farm and Maintenance Shafts now route on a parallel Cartesian shift (`offset = 0.9` and `-1.1`), maintaining topological continuity while physically skirting electrical housings.
+- [AUDIO] Somatic Surface Topology: Amputated the Clinic and Boardroom from the `isWet` Poolrooms acoustic evaluation. Tile traversal now utilizes a distinct 1800Hz low-pass filter and a 140Hz fundamental sine pitch to simulate dense, dry footwear impacts.
+- [AUDIO] Transient Punctuation: Quadrupled the base amplitude vector for player foley events (`gainNode.gain.linearRampToValueAtTime`), allowing physical footsteps to mathematically crack through the heavy 60Hz ambient server hum.
+
+### Fixed
+
+- [INPUT] Semantic Scope Hemorrhage: Implemented a strict active-element guard clause (`document.activeElement.tagName === 'INPUT'`). The physics engine is now biologically blinded to keystrokes intended for HTML text inputs, preventing traversal events from firing while editing the generation seed.
+- [GEOMETRY] Intersection Bleeding: Retracted pipe cylinder elongation and re-instantiated structural junction boxes (`pipeJunctionGeo`) at Cartesian intersections, guaranteeing continuous 90-degree plumbing elbows without overlapping vertices into adjacent open corridors.
+
 ## [v0.2.4] - 2026-07-07
 
 ### Added

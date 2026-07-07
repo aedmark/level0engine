@@ -167,6 +167,7 @@ export default class PlayerController {
     }
 
     onKeyDown(event) {
+        if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
         const key = event.code;
         if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyQ', 'KeyF'].includes(key)) {
             event.preventDefault();
@@ -201,6 +202,7 @@ export default class PlayerController {
     }
 
     onKeyUp(event) {
+        if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
         if (event.key === 'Shift') this.isRunning = false;
         if (event.code === 'KeyQ') this.squeezeIntent = false;
         switch (event.code) {

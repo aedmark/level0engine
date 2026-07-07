@@ -5,6 +5,7 @@ export default class AcousticEngine {
     constructor() {
         this.initialized = false;
         this.ctx = null;
+        this.masterVolume = 1.0;
         this._cache = new Map();
         this.sectors = {
             "NORMAL": { noise: 0.0, peace: 0.0, rumble: 60, freq: 250, freqOcc: 120, whine: 0.0005, whineOcc: 0.0001, dynamicWhine: true },
@@ -23,6 +24,9 @@ export default class AcousticEngine {
         this.initialized = true;
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         this.ctx = new AudioContext();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = this.masterVolume * 2.5;
+        this.masterGain.connect(this.ctx.destination);
         this.subRumble = this.ctx.createOscillator();
         this.subRumble.type = 'sine';
         this.subRumble.frequency.value = 60;
@@ -69,14 +73,14 @@ export default class AcousticEngine {
         this.atriumGain.gain.value = 0.0;
         this.noiseSrc.connect(this.noiseFilter);
         this.noiseFilter.connect(this.atriumGain);
-        this.atriumGain.connect(this.ctx.destination);
+        this.atriumGain.connect(this.masterGain);
         this.peaceOsc = this.ctx.createOscillator();
         this.peaceOsc.type = 'sine';
         this.peaceOsc.frequency.value = 432;
         this.peaceGain = this.ctx.createGain();
         this.peaceGain.gain.value = 0.0;
         this.peaceOsc.connect(this.peaceGain);
-        this.peaceGain.connect(this.ctx.destination);
+        this.peaceGain.connect(this.masterGain);
         this.entityOsc = this.ctx.createOscillator();
         this.entityOsc.type = 'sawtooth';
         this.entityOsc.frequency.value = 40;
@@ -90,11 +94,11 @@ export default class AcousticEngine {
         this.entityGain = this.ctx.createGain();
         this.entityGain.gain.value = 0.0;
         this.entityOsc.connect(this.entityGain);
-        this.entityGain.connect(this.ctx.destination);
+        this.entityGain.connect(this.masterGain);
         this.subRumble.connect(this.mainGain);
         this.kineticFilter.connect(this.mainGain);
         this.whineGain.connect(this.mainGain);
-        this.mainGain.connect(this.ctx.destination);
+        this.mainGain.connect(this.masterGain);
         const t = this.ctx.currentTime;
         this.mainGain.gain.setValueAtTime(0, t);
         this.whineGain.gain.setValueAtTime(0, t);
@@ -155,13 +159,14 @@ export default class AcousticEngine {
         const distScalar = Math.max(0, 1.0 - (Math.sqrt(distanceSq) / 40.0));
         if (distScalar <= 0.01) return;
         const gainNode = this.ctx.createGain();
-        gainNode.connect(this.ctx.destination);
+        gainNode.connect(this.masterGain);
         if (type === 'step') {
-            const isWet = this.currentSector === "POOLROOMS" || this.currentSector === "CLINIC";
+            const isWet = this.currentSector === "POOLROOMS";
+            const isTile = this.currentSector === "CLINIC" || this.currentSector === "BOARDROOM";
             const isMetal = this.currentSector === "MAINTENANCE";
             const osc = this.ctx.createOscillator();
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(isMetal ? 120 : 80, t);
+            osc.frequency.setValueAtTime(isMetal ? 120 : (isTile ? 140 : 80), t);
             osc.frequency.exponentialRampToValueAtTime(20, t + 0.1);
             const noise = this.ctx.createBufferSource();
             noise.buffer = this.noiseSrc.buffer;
@@ -172,6 +177,9 @@ export default class AcousticEngine {
             } else if (isMetal) {
                 noiseFilter.type = 'bandpass';
                 noiseFilter.frequency.value = 800;
+            } else if (isTile) {
+                noiseFilter.type = 'lowpass';
+                noiseFilter.frequency.value = 1800;
             } else {
                 noiseFilter.type = 'lowpass';
                 noiseFilter.frequency.value = 1200;
@@ -180,7 +188,7 @@ export default class AcousticEngine {
             noiseFilter.connect(gainNode);
             osc.connect(gainNode);
             gainNode.gain.setValueAtTime(0, t);
-            gainNode.gain.linearRampToValueAtTime((isWet ? 0.04 : 0.02) * intensity * distScalar, t + 0.02);
+            gainNode.gain.linearRampToValueAtTime((isWet ? 0.16 : (isTile ? 0.12 : 0.08)) * intensity * distScalar, t + 0.02);
             gainNode.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
             osc.start(t); osc.stop(t + 0.15);
             noise.start(t); noise.stop(t + 0.15);
@@ -203,6 +211,13 @@ export default class AcousticEngine {
             gainNode.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
             osc.start(t); osc.stop(t + 0.5);
             noise.start(t); noise.stop(t + 0.5);
+        }
+    }
+
+    setVolume(val) {
+        this.masterVolume = val;
+        if (this.masterGain) {
+            this.masterGain.gain.setTargetAtTime(val * 2.5, this.ctx.currentTime, 0.1);
         }
     }
 }

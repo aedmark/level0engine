@@ -8,6 +8,7 @@ import AcousticEngine from './AcousticEngine.js';
 
 const engine = new RenderEngine();
 const acoustics = new AcousticEngine();
+window.acoustics = acoustics;
 const player = new PlayerController(engine.camera, engine.renderer.domElement);
 const environment = new Environment(engine, player);
 
@@ -22,10 +23,14 @@ function loadState() {
         document.getElementById('fovSlider').value = state.fov || "75";
         document.getElementById('speedSlider').value = state.speed || "100";
         document.getElementById('resolutionSelect').value = state.res || "1.0";
+        document.getElementById('volumeSlider').value = state.vol !== undefined ? state.vol : "100";
+        document.getElementById('gammaSlider').value = state.gamma || "120";
         document.getElementById('headBobToggle').checked = state.headBob !== false;
         engine.aspectRatio = state.aspect === 'auto' ? 'auto' : parseFloat(state.aspect || 1.3333333333);
         engine.resolutionScale = parseFloat(state.res) || 1.0;
         engine.camera.fov = Number(state.fov) || 75;
+        engine.renderer.toneMappingExposure = (Number(state.gamma) || 120) / 100;
+        acoustics.masterVolume = (state.vol !== undefined ? Number(state.vol) : 100) / 100;
         engine.camera.updateProjectionMatrix();
         player.speedMultiplier = (Number(state.speed) || 100) / 100;
         player.enableHeadBob = state.headBob !== false;
@@ -51,6 +56,8 @@ function saveState() {
         fov: document.getElementById('fovSlider').value,
         speed: document.getElementById('speedSlider').value,
         res: document.getElementById('resolutionSelect').value,
+        vol: document.getElementById('volumeSlider').value,
+        gamma: document.getElementById('gammaSlider').value,
         headBob: document.getElementById('headBobToggle').checked
     };
     localStorage.setItem('level0_state', JSON.stringify(state));
@@ -117,10 +124,16 @@ function animate() {
     acoustics.update(telemetry);
     engine.anomaly = telemetry.anomalyPressure;
     document.getElementById('coords').innerText = `X: ${engine.camera.position.x.toFixed(2)} | Z: ${engine.camera.position.z.toFixed(2)}`;
-    const batReadout = document.getElementById('battery-readout');
-    if (batReadout) {
-        batReadout.innerText = `BAT: ${Math.floor(player.flashlightBattery)}%`;
-        batReadout.style.color = player.flashlightBattery <= 15 ? '#ff5555' : 'inherit';
+    const batLevel = document.getElementById('battery-level');
+    if (batLevel) {
+        batLevel.style.width = `${player.flashlightBattery}%`;
+        if (player.flashlightBattery > 50) {
+            batLevel.style.backgroundColor = '#55ff55';
+        } else if (player.flashlightBattery > 20) {
+            batLevel.style.backgroundColor = '#ffff55';
+        } else {
+            batLevel.style.backgroundColor = '#ff5555';
+        }
     }
 
     if (!player.isRunning) {
@@ -146,7 +159,7 @@ function updateVHSTime() {
     const secs = String(now.getSeconds()).padStart(2, '0');
     const vhsTimeDisplay = document.getElementById('vhs-time');
     if (vhsTimeDisplay) {
-        vhsTimeDisplay.innerText = `${ampm} ${String(hours).padStart(2, '0')}:${mins}:${secs} \u00A0\u00A0 ${month} ${day} ${year}`;
+        vhsTimeDisplay.innerHTML = `${ampm} ${String(hours).padStart(2, '0')}:${mins}:${secs}<br>${month} ${day} ${year}`;
     }
 }
 

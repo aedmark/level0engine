@@ -312,6 +312,12 @@ export default class Environment {
             this.engine.resolutionScale = parseFloat(e.target.value);
             this.engine.resize();
         });
+        document.getElementById('volumeSlider').addEventListener('input', (e) => {
+            if (window.acoustics) window.acoustics.setVolume(Number(e.target.value) / 100);
+        });
+        document.getElementById('gammaSlider').addEventListener('input', (e) => {
+            this.engine.renderer.toneMappingExposure = Number(e.target.value) / 100;
+        });
         document.getElementById('headBobToggle').addEventListener('change', (e) => {
             this.player.enableHeadBob = e.target.checked;
         });
@@ -388,8 +394,10 @@ export default class Environment {
             this.sharedPanelGeo = new THREE.BoxGeometry(0.98, 0.05, 1.98);
             this.pipeGeo = new THREE.CylinderGeometry(0.08, 0.08, this.cellSize, 8);
             this.pipeGeo.rotateZ(Math.PI / 2);
-            this.pipeJointGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.2, 8);
+            this.pipeJointGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.25, 8);
             this.pipeJointGeo.rotateZ(Math.PI / 2);
+            this.pipeJunctionGeo = new THREE.BoxGeometry(0.28, 0.28, 0.28);
+            this.pipeMountGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8);
             this.vPipeGeo = new THREE.CylinderGeometry(0.06, 0.06, 3.0, 8);
             this.rustMat = new THREE.MeshStandardMaterial({
                 color: 0x6b6358,
@@ -975,29 +983,35 @@ export default class Environment {
                         rack.userData.isEntityBlocker = true;
                         addGeometry(rack);
                     } else {
-                        const nWall = localZ > 0 && maze[localX][localZ - 1];
-                        const sWall = localZ < this.chunkSize - 1 && maze[localX][localZ + 1];
-                        const eWall = localX < this.chunkSize - 1 && maze[localX + 1][localZ];
-                        const wWall = localX > 0 && maze[localX - 1][localZ];
-                        if (nWall || sWall) {
-                            const pipe = new THREE.Mesh(this.pipeGeo, this.rustMat);
-                            pipe.position.set(x * this.cellSize, 2.75, z * this.cellSize + (nWall ? -1.2 : 1.2));
-                            addGeometry(pipe);
-                            if (random() > 0.4) {
-                                const joint = new THREE.Mesh(this.pipeJointGeo, this.rustMat);
-                                joint.position.copy(pipe.position);
-                                addGeometry(joint);
-                            }
-                        } else if (eWall || wWall) {
-                            const pipe = new THREE.Mesh(this.pipeGeo, this.rustMat);
-                            pipe.rotation.y = Math.PI / 2;
-                            pipe.position.set(x * this.cellSize + (wWall ? -1.2 : 1.2), 2.75, z * this.cellSize);
-                            addGeometry(pipe);
-                            if (random() > 0.4) {
-                                const joint = new THREE.Mesh(this.pipeJointGeo, this.rustMat);
-                                joint.rotation.y = Math.PI / 2;
-                                joint.position.copy(pipe.position);
-                                addGeometry(joint);
+                        const openE = localX < this.chunkSize - 1 ? !maze[localX + 1][localZ] : !maze[localX][localZ];
+                        const openS = localZ < this.chunkSize - 1 ? !maze[localX][localZ + 1] : !maze[localX][localZ];
+                        const openN = localZ > 0 ? !maze[localX][localZ - 1] : !maze[localX][localZ];
+                        const openW = localX > 0 ? !maze[localX - 1][localZ] : !maze[localX][localZ];
+
+                        const offset = 0.9;
+                        let hasPipes = false;
+                        if (openE) {
+                            const pipeE = new THREE.Mesh(this.pipeGeo, this.rustMat);
+                            pipeE.position.set(x * this.cellSize + (this.cellSize / 2) + offset, 2.75, z * this.cellSize + offset);
+                            addGeometry(pipeE);
+                            hasPipes = true;
+                        }
+                        if (openS) {
+                            const pipeS = new THREE.Mesh(this.pipeGeo, this.rustMat);
+                            pipeS.rotation.y = Math.PI / 2;
+                            pipeS.position.set(x * this.cellSize + offset, 2.75, z * this.cellSize + (this.cellSize / 2) + offset);
+                            addGeometry(pipeS);
+                            hasPipes = true;
+                        }
+
+                        if (hasPipes || openN || openW) {
+                            const mount = new THREE.Mesh(this.pipeMountGeo, this.rustMat);
+                            mount.position.set(x * this.cellSize + offset, 2.9, z * this.cellSize + offset);
+                            addGeometry(mount);
+                            if (random() > 0.1) {
+                                const junction = new THREE.Mesh(this.pipeJunctionGeo, this.rustMat);
+                                junction.position.set(x * this.cellSize + offset, 2.75, z * this.cellSize + offset);
+                                addGeometry(junction);
                             }
                         }
                         if (random() > 0.8) {
@@ -1046,22 +1060,35 @@ export default class Environment {
                             }
                             addGeometry(trim);
                         }
-                        if (random() > 0.2) {
-                            const pipe = new THREE.Mesh(this.pipeGeo, this.rustMat);
-                            const isZWall = random() > 0.5;
-                            const offset = random() > 0.5 ? 1.8 : -1.8;
-                            if (isZWall) {
-                                pipe.rotation.y = Math.PI / 2;
-                                pipe.position.set(x * this.cellSize + offset, 2.8, z * this.cellSize);
-                            } else {
-                                pipe.position.set(x * this.cellSize, 2.8, z * this.cellSize + offset);
-                            }
-                            addGeometry(pipe);
-                            if (random() > 0.4) {
-                                const joint = new THREE.Mesh(this.pipeJointGeo, this.rustMat);
-                                joint.rotation.y = pipe.rotation.y;
-                                joint.position.copy(pipe.position);
-                                addGeometry(joint);
+                        const openE = localX < this.chunkSize - 1 ? !maze[localX + 1][localZ] : !maze[localX][localZ];
+                        const openS = localZ < this.chunkSize - 1 ? !maze[localX][localZ + 1] : !maze[localX][localZ];
+                        const openN = localZ > 0 ? !maze[localX][localZ - 1] : !maze[localX][localZ];
+                        const openW = localX > 0 ? !maze[localX - 1][localZ] : !maze[localX][localZ];
+
+                        const offset = -1.1;
+                        let hasPipes = false;
+                        if (openE) {
+                            const pipeE = new THREE.Mesh(this.pipeGeo, this.rustMat);
+                            pipeE.position.set(x * this.cellSize + (this.cellSize / 2) + offset, 2.8, z * this.cellSize + offset);
+                            addGeometry(pipeE);
+                            hasPipes = true;
+                        }
+                        if (openS) {
+                            const pipeS = new THREE.Mesh(this.pipeGeo, this.rustMat);
+                            pipeS.rotation.y = Math.PI / 2;
+                            pipeS.position.set(x * this.cellSize + offset, 2.8, z * this.cellSize + (this.cellSize / 2) + offset);
+                            addGeometry(pipeS);
+                            hasPipes = true;
+                        }
+
+                        if (hasPipes || openN || openW) {
+                            const mount = new THREE.Mesh(this.pipeMountGeo, this.rustMat);
+                            mount.position.set(x * this.cellSize + offset, 2.925, z * this.cellSize + offset);
+                            addGeometry(mount);
+                            if (random() > 0.1) {
+                                const junction = new THREE.Mesh(this.pipeJunctionGeo, this.rustMat);
+                                junction.position.set(x * this.cellSize + offset, 2.8, z * this.cellSize + offset);
+                                addGeometry(junction);
                             }
                         }
                         if (random() > 0.7) {
