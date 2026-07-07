@@ -1,5 +1,24 @@
 # Level 0 Engine Changelog
 
+## [v0.2.0] - 2026-07-06
+
+### Added
+- [MECHANICS] Kinematic Peek Protocol: Holding Right-Click applies a transient visual offset, allowing the player to physically lean 80cm around corners without exposing their collision cylinder to entities.
+- [MECHANICS] Somatic Inertia & Figure-8 Breathing: Unified the kinematic intent vector to inject physical camera banking during lateral strafing, and replaced the linear head-bob with a compound structural sway curve.
+
+### Changed
+- [WEBGL] Hardware Optic Engine: Upgraded the rendering pipeline to `THREE.ACESFilmicToneMapping` and `THREE.SRGBColorSpace`. Replaced the flat `AmbientLight` with a thermodynamic `HemisphereLight` to restore vertical volume and true physical color saturation.
+- [WEBGL] Photometric Attenuation: Subdued localized fixture intensity and shifted Point/Spot lights to warm tungsten hex codes with strict quadratic physical decay (`2.0`) to stop linear surface bleaching.
+- [WEBGL] Advanced Post-Processing: Replaced bloated 3D PRNG noise with an optimized 2D spatial sine wave. Anchored VHS scanlines to physical monitor pixels (`gl_FragCoord.y`), and mapped grain opacity to inverse-luminance to preserve flashlight contrast.
+- [TEXTURES] Brutalist Wrap & Luminance Depth: Upgraded procedural concrete `structMat` to 512x512 to shatter checkerboard grids, injected seamless X-axis gradient wrapping, and wired diffuse canvases into PBR `bumpMap` slots across the entire pipeline for free geometric variance.
+- [UI] Curated Experience Boundaries: Enforced the 4:3 VHS aspect ratio as the hardcoded systemic default. Tightened UI slider limits (Speed 80-120%, FOV 60-90, Fog 2-8) to prevent players from mathematically neutralizing the psychological horror.
+
+### Fixed
+- [PERFORMANCE] Spatial Grid Memory Autophagy: Eliminated catastrophic Garbage Collection leaks by amputating dynamic `Set` instantiations in the physics loop, replacing them with a rolling O(1) mathematical `queryId` check.
+- [PERFORMANCE] O(1) Audio Raycasting: Decoupled the acoustic occlusion loop from heavy polygon geometry (`intersectObjects`). The audio raycaster now strictly evaluates mathematical AABB vector bounds pulled directly from the Spatial Hash Grid.
+- [PERFORMANCE] Differential Audio Cache: Prevented the Web Audio API from suffocating the browser thread by wrapping `setTargetAtTime` in a discrete state cache. Transferred high-frequency exertion pulse math out of JS and into a native hardware `OscillatorNode`.
+- [PERFORMANCE] Syntactic API Purge: Short-circuited heavy boolean intersections in the physics loop and mathematically grouped thousands of `ctx.fillStyle` Canvas 2D calls to radically accelerate boot-time texture generation.
+
 ## [v0.1.9] - 2026-07-06
 
 ### Added

@@ -192,7 +192,8 @@ export default class Environment {
         this.scene.add(this.dustCloud);
         for (let i = 0; i < this.maxActiveLights; i++) {
             const radius = i < 10 ? 20 : 30;
-            const light = new THREE.PointLight(0xfff5c2, 0, radius);
+            // The Chef: Inject quadratic decay (2.0) and a richer tungsten hue to stop linear wall bleaching
+            const light = new THREE.PointLight(0xffebd6, 0, radius, 2.0);
             if (i < 10) {
                 light.castShadow = true;
                 light.shadow.mapSize.width = 512;
@@ -225,7 +226,8 @@ export default class Environment {
         this.entityTarget = new THREE.Vector3();
 
         this.scene.add(this.camera);
-        this.flashlight = new THREE.SpotLight(0xfffae6, 0.0, 45.0, Math.PI / 7, 0.5, 2.0);
+        // Pinker: Shift the flashlight spectrum from surgical white to warm halogen to preserve texture albedo
+        this.flashlight = new THREE.SpotLight(0xffe8b3, 0.0, 45.0, Math.PI / 7, 0.5, 2.0);
         this.flashlight.position.set(0.3, -0.3, 0);
         this.flashlight.target.position.set(0.3, -0.3, -1);
         this.flashlight.castShadow = true;
@@ -1270,7 +1272,9 @@ export default class Environment {
                     nearestFixture = fixture;
                 }
                 const fadeEnvelope = Math.max(0, Math.min(1, (activeRadius - dist) / 8.0));
-                const intensityScalar = i < 15 ? 1.0 : 0.35;
+
+                // Meadows: Tone down the localized shadow-casters so they don't overpower the new ambient baseline
+                const intensityScalar = i < 15 ? 0.65 : 0.35;
                 if (fixture.isFaulty) {
                     if (Math.random() < 0.02) {
                         fixture.targetIntensity = Math.random() < 0.4 ? 0.05 : fixture.baseIntensity + (Math.random() * 0.4);
@@ -1365,7 +1369,8 @@ export default class Environment {
         }
 
         if (this.flashlight) {
-            let targetIntensity = this.player.flashlightActive ? 1.8 : 0.0;
+            // The Chef: ACES Filmic handles high-end roll-off physically. Drop the beam to 1.1 to cure the close-proximity blowout.
+            let targetIntensity = this.player.flashlightActive ? 1.1 : 0.0;
 
             if (this.player.flashlightActive) {
                 const batteryFactor = Math.min(1.0, this.player.flashlightBattery / 30.0);

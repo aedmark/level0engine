@@ -15,8 +15,18 @@ export default class RenderEngine {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        // The Chef: Cinematic Color & Contrast Engineering
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.2;
+
+        // Note: If you are using an older build of Three.js (pre-r152),
+        // you may need to use this.renderer.outputEncoding = THREE.sRGBEncoding; instead.
+        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
-        const ambient = new THREE.AmbientLight(0xffffe0, 0.15);
+
+        const ambient = new THREE.HemisphereLight(0xfff5c2, 0x2a2515, 0.45);
         this.scene.add(ambient);
         this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
         this.postScene = new THREE.Scene();
@@ -80,10 +90,12 @@ export default class RenderEngine {
                     col -= scanline * luminance;
                     
                     float dist = distance(uv, vec2(0.5));
-                    col *= smoothstep(0.8, 0.25, dist * dist + 0.3);
+                    col *= smoothstep(0.9, 0.25, dist * dist + 0.2); 
                     
                     float lateralDist = abs(uv.x - 0.5);
                     col *= mix(1.0, smoothstep(0.45, 0.15, lateralDist), squeeze);
+                    
+                    col = smoothstep(0.0, 1.0, col);
                     
                     gl_FragColor = vec4(col, 1.0);
                 }
