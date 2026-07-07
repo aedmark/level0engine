@@ -7,6 +7,8 @@ class SpatialHashGrid {
     constructor(cellSize) {
         this.cellSize = cellSize;
         this.cells = new Map();
+        this.queryId = 0;
+        this.queryCache = [];
     }
 
     insert(box) {
@@ -33,10 +35,8 @@ class SpatialHashGrid {
     }
 
     getNearby(x, z, radius) {
-        if (!this.queryCache) this.queryCache = [];
-        if (!this.seenBoxes) this.seenBoxes = new Set();
         this.queryCache.length = 0;
-        this.seenBoxes.clear();
+        this.queryId++;
         const startX = Math.floor((x - radius) / this.cellSize);
         const startZ = Math.floor((z - radius) / this.cellSize);
         const endX = Math.floor((x + radius) / this.cellSize);
@@ -46,8 +46,9 @@ class SpatialHashGrid {
                 const cell = this.cells.get(`${cx},${cz}`);
                 if (cell) {
                     for (const box of cell) {
-                        if (!this.seenBoxes.has(box)) {
-                            this.seenBoxes.add(box);
+                        // O(1) Check: Has this specific box already been processed in this exact frame query?
+                        if (box._queryId !== this.queryId) {
+                            box._queryId = this.queryId;
                             this.queryCache.push(box);
                         }
                     }
@@ -161,14 +162,14 @@ export default class Environment {
         const {carpetTexture, ceilingTexture} = assets;
         carpetTexture.repeat.set(75, 75);
         const floorGeo = new THREE.PlaneGeometry(300, 300);
-        const floorMat = new THREE.MeshStandardMaterial({map: carpetTexture, roughness: 1.0});
+        const floorMat = new THREE.MeshStandardMaterial({map: carpetTexture, roughness: 1.0, bumpMap: carpetTexture, bumpScale: 0.015});
         this.floor = new THREE.Mesh(floorGeo, floorMat);
         this.floor.rotation.x = -Math.PI / 2;
         this.floor.receiveShadow = true;
         this.scene.add(this.floor);
         ceilingTexture.repeat.set(300, 300);
         const ceilGeo = new THREE.PlaneGeometry(300, 300);
-        const ceilMat = new THREE.MeshStandardMaterial({map: ceilingTexture, roughness: 0.9});
+        const ceilMat = new THREE.MeshStandardMaterial({map: ceilingTexture, roughness: 0.9, bumpMap: ceilingTexture, bumpScale: 0.01});
         this.ceiling = new THREE.Mesh(ceilGeo, ceilMat);
         this.ceiling.rotation.x = Math.PI / 2;
         this.ceiling.position.y = 3;
@@ -323,7 +324,9 @@ export default class Environment {
             this.sharedWallMat = new THREE.MeshStandardMaterial({
                 map: this.wallTexture,
                 color: 0xffffff,
-                roughness: 0.8
+                roughness: 0.6,
+                bumpMap: this.wallTexture,
+                bumpScale: 0.010
             });
             this.sharedPanelGeo = new THREE.BoxGeometry(0.98, 0.05, 1.98);
             this.pipeGeo = new THREE.CylinderGeometry(0.08, 0.08, this.cellSize, 8);
@@ -609,7 +612,7 @@ export default class Environment {
 
                     const block1 = buildWall(w1, d1, this.structMat);
                     block1.position.set(x * this.cellSize - (isZ ? offset : 0), 1.5, z * this.cellSize - (isZ ? 0 : offset));
-                    block1.userData.isEntityBlocker = true; // The Anomaly cannot pass dense structure
+                    block1.userData.isEntityBlocker = true;
                     addGeometry(block1);
 
                     const block2 = buildWall(w1, d1, this.structMat);
@@ -1186,9 +1189,34 @@ export default class Environment {
             if (!blocked) {
                 this.entityGroup.position.add(moveVec);
             } else {
-                // Kinetic Deflection: If repelled, force a rapid lateral re-pathing
-                this.entityTarget.x += (Math.random() - 0.5) * 15.0;
-                this.entityTarget.z += (Math.random() - 0.5) * 15.0;
+                // Kinematic Wall-Sliding: Evaluate axes independently to slip around corners
+                let blockedX = false;
+                let blockedZ = false;
+
+                const boxX = entBox.clone();
+                boxX.min.z = this.entityGroup.position.z - 0.6;
+                boxX.max.z = this.entityGroup.position.z + 0.6;
+
+                const boxZ = entBox.clone();
+                boxZ.min.x = this.entityGroup.position.x - 0.6;
+                boxZ.max.x = this.entityGroup.position.x + 0.6;
+
+                for (let i = 0; i < localBoxes.length; i++) {
+                    if (localBoxes[i].isEntityBlocker) {
+                        if (!blockedX && boxX.intersectsBox(localBoxes[i])) blockedX = true;
+                        if (!blockedZ && boxZ.intersectsBox(localBoxes[i])) blockedZ = true;
+                    }
+                }
+
+                if (!blockedX && blockedZ) {
+                    this.entityGroup.position.x += moveVec.x;
+                } else if (!blockedZ && blockedX) {
+                    this.entityGroup.position.z += moveVec.z;
+                } else {
+                    // True corner trap. Inject localized lateral drift to slide off the vertex.
+                    this.entityGroup.position.x += (Math.random() - 0.5) * speed * delta;
+                    this.entityGroup.position.z += (Math.random() - 0.5) * speed * delta;
+                }
             }
         }
         this.entityGroup.position.y = 1.5 + Math.sin(time * 2.0) * 0.2;
@@ -1262,9 +1290,26 @@ export default class Environment {
             if (time - this.lastAudioOcclusionTime > 0.1) {
                 this.audioDirection.subVectors(nearestFixture.position, cameraPos).normalize();
                 this.audioRaycaster.set(cameraPos, this.audioDirection);
-                this.audioRaycaster.far = minLightDist;
-                const hits = this.audioRaycaster.intersectObjects(this.walls);
-                this.currentOcclusionState = hits.length > 0;
+
+                // Cache the target vector to prevent GC allocation spikes
+                if (!this._rayTarget) this._rayTarget = new THREE.Vector3();
+                let isHit = false;
+
+                // Query only the physical bounds within the exact radius of the light
+                const localBoxes = this.spatialGrid.getNearby(cameraPos.x, cameraPos.z, minLightDist);
+                const ray = this.audioRaycaster.ray;
+
+                for (let i = 0; i < localBoxes.length; i++) {
+                    // Fast-Fail AABB Intersection Math
+                    if (ray.intersectBox(localBoxes[i], this._rayTarget)) {
+                        if (cameraPos.distanceToSquared(this._rayTarget) < (minLightDist * minLightDist)) {
+                            isHit = true;
+                            break;
+                        }
+                    }
+                }
+
+                this.currentOcclusionState = isHit;
                 this.lastAudioOcclusionTime = time;
             }
         } else {
@@ -1320,20 +1365,16 @@ export default class Environment {
         }
 
         if (this.flashlight) {
-            // Base brightness heavily reduced from 4.0 to 1.8 for anemic realism
             let targetIntensity = this.player.flashlightActive ? 1.8 : 0.0;
 
             if (this.player.flashlightActive) {
-                // Dim the bulb exponentially as battery drops below 30%
                 const batteryFactor = Math.min(1.0, this.player.flashlightBattery / 30.0);
                 targetIntensity *= (0.1 + 0.9 * batteryFactor);
 
-                // Introduce a dying filament sputter when critically low (< 15%)
                 if (this.player.flashlightBattery < 15.0 && Math.random() > 0.8) {
                     targetIntensity *= 0.1;
                 }
 
-                // Anomaly electromagnetic interference overrides standard battery behavior
                 if (anomalyPressure > 0) {
                     const flicker = Math.random() > (0.5 - anomalyPressure * 0.4) ? 0.1 : 1.0;
                     targetIntensity *= flicker * (1.0 - anomalyPressure * 0.7);

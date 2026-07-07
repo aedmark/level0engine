@@ -17,13 +17,13 @@ function loadState() {
     try {
         const state = JSON.parse(data);
         document.getElementById('seedInput').value = state.seed || "BACKROOMS";
-        document.getElementById('aspectSelect').value = state.aspect || "auto";
+        document.getElementById('aspectSelect').value = state.aspect || "1.3333333333";
         document.getElementById('fogSlider').value = state.fog || "5";
         document.getElementById('fovSlider').value = state.fov || "75";
         document.getElementById('speedSlider').value = state.speed || "100";
         document.getElementById('resolutionSelect').value = state.res || "1.0";
         document.getElementById('headBobToggle').checked = state.headBob !== false;
-        engine.aspectRatio = state.aspect === 'auto' ? 'auto' : parseFloat(state.aspect);
+        engine.aspectRatio = state.aspect === 'auto' ? 'auto' : parseFloat(state.aspect || 1.3333333333);
         engine.resolutionScale = parseFloat(state.res) || 1.0;
         engine.camera.fov = Number(state.fov) || 75;
         engine.camera.updateProjectionMatrix();
@@ -125,6 +125,10 @@ function animate() {
     }
     player.update(delta, environment.spatialGrid);
     engine.exhaustion = player.exhaustion;
+
+    const squeezeFactor = (player.baseRadius - player.playerRadius) / (player.baseRadius - player.squeezeRadius);
+    engine.squeeze = Math.max(0.0, Math.min(1.0, squeezeFactor));
+
     const telemetry = environment.updateLights(time);
     acoustics.update(telemetry);
     document.getElementById('coords').innerText = `X: ${engine.camera.position.x.toFixed(2)} | Z: ${engine.camera.position.z.toFixed(2)}`;

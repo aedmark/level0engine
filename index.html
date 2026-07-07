@@ -384,7 +384,7 @@
 <div id="ui-layer">
     <button id="menuToggleBtn" class="btn">MENU</button>
     <div class="control-panel">
-        <h1>LEVEL 0 ENGINE v0.1.9</h1>
+        <h1>LEVEL 0 ENGINE v0.2.0</h1>
 
         <label>Architecture Seed (String)</label>
         <input type="text" id="seedInput" value="APPLEBUTTER">
@@ -392,19 +392,19 @@
         <label>Display Format</label>
         <select id="aspectSelect">
             <option value="auto">Dynamic (Full Window)</option>
-            <option value="1.3333333333">4:3 (VHS Camcorder)</option>
+            <option value="1.3333333333" selected>4:3 (VHS Camcorder)</option>
             <option value="1.7777777778">16:9 (Standard Widescreen)</option>
             <option value="2.3333333333">21:9 (Cinemascope)</option>
         </select>
 
         <label>Fog Density</label>
-        <input type="range" id="fogSlider" min="1" max="10" value="5">
+        <input type="range" id="fogSlider" min="2" max="8" value="5">
 
         <label>Camera FOV</label>
-        <input type="range" id="fovSlider" min="40" max="120" value="75">
+        <input type="range" id="fovSlider" min="60" max="90" value="75">
 
         <label>Player Speed (%)</label>
-        <input type="range" id="speedSlider" min="50" max="250" value="100">
+        <input type="range" id="speedSlider" min="80" max="120" value="100">
 
         <label>Internal Resolution</label>
         <select id="resolutionSelect">
@@ -425,7 +425,7 @@
         </div>
 
         <div class="instructions">
-            <p align="center">WASD to Move<br>Shift to Run.<br>'C' to Crouch.<br>'Q' to Squeeze Through<br>'F' for Flashlight.<br>Left Mouse Button to Look.</p>
+            <p align="center">WASD to Move<br>Shift to Run.<br>'C' to Crouch.<br>'Q' to Squeeze Through<br>'F' for Flashlight.<br>LMB to Look.</p>
             <p align="center"><a href="https://github.com/aedmark/level0engine">RETURN TO SOURCE</a></p>
         </div>
     </div>

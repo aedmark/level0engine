@@ -14,6 +14,7 @@ export default class PlayerController {
         this.isRunning = false;
         this.isCrouching = false;
         this.isSqueezing = false;
+        this.squeezeIntent = false;
         this.flashlightActive = false;
         this.flashlightBattery = 100.0;
         this.isLocked = false;
@@ -26,6 +27,10 @@ export default class PlayerController {
         this.stamina = 100.0;
         this.exhaustion = 0.0;
         this.isChased = false;
+        this.isPeeking = false;
+        this.targetLean = 0.0;
+        this.currentLean = 0.0;
+        this._leanOffset = new THREE.Vector3();
         this.touchMove = {active: false, id: null, startX: 0, startY: 0, deltaX: 0, deltaY: 0};
         this.touchLook = {active: false, id: null, startX: 0, startY: 0, lastX: 0, lastY: 0};
         this._boxX = new THREE.Box3();
@@ -45,10 +50,22 @@ export default class PlayerController {
         touchSurface.addEventListener('click', () => document.body.requestPointerLock());
         document.addEventListener('pointerlockchange', () => {
             this.isLocked = (document.pointerLockElement === document.body);
+            if (!this.isLocked) { this.isPeeking = false; this.targetLean = 0.0; }
         });
+
+        // Peek Mechanics (Right Click)
+        document.addEventListener('mousedown', (e) => {
+            if (this.isLocked && e.button === 2) this.isPeeking = true;
+        });
+        document.addEventListener('mouseup', (e) => {
+            if (e.button === 2) { this.isPeeking = false; this.targetLean = 0.0; }
+        });
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+
         document.addEventListener('mousemove', (e) => this.onMouseMove(e));
         window.addEventListener('blur', () => {
-            this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = this.isRunning = false;
+            this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = this.isRunning = this.isPeeking = false;
+            this.targetLean = 0.0;
         });
         this.bindTouchEvents();
     }
@@ -159,7 +176,7 @@ export default class PlayerController {
         }
         if (event.key === 'Shift') this.isRunning = true;
         if (event.code === 'KeyC') this.isCrouching = !this.isCrouching;
-        if (event.code === 'KeyQ') this.isSqueezing = true;
+        if (event.code === 'KeyQ') this.squeezeIntent = true;
         if (event.code === 'KeyF') {
             this.flashlightActive = !this.flashlightActive;
             const flashBtn = document.getElementById('mobile-flashlight');
@@ -187,7 +204,7 @@ export default class PlayerController {
 
     onKeyUp(event) {
         if (event.key === 'Shift') this.isRunning = false;
-        if (event.code === 'KeyQ') this.isSqueezing = false;
+        if (event.code === 'KeyQ') this.squeezeIntent = false;
         switch (event.code) {
             case 'ArrowUp':
             case 'KeyW':
@@ -210,14 +227,25 @@ export default class PlayerController {
 
     onMouseMove(e) {
         if (!this.isLocked) return;
-        this.camera.rotation.y -= e.movementX * 0.002;
-        this.camera.rotation.x -= e.movementY * 0.002;
-        this.camera.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this.camera.rotation.x));
-        this.camera.rotation.order = "YXZ";
+        if (this.isPeeking) {
+            // Translate mouse X directly into lateral lean (clamped to ~28 degrees)
+            this.targetLean -= e.movementX * 0.002;
+            this.targetLean = Math.max(-0.5, Math.min(0.5, this.targetLean));
+        } else {
+            this.camera.rotation.y -= e.movementX * 0.002;
+            this.camera.rotation.x -= e.movementY * 0.002;
+            this.camera.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this.camera.rotation.x));
+            this.camera.rotation.order = "YXZ";
+        }
     }
 
     update(delta, spatialGrid) {
         delta = Math.min(delta, 0.05);
+
+        // Strip the transient visual lean offset before calculating physical collision
+        this.camera.position.x -= this._leanOffset.x;
+        this.camera.position.z -= this._leanOffset.z;
+
         const damping = Math.exp(-25.0 * delta);
         this.velocity.x *= damping;
         this.velocity.z *= damping;
@@ -225,6 +253,7 @@ export default class PlayerController {
         this.direction.x = Number(this.moveRight) - Number(this.moveLeft);
         if (this.direction.lengthSq() > 0) this.direction.normalize();
 
+        this.isSqueezing = this.squeezeIntent;
         let targetRadius = this.isSqueezing ? this.squeezeRadius : this.baseRadius;
 
         if (!this.isSqueezing && this.playerRadius < this.baseRadius - 0.01) {
@@ -237,11 +266,12 @@ export default class PlayerController {
             for (let i = 0; i < clearanceBoxes.length; i++) {
                 if (this._floorBox.intersectsBox(clearanceBoxes[i])) {
                     targetRadius = this.squeezeRadius;
-                    this.isSqueezing = true;
+                    this.isSqueezing = true; // Force physical compression
                     break;
                 }
             }
         }
+
         this.playerRadius += (targetRadius - this.playerRadius) * 8.0 * delta;
         const targetNear = this.isSqueezing ? 0.01 : 0.1;
         if (this.camera.near !== targetNear) {
@@ -273,21 +303,21 @@ export default class PlayerController {
 
         const fatigueRatio = this.stamina / this.maxStamina;
         this.exhaustion = fatigueRatio < 0.3 ? Math.pow(1.0 - (fatigueRatio / 0.3), 2.0) : 0.0;
-        if (this.moveForward || this.moveBackward) this.velocity.z -= this.direction.z * currentSpeed * delta;
-        if (this.moveLeft || this.moveRight) this.velocity.x -= this.direction.x * currentSpeed * delta;
+        // Unified Kinematic Intent Vector
+        let intentX = this.direction.x;
+        let intentZ = this.direction.z;
+
         if (this.touchMove.active) {
-            const deadzone = 10;
-            let normX = 0;
-            let normY = 0;
-            if (Math.abs(this.touchMove.deltaX) > deadzone) {
-                normX = (this.touchMove.deltaX - (Math.sign(this.touchMove.deltaX) * deadzone)) / 110;
-            }
-            if (Math.abs(this.touchMove.deltaY) > deadzone) {
-                normY = (this.touchMove.deltaY - (Math.sign(this.touchMove.deltaY) * deadzone)) / 110;
-            }
-            this.velocity.z += normY * currentSpeed * delta;
-            this.velocity.x -= normX * currentSpeed * delta;
+            const deadzone = 10.0;
+            const mapAxis = (px) => Math.abs(px) > deadzone ? (px - Math.sign(px) * deadzone) / 110.0 : 0.0;
+            intentX = mapAxis(this.touchMove.deltaX);
+            intentZ = -mapAxis(this.touchMove.deltaY); // Swipe up (neg Y) translates to forward momentum (pos Z intent)
         }
+
+        // Apply thermodynamic acceleration
+        this.velocity.x -= intentX * currentSpeed * delta;
+        this.velocity.z -= intentZ * currentSpeed * delta;
+
         this._euler.set(0, this.camera.rotation.y, 0, 'YXZ');
         this._moveDelta.set(-this.velocity.x * delta, 0, this.velocity.z * delta).applyEuler(this._euler);
 
@@ -320,10 +350,16 @@ export default class PlayerController {
 
         for (let i = 0, len = localBoxes.length; i < len; i++) {
             const box = localBoxes[i];
+
+            // Fast-fail AABB checks: if we already hit a wall on an axis, stop checking that axis entirely.
             if (!hitX && this._boxX.intersectsBox(box)) hitX = true;
             if (!hitZ && this._boxZ.intersectsBox(box)) hitZ = true;
-            if (this._floorBox.intersectsBox(box) && box.max.y > targetFeetY && box.max.y <= feetY + 1.2) {
-                targetFeetY = box.max.y;
+
+            // Floor evaluation is mathematically heavy. Gate it behind cheap scalar Y-bounds checks first.
+            if (box.max.y > targetFeetY && box.max.y <= feetY + 1.2) {
+                if (this._floorBox.intersectsBox(box)) {
+                    targetFeetY = box.max.y;
+                }
             }
         }
 
@@ -331,8 +367,37 @@ export default class PlayerController {
         if (!hitZ) this.camera.position.z += moveZ;
         const actualSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
         this.headBobTimer = (this.headBobTimer || 0) + actualSpeed * delta;
-        const bobOffset = (this.enableHeadBob && actualSpeed > 0.5) ? Math.sin(this.headBobTimer * 2.5) * 0.05 : 0;
-        const targetCamY = Math.min(targetFeetY + visualHeight, 2.8) + bobOffset;
+
+        let bobOffset = 0;
+        let swayRoll = 0;
+        if (this.enableHeadBob && actualSpeed > 0.5) {
+            const bobFreq = this.isRunning ? 3.5 : 2.5;
+            const bobAmp = this.isRunning ? 0.08 : 0.05;
+            bobOffset = Math.sin(this.headBobTimer * bobFreq) * bobAmp;
+            swayRoll = Math.cos(this.headBobTimer * (bobFreq * 0.5)) * (bobAmp * 0.05);
+        }
+
+        // Kinematic Peek & Unified Somatic Roll
+        this.currentLean += (this.targetLean - this.currentLean) * (1.0 - Math.exp(-15.0 * delta));
+
+        // 1. Unified Roll (Velocity + Lean + Sway)
+        const rollDamping = 1.0 - Math.exp(-12.0 * delta);
+        const velocityRoll = this.velocity.x * (this.isSqueezing ? 0.005 : 0.015);
+        const peekRoll = -this.currentLean * 0.35; // Tilt the head physically opposite to the lean anchor
+        this.camera.rotation.z += ((velocityRoll + peekRoll) - this.camera.rotation.z) * rollDamping;
+        this.camera.rotation.z += swayRoll;
+
+        // 2. Local Lateral Displacement
+        this._euler.set(0, this.camera.rotation.y, 0, 'YXZ');
+        const leanLateral = Math.sin(this.currentLean) * 0.8;
+        const leanDrop = (1.0 - Math.cos(this.currentLean)) * 0.8;
+
+        this._leanOffset.set(leanLateral, 0, 0).applyEuler(this._euler);
+        this.camera.position.x += this._leanOffset.x;
+        this.camera.position.z += this._leanOffset.z;
+
+        // 3. Final Y calculation (Applying the lean drop)
+        const targetCamY = Math.min(targetFeetY + visualHeight, 2.8) + bobOffset - leanDrop;
         const lerpFactor = 1.0 - Math.exp(-12.0 * delta);
         this.camera.position.y += (targetCamY - this.camera.position.y) * lerpFactor;
     }
