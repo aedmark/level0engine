@@ -137,26 +137,35 @@ export default class Environment {
 
     updateInteractives(playerPos, delta) {
         this.interactiveDoors.forEach(door => {
-            const distSq = playerPos.distanceToSquared(door.position);
-            const isOpen = distSq < 12.25;
+            const pDistSq = playerPos.distanceToSquared(door.position);
+            const eDistSq = this.entityActive ? this.entityGroup.position.distanceToSquared(door.position) : Infinity;
+            const playerOpen = pDistSq < 12.25;
+            const entityOpen = eDistSq < 16.0;
+            const isOpen = playerOpen || entityOpen;
             let targetRot = door.userData.closedRot;
             if (isOpen) {
                 if (!door.userData.isLatched) {
-                    const approachZ = playerPos.z - door.position.z;
+                    const triggerZ = (entityOpen && !playerOpen) ? this.entityGroup.position.z : playerPos.z;
+                    const approachZ = triggerZ - door.position.z;
                     door.userData.latchedRot = approachZ < 0 ? -(Math.PI / 2) : (Math.PI / 2);
                     door.userData.isLatched = true;
+                    door.userData.swingSpeed = (entityOpen && !playerOpen) ? 35.0 : 8.0;
+                    const intensity = (entityOpen && !playerOpen) ? 1.0 : 0.25;
+                    document.dispatchEvent(new CustomEvent('somatic-door', { detail: { distSq: pDistSq, intensity: intensity } }));
                 }
                 targetRot = door.userData.latchedRot;
             } else {
                 door.userData.isLatched = false;
+                door.userData.swingSpeed = 8.0;
             }
-            door.userData.currentRot += (targetRot - door.userData.currentRot) * 8.0 * delta;
+            door.userData.currentRot += (targetRot - door.userData.currentRot) * door.userData.swingSpeed * delta;
             door.rotation.y = door.userData.currentRot;
             if (door.userData.box) {
-                door.updateMatrixWorld();
-                door.userData.box.setFromObject(door);
-                if (isOpen && Math.abs(door.userData.currentRot - door.userData.openRot) < 0.1) {
+                if (isOpen) {
                     door.userData.box.makeEmpty();
+                } else {
+                    door.updateMatrixWorld();
+                    door.userData.box.setFromObject(door);
                 }
             }
         });
@@ -164,7 +173,6 @@ export default class Environment {
 
     async processChunkQueue() {
         if (this.isBuildingChunk) return;
-
         if (this.chunkQueue.length === 0) {
             if (this.isSpawning) {
                 this.isSpawning = false;
@@ -181,15 +189,12 @@ export default class Environment {
         }
 
         this.isBuildingChunk = true;
-
         const chunk = this.chunkQueue.shift();
-
         const currentX = Math.floor(this.camera.position.x / (this.chunkSize * 4));
         const currentZ = Math.floor(this.camera.position.z / (this.chunkSize * 4));
         if (Math.abs(chunk.x - currentX) <= this.renderDistance && Math.abs(chunk.z - currentZ) <= this.renderDistance) {
             await this.buildChunk(chunk.x, chunk.z, chunk.hash);
         }
-
         this.isBuildingChunk = false;
         this.processChunkQueue();
     }
@@ -334,7 +339,6 @@ export default class Environment {
             flash.style.opacity = '1';
         }
         this.isSpawning = true;
-
         this.activeChunks.forEach((chunkGroup) => {
             this.scene.remove(chunkGroup);
             chunkGroup.traverse((child) => {
@@ -362,11 +366,9 @@ export default class Environment {
         this.entityActive = true;
         this.entityGroup.position.set(32, 1.5, 32);
         this.entityTarget.copy(this.entityGroup.position);
-
         this.entityBreadcrumbs = [];
         this.entityBacktrackTimer = 0;
         this.breadcrumbTimer = 0;
-
         const seedString = document.getElementById('seedInput').value || "ASYNC RESEARCH INSTITUTE";
         this.baseSeed = 0;
         for (let i = 0; i < seedString.length; i++) {
@@ -508,6 +510,21 @@ export default class Environment {
                     const pillar = buildWall(0.5 + (random() * 2.0), 0.5 + (random() * 2.0), this.sharedWallMat);
                     pillar.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                     addGeometry(pillar);
+                }
+            },
+            {
+                prob: 0.92, build: (x, z) => {
+                    const colCount = Math.floor(random() * 3) + 2;
+                    for (let i = 0; i < colCount; i++) {
+                        const support = new THREE.Mesh(this.vPipeGeo, this.rustMat);
+                        const scale = (0.1 + random() * 0.15) / 0.12;
+                        support.scale.set(scale, 1, scale);
+                        const offsetX = (random() - 0.5) * 2.0;
+                        const offsetZ = (random() - 0.5) * 2.0;
+                        support.position.set(x * this.cellSize + offsetX, 1.5, z * this.cellSize + offsetZ);
+                        support.rotation.y = random() * Math.PI;
+                        addGeometry(support);
+                    }
                 }
             },
             {
@@ -749,7 +766,6 @@ export default class Environment {
                 foundationMat: this.clinicMat,
                 build: (x, z, localX, localZ) => {
                     const terrainNoise = random();
-
                     if (terrainNoise > 0.6) {
                         const platform = buildWall(this.cellSize, this.cellSize, this.clinicMat);
                         platform.scale.y = 0.15;
@@ -767,7 +783,6 @@ export default class Environment {
                         water.position.set(x * this.cellSize, 0.2, z * this.cellSize);
                         chunkGroup.add(water);
                     }
-
                     if (localX % 6 === 0 && localZ % 6 === 0 && random() > 0.4) {
                         const activeMat = this.baseLightMat.clone();
                         activeMat.color.setHex(0xaaffff);
@@ -796,42 +811,34 @@ export default class Environment {
                 build: (x, z, localX, localZ) => {
                     const isPerimeter = localX === 0 || localX === this.chunkSize - 1 || localZ === 0 || localZ === this.chunkSize - 1;
                     const isDoorway = (localX >= 7 && localX <= 8) || (localZ >= 7 && localZ <= 8);
-
                     if (isPerimeter && !isDoorway) {
                         const wall = new THREE.Mesh(this.sharedWallGeo, this.sharedWallMat);
                         wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                         addGeometry(wall);
                         return;
                     }
-
                     if (!isPerimeter && !isDoorway) {
                         if (localX % 2 === 1 && localZ % 2 === 1) {
                             const curtain = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize * 0.9, 2.2, 0.05), this.fabricMat);
                             curtain.position.set(x * this.cellSize, 1.1, z * this.cellSize - 1.8);
                             addGeometry(curtain);
-
                             const cotFrame = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 2.0), this.structMat);
                             cotFrame.position.set(x * this.cellSize, 0.25, z * this.cellSize);
                             addGeometry(cotFrame);
-
                             const mattress = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.15, 1.9), this.fabricMat);
                             mattress.position.set(x * this.cellSize, 0.575, z * this.cellSize);
                             addGeometry(mattress);
-
                             const pole = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.0, 0.08), this.rustMat);
                             pole.position.set(x * this.cellSize + 0.8, 1.0, z * this.cellSize + 0.8);
                             addGeometry(pole);
-
                             if (random() > 0.3) {
                                 const chair = buildChair(x * this.cellSize - 0.8, 0, z * this.cellSize + 0.5, random() * Math.PI);
                                 addFurniture(chair);
                             }
-
                             const activeMat = this.baseLightMat.clone();
                             activeMat.color.setHex(0xd0e8ff);
                             activeMat.emissive.setHex(0xa0d0ff);
                             const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
-
                             panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
                             chunkGroup.add(panel);
                             this.walls.push(panel);
@@ -851,7 +858,6 @@ export default class Environment {
                                 const isRotated = random() > 0.5;
                                 const screenW = isRotated ? 0.1 : this.cellSize * 0.8;
                                 const screenD = isRotated ? this.cellSize * 0.8 : 0.1;
-
                                 const screen = new THREE.Mesh(new THREE.BoxGeometry(screenW, 2.4, screenD), this.fabricMat);
                                 screen.position.set(x * this.cellSize, 1.2, z * this.cellSize);
                                 addGeometry(screen);
@@ -922,15 +928,11 @@ export default class Environment {
                 foundationMat: this.structMat,
                 build: (x, z, localX, localZ, maze) => {
                     const isWall = maze && maze[localX][localZ];
-
                     if (isWall) {
-                        // Monolithic Shelving Unit
                         const rack = buildWall(this.cellSize * 0.95, this.cellSize * 0.95, this.structMat);
                         rack.position.set(x * this.cellSize, 1.5, z * this.cellSize);
-                        rack.userData.isEntityBlocker = true; // The Entity gets trapped in the maze too
+                        rack.userData.isEntityBlocker = true;
                         addGeometry(rack);
-
-                        // Populate with scattered boxes at various heights
                         for (let h = 0.4; h < 2.8; h += 0.6) {
                             if (random() > 0.4) {
                                 const boxW = 0.5 + random() * 0.5;
@@ -941,7 +943,6 @@ export default class Environment {
                             }
                         }
                     } else {
-                        // Corridor / Path
                         if (random() > 0.85) {
                             const activeMat = this.baseBrokenLightMat.clone();
                             const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
@@ -968,9 +969,7 @@ export default class Environment {
                 foundationMat: this.ventMat,
                 build: (x, z, localX, localZ, maze) => {
                     const isWall = maze && maze[localX][localZ];
-
                     if (isWall) {
-                        // Dense Server Rack
                         const rack = buildWall(this.cellSize * 0.85, this.cellSize * 0.85, this.serverMat);
                         rack.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                         rack.userData.isEntityBlocker = true;
@@ -980,7 +979,6 @@ export default class Environment {
                         const sWall = localZ < this.chunkSize - 1 && maze[localX][localZ + 1];
                         const eWall = localX < this.chunkSize - 1 && maze[localX + 1][localZ];
                         const wWall = localX > 0 && maze[localX - 1][localZ];
-
                         if (nWall || sWall) {
                             const pipe = new THREE.Mesh(this.pipeGeo, this.rustMat);
                             pipe.position.set(x * this.cellSize, 2.75, z * this.cellSize + (nWall ? -1.2 : 1.2));
@@ -1002,7 +1000,6 @@ export default class Environment {
                                 addGeometry(joint);
                             }
                         }
-
                         if (random() > 0.8) {
                             const activeMat = this.baseLightMat.clone();
                             activeMat.color.setHex(0xff3333);
@@ -1031,7 +1028,6 @@ export default class Environment {
                 foundationMat: this.ventMat,
                 build: (x, z, localX, localZ, maze) => {
                     const isWall = maze && maze[localX][localZ];
-
                     if (isWall) {
                         const block = buildWall(this.cellSize, this.cellSize, this.structMat);
                         block.position.set(x * this.cellSize, 1.5, z * this.cellSize);
@@ -1050,7 +1046,6 @@ export default class Environment {
                             }
                             addGeometry(trim);
                         }
-
                         if (random() > 0.2) {
                             const pipe = new THREE.Mesh(this.pipeGeo, this.rustMat);
                             const isZWall = random() > 0.5;
@@ -1062,7 +1057,6 @@ export default class Environment {
                                 pipe.position.set(x * this.cellSize, 2.8, z * this.cellSize + offset);
                             }
                             addGeometry(pipe);
-
                             if (random() > 0.4) {
                                 const joint = new THREE.Mesh(this.pipeJointGeo, this.rustMat);
                                 joint.rotation.y = pipe.rotation.y;
@@ -1070,7 +1064,6 @@ export default class Environment {
                                 addGeometry(joint);
                             }
                         }
-
                         if (random() > 0.7) {
                             const activeMat = this.baseLightMat.clone();
                             activeMat.color.setHex(0xffaa00);
@@ -1137,10 +1130,8 @@ export default class Environment {
             }
         ];
         const isMacroStructure = random() > 0.90 && (Math.abs(chunkX) > 0 || Math.abs(chunkZ) > 0);
-
         let activeSector = null;
         let sectorMaze = null;
-
         if (isMacroStructure) {
             const sectorRoll = random();
             let cumulative = 0;
@@ -1152,31 +1143,27 @@ export default class Environment {
                 }
             }
             if (!activeSector) activeSector = sectorMatrix[0];
-
             if (activeSector.name === "THE ARCHIVE" || activeSector.name === "THE SERVER FARM" || activeSector.name === "THE MAINTENANCE SHAFTS") {
                 sectorMaze = Array(this.chunkSize).fill().map(() => Array(this.chunkSize).fill(true));
-
                 const carve = (cx, cz) => {
                     sectorMaze[cx][cz] = false;
                     const dirs = [[0, -2], [2, 0], [0, 2], [-2, 0]];
-                    dirs.sort(() => random() - 0.5); // Deterministic PRNG shuffle
+                    dirs.sort(() => random() - 0.5);
 
                     for (let [dx, dz] of dirs) {
                         const nx = cx + dx, nz = cz + dz;
                         if (nx > 0 && nx < this.chunkSize && nz > 0 && nz < this.chunkSize && sectorMaze[nx][nz]) {
-                            sectorMaze[cx + dx/2][cz + dz/2] = false; // Knock down the wall between
+                            sectorMaze[cx + dx/2][cz + dz/2] = false;
                             carve(nx, nz);
                         }
                     }
                 };
                 carve(1, 1);
-
                 for(let i = 0; i < 20; i++) {
                     let rx = Math.floor(random() * (this.chunkSize - 2)) + 1;
                     let rz = Math.floor(random() * (this.chunkSize - 2)) + 1;
                     sectorMaze[rx][rz] = false;
                 }
-
                 for(let i = 1; i < this.chunkSize - 1; i+=3) {
                     sectorMaze[i][0] = false;
                     sectorMaze[i][this.chunkSize - 1] = false;
@@ -1184,7 +1171,6 @@ export default class Environment {
                     sectorMaze[this.chunkSize - 1][i] = false;
                 }
             }
-
             const foundationGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
             const foundation = new THREE.Mesh(foundationGeo, activeSector.foundationMat);
             foundation.rotation.x = -Math.PI / 2;
@@ -1293,9 +1279,7 @@ export default class Environment {
                     }
                 }
             }
-
             await new Promise(resolve => setTimeout(resolve, 0));
-
         }
         const instancedGroups = new Map();
         stagingMeshes.forEach(mesh => {
@@ -1363,14 +1347,12 @@ export default class Environment {
 
     updateEntity(playerPos, delta, time) {
         if (!this.entityActive) return;
-
         this.breadcrumbTimer = (this.breadcrumbTimer || 0) + delta;
         if (this.breadcrumbTimer > 0.5 && this.entityBacktrackTimer <= 0) {
             this.breadcrumbTimer = 0;
             this.entityBreadcrumbs.push(this.entityGroup.position.clone());
             if (this.entityBreadcrumbs.length > 20) this.entityBreadcrumbs.shift();
         }
-
         this.entityCore.rotation.y = time * 0.8;
         this.entityCore.rotation.x = time * 0.5;
         const pulse = 1.0 + Math.sin(time * 4.0) * 0.15;
@@ -1418,16 +1400,30 @@ export default class Environment {
         const dir = new THREE.Vector3().subVectors(this.entityTarget, this.entityGroup.position);
         dir.y = 0;
         const distToTarget = dir.length();
+        let speed = distToPlayerSq < 225.0 ? 4.2 : 2.0;
+        let isObserved = false;
+        if (this.player.flashlightActive && distToPlayerSq < 625.0) { // Within 25 meters
+            const toEntity = new THREE.Vector3().subVectors(this.entityGroup.position, playerPos).normalize();
+            const lookDir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+            if (lookDir.dot(toEntity) > 0.85) {
+                isObserved = true;
+                speed = 0.0;
+                this.player.flashlightBattery = Math.max(0, this.player.flashlightBattery - 25.0 * delta);
+                this.entityCore.position.set((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4);
+            }
+        }
+
+        if (!isObserved) {
+            this.entityCore.position.set(0, 0, 0);
+        }
         if (distToTarget > 0.1) {
             dir.normalize();
-            const speed = distToPlayerSq < 225.0 ? 4.2 : 2.0;
             const moveVec = dir.multiplyScalar(speed * delta);
             const nextPos = this.entityGroup.position.clone().add(moveVec);
             const entBox = new THREE.Box3(
                 new THREE.Vector3(nextPos.x - 0.6, 0.0, nextPos.z - 0.6),
                 new THREE.Vector3(nextPos.x + 0.6, 3.0, nextPos.z + 0.6)
             );
-
             let blocked = false;
             const localBoxes = this.spatialGrid.getNearby(nextPos.x, nextPos.z, 2.0);
             for (let i = 0; i < localBoxes.length; i++) {
@@ -1436,29 +1432,23 @@ export default class Environment {
                     break;
                 }
             }
-
             if (!blocked) {
                 this.entityGroup.position.add(moveVec);
             } else {
-                // Kinematic Wall-Sliding: Evaluate axes independently to slip around corners
                 let blockedX = false;
                 let blockedZ = false;
-
                 const boxX = entBox.clone();
-                boxX.min.z = this.entityGroup.position.z - 0.6;
-                boxX.max.z = this.entityGroup.position.z + 0.6;
-
+                boxX.min.z = this.entityGroup.position.z - 0.5;
+                boxX.max.z = this.entityGroup.position.z + 0.5;
                 const boxZ = entBox.clone();
-                boxZ.min.x = this.entityGroup.position.x - 0.6;
-                boxZ.max.x = this.entityGroup.position.x + 0.6;
-
+                boxZ.min.x = this.entityGroup.position.x - 0.5;
+                boxZ.max.x = this.entityGroup.position.x + 0.5;
                 for (let i = 0; i < localBoxes.length; i++) {
                     if (localBoxes[i].isEntityBlocker) {
                         if (!blockedX && boxX.intersectsBox(localBoxes[i])) blockedX = true;
                         if (!blockedZ && boxZ.intersectsBox(localBoxes[i])) blockedZ = true;
                     }
                 }
-
                 if (!blockedX && blockedZ) {
                     this.entityGroup.position.x += moveVec.x;
                 } else if (!blockedZ && blockedX) {
@@ -1490,7 +1480,6 @@ export default class Environment {
                 fixture.hasShadow = false;
                 return;
             }
-
             const distSq = (dx * dx) + (dz * dz);
             if (distSq < 900) {
                 fixture.distSq = fixture.hasShadow ? distSq - 40.0 : distSq;
@@ -1523,8 +1512,6 @@ export default class Environment {
                     nearestFixture = fixture;
                 }
                 const fadeEnvelope = Math.max(0, Math.min(1, (activeRadius - dist) / 8.0));
-
-                // Meadows: Tone down the localized shadow-casters so they don't overpower the new ambient baseline
                 const intensityScalar = i < 15 ? 0.65 : 0.35;
                 if (fixture.isFaulty) {
                     if (Math.random() < 0.02) {
@@ -1545,17 +1532,11 @@ export default class Environment {
             if (time - this.lastAudioOcclusionTime > 0.1) {
                 this.audioDirection.subVectors(nearestFixture.position, cameraPos).normalize();
                 this.audioRaycaster.set(cameraPos, this.audioDirection);
-
-                // Cache the target vector to prevent GC allocation spikes
                 if (!this._rayTarget) this._rayTarget = new THREE.Vector3();
                 let isHit = false;
-
-                // Query only the physical bounds within the exact radius of the light
                 const localBoxes = this.spatialGrid.getNearby(cameraPos.x, cameraPos.z, minLightDist);
                 const ray = this.audioRaycaster.ray;
-
                 for (let i = 0; i < localBoxes.length; i++) {
-                    // Fast-Fail AABB Intersection Math
                     if (ray.intersectBox(localBoxes[i], this._rayTarget)) {
                         if (cameraPos.distanceToSquared(this._rayTarget) < (minLightDist * minLightDist)) {
                             isHit = true;
@@ -1563,7 +1544,6 @@ export default class Environment {
                         }
                     }
                 }
-
                 this.currentOcclusionState = isHit;
                 this.lastAudioOcclusionTime = time;
             }
@@ -1624,19 +1604,14 @@ export default class Environment {
             const distToAnomaly = cameraPos.distanceTo(this.entityGroup.position);
             if (distToAnomaly < 15.0) anomalyPressure = 1.0 - (distToAnomaly / 15.0);
         }
-
         if (this.flashlight) {
-            // The Chef: ACES Filmic handles high-end roll-off physically. Drop the beam to 1.1 to cure the close-proximity blowout.
             let targetIntensity = this.player.flashlightActive ? 1.1 : 0.0;
-
             if (this.player.flashlightActive) {
                 const batteryFactor = Math.min(1.0, this.player.flashlightBattery / 30.0);
                 targetIntensity *= (0.1 + 0.9 * batteryFactor);
-
                 if (this.player.flashlightBattery < 15.0 && Math.random() > 0.8) {
                     targetIntensity *= 0.1;
                 }
-
                 if (anomalyPressure > 0) {
                     const flicker = Math.random() > (0.5 - anomalyPressure * 0.4) ? 0.1 : 1.0;
                     targetIntensity *= flicker * (1.0 - anomalyPressure * 0.7);
@@ -1644,7 +1619,6 @@ export default class Environment {
             }
             this.flashlight.intensity += (targetIntensity - this.flashlight.intensity) * 0.4;
         }
-
         const playerSpeed = Math.sqrt(this.player.velocity.x ** 2 + this.player.velocity.z ** 2);
         return {
             minLightDist,

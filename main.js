@@ -55,7 +55,6 @@ function saveState() {
     };
     localStorage.setItem('level0_state', JSON.stringify(state));
 }
-
 const savedState = loadState();
 environment.setup();
 if (savedState) {
@@ -68,30 +67,28 @@ if (savedState) {
 const bootAudio = () => acoustics.init();
 document.addEventListener('click', bootAudio, {once: true});
 document.addEventListener('keydown', bootAudio, {once: true});
+document.addEventListener('somatic-step', (e) => acoustics.triggerSomaticEvent('step', 0, e.detail.intensity));
+document.addEventListener('somatic-door', (e) => acoustics.triggerSomaticEvent('door', e.detail.distSq, e.detail.intensity));
 
 const saveInterval = setInterval(saveState, 2500);
 
 document.getElementById('clearSaveBtn')?.addEventListener('click', async () => {
     clearInterval(saveInterval);
-
     localStorage.clear();
     sessionStorage.clear();
     sessionStorage.clear();
-
     if ('serviceWorker' in navigator) {
         const registrations = await navigator.serviceWorker.getRegistrations();
         for (let registration of registrations) {
             await registration.unregister();
         }
     }
-
     if ('caches' in window) {
         const keys = await caches.keys();
         for (let key of keys) {
             await caches.delete(key);
         }
     }
-
     window.location.href = window.location.href.split('?')[0];
 });
 
@@ -114,17 +111,12 @@ function animate() {
     }
     player.update(delta, environment.spatialGrid);
     engine.exhaustion = player.exhaustion;
-
     const squeezeFactor = (player.baseRadius - player.playerRadius) / (player.baseRadius - player.squeezeRadius);
     engine.squeeze = Math.max(0.0, Math.min(1.0, squeezeFactor));
-
     const telemetry = environment.updateLights(time);
     acoustics.update(telemetry);
-
     engine.anomaly = telemetry.anomalyPressure;
-
     document.getElementById('coords').innerText = `X: ${engine.camera.position.x.toFixed(2)} | Z: ${engine.camera.position.z.toFixed(2)}`;
-
     const batReadout = document.getElementById('battery-readout');
     if (batReadout) {
         batReadout.innerText = `BAT: ${Math.floor(player.flashlightBattery)}%`;

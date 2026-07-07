@@ -8,16 +8,15 @@ export default class ProceduralTextureFactory {
         const nCtx = masterNoise.getContext('2d');
         const nImg = nCtx.createImageData(512, 512);
         const nData = nImg.data;
-        for(let i = 0; i < nData.length; i += 4) {
+        const nLen = nData.length;
+        for(let i = 0; i < nLen; i += 4) {
             if (Math.random() > 0.85) {
-                const isDark = Math.random() > 0.5;
-                const val = isDark ? 0 : 255;
-                nData[i] = val; nData[i+1] = val; nData[i+2] = val;
-                nData[i+3] = Math.floor(Math.random() * 50 + 10);
+                const val = Math.random() > 0.5 ? 0 : 255;
+                nData[i] = nData[i+1] = nData[i+2] = val;
+                nData[i+3] = (Math.random() * 50 + 10) | 0;
             }
         }
         nCtx.putImageData(nImg, 0, 0);
-
         const wallCanvas = document.createElement('canvas');
         wallCanvas.width = 512;
         wallCanvas.height = 512;

@@ -1,5 +1,27 @@
 # Level 0 Engine Changelog
 
+## [v0.2.4] - 2026-07-07
+
+### Added
+
+- [MECHANICS] The Quantum Observer Effect: The Null Anomaly is now bound to the flashlight's electromagnetic vector. Catching the entity within a ~30-degree cone of the light mathematically freezes it in place, but holding the quantum lock violently hemorrhages battery voltage (`-25.0/sec`) and causes the entity to physically vibrate.
+- [AUDIO] Surface-Aware Procedural Foley: Integrated a native DSP synthesizer for footsteps. The engine now reads the active spatial sector to dynamically shift the biquad filters—generating high-pass splashes in the Poolrooms, bandpass metallic clinks in Maintenance, and low-pass carpet scuffs in corporate zones.
+- [AUDIO] Somatic Event Bus: Decoupled physical impacts from the rendering loop. Footsteps (anchored mathematically to the downward zero-crossing of the head-bob sine wave) and violent door slams now dispatch global events to the Acoustic Engine.
+
+### Changed
+
+- [MECHANICS] Systemic Poltergeist Doors: Tied the Anomaly's spatial coordinates directly into the kinematic door latches. The entity no longer ghosts through closed paths; it violently slams doors open at 400% normal velocity (`swingSpeed: 35.0`), allowing players to acoustically track its pursuit through the maze.
+- [AUDIO] Master DSP Mix & Phase Stabilization: Extracted physical Foley out of the ambient `mainGain` bus and routed it directly to the master destination to prevent dynamic volume ducking. Dropped the room LFO phase amplitude from `0.008` to `0.002` and lowered the baseline noise floor to leave dynamic range for physical impacts.
+- [GEOMETRY] Vertical Structural Grounding: Gutted mathematically disconnected floating horizontal struts. The generation heuristic now exclusively places grounded, vertical clusters of rusted rebar using zero-allocation X/Z scaling on a shared cylinder geometry (`vPipeGeo`).
+- [PERFORMANCE] Texture Initialization Autophagy: Flattened the CPU-blocking `masterNoise` procedural canvas loop. Removed temporary memory allocations and utilized bitwise OR (`| 0`) truncation to drastically accelerate initial chunk generation.
+- [PHYSICS] High-Speed Kinematic Flow: Softened the hard geometric collision boundaries. Increased the player's snag-shrink tolerance from `0.05` to `0.15` and shaved `0.1` off the entity's non-moving evaluation axis to allow both bodies to butter-slide around 90-degree concrete corners without deadlocking.
+
+### Fixed
+
+- [PHYSICS] Excised the "Ghost Door" Collision Wall. Rotating doors now instantly evaluate `.makeEmpty()` on their bounding boxes while opening, preventing the diagonal AABB bloat from completely swallowing the hallway clearance.
+- [GEOMETRY] Averted a catastrophic CPU Singularity. Prevented the instancing engine from collapsing all chunk geometry into a single origin coordinate `(0,0,0)` by safely restoring the absolute `updateMatrixWorld(true)` global transform pipeline.
+
+
 ## [v0.2.3] - 2026-07-07
 
 ### Added

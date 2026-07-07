@@ -1,4 +1,4 @@
-# Level 0 Engine: Procedural Liminal Space Simulator v0.2.3
+# Level 0 Engine: Procedural Liminal Space Simulator v0.2.4
 
 A minimal-dependency, mathematically pure, procedural 3D environment generator running entirely natively in the browser via ES6 modules.
 
@@ -9,8 +9,8 @@ This engine is built on absolute architectural minimalism and thermodynamic effi
 * **Procedural Geometry & The Sector Matrix:** The maze is generated via a Julia Set fractal algorithm. It is infinite, chaotic, and deterministic. The engine utilizes Geodesic Chunking to maintain a strict memory budget, routing the generation through a **Sector Matrix** to procedurally spawn distinct "Villages" (The Boardroom, The Archive, The Server Farm, and The Overgrown Atrium), each with unique materials, density, and atmospheric physics.
 * **Geodesic Physics & Lighting:** Collision detection relies on a highly optimized O(1) `SpatialHashGrid`. Dynamic lighting is managed by a Virtual Light Pool that teleports a fixed set of hardware shadow-casters using Spatial Hysteresis and continuous Fade Envelopes to eliminate visual popping.
 * **Procedural Textures:** Obsidian tile, overgrown moss, structural concrete, interactive wood doors, and server racks with blinking diagnostic diodes are drawn pixel-by-pixel using the HTML5 Canvas API and injected directly into WebGL memory.
-* **Procedural Audio & Acoustic Routing:** The ambient soundscape is not an MP3. It is a live digital signal processor (DSP). The engine uses a Unified Thermodynamic Read to shift the acoustics natively based on your spatial sector—from the sterile hiss of corporate HVACs to 35Hz sub-bass server growls and 432Hz resonant chimes. The engine also casts volumetric audio raycasts to physically muffle sounds when occluded by walls.
-* **Metabolic Economy & The Null Anomaly:** The player is not a floating camera; they have a biological carrying capacity. Sprinting away from the active pursuit of the **Null Anomaly** drains a finite stamina pool. Reaching terminal exhaustion physically crushes the audio filter and blurs the WebGL render pipeline. The Anomaly actively hunts via line-of-sight and utilizes a short-term spatial memory system (breadcrumb pathfinding) to mathematically reverse out of complex labyrinths and dead ends. If it catches you, the engine executes a void blackout, mutates your seed string, and procedurally rebuilds a new reality.
+* **Procedural Audio & Acoustic Routing:** The ambient soundscape is not an MP3. It is a live digital signal processor (DSP). The engine uses a Unified Thermodynamic Read to shift the acoustics natively based on your spatial sector—from the sterile hiss of corporate HVACs to 35Hz sub-bass server growls and 432Hz resonant chimes. The engine also casts volumetric audio raycasts to physically muffle sounds when occluded by walls. This is paired with **Surface-Aware Foley**, dynamically shifting the acoustic profile of your footsteps based on the spatial sector (wet splashes in the Poolrooms, metallic clinks in Maintenance).
+* **Metabolic Economy & The Null Anomaly:** The player is not a floating camera; they have a biological carrying capacity. Sprinting away from the active pursuit of the **Null Anomaly** drains a finite stamina pool. Reaching terminal exhaustion physically crushes the audio filter and blurs the WebGL render pipeline. The Anomaly actively hunts via line-of-sight and utilizes a short-term spatial memory system (breadcrumb pathfinding) to mathematically reverse out of complex labyrinths. It is bound by **The Quantum Observer Effect**: catching the entity within a 30-degree cone of your flashlight mathematically freezes it in place, but holding this quantum lock violently hemorrhages your battery voltage. Furthermore, the environment is systemic: the Anomaly does not ghost through walls; it violently slams doors off their hinges during pursuit, allowing you to acoustically track its approach. If it catches you, the engine executes a void blackout, mutates your seed string, and procedurally rebuilds a new reality.
 * **Illumination & Kinematic Restraint:** Traversal requires managing a heavy, incandescent flashlight with a dying battery. The flashlight operates on a true piezoelectric circuit—it does not passively recharge. When disabled, players must generate physical kinetic energy by sprinting in the dark or violently shaking their camera to crank out voltage. Furthermore, the Anomaly's proximity induces severe electromagnetic interference, starving the bulb. When cornered, players can dynamically compress their physical collision cylinder to squeeze through narrow structural crevices—safe zones that the Anomaly's 4D geometry is violently repelled by.
 * **Native Post-Processing:** The engine features a custom `WebGLRenderTarget` pipeline, applying dynamic Chromatic Aberration, crawling static, CRT scanlines, claustrophobic vignettes, and somatic retinal blurring. The optical feed is directly tethered to the Anomaly's proximity pressure, violently degrading into horizontal V-Hold tearing and desaturated static as the entity enters striking distance. All procedural textures utilize global 4x Anisotropic Filtering for maximum clarity at grazing angles.
 * **Progressive Web App (PWA):** Built with a Thermodynamic Cache Service Worker and web manifest, the engine can be installed directly to your OS and runs entirely offline.
@@ -21,13 +21,14 @@ This engine is built on absolute architectural minimalism and thermodynamic effi
 2. Serve the directory using a local web server (e.g., `python -m http.server`, `npx http-server`, or VSCode Live Server). *Note: Opening `index.html` directly via the `file://` protocol will fail due to strict ES6 module CORS policies.*
 3. Open the localhost URL in any modern web browser.
 4. **Desktop Controls:**
-   * `Click`: Engage a Pointer Lock (Look around)
+   * `Left-Click`: Engage a Pointer Lock (Look around)
+   * `Right-Click` (Hold): Kinematic Peek (Physically lean your camera 80cm around corners)
    * `W, A, S, D`: Navigate spatial coordinates
    * `Shift`: Sprint (Consumes Stamina during a Hunt)
    * `C`: Crouch
    * `Q`: Squeeze (Compress collision radius to slide through narrow cracks)
    * `F`: Toggle Flashlight (Consumes battery, recharges when off)
-   * `ESC`: Release Pointer Lock
+   * `ESC`: Release Pointer Lock/rest
 5. **Mobile Controls (Landscape Only):**
    * `Left Screen Half`: Virtual joystick for movement.
    * `Right Screen Half`: Swipe to look around.

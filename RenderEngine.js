@@ -3,7 +3,7 @@
 
 export default class RenderEngine {
     constructor() {
-        this.aspectRatio = 1.3333333333; // Enforce 4:3 VHS constraint by default
+        this.aspectRatio = 1.3333333333;
         this.resolutionScale = 1.0;
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0xa89f68);
@@ -15,14 +15,10 @@ export default class RenderEngine {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.2;
-
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
-
         const ambient = new THREE.HemisphereLight(0xfff5c2, 0x3d3520, 0.85);
         this.scene.add(ambient);
         this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
@@ -51,27 +47,21 @@ export default class RenderEngine {
                 uniform float squeeze;
                 uniform float anomaly;
                 varying vec2 vUv;
-                
                 float random(vec2 st) {
                     return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
                 }
-                
                 void main() {
                     vec2 uv = vUv;
-                    
                     if (anomaly > 0.01) {
                         float tear = step(0.9, sin(uv.y * 40.0 + time * 15.0));
                         uv.x += tear * (random(vec2(time)) - 0.5) * anomaly * 0.3;
                     }
-
                     vec2 offset = vec2(0.001 + (squeeze * 0.004) + (anomaly * 0.04), 0.0) * (uv.x - 0.5) * 2.0; 
                     float blurAmt = exhaustion * 0.012; 
                     vec3 col = vec3(0.0);
-                    
                     col.r = texture2D(tDiffuse, uv + offset).r;
                     col.g = texture2D(tDiffuse, uv).g;
                     col.b = texture2D(tDiffuse, uv - offset).b;
-                    
                     if (exhaustion > 0.01) {
                         vec3 blur;
                         blur.r = texture2D(tDiffuse, uv + offset + vec2(blurAmt, blurAmt)).r 
@@ -83,26 +73,17 @@ export default class RenderEngine {
                         
                         col = mix(col, blur * 0.5, exhaustion);
                     }
-                    
                     float noise = random(uv + mod(time, 10.0));
                     float luminance = dot(col, vec3(0.299, 0.587, 0.114));
-                    
                     col -= (noise * (0.12 + anomaly * 0.8)) * (1.0 - luminance);
-                    
                     float scanline = sin(gl_FragCoord.y * 1.5 - time * 10.0) * 0.04;
                     col -= scanline * luminance;
-                    
                     float dist = distance(uv, vec2(0.5));
                     col *= smoothstep(0.9, 0.25, dist * dist + 0.2); 
-                    
                     float lateralDist = abs(uv.x - 0.5);
                     col *= mix(1.0, smoothstep(0.45, 0.15, lateralDist), squeeze);
-
-                    // OPTICAL PANIC: Crush the colors into a desaturated nightmare near death
                     col = mix(col, vec3(luminance * 0.6), anomaly * 0.85);
-                    
                     col = smoothstep(0.0, 1.0, col);
-                    
                     gl_FragColor = vec4(col, 1.0);
                 }
             `
@@ -135,7 +116,6 @@ export default class RenderEngine {
         this.renderer.setSize(w * scale, h * scale, false);
         this.target.setSize(w * scale, h * scale);
     }
-
     get delta() {
         const now = performance.now();
         if (!this._lastTime) this._lastTime = now;
@@ -143,7 +123,6 @@ export default class RenderEngine {
         this._lastTime = now;
         return diff;
     }
-
     get time() {
         if (!this._startTime) this._startTime = performance.now();
         return (performance.now() - this._startTime) / 1000;

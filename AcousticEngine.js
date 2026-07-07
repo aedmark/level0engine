@@ -45,12 +45,12 @@ export default class AcousticEngine {
         lfo.type = 'sine';
         lfo.frequency.value = 0.05;
         const lfoGain = this.ctx.createGain();
-        lfoGain.gain.value = 0.008;
+        lfoGain.gain.value = 0.002;
         lfo.connect(lfoGain);
         lfoGain.connect(this.mainGain.gain);
         this.exertionLFO = this.ctx.createOscillator();
         this.exertionLFO.type = 'sine';
-        this.exertionLFO.frequency.value = 1.27; // ~8.0 rad/s
+        this.exertionLFO.frequency.value = 1.27;
         this.exertionGain = this.ctx.createGain();
         this.exertionGain.gain.value = 0;
         this.exertionLFO.connect(this.exertionGain);
@@ -131,7 +131,7 @@ export default class AcousticEngine {
                 this._cache.set(key, target);
             }
         };
-        setParam('main', this.mainGain.gain, 0.005 + (proximity * 0.02), 0.5);
+        setParam('main', this.mainGain.gain, 0.003 + (proximity * 0.01), 0.5);
         const whineTarget = isOccluded ? mix.whineOcc : mix.whine + (mix.dynamicWhine ? proximity * 0.003 : 0.0);
         setParam('whine', this.whineGain.gain, whineTarget, 0.5);
         if (this.atriumGain) setParam('atrium', this.atriumGain.gain, mix.noise, 1.0);
@@ -144,6 +144,65 @@ export default class AcousticEngine {
             const targetFreq = Math.min(Math.max(40, baseFreq + (playerSpeed * (isOccluded ? 2.0 : 8.0)) - (anomalyPressure * 150.0) - (playerExhaustion * 100.0)), 2000);
             const timeConstant = (isOccluded || activeSector === "ATRIUM" || anomalyPressure > 0.0 || playerExhaustion > 0.0) ? 0.2 : 3.0;
             setParam('kinetic', this.kineticFilter.frequency, targetFreq, timeConstant);
+
+            this.currentSector = activeSector;
+        }
+    }
+
+    triggerSomaticEvent(type, distanceSq, intensity) {
+        if (!this.initialized || this.ctx.state === 'suspended') return;
+        const t = this.ctx.currentTime;
+        const distScalar = Math.max(0, 1.0 - (Math.sqrt(distanceSq) / 40.0));
+        if (distScalar <= 0.01) return;
+        const gainNode = this.ctx.createGain();
+        gainNode.connect(this.ctx.destination);
+        if (type === 'step') {
+            const isWet = this.currentSector === "POOLROOMS" || this.currentSector === "CLINIC";
+            const isMetal = this.currentSector === "MAINTENANCE";
+            const osc = this.ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(isMetal ? 120 : 80, t);
+            osc.frequency.exponentialRampToValueAtTime(20, t + 0.1);
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this.noiseSrc.buffer;
+            const noiseFilter = this.ctx.createBiquadFilter();
+            if (isWet) {
+                noiseFilter.type = 'highpass';
+                noiseFilter.frequency.value = 2500;
+            } else if (isMetal) {
+                noiseFilter.type = 'bandpass';
+                noiseFilter.frequency.value = 800;
+            } else {
+                noiseFilter.type = 'lowpass';
+                noiseFilter.frequency.value = 1200;
+            }
+            noise.connect(noiseFilter);
+            noiseFilter.connect(gainNode);
+            osc.connect(gainNode);
+            gainNode.gain.setValueAtTime(0, t);
+            gainNode.gain.linearRampToValueAtTime((isWet ? 0.04 : 0.02) * intensity * distScalar, t + 0.02);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+            osc.start(t); osc.stop(t + 0.15);
+            noise.start(t); noise.stop(t + 0.15);
+        } else if (type === 'door') {
+            const osc = this.ctx.createOscillator();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(120, t);
+            osc.frequency.exponentialRampToValueAtTime(30, t + 0.3);
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this.noiseSrc.buffer;
+            const noiseFilter = this.ctx.createBiquadFilter();
+            noiseFilter.type = 'lowpass';
+            noiseFilter.frequency.setValueAtTime(1000, t);
+            noiseFilter.frequency.exponentialRampToValueAtTime(100, t + 0.4);
+            noise.connect(noiseFilter);
+            noiseFilter.connect(gainNode);
+            osc.connect(gainNode);
+            gainNode.gain.setValueAtTime(0, t);
+            gainNode.gain.linearRampToValueAtTime(0.08 * intensity * distScalar, t + 0.03);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+            osc.start(t); osc.stop(t + 0.5);
+            noise.start(t); noise.stop(t + 0.5);
         }
     }
 }

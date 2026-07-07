@@ -52,7 +52,6 @@ export default class PlayerController {
             this.isLocked = (document.pointerLockElement === document.body);
             if (!this.isLocked) { this.isPeeking = false; this.targetLean = 0.0; }
         });
-
         document.addEventListener('mousedown', (e) => {
             if (this.isLocked && e.button === 2) this.isPeeking = true;
         });
@@ -60,7 +59,6 @@ export default class PlayerController {
             if (e.button === 2) { this.isPeeking = false; this.targetLean = 0.0; }
         });
         document.addEventListener('contextmenu', (e) => e.preventDefault());
-
         document.addEventListener('mousemove', (e) => this.onMouseMove(e));
         window.addEventListener('blur', () => {
             this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = this.isRunning = this.isPeeking = false;
@@ -248,10 +246,8 @@ export default class PlayerController {
         this.direction.z = Number(this.moveForward) - Number(this.moveBackward);
         this.direction.x = Number(this.moveRight) - Number(this.moveLeft);
         if (this.direction.lengthSq() > 0) this.direction.normalize();
-
         this.isSqueezing = this.squeezeIntent;
         let targetRadius = this.isSqueezing ? this.squeezeRadius : this.baseRadius;
-
         if (!this.isSqueezing && this.playerRadius < this.baseRadius - 0.01) {
             const checkY = this.camera.position.y - 1.0;
             this._vecMin.set(this.camera.position.x - this.baseRadius, checkY, this.camera.position.z - this.baseRadius);
@@ -267,7 +263,6 @@ export default class PlayerController {
                 }
             }
         }
-
         this.playerRadius += (targetRadius - this.playerRadius) * 8.0 * delta;
         const targetNear = this.isSqueezing ? 0.01 : 0.1;
         if (this.camera.near !== targetNear) {
@@ -285,7 +280,6 @@ export default class PlayerController {
         } else {
             this.stamina = Math.min(this.maxStamina, this.stamina + 10.0 * delta);
         }
-
         if (this.flashlightActive) {
             this.flashlightBattery = Math.max(0, this.flashlightBattery - 1.5 * delta);
             if (this.flashlightBattery === 0) {
@@ -299,102 +293,84 @@ export default class PlayerController {
             const actualSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
             const angularSpeed = Math.abs(this.camera.rotation.y - (this._lastRotY || this.camera.rotation.y)) +
                 Math.abs(this.camera.rotation.x - (this._lastRotX || this.camera.rotation.x));
-
             this._lastRotY = this.camera.rotation.y;
             this._lastRotX = this.camera.rotation.x;
-
             const kineticCharge = (actualSpeed * 0.15) + (angularSpeed * 20.0);
             this.flashlightBattery = Math.min(100.0, this.flashlightBattery + (kineticCharge * delta));
         }
-
         const fatigueRatio = this.stamina / this.maxStamina;
         this.exhaustion = fatigueRatio < 0.3 ? Math.pow(1.0 - (fatigueRatio / 0.3), 2.0) : 0.0;
         let intentX = this.direction.x;
         let intentZ = this.direction.z;
-
         if (this.touchMove.active) {
             const deadzone = 10.0;
             const mapAxis = (px) => Math.abs(px) > deadzone ? (px - Math.sign(px) * deadzone) / 110.0 : 0.0;
             intentX = mapAxis(this.touchMove.deltaX);
             intentZ = -mapAxis(this.touchMove.deltaY);
         }
-
         this.velocity.x -= intentX * currentSpeed * delta;
         this.velocity.z -= intentZ * currentSpeed * delta;
-
         this._euler.set(0, this.camera.rotation.y, 0, 'YXZ');
         this._moveDelta.set(-this.velocity.x * delta, 0, this.velocity.z * delta).applyEuler(this._euler);
-
         const moveX = this._moveDelta.x;
         const moveZ = this._moveDelta.z;
         const px = this.camera.position.x;
         const pz = this.camera.position.z;
         const feetY = this.camera.position.y - 1.6;
-
         const localBoxes = spatialGrid.getNearby(px, pz, 2.0);
         const visualHeight = this.isCrouching ? 0.8 : 1.6;
         const physicalTop = this.isCrouching ? 1.2 : 2.5;
-        const snagShrink = this.isSqueezing ? 0.01 : 0.05;
-
+        const snagShrink = this.isSqueezing ? 0.02 : 0.15;
         this._vecMin.set(px + moveX - this.playerRadius, feetY + 0.6, pz - this.playerRadius + snagShrink);
         this._vecMax.set(px + moveX + this.playerRadius, feetY + physicalTop, pz + this.playerRadius - snagShrink);
         this._boxX.set(this._vecMin, this._vecMax);
-
         this._vecMin.set(px - this.playerRadius + snagShrink, feetY + 0.6, pz + moveZ - this.playerRadius);
         this._vecMax.set(px + this.playerRadius - snagShrink, feetY + physicalTop, pz + moveZ + this.playerRadius);
         this._boxZ.set(this._vecMin, this._vecMax);
-
         this._vecMin.set(px - this.playerRadius, -10.0, pz - this.playerRadius);
         this._vecMax.set(px + this.playerRadius, feetY + 1.2, pz + this.playerRadius);
         this._floorBox.set(this._vecMin, this._vecMax);
-
         let hitX = false;
         let hitZ = false;
         let targetFeetY = 0;
-
         for (let i = 0, len = localBoxes.length; i < len; i++) {
             const box = localBoxes[i];
-
             if (!hitX && this._boxX.intersectsBox(box)) hitX = true;
             if (!hitZ && this._boxZ.intersectsBox(box)) hitZ = true;
-
             if (box.max.y > targetFeetY && box.max.y <= feetY + 1.2) {
                 if (this._floorBox.intersectsBox(box)) {
                     targetFeetY = box.max.y;
                 }
             }
         }
-
         if (!hitX) this.camera.position.x += moveX;
         if (!hitZ) this.camera.position.z += moveZ;
         const actualSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
         this.headBobTimer = (this.headBobTimer || 0) + actualSpeed * delta;
-
         let bobOffset = 0;
         let swayRoll = 0;
         if (this.enableHeadBob && actualSpeed > 0.5) {
             const bobFreq = this.isRunning ? 3.5 : 2.5;
             const bobAmp = this.isRunning ? 0.08 : 0.05;
+            const prevBob = Math.sin((this.headBobTimer - actualSpeed * delta) * bobFreq) * bobAmp;
             bobOffset = Math.sin(this.headBobTimer * bobFreq) * bobAmp;
+            if (prevBob > 0 && bobOffset <= 0 && !this.isCrouching) {
+                document.dispatchEvent(new CustomEvent('somatic-step', { detail: { intensity: this.isRunning ? 1.0 : 0.3 } }));
+            }
             swayRoll = Math.cos(this.headBobTimer * (bobFreq * 0.5)) * (bobAmp * 0.05);
         }
-
         this.currentLean += (this.targetLean - this.currentLean) * (1.0 - Math.exp(-15.0 * delta));
-
         const rollDamping = 1.0 - Math.exp(-12.0 * delta);
         const velocityRoll = this.velocity.x * (this.isSqueezing ? 0.005 : 0.015);
         const peekRoll = -this.currentLean * 0.35; // Tilt the head physically opposite to the lean anchor
         this.camera.rotation.z += ((velocityRoll + peekRoll) - this.camera.rotation.z) * rollDamping;
         this.camera.rotation.z += swayRoll;
-
         this._euler.set(0, this.camera.rotation.y, 0, 'YXZ');
         const leanLateral = Math.sin(this.currentLean) * 0.8;
         const leanDrop = (1.0 - Math.cos(this.currentLean)) * 0.8;
-
         this._leanOffset.set(leanLateral, 0, 0).applyEuler(this._euler);
         this.camera.position.x += this._leanOffset.x;
         this.camera.position.z += this._leanOffset.z;
-
         const targetCamY = Math.min(targetFeetY + visualHeight, 2.8) + bobOffset - leanDrop;
         const lerpFactor = 1.0 - Math.exp(-12.0 * delta);
         this.camera.position.y += (targetCamY - this.camera.position.y) * lerpFactor;
