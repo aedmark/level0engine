@@ -108,6 +108,7 @@ export default class Environment {
         this.chunkQueue = [];
         this.isBuildingChunk = false;
         this.isSpawning = false;
+        this._lightSortCache = (a, b) => a.distSq - b.distSq;
     }
 
     updateChunks(playerPos) {
@@ -921,6 +922,50 @@ export default class Environment {
                 }
             },
             {
+                // FULLER & THE ARTISAN: Architectural Hallways (Squeeze & Crouch Tunnels)
+                prob: 0.25, build: (x, z) => {
+                    const isSqueeze = random() > 0.5;
+                    const dirZ = random() > 0.5;
+
+                    if (isSqueeze) {
+                        // Squeeze Hallway: 0.3 gap explicitly sealing the entire 4x4 cell
+                        const wallW = (this.cellSize - 0.3) / 2;
+                        const offset = (wallW / 2) + 0.15;
+
+                        const block1 = buildWall(dirZ ? wallW : this.cellSize, dirZ ? this.cellSize : wallW, this.structMat);
+                        block1.position.set(x * this.cellSize + (dirZ ? -offset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : -offset));
+                        block1.userData.isEntityBlocker = true;
+                        addGeometry(block1);
+
+                        const block2 = buildWall(dirZ ? wallW : this.cellSize, dirZ ? this.cellSize : wallW, this.structMat);
+                        block2.position.set(x * this.cellSize + (dirZ ? offset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : offset));
+                        block2.userData.isEntityBlocker = true;
+                        addGeometry(block2);
+                    } else {
+                        // Crouch Hallway: Side walls framing a dropped ceiling to force a crouch
+                        const sideW = 1.0;
+                        const sideOffset = (this.cellSize / 2) - (sideW / 2);
+                        const roofW = this.cellSize - (sideW * 2);
+                        const roofH = 1.8;
+
+                        const side1 = buildWall(dirZ ? sideW : this.cellSize, dirZ ? this.cellSize : sideW, this.sharedWallMat);
+                        side1.position.set(x * this.cellSize + (dirZ ? -sideOffset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : -sideOffset));
+                        side1.userData.isEntityBlocker = true;
+                        addGeometry(side1);
+
+                        const side2 = buildWall(dirZ ? sideW : this.cellSize, dirZ ? this.cellSize : sideW, this.sharedWallMat);
+                        side2.position.set(x * this.cellSize + (dirZ ? sideOffset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : sideOffset));
+                        side2.userData.isEntityBlocker = true;
+                        addGeometry(side2);
+
+                        const roof = buildWall(dirZ ? roofW : this.cellSize, dirZ ? this.cellSize : roofW, this.structMat, roofH);
+                        roof.position.set(x * this.cellSize, 1.2 + (roofH / 2), z * this.cellSize);
+                        roof.userData.isEntityBlocker = true;
+                        addGeometry(roof);
+                    }
+                }
+            },
+            {
                 prob: 0.00, build: (x, z) => {
                     const wall = new THREE.Mesh(this.sharedWallGeo, this.sharedWallMat);
                     wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
@@ -1730,8 +1775,9 @@ export default class Environment {
         }
 
         // Observation Stun Logic (Weeping Angel effect)
-        const baseSpeed = distToPlayerSq < 225.0 ? 4.2 : 2.0;
-        let speed = baseSpeed + (this.player.exhaustion * 1.5);
+        const baseSpeed = distToPlayerSq < 225.0 ? 3.8 : 1.8;
+        // MEADOWS: Cap the exhaustion scalar to prevent impossible entity speeds during high-darkness panic loops.
+        let speed = baseSpeed + (Math.min(this.player.exhaustion, 0.6) * 1.2);
         let isObserved = false;
 
         if (this.player.flashlightActive && distToPlayerSq < 625.0) {
@@ -1847,11 +1893,12 @@ export default class Environment {
                 fixture.hasShadow = false;
             }
         });
-        this.localFixtures.sort((a, b) => a.distSq - b.distSq);
+        this.localFixtures.sort(this._lightSortCache);
         this.localFixtures.forEach(fixture => {
             if (fixture.hasShadow) fixture.distSq += 40.0;
             fixture.hasShadow = false;
         });
+        this.player.darknessPressure = darknessPressure;
         let nearestFixture = null;
         let minLightDist = Infinity;
         for (let i = 0; i < this.maxActiveLights; i++) {

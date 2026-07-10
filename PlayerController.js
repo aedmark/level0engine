@@ -290,20 +290,23 @@ export default class PlayerController {
         const adrenalineMultiplier = this.isChased ? 1.15 : 1.0;
         let currentSpeed = (this.isSqueezing ? 20.0 : (this.isCrouching ? 30.0 : (this.isRunning ? 125.0 : 60.0))) * this.speedMultiplier * adrenalineMultiplier;
         const isMoving = this.direction.lengthSq() > 0 || this.touchMove.active;
+        const baseDarknessPenalty = (this.darknessPressure || 0.0) * 12.0;
+
         if (this.isRunning && isMoving && !this.isSqueezing) {
-            const burnRate = this.isChased ? 25.0 : 4.0;
+            const burnRate = (this.isChased ? 25.0 : 4.0) + baseDarknessPenalty;
             this.stamina = Math.max(0, this.stamina - burnRate * delta);
             if (this.stamina <= 0.0) {
                 this.isRunning = false;
                 currentSpeed = 60.0 * this.speedMultiplier;
             }
         } else {
-            const recoveryRate = this.isChased ? 4.0 : 10.0;
-            this.stamina = Math.min(this.maxStamina, this.stamina + recoveryRate * delta);
+            const recoveryRate = (this.isChased ? 4.0 : 10.0) - baseDarknessPenalty;
+            this.stamina = Math.max(0.0, Math.min(this.maxStamina, this.stamina + recoveryRate * delta));
         }
         const currentActualSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
         if (this.flashlightActive) {
-            this.flashlightBattery = Math.max(0, this.flashlightBattery - 1.5 * delta);
+            const panicDrain = (this.stamina <= 0.1 && (this.darknessPressure || 0.0) > 0.4) ? 5.0 : 1.5;
+            this.flashlightBattery = Math.max(0, this.flashlightBattery - panicDrain * delta);
             if (this.flashlightBattery === 0) {
                 this.flashlightActive = false;
                 const flashBtn = document.getElementById('mobile-flashlight');
@@ -342,9 +345,9 @@ export default class PlayerController {
 
         let targetFov = this.baseFov;
         if (this.isRunning) targetFov += 8.0;
-        if (this.isSqueezing) targetFov -= 5.0;
-        if (this.isCrouching) targetFov -= 2.0;
-        targetFov -= (this.exhaustion * 4.0);
+        if (this.isSqueezing) targetFov -= 18.0;
+        if (this.isCrouching) targetFov -= 8.0;
+        targetFov -= (this.exhaustion * 7.0);
 
         if (Math.abs(this.currentFov - targetFov) > 0.1) {
             this.currentFov += (targetFov - this.currentFov) * 8.0 * delta;
