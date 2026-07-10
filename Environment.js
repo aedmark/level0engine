@@ -167,9 +167,38 @@ export default class Environment {
             let targetRot = door.userData.closedRot;
             if (isOpen) {
                 if (!door.userData.isLatched) {
+                    if (door.userData.swingConstraint === undefined) {
+                        door.userData.swingConstraint = 0;
+                        const cx = door.position.x;
+                        const cz = door.position.z;
+
+                        const localBoxes = this.spatialGrid.getNearby(cx, cz, 2.0);
+
+                        const testBoxNegZ = new THREE.Box3(new THREE.Vector3(cx - 0.1, 0, cz - 1.4), new THREE.Vector3(cx + 0.1, 3.0, cz));
+                        const testBoxPosZ = new THREE.Box3(new THREE.Vector3(cx - 0.1, 0, cz), new THREE.Vector3(cx + 0.1, 3.0, cz + 1.4));
+
+                        let blockNegZ = false;
+                        let blockPosZ = false;
+
+                        for (let i = 0; i < localBoxes.length; i++) {
+                            const b = localBoxes[i];
+                            if (b === door.userData.box) continue;
+                            if (b.intersectsBox(testBoxNegZ)) blockNegZ = true;
+                            if (b.intersectsBox(testBoxPosZ)) blockPosZ = true;
+                        }
+
+                        if (blockNegZ && !blockPosZ) door.userData.swingConstraint = -(Math.PI / 2);
+                        else if (blockPosZ && !blockNegZ) door.userData.swingConstraint = (Math.PI / 2);
+                    }
+
                     const triggerZ = (entityOpen && !playerOpen) ? this.entityGroup.position.z : playerPos.z;
                     const approachZ = triggerZ - door.position.z;
-                    door.userData.latchedRot = approachZ < 0 ? -(Math.PI / 2) : (Math.PI / 2);
+
+                    let desiredRot = approachZ < 0 ? -(Math.PI / 2) : (Math.PI / 2);
+
+                    if (door.userData.swingConstraint !== 0) desiredRot = door.userData.swingConstraint;
+
+                    door.userData.latchedRot = desiredRot;
                     door.userData.isLatched = true;
                     door.userData.swingSpeed = (entityOpen && !playerOpen) ? 35.0 : 8.0;
                     const intensity = (entityOpen && !playerOpen) ? 1.0 : 0.25;
@@ -187,7 +216,11 @@ export default class Environment {
                     door.userData.box.makeEmpty();
                 } else {
                     door.updateMatrixWorld();
-                    door.userData.box.setFromObject(door);
+                    if (!door.userData.baseBox) {
+                        door.geometry.computeBoundingBox();
+                        door.userData.baseBox = door.geometry.boundingBox.clone();
+                    }
+                    door.userData.box.copy(door.userData.baseBox).applyMatrix4(door.matrixWorld);
                 }
             }
         });
@@ -289,7 +322,6 @@ export default class Environment {
         this.entityActive = false;
         this.entityTarget = new THREE.Vector3();
 
-        // [SLASH] Meadows: Strict Thermodynamic Object Pooling for UV Tags (Max 50)
         this.tagPool = [];
         this.tagIndex = 0;
         this.tagGroup = new THREE.Group();
@@ -371,11 +403,9 @@ export default class Environment {
         document.getElementById('captureBtn').addEventListener('click', capture);
         document.addEventListener('capture-screenshot', capture);
 
-        // [SLASH] Fuller: Raycasting the UV Tag onto the nearest wall
         this.tagRaycaster = new THREE.Raycaster();
         document.addEventListener('somatic-tag', () => {
             this.tagRaycaster.set(this.camera.position, this.camera.getWorldDirection(new THREE.Vector3()));
-            // Intersect against all known structural boundaries
             const intersects = this.tagRaycaster.intersectObjects(this.walls, false);
 
             if (intersects.length > 0 && intersects[0].distance < 3.0) {
@@ -384,7 +414,6 @@ export default class Environment {
                 tag.visible = true;
                 tag.position.copy(hit.point);
 
-                // We must dynamically extract the local normal of the hit face and map it to world space
                 let normal = hit.face ? hit.face.normal.clone() : new THREE.Vector3(0, 0, 1);
 
                 if (hit.object && hit.object.isInstancedMesh && hit.instanceId !== undefined) {
@@ -397,7 +426,6 @@ export default class Environment {
                     normal.applyMatrix3(normalMatrix).normalize();
                 }
 
-                // Snap the decal flush to the wall and randomize the rotation for an organic feel
                 tag.lookAt(hit.point.clone().add(normal));
                 tag.rotateZ((Math.random() - 0.5) * 0.4);
 
@@ -435,7 +463,6 @@ export default class Environment {
         this.spatialGrid.cells.clear();
         this.currentChunkCoords = {x: null, z: null};
 
-        // [SLASH] Clears the breadcrumbs when a matrix reset occurs
         if (this.tagPool) {
             this.tagPool.forEach(tag => tag.visible = false);
             this.tagIndex = 0;
@@ -449,7 +476,6 @@ export default class Environment {
         this.breadcrumbTimer = 0;
 
         if (isWarp) {
-            // Fast Travel: Shift coordinates radically but maintain the exact same quantum seed
             const signX = Math.random() > 0.5 ? 1 : -1;
             const signZ = Math.random() > 0.5 ? 1 : -1;
             const warpX = this.camera.position.x + (signX * (1500 + Math.random() * 2000));
@@ -458,7 +484,6 @@ export default class Environment {
             this.entityGroup.position.set(warpX + 32, 1.5, warpZ + 32);
             this.entityTarget.copy(this.entityGroup.position);
         } else {
-            // Death/Reset: Complete re-roll of the universe
             this.camera.position.set(0, 1.6, 0);
             this.entityGroup.position.set(32, 1.5, 32);
             this.entityTarget.copy(this.entityGroup.position);
@@ -863,35 +888,31 @@ export default class Environment {
         const startZ = chunkZ * this.chunkSize;
         const sectorMatrix = [
             {
-                name: "THE POOLROOMS", // [SLASH] Repurposed into 'The Cages'. Name kept intact for Acoustic DSP routing.
+                name: "THE POOLROOMS",
                 prob: 0.16,
                 foundationMat: this.structMat,
                 build: (x, z, localX, localZ, maze) => {
                     const isWall = maze && maze[localX][localZ];
                     if (isWall) {
-                        // Structural pipe framework
                         const cPillar = new THREE.Mesh(this.vPipeGeo, this.rustMat);
                         cPillar.position.set(x * this.cellSize + (this.cellSize / 2), 1.5, z * this.cellSize + (this.cellSize / 2));
                         addGeometry(cPillar);
 
-                        // Chain-link mesh plane (X-axis)
                         const fenceGeoX = new THREE.BoxGeometry(this.cellSize, 3.0, 0.05);
-                        const fenceX = new THREE.Mesh(fenceGeoX, this.waterMat); // Aliased chain-link
+                        const fenceX = new THREE.Mesh(fenceGeoX, this.waterMat);
                         fenceX.position.set(x * this.cellSize, 1.5, z * this.cellSize + (this.cellSize / 2));
                         fenceX.userData.isEntityBlocker = true;
                         addGeometry(fenceX);
 
-                        // Chain-link mesh plane (Z-axis)
                         const fenceGeoZ = new THREE.BoxGeometry(0.05, 3.0, this.cellSize);
                         const fenceZ = new THREE.Mesh(fenceGeoZ, this.waterMat);
                         fenceZ.position.set(x * this.cellSize + (this.cellSize / 2), 1.5, z * this.cellSize);
                         fenceZ.userData.isEntityBlocker = true;
                         addGeometry(fenceZ);
                     } else {
-                        // Halogen Floodlights
                         if (localX % 3 === 0 && localZ % 3 === 0 && random() > 0.5) {
                             const activeMat = this.baseLightMat.clone();
-                            activeMat.color.setHex(0xffaa55); // Sodium vapor orange
+                            activeMat.color.setHex(0xffaa55);
                             activeMat.emissive.setHex(0xffaa55);
                             const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
                             panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
@@ -1701,7 +1722,6 @@ export default class Environment {
         const pChunkX = Math.floor(cameraPos.x / (this.chunkSize * this.cellSize));
         const pChunkZ = Math.floor(cameraPos.z / (this.chunkSize * this.cellSize));
 
-        // [SLASH] Benedict: Healing the Schism. Enforcing structural LCG math to perfectly sync audio with visual reality.
         let pSeed = (this.baseSeed + (pChunkX * 104729) + (pChunkZ * 1299827)) >>> 0;
         const pRandom = () => {
             pSeed = (pSeed * 1664525 + 1013904223) >>> 0;

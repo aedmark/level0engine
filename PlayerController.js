@@ -181,7 +181,6 @@ export default class PlayerController {
             const flashBtn = document.getElementById('mobile-flashlight');
             if (flashBtn) flashBtn.classList.toggle('active', this.flashlightActive);
         }
-        // [SLASH] Fuller: Somatic trigger for the UV Spray
         if (event.code === 'KeyT') {
             document.dispatchEvent(new Event('somatic-tag'));
         }
@@ -353,15 +352,27 @@ export default class PlayerController {
         let hitZ = false;
         let targetFeetY = 0;
         this.onWarpZone = false;
+
         for (let i = 0, len = localBoxes.length; i < len; i++) {
             const box = localBoxes[i];
-            if (!hitX && this._boxX.intersectsBox(box)) hitX = true;
-            if (!hitZ && this._boxZ.intersectsBox(box)) hitZ = true;
+
             if (box.max.y > targetFeetY && box.max.y <= feetY + 1.2) {
                 if (this._floorBox.intersectsBox(box)) {
                     targetFeetY = box.max.y;
                     if (box.isWarpZone) this.onWarpZone = true;
                 }
+            }
+
+            if (hitX && hitZ) continue;
+
+            if (!hitX && this._boxX.intersectsBox(box)) {
+                const cx = (box.min.x + box.max.x) * 0.5;
+                if ((moveX > 0 && px < cx) || (moveX < 0 && px > cx)) hitX = true;
+            }
+
+            if (!hitZ && this._boxZ.intersectsBox(box)) {
+                const cz = (box.min.z + box.max.z) * 0.5;
+                if ((moveZ > 0 && pz < cz) || (moveZ < 0 && pz > cz)) hitZ = true;
             }
         }
         if (!hitX) this.camera.position.x += moveX;

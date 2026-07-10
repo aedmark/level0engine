@@ -80,9 +80,16 @@ document.addEventListener('somatic-door', (e) => acoustics.triggerSomaticEvent('
 const saveInterval = setInterval(saveState, 2500);
 
 document.getElementById('clearSaveBtn')?.addEventListener('click', async () => {
+    player.isDead = true;
+    const flash = document.getElementById('flash-overlay');
+    if (flash) {
+        flash.style.transition = 'none';
+        flash.style.backgroundColor = '#8a3333';
+        flash.style.opacity = '1';
+    }
+
     clearInterval(saveInterval);
     localStorage.clear();
-    sessionStorage.clear();
     sessionStorage.clear();
     if ('serviceWorker' in navigator) {
         const registrations = await navigator.serviceWorker.getRegistrations();
@@ -115,20 +122,34 @@ function animate() {
     requestAnimationFrame(animate);
     const delta = engine.delta;
     const time = engine.time;
+
+    if (player.isDead) {
+        engine.render();
+        return;
+    }
+
     environment.updateChunks(engine.camera.position);
     environment.updateInteractives(engine.camera.position, delta);
     const entityState = environment.updateEntity(engine.camera.position, delta, time);
 
     if (entityState && entityState.consumed) {
-        triggerBlackout();
-        environment.generate();
+        player.isDead = true;
+
+        engine.camera.position.y = 0.2;
+        engine.camera.rotation.z = Math.PI / 2.5;
+
+        setTimeout(() => {
+            triggerBlackout();
+            environment.generate();
+            player.isDead = false;
+        }, 1500);
         return;
     }
 
     player.update(delta, environment.spatialGrid);
 
     if (engine.camera.position.y > 2.8 && player.onWarpZone && !environment.isSpawning) {
-        environment.generate(true); // true = isWarp
+        environment.generate(true);
         return;
     }
 

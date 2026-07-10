@@ -18,13 +18,12 @@ export default class AcousticEngine {
             "MAINTENANCE": { noise: 0.02, peace: 0.0, rumble: 90, freq: 120, freqOcc: 120, whine: 0.006, whineOcc: 0.002, dynamicWhine: false }
         };
 
-        // [SLASH] Pinker: Articulated Foley Envelopes. We must separate the ADSR timings.
         this.foleyProfiles = {
-            "POOLROOMS":   { oscFreq: 100, filterType: 'bandpass', filterFreq: 1200, gain: 0.18, attack: 0.02, decay: 0.15 }, // Concrete scrape (The Cages)
-            "CLINIC":      { oscFreq: 800, filterType: 'highpass', filterFreq: 3000, gain: 0.15, attack: 0.01, decay: 0.06 }, // Hard tile click
-            "BOARDROOM":   { oscFreq: 120, filterType: 'lowpass',  filterFreq: 1400, gain: 0.18, attack: 0.02, decay: 0.12 }, // Hollow wood knock
-            "MAINTENANCE": { oscFreq: 400, filterType: 'bandpass', filterFreq: 2500, gain: 0.12, attack: 0.01, decay: 0.15 }, // Metallic clink
-            "DEFAULT":     { oscFreq: 60,  filterType: 'lowpass',  filterFreq: 600,  gain: 0.10, attack: 0.04, decay: 0.18 }  // Damp carpet thud
+            "POOLROOMS":   { oscFreq: 100, filterType: 'bandpass', filterFreq: 1200, gain: 0.18, attack: 0.02, decay: 0.15 },
+            "CLINIC":      { oscFreq: 800, filterType: 'highpass', filterFreq: 3000, gain: 0.15, attack: 0.01, decay: 0.06 },
+            "BOARDROOM":   { oscFreq: 120, filterType: 'lowpass',  filterFreq: 1400, gain: 0.18, attack: 0.02, decay: 0.12 },
+            "MAINTENANCE": { oscFreq: 400, filterType: 'bandpass', filterFreq: 2500, gain: 0.12, attack: 0.01, decay: 0.15 },
+            "DEFAULT":     { oscFreq: 60,  filterType: 'lowpass',  filterFreq: 600,  gain: 0.10, attack: 0.04, decay: 0.18 }
         };
     }
 
@@ -191,7 +190,6 @@ export default class AcousticEngine {
             this.stepFilter.frequency.setValueAtTime(profile.filterFreq, t);
 
             const osc = this.ctx.createOscillator();
-            // [SLASH] Use a triangle wave for sharper clicks on hard surfaces (Tile/Metal)
             osc.type = (profile.oscFreq > 200) ? 'triangle' : 'sine';
             osc.frequency.setValueAtTime(profile.oscFreq, t);
             osc.frequency.exponentialRampToValueAtTime(20, t + profile.attack);
@@ -203,7 +201,6 @@ export default class AcousticEngine {
             noise.connect(this.stepFilter);
 
             this.stepGain.gain.setValueAtTime(0, t);
-            // Apply the dynamic Envelope timings
             this.stepGain.gain.linearRampToValueAtTime(profile.gain * intensity * distScalar, t + profile.attack);
             this.stepGain.gain.exponentialRampToValueAtTime(0.001, t + profile.decay);
 

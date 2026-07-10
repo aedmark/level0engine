@@ -87,7 +87,9 @@ export default class RenderEngine {
                     col -= scanline * luminance;
                     
                     float distSq = dot(centerUv, centerUv);
-                    col *= smoothstep(0.9, 0.25, distSq + 0.2); 
+                    float pulse = sin(time * 8.0) * (exhaustion * 0.05); 
+                    float vignetteRadius = 0.25 - (exhaustion * 0.15) - (anomaly * 0.1) + pulse;
+                    col *= smoothstep(0.9, vignetteRadius, distSq + 0.2); 
                     
                     float lateralDist = abs(centerUv.x);
                     col *= mix(1.0, smoothstep(0.45, 0.15, lateralDist), squeeze);

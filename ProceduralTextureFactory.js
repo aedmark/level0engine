@@ -176,7 +176,9 @@ export default class ProceduralTextureFactory {
         structCtx.globalAlpha = 0.9;
         structCtx.drawImage(masterNoise, 0, 0);
         structCtx.scale(-1, 1);
+        structCtx.drawImage(masterNoise, -512, 0);
         structCtx.setTransform(1, 0, 0, 1, 0, 0);
+
         structCtx.globalAlpha = 1.0;
 
         for (let i = 0; i < 30; i++) {
@@ -300,17 +302,27 @@ export default class ProceduralTextureFactory {
         fabricCanvas.width = 256;
         fabricCanvas.height = 256;
         const fCtx = fabricCanvas.getContext('2d');
-        fCtx.fillStyle = '#4c594f';
+        fCtx.fillStyle = '#3a4a58';
         fCtx.fillRect(0, 0, 256, 256);
+
+        fCtx.lineWidth = 1;
+        for(let i = 0; i < 256; i += 4) {
+            fCtx.strokeStyle = 'rgba(255,255,255,0.04)';
+            fCtx.beginPath(); fCtx.moveTo(i, 0); fCtx.lineTo(i, 256); fCtx.stroke();
+            fCtx.strokeStyle = 'rgba(0,0,0,0.06)';
+            fCtx.beginPath(); fCtx.moveTo(0, i); fCtx.lineTo(256, i); fCtx.stroke();
+        }
+
         fCtx.globalAlpha = 0.6;
         fCtx.drawImage(masterNoise, 0, 0, 256, 1024);
         fCtx.drawImage(masterNoise, 0, 0, 1024, 256);
         fCtx.globalAlpha = 1.0;
+
         const fabricTexture = new THREE.CanvasTexture(fabricCanvas);
         fabricTexture.wrapS = THREE.RepeatWrapping;
         fabricTexture.wrapT = THREE.RepeatWrapping;
-        fabricTexture.repeat.set(2, 2);
-        const fabricMat = new THREE.MeshStandardMaterial({map: fabricTexture, roughness: 0.95, bumpMap: fabricTexture, bumpScale: 0.03});
+        fabricTexture.repeat.set(4, 4);
+        const fabricMat = new THREE.MeshStandardMaterial({map: fabricTexture, roughness: 0.98, bumpMap: fabricTexture, bumpScale: 0.05});
         const mossTexture = new THREE.CanvasTexture(fabricCanvas);
         mossTexture.wrapS = THREE.RepeatWrapping;
         mossTexture.wrapT = THREE.RepeatWrapping;
@@ -364,10 +376,9 @@ export default class ProceduralTextureFactory {
         const clinicMat = new THREE.MeshStandardMaterial({
             map: clinicTex,
             bumpMap: clinicBumpTex, bumpScale: 0.015,
-            roughness: 0.1, metalness: 0.15 // Wet reflection
+            roughness: 0.1, metalness: 0.15
         });
 
-        // [SLASH] Gordon: Nuking the water. Deploying procedural chain-link fencing.
         const fenceCanvas = document.createElement('canvas');
         fenceCanvas.width = 64; fenceCanvas.height = 64;
         const fenceCtx = fenceCanvas.getContext('2d');
@@ -391,11 +402,10 @@ export default class ProceduralTextureFactory {
             map: fenceTex,
             roughness: 0.4,
             metalness: 0.9,
-            alphaTest: 0.5, // Absolute transparency threshold. Eliminates z-sorting artifacts.
+            alphaTest: 0.5,
             side: THREE.DoubleSide
         });
 
-        // Alias waterMat to fenceMat to prevent breaking the returned assets payload
         const waterMat = fenceMat;
         const serverCanvas = document.createElement('canvas');
         serverCanvas.width = 256;
@@ -432,13 +442,12 @@ export default class ProceduralTextureFactory {
             roughness: 0.3,
             metalness: 0.1
         });
-        // [SLASH] The Artisan: Calibrating the dead ballasts. Milky acrylic instead of a void.
         const baseBrokenLightMat = new THREE.MeshStandardMaterial({
             map: lightTexture,
             emissiveMap: lightTexture,
-            color: 0x8c9296,         // Dead, milky acrylic plastic
-            emissive: 0x1a1f24,      // Cold, lifeless gray baseline
-            emissiveIntensity: 1.0,  // Ensures the diffuser never drops below a gray visual floor
+            color: 0x8c9296,
+            emissive: 0x1a1f24,
+            emissiveIntensity: 1.0,
             roughness: 0.8
         });
         const baseHousingMat = new THREE.MeshStandardMaterial({
@@ -491,11 +500,10 @@ export default class ProceduralTextureFactory {
         const glowGeo = new THREE.PlaneGeometry(3.8, 3.8);
         glowGeo.rotateX(-Math.PI / 2);
 
-        // [SLASH] The Artisan: Ultraviolet Spray Paint Decal
         const tagCanvas = document.createElement('canvas');
         tagCanvas.width = 128; tagCanvas.height = 128;
         const tagCtx = tagCanvas.getContext('2d');
-        tagCtx.strokeStyle = '#ff0055'; // High-visibility liminal neon pink
+        tagCtx.strokeStyle = '#ff0055';
         tagCtx.lineWidth = 12;
         tagCtx.lineCap = 'round';
         tagCtx.shadowColor = '#ff0055';
@@ -504,7 +512,6 @@ export default class ProceduralTextureFactory {
         tagCtx.moveTo(32, 32); tagCtx.lineTo(96, 96);
         tagCtx.moveTo(96, 32); tagCtx.lineTo(32, 96);
         tagCtx.stroke();
-        // Paint drips
         tagCtx.lineWidth = 4;
         tagCtx.shadowBlur = 5;
         tagCtx.beginPath();
@@ -518,12 +525,12 @@ export default class ProceduralTextureFactory {
             transparent: true,
             depthWrite: false,
             polygonOffset: true,
-            polygonOffsetFactor: -4 // Forces the decal to render strictly on top of walls
+            polygonOffsetFactor: -4
         });
         const tagGeo = new THREE.PlaneGeometry(0.5, 0.5);
 
         const assets = {
-            tagMat, tagGeo, // [SLASH] Injected
+            tagMat, tagGeo,
             carpetTexture, ceilingTexture, headerMat, wallTexture, moldMat, moldGeo,
             ceilingStainMat, ceilingStainGeo, structMat, woodMat, doorMat, ventMat,
             fabricMat, mossMat, tileMat, clinicMat, waterMat, serverMat, baseLightMat,
@@ -531,9 +538,18 @@ export default class ProceduralTextureFactory {
         };
 
         Object.values(assets).forEach(item => {
-            if (item && item.isTexture) item.anisotropy = 4;
-            if (item && item.map && item.map.isTexture) item.map.anisotropy = 4;
-            if (item && item.emissiveMap && item.emissiveMap.isTexture) item.emissiveMap.anisotropy = 4;
+            if (item && item.isTexture) {
+                item.anisotropy = 4;
+                item.colorSpace = THREE.SRGBColorSpace;
+            }
+            if (item && item.map && item.map.isTexture) {
+                item.map.anisotropy = 4;
+                item.map.colorSpace = THREE.SRGBColorSpace;
+            }
+            if (item && item.emissiveMap && item.emissiveMap.isTexture) {
+                item.emissiveMap.anisotropy = 4;
+                item.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+            }
         });
 
         return assets;
