@@ -24,12 +24,10 @@ class SpatialHashGrid {
         const startZ = Math.floor(box.min.z / this.cellSize);
         const endX = Math.floor(box.max.x / this.cellSize);
         const endZ = Math.floor(box.max.z / this.cellSize);
-
         if (box.chunkHash) {
             if (!this.chunkMap.has(box.chunkHash)) this.chunkMap.set(box.chunkHash, new Set());
             this.chunkMap.get(box.chunkHash).add(box);
         }
-
         for (let x = startX; x <= endX; x++) {
             for (let z = startZ; z <= endZ; z++) {
                 const key = (x << 16) | (z & 0xFFFF);
@@ -42,13 +40,11 @@ class SpatialHashGrid {
     removeByChunk(chunkHash) {
         const boxes = this.chunkMap.get(chunkHash);
         if (!boxes) return;
-
         for (const box of boxes) {
             const startX = Math.floor(box.min.x / this.cellSize);
             const startZ = Math.floor(box.min.z / this.cellSize);
             const endX = Math.floor(box.max.x / this.cellSize);
             const endZ = Math.floor(box.max.z / this.cellSize);
-
             for (let x = startX; x <= endX; x++) {
                 for (let z = startZ; z <= endZ; z++) {
                     const key = (x << 16) | (z & 0xFFFF);
@@ -84,7 +80,6 @@ class SpatialHashGrid {
                 }
             }
         }
-        // Truncate in-place. Destroys stale references without reallocating arrays.
         this.queryCache.length = count;
         return this.queryCache;
     }
@@ -135,13 +130,11 @@ export default class Environment {
                 const hash = `${targetX},${targetZ}`;
                 chunksToKeep.add(hash);
                 if (!this.activeChunks.has(hash) && !this.chunkQueue.some(q => q.hash === hash)) {
-                    this.chunkQueue.push({ x: targetX, z: targetZ, hash: hash });
+                    this.chunkQueue.push({x: targetX, z: targetZ, hash: hash});
                 }
             }
         }
-
         this.processChunkQueue();
-
         for (const [hash, chunkGroup] of this.activeChunks.entries()) {
             if (!chunksToKeep.has(hash)) {
                 this.scene.remove(chunkGroup);
@@ -162,7 +155,6 @@ export default class Environment {
                 this.fixtureData = this.fixtureData.filter(f => f.chunkHash !== hash);
                 this.spatialGrid.removeByChunk(hash);
                 this.interactiveDoors = this.interactiveDoors.filter(d => d.userData.chunkHash !== hash);
-                // SLASH: Flush the interactables array to prevent terminal accumulation
                 if (this.interactables) this.interactables = this.interactables.filter(i => i.userData.chunkHash !== hash);
             }
         }
@@ -182,38 +174,34 @@ export default class Environment {
                         door.userData.swingConstraint = 0;
                         const cx = door.position.x;
                         const cz = door.position.z;
-
                         const localBoxes = this.spatialGrid.getNearby(cx, cz, 2.0);
-
                         const testBoxNegZ = new THREE.Box3(new THREE.Vector3(cx - 0.1, 0, cz - 1.4), new THREE.Vector3(cx + 0.1, 3.0, cz));
                         const testBoxPosZ = new THREE.Box3(new THREE.Vector3(cx - 0.1, 0, cz), new THREE.Vector3(cx + 0.1, 3.0, cz + 1.4));
-
                         let blockNegZ = false;
                         let blockPosZ = false;
-
                         for (let i = 0; i < localBoxes.length; i++) {
                             const b = localBoxes[i];
                             if (b === door.userData.box) continue;
                             if (b.intersectsBox(testBoxNegZ)) blockNegZ = true;
                             if (b.intersectsBox(testBoxPosZ)) blockPosZ = true;
                         }
-
                         if (blockNegZ && !blockPosZ) door.userData.swingConstraint = -(Math.PI / 2);
                         else if (blockPosZ && !blockNegZ) door.userData.swingConstraint = (Math.PI / 2);
                     }
-
                     const triggerZ = (entityOpen && !playerOpen) ? this.entityGroup.position.z : playerPos.z;
                     const approachZ = triggerZ - door.position.z;
-
                     let desiredRot = approachZ < 0 ? -(Math.PI / 2) : (Math.PI / 2);
-
                     if (door.userData.swingConstraint !== 0) desiredRot = door.userData.swingConstraint;
-
                     door.userData.latchedRot = desiredRot;
                     door.userData.isLatched = true;
                     door.userData.swingSpeed = (entityOpen && !playerOpen) ? 35.0 : 8.0;
                     const intensity = (entityOpen && !playerOpen) ? 1.0 : 0.25;
-                    document.dispatchEvent(new CustomEvent('somatic-door', { detail: { distSq: pDistSq, intensity: intensity } }));
+                    document.dispatchEvent(new CustomEvent('somatic-door', {
+                        detail: {
+                            distSq: pDistSq,
+                            intensity: intensity
+                        }
+                    }));
                 }
                 targetRot = door.userData.latchedRot;
             } else {
@@ -253,7 +241,6 @@ export default class Environment {
             }
             return;
         }
-
         this.isBuildingChunk = true;
         const chunk = this.chunkQueue.shift();
         const currentX = Math.floor(this.camera.position.x / (this.chunkSize * 4));
@@ -271,14 +258,24 @@ export default class Environment {
         const {carpetTexture, ceilingTexture} = assets;
         carpetTexture.repeat.set(75, 75);
         const floorGeo = new THREE.PlaneGeometry(300, 300);
-        const floorMat = new THREE.MeshStandardMaterial({map: carpetTexture, roughness: 1.0, bumpMap: carpetTexture, bumpScale: 0.015});
+        const floorMat = new THREE.MeshStandardMaterial({
+            map: carpetTexture,
+            roughness: 1.0,
+            bumpMap: carpetTexture,
+            bumpScale: 0.015
+        });
         this.floor = new THREE.Mesh(floorGeo, floorMat);
         this.floor.rotation.x = -Math.PI / 2;
         this.floor.receiveShadow = true;
         this.scene.add(this.floor);
         ceilingTexture.repeat.set(300, 300);
         const ceilGeo = new THREE.PlaneGeometry(300, 300);
-        const ceilMat = new THREE.MeshStandardMaterial({map: ceilingTexture, roughness: 0.9, bumpMap: ceilingTexture, bumpScale: 0.01});
+        const ceilMat = new THREE.MeshStandardMaterial({
+            map: ceilingTexture,
+            roughness: 0.9,
+            bumpMap: ceilingTexture,
+            bumpScale: 0.01
+        });
         this.ceiling = new THREE.Mesh(ceilGeo, ceilMat);
         this.ceiling.rotation.x = Math.PI / 2;
         this.ceiling.position.y = 3;
@@ -332,18 +329,16 @@ export default class Environment {
         this.scene.add(this.entityGroup);
         this.entityActive = false;
         this.entityTarget = new THREE.Vector3();
-
         this.tagPool = [];
         this.tagIndex = 0;
         this.tagGroup = new THREE.Group();
-        for(let i = 0; i < 50; i++) {
+        for (let i = 0; i < 50; i++) {
             const tag = new THREE.Mesh(this.tagGeo, this.tagMat);
             tag.visible = false;
             this.tagGroup.add(tag);
             this.tagPool.push(tag);
         }
         this.scene.add(this.tagGroup);
-
         this.scene.add(this.camera);
         this.flashlight = new THREE.SpotLight(0xffe8b3, 0.0, 45.0, Math.PI / 7, 0.5, 2.0);
         this.flashlight.position.set(0.3, -0.3, 0);
@@ -413,20 +408,16 @@ export default class Environment {
         };
         document.getElementById('captureBtn').addEventListener('click', capture);
         document.addEventListener('capture-screenshot', capture);
-
         this.tagRaycaster = new THREE.Raycaster();
         document.addEventListener('somatic-tag', () => {
             this.tagRaycaster.set(this.camera.position, this.camera.getWorldDirection(new THREE.Vector3()));
             const intersects = this.tagRaycaster.intersectObjects(this.walls, false);
-
             if (intersects.length > 0 && intersects[0].distance < 3.0) {
                 const hit = intersects[0];
                 const tag = this.tagPool[this.tagIndex];
                 tag.visible = true;
                 tag.position.copy(hit.point);
-
                 let normal = hit.face ? hit.face.normal.clone() : new THREE.Vector3(0, 0, 1);
-
                 if (hit.object && hit.object.isInstancedMesh && hit.instanceId !== undefined) {
                     const instanceMatrix = new THREE.Matrix4();
                     hit.object.getMatrixAt(hit.instanceId, instanceMatrix);
@@ -436,66 +427,44 @@ export default class Environment {
                     const normalMatrix = new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld);
                     normal.applyMatrix3(normalMatrix).normalize();
                 }
-
                 tag.lookAt(hit.point.clone().add(normal));
                 tag.rotateZ((Math.random() - 0.5) * 0.4);
-
                 this.tagIndex = (this.tagIndex + 1) % this.tagPool.length;
             }
         });
-
-        // SLASH: UNIVERSAL INTERACTION LISTENER & SURGE MECHANIC
         document.addEventListener('somatic-interact', (e) => {
             if (!this.interactables) return;
-
-            // SLASH: Forgiving Spatial Dot-Product Interaction
             let hit = null;
-            let closestDist = 3.0; // Expanded to a generous 3.0 unit reach
-
+            let closestDist = 3.0;
             this.interactables.forEach(obj => {
                 const dist = obj.position.distanceTo(e.detail.position);
                 if (dist < closestDist) {
                     const dirToObj = new THREE.Vector3().subVectors(obj.position, e.detail.position).normalize();
-                    // 0.75 yields roughly a 40-degree forgiving viewing cone
                     if (e.detail.direction.dot(dirToObj) > 0.75) {
                         closestDist = dist;
                         hit = obj;
                     }
                 }
             });
-
             if (hit && hit.userData.type === 'breaker' && hit.userData.active) {
                 hit.userData.active = false;
-
-                // SLASH: Visually crack open the breaker panel
                 if (hit.userData.door) {
-                    hit.userData.door.rotation.y = -Math.PI / 1.5; // Snap the hinge open 120 degrees
+                    hit.userData.door.rotation.y = -Math.PI / 1.5;
                 }
-
-                // The Acoustic Surge
-                document.dispatchEvent(new CustomEvent('somatic-door', { detail: { distSq: 1.0, intensity: 2.0 } }));
-
-                // The Illumination Cascade
+                document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 1.0, intensity: 2.0}}));
                 this.fixtureData.forEach(fixture => {
                     if (fixture.position.distanceToSquared(hit.position) < 2500.0) {
                         fixture.baseIntensity = 2.5;
                         fixture.targetIntensity = 2.5;
                         fixture.currentIntensity = 2.5;
-
-                        // SLASH: Hard-bind the death state synchronously to bypass GC drops.
                         fixture.isDead = true;
-
-                        // Fake lights bypass the hardware loop, so we must manually surge them
                         if (fixture.isFake && fixture.material) {
                             fixture.material.emissiveIntensity = 2.0;
                         }
-
-                        // Staggered Bulb Popping
                         setTimeout(() => {
                             fixture.baseIntensity = 0.0;
                             fixture.targetIntensity = 0.0;
                             fixture.currentIntensity = 0.0;
-                            // We manipulate the existing material to avoid breaking the InstancedMesh linkage
                             if (fixture.material && fixture.material.color) {
                                 fixture.originalColor = fixture.material.color.getHex();
                                 fixture.originalEmissive = fixture.material.emissive.getHex();
@@ -504,19 +473,16 @@ export default class Environment {
                                 fixture.material.emissiveIntensity = 0.0;
                             }
                         }, 200 + Math.random() * 600);
-
-                        // SLASH: The System Reboot Cascade
                         setTimeout(() => {
                             fixture.isDead = false;
-                            fixture.isFaulty = true; // Permanently damaged but functional
+                            fixture.isFaulty = true;
                             fixture.baseIntensity = 0.5;
                             if (fixture.material && fixture.originalColor) {
                                 fixture.material.color.setHex(fixture.originalColor);
                                 fixture.material.emissive.setHex(fixture.originalEmissive);
-                                // Manually restore the fake light emissive baseline
                                 if (fixture.isFake) fixture.material.emissiveIntensity = 0.4;
                             }
-                        }, 25000 + Math.random() * 10000); // Reboots after 25-35 seconds
+                        }, 25000 + Math.random() * 10000);
                     }
                 });
             }
@@ -549,10 +515,9 @@ export default class Environment {
         this.activeChunks.clear();
         this.walls = [];
         this.fixtureData = [];
-        this.interactables = []; // SLASH: Universal interaction array
+        this.interactables = [];
         this.spatialGrid.clear();
         this.currentChunkCoords = {x: null, z: null};
-
         if (this.tagPool) {
             this.tagPool.forEach(tag => tag.visible = false);
             this.tagIndex = 0;
@@ -564,7 +529,6 @@ export default class Environment {
         this.entityBreadcrumbs = [];
         this.entityBacktrackTimer = 0;
         this.breadcrumbTimer = 0;
-
         if (isWarp) {
             const signX = Math.random() > 0.5 ? 1 : -1;
             const signZ = Math.random() > 0.5 ? 1 : -1;
@@ -577,7 +541,6 @@ export default class Environment {
             this.camera.position.set(0, 1.6, 0);
             this.entityGroup.position.set(32, 1.5, 32);
             this.entityTarget.copy(this.entityGroup.position);
-
             const seedString = document.getElementById('seedInput').value || "ASYNC RESEARCH INSTITUTE";
             this.baseSeed = 0;
             for (let i = 0; i < seedString.length; i++) {
@@ -635,7 +598,6 @@ export default class Environment {
         const chunkGroup = new THREE.Group();
         this.scene.add(chunkGroup);
         this.activeChunks.set(hash, chunkGroup);
-
         let prngSeed = (this.baseSeed + (chunkX * 104729) + (chunkZ * 1299827)) >>> 0;
         const random = () => {
             prngSeed = (prngSeed * 1664525 + 1013904223) >>> 0;
@@ -769,7 +731,7 @@ export default class Environment {
                     const p2 = buildWall(isZ ? pW : this.cellSize, isZ ? this.cellSize : pW, this.sharedWallMat);
                     p2.position.set(x * this.cellSize + (isZ ? offset : 0), 1.5, z * this.cellSize + (isZ ? 0 : offset));
                     addGeometry(p2);
-                    const header = buildWall(isZ ? this.cellSize - (pW*2) : this.cellSize, isZ ? this.cellSize : this.cellSize - (pW*2), this.headerMat, 0.8);
+                    const header = buildWall(isZ ? this.cellSize - (pW * 2) : this.cellSize, isZ ? this.cellSize : this.cellSize - (pW * 2), this.headerMat, 0.8);
                     header.position.set(x * this.cellSize, 2.6, z * this.cellSize);
                     addGeometry(header);
                 }
@@ -915,7 +877,7 @@ export default class Environment {
                     const core = buildWall(1.2, 1.2, this.structMat);
                     core.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                     addGeometry(core);
-                    for(let i = 0; i < 4; i++) {
+                    for (let i = 0; i < 4; i++) {
                         if (random() > 0.2) {
                             const pipe = new THREE.Mesh(this.vPipeGeo, this.rustMat);
                             const px = (i < 2) ? 0.75 : -0.75;
@@ -957,12 +919,10 @@ export default class Environment {
                     const w1 = isZ ? 1.75 : this.cellSize;
                     const d1 = isZ ? this.cellSize : 1.75;
                     const offset = (1.75 / 2) + 0.25;
-
                     const block1 = buildWall(w1, d1, this.structMat);
                     block1.position.set(x * this.cellSize - (isZ ? offset : 0), 1.5, z * this.cellSize - (isZ ? 0 : offset));
                     block1.userData.isEntityBlocker = true;
                     addGeometry(block1);
-
                     const block2 = buildWall(w1, d1, this.structMat);
                     block2.position.set(x * this.cellSize + (isZ ? offset : 0), 1.5, z * this.cellSize + (isZ ? 0 : offset));
                     block2.userData.isEntityBlocker = true;
@@ -990,13 +950,11 @@ export default class Environment {
                         const cPillar = new THREE.Mesh(this.vPipeGeo, this.rustMat);
                         cPillar.position.set(x * this.cellSize + (this.cellSize / 2), 1.5, z * this.cellSize + (this.cellSize / 2));
                         addGeometry(cPillar);
-
                         const fenceGeoX = new THREE.BoxGeometry(this.cellSize, 3.0, 0.05);
                         const fenceX = new THREE.Mesh(fenceGeoX, this.waterMat);
                         fenceX.position.set(x * this.cellSize, 1.5, z * this.cellSize + (this.cellSize / 2));
                         fenceX.userData.isEntityBlocker = true;
                         addGeometry(fenceX);
-
                         const fenceGeoZ = new THREE.BoxGeometry(0.05, 3.0, this.cellSize);
                         const fenceZ = new THREE.Mesh(fenceGeoZ, this.waterMat);
                         fenceZ.position.set(x * this.cellSize + (this.cellSize / 2), 1.5, z * this.cellSize);
@@ -1084,7 +1042,7 @@ export default class Environment {
                                 addGeometry(screen);
                             } else if (clutterRoll > 0.50) {
                                 const boxCount = Math.floor(random() * 3) + 1;
-                                for(let i = 0; i < boxCount; i++) {
+                                for (let i = 0; i < boxCount; i++) {
                                     const mBox = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.6), this.woodMat);
                                     mBox.position.set(x * this.cellSize + (random() * 0.4 - 0.2), 0.25 + (i * 0.5), z * this.cellSize + (random() * 0.4 - 0.2));
                                     mBox.rotation.y = random() * Math.PI;
@@ -1200,7 +1158,6 @@ export default class Environment {
                         const openS = localZ < this.chunkSize - 1 ? !maze[localX][localZ + 1] : !maze[localX][localZ];
                         const openN = localZ > 0 ? !maze[localX][localZ - 1] : !maze[localX][localZ];
                         const openW = localX > 0 ? !maze[localX - 1][localZ] : !maze[localX][localZ];
-
                         const offset = 0.9;
                         let hasPipes = false;
                         if (openE) {
@@ -1216,7 +1173,6 @@ export default class Environment {
                             addGeometry(pipeS);
                             hasPipes = true;
                         }
-
                         if (hasPipes || openN || openW) {
                             const mount = new THREE.Mesh(this.pipeMountGeo, this.rustMat);
                             mount.position.set(x * this.cellSize + offset, 2.9, z * this.cellSize + offset);
@@ -1277,7 +1233,6 @@ export default class Environment {
                         const openS = localZ < this.chunkSize - 1 ? !maze[localX][localZ + 1] : !maze[localX][localZ];
                         const openN = localZ > 0 ? !maze[localX][localZ - 1] : !maze[localX][localZ];
                         const openW = localX > 0 ? !maze[localX - 1][localZ] : !maze[localX][localZ];
-
                         const offset = -1.1;
                         let hasPipes = false;
                         if (openE) {
@@ -1293,7 +1248,6 @@ export default class Environment {
                             addGeometry(pipeS);
                             hasPipes = true;
                         }
-
                         if (hasPipes || openN || openW) {
                             const mount = new THREE.Mesh(this.pipeMountGeo, this.rustMat);
                             mount.position.set(x * this.cellSize + offset, 2.925, z * this.cellSize + offset);
@@ -1389,22 +1343,21 @@ export default class Environment {
                     sectorMaze[cx][cz] = false;
                     const dirs = [[0, -2], [2, 0], [0, 2], [-2, 0]];
                     dirs.sort(() => random() - 0.5);
-
                     for (let [dx, dz] of dirs) {
                         const nx = cx + dx, nz = cz + dz;
                         if (nx > 0 && nx < this.chunkSize && nz > 0 && nz < this.chunkSize && sectorMaze[nx][nz]) {
-                            sectorMaze[cx + dx/2][cz + dz/2] = false;
+                            sectorMaze[cx + dx / 2][cz + dz / 2] = false;
                             carve(nx, nz);
                         }
                     }
                 };
                 carve(1, 1);
-                for(let i = 0; i < 20; i++) {
+                for (let i = 0; i < 20; i++) {
                     let rx = Math.floor(random() * (this.chunkSize - 2)) + 1;
                     let rz = Math.floor(random() * (this.chunkSize - 2)) + 1;
                     sectorMaze[rx][rz] = false;
                 }
-                for(let i = 1; i < this.chunkSize - 1; i+=3) {
+                for (let i = 1; i < this.chunkSize - 1; i += 3) {
                     sectorMaze[i][0] = false;
                     sectorMaze[i][this.chunkSize - 1] = false;
                     sectorMaze[0][i] = false;
@@ -1431,7 +1384,6 @@ export default class Environment {
                 let zx = x * 0.15;
                 let zy = z * 0.15;
                 let iter = 0;
-
                 let zx2 = zx * zx;
                 let zy2 = zy * zy;
                 while (zx2 + zy2 < 4 && iter < 15) {
@@ -1501,8 +1453,6 @@ export default class Environment {
                         this.walls.push(panel);
                         if (!isBroken) {
                             const isTracked = random() > 0.85;
-
-                            // SLASH: Push ALL functional lights to the tracking array so the Surge Breaker can shatter them
                             this.fixtureData.push({
                                 chunkHash: hash,
                                 position: new THREE.Vector3(posX, 2.8, posZ),
@@ -1512,9 +1462,8 @@ export default class Environment {
                                 baseIntensity: isTracked ? 0.6 : 0.0,
                                 targetIntensity: isTracked ? 0.6 : 0.0,
                                 currentIntensity: isTracked ? 0.6 : 0.0,
-                                isFake: !isTracked // Tag the fake volumetric lights
+                                isFake: !isTracked
                             });
-
                             if (!isTracked) {
                                 const glow = new THREE.Mesh(this.glowGeo, this.glowMat);
                                 glow.position.set(posX, 0.03, posZ);
@@ -1524,27 +1473,20 @@ export default class Environment {
                             }
                         }
                     } else if (!hasTallObstacle && random() > 0.95) {
-                        // SLASH: Spawn The Surge Breaker Pillar
                         const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.8, 3.0, 0.8), this.structMat);
                         pillar.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                         chunkGroup.add(pillar);
-
-                        // SLASH: Articulated Breaker Assembly
                         const breakerGroup = new THREE.Group();
                         breakerGroup.position.set(x * this.cellSize, 1.5, z * this.cellSize + 0.525);
-
                         const breakerBase = new THREE.Mesh(this.breakerBaseGeo, this.rustMat);
-                        breakerBase.position.set(0, 0, -0.025); // Set flush against the pillar
+                        breakerBase.position.set(0, 0, -0.025);
                         breakerGroup.add(breakerBase);
-
                         const breakerDoor = new THREE.Mesh(this.breakerDoorGeo, this.hazardMat);
-                        breakerDoor.position.set(-0.3, 0, 0.1); // Lock the hinge to the left edge
+                        breakerDoor.position.set(-0.3, 0, 0.1);
                         breakerGroup.add(breakerDoor);
-
-                        breakerGroup.userData = { type: 'breaker', chunkHash: hash, active: true, door: breakerDoor };
+                        breakerGroup.userData = {type: 'breaker', chunkHash: hash, active: true, door: breakerDoor};
                         chunkGroup.add(breakerGroup);
                         this.interactables.push(breakerGroup);
-
                         const pBox = new THREE.Box3().setFromObject(pillar);
                         pBox.chunkHash = hash;
                         this.spatialGrid.insert(pBox);
@@ -1576,7 +1518,6 @@ export default class Environment {
                     iMesh.receiveShadow = true;
                 }
                 iMesh.userData.chunkHash = hash;
-
                 const isStructural = group.material === this.sharedWallMat || group.material === this.headerMat;
                 const needsColor = !isStructural && !isDecal;
                 group.meshes.forEach((mesh, index) => {
@@ -1646,19 +1587,12 @@ export default class Environment {
             this.player.isChased = false;
             return {consumed: true};
         }
-
-        // SLASH: DYNAMIC PERCEPTION LOOP
-        let detectionRadius = 25.0; // Base radius (625 sq)
-
+        let detectionRadius = 25.0;
         if (this.player.isCrouching) detectionRadius -= 10.0;
         if (this.player.isRunning) detectionRadius += 15.0;
         if (this.player.flashlightActive) detectionRadius += 20.0;
-
-        // Heavy breathing penalizes stealth
         detectionRadius += (this.player.exhaustion * 10.0);
-
         const perceptionThresholdSq = detectionRadius * detectionRadius;
-
         if (distToPlayerSq < perceptionThresholdSq) {
             if (this.entityBacktrackTimer > 0) {
                 this.entityBacktrackTimer -= delta;
@@ -1686,8 +1620,6 @@ export default class Environment {
         const dir = this._entDir.subVectors(this.entityTarget, this.entityGroup.position);
         dir.y = 0;
         const distToTarget = dir.length();
-
-        // SLASH: EXHAUSTION-COUPLED PACING
         const baseSpeed = distToPlayerSq < 225.0 ? 4.2 : 2.0;
         let speed = baseSpeed + (this.player.exhaustion * 1.5);
         let isObserved = false;
@@ -1701,13 +1633,11 @@ export default class Environment {
                 this.entityCore.position.set((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4);
             }
         }
-
         if (!isObserved) {
             this.entityCore.position.set(0, 0, 0);
         }
         if (distToTarget > 0.1) {
             dir.normalize();
-
             if (!this._entMoveVec) {
                 this._entMoveVec = new THREE.Vector3();
                 this._entNextPos = new THREE.Vector3();
@@ -1717,14 +1647,11 @@ export default class Environment {
                 this._entMin = new THREE.Vector3();
                 this._entMax = new THREE.Vector3();
             }
-
             this._entMoveVec.copy(dir).multiplyScalar(speed * delta);
             this._entNextPos.copy(this.entityGroup.position).add(this._entMoveVec);
-
             this._entMin.set(this._entNextPos.x - 0.6, 0.0, this._entNextPos.z - 0.6);
             this._entMax.set(this._entNextPos.x + 0.6, 3.0, this._entNextPos.z + 0.6);
             this._entBox.set(this._entMin, this._entMax);
-
             let blocked = false;
             const localBoxes = this.spatialGrid.getNearby(this._entNextPos.x, this._entNextPos.z, 2.0);
             for (let i = 0; i < localBoxes.length; i++) {
@@ -1738,22 +1665,18 @@ export default class Environment {
             } else {
                 let blockedX = false;
                 let blockedZ = false;
-
                 this._entBoxX.copy(this._entBox);
                 this._entBoxX.min.z = this.entityGroup.position.z - 0.5;
                 this._entBoxX.max.z = this.entityGroup.position.z + 0.5;
-
                 this._entBoxZ.copy(this._entBox);
                 this._entBoxZ.min.x = this.entityGroup.position.x - 0.5;
                 this._entBoxZ.max.x = this.entityGroup.position.x + 0.5;
-
                 for (let i = 0; i < localBoxes.length; i++) {
                     if (localBoxes[i].isEntityBlocker) {
                         if (!blockedX && this._entBoxX.intersectsBox(localBoxes[i])) blockedX = true;
                         if (!blockedZ && this._entBoxZ.intersectsBox(localBoxes[i])) blockedZ = true;
                     }
                 }
-
                 if (!blockedX && blockedZ) {
                     this.entityGroup.position.x += this._entMoveVec.x;
                 } else if (!blockedZ && blockedX) {
@@ -1772,7 +1695,7 @@ export default class Environment {
 
     updateLights(time) {
         let ambientLightLevel = 0;
-        let darknessPressure = 0; // SLASH: Tracking local blackout density
+        let darknessPressure = 0;
         const cameraPos = this.camera.position;
         if (!this.audioRaycaster) {
             this.audioRaycaster = new THREE.Raycaster();
@@ -1787,8 +1710,6 @@ export default class Environment {
                 return;
             }
             const distSq = (dx * dx) + (dz * dz);
-
-            // SLASH: Accurately track topological darkness by evaluating ALL fixtures (real and fake)
             if (distSq < 900) {
                 const dist = Math.sqrt(distSq);
                 const weight = (30.0 - dist) / 30.0;
@@ -1797,9 +1718,7 @@ export default class Environment {
                 } else {
                     darknessPressure += weight;
                 }
-
                 fixture.distSq = fixture.hasShadow ? distSq - 40.0 : distSq;
-                // SLASH: Only assign hardware point lights to real fixtures to protect the WebGL limit
                 if (!fixture.isFake) {
                     this.localFixtures.push(fixture);
                 }
@@ -1825,15 +1744,12 @@ export default class Environment {
                 }
                 light.position.copy(fixture.position);
                 const dist = Math.sqrt(fixture.distSq);
-
                 if (dist < minLightDist) {
                     minLightDist = dist;
                     nearestFixture = fixture;
                 }
                 const fadeEnvelope = Math.max(0, Math.min(1, (activeRadius - dist) / 8.0));
                 const intensityScalar = i < 15 ? 0.65 : 0.35;
-
-                // SLASH: Absolute terminal state intercept
                 if (fixture.isDead) {
                     light.intensity = 0.0;
                     if (fixture.material) fixture.material.emissiveIntensity = 0.0;
@@ -1877,13 +1793,11 @@ export default class Environment {
         let isOccluded = this.currentOcclusionState;
         const pChunkX = Math.floor(cameraPos.x / (this.chunkSize * this.cellSize));
         const pChunkZ = Math.floor(cameraPos.z / (this.chunkSize * this.cellSize));
-
         let pSeed = (this.baseSeed + (pChunkX * 104729) + (pChunkZ * 1299827)) >>> 0;
         const pRandom = () => {
             pSeed = (pSeed * 1664525 + 1013904223) >>> 0;
             return pSeed / 4294967296.0;
         };
-
         const isMacroLoc = pRandom() > 0.90 && (Math.abs(pChunkX) > 0 || Math.abs(pChunkZ) > 0);
         const sectorRoll = pRandom();
         let activeSector = "NORMAL";
@@ -1946,33 +1860,22 @@ export default class Environment {
             this.flashlight.intensity += (targetIntensity - this.flashlight.intensity) * 0.4;
         }
         const playerSpeed = Math.sqrt(this.player.velocity.x ** 2 + this.player.velocity.z ** 2);
-
-        // SLASH: DYNAMIC AMBIENT COUPLING & THE VOID
         if (this.engine.ambientLight) {
             const baseAmbient = 0.85;
-            const minAmbient = 0.005;  // Deeper pitch black floor
-
-            // SLASH: Aggressive curves because darknessPressure now properly scales with all fixtures
+            const minAmbient = 0.005;
             const targetAmbient = Math.max(minAmbient, baseAmbient - (darknessPressure * 0.4));
             this.engine.ambientLight.intensity += (targetAmbient - this.engine.ambientLight.intensity) * 0.05;
-
-            // 1. Fade out the volumetric fake lights globally
             if (this.glowMat) {
                 const targetGlowOpacity = Math.max(0.0, 1.0 - (darknessPressure * 0.4));
                 this.glowMat.opacity += (targetGlowOpacity - this.glowMat.opacity) * 0.1;
             }
-
-            // 2. Plunge the atmospheric fog and background buffer into absolute void
             if (!this._baseEnvColor) this._baseEnvColor = new THREE.Color(0xa89f68);
-            if (!this._blackColor) this._blackColor = new THREE.Color(0x000000); // True Black
-
+            if (!this._blackColor) this._blackColor = new THREE.Color(0x000000);
             const darknessRatio = Math.min(1.0, darknessPressure * 0.4);
             const targetColor = this._baseEnvColor.clone().lerp(this._blackColor, darknessRatio);
-
             this.scene.background.lerp(targetColor, 0.05);
             this.scene.fog.color.lerp(targetColor, 0.05);
         }
-
         return {
             minLightDist,
             isOccluded,

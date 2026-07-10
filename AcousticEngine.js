@@ -8,22 +8,107 @@ export default class AcousticEngine {
         this.masterVolume = 1.0;
         this._cache = new Map();
         this.sectors = {
-            "NORMAL": { noise: 0.0, peace: 0.0, rumble: 60, freq: 250, freqOcc: 120, whine: 0.0005, whineOcc: 0.0001, dynamicWhine: true },
-            "POOLROOMS": { noise: 0.08, peace: 0.03, rumble: 40, freq: 140, freqOcc: 140, whine: 0.0002, whineOcc: 0.0002, dynamicWhine: false },
-            "BOARDROOM": { noise: 0.4, peace: 0.0, rumble: 60, freq: 250, freqOcc: 120, whine: 0.0, whineOcc: 0.0, dynamicWhine: false },
-            "SERVER": { noise: 0.0, peace: 0.0, rumble: 35, freq: 250, freqOcc: 120, whine: 0.002, whineOcc: 0.0005, dynamicWhine: false },
-            "ATRIUM": { noise: 0.8, peace: 0.15, rumble: 60, freq: 80, freqOcc: 80, whine: 0.0, whineOcc: 0.0, dynamicWhine: false },
-            "CLINIC": { noise: 0.1, peace: 0.0, rumble: 60, freq: 180, freqOcc: 180, whine: 0.003, whineOcc: 0.003, dynamicWhine: false },
-            "ARCHIVE": { noise: 0.0, peace: 0.0, rumble: 60, freq: 60, freqOcc: 60, whine: 0.0005, whineOcc: 0.0001, dynamicWhine: false },
-            "MAINTENANCE": { noise: 0.02, peace: 0.0, rumble: 90, freq: 120, freqOcc: 120, whine: 0.006, whineOcc: 0.002, dynamicWhine: false }
+            "NORMAL": {
+                noise: 0.0,
+                peace: 0.0,
+                rumble: 60,
+                freq: 250,
+                freqOcc: 120,
+                whine: 0.0005,
+                whineOcc: 0.0001,
+                dynamicWhine: true
+            },
+            "POOLROOMS": {
+                noise: 0.08,
+                peace: 0.03,
+                rumble: 40,
+                freq: 140,
+                freqOcc: 140,
+                whine: 0.0002,
+                whineOcc: 0.0002,
+                dynamicWhine: false
+            },
+            "BOARDROOM": {
+                noise: 0.4,
+                peace: 0.0,
+                rumble: 60,
+                freq: 250,
+                freqOcc: 120,
+                whine: 0.0,
+                whineOcc: 0.0,
+                dynamicWhine: false
+            },
+            "SERVER": {
+                noise: 0.0,
+                peace: 0.0,
+                rumble: 35,
+                freq: 250,
+                freqOcc: 120,
+                whine: 0.002,
+                whineOcc: 0.0005,
+                dynamicWhine: false
+            },
+            "ATRIUM": {
+                noise: 0.8,
+                peace: 0.15,
+                rumble: 60,
+                freq: 80,
+                freqOcc: 80,
+                whine: 0.0,
+                whineOcc: 0.0,
+                dynamicWhine: false
+            },
+            "CLINIC": {
+                noise: 0.1,
+                peace: 0.0,
+                rumble: 60,
+                freq: 180,
+                freqOcc: 180,
+                whine: 0.003,
+                whineOcc: 0.003,
+                dynamicWhine: false
+            },
+            "ARCHIVE": {
+                noise: 0.0,
+                peace: 0.0,
+                rumble: 60,
+                freq: 60,
+                freqOcc: 60,
+                whine: 0.0005,
+                whineOcc: 0.0001,
+                dynamicWhine: false
+            },
+            "MAINTENANCE": {
+                noise: 0.02,
+                peace: 0.0,
+                rumble: 90,
+                freq: 120,
+                freqOcc: 120,
+                whine: 0.006,
+                whineOcc: 0.002,
+                dynamicWhine: false
+            }
         };
-
         this.foleyProfiles = {
-            "POOLROOMS":   { oscFreq: 100, filterType: 'bandpass', filterFreq: 1200, gain: 0.18, attack: 0.02, decay: 0.15 },
-            "CLINIC":      { oscFreq: 800, filterType: 'highpass', filterFreq: 3000, gain: 0.15, attack: 0.01, decay: 0.06 },
-            "BOARDROOM":   { oscFreq: 120, filterType: 'lowpass',  filterFreq: 1400, gain: 0.18, attack: 0.02, decay: 0.12 },
-            "MAINTENANCE": { oscFreq: 400, filterType: 'bandpass', filterFreq: 2500, gain: 0.12, attack: 0.01, decay: 0.15 },
-            "DEFAULT":     { oscFreq: 60,  filterType: 'lowpass',  filterFreq: 600,  gain: 0.10, attack: 0.04, decay: 0.18 }
+            "POOLROOMS": {
+                oscFreq: 100,
+                filterType: 'bandpass',
+                filterFreq: 1200,
+                gain: 0.18,
+                attack: 0.02,
+                decay: 0.15
+            },
+            "CLINIC": {oscFreq: 800, filterType: 'highpass', filterFreq: 3000, gain: 0.15, attack: 0.01, decay: 0.06},
+            "BOARDROOM": {oscFreq: 120, filterType: 'lowpass', filterFreq: 1400, gain: 0.18, attack: 0.02, decay: 0.12},
+            "MAINTENANCE": {
+                oscFreq: 400,
+                filterType: 'bandpass',
+                filterFreq: 2500,
+                gain: 0.12,
+                attack: 0.01,
+                decay: 0.15
+            },
+            "DEFAULT": {oscFreq: 60, filterType: 'lowpass', filterFreq: 600, gain: 0.10, attack: 0.04, decay: 0.18}
         };
     }
 
@@ -103,18 +188,15 @@ export default class AcousticEngine {
         this.entityGain.gain.value = 0.0;
         this.entityOsc.connect(this.entityGain);
         this.entityGain.connect(this.masterGain);
-
         this.stepFilter = this.ctx.createBiquadFilter();
         this.stepGain = this.ctx.createGain();
         this.stepFilter.connect(this.stepGain);
         this.stepGain.connect(this.masterGain);
-
         this.doorFilter = this.ctx.createBiquadFilter();
         this.doorFilter.type = 'lowpass';
         this.doorGain = this.ctx.createGain();
         this.doorFilter.connect(this.doorGain);
         this.doorGain.connect(this.masterGain);
-
         this.subRumble.connect(this.mainGain);
         this.kineticFilter.connect(this.mainGain);
         this.whineGain.connect(this.mainGain);
@@ -145,7 +227,6 @@ export default class AcousticEngine {
         if (!this.initialized || !this.mainGain || this.ctx.state === 'suspended') return;
         const time = this.ctx.currentTime;
         if (time < 0.1) return;
-
         const {minLightDist, isOccluded, activeSector, anomalyPressure, playerSpeed, playerExhaustion} = telemetry;
         const proximity = Math.max(0, 1.0 - (minLightDist / 20.0));
         const mix = this.sectors[activeSector] || this.sectors["NORMAL"];
@@ -168,70 +249,61 @@ export default class AcousticEngine {
             const targetFreq = Math.min(Math.max(40, baseFreq + (playerSpeed * (isOccluded ? 2.0 : 8.0)) - (anomalyPressure * 150.0) - (playerExhaustion * 100.0)), 2000);
             const timeConstant = (isOccluded || activeSector === "ATRIUM" || anomalyPressure > 0.0 || playerExhaustion > 0.0) ? 0.2 : 3.0;
             setParam('kinetic', this.kineticFilter.frequency, targetFreq, timeConstant);
-
             this.currentSector = activeSector;
         }
     }
 
     triggerSomaticEvent(type, distanceSq, intensity) {
         if (!this.initialized || this.ctx.state === 'suspended') return;
-
         if (distanceSq > 1600.0) return;
-
         const distScalar = Math.max(0, 1.0 - (Math.sqrt(distanceSq) / 40.0));
         if (distScalar <= 0.01) return;
-
         const t = this.ctx.currentTime;
-
         if (type === 'step') {
             const profile = this.foleyProfiles[this.currentSector] || this.foleyProfiles["DEFAULT"];
-
             this.stepFilter.type = profile.filterType;
             this.stepFilter.frequency.setValueAtTime(profile.filterFreq, t);
-
             const osc = this.ctx.createOscillator();
             osc.type = (profile.oscFreq > 200) ? 'triangle' : 'sine';
             osc.frequency.setValueAtTime(profile.oscFreq, t);
             osc.frequency.exponentialRampToValueAtTime(20, t + profile.attack);
-
             const noise = this.ctx.createBufferSource();
             noise.buffer = this.noiseSrc.buffer;
-
             osc.connect(this.stepGain);
             noise.connect(this.stepFilter);
-
             this.stepGain.gain.setValueAtTime(0, t);
             this.stepGain.gain.linearRampToValueAtTime(profile.gain * intensity * distScalar, t + profile.attack);
             this.stepGain.gain.exponentialRampToValueAtTime(0.001, t + profile.decay);
-
-            osc.start(t); osc.stop(t + profile.decay);
-            noise.start(t); noise.stop(t + profile.decay);
-
-            osc.onended = () => { osc.disconnect(); noise.disconnect(); };
-
+            osc.start(t);
+            osc.stop(t + profile.decay);
+            noise.start(t);
+            noise.stop(t + profile.decay);
+            osc.onended = () => {
+                osc.disconnect();
+                noise.disconnect();
+            };
         } else if (type === 'door') {
             const osc = this.ctx.createOscillator();
             osc.type = 'square';
             osc.frequency.setValueAtTime(120, t);
             osc.frequency.exponentialRampToValueAtTime(30, t + 0.3);
-
             const noise = this.ctx.createBufferSource();
             noise.buffer = this.noiseSrc.buffer;
-
             this.doorFilter.frequency.setValueAtTime(1000, t);
             this.doorFilter.frequency.exponentialRampToValueAtTime(100, t + 0.4);
-
             osc.connect(this.doorGain);
             noise.connect(this.doorFilter);
-
             this.doorGain.gain.setValueAtTime(0, t);
             this.doorGain.gain.linearRampToValueAtTime(0.08 * intensity * distScalar, t + 0.03);
             this.doorGain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-
-            osc.start(t); osc.stop(t + 0.5);
-            noise.start(t); noise.stop(t + 0.5);
-
-            osc.onended = () => { osc.disconnect(); noise.disconnect(); };
+            osc.start(t);
+            osc.stop(t + 0.5);
+            noise.start(t);
+            noise.stop(t + 0.5);
+            osc.onended = () => {
+                osc.disconnect();
+                noise.disconnect();
+            };
         }
     }
 

@@ -66,7 +66,6 @@ export default class ProceduralTextureFactory {
         carpetCanvas.width = 512;
         carpetCanvas.height = 512;
         const carpetCtx = carpetCanvas.getContext('2d');
-        // SLASH: CARPET RESTORATION (Restoring aesthetic density)
         const noiseCanvas = document.createElement('canvas');
         noiseCanvas.width = 256;
         noiseCanvas.height = 256;
@@ -168,36 +167,28 @@ export default class ProceduralTextureFactory {
         const structCtx = structCanvas.getContext('2d');
         structCtx.fillStyle = '#5c5441';
         structCtx.fillRect(0, 0, 512, 512);
-
         structCtx.fillStyle = 'rgba(0, 0, 0, 0.15)';
         for (let y = 0; y < 512; y += (Math.random() * 30 + 20)) {
             structCtx.fillRect(0, y, 512, Math.random() * 8 + 2);
         }
-
         structCtx.globalAlpha = 0.9;
         structCtx.drawImage(masterNoise, 0, 0);
         structCtx.scale(-1, 1);
         structCtx.drawImage(masterNoise, -512, 0);
         structCtx.setTransform(1, 0, 0, 1, 0, 0);
-
         structCtx.globalAlpha = 1.0;
-
         for (let i = 0; i < 30; i++) {
             const grad = structCtx.createLinearGradient(0, 0, 0, 512);
             grad.addColorStop(0, `rgba(40, 30, 20, ${Math.random() * 0.2})`);
             grad.addColorStop(1, 'rgba(40, 30, 20, 0)');
             structCtx.fillStyle = grad;
-
             const startX = Math.random() * 512;
             const streakW = Math.random() * 24 + 8;
-
             structCtx.fillRect(startX, 0, streakW, 512);
-
             if (startX + streakW > 512) {
                 structCtx.fillRect(startX - 512, 0, streakW, 512);
             }
         }
-
         const structTexture = new THREE.CanvasTexture(structCanvas);
         structTexture.wrapS = THREE.RepeatWrapping;
         structTexture.wrapT = THREE.RepeatWrapping;
@@ -210,8 +201,6 @@ export default class ProceduralTextureFactory {
         woodCtx.fillStyle = '#4a3219';
         woodCtx.fillRect(0, 0, 256, 512);
         woodCtx.lineWidth = 1.5;
-
-        // SLASH: PATH COLLAPSE (Unified Highlight & Shadow Pass)
         woodCtx.beginPath();
         for (let i = 0; i < 250; i++) {
             let x = Math.random() * 256;
@@ -224,7 +213,7 @@ export default class ProceduralTextureFactory {
         woodCtx.shadowOffsetY = 2;
         woodCtx.strokeStyle = 'rgba(0,0,0,0.12)';
         woodCtx.stroke();
-        woodCtx.shadowColor = 'transparent'; // Purge state
+        woodCtx.shadowColor = 'transparent';
         const woodTexture = new THREE.CanvasTexture(woodCanvas);
         const woodMat = new THREE.MeshStandardMaterial({map: woodTexture, roughness: 0.9, bumpMap: woodTexture, bumpScale: 0.015});
         const doorCanvas = document.createElement('canvas');
@@ -298,7 +287,6 @@ export default class ProceduralTextureFactory {
         const fCtx = fabricCanvas.getContext('2d');
         fCtx.fillStyle = '#3a4a58';
         fCtx.fillRect(0, 0, 256, 256);
-
         fCtx.lineWidth = 1;
         for(let i = 0; i < 256; i += 4) {
             fCtx.strokeStyle = 'rgba(255,255,255,0.04)';
@@ -306,12 +294,10 @@ export default class ProceduralTextureFactory {
             fCtx.strokeStyle = 'rgba(0,0,0,0.06)';
             fCtx.beginPath(); fCtx.moveTo(0, i); fCtx.lineTo(256, i); fCtx.stroke();
         }
-
         fCtx.globalAlpha = 0.6;
         fCtx.drawImage(masterNoise, 0, 0, 256, 1024);
         fCtx.drawImage(masterNoise, 0, 0, 1024, 256);
         fCtx.globalAlpha = 1.0;
-
         const fabricTexture = new THREE.CanvasTexture(fabricCanvas);
         fabricTexture.wrapS = THREE.RepeatWrapping;
         fabricTexture.wrapT = THREE.RepeatWrapping;
@@ -350,7 +336,6 @@ export default class ProceduralTextureFactory {
         cCtx.strokeStyle = '#8a98a3';
         cCtx.lineWidth = 4;
         cCtx.strokeRect(0, 0, 256, 256);
-
         const clinicBumpCanvas = document.createElement('canvas');
         clinicBumpCanvas.width = 256; clinicBumpCanvas.height = 256;
         const cbCtx = clinicBumpCanvas.getContext('2d');
@@ -359,20 +344,17 @@ export default class ProceduralTextureFactory {
         cbCtx.strokeStyle = '#000000';
         cbCtx.lineWidth = 4;
         cbCtx.strokeRect(0, 0, 256, 256);
-
         const clinicTex = new THREE.CanvasTexture(clinicCanvas);
         clinicTex.wrapS = clinicTex.wrapT = THREE.RepeatWrapping;
         clinicTex.repeat.set(32, 32);
         const clinicBumpTex = new THREE.CanvasTexture(clinicBumpCanvas);
         clinicBumpTex.wrapS = clinicBumpTex.wrapT = THREE.RepeatWrapping;
         clinicBumpTex.repeat.set(32, 32);
-
         const clinicMat = new THREE.MeshStandardMaterial({
             map: clinicTex,
             bumpMap: clinicBumpTex, bumpScale: 0.015,
             roughness: 0.1, metalness: 0.15
         });
-
         const fenceCanvas = document.createElement('canvas');
         fenceCanvas.width = 64; fenceCanvas.height = 64;
         const fenceCtx = fenceCanvas.getContext('2d');
@@ -387,11 +369,9 @@ export default class ProceduralTextureFactory {
         fenceCtx.drawImage(masterNoise, 0, 0, 64, 64);
         fenceCtx.globalCompositeOperation = 'source-over';
         fenceCtx.globalAlpha = 1.0;
-
         const fenceTex = new THREE.CanvasTexture(fenceCanvas);
         fenceTex.wrapS = fenceTex.wrapT = THREE.RepeatWrapping;
         fenceTex.repeat.set(12, 12);
-
         const fenceMat = new THREE.MeshStandardMaterial({
             map: fenceTex,
             roughness: 0.4,
@@ -399,7 +379,6 @@ export default class ProceduralTextureFactory {
             alphaTest: 0.5,
             side: THREE.DoubleSide
         });
-
         const waterMat = fenceMat;
         const serverCanvas = document.createElement('canvas');
         serverCanvas.width = 256;
@@ -448,7 +427,6 @@ export default class ProceduralTextureFactory {
             color: 0x1a1a1a,
             roughness: 0.9
         });
-
         const hazardCanvas = document.createElement('canvas');
         hazardCanvas.width = 256;
         hazardCanvas.height = 256;
@@ -472,7 +450,6 @@ export default class ProceduralTextureFactory {
         hazardTexture.wrapT = THREE.RepeatWrapping;
         hazardTexture.repeat.set(2, 2);
         const hazardMat = new THREE.MeshStandardMaterial({map: hazardTexture, roughness: 0.8});
-
         const glowCanvas = document.createElement('canvas');
         glowCanvas.width = 256;
         glowCanvas.height = 256;
@@ -493,7 +470,6 @@ export default class ProceduralTextureFactory {
         });
         const glowGeo = new THREE.PlaneGeometry(3.8, 3.8);
         glowGeo.rotateX(-Math.PI / 2);
-
         const tagCanvas = document.createElement('canvas');
         tagCanvas.width = 128; tagCanvas.height = 128;
         const tagCtx = tagCanvas.getContext('2d');
@@ -512,7 +488,6 @@ export default class ProceduralTextureFactory {
         tagCtx.moveTo(45, 75); tagCtx.lineTo(45, 110);
         tagCtx.moveTo(85, 80); tagCtx.lineTo(85, 100);
         tagCtx.stroke();
-
         const tagTexture = new THREE.CanvasTexture(tagCanvas);
         const tagMat = new THREE.MeshBasicMaterial({
             map: tagTexture,
@@ -522,8 +497,6 @@ export default class ProceduralTextureFactory {
             polygonOffsetFactor: -4
         });
         const tagGeo = new THREE.PlaneGeometry(0.5, 0.5);
-
-        // SLASH: THE OBSIDIAN VOID (Entity Skin Mechanic)
         const voidTexture = new THREE.CanvasTexture(masterNoise);
         voidTexture.wrapS = voidTexture.wrapT = THREE.RepeatWrapping;
         const voidMat = new THREE.MeshStandardMaterial({
@@ -533,10 +506,7 @@ export default class ProceduralTextureFactory {
             bumpMap: voidTexture,
             bumpScale: 0.08
         });
-
-        // SLASH: THE DEAD BREAKER
         const rustMat = new THREE.MeshStandardMaterial({ color: 0x3a1c14, roughness: 1.0, metalness: 0.3 });
-
         const assets = {
             voidMat, rustMat, tagMat, tagGeo,
             carpetTexture, ceilingTexture, headerMat, wallTexture, moldMat, moldGeo,
@@ -544,7 +514,6 @@ export default class ProceduralTextureFactory {
             fabricMat, mossMat, tileMat, clinicMat, waterMat, serverMat, baseLightMat,
             baseBrokenLightMat, baseHousingMat, glowMat, glowGeo, hazardMat
         };
-
         Object.values(assets).forEach(item => {
             if (item && item.isTexture) {
                 item.anisotropy = 4;
@@ -559,7 +528,6 @@ export default class ProceduralTextureFactory {
                 item.emissiveMap.colorSpace = THREE.SRGBColorSpace;
             }
         });
-
         return assets;
     }
 }

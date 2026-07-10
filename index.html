@@ -45,16 +45,18 @@
             z-index: 1;
         }
 
-        /* Ensure the canvas stretches to fill the container regardless of internal resolution */
         #canvas-container canvas {
             width: 100% !important;
             height: 100% !important;
-            image-rendering: pixelated; /* Enhances the retro look when downscaled */
+            image-rendering: pixelated;
         }
 
         #ui-layer {
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             z-index: 10;
             pointer-events: none;
             display: flex;
@@ -70,14 +72,13 @@
             border: 1px solid #d4c382;
             padding: 1.5rem;
             width: 320px;
-            max-width: calc(100vw - 4rem); /* Prevents horizontal blowout inside the 2rem padded wrapper */
-            max-height: 60vh; /* Keeps the bottom visible in landscape */
-            overflow-y: auto; /* Allows scrolling if the content is taller than the viewport */
+            max-width: calc(100vw - 4rem);
+            max-height: 60vh;
+            overflow-y: auto;
             box-shadow: 0 0 15px rgba(212, 195, 130, 0.2);
             backdrop-filter: blur(4px);
         }
 
-        /* Replaced Tailwind Utility Classes */
         h1 {
             font-size: 1.25rem;
             font-weight: bold;
@@ -113,12 +114,19 @@
             box-sizing: border-box;
         }
 
-        .btn:hover { background: #d4c382; color: #111; }
-        .btn:active { transform: scale(0.98); }
+        .btn:hover {
+            background: #d4c382;
+            color: #111;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
 
         #captureBtn {
             background: #4a452a;
         }
+
         #captureBtn:hover {
             background: #d4c382;
         }
@@ -139,11 +147,23 @@
         }
 
         @keyframes phosphor-flicker {
-            0%, 100% { opacity: 0.9; }
-            4% { opacity: 0.5; text-shadow: 4px 2px 0px rgba(0,0,0,1), 0 0 4px rgba(255,255,255,0.4); } /* Voltage drop & tracking jump */
-            8% { opacity: 0.95; text-shadow: 1px 2px 0px rgba(0,0,0,1), 0 0 12px rgba(255,255,255,1), 0 0 20px rgba(255,255,255,0.8); } /* Power surge */
-            12% { opacity: 0.8; }
-            16% { opacity: 0.9; }
+            0%, 100% {
+                opacity: 0.9;
+            }
+            4% {
+                opacity: 0.5;
+                text-shadow: 4px 2px 0px rgba(0, 0, 0, 1), 0 0 4px rgba(255, 255, 255, 0.4);
+            }
+            8% {
+                opacity: 0.95;
+                text-shadow: 1px 2px 0px rgba(0, 0, 0, 1), 0 0 12px rgba(255, 255, 255, 1), 0 0 20px rgba(255, 255, 255, 0.8);
+            }
+            12% {
+                opacity: 0.8;
+            }
+            16% {
+                opacity: 0.9;
+            }
         }
 
         .osd-element {
@@ -153,7 +173,7 @@
             font-size: 2.2rem;
             letter-spacing: 0.05em;
             opacity: 0.9;
-            text-shadow: 2px 2px 0px rgba(0,0,0,1), 0 0 8px rgba(255,255,255,0.8), 0 0 15px rgba(255,255,255,0.4);
+            text-shadow: 2px 2px 0px rgba(0, 0, 0, 1), 0 0 8px rgba(255, 255, 255, 0.8), 0 0 15px rgba(255, 255, 255, 0.4);
             z-index: 10;
             pointer-events: none;
             animation: phosphor-flicker 120s infinite;
@@ -182,14 +202,14 @@
             opacity: 0.6;
         }
 
-        /* Visual VHS Battery */
         #battery-wrapper {
             top: 2rem;
             left: 3rem;
             display: flex;
             align-items: center;
-            filter: drop-shadow(2px 2px 0px rgba(0,0,0,1)) drop-shadow(0 0 8px rgba(255,255,255,0.8));
+            filter: drop-shadow(2px 2px 0px rgba(0, 0, 0, 1)) drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
         }
+
         #battery-body {
             width: 50px;
             height: 22px;
@@ -197,53 +217,87 @@
             padding: 2px;
             box-sizing: border-box;
         }
+
         #battery-level {
             width: 100%;
             height: 100%;
             background-color: #fff;
             transition: width 0.2s linear, background-color 0.2s;
         }
+
         #battery-tip {
             width: 4px;
             height: 10px;
             background-color: #fff;
         }
 
-        /* Responsive Scaling for Mobile Landscape */
         @media (max-width: 900px), (max-height: 500px) {
-            .osd-element { font-size: 1.2rem; }
-            #vhs-time { top: 1rem; right: 1.2rem; }
-            .status-bar { padding: 0 1.2rem; bottom: 1rem; }
-            #coords { font-size: 0.8rem; }
-            #battery-wrapper { top: 1rem; left: 1.2rem; }
-            #battery-body { width: 30px; height: 14px; border-width: 1px; padding: 1px; }
-            #battery-tip { width: 2px; height: 6px; }
+            .osd-element {
+                font-size: 1.2rem;
+            }
+
+            #vhs-time {
+                top: 1rem;
+                right: 1.2rem;
+            }
+
+            .status-bar {
+                padding: 0 1.2rem;
+                bottom: 1rem;
+            }
+
+            #coords {
+                font-size: 0.8rem;
+            }
+
+            #battery-wrapper {
+                top: 1rem;
+                left: 1.2rem;
+            }
+
+            #battery-body {
+                width: 30px;
+                height: 14px;
+                border-width: 1px;
+                padding: 1px;
+            }
+
+            #battery-tip {
+                width: 2px;
+                height: 6px;
+            }
         }
 
-        /* CSS based VHS Grain and Vignette */
         .vhs-overlay {
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
             z-index: 5;
-            background: radial-gradient(circle, rgba(0,0,0,0) 50%, rgba(0,0,0,0.85) 150%);
+            background: radial-gradient(circle, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.85) 150%);
             mix-blend-mode: multiply;
         }
 
         .noise {
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
             z-index: 6;
             opacity: 0.08;
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
         }
 
-        /* SLASH: Somatic Targeting Reticle */
         #crosshair {
             position: absolute;
-            top: 50%; left: 50%;
-            width: 4px; height: 4px;
+            top: 50%;
+            left: 50%;
+            width: 4px;
+            height: 4px;
             background-color: rgba(255, 255, 255, 0.4);
             border-radius: 50%;
             transform: translate(-50%, -50%);
@@ -252,10 +306,12 @@
             mix-blend-mode: difference;
         }
 
-        /* Camera Flash Overlay */
         #flash-overlay {
             position: absolute;
-            top: 0; left: 0; width: 100vw; height: 100vh;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
             background-color: white;
             z-index: 9999;
             pointer-events: none;
@@ -275,7 +331,10 @@
             text-transform: uppercase;
             box-sizing: border-box;
         }
-        input[type=text]:focus { background: #222; }
+
+        input[type=text]:focus {
+            background: #222;
+        }
 
         select {
             width: 100%;
@@ -289,7 +348,10 @@
             cursor: pointer;
             box-sizing: border-box;
         }
-        select:focus { background: #222; }
+
+        select:focus {
+            background: #222;
+        }
 
         input[type=range] {
             width: 100%;
@@ -309,11 +371,13 @@
             cursor: pointer;
         }
 
-        /* Mobile Control Zones */
         #mobile-ui {
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            z-index: 5; /* Lowered to sit beneath the z-index: 10 UI layer */
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 5;
             display: flex;
             pointer-events: none;
         }
@@ -321,8 +385,8 @@
         .touch-zone {
             flex: 1;
             height: 100%;
-            pointer-events: auto; /* Capture touch events */
-            touch-action: none; /* Amputate native browser scrolling/zooming */
+            pointer-events: auto;
+            touch-action: none;
         }
 
         #menuToggleBtn {
@@ -332,17 +396,19 @@
             width: auto;
             pointer-events: auto;
             z-index: 20;
-            touch-action: manipulation; /* Intercepts the raw touch instantly */
+            touch-action: manipulation;
         }
 
-        /* Landscape Enforcement Overlay */
         #orientation-warning {
-            display: none; /* Hidden by default */
+            display: none;
             position: absolute;
-            top: 0; left: 0; width: 100vw; height: 100vh;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
             background-color: #000;
             color: #d4c382;
-            z-index: 99999; /* Highest priority layer */
+            z-index: 99999;
             text-align: center;
             justify-content: center;
             align-items: center;
@@ -351,19 +417,25 @@
             box-sizing: border-box;
         }
 
-        #orientation-warning h2 { margin-bottom: 0.5rem; letter-spacing: 0.1em; }
-        #orientation-warning p { font-size: 0.9rem; line-height: 1.5; color: #a89f68; }
+        #orientation-warning h2 {
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.1em;
+        }
 
-        /* Trigger the overlay only when the screen is taller than it is wide */
+        #orientation-warning p {
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: #a89f68;
+        }
+
         @media (orientation: portrait) {
             #orientation-warning {
                 display: flex;
             }
         }
 
-        /* Mobile Action Buttons */
         .mobile-action-btn {
-            display: none; /* Hidden by default to keep the desktop screen clean */
+            display: none;
             position: absolute;
             width: 60px;
             height: 60px;
@@ -381,18 +453,26 @@
             -webkit-user-select: none;
         }
 
-        /* The visually "pressed" or toggled state */
         .mobile-action-btn.active {
             background: #d4c382;
             color: #000;
         }
 
-        /* Positioned slightly above the thumb resting zones */
-        #mobile-run { left: 2rem; bottom: 8rem; }
-        #mobile-crouch { right: 2rem; bottom: 8rem; }
-        #mobile-flashlight { right: 2rem; bottom: 13rem; }
+        #mobile-run {
+            left: 2rem;
+            bottom: 8rem;
+        }
 
-        /* Hardware Detection: Only show buttons if the user has a touch screen (coarse pointer) */
+        #mobile-crouch {
+            right: 2rem;
+            bottom: 8rem;
+        }
+
+        #mobile-flashlight {
+            right: 2rem;
+            bottom: 13rem;
+        }
+
         @media (pointer: coarse) {
             .mobile-action-btn {
                 display: block;
@@ -401,12 +481,10 @@
     </style>
 </head>
 <body>
-<!-- The Portrait Mode Blocker -->
 <div id="orientation-warning">
     <h2>SYSTEM ERROR</h2>
     <p>PORTRAIT ORIENTATION NOT SUPPORTED.<br>PLEASE ROTATE YOUR DEVICE.</p>
 </div>
-
 <div id="mobile-ui">
     <div id="touch-left" class="touch-zone"></div>
     <div id="touch-right" class="touch-zone"></div>
@@ -414,36 +492,29 @@
     <button id="mobile-crouch" class="mobile-action-btn">CROUCH</button>
     <button id="mobile-flashlight" class="mobile-action-btn">LIGHT</button>
 </div>
-
-<!-- The Cinematic Aperture -->
 <div id="screen-wrapper">
     <div id="canvas-container"></div>
     <div class="vhs-overlay"></div>
     <div class="noise"></div>
     <div id="flash-overlay"></div>
     <div id="crosshair"></div>
-
-    <!-- Burn the text directly into the cinematic frame -->
     <span id="vhs-time" class="osd-element">AM 12:00:00 &nbsp;&nbsp; JAN 01 1997</span>
-
     <div id="battery-wrapper" class="osd-element">
-        <div id="battery-body"><div id="battery-level"></div></div>
+        <div id="battery-body">
+            <div id="battery-level"></div>
+        </div>
         <div id="battery-tip"></div>
     </div>
-
     <div class="status-bar osd-element">
         <span id="coords">X: 0.00 | Z: 0.00</span>
     </div>
 </div>
-
 <div id="ui-layer">
     <button id="menuToggleBtn" class="btn">MENU</button>
     <div class="control-panel">
-        <h1>LEVEL 0 ENGINE v0.2.8</h1>
-
+        <h1>LEVEL 0 ENGINE v0.2.9</h1>
         <label>Architecture Seed (String)</label>
         <input type="text" id="seedInput" value="ASYNC">
-
         <label>Display Format</label>
         <select id="aspectSelect">
             <option value="auto">Dynamic (Full Window)</option>
@@ -451,47 +522,40 @@
             <option value="1.7777777778">16:9 (Standard Widescreen)</option>
             <option value="2.3333333333">21:9 (Cinemascope)</option>
         </select>
-
         <label>Fog Density</label>
         <input type="range" id="fogSlider" min="2" max="8" value="5">
-
         <label>Camera FOV</label>
         <input type="range" id="fovSlider" min="60" max="90" value="75">
-
         <label>Player Speed (%)</label>
         <input type="range" id="speedSlider" min="80" max="120" value="100">
-
         <label>Internal Resolution</label>
         <select id="resolutionSelect">
             <option value="1.0">100% (Native)</option>
             <option value="0.5">50% (Retro / Performance)</option>
             <option value="0.25">25% (PS1 / Extreme Performance)</option>
         </select>
-
         <label>Master Volume (%)</label>
         <input type="range" id="volumeSlider" min="0" max="100" value="100">
-
         <label>Gamma (Exposure)</label>
         <input type="range" id="gammaSlider" min="10" max="300" value="120">
-
         <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; cursor: pointer;">
             <input type="checkbox" id="headBobToggle" checked style="width: auto; margin: 0;">
             Enable Somatic Head Bob
         </label>
-
         <div class="btn-container">
             <button id="generateBtn" class="btn">Rebuild Geometry</button>
             <button id="captureBtn" class="btn">Capture Asset</button>
-            <button id="clearSaveBtn" class="btn" style="border-color: #8a3333; color: #ff5555; margin-top: 1rem;">PURGE MEMORY</button>
+            <button id="clearSaveBtn" class="btn" style="border-color: #8a3333; color: #ff5555; margin-top: 1rem;">PURGE
+                MEMORY
+            </button>
         </div>
-
         <div class="instructions">
-            <p align="center">WASD to Move<br>Shift to Run<br>'C' to Crouch<br>'Q' to Squeeze Through<br>'F' for Flashlight<br>LMB to Look<br>RMB to Lean</p>
+            <p align="center">WASD to Move<br>Shift to Run<br>'C' to Crouch<br>'Q' to Squeeze Through<br>'F' for
+                Flashlight<br>LMB to Look<br>RMB to Lean</p>
             <p align="center"><a href="https://github.com/aedmark/level0engine">RETURN TO SOURCE</a></p>
         </div>
     </div>
 </div>
-
 <script type="module" src="./main.js"></script>
 </body>
 </html>

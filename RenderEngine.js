@@ -11,7 +11,6 @@ export default class RenderEngine {
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
         this.camera.position.y = 1.6;
         this.renderer = new THREE.WebGLRenderer({antialias: false, powerPreference: "high-performance"});
-        // SLASH: Decouple hardware DPR from renderer. We control pixel density explicitly.
         this.renderer.setPixelRatio(1.0);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = true;
@@ -20,10 +19,8 @@ export default class RenderEngine {
         this.renderer.toneMappingExposure = 1.2;
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
-        // SLASH: Expose the ambient light to the global engine scope
         this.ambientLight = new THREE.HemisphereLight(0xfff5c2, 0x3d3520, 0.85);
         this.scene.add(this.ambientLight);
-        // SLASH: NearestFilter prevents bilinear mush when downscaling resolution
         this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
             minFilter: THREE.NearestFilter,
             magFilter: THREE.NearestFilter
@@ -69,7 +66,6 @@ export default class RenderEngine {
                         uv.x += tear * (globalSeed - 0.5) * anomaly * 0.3;
                     }
                     
-                    // SLASH: UNIFIED DISTORTION MATRIX (Aberration + Exhaustion)
                     float pulse = sin(time * 8.0);
                     float exhaustionDistort = (exhaustion * 0.018) * (1.0 + pulse * 0.3);
                     vec2 offset = vec2(0.001 + (squeeze * 0.004) + (anomaly * 0.04) + exhaustionDistort, exhaustionDistort * 0.4) * centerUv * 2.0; 
@@ -79,8 +75,6 @@ export default class RenderEngine {
                     col.g = texture2D(tDiffuse, uv).g;
                     col.b = texture2D(tDiffuse, uv - offset).b;
                     
-                    // Excision of the redundant 3-sample blur.
-                    
                     float noise = random(uv + mod(time, 10.0));
                     float luminance = dot(col, vec3(0.299, 0.587, 0.114));
                     col -= (noise * (0.12 + anomaly * 0.8)) * (1.0 - luminance);
@@ -89,7 +83,6 @@ export default class RenderEngine {
                     col -= scanline * luminance;
                     
                     float distSq = dot(centerUv, centerUv);
-                    // SLASH: Syntax collision resolved. Re-using the 'pulse' calculation from above.
                     float vignettePulse = pulse * (exhaustion * 0.05); 
                     float vignetteRadius = 0.25 - (exhaustion * 0.15) - (anomaly * 0.1) + vignettePulse;
                     col *= smoothstep(0.9, vignetteRadius, distSq + 0.2); 

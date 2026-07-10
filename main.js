@@ -62,6 +62,7 @@ function saveState() {
     };
     localStorage.setItem('level0_state', JSON.stringify(state));
 }
+
 const savedState = loadState();
 environment.setup();
 if (savedState) {
@@ -76,9 +77,7 @@ document.addEventListener('click', bootAudio, {once: true});
 document.addEventListener('keydown', bootAudio, {once: true});
 document.addEventListener('somatic-step', (e) => acoustics.triggerSomaticEvent('step', 0, e.detail.intensity));
 document.addEventListener('somatic-door', (e) => acoustics.triggerSomaticEvent('door', e.detail.distSq, e.detail.intensity));
-
 const saveInterval = setInterval(saveState, 2500);
-
 document.getElementById('clearSaveBtn')?.addEventListener('click', async () => {
     player.isDead = true;
     const flash = document.getElementById('flash-overlay');
@@ -87,7 +86,6 @@ document.getElementById('clearSaveBtn')?.addEventListener('click', async () => {
         flash.style.backgroundColor = '#8a3333';
         flash.style.opacity = '1';
     }
-
     clearInterval(saveInterval);
     localStorage.clear();
     sessionStorage.clear();
@@ -122,22 +120,17 @@ function animate() {
     requestAnimationFrame(animate);
     const delta = engine.delta;
     const time = engine.time;
-
     if (player.isDead) {
         engine.render();
         return;
     }
-
     environment.updateChunks(engine.camera.position);
     environment.updateInteractives(engine.camera.position, delta);
     const entityState = environment.updateEntity(engine.camera.position, delta, time);
-
     if (entityState && entityState.consumed) {
         player.isDead = true;
-
         engine.camera.position.y = 0.2;
         engine.camera.rotation.z = Math.PI / 2.5;
-
         setTimeout(() => {
             triggerBlackout();
             environment.generate();
@@ -145,14 +138,11 @@ function animate() {
         }, 1500);
         return;
     }
-
     player.update(delta, environment.spatialGrid);
-
     if (engine.camera.position.y > 2.8 && player.onWarpZone && !environment.isSpawning) {
         environment.generate(true);
         return;
     }
-
     engine.exhaustion = player.exhaustion;
     const squeezeFactor = (player.baseRadius - player.playerRadius) / (player.baseRadius - player.squeezeRadius);
     engine.squeeze = Math.max(0.0, Math.min(1.0, squeezeFactor));
@@ -171,7 +161,6 @@ function animate() {
             batLevel.style.backgroundColor = '#ff5555';
         }
     }
-
     if (!player.isRunning) {
         const runBtn = document.getElementById('mobile-run');
         if (runBtn) runBtn.classList.remove('active');

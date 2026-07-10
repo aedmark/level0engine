@@ -50,13 +50,19 @@ export default class PlayerController {
         touchSurface.addEventListener('click', () => document.body.requestPointerLock());
         document.addEventListener('pointerlockchange', () => {
             this.isLocked = (document.pointerLockElement === document.body);
-            if (!this.isLocked) { this.isPeeking = false; this.targetLean = 0.0; }
+            if (!this.isLocked) {
+                this.isPeeking = false;
+                this.targetLean = 0.0;
+            }
         });
         document.addEventListener('mousedown', (e) => {
             if (this.isLocked && e.button === 2) this.isPeeking = true;
         });
         document.addEventListener('mouseup', (e) => {
-            if (e.button === 2) { this.isPeeking = false; this.targetLean = 0.0; }
+            if (e.button === 2) {
+                this.isPeeking = false;
+                this.targetLean = 0.0;
+            }
         });
         document.addEventListener('contextmenu', (e) => e.preventDefault());
         document.addEventListener('mousemove', (e) => this.onMouseMove(e));
@@ -94,7 +100,6 @@ export default class PlayerController {
                     runBtn.classList.remove('active');
                 }
             }, {passive: false});
-
             if (flashBtn) {
                 flashBtn.addEventListener('touchstart', (e) => {
                     e.preventDefault();
@@ -169,7 +174,6 @@ export default class PlayerController {
     onKeyDown(event) {
         if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
         const key = event.code;
-        // SLASH: Added KeyE to the prevented defaults array
         if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyQ', 'KeyF', 'KeyE'].includes(key)) {
             event.preventDefault();
         }
@@ -185,10 +189,9 @@ export default class PlayerController {
         if (event.code === 'KeyT') {
             document.dispatchEvent(new Event('somatic-tag'));
         }
-        // SLASH: The Universal Interaction Dispatch
         if (event.code === 'KeyE') {
             document.dispatchEvent(new CustomEvent('somatic-interact', {
-                detail: { position: this.camera.position, direction: this.camera.getWorldDirection(new THREE.Vector3()) }
+                detail: {position: this.camera.position, direction: this.camera.getWorldDirection(new THREE.Vector3())}
             }));
         }
         switch (key) {
@@ -258,11 +261,9 @@ export default class PlayerController {
         this.direction.z = Number(this.moveForward) - Number(this.moveBackward);
         this.direction.x = Number(this.moveRight) - Number(this.moveLeft);
         if (this.direction.lengthSq() > 0) this.direction.normalize();
-
         const px = this.camera.position.x;
         const pz = this.camera.position.z;
         const localBoxes = spatialGrid.getNearby(px, pz, 2.0);
-
         this.isSqueezing = this.squeezeIntent;
         let targetRadius = this.isSqueezing ? this.squeezeRadius : this.baseRadius;
         if (!this.isSqueezing && this.playerRadius < this.baseRadius - 0.01) {
@@ -270,7 +271,6 @@ export default class PlayerController {
             this._vecMin.set(px - this.baseRadius, checkY, pz - this.baseRadius);
             this._vecMax.set(px + this.baseRadius, checkY + 1.5, pz + this.baseRadius);
             this._floorBox.set(this._vecMin, this._vecMax);
-
             for (let i = 0; i < localBoxes.length; i++) {
                 if (this._floorBox.intersectsBox(localBoxes[i])) {
                     targetRadius = this.squeezeRadius;
@@ -285,13 +285,10 @@ export default class PlayerController {
             this.camera.near = targetNear;
             this.camera.updateProjectionMatrix();
         }
-        // SLASH: ADRENALINE ECONOMY & STAMINA FIX
         const adrenalineMultiplier = this.isChased ? 1.15 : 1.0;
         let currentSpeed = (this.isSqueezing ? 20.0 : (this.isCrouching ? 30.0 : (this.isRunning ? 125.0 : 60.0))) * this.speedMultiplier * adrenalineMultiplier;
-
         const isMoving = this.direction.lengthSq() > 0 || this.touchMove.active;
         if (this.isRunning && isMoving && !this.isSqueezing) {
-            // SLASH: Casual exploration is efficient; Panic is a metabolic nightmare
             const burnRate = this.isChased ? 25.0 : 4.0;
             this.stamina = Math.max(0, this.stamina - burnRate * delta);
             if (this.stamina <= 0.0) {
@@ -299,12 +296,10 @@ export default class PlayerController {
                 currentSpeed = 60.0 * this.speedMultiplier;
             }
         } else {
-            // Panic cuts recovery rate in half (heavy breathing)
             const recoveryRate = this.isChased ? 4.0 : 10.0;
             this.stamina = Math.min(this.maxStamina, this.stamina + recoveryRate * delta);
         }
         const currentActualSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
-
         if (this.flashlightActive) {
             this.flashlightBattery = Math.max(0, this.flashlightBattery - 1.5 * delta);
             if (this.flashlightBattery === 0) {
@@ -326,27 +321,22 @@ export default class PlayerController {
         this.exhaustion = fatigueRatio < 0.3 ? Math.pow(1.0 - (fatigueRatio / 0.3), 2.0) : 0.0;
         let intentX = this.direction.x;
         let intentZ = this.direction.z;
-
         if (this.touchMove.active) {
             const deadzone = 10.0;
             const mapAxis = (touchPx) => Math.abs(touchPx) > deadzone ? (touchPx - Math.sign(touchPx) * deadzone) / 110.0 : 0.0;
             intentX = mapAxis(this.touchMove.deltaX);
             intentZ = -mapAxis(this.touchMove.deltaY);
         }
-
         const intentSq = (intentX * intentX) + (intentZ * intentZ);
         if (intentSq > 1.0) {
             const invMag = 1.0 / Math.sqrt(intentSq);
             intentX *= invMag;
             intentZ *= invMag;
         }
-
         this.velocity.x -= intentX * currentSpeed * delta;
         this.velocity.z -= intentZ * currentSpeed * delta;
-
         this._euler.set(0, this.camera.rotation.y, 0, 'YXZ');
         this._moveDelta.set(-this.velocity.x * delta, 0, this.velocity.z * delta).applyEuler(this._euler);
-
         const moveX = this._moveDelta.x;
         const moveZ = this._moveDelta.z;
         const feetY = this.camera.position.y - 1.6;
@@ -366,57 +356,41 @@ export default class PlayerController {
         let hitZ = false;
         let targetFeetY = 0;
         this.onWarpZone = false;
-
         for (let i = 0, len = localBoxes.length; i < len; i++) {
             const box = localBoxes[i];
-
             if (box.max.y > targetFeetY && box.max.y <= feetY + 1.2) {
                 if (this._floorBox.intersectsBox(box)) {
                     targetFeetY = box.max.y;
                     if (box.isWarpZone) this.onWarpZone = true;
                 }
             }
-
             if (hitX && hitZ) continue;
-
             if (!hitX && this._boxX.intersectsBox(box)) {
                 const cx = (box.min.x + box.max.x) * 0.5;
                 if ((moveX > 0 && px < cx) || (moveX < 0 && px > cx)) hitX = true;
             }
-
             if (!hitZ && this._boxZ.intersectsBox(box)) {
                 const cz = (box.min.z + box.max.z) * 0.5;
                 if ((moveZ > 0 && pz < cz) || (moveZ < 0 && pz > cz)) hitZ = true;
             }
         }
-        // SLASH: SOMATIC COLLISION HAPTICS & HYSTERESIS
         const isColliding = hitX || hitZ;
         if (isColliding) {
             const impact = (Math.abs(this.velocity.x) + Math.abs(this.velocity.z)) * delta;
-
-            // Only trigger haptics on the initial impact to prevent event flooding and camera spin
             if (impact > 0.05 && this.enableHeadBob && !this.wasColliding) {
                 this.camera.rotation.z += (Math.random() - 0.5) * impact * 0.5;
                 this.camera.rotation.x -= impact * 0.2;
-
-                // Mathematically clamp the cervical spine
                 this.camera.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this.camera.rotation.x));
-
-                document.dispatchEvent(new CustomEvent('somatic-step', { detail: { intensity: impact * 2.0 } }));
+                document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: impact * 2.0}}));
             }
-
-            // Bleed momentum to prevent sliding like soap
             if (hitX) this.velocity.x *= 0.5;
             if (hitZ) this.velocity.z *= 0.5;
         }
         this.wasColliding = isColliding;
-
         if (!hitX) this.camera.position.x += moveX;
         if (!hitZ) this.camera.position.z += moveZ;
-
         const postIntentSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
         this.headBobTimer = (this.headBobTimer || 0) + postIntentSpeed * delta;
-
         let bobOffset = 0;
         let swayRoll = 0;
         if (this.enableHeadBob && postIntentSpeed > 0.5) {
@@ -425,7 +399,7 @@ export default class PlayerController {
             const prevBob = Math.sin((this.headBobTimer - postIntentSpeed * delta) * bobFreq) * bobAmp;
             bobOffset = Math.sin(this.headBobTimer * bobFreq) * bobAmp;
             if (prevBob > 0 && bobOffset <= 0 && !this.isCrouching) {
-                document.dispatchEvent(new CustomEvent('somatic-step', { detail: { intensity: this.isRunning ? 1.0 : 0.3 } }));
+                document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: this.isRunning ? 1.0 : 0.3}}));
             }
             swayRoll = Math.cos(this.headBobTimer * (bobFreq * 0.5)) * (bobAmp * 0.05);
         }
@@ -442,7 +416,6 @@ export default class PlayerController {
         this.camera.position.z += this._leanOffset.z;
         const maxCamY = this.onWarpZone ? 5.0 : 2.8;
         const targetCamY = Math.min(targetFeetY + visualHeight, maxCamY) + bobOffset - leanDrop;
-
         const lerpFactor = 1.0 - Math.exp(-12.0 * delta);
         this.camera.position.y += (targetCamY - this.camera.position.y) * lerpFactor;
     }
