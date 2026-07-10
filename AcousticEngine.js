@@ -17,6 +17,14 @@ export default class AcousticEngine {
             "ARCHIVE": { noise: 0.0, peace: 0.0, rumble: 60, freq: 60, freqOcc: 60, whine: 0.0005, whineOcc: 0.0001, dynamicWhine: false },
             "MAINTENANCE": { noise: 0.02, peace: 0.0, rumble: 90, freq: 120, freqOcc: 120, whine: 0.006, whineOcc: 0.002, dynamicWhine: false }
         };
+
+        this.foleyProfiles = {
+            "POOLROOMS":   { oscFreq: 80,  filterType: 'highpass', filterFreq: 2500, gain: 0.16 },
+            "CLINIC":      { oscFreq: 140, filterType: 'lowpass',  filterFreq: 1800, gain: 0.12 },
+            "BOARDROOM":   { oscFreq: 140, filterType: 'lowpass',  filterFreq: 1800, gain: 0.12 },
+            "MAINTENANCE": { oscFreq: 120, filterType: 'bandpass', filterFreq: 800,  gain: 0.08 },
+            "DEFAULT":     { oscFreq: 80,  filterType: 'lowpass',  filterFreq: 1200, gain: 0.08 }
+        };
     }
 
     init() {
@@ -95,6 +103,18 @@ export default class AcousticEngine {
         this.entityGain.gain.value = 0.0;
         this.entityOsc.connect(this.entityGain);
         this.entityGain.connect(this.masterGain);
+
+        this.stepFilter = this.ctx.createBiquadFilter();
+        this.stepGain = this.ctx.createGain();
+        this.stepFilter.connect(this.stepGain);
+        this.stepGain.connect(this.masterGain);
+
+        this.doorFilter = this.ctx.createBiquadFilter();
+        this.doorFilter.type = 'lowpass';
+        this.doorGain = this.ctx.createGain();
+        this.doorFilter.connect(this.doorGain);
+        this.doorGain.connect(this.masterGain);
+
         this.subRumble.connect(this.mainGain);
         this.kineticFilter.connect(this.mainGain);
         this.whineGain.connect(this.mainGain);
@@ -155,62 +175,63 @@ export default class AcousticEngine {
 
     triggerSomaticEvent(type, distanceSq, intensity) {
         if (!this.initialized || this.ctx.state === 'suspended') return;
-        const t = this.ctx.currentTime;
+
+        if (distanceSq > 1600.0) return;
+
         const distScalar = Math.max(0, 1.0 - (Math.sqrt(distanceSq) / 40.0));
         if (distScalar <= 0.01) return;
-        const gainNode = this.ctx.createGain();
-        gainNode.connect(this.masterGain);
+
+        const t = this.ctx.currentTime;
+
         if (type === 'step') {
-            const isWet = this.currentSector === "POOLROOMS";
-            const isTile = this.currentSector === "CLINIC" || this.currentSector === "BOARDROOM";
-            const isMetal = this.currentSector === "MAINTENANCE";
+            const profile = this.foleyProfiles[this.currentSector] || this.foleyProfiles["DEFAULT"];
+
+            this.stepFilter.type = profile.filterType;
+            this.stepFilter.frequency.setValueAtTime(profile.filterFreq, t);
+
             const osc = this.ctx.createOscillator();
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(isMetal ? 120 : (isTile ? 140 : 80), t);
+            osc.frequency.setValueAtTime(profile.oscFreq, t);
             osc.frequency.exponentialRampToValueAtTime(20, t + 0.1);
+
             const noise = this.ctx.createBufferSource();
             noise.buffer = this.noiseSrc.buffer;
-            const noiseFilter = this.ctx.createBiquadFilter();
-            if (isWet) {
-                noiseFilter.type = 'highpass';
-                noiseFilter.frequency.value = 2500;
-            } else if (isMetal) {
-                noiseFilter.type = 'bandpass';
-                noiseFilter.frequency.value = 800;
-            } else if (isTile) {
-                noiseFilter.type = 'lowpass';
-                noiseFilter.frequency.value = 1800;
-            } else {
-                noiseFilter.type = 'lowpass';
-                noiseFilter.frequency.value = 1200;
-            }
-            noise.connect(noiseFilter);
-            noiseFilter.connect(gainNode);
-            osc.connect(gainNode);
-            gainNode.gain.setValueAtTime(0, t);
-            gainNode.gain.linearRampToValueAtTime((isWet ? 0.16 : (isTile ? 0.12 : 0.08)) * intensity * distScalar, t + 0.02);
-            gainNode.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+
+            osc.connect(this.stepGain);
+            noise.connect(this.stepFilter);
+
+            this.stepGain.gain.setValueAtTime(0, t);
+            this.stepGain.gain.linearRampToValueAtTime(profile.gain * intensity * distScalar, t + 0.02);
+            this.stepGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+
             osc.start(t); osc.stop(t + 0.15);
             noise.start(t); noise.stop(t + 0.15);
+
+            osc.onended = () => { osc.disconnect(); noise.disconnect(); };
+
         } else if (type === 'door') {
             const osc = this.ctx.createOscillator();
             osc.type = 'square';
             osc.frequency.setValueAtTime(120, t);
             osc.frequency.exponentialRampToValueAtTime(30, t + 0.3);
+
             const noise = this.ctx.createBufferSource();
             noise.buffer = this.noiseSrc.buffer;
-            const noiseFilter = this.ctx.createBiquadFilter();
-            noiseFilter.type = 'lowpass';
-            noiseFilter.frequency.setValueAtTime(1000, t);
-            noiseFilter.frequency.exponentialRampToValueAtTime(100, t + 0.4);
-            noise.connect(noiseFilter);
-            noiseFilter.connect(gainNode);
-            osc.connect(gainNode);
-            gainNode.gain.setValueAtTime(0, t);
-            gainNode.gain.linearRampToValueAtTime(0.08 * intensity * distScalar, t + 0.03);
-            gainNode.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+
+            this.doorFilter.frequency.setValueAtTime(1000, t);
+            this.doorFilter.frequency.exponentialRampToValueAtTime(100, t + 0.4);
+
+            osc.connect(this.doorGain);
+            noise.connect(this.doorFilter);
+
+            this.doorGain.gain.setValueAtTime(0, t);
+            this.doorGain.gain.linearRampToValueAtTime(0.08 * intensity * distScalar, t + 0.03);
+            this.doorGain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+
             osc.start(t); osc.stop(t + 0.5);
             noise.start(t); noise.stop(t + 0.5);
+
+            osc.onended = () => { osc.disconnect(); noise.disconnect(); };
         }
     }
 

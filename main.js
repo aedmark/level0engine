@@ -104,6 +104,13 @@ function triggerBlackout() {
     seedInput.value = seedInput.value + " NULL";
 }
 
+function triggerAscension() {
+    const seedInput = document.getElementById('seedInput');
+    const parts = seedInput.value.split(" FL-");
+    const floor = parts[1] ? parseInt(parts[1]) + 1 : 1;
+    seedInput.value = parts[0] + " FL-" + floor;
+}
+
 function animate() {
     requestAnimationFrame(animate);
     const delta = engine.delta;
@@ -111,12 +118,21 @@ function animate() {
     environment.updateChunks(engine.camera.position);
     environment.updateInteractives(engine.camera.position, delta);
     const entityState = environment.updateEntity(engine.camera.position, delta, time);
+
     if (entityState && entityState.consumed) {
         triggerBlackout();
         environment.generate();
         return;
     }
+
     player.update(delta, environment.spatialGrid);
+
+    if (engine.camera.position.y > 2.8 && !environment.isSpawning) {
+        triggerAscension();
+        environment.generate();
+        return;
+    }
+
     engine.exhaustion = player.exhaustion;
     const squeezeFactor = (player.baseRadius - player.playerRadius) / (player.baseRadius - player.squeezeRadius);
     engine.squeeze = Math.max(0.0, Math.min(1.0, squeezeFactor));

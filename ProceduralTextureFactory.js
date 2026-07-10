@@ -9,11 +9,13 @@ export default class ProceduralTextureFactory {
         const nImg = nCtx.createImageData(512, 512);
         const nData = nImg.data;
         const nLen = nData.length;
+        let seed = 1337;
         for(let i = 0; i < nLen; i += 4) {
-            if (Math.random() > 0.85) {
-                const val = Math.random() > 0.5 ? 0 : 255;
+            seed = (seed * 1664525 + 1013904223) >>> 0;
+            if ((seed >>> 24) > 217) {
+                const val = (seed & 0x10000) ? 0 : 255;
                 nData[i] = nData[i+1] = nData[i+2] = val;
-                nData[i+3] = (Math.random() * 50 + 10) | 0;
+                nData[i+3] = 10 + ((seed >>> 8) % 50);
             }
         }
         nCtx.putImageData(nImg, 0, 0);
@@ -70,8 +72,10 @@ export default class ProceduralTextureFactory {
         const noiseCtx = noiseCanvas.getContext('2d');
         const imgData = noiseCtx.createImageData(256, 256);
         const data = imgData.data;
+        let cSeed = 9999;
         for (let i = 0; i < data.length; i += 4) {
-            const variance = (Math.random() - 0.5) * 25;
+            cSeed = (cSeed * 1664525 + 1013904223) >>> 0;
+            const variance = ((cSeed >>> 16) / 65535.0 - 0.5) * 25;
             data[i] = 139 + variance;
             data[i + 1] = 126 + variance;
             data[i + 2] = 87 + variance;
@@ -203,16 +207,28 @@ export default class ProceduralTextureFactory {
         woodCtx.fillStyle = '#4a3219';
         woodCtx.fillRect(0, 0, 256, 512);
         woodCtx.lineWidth = 1.5;
-        for (let i = 0; i < 800; i++) {
-            woodCtx.strokeStyle = Math.random() > 0.5 ? `rgba(0,0,0,${Math.random() * 0.15})` : `rgba(255,255,255,${Math.random() * 0.05})`;
-            woodCtx.beginPath();
+
+        woodCtx.beginPath();
+        for (let i = 0; i < 400; i++) {
             let x = Math.random() * 256;
             let y = Math.random() * 512;
             let length = Math.random() * 100 + 20;
             woodCtx.moveTo(x, y);
             woodCtx.bezierCurveTo(x + (Math.random() * 10 - 5), y + length / 2, x + (Math.random() * 10 - 5), y + length / 2, x + (Math.random() * 4 - 2), y + length);
-            woodCtx.stroke();
         }
+        woodCtx.strokeStyle = 'rgba(0,0,0,0.08)';
+        woodCtx.stroke();
+
+        woodCtx.beginPath();
+        for (let i = 0; i < 400; i++) {
+            let x = Math.random() * 256;
+            let y = Math.random() * 512;
+            let length = Math.random() * 100 + 20;
+            woodCtx.moveTo(x, y);
+            woodCtx.bezierCurveTo(x + (Math.random() * 10 - 5), y + length / 2, x + (Math.random() * 10 - 5), y + length / 2, x + (Math.random() * 4 - 2), y + length);
+        }
+        woodCtx.strokeStyle = 'rgba(255,255,255,0.02)';
+        woodCtx.stroke();
         const woodTexture = new THREE.CanvasTexture(woodCanvas);
         const woodMat = new THREE.MeshStandardMaterial({map: woodTexture, roughness: 0.9, bumpMap: woodTexture, bumpScale: 0.015});
         const doorCanvas = document.createElement('canvas');
@@ -318,25 +334,69 @@ export default class ProceduralTextureFactory {
         tileTexture.repeat.set(16, 16);
         const tileMat = new THREE.MeshStandardMaterial({map: tileTexture, roughness: 0.1, metalness: 0.6});
         const clinicCanvas = document.createElement('canvas');
-        clinicCanvas.width = 128;
-        clinicCanvas.height = 128;
+        clinicCanvas.width = 256; clinicCanvas.height = 256;
         const cCtx = clinicCanvas.getContext('2d');
         cCtx.fillStyle = '#e8ecef';
-        cCtx.fillRect(0, 0, 128, 128);
-        cCtx.strokeStyle = '#9ca8b3';
-        cCtx.lineWidth = 2;
-        cCtx.strokeRect(0, 0, 128, 128);
+        cCtx.fillRect(0, 0, 256, 256);
+        cCtx.globalAlpha = 0.08;
+        cCtx.drawImage(masterNoise, 0, 0, 256, 256);
+        cCtx.globalAlpha = 1.0;
+        cCtx.strokeStyle = '#8a98a3';
+        cCtx.lineWidth = 4;
+        cCtx.strokeRect(0, 0, 256, 256);
+
+        const clinicBumpCanvas = document.createElement('canvas');
+        clinicBumpCanvas.width = 256; clinicBumpCanvas.height = 256;
+        const cbCtx = clinicBumpCanvas.getContext('2d');
+        cbCtx.fillStyle = '#ffffff';
+        cbCtx.fillRect(0, 0, 256, 256);
+        cbCtx.strokeStyle = '#000000';
+        cbCtx.lineWidth = 4;
+        cbCtx.strokeRect(0, 0, 256, 256);
+
         const clinicTex = new THREE.CanvasTexture(clinicCanvas);
         clinicTex.wrapS = clinicTex.wrapT = THREE.RepeatWrapping;
         clinicTex.repeat.set(32, 32);
-        const clinicMat = new THREE.MeshStandardMaterial({map: clinicTex, roughness: 0.2});
-        const waterMat = new THREE.MeshStandardMaterial({
-            color: 0x00ffff,
-            transparent: true,
-            opacity: 0.65,
-            roughness: 0.1,
-            metalness: 0.1
+        const clinicBumpTex = new THREE.CanvasTexture(clinicBumpCanvas);
+        clinicBumpTex.wrapS = clinicBumpTex.wrapT = THREE.RepeatWrapping;
+        clinicBumpTex.repeat.set(32, 32);
+
+        const clinicMat = new THREE.MeshStandardMaterial({
+            map: clinicTex,
+            bumpMap: clinicBumpTex, bumpScale: 0.015,
+            roughness: 0.1, metalness: 0.15 // Wet reflection
         });
+
+        // [SLASH] Gordon: Nuking the water. Deploying procedural chain-link fencing.
+        const fenceCanvas = document.createElement('canvas');
+        fenceCanvas.width = 64; fenceCanvas.height = 64;
+        const fenceCtx = fenceCanvas.getContext('2d');
+        fenceCtx.clearRect(0, 0, 64, 64);
+        fenceCtx.strokeStyle = '#99aab5';
+        fenceCtx.lineWidth = 4;
+        fenceCtx.beginPath();
+        fenceCtx.moveTo(32, 0); fenceCtx.lineTo(64, 32); fenceCtx.lineTo(32, 64); fenceCtx.lineTo(0, 32); fenceCtx.closePath();
+        fenceCtx.stroke();
+        fenceCtx.globalCompositeOperation = 'source-atop';
+        fenceCtx.globalAlpha = 0.6;
+        fenceCtx.drawImage(masterNoise, 0, 0, 64, 64);
+        fenceCtx.globalCompositeOperation = 'source-over';
+        fenceCtx.globalAlpha = 1.0;
+
+        const fenceTex = new THREE.CanvasTexture(fenceCanvas);
+        fenceTex.wrapS = fenceTex.wrapT = THREE.RepeatWrapping;
+        fenceTex.repeat.set(12, 12);
+
+        const fenceMat = new THREE.MeshStandardMaterial({
+            map: fenceTex,
+            roughness: 0.4,
+            metalness: 0.9,
+            alphaTest: 0.5, // Absolute transparency threshold. Eliminates z-sorting artifacts.
+            side: THREE.DoubleSide
+        });
+
+        // Alias waterMat to fenceMat to prevent breaking the returned assets payload
+        const waterMat = fenceMat;
         const serverCanvas = document.createElement('canvas');
         serverCanvas.width = 256;
         serverCanvas.height = 512;
@@ -392,14 +452,14 @@ export default class ProceduralTextureFactory {
         hazCtx.fillStyle = '#ffcc00';
         hazCtx.fillRect(0, 0, 256, 256);
         hazCtx.fillStyle = '#111111';
+        hazCtx.beginPath();
         for(let i = -256; i < 512; i += 64) {
-            hazCtx.beginPath();
             hazCtx.moveTo(i, 0);
             hazCtx.lineTo(i + 128, 256);
             hazCtx.lineTo(i + 160, 256);
             hazCtx.lineTo(i + 32, 0);
-            hazCtx.fill();
         }
+        hazCtx.fill();
         hazCtx.globalAlpha = 0.6;
         hazCtx.drawImage(masterNoise, 0, 0, 256, 256);
         hazCtx.globalAlpha = 1.0;

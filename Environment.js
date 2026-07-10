@@ -7,6 +7,7 @@ class SpatialHashGrid {
     constructor(cellSize) {
         this.cellSize = cellSize;
         this.cells = new Map();
+        this.chunkMap = new Map();
         this.queryId = 0;
         this.queryCache = [];
     }
@@ -16,6 +17,12 @@ class SpatialHashGrid {
         const startZ = Math.floor(box.min.z / this.cellSize);
         const endX = Math.floor(box.max.x / this.cellSize);
         const endZ = Math.floor(box.max.z / this.cellSize);
+
+        if (box.chunkHash) {
+            if (!this.chunkMap.has(box.chunkHash)) this.chunkMap.set(box.chunkHash, new Set());
+            this.chunkMap.get(box.chunkHash).add(box);
+        }
+
         for (let x = startX; x <= endX; x++) {
             for (let z = startZ; z <= endZ; z++) {
                 const key = (x << 16) | (z & 0xFFFF);
@@ -26,12 +33,27 @@ class SpatialHashGrid {
     }
 
     removeByChunk(chunkHash) {
-        for (const [key, cell] of this.cells.entries()) {
-            for (const box of cell) {
-                if (box.chunkHash === chunkHash) cell.delete(box);
+        const boxes = this.chunkMap.get(chunkHash);
+        if (!boxes) return;
+
+        for (const box of boxes) {
+            const startX = Math.floor(box.min.x / this.cellSize);
+            const startZ = Math.floor(box.min.z / this.cellSize);
+            const endX = Math.floor(box.max.x / this.cellSize);
+            const endZ = Math.floor(box.max.z / this.cellSize);
+
+            for (let x = startX; x <= endX; x++) {
+                for (let z = startZ; z <= endZ; z++) {
+                    const key = (x << 16) | (z & 0xFFFF);
+                    const cell = this.cells.get(key);
+                    if (cell) {
+                        cell.delete(box);
+                        if (cell.size === 0) this.cells.delete(key);
+                    }
+                }
             }
-            if (cell.size === 0) this.cells.delete(key);
         }
+        this.chunkMap.delete(chunkHash);
     }
 
     getNearby(x, z, radius) {
@@ -428,10 +450,11 @@ export default class Environment {
         const chunkGroup = new THREE.Group();
         this.scene.add(chunkGroup);
         this.activeChunks.set(hash, chunkGroup);
-        let prngSeed = this.baseSeed + (chunkX * 104729) + (chunkZ * 1299827);
+
+        let prngSeed = (this.baseSeed + (chunkX * 104729) + (chunkZ * 1299827)) >>> 0;
         const random = () => {
-            let x = Math.sin(prngSeed++) * 10000;
-            return x - Math.floor(x);
+            prngSeed = (prngSeed * 1664525 + 1013904223) >>> 0;
+            return prngSeed / 4294967296.0;
         };
         const cx = Math.sin(this.baseSeed) * 0.8;
         const cy = Math.cos(this.baseSeed * 0.5) * 0.8;
@@ -769,46 +792,51 @@ export default class Environment {
         const startZ = chunkZ * this.chunkSize;
         const sectorMatrix = [
             {
-                name: "THE POOLROOMS",
+                name: "THE POOLROOMS", // [SLASH] Repurposed into 'The Cages'. Name kept intact for Acoustic DSP routing.
                 prob: 0.16,
-                foundationMat: this.clinicMat,
-                build: (x, z, localX, localZ) => {
-                    const terrainNoise = random();
-                    if (terrainNoise > 0.6) {
-                        const platform = buildWall(this.cellSize, this.cellSize, this.clinicMat);
-                        platform.scale.y = 0.15;
-                        platform.position.set(x * this.cellSize, 0.225, z * this.cellSize);
-                        addGeometry(platform);
+                foundationMat: this.structMat,
+                build: (x, z, localX, localZ, maze) => {
+                    const isWall = maze && maze[localX][localZ];
+                    if (isWall) {
+                        // Structural pipe framework
+                        const cPillar = new THREE.Mesh(this.vPipeGeo, this.rustMat);
+                        cPillar.position.set(x * this.cellSize + (this.cellSize / 2), 1.5, z * this.cellSize + (this.cellSize / 2));
+                        addGeometry(cPillar);
 
-                        if (random() > 0.85) {
-                            const pillar = buildWall(0.8, 0.8, this.clinicMat);
-                            pillar.position.set(x * this.cellSize, 1.5, z * this.cellSize);
-                            addGeometry(pillar);
+                        // Chain-link mesh plane (X-axis)
+                        const fenceGeoX = new THREE.BoxGeometry(this.cellSize, 3.0, 0.05);
+                        const fenceX = new THREE.Mesh(fenceGeoX, this.waterMat); // Aliased chain-link
+                        fenceX.position.set(x * this.cellSize, 1.5, z * this.cellSize + (this.cellSize / 2));
+                        fenceX.userData.isEntityBlocker = true;
+                        addGeometry(fenceX);
+
+                        // Chain-link mesh plane (Z-axis)
+                        const fenceGeoZ = new THREE.BoxGeometry(0.05, 3.0, this.cellSize);
+                        const fenceZ = new THREE.Mesh(fenceGeoZ, this.waterMat);
+                        fenceZ.position.set(x * this.cellSize + (this.cellSize / 2), 1.5, z * this.cellSize);
+                        fenceZ.userData.isEntityBlocker = true;
+                        addGeometry(fenceZ);
+                    } else {
+                        // Halogen Floodlights
+                        if (localX % 3 === 0 && localZ % 3 === 0 && random() > 0.5) {
+                            const activeMat = this.baseLightMat.clone();
+                            activeMat.color.setHex(0xffaa55); // Sodium vapor orange
+                            activeMat.emissive.setHex(0xffaa55);
+                            const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                            panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
+                            chunkGroup.add(panel);
+                            this.walls.push(panel);
+                            this.fixtureData.push({
+                                chunkHash: hash,
+                                position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
+                                flickerOffset: random() * 500,
+                                material: activeMat,
+                                isFaulty: random() > 0.5,
+                                baseIntensity: 0.5,
+                                targetIntensity: 0.5,
+                                currentIntensity: 0.5
+                            });
                         }
-                    } else if (terrainNoise < 0.45) {
-                        const water = new THREE.Mesh(new THREE.PlaneGeometry(this.cellSize, this.cellSize), this.waterMat);
-                        water.rotation.x = -Math.PI / 2;
-                        water.position.set(x * this.cellSize, 0.2, z * this.cellSize);
-                        chunkGroup.add(water);
-                    }
-                    if (localX % 6 === 0 && localZ % 6 === 0 && random() > 0.4) {
-                        const activeMat = this.baseLightMat.clone();
-                        activeMat.color.setHex(0xaaffff);
-                        activeMat.emissive.setHex(0x44aaff);
-                        const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
-                        panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
-                        chunkGroup.add(panel);
-                        this.walls.push(panel);
-                        this.fixtureData.push({
-                            chunkHash: hash,
-                            position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
-                            flickerOffset: random() * 500,
-                            material: activeMat,
-                            isFaulty: false,
-                            baseIntensity: 0.4,
-                            targetIntensity: 0.4,
-                            currentIntensity: 0.4
-                        });
                     }
                 }
             },
@@ -1170,7 +1198,7 @@ export default class Environment {
                 }
             }
             if (!activeSector) activeSector = sectorMatrix[0];
-            if (activeSector.name === "THE ARCHIVE" || activeSector.name === "THE SERVER FARM" || activeSector.name === "THE MAINTENANCE SHAFTS") {
+            if (activeSector.name === "THE ARCHIVE" || activeSector.name === "THE SERVER FARM" || activeSector.name === "THE MAINTENANCE SHAFTS" || activeSector.name === "THE POOLROOMS") {
                 sectorMaze = Array(this.chunkSize).fill().map(() => Array(this.chunkSize).fill(true));
                 const carve = (cx, cz) => {
                     sectorMaze[cx][cz] = false;
@@ -1218,10 +1246,14 @@ export default class Environment {
                 let zx = x * 0.15;
                 let zy = z * 0.15;
                 let iter = 0;
-                while (zx * zx + zy * zy < 4 && iter < 15) {
-                    let xt = zx * zx - zy * zy + cx;
+
+                let zx2 = zx * zx;
+                let zy2 = zy * zy;
+                while (zx2 + zy2 < 4 && iter < 15) {
                     zy = 2 * zx * zy + cy;
-                    zx = xt;
+                    zx = zx2 - zy2 + cx;
+                    zx2 = zx * zx;
+                    zy2 = zy * zy;
                     iter++;
                 }
                 let isWall = iter > 6;
@@ -1321,7 +1353,6 @@ export default class Environment {
             }
             instancedGroups.get(sig).meshes.push(mesh);
         });
-        const dummy = new THREE.Object3D();
         const dummyColor = new THREE.Color();
         instancedGroups.forEach(group => {
             const isDecal = group.material === this.moldMat || group.material === this.ceilingStainMat || group.material === this.glowMat;
@@ -1332,22 +1363,19 @@ export default class Environment {
                     iMesh.receiveShadow = true;
                 }
                 iMesh.userData.chunkHash = hash;
+
+                const isStructural = group.material === this.sharedWallMat || group.material === this.headerMat;
+                const needsColor = !isStructural && !isDecal;
                 group.meshes.forEach((mesh, index) => {
-                    mesh.matrixWorld.decompose(dummy.position, dummy.quaternion, dummy.scale);
-                    dummy.updateMatrix();
-                    iMesh.setMatrixAt(index, dummy.matrix);
-                    const isStructural = group.material === this.sharedWallMat || group.material === this.headerMat;
-                    if (!isStructural && !isDecal) {
+                    iMesh.setMatrixAt(index, mesh.matrixWorld);
+                    if (needsColor) {
                         const shade = 0.85 + (random() * 0.15);
                         dummyColor.setRGB(shade, shade * 0.95, shade * 0.90);
-                        iMesh.setColorAt(index, dummyColor);
-                    } else {
-                        dummyColor.setRGB(1, 1, 1);
                         iMesh.setColorAt(index, dummyColor);
                     }
                 });
                 iMesh.instanceMatrix.needsUpdate = true;
-                if (iMesh.instanceColor) iMesh.instanceColor.needsUpdate = true;
+                if (needsColor && iMesh.instanceColor) iMesh.instanceColor.needsUpdate = true;
                 chunkGroup.add(iMesh);
                 if (!isDecal) this.walls.push(iMesh);
             } else {
@@ -1374,6 +1402,11 @@ export default class Environment {
 
     updateEntity(playerPos, delta, time) {
         if (!this.entityActive) return;
+        if (!this._entDir) {
+            this._entDir = new THREE.Vector3();
+            this._entToPlayer = new THREE.Vector3();
+            this._entLookDir = new THREE.Vector3();
+        }
         this.breadcrumbTimer = (this.breadcrumbTimer || 0) + delta;
         if (this.breadcrumbTimer > 0.5 && this.entityBacktrackTimer <= 0) {
             this.breadcrumbTimer = 0;
@@ -1424,14 +1457,14 @@ export default class Environment {
                 this.entityTarget.z += (Math.random() - 0.5) * 15.0;
             }
         }
-        const dir = new THREE.Vector3().subVectors(this.entityTarget, this.entityGroup.position);
+        const dir = this._entDir.subVectors(this.entityTarget, this.entityGroup.position);
         dir.y = 0;
         const distToTarget = dir.length();
         let speed = distToPlayerSq < 225.0 ? 4.2 : 2.0;
         let isObserved = false;
-        if (this.player.flashlightActive && distToPlayerSq < 625.0) { // Within 25 meters
-            const toEntity = new THREE.Vector3().subVectors(this.entityGroup.position, playerPos).normalize();
-            const lookDir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+        if (this.player.flashlightActive && distToPlayerSq < 625.0) {
+            const toEntity = this._entToPlayer.subVectors(this.entityGroup.position, playerPos).normalize();
+            const lookDir = this._entLookDir.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
             if (lookDir.dot(toEntity) > 0.85) {
                 isObserved = true;
                 speed = 0.0;
@@ -1445,41 +1478,57 @@ export default class Environment {
         }
         if (distToTarget > 0.1) {
             dir.normalize();
-            const moveVec = dir.multiplyScalar(speed * delta);
-            const nextPos = this.entityGroup.position.clone().add(moveVec);
-            const entBox = new THREE.Box3(
-                new THREE.Vector3(nextPos.x - 0.6, 0.0, nextPos.z - 0.6),
-                new THREE.Vector3(nextPos.x + 0.6, 3.0, nextPos.z + 0.6)
-            );
+
+            if (!this._entMoveVec) {
+                this._entMoveVec = new THREE.Vector3();
+                this._entNextPos = new THREE.Vector3();
+                this._entBox = new THREE.Box3();
+                this._entBoxX = new THREE.Box3();
+                this._entBoxZ = new THREE.Box3();
+                this._entMin = new THREE.Vector3();
+                this._entMax = new THREE.Vector3();
+            }
+
+            this._entMoveVec.copy(dir).multiplyScalar(speed * delta);
+            this._entNextPos.copy(this.entityGroup.position).add(this._entMoveVec);
+
+            this._entMin.set(this._entNextPos.x - 0.6, 0.0, this._entNextPos.z - 0.6);
+            this._entMax.set(this._entNextPos.x + 0.6, 3.0, this._entNextPos.z + 0.6);
+            this._entBox.set(this._entMin, this._entMax);
+
             let blocked = false;
-            const localBoxes = this.spatialGrid.getNearby(nextPos.x, nextPos.z, 2.0);
+            const localBoxes = this.spatialGrid.getNearby(this._entNextPos.x, this._entNextPos.z, 2.0);
             for (let i = 0; i < localBoxes.length; i++) {
-                if (localBoxes[i].isEntityBlocker && entBox.intersectsBox(localBoxes[i])) {
+                if (localBoxes[i].isEntityBlocker && this._entBox.intersectsBox(localBoxes[i])) {
                     blocked = true;
                     break;
                 }
             }
             if (!blocked) {
-                this.entityGroup.position.add(moveVec);
+                this.entityGroup.position.add(this._entMoveVec);
             } else {
                 let blockedX = false;
                 let blockedZ = false;
-                const boxX = entBox.clone();
-                boxX.min.z = this.entityGroup.position.z - 0.5;
-                boxX.max.z = this.entityGroup.position.z + 0.5;
-                const boxZ = entBox.clone();
-                boxZ.min.x = this.entityGroup.position.x - 0.5;
-                boxZ.max.x = this.entityGroup.position.x + 0.5;
+
+                this._entBoxX.copy(this._entBox);
+                this._entBoxX.min.z = this.entityGroup.position.z - 0.5;
+                this._entBoxX.max.z = this.entityGroup.position.z + 0.5;
+
+                this._entBoxZ.copy(this._entBox);
+                this._entBoxZ.min.x = this.entityGroup.position.x - 0.5;
+                this._entBoxZ.max.x = this.entityGroup.position.x + 0.5;
+
                 for (let i = 0; i < localBoxes.length; i++) {
                     if (localBoxes[i].isEntityBlocker) {
-                        if (!blockedX && boxX.intersectsBox(localBoxes[i])) blockedX = true;
-                        if (!blockedZ && boxZ.intersectsBox(localBoxes[i])) blockedZ = true;
+                        if (!blockedX && this._entBoxX.intersectsBox(localBoxes[i])) blockedX = true;
+                        if (!blockedZ && this._entBoxZ.intersectsBox(localBoxes[i])) blockedZ = true;
                     }
                 }
+
                 if (!blockedX && blockedZ) {
-                    this.entityGroup.position.x += moveVec.x;
+                    this.entityGroup.position.x += this._entMoveVec.x;
                 } else if (!blockedZ && blockedX) {
-                    this.entityGroup.position.z += moveVec.z;
+                    this.entityGroup.position.z += this._entMoveVec.z;
                 } else {
                     if (this.entityBacktrackTimer <= 0) {
                         this.entityBacktrackTimer = 5.0;

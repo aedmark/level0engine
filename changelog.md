@@ -1,5 +1,21 @@
 # Level 0 Engine Changelog
 
+## [v0.2.6] - 2026-07-09
+
+### Optimized
+
+- [RENDERER] The Uniform Pipeline & GPU Detox: Amputated per-pixel `Math.sin()` trigonometric evaluations from the post-processing fragment shader. Offloaded entropy to a CPU-calculated `globalSeed` uniform and leveraged hardware bilinear filtering to mathematically halve texture lookups during the retinal blur pass.
+- [RENDERER] Radial Distance Optimization: Eradicated the computationally expensive `distance()` square root in the vignette shader, replacing it with a mathematically equivalent Cartesian `dot()` product.
+- [ENVIRONMENT] O(1) Spatial Eviction: Obliterated the O(N) memory eviction traversal in the Spatial Hash Grid. Implemented a reverse-lookup dictionary (`chunkMap`) to execute surgical, instantaneous geometric culling upon chunk unload.
+- [ENVIRONMENT] Zero-Allocation Kinematics: Hoisted the Anomaly's collision vectors (`THREE.Vector3`, `THREE.Box3`) into persistent class memory. This severs the continuous allocation pipeline and permanently starves the Garbage Collector during high-speed entity pursuits.
+- [ENVIRONMENT] Fractal & Entropy Detox: Vaporized the `Math.sin()` pseudorandom number generator inside the Julia Set chunk loop, replacing it with a hyper-optimized bitwise Linear Congruential Generator (LCG). Cached structural `zx * zx` floating-point multiplications to mathematically halve thermodynamic friction.
+- [ENVIRONMENT] Zero-Waste Instancing: Annihilated the `dummy` `Object3D` overhead during procedural chunk assembly. `mesh.matrixWorld` payloads are now piped directly into the `InstancedMesh` buffers, bypassing costly spatial decompositions.
+- [AUDIO] Persistent Foley Bus & Declarative Matrix: Decoupled somatic acoustic profiles from nested inline ternary logic. Welded the Web Audio API Gain and Biquad filter plumbing directly into the `init()` boot sequence. Footsteps now natively plug into a persistent routing graph and execute explicit `.disconnect()` garbage collection upon completion.
+- [AUDIO] Acoustic Distance Culling: The somatic trigger now explicitly drops execution requests outside a 1600-unit squared radius before computing the physical scalar square root, reclaiming wasted CPU cycles.
+- [PHYSICS] Unified Spatial Queries & Kinematic Math: Hoisted the O(1) hash grid spatial query to the top of the frame. Both the collision solver and the claustrophobic squeeze mechanics now execute against a single shared spatial payload. Centralized Euler applications to eliminate redundant geometric transformations.
+- [TEXTURES] O(N) Canvas Entropy Detox: Excised `Math.random()` from the 786,432-iteration `masterNoise` pixel loop. Injected a deterministic, bitwise LCG hash to drastically accelerate initial canvas generation.
+- [TEXTURES] Structural Canvas Batching: Re-engineered the procedural wood grain and hazard stripe painters. Consolidated 800 individual `stroke()` path allocations into exactly two continuous sub-paths, mathematically evaporating hundreds of redundant 2D context draw calls.
+
 ## [v0.2.5] - 2026-07-07
 
 ### Added
