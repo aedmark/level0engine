@@ -288,6 +288,19 @@ export default class Environment {
         this.scene.add(this.entityGroup);
         this.entityActive = false;
         this.entityTarget = new THREE.Vector3();
+
+        // [SLASH] Meadows: Strict Thermodynamic Object Pooling for UV Tags (Max 50)
+        this.tagPool = [];
+        this.tagIndex = 0;
+        this.tagGroup = new THREE.Group();
+        for(let i = 0; i < 50; i++) {
+            const tag = new THREE.Mesh(this.tagGeo, this.tagMat);
+            tag.visible = false;
+            this.tagGroup.add(tag);
+            this.tagPool.push(tag);
+        }
+        this.scene.add(this.tagGroup);
+
         this.scene.add(this.camera);
         this.flashlight = new THREE.SpotLight(0xffe8b3, 0.0, 45.0, Math.PI / 7, 0.5, 2.0);
         this.flashlight.position.set(0.3, -0.3, 0);
@@ -357,9 +370,43 @@ export default class Environment {
         };
         document.getElementById('captureBtn').addEventListener('click', capture);
         document.addEventListener('capture-screenshot', capture);
+
+        // [SLASH] Fuller: Raycasting the UV Tag onto the nearest wall
+        this.tagRaycaster = new THREE.Raycaster();
+        document.addEventListener('somatic-tag', () => {
+            this.tagRaycaster.set(this.camera.position, this.camera.getWorldDirection(new THREE.Vector3()));
+            // Intersect against all known structural boundaries
+            const intersects = this.tagRaycaster.intersectObjects(this.walls, false);
+
+            if (intersects.length > 0 && intersects[0].distance < 3.0) {
+                const hit = intersects[0];
+                const tag = this.tagPool[this.tagIndex];
+                tag.visible = true;
+                tag.position.copy(hit.point);
+
+                // We must dynamically extract the local normal of the hit face and map it to world space
+                let normal = hit.face ? hit.face.normal.clone() : new THREE.Vector3(0, 0, 1);
+
+                if (hit.object && hit.object.isInstancedMesh && hit.instanceId !== undefined) {
+                    const instanceMatrix = new THREE.Matrix4();
+                    hit.object.getMatrixAt(hit.instanceId, instanceMatrix);
+                    const normalMatrix = new THREE.Matrix3().getNormalMatrix(instanceMatrix);
+                    normal.applyMatrix3(normalMatrix).normalize();
+                } else if (hit.object) {
+                    const normalMatrix = new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld);
+                    normal.applyMatrix3(normalMatrix).normalize();
+                }
+
+                // Snap the decal flush to the wall and randomize the rotation for an organic feel
+                tag.lookAt(hit.point.clone().add(normal));
+                tag.rotateZ((Math.random() - 0.5) * 0.4);
+
+                this.tagIndex = (this.tagIndex + 1) % this.tagPool.length;
+            }
+        });
     }
 
-    generate() {
+    generate(isWarp = false) {
         const flash = document.getElementById('flash-overlay');
         if (flash) {
             flash.style.transition = 'none';
@@ -387,21 +434,41 @@ export default class Environment {
         this.fixtureData = [];
         this.spatialGrid.cells.clear();
         this.currentChunkCoords = {x: null, z: null};
+
+        // [SLASH] Clears the breadcrumbs when a matrix reset occurs
+        if (this.tagPool) {
+            this.tagPool.forEach(tag => tag.visible = false);
+            this.tagIndex = 0;
+        }
         this.chunkQueue = [];
         this.isBuildingChunk = false;
-        this.camera.position.set(0, 1.6, 0);
         this.player.velocity.set(0, 0, 0);
         this.entityActive = true;
-        this.entityGroup.position.set(32, 1.5, 32);
-        this.entityTarget.copy(this.entityGroup.position);
         this.entityBreadcrumbs = [];
         this.entityBacktrackTimer = 0;
         this.breadcrumbTimer = 0;
-        const seedString = document.getElementById('seedInput').value || "ASYNC RESEARCH INSTITUTE";
-        this.baseSeed = 0;
-        for (let i = 0; i < seedString.length; i++) {
-            this.baseSeed = ((this.baseSeed << 5) - this.baseSeed) + seedString.charCodeAt(i);
-            this.baseSeed |= 0;
+
+        if (isWarp) {
+            // Fast Travel: Shift coordinates radically but maintain the exact same quantum seed
+            const signX = Math.random() > 0.5 ? 1 : -1;
+            const signZ = Math.random() > 0.5 ? 1 : -1;
+            const warpX = this.camera.position.x + (signX * (1500 + Math.random() * 2000));
+            const warpZ = this.camera.position.z + (signZ * (1500 + Math.random() * 2000));
+            this.camera.position.set(warpX, 1.6, warpZ);
+            this.entityGroup.position.set(warpX + 32, 1.5, warpZ + 32);
+            this.entityTarget.copy(this.entityGroup.position);
+        } else {
+            // Death/Reset: Complete re-roll of the universe
+            this.camera.position.set(0, 1.6, 0);
+            this.entityGroup.position.set(32, 1.5, 32);
+            this.entityTarget.copy(this.entityGroup.position);
+
+            const seedString = document.getElementById('seedInput').value || "ASYNC RESEARCH INSTITUTE";
+            this.baseSeed = 0;
+            for (let i = 0; i < seedString.length; i++) {
+                this.baseSeed = ((this.baseSeed << 5) - this.baseSeed) + seedString.charCodeAt(i);
+                this.baseSeed |= 0;
+            }
         }
         this.cellSize = 4;
         if (!this.sharedWallGeo) {
@@ -475,13 +542,14 @@ export default class Environment {
             return new THREE.Mesh(geo, mat);
         };
         const stagingMeshes = [];
-        const addGeometry = (mesh) => {
+        const addGeometry = (mesh, isWarp = false) => {
             mesh.userData.chunkHash = hash;
             mesh.updateMatrixWorld(true);
             if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
             const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
             box.chunkHash = hash;
             if (mesh.userData.isEntityBlocker) box.isEntityBlocker = true;
+            if (isWarp) box.isWarpZone = true;
             this.spatialGrid.insert(box);
             stagingMeshes.push(mesh);
         };
@@ -690,6 +758,8 @@ export default class Environment {
             },
             {
                 prob: 0.48, build: (x, z) => {
+                    if (random() > 0.25) return;
+                    const isMagic = random() > 0.75;
                     const dir = Math.floor(random() * 4);
                     const isZ = dir % 2 === 0;
                     const w1 = buildWall(isZ ? 0.5 : this.cellSize, isZ ? this.cellSize : 0.5, this.sharedWallMat);
@@ -717,7 +787,8 @@ export default class Environment {
                         const posX = x * this.cellSize + (isZ ? 0 : offset);
                         const posZ = z * this.cellSize + (isZ ? offset : 0);
                         step.position.set(posX, h / 2, posZ);
-                        addGeometry(step);
+                        const isTopStep = (s === stepCount - 1);
+                        addGeometry(step, isMagic && isTopStep);
                     }
                 }
             },
@@ -1629,11 +1700,14 @@ export default class Environment {
         let isOccluded = this.currentOcclusionState;
         const pChunkX = Math.floor(cameraPos.x / (this.chunkSize * this.cellSize));
         const pChunkZ = Math.floor(cameraPos.z / (this.chunkSize * this.cellSize));
-        let pSeed = this.baseSeed + (pChunkX * 104729) + (pChunkZ * 1299827);
+
+        // [SLASH] Benedict: Healing the Schism. Enforcing structural LCG math to perfectly sync audio with visual reality.
+        let pSeed = (this.baseSeed + (pChunkX * 104729) + (pChunkZ * 1299827)) >>> 0;
         const pRandom = () => {
-            let x = Math.sin(pSeed++) * 10000;
-            return x - Math.floor(x);
+            pSeed = (pSeed * 1664525 + 1013904223) >>> 0;
+            return pSeed / 4294967296.0;
         };
+
         const isMacroLoc = pRandom() > 0.90 && (Math.abs(pChunkX) > 0 || Math.abs(pChunkZ) > 0);
         const sectorRoll = pRandom();
         let activeSector = "NORMAL";

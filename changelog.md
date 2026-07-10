@@ -1,5 +1,24 @@
 # Level 0 Engine Changelog
 
+## [v0.2.7] - 2026-07-09
+
+### Added
+- [MECHANICS] The Liminal Breach (Fast Travel): Transformed dead-end stairs into a core progression loop. Un-capped the kinematic Y-axis when standing on rare, tagged staircases (15% spawn rate), allowing players to phase through the ceiling and mathematically warp thousands of units across the grid without mutating the quantum seed.
+- [MECHANICS] Ultraviolet Breadcrumbs: Players can now press 'T' to spray a glowing, high-visibility UV paint decal on walls to map the labyrinth. Managed via a strict, zero-leak 50-decal Object Pool and a dynamic surface-normal raycaster.
+- [GEOMETRY] The Cages: Replaced the Poolrooms with a brutalist maze of procedural chain-link fencing. Fences utilize Canvas-drawn diamond wireframes and WebGL `alphaTest` to create true, see-through geometry that blocks physical entities but allows line-of-sight and flashlight penetration.
+
+### Changed
+- [AUDIO] Articulated Foley Envelopes: Re-engineered the DSP footstep synthesizer to obey surface-specific ADSR timings (Attack/Decay). Footsteps dynamically shift between `sine` and `triangle` wave oscillators, allowing porcelain tiles to sharply "click" while carpet produces a muffled "thud".
+- [TEXTURES] Lifeless Acrylic: Calibrated `baseBrokenLightMat` to prevent pure-black light fixtures. Dead ballasts now hold a cold, milky gray base color (`0x8c9296`) with a static emissive floor to catch the ambient photon bounce.
+
+### Optimized
+- [ENVIRONMENT] Zero-Allocation Entity Tracking: Pre-allocated tracking vectors (`_entDir`, `_entToPlayer`, `_entLookDir`) in the Anomaly's `updateEntity` matrix. This eliminates 180 discarded vector instantiations per second, permanently starving the Garbage Collector of pursuit thrashing.
+- [PHYSICS] Kinematic Normalization Clamp: Applied a zero-allocation mathematical magnitude clamp to mobile touch-move inputs (`intentX`, `intentZ`). This strictly enforces terminal velocity and prevents players from moving 41% faster when sliding the virtual joystick diagonally.
+
+### Fixed
+- [ENVIRONMENT] The Audio/Visual Schism: Ripped out the desynced trigonometric PRNG in the `updateLights` telemetry loop and replaced it with the exact bitwise Linear Congruential Generator (LCG) used in `buildChunk`. Audio profiles now perfectly align with the rendered physical geometry.
+- [TEXTURES] Lexical Pipeline Collision: Fixed a fatal block-scoped redeclaration error (`const fCtx`) in the texture factory that halted the WebGL bootstrap when generating the chain-link fencing.
+
 ## [v0.2.6] - 2026-07-09
 
 ### Optimized

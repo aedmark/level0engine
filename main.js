@@ -127,9 +127,8 @@ function animate() {
 
     player.update(delta, environment.spatialGrid);
 
-    if (engine.camera.position.y > 2.8 && !environment.isSpawning) {
-        triggerAscension();
-        environment.generate();
+    if (engine.camera.position.y > 2.8 && player.onWarpZone && !environment.isSpawning) {
+        environment.generate(true); // true = isWarp
         return;
     }
 

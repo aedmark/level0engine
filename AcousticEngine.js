@@ -18,12 +18,13 @@ export default class AcousticEngine {
             "MAINTENANCE": { noise: 0.02, peace: 0.0, rumble: 90, freq: 120, freqOcc: 120, whine: 0.006, whineOcc: 0.002, dynamicWhine: false }
         };
 
+        // [SLASH] Pinker: Articulated Foley Envelopes. We must separate the ADSR timings.
         this.foleyProfiles = {
-            "POOLROOMS":   { oscFreq: 80,  filterType: 'highpass', filterFreq: 2500, gain: 0.16 },
-            "CLINIC":      { oscFreq: 140, filterType: 'lowpass',  filterFreq: 1800, gain: 0.12 },
-            "BOARDROOM":   { oscFreq: 140, filterType: 'lowpass',  filterFreq: 1800, gain: 0.12 },
-            "MAINTENANCE": { oscFreq: 120, filterType: 'bandpass', filterFreq: 800,  gain: 0.08 },
-            "DEFAULT":     { oscFreq: 80,  filterType: 'lowpass',  filterFreq: 1200, gain: 0.08 }
+            "POOLROOMS":   { oscFreq: 100, filterType: 'bandpass', filterFreq: 1200, gain: 0.18, attack: 0.02, decay: 0.15 }, // Concrete scrape (The Cages)
+            "CLINIC":      { oscFreq: 800, filterType: 'highpass', filterFreq: 3000, gain: 0.15, attack: 0.01, decay: 0.06 }, // Hard tile click
+            "BOARDROOM":   { oscFreq: 120, filterType: 'lowpass',  filterFreq: 1400, gain: 0.18, attack: 0.02, decay: 0.12 }, // Hollow wood knock
+            "MAINTENANCE": { oscFreq: 400, filterType: 'bandpass', filterFreq: 2500, gain: 0.12, attack: 0.01, decay: 0.15 }, // Metallic clink
+            "DEFAULT":     { oscFreq: 60,  filterType: 'lowpass',  filterFreq: 600,  gain: 0.10, attack: 0.04, decay: 0.18 }  // Damp carpet thud
         };
     }
 
@@ -190,9 +191,10 @@ export default class AcousticEngine {
             this.stepFilter.frequency.setValueAtTime(profile.filterFreq, t);
 
             const osc = this.ctx.createOscillator();
-            osc.type = 'sine';
+            // [SLASH] Use a triangle wave for sharper clicks on hard surfaces (Tile/Metal)
+            osc.type = (profile.oscFreq > 200) ? 'triangle' : 'sine';
             osc.frequency.setValueAtTime(profile.oscFreq, t);
-            osc.frequency.exponentialRampToValueAtTime(20, t + 0.1);
+            osc.frequency.exponentialRampToValueAtTime(20, t + profile.attack);
 
             const noise = this.ctx.createBufferSource();
             noise.buffer = this.noiseSrc.buffer;
@@ -201,11 +203,12 @@ export default class AcousticEngine {
             noise.connect(this.stepFilter);
 
             this.stepGain.gain.setValueAtTime(0, t);
-            this.stepGain.gain.linearRampToValueAtTime(profile.gain * intensity * distScalar, t + 0.02);
-            this.stepGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+            // Apply the dynamic Envelope timings
+            this.stepGain.gain.linearRampToValueAtTime(profile.gain * intensity * distScalar, t + profile.attack);
+            this.stepGain.gain.exponentialRampToValueAtTime(0.001, t + profile.decay);
 
-            osc.start(t); osc.stop(t + 0.15);
-            noise.start(t); noise.stop(t + 0.15);
+            osc.start(t); osc.stop(t + profile.decay);
+            noise.start(t); noise.stop(t + profile.decay);
 
             osc.onended = () => { osc.disconnect(); noise.disconnect(); };
 

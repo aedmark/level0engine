@@ -432,12 +432,13 @@ export default class ProceduralTextureFactory {
             roughness: 0.3,
             metalness: 0.1
         });
+        // [SLASH] The Artisan: Calibrating the dead ballasts. Milky acrylic instead of a void.
         const baseBrokenLightMat = new THREE.MeshStandardMaterial({
             map: lightTexture,
             emissiveMap: lightTexture,
-            color: 0x555544,
-            emissive: 0xffffe0,
-            emissiveIntensity: 0.01,
+            color: 0x8c9296,         // Dead, milky acrylic plastic
+            emissive: 0x1a1f24,      // Cold, lifeless gray baseline
+            emissiveIntensity: 1.0,  // Ensures the diffuser never drops below a gray visual floor
             roughness: 0.8
         });
         const baseHousingMat = new THREE.MeshStandardMaterial({
@@ -489,7 +490,40 @@ export default class ProceduralTextureFactory {
         });
         const glowGeo = new THREE.PlaneGeometry(3.8, 3.8);
         glowGeo.rotateX(-Math.PI / 2);
+
+        // [SLASH] The Artisan: Ultraviolet Spray Paint Decal
+        const tagCanvas = document.createElement('canvas');
+        tagCanvas.width = 128; tagCanvas.height = 128;
+        const tagCtx = tagCanvas.getContext('2d');
+        tagCtx.strokeStyle = '#ff0055'; // High-visibility liminal neon pink
+        tagCtx.lineWidth = 12;
+        tagCtx.lineCap = 'round';
+        tagCtx.shadowColor = '#ff0055';
+        tagCtx.shadowBlur = 15;
+        tagCtx.beginPath();
+        tagCtx.moveTo(32, 32); tagCtx.lineTo(96, 96);
+        tagCtx.moveTo(96, 32); tagCtx.lineTo(32, 96);
+        tagCtx.stroke();
+        // Paint drips
+        tagCtx.lineWidth = 4;
+        tagCtx.shadowBlur = 5;
+        tagCtx.beginPath();
+        tagCtx.moveTo(45, 75); tagCtx.lineTo(45, 110);
+        tagCtx.moveTo(85, 80); tagCtx.lineTo(85, 100);
+        tagCtx.stroke();
+
+        const tagTexture = new THREE.CanvasTexture(tagCanvas);
+        const tagMat = new THREE.MeshBasicMaterial({
+            map: tagTexture,
+            transparent: true,
+            depthWrite: false,
+            polygonOffset: true,
+            polygonOffsetFactor: -4 // Forces the decal to render strictly on top of walls
+        });
+        const tagGeo = new THREE.PlaneGeometry(0.5, 0.5);
+
         const assets = {
+            tagMat, tagGeo, // [SLASH] Injected
             carpetTexture, ceilingTexture, headerMat, wallTexture, moldMat, moldGeo,
             ceilingStainMat, ceilingStainGeo, structMat, woodMat, doorMat, ventMat,
             fabricMat, mossMat, tileMat, clinicMat, waterMat, serverMat, baseLightMat,

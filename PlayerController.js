@@ -181,6 +181,10 @@ export default class PlayerController {
             const flashBtn = document.getElementById('mobile-flashlight');
             if (flashBtn) flashBtn.classList.toggle('active', this.flashlightActive);
         }
+        // [SLASH] Fuller: Somatic trigger for the UV Spray
+        if (event.code === 'KeyT') {
+            document.dispatchEvent(new Event('somatic-tag'));
+        }
         switch (key) {
             case 'ArrowUp':
             case 'KeyW':
@@ -348,6 +352,7 @@ export default class PlayerController {
         let hitX = false;
         let hitZ = false;
         let targetFeetY = 0;
+        this.onWarpZone = false;
         for (let i = 0, len = localBoxes.length; i < len; i++) {
             const box = localBoxes[i];
             if (!hitX && this._boxX.intersectsBox(box)) hitX = true;
@@ -355,6 +360,7 @@ export default class PlayerController {
             if (box.max.y > targetFeetY && box.max.y <= feetY + 1.2) {
                 if (this._floorBox.intersectsBox(box)) {
                     targetFeetY = box.max.y;
+                    if (box.isWarpZone) this.onWarpZone = true;
                 }
             }
         }
@@ -387,8 +393,8 @@ export default class PlayerController {
         this._leanOffset.set(leanLateral, 0, 0).applyEuler(this._euler);
         this.camera.position.x += this._leanOffset.x;
         this.camera.position.z += this._leanOffset.z;
-
-        const targetCamY = targetFeetY + visualHeight + bobOffset - leanDrop;
+        const maxCamY = this.onWarpZone ? 5.0 : 2.8;
+        const targetCamY = Math.min(targetFeetY + visualHeight, maxCamY) + bobOffset - leanDrop;
 
         const lerpFactor = 1.0 - Math.exp(-12.0 * delta);
         this.camera.position.y += (targetCamY - this.camera.position.y) * lerpFactor;
