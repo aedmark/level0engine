@@ -389,19 +389,27 @@ export default class PlayerController {
                 if ((moveZ > 0 && pz < cz) || (moveZ < 0 && pz > cz)) hitZ = true;
             }
         }
-        // SLASH: SOMATIC COLLISION HAPTICS
-        if (hitX || hitZ) {
+        // SLASH: SOMATIC COLLISION HAPTICS & HYSTERESIS
+        const isColliding = hitX || hitZ;
+        if (isColliding) {
             const impact = (Math.abs(this.velocity.x) + Math.abs(this.velocity.z)) * delta;
-            if (impact > 0.05 && this.enableHeadBob) {
-                // Flinch the camera and trigger an acoustic thump
+
+            // Only trigger haptics on the initial impact to prevent event flooding and camera spin
+            if (impact > 0.05 && this.enableHeadBob && !this.wasColliding) {
                 this.camera.rotation.z += (Math.random() - 0.5) * impact * 0.5;
                 this.camera.rotation.x -= impact * 0.2;
+
+                // Mathematically clamp the cervical spine
+                this.camera.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this.camera.rotation.x));
+
                 document.dispatchEvent(new CustomEvent('somatic-step', { detail: { intensity: impact * 2.0 } }));
             }
-            // Bleed momentum on impact to prevent sliding like soap
+
+            // Bleed momentum to prevent sliding like soap
             if (hitX) this.velocity.x *= 0.5;
             if (hitZ) this.velocity.z *= 0.5;
         }
+        this.wasColliding = isColliding;
 
         if (!hitX) this.camera.position.x += moveX;
         if (!hitZ) this.camera.position.z += moveZ;

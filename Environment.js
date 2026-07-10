@@ -447,54 +447,78 @@ export default class Environment {
         // SLASH: UNIVERSAL INTERACTION LISTENER & SURGE MECHANIC
         document.addEventListener('somatic-interact', (e) => {
             if (!this.interactables) return;
-            this.tagRaycaster.set(e.detail.position, e.detail.direction);
-            const intersects = this.tagRaycaster.intersectObjects(this.interactables, false);
 
-            if (intersects.length > 0 && intersects[0].distance < 2.5) {
-                const hit = intersects[0].object;
-                if (hit.userData.type === 'breaker' && hit.userData.active) {
-                    hit.userData.active = false;
-                    hit.material = this.rustMat; // Visual feedback that it's blown
+            // SLASH: Forgiving Spatial Dot-Product Interaction
+            let hit = null;
+            let closestDist = 3.0; // Expanded to a generous 3.0 unit reach
 
-                    // The Acoustic Surge
-                    document.dispatchEvent(new CustomEvent('somatic-door', { detail: { distSq: 1.0, intensity: 2.0 } }));
-
-                    // The Illumination Cascade
-                    this.fixtureData.forEach(fixture => {
-                        if (fixture.position.distanceToSquared(hit.position) < 2500.0) {
-                            fixture.baseIntensity = 2.5;
-                            fixture.targetIntensity = 2.5;
-                            fixture.currentIntensity = 2.5;
-
-                            // Staggered Bulb Popping
-                            setTimeout(() => {
-                                fixture.isDead = true;
-                                fixture.baseIntensity = 0.0;
-                                fixture.targetIntensity = 0.0;
-                                fixture.currentIntensity = 0.0;
-                                // We manipulate the existing material to avoid breaking the InstancedMesh linkage
-                                if (fixture.material && fixture.material.color) {
-                                    fixture.originalColor = fixture.material.color.getHex();
-                                    fixture.originalEmissive = fixture.material.emissive.getHex();
-                                    fixture.material.color.setHex(0x333333);
-                                    fixture.material.emissive.setHex(0x000000);
-                                    fixture.material.emissiveIntensity = 0.0;
-                                }
-                            }, 200 + Math.random() * 600);
-
-                            // SLASH: The System Reboot Cascade
-                            setTimeout(() => {
-                                fixture.isDead = false;
-                                fixture.isFaulty = true; // Permanently damaged but functional
-                                fixture.baseIntensity = 0.5;
-                                if (fixture.material && fixture.originalColor) {
-                                    fixture.material.color.setHex(fixture.originalColor);
-                                    fixture.material.emissive.setHex(fixture.originalEmissive);
-                                }
-                            }, 25000 + Math.random() * 10000); // Reboots after 25-35 seconds
-                        }
-                    });
+            this.interactables.forEach(obj => {
+                const dist = obj.position.distanceTo(e.detail.position);
+                if (dist < closestDist) {
+                    const dirToObj = new THREE.Vector3().subVectors(obj.position, e.detail.position).normalize();
+                    // 0.75 yields roughly a 40-degree forgiving viewing cone
+                    if (e.detail.direction.dot(dirToObj) > 0.75) {
+                        closestDist = dist;
+                        hit = obj;
+                    }
                 }
+            });
+
+            if (hit && hit.userData.type === 'breaker' && hit.userData.active) {
+                hit.userData.active = false;
+
+                // SLASH: Visually crack open the breaker panel
+                if (hit.userData.door) {
+                    hit.userData.door.rotation.y = -Math.PI / 1.5; // Snap the hinge open 120 degrees
+                }
+
+                // The Acoustic Surge
+                document.dispatchEvent(new CustomEvent('somatic-door', { detail: { distSq: 1.0, intensity: 2.0 } }));
+
+                // The Illumination Cascade
+                this.fixtureData.forEach(fixture => {
+                    if (fixture.position.distanceToSquared(hit.position) < 2500.0) {
+                        fixture.baseIntensity = 2.5;
+                        fixture.targetIntensity = 2.5;
+                        fixture.currentIntensity = 2.5;
+
+                        // SLASH: Hard-bind the death state synchronously to bypass GC drops.
+                        fixture.isDead = true;
+
+                        // Fake lights bypass the hardware loop, so we must manually surge them
+                        if (fixture.isFake && fixture.material) {
+                            fixture.material.emissiveIntensity = 2.0;
+                        }
+
+                        // Staggered Bulb Popping
+                        setTimeout(() => {
+                            fixture.baseIntensity = 0.0;
+                            fixture.targetIntensity = 0.0;
+                            fixture.currentIntensity = 0.0;
+                            // We manipulate the existing material to avoid breaking the InstancedMesh linkage
+                            if (fixture.material && fixture.material.color) {
+                                fixture.originalColor = fixture.material.color.getHex();
+                                fixture.originalEmissive = fixture.material.emissive.getHex();
+                                fixture.material.color.setHex(0x333333);
+                                fixture.material.emissive.setHex(0x000000);
+                                fixture.material.emissiveIntensity = 0.0;
+                            }
+                        }, 200 + Math.random() * 600);
+
+                        // SLASH: The System Reboot Cascade
+                        setTimeout(() => {
+                            fixture.isDead = false;
+                            fixture.isFaulty = true; // Permanently damaged but functional
+                            fixture.baseIntensity = 0.5;
+                            if (fixture.material && fixture.originalColor) {
+                                fixture.material.color.setHex(fixture.originalColor);
+                                fixture.material.emissive.setHex(fixture.originalEmissive);
+                                // Manually restore the fake light emissive baseline
+                                if (fixture.isFake) fixture.material.emissiveIntensity = 0.4;
+                            }
+                        }, 25000 + Math.random() * 10000); // Reboots after 25-35 seconds
+                    }
+                });
             }
         });
     }
@@ -595,8 +619,9 @@ export default class Environment {
             this.wallVentMat = this.ventMat.clone();
             this.wallVentMat.map = this.ventMat.map.clone();
             this.wallVentMat.map.repeat.set(2, 0.5);
-            // SLASH: Breaker Box Geometry Fixed
-            this.breakerGeo = new THREE.BoxGeometry(0.6, 0.8, 0.25);
+            this.breakerBaseGeo = new THREE.BoxGeometry(0.6, 0.8, 0.20);
+            this.breakerDoorGeo = new THREE.BoxGeometry(0.6, 0.8, 0.05);
+            this.breakerDoorGeo.translate(0.3, 0, 0);
             this.geoCache = new Map();
             this.sharedAssets = new Set();
             Object.values(this).forEach(v => {
@@ -1476,18 +1501,21 @@ export default class Environment {
                         this.walls.push(panel);
                         if (!isBroken) {
                             const isTracked = random() > 0.85;
-                            if (isTracked) {
-                                this.fixtureData.push({
-                                    chunkHash: hash,
-                                    position: new THREE.Vector3(posX, 2.8, posZ),
-                                    flickerOffset: random() * 500,
-                                    material: activeMat,
-                                    isFaulty: random() > 0.75,
-                                    baseIntensity: 0.6,
-                                    targetIntensity: 0.6,
-                                    currentIntensity: 0.6
-                                });
-                            } else {
+
+                            // SLASH: Push ALL functional lights to the tracking array so the Surge Breaker can shatter them
+                            this.fixtureData.push({
+                                chunkHash: hash,
+                                position: new THREE.Vector3(posX, 2.8, posZ),
+                                flickerOffset: random() * 500,
+                                material: activeMat,
+                                isFaulty: isTracked ? (random() > 0.75) : false,
+                                baseIntensity: isTracked ? 0.6 : 0.0,
+                                targetIntensity: isTracked ? 0.6 : 0.0,
+                                currentIntensity: isTracked ? 0.6 : 0.0,
+                                isFake: !isTracked // Tag the fake volumetric lights
+                            });
+
+                            if (!isTracked) {
                                 const glow = new THREE.Mesh(this.glowGeo, this.glowMat);
                                 glow.position.set(posX, 0.03, posZ);
                                 glow.userData.chunkHash = hash;
@@ -1501,12 +1529,21 @@ export default class Environment {
                         pillar.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                         chunkGroup.add(pillar);
 
-                        const breaker = new THREE.Mesh(this.breakerGeo, this.hazardMat);
-                        // Shifted Z to 0.525 to completely clear the pillar's front face (0.4)
-                        breaker.position.set(x * this.cellSize, 1.5, z * this.cellSize + 0.525);
-                        breaker.userData = { type: 'breaker', chunkHash: hash, active: true };
-                        chunkGroup.add(breaker);
-                        this.interactables.push(breaker);
+                        // SLASH: Articulated Breaker Assembly
+                        const breakerGroup = new THREE.Group();
+                        breakerGroup.position.set(x * this.cellSize, 1.5, z * this.cellSize + 0.525);
+
+                        const breakerBase = new THREE.Mesh(this.breakerBaseGeo, this.rustMat);
+                        breakerBase.position.set(0, 0, -0.025); // Set flush against the pillar
+                        breakerGroup.add(breakerBase);
+
+                        const breakerDoor = new THREE.Mesh(this.breakerDoorGeo, this.hazardMat);
+                        breakerDoor.position.set(-0.3, 0, 0.1); // Lock the hinge to the left edge
+                        breakerGroup.add(breakerDoor);
+
+                        breakerGroup.userData = { type: 'breaker', chunkHash: hash, active: true, door: breakerDoor };
+                        chunkGroup.add(breakerGroup);
+                        this.interactables.push(breakerGroup);
 
                         const pBox = new THREE.Box3().setFromObject(pillar);
                         pBox.chunkHash = hash;
@@ -1637,7 +1674,7 @@ export default class Environment {
                 this.player.isChased = false;
             } else {
                 this.entityTarget.copy(playerPos);
-                this.player.isChased = true;
+                this.player.isChased = distToPlayerSq < 225.0;
             }
         } else {
             this.player.isChased = false;
@@ -1750,9 +1787,22 @@ export default class Environment {
                 return;
             }
             const distSq = (dx * dx) + (dz * dz);
+
+            // SLASH: Accurately track topological darkness by evaluating ALL fixtures (real and fake)
             if (distSq < 900) {
+                const dist = Math.sqrt(distSq);
+                const weight = (30.0 - dist) / 30.0;
+                if (!fixture.isDead) {
+                    ambientLightLevel += weight;
+                } else {
+                    darknessPressure += weight;
+                }
+
                 fixture.distSq = fixture.hasShadow ? distSq - 40.0 : distSq;
-                this.localFixtures.push(fixture);
+                // SLASH: Only assign hardware point lights to real fixtures to protect the WebGL limit
+                if (!fixture.isFake) {
+                    this.localFixtures.push(fixture);
+                }
             } else {
                 fixture.hasShadow = false;
             }
@@ -1775,13 +1825,6 @@ export default class Environment {
                 }
                 light.position.copy(fixture.position);
                 const dist = Math.sqrt(fixture.distSq);
-
-                // SLASH: Dead bulbs generate darkness pressure, living bulbs track normal density
-                if (!fixture.isDead) {
-                    ambientLightLevel += (activeRadius - dist) / activeRadius;
-                } else {
-                    darknessPressure += (activeRadius - dist) / activeRadius;
-                }
 
                 if (dist < minLightDist) {
                     minLightDist = dist;
@@ -1908,20 +1951,22 @@ export default class Environment {
         if (this.engine.ambientLight) {
             const baseAmbient = 0.85;
             const minAmbient = 0.005;  // Deeper pitch black floor
-            const targetAmbient = Math.max(minAmbient, baseAmbient - (darknessPressure * 0.35));
+
+            // SLASH: Aggressive curves because darknessPressure now properly scales with all fixtures
+            const targetAmbient = Math.max(minAmbient, baseAmbient - (darknessPressure * 0.4));
             this.engine.ambientLight.intensity += (targetAmbient - this.engine.ambientLight.intensity) * 0.05;
 
             // 1. Fade out the volumetric fake lights globally
             if (this.glowMat) {
-                const targetGlowOpacity = Math.max(0.0, 1.0 - (darknessPressure * 0.5));
+                const targetGlowOpacity = Math.max(0.0, 1.0 - (darknessPressure * 0.4));
                 this.glowMat.opacity += (targetGlowOpacity - this.glowMat.opacity) * 0.1;
             }
 
-            // 2. Plunge the atmospheric fog and background buffer into darkness
+            // 2. Plunge the atmospheric fog and background buffer into absolute void
             if (!this._baseEnvColor) this._baseEnvColor = new THREE.Color(0xa89f68);
-            if (!this._blackColor) this._blackColor = new THREE.Color(0x020202);
+            if (!this._blackColor) this._blackColor = new THREE.Color(0x000000); // True Black
 
-            const darknessRatio = Math.min(1.0, darknessPressure * 0.25);
+            const darknessRatio = Math.min(1.0, darknessPressure * 0.4);
             const targetColor = this._baseEnvColor.clone().lerp(this._blackColor, darknessRatio);
 
             this.scene.background.lerp(targetColor, 0.05);

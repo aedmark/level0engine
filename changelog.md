@@ -1,5 +1,38 @@
 # Level 0 Engine Changelog
 
+## [v0.2.8] - 2026-07-10
+
+### Added
+- [MECHANICS] The Surge Breaker: Players can now trigger a localized illumination cascade failure via interactive Breaker Boxes (bound to 'E'). Plunges the local sector into total darkness before triggering a permanent, flickering reboot cascade.
+- [MECHANICS] Adrenaline Economy: Stamina burn and recovery rates are now dynamically coupled to the active pursuit state. Casual exploration is metabolically efficient, while fleeing in terror burns oxygen twice as fast.
+- [MECHANICS] Somatic Collision Haptics: High-speed kinematic impacts against structural geometry now properly bleed momentum, violently jolt the camera, and trigger somatic foley events.
+- [UX] Somatic Targeting Reticle: Added a CSS mix-blend crosshair overlay and replaced strict mathematical raycasting with a forgiving spatial dot-product (~40-degree cone) to accommodate human motor controls in the dark.
+- [GEOMETRY] Articulated Breaker Box: Split the breaker mesh into a dual-component `THREE.Group` with a zero-cost mathematical hinge. Pressing 'E' now violently snaps the panel open 120 degrees instead of relying on a flat material swap.
+- [TEXTURES] The Obsidian Void: Forged a new metallic, procedurally bump-mapped PBR skin for the Anomaly, discarding the flat black unlit mesh.
+
+### Changed
+- [MECHANICS] Dynamic Perception Threshold: The Anomaly's detection radius now physically expands and contracts based on the player's stance (crouching/running), flashlight state, and exhaustion (heavy breathing).
+- [MECHANICS] Exhaustion-Coupled Pursuit: The Anomaly mathematically feeds on panic. Pursuit speed now scales inversely with the player's exhaustion level.
+- [MECHANICS] Adrenaline Threshold Decoupling: Separated the Entity's physical detection radius from the Player's psychological panic state. Stamina burn rates no longer spike until the Anomaly physically crosses the 15-unit acoustic pressure boundary.
+- [WEBGL] The Void Coupling: Severed ambient light from static parameters. The HemisphereLight, atmospheric fog, and background hex colors are now directly crushed by local `darknessPressure`.
+- [WEBGL] Elevated Darkness Pressure: Hoisted the topological darkness math out of the restricted hardware lighting loop. Shattered "fake" volumetric decals now accurately generate massive structural weight, allowing the environment to reach true pitch-black (`0x000000`) fog states.
+- [WEBGL] Hardware Target Hardening: Decoupled the WebGL renderer from hardware Device Pixel Ratios (DPR) to prevent hidden mobile rendering lag, and applied `NearestFilter` to the RenderTarget for authentic retro downscaling.
+
+### Optimized
+- [ENVIRONMENT] O(1) Spatial Hash Purge: Sealed a terminal memory leak in chunk generation by explicitly clearing the `chunkMap` and truncating the `queryCache` array via index pointers instead of `Array.push()` in the hot loop.
+- [TEXTURES] Shader Loop Collapse: Merged the shadow and highlight passes for the procedural woodgrain texture into a single 250-iteration loop utilizing native 2D Canvas shadow mapping.
+- [RENDERER] GLSL Matrix Unification: Collapsed the post-processing fragment shader, deleting the expensive conditional 3-sample exhaustion blur and piping the fatigue math directly into the chromatic aberration distortion vector.
+
+### Fixed
+- [GEOMETRY] Z-Plane Friction: Thickened the Breaker Box geometry and offset the Z-axis spawn to completely clear the pillar's front face, eliminating depth buffer tearing.
+- [WEBGL] Material Pointer Orphans: Repaired the lighting cascade failure where `InstancedMesh` materials froze when overwritten by a global material. Illumination deaths now accurately manipulate the existing instanced material pointers.
+- [ENVIRONMENT] Interactive Memory Leak: Flushed the new `interactables` array during the chunk culling loop to prevent invisible Breaker Boxes from silently accumulating in the void.
+- [ENVIRONMENT] Phantom Illumination: Forced the 85% "fake" ambient light decals into the primary `fixtureData` array (tagged as `isFake` to protect hardware limits), allowing the Surge Breaker to locate and systematically shatter them.
+- [ENVIRONMENT] Asynchronous GC Drops: Hard-bound the illumination cascade's `isDead` state to the synchronous thread, preventing aggressive Garbage Collection from swallowing the timeout closures before bulbs could pop.
+- [ENVIRONMENT] Lexical Indentation: Purged an orphaned closing bracket from the interaction listener that structurally shattered the `setup()` method's lexical scope.
+- [RENDERER] GLSL Scope Collision: Resolved a fatal GPU compiler panic (`WebGL: INVALID_OPERATION`) caused by variable shadowing (`float pulse`) during the fragment shader unification.
+- [PHYSICS] Kinetic Feedback Loop: Implemented impact hysteresis (`wasColliding`) and a mathematical cervical clamp to prevent the engine from choking the Web Audio thread and snapping the camera neck when players infinitely slide against walls.
+
 ## [v0.2.7] - 2026-07-09
 
 ### Added

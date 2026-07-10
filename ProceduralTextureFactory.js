@@ -534,8 +534,11 @@ export default class ProceduralTextureFactory {
             bumpScale: 0.08
         });
 
+        // SLASH: THE DEAD BREAKER
+        const rustMat = new THREE.MeshStandardMaterial({ color: 0x3a1c14, roughness: 1.0, metalness: 0.3 });
+
         const assets = {
-            voidMat, tagMat, tagGeo,
+            voidMat, rustMat, tagMat, tagGeo,
             carpetTexture, ceilingTexture, headerMat, wallTexture, moldMat, moldGeo,
             ceilingStainMat, ceilingStainGeo, structMat, woodMat, doorMat, ventMat,
             fabricMat, mossMat, tileMat, clinicMat, waterMat, serverMat, baseLightMat,
