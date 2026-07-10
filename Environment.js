@@ -218,6 +218,17 @@ export default class Environment {
                 }
             }
         });
+        if (this.interactables) {
+            this.interactables.forEach(obj => {
+                if (obj.userData.type === 'grate' && !obj.userData.active) {
+                    obj.rotation.x += (-Math.PI / 2 - obj.rotation.x) * 15.0 * delta;
+                    obj.position.y += (0.05 - obj.position.y) * 15.0 * delta;
+                    if (obj.userData.box && !obj.userData.box.isEmpty()) {
+                        obj.userData.box.makeEmpty();
+                    }
+                }
+            });
+        }
     }
 
     async processChunkQueue() {
@@ -251,9 +262,8 @@ export default class Environment {
         const assets = ProceduralTextureFactory.generateAssets();
         Object.assign(this, assets);
         const {carpetTexture, ceilingTexture} = assets;
-
         carpetTexture.repeat.set(16, 16);
-        ceilingTexture.repeat.set(16, 16);
+        ceilingTexture.repeat.set(128, 128); // THE ARTISAN: Properly scaled 1.5ft office drop tiles
 
         this.carpetMat = new THREE.MeshStandardMaterial({
             map: carpetTexture,
@@ -261,18 +271,22 @@ export default class Environment {
             bumpMap: carpetTexture,
             bumpScale: 0.015
         });
-
         this.ceilMat = new THREE.MeshStandardMaterial({
             map: ceilingTexture,
+            color: 0xffffff,
+            emissive: 0x444444, // MEADOWS: Lift the shadow floor significantly
             roughness: 0.9,
             bumpMap: ceilingTexture,
-            bumpScale: 0.01
+            bumpScale: 0.005
         });
-
-        // Optimize metalness for flashlight specular reflection without an EnvMap
-        if (this.serverMat) { this.serverMat.metalness = 0.3; this.serverMat.roughness = 0.2; }
-        if (this.ventMat) { this.ventMat.metalness = 0.4; this.ventMat.roughness = 0.3; }
-
+        if (this.serverMat) {
+            this.serverMat.metalness = 0.3;
+            this.serverMat.roughness = 0.2;
+        }
+        if (this.ventMat) {
+            this.ventMat.metalness = 0.4;
+            this.ventMat.roughness = 0.3;
+        }
         const dustGeo = new THREE.BufferGeometry();
         const dustCount = 600;
         const dustPos = new Float32Array(dustCount * 3);
@@ -478,6 +492,9 @@ export default class Environment {
                         }, 25000 + Math.random() * 10000);
                     }
                 });
+            } else if (hit && hit.userData.type === 'grate' && hit.userData.active) {
+                hit.userData.active = false;
+                document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 1.0, intensity: 1.5}}));
             }
         });
     }
@@ -625,6 +642,13 @@ export default class Environment {
                 group.userData.chunkHash = hash;
                 group.updateMatrixWorld(true);
                 const box = new THREE.Box3().setFromObject(group);
+
+                // BENEDICT: Pre-flight check to prevent furniture from clipping into generated architecture
+                const localBoxes = this.spatialGrid.getNearby(group.position.x, group.position.z, 2.0);
+                for (let i = 0; i < localBoxes.length; i++) {
+                    if (localBoxes[i].intersectsBox(box)) return;
+                }
+
                 box.chunkHash = hash;
                 this.spatialGrid.insert(box);
                 group.traverse((child) => {
@@ -634,6 +658,37 @@ export default class Environment {
                         stagingMeshes.push(child);
                     }
                 });
+            },
+            addGrate: (px, py, pz, blocksX) => {
+                // THE ARTISAN: Grate Annihilation Protocol. If a grate meets another grate, they vanish to form a seamless continuous tunnel.
+                const localBoxes = this.spatialGrid.getNearby(px, pz, 1.0);
+                for (let i = 0; i < localBoxes.length; i++) {
+                    const b = localBoxes[i];
+                    if (b.isGrate) {
+                        const dist = Math.abs(b.meshRef.position.x - px) + Math.abs(b.meshRef.position.z - pz);
+                        if (dist < 0.1) {
+                            // BENEDICT: Legacy-safe topological decoupling
+                            if (b.meshRef.parent) {
+                                b.meshRef.parent.remove(b.meshRef);
+                            }
+                            this.interactables = this.interactables.filter(item => item !== b.meshRef);
+                            b.isGrate = false; // Defuse the phantom collision box
+                            return;
+                        }
+                    }
+                }
+                const grateGeo = new THREE.BoxGeometry(blocksX ? 0.05 : 1.2, 0.65, blocksX ? 1.2 : 0.05);
+                const grate = new THREE.Mesh(grateGeo, this.wallVentMat);
+                grate.position.set(px, py, pz);
+                grate.userData = {type: 'grate', active: true, chunkHash: hash};
+                chunkGroup.add(grate);
+                this.interactables.push(grate);
+                const grateBox = new THREE.Box3().setFromObject(grate);
+                grateBox.chunkHash = hash;
+                grateBox.isGrate = true;
+                grateBox.meshRef = grate;
+                grate.userData.box = grateBox;
+                this.spatialGrid.insert(grateBox);
             },
             buildChair: (x, y, z, rotY) => {
                 const group = new THREE.Group();
@@ -674,7 +729,7 @@ export default class Environment {
     }
 
     _getStructuralMatrix(ctx) {
-        const { random, buildWall, addGeometry, buildChair, buildTable, addFurniture, chunkGroup, hash } = ctx;
+        const {random, buildWall, addGeometry, buildChair, buildTable, addFurniture, chunkGroup, hash} = ctx;
         return [
             {
                 prob: 0.95, build: (x, z) => {
@@ -882,26 +937,87 @@ export default class Environment {
             },
             {
                 prob: 0.40, build: (x, z) => {
-                    const wall = new THREE.Mesh(this.sharedWallGeo, this.sharedWallMat);
-                    wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
-                    addGeometry(wall);
-                    const ventGeo = new THREE.BoxGeometry(1.2, 0.6, 0.1);
-                    const vent = new THREE.Mesh(ventGeo, this.wallVentMat);
                     const face = Math.floor(random() * 4);
-                    const offset = (this.cellSize / 2) + 0.02;
-                    const heightY = random() > 0.5 ? 2.6 : 0.4;
-                    if (face === 0) {
-                        vent.position.set(x * this.cellSize, heightY, z * this.cellSize + offset);
-                    } else if (face === 1) {
-                        vent.position.set(x * this.cellSize, heightY, z * this.cellSize - offset);
-                    } else if (face === 2) {
-                        vent.rotation.y = Math.PI / 2;
-                        vent.position.set(x * this.cellSize + offset, heightY, z * this.cellSize);
+                    // BENEDICT: If face is 0 (+Z) or 1 (-Z), the hole must tunnel through the Z-axis.
+                    const tunnelOnZ = (face === 0 || face === 1);
+                    const isFloorLevel = random() > 0.3;
+
+                    if (isFloorLevel) {
+                        const holeW = 1.2;
+                        const holeH = 0.7;
+                        const sideW = (this.cellSize - holeW) / 2;
+                        const sideOffset = (this.cellSize / 2) - (sideW / 2);
+
+                        const w1 = tunnelOnZ ? sideW : this.cellSize;
+                        const d1 = tunnelOnZ ? this.cellSize : sideW;
+
+                        // BENEDICT: Correctly aligning width/depth to the proper X/Z offsets
+                        const side1 = buildWall(w1, d1, this.sharedWallMat);
+                        side1.position.set(
+                            x * this.cellSize + (tunnelOnZ ? -sideOffset : 0),
+                            1.5,
+                            z * this.cellSize + (tunnelOnZ ? 0 : -sideOffset)
+                        );
+                        addGeometry(side1);
+
+                        const side2 = buildWall(w1, d1, this.sharedWallMat);
+                        side2.position.set(
+                            x * this.cellSize + (tunnelOnZ ? sideOffset : 0),
+                            1.5,
+                            z * this.cellSize + (tunnelOnZ ? 0 : sideOffset)
+                        );
+                        addGeometry(side2);
+
+                        const topH = 3.0 - holeH;
+                        const topW = tunnelOnZ ? holeW : this.cellSize;
+                        const topD = tunnelOnZ ? this.cellSize : holeW;
+
+                        // THE ARTISAN: Use structMat for the top to eliminate floating baseboards
+                        const top = buildWall(topW, topD, this.structMat, topH);
+                        top.position.set(x * this.cellSize, holeH + (topH / 2), z * this.cellSize);
+                        addGeometry(top);
+
+                        const liningH = 0.05;
+                        const linW = tunnelOnZ ? holeW : this.cellSize + 0.02;
+                        const linD = tunnelOnZ ? this.cellSize + 0.02 : holeW;
+
+                        const liningFloor = buildWall(linW, linD, this.ventMat, liningH);
+                        liningFloor.position.set(x * this.cellSize, liningH / 2, z * this.cellSize);
+                        addGeometry(liningFloor);
+
+                        const liningCeil = buildWall(linW, linD, this.ventMat, liningH);
+                        liningCeil.position.set(x * this.cellSize, holeH - (liningH / 2), z * this.cellSize);
+                        addGeometry(liningCeil);
+
+                        const grateOffset = (this.cellSize / 2) - 0.025;
+
+                        if (tunnelOnZ) {
+                            ctx.addGrate(x * this.cellSize, 0.35, z * this.cellSize + grateOffset, false);
+                            ctx.addGrate(x * this.cellSize, 0.35, z * this.cellSize - grateOffset, false);
+                        } else {
+                            ctx.addGrate(x * this.cellSize + grateOffset, 0.35, z * this.cellSize, true);
+                            ctx.addGrate(x * this.cellSize - grateOffset, 0.35, z * this.cellSize, true);
+                        }
                     } else {
-                        vent.rotation.y = Math.PI / 2;
-                        vent.position.set(x * this.cellSize - offset, heightY, z * this.cellSize);
+                        const wall = new THREE.Mesh(this.sharedWallGeo, this.sharedWallMat);
+                        wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                        addGeometry(wall);
+                        const ventGeo = new THREE.BoxGeometry(1.2, 0.6, 0.05);
+                        const vent = new THREE.Mesh(ventGeo, this.wallVentMat);
+                        const offset = (this.cellSize / 2) - 0.025;
+                        if (face === 0) {
+                            vent.position.set(x * this.cellSize, 2.6, z * this.cellSize + offset);
+                        } else if (face === 1) {
+                            vent.position.set(x * this.cellSize, 2.6, z * this.cellSize - offset);
+                        } else if (face === 2) {
+                            vent.rotation.y = Math.PI / 2;
+                            vent.position.set(x * this.cellSize + offset, 2.6, z * this.cellSize);
+                        } else {
+                            vent.rotation.y = Math.PI / 2;
+                            vent.position.set(x * this.cellSize - offset, 2.6, z * this.cellSize);
+                        }
+                        addGeometry(vent);
                     }
-                    addGeometry(vent);
                 }
             },
             {
@@ -922,32 +1038,17 @@ export default class Environment {
                 }
             },
             {
-                // FULLER & THE ARTISAN: Architectural Hallways (Squeeze & Crouch Tunnels)
-                prob: 0.25, build: (x, z) => {
-                    const isSqueeze = random() > 0.5;
+                prob: 0.30, build: (x, z) => {
+                    const typeRoll = random();
                     const dirZ = random() > 0.5;
-
-                    if (isSqueeze) {
-                        // Squeeze Hallway: 0.3 gap explicitly sealing the entire 4x4 cell
-                        const wallW = (this.cellSize - 0.3) / 2;
-                        const offset = (wallW / 2) + 0.15;
-
-                        const block1 = buildWall(dirZ ? wallW : this.cellSize, dirZ ? this.cellSize : wallW, this.structMat);
-                        block1.position.set(x * this.cellSize + (dirZ ? -offset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : -offset));
-                        block1.userData.isEntityBlocker = true;
-                        addGeometry(block1);
-
-                        const block2 = buildWall(dirZ ? wallW : this.cellSize, dirZ ? this.cellSize : wallW, this.structMat);
-                        block2.position.set(x * this.cellSize + (dirZ ? offset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : offset));
-                        block2.userData.isEntityBlocker = true;
-                        addGeometry(block2);
-                    } else {
-                        // Crouch Hallway: Side walls framing a dropped ceiling to force a crouch
-                        const sideW = 1.0;
+                    if (typeRoll > 0.66) {
+                        // Crawl Vent: 0.7 height, forced crawl, exterior is wall, interior is vent
+                        const tunnelW = 1.2;
+                        const tunnelH = 0.7;
+                        const sideW = (this.cellSize - tunnelW) / 2;
                         const sideOffset = (this.cellSize / 2) - (sideW / 2);
-                        const roofW = this.cellSize - (sideW * 2);
-                        const roofH = 1.8;
 
+                        // THE ARTISAN: Exterior is standard wall material to blend in flawlessly
                         const side1 = buildWall(dirZ ? sideW : this.cellSize, dirZ ? this.cellSize : sideW, this.sharedWallMat);
                         side1.position.set(x * this.cellSize + (dirZ ? -sideOffset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : -sideOffset));
                         side1.userData.isEntityBlocker = true;
@@ -958,6 +1059,53 @@ export default class Environment {
                         side2.userData.isEntityBlocker = true;
                         addGeometry(side2);
 
+                        // Use structMat for top wall to prevent floating baseboards
+                        const roofH_block = 3.0 - tunnelH;
+                        const roof = buildWall(dirZ ? tunnelW : this.cellSize, dirZ ? this.cellSize : tunnelW, this.structMat, roofH_block);
+                        roof.position.set(x * this.cellSize, tunnelH + (roofH_block / 2), z * this.cellSize);
+                        roof.userData.isEntityBlocker = true;
+                        addGeometry(roof);
+                        const liningH = 0.05;
+                        const liningFloor = buildWall(dirZ ? tunnelW : this.cellSize + 0.05, dirZ ? this.cellSize + 0.05 : tunnelW, this.ventMat, liningH);
+                        liningFloor.position.set(x * this.cellSize, liningH / 2, z * this.cellSize);
+                        addGeometry(liningFloor);
+                        const liningCeil = buildWall(dirZ ? tunnelW : this.cellSize + 0.05, dirZ ? this.cellSize + 0.05 : tunnelW, this.ventMat, liningH);
+                        liningCeil.position.set(x * this.cellSize, tunnelH - (liningH / 2), z * this.cellSize);
+                        addGeometry(liningCeil);
+
+                        // BENEDICT: Cap both ends with grates. They will annihilate if connected to another vent.
+                        const grateOffset = (this.cellSize / 2) - 0.025;
+                        if (dirZ) {
+                            ctx.addGrate(x * this.cellSize, 0.35, z * this.cellSize + grateOffset, false);
+                            ctx.addGrate(x * this.cellSize, 0.35, z * this.cellSize - grateOffset, false);
+                        } else {
+                            ctx.addGrate(x * this.cellSize + grateOffset, 0.35, z * this.cellSize, true);
+                            ctx.addGrate(x * this.cellSize - grateOffset, 0.35, z * this.cellSize, true);
+                        }
+                    } else if (typeRoll > 0.33) {
+                        const wallW = (this.cellSize - 0.3) / 2;
+                        const offset = (wallW / 2) + 0.15;
+                        const block1 = buildWall(dirZ ? wallW : this.cellSize, dirZ ? this.cellSize : wallW, this.structMat);
+                        block1.position.set(x * this.cellSize + (dirZ ? -offset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : -offset));
+                        block1.userData.isEntityBlocker = true;
+                        addGeometry(block1);
+                        const block2 = buildWall(dirZ ? wallW : this.cellSize, dirZ ? this.cellSize : wallW, this.structMat);
+                        block2.position.set(x * this.cellSize + (dirZ ? offset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : offset));
+                        block2.userData.isEntityBlocker = true;
+                        addGeometry(block2);
+                    } else {
+                        const sideW = 1.0;
+                        const sideOffset = (this.cellSize / 2) - (sideW / 2);
+                        const roofW = this.cellSize - (sideW * 2);
+                        const roofH = 1.8;
+                        const side1 = buildWall(dirZ ? sideW : this.cellSize, dirZ ? this.cellSize : sideW, this.sharedWallMat);
+                        side1.position.set(x * this.cellSize + (dirZ ? -sideOffset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : -sideOffset));
+                        side1.userData.isEntityBlocker = true;
+                        addGeometry(side1);
+                        const side2 = buildWall(dirZ ? sideW : this.cellSize, dirZ ? this.cellSize : sideW, this.sharedWallMat);
+                        side2.position.set(x * this.cellSize + (dirZ ? sideOffset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : sideOffset));
+                        side2.userData.isEntityBlocker = true;
+                        addGeometry(side2);
                         const roof = buildWall(dirZ ? roofW : this.cellSize, dirZ ? this.cellSize : roofW, this.structMat, roofH);
                         roof.position.set(x * this.cellSize, 1.2 + (roofH / 2), z * this.cellSize);
                         roof.userData.isEntityBlocker = true;
@@ -976,7 +1124,17 @@ export default class Environment {
     }
 
     _getSectorMatrix(ctx) {
-        const { random, buildWall, addGeometry, buildChair, buildTable, addFurniture, chunkGroup, hash, stagingMeshes } = ctx;
+        const {
+            random,
+            buildWall,
+            addGeometry,
+            buildChair,
+            buildTable,
+            addFurniture,
+            chunkGroup,
+            hash,
+            stagingMeshes
+        } = ctx;
         return [
             {
                 name: "THE POOLROOMS",
@@ -1328,7 +1486,6 @@ export default class Environment {
                         const bFloor = buildWall(this.cellSize, this.cellSize, this.structMat, 0.5);
                         bFloor.position.set(x * this.cellSize, -0.25, z * this.cellSize);
                         addGeometry(bFloor);
-
                         if (localX === 6 || localX === 9) {
                             const railing = buildWall(0.2, this.cellSize, this.rustMat, 1.2);
                             railing.position.set(x * this.cellSize + (localX === 6 ? 1.8 : -1.8), 0.6, z * this.cellSize);
@@ -1341,7 +1498,6 @@ export default class Environment {
                         voidBox.isVoid = true;
                         voidBox.chunkHash = hash;
                         this.spatialGrid.insert(voidBox);
-
                         if ((localX === 2 || localX === 13) && localZ % 4 === 0) {
                             const pillar = buildWall(2.0, 2.0, this.rustMat, 40.0);
                             pillar.position.set(x * this.cellSize, -15.0, z * this.cellSize);
@@ -1406,19 +1562,15 @@ export default class Environment {
         };
         const cx = Math.sin(this.baseSeed) * 0.8;
         const cy = Math.cos(this.baseSeed * 0.5) * 0.8;
-
         const stagingMeshes = [];
         const ctx = this._createChunkHelpers(hash, chunkGroup, stagingMeshes, random);
-
         const structuralMatrix = this._getStructuralMatrix(ctx);
         const sectorMatrix = this._getSectorMatrix(ctx);
-
         const startX = chunkX * this.chunkSize;
         const startZ = chunkZ * this.chunkSize;
         const isMacroStructure = random() > 0.90 && (Math.abs(chunkX) > 0 || Math.abs(chunkZ) > 0);
         let activeSector = null;
         let sectorMaze = null;
-
         if (isMacroStructure) {
             const sectorRoll = random();
             let cumulative = 0;
@@ -1443,13 +1595,10 @@ export default class Environment {
                 chunkGroup.add(foundation);
             }
         }
-
         const isChasm = activeSector && activeSector.name === "THE CHASM";
         const centerOffset = (this.chunkSize * this.cellSize) / 2 - (this.cellSize / 2);
-
         const floorGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
         const ceilGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
-
         if (!isMacroStructure && !isChasm) {
             const floor = new THREE.Mesh(floorGeo, this.carpetMat);
             floor.rotation.x = -Math.PI / 2;
@@ -1457,14 +1606,12 @@ export default class Environment {
             floor.receiveShadow = true;
             chunkGroup.add(floor);
         }
-
         if (!isChasm && (!activeSector || activeSector.name !== "THE OVERGROWN ATRIUM")) {
             const ceil = new THREE.Mesh(ceilGeo, this.ceilMat);
-            ceil.rotation.x = Math.PI / 2; // Fixed rotation to apply to Mesh, not shared Geometry
+            ceil.rotation.x = Math.PI / 2;
             ceil.position.set(startX * this.cellSize + centerOffset, 3, startZ * this.cellSize + centerOffset);
             chunkGroup.add(ceil);
         }
-
         for (let x = startX; x < startX + this.chunkSize; x++) {
             for (let z = startZ; z < startZ + this.chunkSize; z++) {
                 if (Math.abs(x) < 2 && Math.abs(z) < 2) continue;
@@ -1682,8 +1829,6 @@ export default class Environment {
 
     updateEntity(playerPos, delta, time) {
         if (!this.entityActive) return;
-
-        // 1. Core State Init
         if (!this._entDir) {
             this._entDir = new THREE.Vector3();
             this._entToPlayer = new THREE.Vector3();
@@ -1695,18 +1840,13 @@ export default class Environment {
             this._entMin = new THREE.Vector3();
             this._entMax = new THREE.Vector3();
         }
-
         const distToPlayerSq = this.entityGroup.position.distanceToSquared(playerPos);
-
-        // 2. Win Condition (Player Caught)
         if (distToPlayerSq < 0.64) {
             this.player.stamina = this.player.maxStamina;
             this.player.exhaustion = 0.0;
             this.player.isChased = false;
             return {consumed: true};
         }
-
-        // 3. Delegate Subsystems
         this._animateAnomaly(time, delta);
         const speed = this._updateAnomalySenses(playerPos, distToPlayerSq, delta);
         this._resolveAnomalyLocomotion(speed, delta, time);
@@ -1717,7 +1857,6 @@ export default class Environment {
         this.entityCore.rotation.x = time * 0.5;
         const pulse = 1.0 + Math.sin(time * 4.0) * 0.15;
         this.entityCore.scale.set(pulse, pulse, pulse);
-
         this.entityShards.forEach((shardData, i) => {
             const panicJitter = this.player.exhaustion > 0.2 ? (Math.random() - 0.5) * this.player.exhaustion * 0.4 : 0;
             const angle = time * shardData.speed + shardData.offset;
@@ -1732,23 +1871,18 @@ export default class Environment {
     }
 
     _updateAnomalySenses(playerPos, distToPlayerSq, delta) {
-        // Breadcrumb Trail (Tracking)
         this.breadcrumbTimer = (this.breadcrumbTimer || 0) + delta;
         if (this.breadcrumbTimer > 0.5 && this.entityBacktrackTimer <= 0) {
             this.breadcrumbTimer = 0;
             this.entityBreadcrumbs.push(this.entityGroup.position.clone());
             if (this.entityBreadcrumbs.length > 20) this.entityBreadcrumbs.shift();
         }
-
-        // Perception Thresholds
         let detectionRadius = 25.0;
         if (this.player.isCrouching) detectionRadius -= 10.0;
         if (this.player.isRunning) detectionRadius += 15.0;
         if (this.player.flashlightActive) detectionRadius += 20.0;
         detectionRadius += (this.player.exhaustion * 10.0);
-
         const perceptionThresholdSq = detectionRadius * detectionRadius;
-
         if (distToPlayerSq < perceptionThresholdSq) {
             if (this.entityBacktrackTimer > 0) {
                 this.entityBacktrackTimer -= delta;
@@ -1773,13 +1907,9 @@ export default class Environment {
                 this.entityTarget.z += (Math.random() - 0.5) * 15.0;
             }
         }
-
-        // Observation Stun Logic (Weeping Angel effect)
         const baseSpeed = distToPlayerSq < 225.0 ? 3.8 : 1.8;
-        // MEADOWS: Cap the exhaustion scalar to prevent impossible entity speeds during high-darkness panic loops.
         let speed = baseSpeed + (Math.min(this.player.exhaustion, 0.6) * 1.2);
         let isObserved = false;
-
         if (this.player.flashlightActive && distToPlayerSq < 625.0) {
             const toEntity = this._entToPlayer.subVectors(this.entityGroup.position, playerPos).normalize();
             const lookDir = this._entLookDir.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
@@ -1790,11 +1920,9 @@ export default class Environment {
                 this.entityCore.position.set((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4);
             }
         }
-
         if (!isObserved) {
             this.entityCore.position.set(0, 0, 0);
         }
-
         return speed;
     }
 
@@ -1802,47 +1930,38 @@ export default class Environment {
         const dir = this._entDir.subVectors(this.entityTarget, this.entityGroup.position);
         dir.y = 0;
         const distToTarget = dir.length();
-
         if (distToTarget > 0.1) {
             dir.normalize();
             const moveVec = dir.multiplyScalar(speed * delta);
             this._entNextPos.copy(this.entityGroup.position).add(moveVec);
-
             this._entMin.set(this._entNextPos.x - 0.6, 0.0, this._entNextPos.z - 0.6);
             this._entMax.set(this._entNextPos.x + 0.6, 3.0, this._entNextPos.z + 0.6);
             this._entBox.set(this._entMin, this._entMax);
-
             let blocked = false;
             const localBoxes = this.spatialGrid.getNearby(this._entNextPos.x, this._entNextPos.z, 2.0);
-
             for (let i = 0; i < localBoxes.length; i++) {
                 if (localBoxes[i].isEntityBlocker && this._entBox.intersectsBox(localBoxes[i])) {
                     blocked = true;
                     break;
                 }
             }
-
             if (!blocked) {
                 this.entityGroup.position.add(moveVec);
             } else {
                 let blockedX = false;
                 let blockedZ = false;
-
                 this._entBoxX.copy(this._entBox);
                 this._entBoxX.min.z = this.entityGroup.position.z - 0.5;
                 this._entBoxX.max.z = this.entityGroup.position.z + 0.5;
-
                 this._entBoxZ.copy(this._entBox);
                 this._entBoxZ.min.x = this.entityGroup.position.x - 0.5;
                 this._entBoxZ.max.x = this.entityGroup.position.x + 0.5;
-
                 for (let i = 0; i < localBoxes.length; i++) {
                     if (localBoxes[i].isEntityBlocker) {
                         if (!blockedX && this._entBoxX.intersectsBox(localBoxes[i])) blockedX = true;
                         if (!blockedZ && this._entBoxZ.intersectsBox(localBoxes[i])) blockedZ = true;
                     }
                 }
-
                 if (!blockedX && blockedZ) {
                     this.entityGroup.position.x += moveVec.x;
                 } else if (!blockedZ && blockedX) {
@@ -1856,7 +1975,6 @@ export default class Environment {
                 }
             }
         }
-
         this.entityGroup.position.y = 1.5 + Math.sin(time * 2.0) * 0.2;
     }
 

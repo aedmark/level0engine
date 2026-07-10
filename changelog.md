@@ -1,5 +1,15 @@
 # Level 0 Engine Changelog
 
+## [v0.3.0] - 2026-07-10
+
+### Changed
+- [MECHANICS] Posture-Pinning: Softened the volumetric ceiling scan thresholds to prevent physics engine frame-rejection when transitioning into crawl-spaces.
+- [SYSTEM] Annihilation Protocol: Migrated from legacy mesh-removal to robust `parent.remove()` implementation for cross-version compatibility.
+
+### Fixed
+- [RUNTIME] Fixed `TypeError: b.meshRef.removeFromParent is not a function` during interactive grate destruction.
+- [PHYSICS] Prevented "crouch-locking" where the player would snap to stand or crouch while the volumetric scanner was in flux between two chunk frames.
+
 ## [v0.2.9] - 2026-07-10
 
 ### Added

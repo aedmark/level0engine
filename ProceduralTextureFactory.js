@@ -384,21 +384,24 @@ export default class ProceduralTextureFactory {
         serverCanvas.width = 256;
         serverCanvas.height = 512;
         const serverCtx = serverCanvas.getContext('2d');
-        serverCtx.fillStyle = '#0a0a0a';
+
+        serverCtx.fillStyle = '#c4c1b5';
         serverCtx.fillRect(0, 0, 256, 512);
-        serverCtx.fillStyle = '#020202';
-        for (let i = 16; i < 500; i += 32) {
-            serverCtx.fillRect(16, i, 224, 24);
+        serverCtx.fillStyle = '#000000';
+        for (let i = 16; i < 500; i += 64) {
+            serverCtx.fillRect(16, i, 224, 4);
             if (Math.random() > 0.3) {
-                const colors = ['#00ff00', '#0088ff', '#ff3300', '#444444'];
+                serverCtx.fillStyle = '#111111';
+                serverCtx.fillRect(160, i + 12, 60, 20);
+                const colors = ['#00ff00', '#ffaa00', '#ff3300'];
                 serverCtx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
-                serverCtx.fillRect(200, i + 8, 6, 6);
-                serverCtx.fillStyle = 'rgba(255,255,255,0.3)';
-                serverCtx.fillRect(200, i + 8, 3, 3);
-                serverCtx.fillStyle = '#020202';
+                serverCtx.fillRect(166, i + 16, 8, 8);
+                serverCtx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+                serverCtx.fillRect(182, i + 16, 8, 8);
+                serverCtx.fillStyle = '#000000';
             }
         }
-        serverCtx.strokeStyle = '#1a1a1a';
+        serverCtx.strokeStyle = '#8c887d';
         serverCtx.lineWidth = 4;
         serverCtx.strokeRect(0, 0, 256, 512);
         const serverTexture = new THREE.CanvasTexture(serverCanvas);

@@ -13,6 +13,10 @@ export default class PlayerController {
         this.moveRight = false;
         this.isRunning = false;
         this.isCrouching = false;
+        this.isCrawling = false;
+        this._cKeyDown = false;
+        this._cKeyPressTime = 0;
+        this._cKeyHandled = false;
         this.isSqueezing = false;
         this.squeezeIntent = false;
         this.flashlightActive = false;
@@ -180,7 +184,13 @@ export default class PlayerController {
             event.preventDefault();
         }
         if (event.key === 'Shift') this.isRunning = true;
-        if (event.code === 'KeyC') this.isCrouching = !this.isCrouching;
+        if (event.code === 'KeyC') {
+            if (!this._cKeyDown) {
+                this._cKeyDown = true;
+                this._cKeyPressTime = performance.now();
+                this._cKeyHandled = false;
+            }
+        }
         if (event.code === 'KeyX') document.dispatchEvent(new Event('capture-screenshot'));
         if (event.code === 'KeyQ') this.squeezeIntent = true;
         if (event.code === 'KeyF') {
@@ -220,6 +230,18 @@ export default class PlayerController {
         if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
         if (event.key === 'Shift') this.isRunning = false;
         if (event.code === 'KeyQ') this.squeezeIntent = false;
+        if (event.code === 'KeyC') {
+            this._cKeyDown = false;
+            if (!this._cKeyHandled) {
+                if (this.isCrawling) {
+                    this.isCrawling = false;
+                    this.isCrouching = true;
+                } else {
+                    this.isCrouching = !this.isCrouching;
+                    this.isCrawling = false;
+                }
+            }
+        }
         switch (event.code) {
             case 'ArrowUp':
             case 'KeyW':
@@ -266,12 +288,41 @@ export default class PlayerController {
         const px = this.camera.position.x;
         const pz = this.camera.position.z;
         const localBoxes = spatialGrid.getNearby(px, pz, 2.0);
+
+        const currentVisHeight = this.isCrawling ? 0.3 : (this.isCrouching ? 0.8 : 1.6);
+        const currentFeetY = this.camera.position.y - currentVisHeight;
+
+        let maxAvailableHeight = 3.0;
+        this._vecMin.set(px - this.baseRadius, currentFeetY + 0.1, pz - this.baseRadius);
+        this._vecMax.set(px + this.baseRadius, currentFeetY + 2.6, pz + this.baseRadius);
+        this._floorBox.set(this._vecMin, this._vecMax);
+
+        for (let i = 0; i < localBoxes.length; i++) {
+            const box = localBoxes[i];
+            if (!box.isVoid && box.min.y > currentFeetY + 0.4 && this._floorBox.intersectsBox(box)) {
+                const available = box.min.y - currentFeetY;
+                if (available < maxAvailableHeight) maxAvailableHeight = available;
+            }
+        }
+
+        if (this._cKeyDown && !this._cKeyHandled && (performance.now() - this._cKeyPressTime > 300)) {
+            this.isCrawling = !this.isCrawling;
+            this.isCrouching = false;
+            this._cKeyHandled = true;
+        }
+
+        if (maxAvailableHeight < 1.3) {
+            this.isCrawling = true;
+            this.isCrouching = false;
+        } else if (maxAvailableHeight < 2.5) {
+            if (!this.isCrawling) this.isCrouching = true;
+        }
+
         this.isSqueezing = this.squeezeIntent;
         let targetRadius = this.isSqueezing ? this.squeezeRadius : this.baseRadius;
         if (!this.isSqueezing && this.playerRadius < this.baseRadius - 0.01) {
-            const checkY = this.camera.position.y - 1.0;
-            this._vecMin.set(px - this.baseRadius, checkY, pz - this.baseRadius);
-            this._vecMax.set(px + this.baseRadius, checkY + 1.5, pz + this.baseRadius);
+            this._vecMin.set(px - this.baseRadius, currentFeetY + 0.1, pz - this.baseRadius);
+            this._vecMax.set(px + this.baseRadius, currentFeetY + (this.isCrawling ? 0.5 : 1.1), pz + this.baseRadius);
             this._floorBox.set(this._vecMin, this._vecMax);
             for (let i = 0; i < localBoxes.length; i++) {
                 if (this._floorBox.intersectsBox(localBoxes[i])) {
@@ -288,7 +339,7 @@ export default class PlayerController {
             this.camera.updateProjectionMatrix();
         }
         const adrenalineMultiplier = this.isChased ? 1.15 : 1.0;
-        let currentSpeed = (this.isSqueezing ? 20.0 : (this.isCrouching ? 30.0 : (this.isRunning ? 125.0 : 60.0))) * this.speedMultiplier * adrenalineMultiplier;
+        let currentSpeed = (this.isSqueezing ? 20.0 : (this.isCrawling ? 15.0 : (this.isCrouching ? 30.0 : (this.isRunning ? 125.0 : 60.0)))) * this.speedMultiplier * adrenalineMultiplier;
         const isMoving = this.direction.lengthSq() > 0 || this.touchMove.active;
         const baseDarknessPenalty = (this.darknessPressure || 0.0) * 12.0;
 
@@ -346,7 +397,8 @@ export default class PlayerController {
         let targetFov = this.baseFov;
         if (this.isRunning) targetFov += 8.0;
         if (this.isSqueezing) targetFov -= 18.0;
-        if (this.isCrouching) targetFov -= 8.0;
+        if (this.isCrawling) targetFov -= 15.0;
+        else if (this.isCrouching) targetFov -= 8.0;
         targetFov -= (this.exhaustion * 7.0);
 
         if (Math.abs(this.currentFov - targetFov) > 0.1) {
@@ -361,19 +413,25 @@ export default class PlayerController {
         this._moveDelta.set(-this.velocity.x * delta, 0, this.velocity.z * delta).applyEuler(this._euler);
         const moveX = this._moveDelta.x;
         const moveZ = this._moveDelta.z;
-        const feetY = this.camera.position.y - 1.6;
-        const visualHeight = this.isCrouching ? 0.8 : 1.6;
-        const physicalTop = this.isCrouching ? 1.2 : 2.5;
+        const visualHeight = this.isCrawling ? 0.3 : (this.isCrouching ? 0.8 : 1.6);
+        const physicalTop = this.isCrawling ? 0.55 : (this.isCrouching ? 1.2 : 2.5);
+        const feetY = this.camera.position.y - visualHeight;
         const snagShrink = this.isSqueezing ? 0.02 : 0.15;
-        this._vecMin.set(px + moveX - this.playerRadius, feetY + 0.6, pz - this.playerRadius + snagShrink);
+
+        const stepOffset = this.isCrawling ? 0.2 : 0.5;
+
+        this._vecMin.set(px + moveX - this.playerRadius, feetY + stepOffset, pz - this.playerRadius + snagShrink);
         this._vecMax.set(px + moveX + this.playerRadius, feetY + physicalTop, pz + this.playerRadius - snagShrink);
         this._boxX.set(this._vecMin, this._vecMax);
-        this._vecMin.set(px - this.playerRadius + snagShrink, feetY + 0.6, pz + moveZ - this.playerRadius);
+
+        this._vecMin.set(px - this.playerRadius + snagShrink, feetY + stepOffset, pz + moveZ - this.playerRadius);
         this._vecMax.set(px + this.playerRadius - snagShrink, feetY + physicalTop, pz + moveZ + this.playerRadius);
         this._boxZ.set(this._vecMin, this._vecMax);
+
         this._vecMin.set(px - this.playerRadius, -10.0, pz - this.playerRadius);
-        this._vecMax.set(px + this.playerRadius, feetY + 1.2, pz + this.playerRadius);
+        this._vecMax.set(px + this.playerRadius, feetY + stepOffset, pz + this.playerRadius);
         this._floorBox.set(this._vecMin, this._vecMax);
+
         let hitX = false;
         let hitZ = false;
         let targetFeetY = -100;
@@ -385,7 +443,7 @@ export default class PlayerController {
             if (box.isVoid && this._floorBox.intersectsBox(box)) {
                 inVoid = true;
             }
-            if (box.max.y > targetFeetY && box.max.y <= feetY + 1.2) {
+            if (box.max.y > targetFeetY && box.max.y <= feetY + stepOffset) {
                 if (!box.isVoid && this._floorBox.intersectsBox(box)) {
                     targetFeetY = box.max.y;
                     if (box.isWarpZone) this.onWarpZone = true;
