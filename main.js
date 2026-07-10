@@ -126,6 +126,17 @@ function animate() {
     }
     environment.updateChunks(engine.camera.position);
     environment.updateInteractives(engine.camera.position, delta);
+
+    if (engine.camera.position.y < -15.0 && !player.isDead) {
+        player.isDead = true;
+        setTimeout(() => {
+            triggerBlackout();
+            environment.generate();
+            player.isDead = false;
+        }, 400);
+        return;
+    }
+
     const entityState = environment.updateEntity(engine.camera.position, delta, time);
     if (entityState && entityState.consumed) {
         player.isDead = true;

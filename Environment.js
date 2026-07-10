@@ -1,4 +1,4 @@
-//Environment.js
+// Environment.js
 // LEVEL 0 ENVIRONMENT & MEMORY MANAGER
 
 import ProceduralTextureFactory from './ProceduralTextureFactory.js';
@@ -116,12 +116,6 @@ export default class Environment {
         if (this.currentChunkCoords.x === chunkX && this.currentChunkCoords.z === chunkZ) return;
         this.currentChunkCoords.x = chunkX;
         this.currentChunkCoords.z = chunkZ;
-        if (this.floor && this.ceiling) {
-            const shiftX = chunkX * (this.chunkSize * 4);
-            const shiftZ = chunkZ * (this.chunkSize * 4);
-            this.floor.position.set(shiftX, 0, shiftZ);
-            this.ceiling.position.set(shiftX, 3, shiftZ);
-        }
         const chunksToKeep = new Set();
         for (let x = -this.renderDistance; x <= this.renderDistance; x++) {
             for (let z = -this.renderDistance; z <= this.renderDistance; z++) {
@@ -256,30 +250,28 @@ export default class Environment {
         const assets = ProceduralTextureFactory.generateAssets();
         Object.assign(this, assets);
         const {carpetTexture, ceilingTexture} = assets;
-        carpetTexture.repeat.set(75, 75);
-        const floorGeo = new THREE.PlaneGeometry(300, 300);
-        const floorMat = new THREE.MeshStandardMaterial({
+
+        carpetTexture.repeat.set(16, 16);
+        ceilingTexture.repeat.set(16, 16);
+
+        this.carpetMat = new THREE.MeshStandardMaterial({
             map: carpetTexture,
             roughness: 1.0,
             bumpMap: carpetTexture,
             bumpScale: 0.015
         });
-        this.floor = new THREE.Mesh(floorGeo, floorMat);
-        this.floor.rotation.x = -Math.PI / 2;
-        this.floor.receiveShadow = true;
-        this.scene.add(this.floor);
-        ceilingTexture.repeat.set(300, 300);
-        const ceilGeo = new THREE.PlaneGeometry(300, 300);
-        const ceilMat = new THREE.MeshStandardMaterial({
+
+        this.ceilMat = new THREE.MeshStandardMaterial({
             map: ceilingTexture,
             roughness: 0.9,
             bumpMap: ceilingTexture,
             bumpScale: 0.01
         });
-        this.ceiling = new THREE.Mesh(ceilGeo, ceilMat);
-        this.ceiling.rotation.x = Math.PI / 2;
-        this.ceiling.position.y = 3;
-        this.scene.add(this.ceiling);
+
+        // Optimize metalness for flashlight specular reflection without an EnvMap
+        if (this.serverMat) { this.serverMat.metalness = 0.3; this.serverMat.roughness = 0.2; }
+        if (this.ventMat) { this.ventMat.metalness = 0.4; this.ventMat.roughness = 0.3; }
+
         const dustGeo = new THREE.BufferGeometry();
         const dustCount = 600;
         const dustPos = new Float32Array(dustCount * 3);
@@ -594,96 +586,95 @@ export default class Environment {
         }
     }
 
-    async buildChunk(chunkX, chunkZ, hash) {
-        const chunkGroup = new THREE.Group();
-        this.scene.add(chunkGroup);
-        this.activeChunks.set(hash, chunkGroup);
-        let prngSeed = (this.baseSeed + (chunkX * 104729) + (chunkZ * 1299827)) >>> 0;
-        const random = () => {
-            prngSeed = (prngSeed * 1664525 + 1013904223) >>> 0;
-            return prngSeed / 4294967296.0;
-        };
-        const cx = Math.sin(this.baseSeed) * 0.8;
-        const cy = Math.cos(this.baseSeed * 0.5) * 0.8;
-        const buildWall = (w, d, mat, h = 3.0) => {
-            const key = `${w}_${h}_${d}`;
-            let geo = this.geoCache.get(key);
-            if (!geo) {
-                geo = new THREE.BoxGeometry(w + 0.02, h, d + 0.02);
-                const uv = geo.attributes.uv;
-                for (let i = 0; i < 8; i++) uv.setX(i, uv.getX(i) * (d / this.cellSize));
-                for (let i = 16; i < 24; i++) uv.setX(i, uv.getX(i) * (w / this.cellSize));
-                if (h !== 3.0) {
-                    for (let i = 8; i < 16; i++) uv.setY(i, uv.getY(i) * (h / 3.0));
+    _createChunkHelpers(hash, chunkGroup, stagingMeshes, random) {
+        return {
+            random,
+            hash,
+            chunkGroup,
+            stagingMeshes,
+            buildWall: (w, d, mat, h = 3.0) => {
+                const key = `${w}_${h}_${d}`;
+                let geo = this.geoCache.get(key);
+                if (!geo) {
+                    geo = new THREE.BoxGeometry(w + 0.02, h, d + 0.02);
+                    const uv = geo.attributes.uv;
+                    for (let i = 0; i < 8; i++) uv.setX(i, uv.getX(i) * (d / this.cellSize));
+                    for (let i = 16; i < 24; i++) uv.setX(i, uv.getX(i) * (w / this.cellSize));
+                    if (h !== 3.0) {
+                        for (let i = 8; i < 16; i++) uv.setY(i, uv.getY(i) * (h / 3.0));
+                    }
+                    this.geoCache.set(key, geo);
+                    this.geoCache.set(geo.uuid, true);
                 }
-                this.geoCache.set(key, geo);
-                this.geoCache.set(geo.uuid, true);
+                return new THREE.Mesh(geo, mat);
+            },
+            addGeometry: (mesh, isWarp = false) => {
+                mesh.userData.chunkHash = hash;
+                mesh.updateMatrixWorld(true);
+                if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+                const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
+                box.chunkHash = hash;
+                if (mesh.userData.isEntityBlocker) box.isEntityBlocker = true;
+                if (isWarp) box.isWarpZone = true;
+                this.spatialGrid.insert(box);
+                stagingMeshes.push(mesh);
+            },
+            addFurniture: (group) => {
+                if (Math.abs(group.position.x) < 4.0 && Math.abs(group.position.z) < 4.0) return;
+                group.userData.chunkHash = hash;
+                group.updateMatrixWorld(true);
+                const box = new THREE.Box3().setFromObject(group);
+                box.chunkHash = hash;
+                this.spatialGrid.insert(box);
+                group.traverse((child) => {
+                    if (child.isMesh) {
+                        child.userData.chunkHash = hash;
+                        child.updateMatrixWorld(true);
+                        stagingMeshes.push(child);
+                    }
+                });
+            },
+            buildChair: (x, y, z, rotY) => {
+                const group = new THREE.Group();
+                const seat = new THREE.Mesh(this.cushionGeo, this.fabricMat);
+                seat.position.set(0, 0.4, 0);
+                group.add(seat);
+                const back = new THREE.Mesh(this.backrestGeo, this.fabricMat);
+                back.position.set(0, 0.8, -0.3);
+                group.add(back);
+                const l1 = new THREE.Mesh(this.legGeo, this.structMat);
+                l1.position.set(0.3, 0.2, 0.3);
+                group.add(l1);
+                const l2 = new THREE.Mesh(this.legGeo, this.structMat);
+                l2.position.set(-0.3, 0.2, 0.3);
+                group.add(l2);
+                const l3 = new THREE.Mesh(this.legGeo, this.structMat);
+                l3.position.set(0.3, 0.2, -0.3);
+                group.add(l3);
+                const l4 = new THREE.Mesh(this.legGeo, this.structMat);
+                l4.position.set(-0.3, 0.2, -0.3);
+                group.add(l4);
+                group.position.set(x, y, z);
+                group.rotation.y = rotY;
+                return group;
+            },
+            buildTable: (x, y, z) => {
+                const group = new THREE.Group();
+                const top = new THREE.Mesh(this.tableTopGeo, this.woodMat);
+                top.position.set(0, 0.8, 0);
+                group.add(top);
+                const base = new THREE.Mesh(this.tableBaseGeo, this.structMat);
+                base.position.set(0, 0.4, 0);
+                group.add(base);
+                group.position.set(x, y, z);
+                return group;
             }
-            return new THREE.Mesh(geo, mat);
         };
-        const stagingMeshes = [];
-        const addGeometry = (mesh, isWarp = false) => {
-            mesh.userData.chunkHash = hash;
-            mesh.updateMatrixWorld(true);
-            if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
-            const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
-            box.chunkHash = hash;
-            if (mesh.userData.isEntityBlocker) box.isEntityBlocker = true;
-            if (isWarp) box.isWarpZone = true;
-            this.spatialGrid.insert(box);
-            stagingMeshes.push(mesh);
-        };
-        const addFurniture = (group) => {
-            if (Math.abs(group.position.x) < 4.0 && Math.abs(group.position.z) < 4.0) return;
-            group.userData.chunkHash = hash;
-            group.updateMatrixWorld(true);
-            const box = new THREE.Box3().setFromObject(group);
-            box.chunkHash = hash;
-            this.spatialGrid.insert(box);
-            group.traverse((child) => {
-                if (child.isMesh) {
-                    child.userData.chunkHash = hash;
-                    child.updateMatrixWorld(true);
-                    stagingMeshes.push(child);
-                }
-            });
-        };
-        const buildChair = (x, y, z, rotY) => {
-            const group = new THREE.Group();
-            const seat = new THREE.Mesh(this.cushionGeo, this.fabricMat);
-            seat.position.set(0, 0.4, 0);
-            group.add(seat);
-            const back = new THREE.Mesh(this.backrestGeo, this.fabricMat);
-            back.position.set(0, 0.8, -0.3);
-            group.add(back);
-            const l1 = new THREE.Mesh(this.legGeo, this.structMat);
-            l1.position.set(0.3, 0.2, 0.3);
-            group.add(l1);
-            const l2 = new THREE.Mesh(this.legGeo, this.structMat);
-            l2.position.set(-0.3, 0.2, 0.3);
-            group.add(l2);
-            const l3 = new THREE.Mesh(this.legGeo, this.structMat);
-            l3.position.set(0.3, 0.2, -0.3);
-            group.add(l3);
-            const l4 = new THREE.Mesh(this.legGeo, this.structMat);
-            l4.position.set(-0.3, 0.2, -0.3);
-            group.add(l4);
-            group.position.set(x, y, z);
-            group.rotation.y = rotY;
-            return group;
-        };
-        const buildTable = (x, y, z) => {
-            const group = new THREE.Group();
-            const top = new THREE.Mesh(this.tableTopGeo, this.woodMat);
-            top.position.set(0, 0.8, 0);
-            group.add(top);
-            const base = new THREE.Mesh(this.tableBaseGeo, this.structMat);
-            base.position.set(0, 0.4, 0);
-            group.add(base);
-            group.position.set(x, y, z);
-            return group;
-        };
-        const structuralMatrix = [
+    }
+
+    _getStructuralMatrix(ctx) {
+        const { random, buildWall, addGeometry, buildChair, buildTable, addFurniture, chunkGroup, hash } = ctx;
+        return [
             {
                 prob: 0.95, build: (x, z) => {
                     const pillar = buildWall(0.5 + (random() * 2.0), 0.5 + (random() * 2.0), this.sharedWallMat);
@@ -937,9 +928,11 @@ export default class Environment {
                 }
             }
         ];
-        const startX = chunkX * this.chunkSize;
-        const startZ = chunkZ * this.chunkSize;
-        const sectorMatrix = [
+    }
+
+    _getSectorMatrix(ctx) {
+        const { random, buildWall, addGeometry, buildChair, buildTable, addFurniture, chunkGroup, hash, stagingMeshes } = ctx;
+        return [
             {
                 name: "THE POOLROOMS",
                 prob: 0.16,
@@ -1281,6 +1274,38 @@ export default class Environment {
                 }
             },
             {
+                name: "THE CHASM",
+                prob: 0.08,
+                foundationMat: null,
+                build: (x, z, localX, localZ) => {
+                    const isBridge = (localX >= 6 && localX <= 9);
+                    if (isBridge) {
+                        const bFloor = buildWall(this.cellSize, this.cellSize, this.structMat, 0.5);
+                        bFloor.position.set(x * this.cellSize, -0.25, z * this.cellSize);
+                        addGeometry(bFloor);
+
+                        if (localX === 6 || localX === 9) {
+                            const railing = buildWall(0.2, this.cellSize, this.rustMat, 1.2);
+                            railing.position.set(x * this.cellSize + (localX === 6 ? 1.8 : -1.8), 0.6, z * this.cellSize);
+                            addGeometry(railing);
+                        }
+                    } else {
+                        const voidBox = new THREE.Box3();
+                        voidBox.min.set(x * this.cellSize - 2, -100, z * this.cellSize - 2);
+                        voidBox.max.set(x * this.cellSize + 2, 3, z * this.cellSize + 2);
+                        voidBox.isVoid = true;
+                        voidBox.chunkHash = hash;
+                        this.spatialGrid.insert(voidBox);
+
+                        if ((localX === 2 || localX === 13) && localZ % 4 === 0) {
+                            const pillar = buildWall(2.0, 2.0, this.rustMat, 40.0);
+                            pillar.position.set(x * this.cellSize, -15.0, z * this.cellSize);
+                            addGeometry(pillar);
+                        }
+                    }
+                }
+            },
+            {
                 name: "THE OVERGROWN ATRIUM",
                 prob: 0.09,
                 foundationMat: this.mossMat,
@@ -1323,9 +1348,32 @@ export default class Environment {
                 }
             }
         ];
+    }
+
+    async buildChunk(chunkX, chunkZ, hash) {
+        const chunkGroup = new THREE.Group();
+        this.scene.add(chunkGroup);
+        this.activeChunks.set(hash, chunkGroup);
+        let prngSeed = (this.baseSeed + (chunkX * 104729) + (chunkZ * 1299827)) >>> 0;
+        const random = () => {
+            prngSeed = (prngSeed * 1664525 + 1013904223) >>> 0;
+            return prngSeed / 4294967296.0;
+        };
+        const cx = Math.sin(this.baseSeed) * 0.8;
+        const cy = Math.cos(this.baseSeed * 0.5) * 0.8;
+
+        const stagingMeshes = [];
+        const ctx = this._createChunkHelpers(hash, chunkGroup, stagingMeshes, random);
+
+        const structuralMatrix = this._getStructuralMatrix(ctx);
+        const sectorMatrix = this._getSectorMatrix(ctx);
+
+        const startX = chunkX * this.chunkSize;
+        const startZ = chunkZ * this.chunkSize;
         const isMacroStructure = random() > 0.90 && (Math.abs(chunkX) > 0 || Math.abs(chunkZ) > 0);
         let activeSector = null;
         let sectorMaze = null;
+
         if (isMacroStructure) {
             const sectorRoll = random();
             let cumulative = 0;
@@ -1340,14 +1388,38 @@ export default class Environment {
             if (["THE ARCHIVE", "THE SERVER FARM", "THE MAINTENANCE SHAFTS", "THE POOLROOMS"].includes(activeSector.name)) {
                 sectorMaze = this._generateSectorMaze(random);
             }
-            const foundationGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
-            const foundation = new THREE.Mesh(foundationGeo, activeSector.foundationMat);
-            foundation.rotation.x = -Math.PI / 2;
-            const centerOffset = (this.chunkSize * this.cellSize) / 2 - (this.cellSize / 2);
-            foundation.position.set(startX * this.cellSize + centerOffset, 0.02, startZ * this.cellSize + centerOffset);
-            foundation.receiveShadow = true;
-            chunkGroup.add(foundation);
+            if (activeSector.foundationMat) {
+                const foundationGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
+                const foundation = new THREE.Mesh(foundationGeo, activeSector.foundationMat);
+                foundation.rotation.x = -Math.PI / 2;
+                const centerOffset = (this.chunkSize * this.cellSize) / 2 - (this.cellSize / 2);
+                foundation.position.set(startX * this.cellSize + centerOffset, 0.02, startZ * this.cellSize + centerOffset);
+                foundation.receiveShadow = true;
+                chunkGroup.add(foundation);
+            }
         }
+
+        const isChasm = activeSector && activeSector.name === "THE CHASM";
+        const centerOffset = (this.chunkSize * this.cellSize) / 2 - (this.cellSize / 2);
+
+        const floorGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
+        const ceilGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
+
+        if (!isMacroStructure && !isChasm) {
+            const floor = new THREE.Mesh(floorGeo, this.carpetMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.set(startX * this.cellSize + centerOffset, 0, startZ * this.cellSize + centerOffset);
+            floor.receiveShadow = true;
+            chunkGroup.add(floor);
+        }
+
+        if (!isChasm && (!activeSector || activeSector.name !== "THE OVERGROWN ATRIUM")) {
+            const ceil = new THREE.Mesh(ceilGeo, this.ceilMat);
+            ceil.rotation.x = Math.PI / 2; // Fixed rotation to apply to Mesh, not shared Geometry
+            ceil.position.set(startX * this.cellSize + centerOffset, 3, startZ * this.cellSize + centerOffset);
+            chunkGroup.add(ceil);
+        }
+
         for (let x = startX; x < startX + this.chunkSize; x++) {
             for (let z = startZ; z < startZ + this.chunkSize; z++) {
                 if (Math.abs(x) < 2 && Math.abs(z) < 2) continue;
@@ -1387,28 +1459,28 @@ export default class Environment {
                         stain.position.set(x * this.cellSize + offsetX, 0.01, z * this.cellSize + offsetZ);
                         stain.rotation.y = rotY;
                         stain.scale.set(scale, scale, scale);
-                        addGeometry(stain);
+                        ctx.addGeometry(stain);
                         if (offsetX > 0.8) {
                             const ceilingStain = new THREE.Mesh(this.ceilingStainGeo, this.ceilingStainMat);
                             ceilingStain.position.set(x * this.cellSize + offsetZ, 2.99, z * this.cellSize - offsetX);
                             ceilingStain.rotation.y = rotY + 1.5;
                             ceilingStain.scale.set(scale * 1.3, scale * 1.3, scale * 1.3);
-                            addGeometry(ceilingStain);
+                            ctx.addGeometry(ceilingStain);
                         }
                     } else if (floorRoll > 0.80) {
                         hasTallObstacle = true;
                         const divW = random() > 0.5 ? this.cellSize * 0.8 : this.cellSize * 0.2;
                         const divD = divW === this.cellSize * 0.8 ? this.cellSize * 0.2 : this.cellSize * 0.8;
-                        const divider = buildWall(divW, divD, this.sharedWallMat);
+                        const divider = ctx.buildWall(divW, divD, this.sharedWallMat);
                         divider.position.set(x * this.cellSize, 1.5, z * this.cellSize);
-                        addGeometry(divider);
+                        ctx.addGeometry(divider);
                         if (random() > 0.6) {
                             const isWide = divW > divD;
                             const clearX = isWide ? 0.0 : 1.2;
                             const clearZ = isWide ? 1.2 : 0.0;
                             const rot = isWide ? 0 : -Math.PI / 2;
-                            const chair = buildChair(x * this.cellSize + clearX, 0, z * this.cellSize + clearZ, rot);
-                            addFurniture(chair);
+                            const chair = ctx.buildChair(x * this.cellSize + clearX, 0, z * this.cellSize + clearZ, rot);
+                            ctx.addFurniture(chair);
                         }
                     }
                     if (!hasTallObstacle && random() > 0.20) {

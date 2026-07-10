@@ -373,12 +373,17 @@ export default class PlayerController {
         this._floorBox.set(this._vecMin, this._vecMax);
         let hitX = false;
         let hitZ = false;
-        let targetFeetY = 0;
+        let targetFeetY = -100;
+        let inVoid = false;
         this.onWarpZone = false;
+
         for (let i = 0, len = localBoxes.length; i < len; i++) {
             const box = localBoxes[i];
+            if (box.isVoid && this._floorBox.intersectsBox(box)) {
+                inVoid = true;
+            }
             if (box.max.y > targetFeetY && box.max.y <= feetY + 1.2) {
-                if (this._floorBox.intersectsBox(box)) {
+                if (!box.isVoid && this._floorBox.intersectsBox(box)) {
                     targetFeetY = box.max.y;
                     if (box.isWarpZone) this.onWarpZone = true;
                 }
@@ -433,9 +438,20 @@ export default class PlayerController {
         this._leanOffset.set(leanLateral, 0, 0).applyEuler(this._euler);
         this.camera.position.x += this._leanOffset.x;
         this.camera.position.z += this._leanOffset.z;
+
+        if (!inVoid && targetFeetY === -100) targetFeetY = 0; // Solid ground default
+
         const maxCamY = this.onWarpZone ? 5.0 : 2.8;
-        const targetCamY = Math.min(targetFeetY + visualHeight, maxCamY) + bobOffset - leanDrop;
-        const lerpFactor = 1.0 - Math.exp(-12.0 * delta);
+        let targetCamY = Math.min(targetFeetY + visualHeight, maxCamY) + bobOffset - leanDrop;
+
+        if (targetFeetY === -100) {
+            this.fallVelocity = (this.fallVelocity || 0) + 30.0 * delta;
+            targetCamY = this.camera.position.y - (this.fallVelocity * delta);
+        } else {
+            this.fallVelocity = 0;
+        }
+
+        const lerpFactor = targetFeetY === -100 ? 1.0 : 1.0 - Math.exp(-12.0 * delta);
         this.camera.position.y += (targetCamY - this.camera.position.y) * lerpFactor;
     }
 }

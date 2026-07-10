@@ -60,39 +60,36 @@ export default class RenderEngine {
                 void main() {
                     vec2 uv = vUv;
                     vec2 centerUv = uv - 0.5;
-                    
+                    float phasePos = fract(time * 0.01); 
+                    float phaseBand = 1.0 - smoothstep(0.0, 0.01, abs(uv.y - phasePos));
+                    float phaseGhost = 1.0 - smoothstep(0.0, 0.05, abs(uv.y - phasePos + 0.02));
                     if (anomaly > 0.01) {
                         float tear = step(0.9, sin(uv.y * 40.0 + time * 15.0));
                         uv.x += tear * (globalSeed - 0.5) * anomaly * 0.3;
                     }
-                    
+                    uv.x += phaseBand * 0.0002 * sin(time * 50.0);
                     float pulse = sin(time * 8.0);
-                    float exhaustionDistort = (exhaustion * 0.018) * (1.0 + pulse * 0.3);
-                    vec2 offset = vec2(0.001 + (squeeze * 0.004) + (anomaly * 0.04) + exhaustionDistort, exhaustionDistort * 0.4) * centerUv * 2.0; 
-                    
+                    float caShift = 0.0015 + (squeeze * 0.002) + (anomaly * 0.02) + (exhaustion * 0.005);
+                    vec2 offset = vec2(caShift, 0.0); 
                     vec3 col = vec3(0.0);
                     col.r = texture2D(tDiffuse, uv + offset).r;
                     col.g = texture2D(tDiffuse, uv).g;
                     col.b = texture2D(tDiffuse, uv - offset).b;
-                    
                     float noise = random(uv + mod(time, 10.0));
                     float luminance = dot(col, vec3(0.299, 0.587, 0.114));
                     col -= (noise * (0.12 + anomaly * 0.8)) * (1.0 - luminance);
-                    
-                    float scanline = sin(gl_FragCoord.y * 1.5 - time * 10.0) * 0.04;
+                    float scanline = sin(uv.y * 1000.0) * 0.03; 
                     col -= scanline * luminance;
-                    
+                    col += phaseBand * 0.005 * (1.0 + noise);
+                    col += phaseGhost * 0.002;
                     float distSq = dot(centerUv, centerUv);
                     float vignettePulse = pulse * (exhaustion * 0.05); 
                     float vignetteRadius = 0.25 - (exhaustion * 0.15) - (anomaly * 0.1) + vignettePulse;
                     col *= smoothstep(0.9, vignetteRadius, distSq + 0.2); 
-                    
                     float lateralDist = abs(centerUv.x);
                     col *= mix(1.0, smoothstep(0.45, 0.15, lateralDist), squeeze);
-                    
                     col = mix(col, vec3(luminance * 0.6), anomaly * 0.85);
                     col = smoothstep(0.0, 1.0, col);
-                    
                     gl_FragColor = vec4(col, 1.0);
                 }
             `
@@ -114,6 +111,13 @@ export default class RenderEngine {
                 h = w / this.aspectRatio;
             }
         }
+
+        // Force strictly even integers to prevent CSS sub-pixel smearing
+        w = Math.floor(w);
+        h = Math.floor(h);
+        if (w % 2 !== 0) w -= 1;
+        if (h % 2 !== 0) h -= 1;
+
         const wrapper = document.getElementById('screen-wrapper');
         if (wrapper) {
             wrapper.style.width = `${w}px`;
@@ -121,9 +125,13 @@ export default class RenderEngine {
         }
         this.camera.aspect = w / h;
         this.camera.updateProjectionMatrix();
+
         const scale = this.resolutionScale;
-        this.renderer.setSize(w * scale, h * scale, false);
-        this.target.setSize(w * scale, h * scale);
+        const renderW = Math.floor(w * scale);
+        const renderH = Math.floor(h * scale);
+
+        this.renderer.setSize(renderW, renderH, false);
+        this.target.setSize(renderW, renderH);
     }
     get delta() {
         const now = performance.now();

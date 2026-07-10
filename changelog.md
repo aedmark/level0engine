@@ -1,5 +1,20 @@
 # Level 0 Engine Changelog
 
+## [v0.2.9] - 2026-07-10
+
+### Added
+- [ARCHITECTURE] The Chasm: Amputated the monolithic infinite floor plane. The engine now dynamically omits foundational geometry to create massive, bottomless voids that swallow the volumetric fog.
+- [MECHANICS] Kinematic Gravity: Taught the player controller to recognize void sectors. Stepping off the manifold now triggers a terminal velocity plunge and an autonomic engine rebuild.
+
+### Changed
+- [WEBGL] Subliminal VHS Phase: Decoupled the VCR phase tracking band from the stamina multiplier. Severely throttled the scrolling speed and luminance to act as a peripheral, whispering phantom rather than an optical strobe.
+- [TEXTURES] Restored the procedural carpet and ceiling tile UV repeat mapping (scaled to `16x16`) to eradicate the severe mipmap smudging caused during chunk localization.
+- [TEXTURES] Calibrated PBR metalness and roughness on Server Farm and Maintenance HVAC materials to accurately reflect localized flashlight specular highlights.
+
+### Fixed
+- [RENDERER] Integer Viewport Anchoring: Eradicated the persistent center-screen "double thick" interlacing tear (as verified in backrooms_asset_1783713675926.png). Obliterated CSS fractional pixel translation (`translate(-50%, -50%)`) and replaced it with absolute, mathematically floored integer offsets.
+- [GEOMETRY] The Mass Cascade: Severed a localized `for`-loop indentation shadow that caused the engine to simultaneously instantiate 16 overlapping server racks and light fixtures in the exact same spatial coordinates, destroying the Z-buffer and starving the photon pool.
+
 ## [v0.2.8] - 2026-07-10
 
 ### Added
