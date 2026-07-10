@@ -1337,32 +1337,8 @@ export default class Environment {
                 }
             }
             if (!activeSector) activeSector = sectorMatrix[0];
-            if (activeSector.name === "THE ARCHIVE" || activeSector.name === "THE SERVER FARM" || activeSector.name === "THE MAINTENANCE SHAFTS" || activeSector.name === "THE POOLROOMS") {
-                sectorMaze = Array(this.chunkSize).fill().map(() => Array(this.chunkSize).fill(true));
-                const carve = (cx, cz) => {
-                    sectorMaze[cx][cz] = false;
-                    const dirs = [[0, -2], [2, 0], [0, 2], [-2, 0]];
-                    dirs.sort(() => random() - 0.5);
-                    for (let [dx, dz] of dirs) {
-                        const nx = cx + dx, nz = cz + dz;
-                        if (nx > 0 && nx < this.chunkSize && nz > 0 && nz < this.chunkSize && sectorMaze[nx][nz]) {
-                            sectorMaze[cx + dx / 2][cz + dz / 2] = false;
-                            carve(nx, nz);
-                        }
-                    }
-                };
-                carve(1, 1);
-                for (let i = 0; i < 20; i++) {
-                    let rx = Math.floor(random() * (this.chunkSize - 2)) + 1;
-                    let rz = Math.floor(random() * (this.chunkSize - 2)) + 1;
-                    sectorMaze[rx][rz] = false;
-                }
-                for (let i = 1; i < this.chunkSize - 1; i += 3) {
-                    sectorMaze[i][0] = false;
-                    sectorMaze[i][this.chunkSize - 1] = false;
-                    sectorMaze[0][i] = false;
-                    sectorMaze[this.chunkSize - 1][i] = false;
-                }
+            if (["THE ARCHIVE", "THE SERVER FARM", "THE MAINTENANCE SHAFTS", "THE POOLROOMS"].includes(activeSector.name)) {
+                sectorMaze = this._generateSectorMaze(random);
             }
             const foundationGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
             const foundation = new THREE.Mesh(foundationGeo, activeSector.foundationMat);
@@ -1495,6 +1471,39 @@ export default class Environment {
             }
             await new Promise(resolve => setTimeout(resolve, 0));
         }
+        this._compileInstances(hash, chunkGroup, stagingMeshes, random);
+    }
+
+    _generateSectorMaze(randomFn) {
+        const maze = Array(this.chunkSize).fill().map(() => Array(this.chunkSize).fill(true));
+        const carve = (cx, cz) => {
+            maze[cx][cz] = false;
+            const dirs = [[0, -2], [2, 0], [0, 2], [-2, 0]];
+            dirs.sort(() => randomFn() - 0.5);
+            for (let [dx, dz] of dirs) {
+                const nx = cx + dx, nz = cz + dz;
+                if (nx > 0 && nx < this.chunkSize && nz > 0 && nz < this.chunkSize && maze[nx][nz]) {
+                    maze[cx + dx / 2][cz + dz / 2] = false;
+                    carve(nx, nz);
+                }
+            }
+        };
+        carve(1, 1);
+        for (let i = 0; i < 20; i++) {
+            let rx = Math.floor(randomFn() * (this.chunkSize - 2)) + 1;
+            let rz = Math.floor(randomFn() * (this.chunkSize - 2)) + 1;
+            maze[rx][rz] = false;
+        }
+        for (let i = 1; i < this.chunkSize - 1; i += 3) {
+            maze[i][0] = false;
+            maze[i][this.chunkSize - 1] = false;
+            maze[0][i] = false;
+            maze[this.chunkSize - 1][i] = false;
+        }
+        return maze;
+    }
+
+    _compileInstances(hash, chunkGroup, stagingMeshes, randomFn) {
         const instancedGroups = new Map();
         stagingMeshes.forEach(mesh => {
             const matSig = Array.isArray(mesh.material) ? mesh.material.map(m => m.uuid).join('_') : mesh.material.uuid;
@@ -1523,7 +1532,7 @@ export default class Environment {
                 group.meshes.forEach((mesh, index) => {
                     iMesh.setMatrixAt(index, mesh.matrixWorld);
                     if (needsColor) {
-                        const shade = 0.85 + (random() * 0.15);
+                        const shade = 0.85 + (randomFn() * 0.15);
                         dummyColor.setRGB(shade, shade * 0.95, shade * 0.90);
                         iMesh.setColorAt(index, dummyColor);
                     }
@@ -1556,43 +1565,73 @@ export default class Environment {
 
     updateEntity(playerPos, delta, time) {
         if (!this.entityActive) return;
+
+        // 1. Core State Init
         if (!this._entDir) {
             this._entDir = new THREE.Vector3();
             this._entToPlayer = new THREE.Vector3();
             this._entLookDir = new THREE.Vector3();
+            this._entNextPos = new THREE.Vector3();
+            this._entBox = new THREE.Box3();
+            this._entBoxX = new THREE.Box3();
+            this._entBoxZ = new THREE.Box3();
+            this._entMin = new THREE.Vector3();
+            this._entMax = new THREE.Vector3();
         }
-        this.breadcrumbTimer = (this.breadcrumbTimer || 0) + delta;
-        if (this.breadcrumbTimer > 0.5 && this.entityBacktrackTimer <= 0) {
-            this.breadcrumbTimer = 0;
-            this.entityBreadcrumbs.push(this.entityGroup.position.clone());
-            if (this.entityBreadcrumbs.length > 20) this.entityBreadcrumbs.shift();
-        }
-        this.entityCore.rotation.y = time * 0.8;
-        this.entityCore.rotation.x = time * 0.5;
-        const pulse = 1.0 + Math.sin(time * 4.0) * 0.15;
-        this.entityCore.scale.set(pulse, pulse, pulse);
-        this.entityShards.forEach((shardData, i) => {
-            const panicJitter = this.player.exhaustion > 0.2 ? (Math.random() - 0.5) * this.player.exhaustion * 0.4 : 0;
-            const angle = time * shardData.speed + shardData.offset;
-            shardData.mesh.position.x = Math.cos(angle) * (1.2 + panicJitter);
-            shardData.mesh.position.z = Math.sin(angle) * (1.2 + panicJitter);
-            shardData.mesh.position.y = Math.sin(time * 3.0 + i) * 0.4 + panicJitter;
-            shardData.mesh.rotation.x += delta * (2.0 + panicJitter * 10);
-            shardData.mesh.rotation.y += delta * (3.0 + panicJitter * 10);
-        });
+
         const distToPlayerSq = this.entityGroup.position.distanceToSquared(playerPos);
+
+        // 2. Win Condition (Player Caught)
         if (distToPlayerSq < 0.64) {
             this.player.stamina = this.player.maxStamina;
             this.player.exhaustion = 0.0;
             this.player.isChased = false;
             return {consumed: true};
         }
+
+        // 3. Delegate Subsystems
+        this._animateAnomaly(time, delta);
+        const speed = this._updateAnomalySenses(playerPos, distToPlayerSq, delta);
+        this._resolveAnomalyLocomotion(speed, delta, time);
+    }
+
+    _animateAnomaly(time, delta) {
+        this.entityCore.rotation.y = time * 0.8;
+        this.entityCore.rotation.x = time * 0.5;
+        const pulse = 1.0 + Math.sin(time * 4.0) * 0.15;
+        this.entityCore.scale.set(pulse, pulse, pulse);
+
+        this.entityShards.forEach((shardData, i) => {
+            const panicJitter = this.player.exhaustion > 0.2 ? (Math.random() - 0.5) * this.player.exhaustion * 0.4 : 0;
+            const angle = time * shardData.speed + shardData.offset;
+            shardData.mesh.position.set(
+                Math.cos(angle) * (1.2 + panicJitter),
+                Math.sin(time * 3.0 + i) * 0.4 + panicJitter,
+                Math.sin(angle) * (1.2 + panicJitter)
+            );
+            shardData.mesh.rotation.x += delta * (2.0 + panicJitter * 10);
+            shardData.mesh.rotation.y += delta * (3.0 + panicJitter * 10);
+        });
+    }
+
+    _updateAnomalySenses(playerPos, distToPlayerSq, delta) {
+        // Breadcrumb Trail (Tracking)
+        this.breadcrumbTimer = (this.breadcrumbTimer || 0) + delta;
+        if (this.breadcrumbTimer > 0.5 && this.entityBacktrackTimer <= 0) {
+            this.breadcrumbTimer = 0;
+            this.entityBreadcrumbs.push(this.entityGroup.position.clone());
+            if (this.entityBreadcrumbs.length > 20) this.entityBreadcrumbs.shift();
+        }
+
+        // Perception Thresholds
         let detectionRadius = 25.0;
         if (this.player.isCrouching) detectionRadius -= 10.0;
         if (this.player.isRunning) detectionRadius += 15.0;
         if (this.player.flashlightActive) detectionRadius += 20.0;
         detectionRadius += (this.player.exhaustion * 10.0);
+
         const perceptionThresholdSq = detectionRadius * detectionRadius;
+
         if (distToPlayerSq < perceptionThresholdSq) {
             if (this.entityBacktrackTimer > 0) {
                 this.entityBacktrackTimer -= delta;
@@ -1617,12 +1656,12 @@ export default class Environment {
                 this.entityTarget.z += (Math.random() - 0.5) * 15.0;
             }
         }
-        const dir = this._entDir.subVectors(this.entityTarget, this.entityGroup.position);
-        dir.y = 0;
-        const distToTarget = dir.length();
+
+        // Observation Stun Logic (Weeping Angel effect)
         const baseSpeed = distToPlayerSq < 225.0 ? 4.2 : 2.0;
         let speed = baseSpeed + (this.player.exhaustion * 1.5);
         let isObserved = false;
+
         if (this.player.flashlightActive && distToPlayerSq < 625.0) {
             const toEntity = this._entToPlayer.subVectors(this.entityGroup.position, playerPos).normalize();
             const lookDir = this._entLookDir.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
@@ -1633,54 +1672,63 @@ export default class Environment {
                 this.entityCore.position.set((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4);
             }
         }
+
         if (!isObserved) {
             this.entityCore.position.set(0, 0, 0);
         }
+
+        return speed;
+    }
+
+    _resolveAnomalyLocomotion(speed, delta, time) {
+        const dir = this._entDir.subVectors(this.entityTarget, this.entityGroup.position);
+        dir.y = 0;
+        const distToTarget = dir.length();
+
         if (distToTarget > 0.1) {
             dir.normalize();
-            if (!this._entMoveVec) {
-                this._entMoveVec = new THREE.Vector3();
-                this._entNextPos = new THREE.Vector3();
-                this._entBox = new THREE.Box3();
-                this._entBoxX = new THREE.Box3();
-                this._entBoxZ = new THREE.Box3();
-                this._entMin = new THREE.Vector3();
-                this._entMax = new THREE.Vector3();
-            }
-            this._entMoveVec.copy(dir).multiplyScalar(speed * delta);
-            this._entNextPos.copy(this.entityGroup.position).add(this._entMoveVec);
+            const moveVec = dir.multiplyScalar(speed * delta);
+            this._entNextPos.copy(this.entityGroup.position).add(moveVec);
+
             this._entMin.set(this._entNextPos.x - 0.6, 0.0, this._entNextPos.z - 0.6);
             this._entMax.set(this._entNextPos.x + 0.6, 3.0, this._entNextPos.z + 0.6);
             this._entBox.set(this._entMin, this._entMax);
+
             let blocked = false;
             const localBoxes = this.spatialGrid.getNearby(this._entNextPos.x, this._entNextPos.z, 2.0);
+
             for (let i = 0; i < localBoxes.length; i++) {
                 if (localBoxes[i].isEntityBlocker && this._entBox.intersectsBox(localBoxes[i])) {
                     blocked = true;
                     break;
                 }
             }
+
             if (!blocked) {
-                this.entityGroup.position.add(this._entMoveVec);
+                this.entityGroup.position.add(moveVec);
             } else {
                 let blockedX = false;
                 let blockedZ = false;
+
                 this._entBoxX.copy(this._entBox);
                 this._entBoxX.min.z = this.entityGroup.position.z - 0.5;
                 this._entBoxX.max.z = this.entityGroup.position.z + 0.5;
+
                 this._entBoxZ.copy(this._entBox);
                 this._entBoxZ.min.x = this.entityGroup.position.x - 0.5;
                 this._entBoxZ.max.x = this.entityGroup.position.x + 0.5;
+
                 for (let i = 0; i < localBoxes.length; i++) {
                     if (localBoxes[i].isEntityBlocker) {
                         if (!blockedX && this._entBoxX.intersectsBox(localBoxes[i])) blockedX = true;
                         if (!blockedZ && this._entBoxZ.intersectsBox(localBoxes[i])) blockedZ = true;
                     }
                 }
+
                 if (!blockedX && blockedZ) {
-                    this.entityGroup.position.x += this._entMoveVec.x;
+                    this.entityGroup.position.x += moveVec.x;
                 } else if (!blockedZ && blockedX) {
-                    this.entityGroup.position.z += this._entMoveVec.z;
+                    this.entityGroup.position.z += moveVec.z;
                 } else {
                     if (this.entityBacktrackTimer <= 0) {
                         this.entityBacktrackTimer = 5.0;
@@ -1690,6 +1738,7 @@ export default class Environment {
                 }
             }
         }
+
         this.entityGroup.position.y = 1.5 + Math.sin(time * 2.0) * 0.2;
     }
 

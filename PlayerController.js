@@ -31,6 +31,8 @@ export default class PlayerController {
         this.targetLean = 0.0;
         this.currentLean = 0.0;
         this._leanOffset = new THREE.Vector3();
+        this.baseFov = camera.fov;
+        this.currentFov = camera.fov;
         this.touchMove = {active: false, id: null, startX: 0, startY: 0, deltaX: 0, deltaY: 0};
         this.touchLook = {active: false, id: null, startX: 0, startY: 0, lastX: 0, lastY: 0};
         this._boxX = new THREE.Box3();
@@ -333,6 +335,23 @@ export default class PlayerController {
             intentX *= invMag;
             intentZ *= invMag;
         }
+
+        if (Math.abs(this.camera.fov - this.currentFov) > 0.5) {
+            this.baseFov = this.camera.fov;
+        }
+
+        let targetFov = this.baseFov;
+        if (this.isRunning) targetFov += 8.0;
+        if (this.isSqueezing) targetFov -= 5.0;
+        if (this.isCrouching) targetFov -= 2.0;
+        targetFov -= (this.exhaustion * 4.0);
+
+        if (Math.abs(this.currentFov - targetFov) > 0.1) {
+            this.currentFov += (targetFov - this.currentFov) * 8.0 * delta;
+            this.camera.fov = this.currentFov;
+            this.camera.updateProjectionMatrix();
+        }
+
         this.velocity.x -= intentX * currentSpeed * delta;
         this.velocity.z -= intentZ * currentSpeed * delta;
         this._euler.set(0, this.camera.rotation.y, 0, 'YXZ');

@@ -1,4 +1,4 @@
-// sw.js - Thermodynamic Cache
+// sw.js
 
 const CACHE_NAME = '029';
 const ASSETS = [
@@ -7,6 +7,8 @@ const ASSETS = [
     './main.js',
     './Environment.js',
     './PlayerController.js',
+    './AcousticEngine.js',
+    './ProceduralTextureFactory.js',
     './RenderEngine.js',
     './three.min.js',
     './manifest.json'
