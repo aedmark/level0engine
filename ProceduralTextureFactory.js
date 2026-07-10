@@ -66,6 +66,7 @@ export default class ProceduralTextureFactory {
         carpetCanvas.width = 512;
         carpetCanvas.height = 512;
         const carpetCtx = carpetCanvas.getContext('2d');
+        // SLASH: CARPET RESTORATION (Restoring aesthetic density)
         const noiseCanvas = document.createElement('canvas');
         noiseCanvas.width = 256;
         noiseCanvas.height = 256;
@@ -210,27 +211,20 @@ export default class ProceduralTextureFactory {
         woodCtx.fillRect(0, 0, 256, 512);
         woodCtx.lineWidth = 1.5;
 
+        // SLASH: PATH COLLAPSE (Unified Highlight & Shadow Pass)
         woodCtx.beginPath();
-        for (let i = 0; i < 400; i++) {
+        for (let i = 0; i < 250; i++) {
             let x = Math.random() * 256;
             let y = Math.random() * 512;
             let length = Math.random() * 100 + 20;
             woodCtx.moveTo(x, y);
             woodCtx.bezierCurveTo(x + (Math.random() * 10 - 5), y + length / 2, x + (Math.random() * 10 - 5), y + length / 2, x + (Math.random() * 4 - 2), y + length);
         }
-        woodCtx.strokeStyle = 'rgba(0,0,0,0.08)';
+        woodCtx.shadowColor = 'rgba(255,255,255,0.03)';
+        woodCtx.shadowOffsetY = 2;
+        woodCtx.strokeStyle = 'rgba(0,0,0,0.12)';
         woodCtx.stroke();
-
-        woodCtx.beginPath();
-        for (let i = 0; i < 400; i++) {
-            let x = Math.random() * 256;
-            let y = Math.random() * 512;
-            let length = Math.random() * 100 + 20;
-            woodCtx.moveTo(x, y);
-            woodCtx.bezierCurveTo(x + (Math.random() * 10 - 5), y + length / 2, x + (Math.random() * 10 - 5), y + length / 2, x + (Math.random() * 4 - 2), y + length);
-        }
-        woodCtx.strokeStyle = 'rgba(255,255,255,0.02)';
-        woodCtx.stroke();
+        woodCtx.shadowColor = 'transparent'; // Purge state
         const woodTexture = new THREE.CanvasTexture(woodCanvas);
         const woodMat = new THREE.MeshStandardMaterial({map: woodTexture, roughness: 0.9, bumpMap: woodTexture, bumpScale: 0.015});
         const doorCanvas = document.createElement('canvas');
@@ -529,8 +523,19 @@ export default class ProceduralTextureFactory {
         });
         const tagGeo = new THREE.PlaneGeometry(0.5, 0.5);
 
+        // SLASH: THE OBSIDIAN VOID (Entity Skin Mechanic)
+        const voidTexture = new THREE.CanvasTexture(masterNoise);
+        voidTexture.wrapS = voidTexture.wrapT = THREE.RepeatWrapping;
+        const voidMat = new THREE.MeshStandardMaterial({
+            color: 0x020202,
+            roughness: 0.15,
+            metalness: 0.8,
+            bumpMap: voidTexture,
+            bumpScale: 0.08
+        });
+
         const assets = {
-            tagMat, tagGeo,
+            voidMat, tagMat, tagGeo,
             carpetTexture, ceilingTexture, headerMat, wallTexture, moldMat, moldGeo,
             ceilingStainMat, ceilingStainGeo, structMat, woodMat, doorMat, ventMat,
             fabricMat, mossMat, tileMat, clinicMat, waterMat, serverMat, baseLightMat,

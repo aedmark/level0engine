@@ -169,7 +169,8 @@ export default class PlayerController {
     onKeyDown(event) {
         if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
         const key = event.code;
-        if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyQ', 'KeyF'].includes(key)) {
+        // SLASH: Added KeyE to the prevented defaults array
+        if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyQ', 'KeyF', 'KeyE'].includes(key)) {
             event.preventDefault();
         }
         if (event.key === 'Shift') this.isRunning = true;
@@ -183,6 +184,12 @@ export default class PlayerController {
         }
         if (event.code === 'KeyT') {
             document.dispatchEvent(new Event('somatic-tag'));
+        }
+        // SLASH: The Universal Interaction Dispatch
+        if (event.code === 'KeyE') {
+            document.dispatchEvent(new CustomEvent('somatic-interact', {
+                detail: { position: this.camera.position, direction: this.camera.getWorldDirection(new THREE.Vector3()) }
+            }));
         }
         switch (key) {
             case 'ArrowUp':
@@ -278,16 +285,23 @@ export default class PlayerController {
             this.camera.near = targetNear;
             this.camera.updateProjectionMatrix();
         }
-        let currentSpeed = (this.isSqueezing ? 20.0 : (this.isCrouching ? 30.0 : (this.isRunning ? 125.0 : 60.0))) * this.speedMultiplier;
+        // SLASH: ADRENALINE ECONOMY & STAMINA FIX
+        const adrenalineMultiplier = this.isChased ? 1.15 : 1.0;
+        let currentSpeed = (this.isSqueezing ? 20.0 : (this.isCrouching ? 30.0 : (this.isRunning ? 125.0 : 60.0))) * this.speedMultiplier * adrenalineMultiplier;
+
         const isMoving = this.direction.lengthSq() > 0 || this.touchMove.active;
-        if (this.isRunning && this.isChased && isMoving && !this.isSqueezing) {
-            this.stamina = Math.max(0, this.stamina - 12.5 * delta);
+        if (this.isRunning && isMoving && !this.isSqueezing) {
+            // SLASH: Casual exploration is efficient; Panic is a metabolic nightmare
+            const burnRate = this.isChased ? 25.0 : 4.0;
+            this.stamina = Math.max(0, this.stamina - burnRate * delta);
             if (this.stamina <= 0.0) {
                 this.isRunning = false;
                 currentSpeed = 60.0 * this.speedMultiplier;
             }
         } else {
-            this.stamina = Math.min(this.maxStamina, this.stamina + 10.0 * delta);
+            // Panic cuts recovery rate in half (heavy breathing)
+            const recoveryRate = this.isChased ? 4.0 : 10.0;
+            this.stamina = Math.min(this.maxStamina, this.stamina + recoveryRate * delta);
         }
         const currentActualSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
 
@@ -375,6 +389,20 @@ export default class PlayerController {
                 if ((moveZ > 0 && pz < cz) || (moveZ < 0 && pz > cz)) hitZ = true;
             }
         }
+        // SLASH: SOMATIC COLLISION HAPTICS
+        if (hitX || hitZ) {
+            const impact = (Math.abs(this.velocity.x) + Math.abs(this.velocity.z)) * delta;
+            if (impact > 0.05 && this.enableHeadBob) {
+                // Flinch the camera and trigger an acoustic thump
+                this.camera.rotation.z += (Math.random() - 0.5) * impact * 0.5;
+                this.camera.rotation.x -= impact * 0.2;
+                document.dispatchEvent(new CustomEvent('somatic-step', { detail: { intensity: impact * 2.0 } }));
+            }
+            // Bleed momentum on impact to prevent sliding like soap
+            if (hitX) this.velocity.x *= 0.5;
+            if (hitZ) this.velocity.z *= 0.5;
+        }
+
         if (!hitX) this.camera.position.x += moveX;
         if (!hitZ) this.camera.position.z += moveZ;
 

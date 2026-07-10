@@ -12,6 +12,13 @@ class SpatialHashGrid {
         this.queryCache = [];
     }
 
+    clear() {
+        this.cells.clear();
+        this.chunkMap.clear();
+        this.queryCache.length = 0;
+        this.queryId = 0;
+    }
+
     insert(box) {
         const startX = Math.floor(box.min.x / this.cellSize);
         const startZ = Math.floor(box.min.z / this.cellSize);
@@ -57,7 +64,7 @@ class SpatialHashGrid {
     }
 
     getNearby(x, z, radius) {
-        this.queryCache.length = 0;
+        let count = 0;
         this.queryId++;
         const startX = Math.floor((x - radius) / this.cellSize);
         const startZ = Math.floor((z - radius) / this.cellSize);
@@ -71,12 +78,14 @@ class SpatialHashGrid {
                     for (const box of cell) {
                         if (box._queryId !== this.queryId) {
                             box._queryId = this.queryId;
-                            this.queryCache.push(box);
+                            this.queryCache[count++] = box;
                         }
                     }
                 }
             }
         }
+        // Truncate in-place. Destroys stale references without reallocating arrays.
+        this.queryCache.length = count;
         return this.queryCache;
     }
 }
@@ -153,6 +162,8 @@ export default class Environment {
                 this.fixtureData = this.fixtureData.filter(f => f.chunkHash !== hash);
                 this.spatialGrid.removeByChunk(hash);
                 this.interactiveDoors = this.interactiveDoors.filter(d => d.userData.chunkHash !== hash);
+                // SLASH: Flush the interactables array to prevent terminal accumulation
+                if (this.interactables) this.interactables = this.interactables.filter(i => i.userData.chunkHash !== hash);
             }
         }
     }
@@ -432,6 +443,60 @@ export default class Environment {
                 this.tagIndex = (this.tagIndex + 1) % this.tagPool.length;
             }
         });
+
+        // SLASH: UNIVERSAL INTERACTION LISTENER & SURGE MECHANIC
+        document.addEventListener('somatic-interact', (e) => {
+            if (!this.interactables) return;
+            this.tagRaycaster.set(e.detail.position, e.detail.direction);
+            const intersects = this.tagRaycaster.intersectObjects(this.interactables, false);
+
+            if (intersects.length > 0 && intersects[0].distance < 2.5) {
+                const hit = intersects[0].object;
+                if (hit.userData.type === 'breaker' && hit.userData.active) {
+                    hit.userData.active = false;
+                    hit.material = this.rustMat; // Visual feedback that it's blown
+
+                    // The Acoustic Surge
+                    document.dispatchEvent(new CustomEvent('somatic-door', { detail: { distSq: 1.0, intensity: 2.0 } }));
+
+                    // The Illumination Cascade
+                    this.fixtureData.forEach(fixture => {
+                        if (fixture.position.distanceToSquared(hit.position) < 2500.0) {
+                            fixture.baseIntensity = 2.5;
+                            fixture.targetIntensity = 2.5;
+                            fixture.currentIntensity = 2.5;
+
+                            // Staggered Bulb Popping
+                            setTimeout(() => {
+                                fixture.isDead = true;
+                                fixture.baseIntensity = 0.0;
+                                fixture.targetIntensity = 0.0;
+                                fixture.currentIntensity = 0.0;
+                                // We manipulate the existing material to avoid breaking the InstancedMesh linkage
+                                if (fixture.material && fixture.material.color) {
+                                    fixture.originalColor = fixture.material.color.getHex();
+                                    fixture.originalEmissive = fixture.material.emissive.getHex();
+                                    fixture.material.color.setHex(0x333333);
+                                    fixture.material.emissive.setHex(0x000000);
+                                    fixture.material.emissiveIntensity = 0.0;
+                                }
+                            }, 200 + Math.random() * 600);
+
+                            // SLASH: The System Reboot Cascade
+                            setTimeout(() => {
+                                fixture.isDead = false;
+                                fixture.isFaulty = true; // Permanently damaged but functional
+                                fixture.baseIntensity = 0.5;
+                                if (fixture.material && fixture.originalColor) {
+                                    fixture.material.color.setHex(fixture.originalColor);
+                                    fixture.material.emissive.setHex(fixture.originalEmissive);
+                                }
+                            }, 25000 + Math.random() * 10000); // Reboots after 25-35 seconds
+                        }
+                    });
+                }
+            }
+        });
     }
 
     generate(isWarp = false) {
@@ -460,7 +525,8 @@ export default class Environment {
         this.activeChunks.clear();
         this.walls = [];
         this.fixtureData = [];
-        this.spatialGrid.cells.clear();
+        this.interactables = []; // SLASH: Universal interaction array
+        this.spatialGrid.clear();
         this.currentChunkCoords = {x: null, z: null};
 
         if (this.tagPool) {
@@ -529,6 +595,8 @@ export default class Environment {
             this.wallVentMat = this.ventMat.clone();
             this.wallVentMat.map = this.ventMat.map.clone();
             this.wallVentMat.map.repeat.set(2, 0.5);
+            // SLASH: Breaker Box Geometry Fixed
+            this.breakerGeo = new THREE.BoxGeometry(0.6, 0.8, 0.25);
             this.geoCache = new Map();
             this.sharedAssets = new Set();
             Object.values(this).forEach(v => {
@@ -1427,6 +1495,22 @@ export default class Environment {
                                 stagingMeshes.push(glow);
                             }
                         }
+                    } else if (!hasTallObstacle && random() > 0.95) {
+                        // SLASH: Spawn The Surge Breaker Pillar
+                        const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.8, 3.0, 0.8), this.structMat);
+                        pillar.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                        chunkGroup.add(pillar);
+
+                        const breaker = new THREE.Mesh(this.breakerGeo, this.hazardMat);
+                        // Shifted Z to 0.525 to completely clear the pillar's front face (0.4)
+                        breaker.position.set(x * this.cellSize, 1.5, z * this.cellSize + 0.525);
+                        breaker.userData = { type: 'breaker', chunkHash: hash, active: true };
+                        chunkGroup.add(breaker);
+                        this.interactables.push(breaker);
+
+                        const pBox = new THREE.Box3().setFromObject(pillar);
+                        pBox.chunkHash = hash;
+                        this.spatialGrid.insert(pBox);
                     }
                 }
             }
@@ -1525,7 +1609,20 @@ export default class Environment {
             this.player.isChased = false;
             return {consumed: true};
         }
-        if (distToPlayerSq < 1600.0) {
+
+        // SLASH: DYNAMIC PERCEPTION LOOP
+        let detectionRadius = 25.0; // Base radius (625 sq)
+
+        if (this.player.isCrouching) detectionRadius -= 10.0;
+        if (this.player.isRunning) detectionRadius += 15.0;
+        if (this.player.flashlightActive) detectionRadius += 20.0;
+
+        // Heavy breathing penalizes stealth
+        detectionRadius += (this.player.exhaustion * 10.0);
+
+        const perceptionThresholdSq = detectionRadius * detectionRadius;
+
+        if (distToPlayerSq < perceptionThresholdSq) {
             if (this.entityBacktrackTimer > 0) {
                 this.entityBacktrackTimer -= delta;
                 if (this.entityBreadcrumbs.length > 0) {
@@ -1552,7 +1649,10 @@ export default class Environment {
         const dir = this._entDir.subVectors(this.entityTarget, this.entityGroup.position);
         dir.y = 0;
         const distToTarget = dir.length();
-        let speed = distToPlayerSq < 225.0 ? 4.2 : 2.0;
+
+        // SLASH: EXHAUSTION-COUPLED PACING
+        const baseSpeed = distToPlayerSq < 225.0 ? 4.2 : 2.0;
+        let speed = baseSpeed + (this.player.exhaustion * 1.5);
         let isObserved = false;
         if (this.player.flashlightActive && distToPlayerSq < 625.0) {
             const toEntity = this._entToPlayer.subVectors(this.entityGroup.position, playerPos).normalize();
@@ -1635,6 +1735,7 @@ export default class Environment {
 
     updateLights(time) {
         let ambientLightLevel = 0;
+        let darknessPressure = 0; // SLASH: Tracking local blackout density
         const cameraPos = this.camera.position;
         if (!this.audioRaycaster) {
             this.audioRaycaster = new THREE.Raycaster();
@@ -1674,23 +1775,35 @@ export default class Environment {
                 }
                 light.position.copy(fixture.position);
                 const dist = Math.sqrt(fixture.distSq);
-                ambientLightLevel += (activeRadius - dist) / activeRadius;
+
+                // SLASH: Dead bulbs generate darkness pressure, living bulbs track normal density
+                if (!fixture.isDead) {
+                    ambientLightLevel += (activeRadius - dist) / activeRadius;
+                } else {
+                    darknessPressure += (activeRadius - dist) / activeRadius;
+                }
+
                 if (dist < minLightDist) {
                     minLightDist = dist;
                     nearestFixture = fixture;
                 }
                 const fadeEnvelope = Math.max(0, Math.min(1, (activeRadius - dist) / 8.0));
                 const intensityScalar = i < 15 ? 0.65 : 0.35;
-                if (fixture.isFaulty) {
+
+                // SLASH: Absolute terminal state intercept
+                if (fixture.isDead) {
+                    light.intensity = 0.0;
+                    if (fixture.material) fixture.material.emissiveIntensity = 0.0;
+                } else if (fixture.isFaulty) {
                     if (Math.random() < 0.02) {
                         fixture.targetIntensity = Math.random() < 0.4 ? 0.05 : fixture.baseIntensity + (Math.random() * 0.4);
                     }
                     fixture.currentIntensity += (fixture.targetIntensity - fixture.currentIntensity) * 0.4;
                     light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
-                    fixture.material.emissiveIntensity = Math.max(0.05, fixture.currentIntensity * 0.6);
+                    if (fixture.material) fixture.material.emissiveIntensity = Math.max(0.05, fixture.currentIntensity * 0.6);
                 } else {
                     light.intensity = (fixture.baseIntensity + (Math.sin(time * 120 + fixture.flickerOffset) * 0.02)) * fadeEnvelope * intensityScalar;
-                    fixture.material.emissiveIntensity = 0.4;
+                    if (fixture.material) fixture.material.emissiveIntensity = 0.4;
                 }
             } else {
                 light.intensity = 0;
@@ -1790,6 +1903,31 @@ export default class Environment {
             this.flashlight.intensity += (targetIntensity - this.flashlight.intensity) * 0.4;
         }
         const playerSpeed = Math.sqrt(this.player.velocity.x ** 2 + this.player.velocity.z ** 2);
+
+        // SLASH: DYNAMIC AMBIENT COUPLING & THE VOID
+        if (this.engine.ambientLight) {
+            const baseAmbient = 0.85;
+            const minAmbient = 0.005;  // Deeper pitch black floor
+            const targetAmbient = Math.max(minAmbient, baseAmbient - (darknessPressure * 0.35));
+            this.engine.ambientLight.intensity += (targetAmbient - this.engine.ambientLight.intensity) * 0.05;
+
+            // 1. Fade out the volumetric fake lights globally
+            if (this.glowMat) {
+                const targetGlowOpacity = Math.max(0.0, 1.0 - (darknessPressure * 0.5));
+                this.glowMat.opacity += (targetGlowOpacity - this.glowMat.opacity) * 0.1;
+            }
+
+            // 2. Plunge the atmospheric fog and background buffer into darkness
+            if (!this._baseEnvColor) this._baseEnvColor = new THREE.Color(0xa89f68);
+            if (!this._blackColor) this._blackColor = new THREE.Color(0x020202);
+
+            const darknessRatio = Math.min(1.0, darknessPressure * 0.25);
+            const targetColor = this._baseEnvColor.clone().lerp(this._blackColor, darknessRatio);
+
+            this.scene.background.lerp(targetColor, 0.05);
+            this.scene.fog.color.lerp(targetColor, 0.05);
+        }
+
         return {
             minLightDist,
             isOccluded,
