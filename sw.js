@@ -1,6 +1,6 @@
 // sw.js
 
-const CACHE_NAME = '032';
+const CACHE_NAME = '033';
 const ASSETS = [
     './',
     './index.html',
