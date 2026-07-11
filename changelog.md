@@ -1,5 +1,20 @@
 # Level 0 Engine Changelog
 
+## [v0.3.3] - 2026-07-11
+
+### Added
+- **[MECHANICS] The Lethargy Curve:** Inverted the exhaustion frequency math. High stamina depletion now mathematically stretches the head-bob wavelength and increases structural amplitude, accurately simulating a heavy, dragging footprint instead of a caffeinated jitter.
+- **[MECHANICS] Velocity Decay Gradient:** Coupled locomotion multipliers directly to the exhaustion stock. Sprinting now seamlessly decays into a lethargic stumble as stamina drains to absolute zero, eradicating rigid, binary speed states.
+
+### Changed
+- **[TEXTURES] True-Aspect Procedural Vents:** Vaporized the distorted `256x256` stretched UV map. Rewrote the procedural canvas generation to a native `512x256` resolution, creating a clean, single-panel array with 14 thick, structurally grounded slats to eliminate hardware moiré.
+
+### Fixed
+- **[PHYSICS] Decoupled Kinematic Vectors:** Isolated the collision impact scalar by axis. Grazing a wall parallel to the movement vector now allows a seamless, high-speed corner slide without violently absorbing perpendicular momentum and pitching the camera.
+- **[GEOMETRY] Z-Fighting Isolation:** Physically isolated the vent louver geometry by injecting a precise `0.06` unit somatic offset, pulling the procedural mesh completely clear of the host wall's dynamic bump-map depth.
+- **[GEOMETRY] Geodesic Duct Sealing:** Mapped the missing lateral spatial volumes for the procedural HVAC tunnel variant, mathematically sealing the void and preventing the infinite skybox from bleeding through the architecture.
+- **[GEOMETRY] Interactive Grate Clearance:** Shrunk the interactive floor grate width from `1.2` to `1.16` to provide mathematical mechanical clearance during hinge rotation, preventing the mesh corners from clipping against the structural void.
+
 ## [v0.3.2] - 2026-07-10
 
 ### Added

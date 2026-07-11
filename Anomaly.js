@@ -126,11 +126,30 @@ export default class Anomaly {
             this.player.isChased = distToPlayerSq < 225.0;
         } else {
             this.player.isChased = false;
-            if (Math.random() < 0.02) {
-                this.target.x += (Math.random() - 0.5) * 15.0;
-                this.target.z += (Math.random() - 0.5) * 15.0;
+            let distracted = false;
+
+            if (this.env && this.env.tagPool) {
+                for (let i = 0; i < this.env.tagPool.length; i++) {
+                    const tag = this.env.tagPool[i];
+                    if (tag.visible && tag.position.distanceToSquared(this.group.position) < 400.0) {
+                        this.target.lerp(tag.position, 0.015);
+                        distracted = true;
+                        if (tag.position.distanceToSquared(this.group.position) < 4.0 && Math.random() < 0.05) {
+                            tag.visible = false;
+                            document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 25.0, intensity: 0.8}}));
+                        }
+                        break;
+                    }
+                }
             }
-            this.target.lerp(playerPos, 0.005);
+
+            if (!distracted) {
+                if (Math.random() < 0.02) {
+                    this.target.x += (Math.random() - 0.5) * 15.0;
+                    this.target.z += (Math.random() - 0.5) * 15.0;
+                }
+                this.target.lerp(playerPos, 0.005);
+            }
         }
         const baseSpeed = distToPlayerSq < 225.0 ? 3.8 : 1.8;
         let speed = baseSpeed + (Math.min(this.player.exhaustion, 0.6) * 1.2);
@@ -141,8 +160,12 @@ export default class Anomaly {
             if (lookDir.dot(toEntity) > 0.85) {
                 isObserved = true;
                 speed = 0.0;
-                this.player.flashlightBattery = Math.max(0, this.player.flashlightBattery - 25.0 * delta);
+                this.player.flashlightBattery = Math.max(0, this.player.flashlightBattery - 35.0 * delta);
                 this.core.position.set((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4);
+
+                if (distToPlayerSq < 144.0 && Math.random() < 0.08) {
+                    document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 1.0, intensity: 1.8}}));
+                }
             }
         }
         if (!isObserved) {

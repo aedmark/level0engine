@@ -236,28 +236,62 @@ export default class ProceduralTextureFactory {
         const doorTexture = new THREE.CanvasTexture(doorCanvas);
         const doorMat = new THREE.MeshStandardMaterial({map: doorTexture, roughness: 0.9});
         const ventCanvas = document.createElement('canvas');
-        ventCanvas.width = 256;
+        ventCanvas.width = 512;
         ventCanvas.height = 256;
         const ventCtx = ventCanvas.getContext('2d');
-        ventCtx.fillStyle = '#1a1a1a';
-        ventCtx.fillRect(0, 0, 256, 256);
-        ventCtx.fillStyle = '#050505';
-        ventCtx.fillRect(16, 16, 224, 224);
-        ventCtx.fillStyle = '#2a2a2a';
-        for (let i = 24; i < 240; i += 24) {
-            ventCtx.fillRect(20, i, 216, 12);
-            ventCtx.fillStyle = '#4a4a4a';
-            ventCtx.fillRect(20, i, 216, 2);
-            ventCtx.fillStyle = '#2a2a2a';
+        // VENT FRAME AND BASE COLOR (GRAY)
+        ventCtx.fillStyle = '#808080';
+        ventCtx.fillRect(0, 0, 512, 256);
+
+        // Frame edge highlight
+        ventCtx.fillStyle = '#9a9a9a';
+        ventCtx.fillRect(2, 2, 508, 252);
+        ventCtx.fillStyle = '#808080';
+        ventCtx.fillRect(6, 6, 500, 244);
+
+        // SINGLE LOUVER SLOT (Procedural Inset)
+        const slotColor = '#151515';
+        const slotWidth = 480;
+        const slotX = 16;
+        const slotY = 16;
+        const slotHeight = 224;
+
+        ventCtx.fillStyle = slotColor;
+        ventCtx.fillRect(slotX, slotY, slotWidth, slotHeight);
+
+        // THICKER SLATS (Procedural Slat Construction)
+        const slatCount = 14;
+        const slatSpacing = Math.floor(slotHeight / slatCount);
+        const slatHeight = 8;
+
+        for (let i = 0; i < slatCount; i++) {
+            let yPos = slotY + (i * slatSpacing) + 2;
+            ventCtx.fillStyle = '#a0a0a0';
+            ventCtx.fillRect(slotX, yPos, slotWidth, slatHeight);
+
+            // Highlight and shadow
+            ventCtx.fillStyle = '#d0d0d0';
+            ventCtx.fillRect(slotX, yPos, slotWidth, 2);
+            ventCtx.fillStyle = '#505050';
+            ventCtx.fillRect(slotX, yPos + slatHeight - 2, slotWidth, 2);
         }
+
+        // MOUNTING SCREWS
+        const screwColor = '#c0c0c0';
+        const screwSize = 4;
+        ventCtx.fillStyle = screwColor;
+        ventCtx.beginPath(); ventCtx.arc(8, 128, screwSize, 0, Math.PI * 2); ventCtx.fill();
+        ventCtx.beginPath(); ventCtx.arc(504, 128, screwSize, 0, Math.PI * 2); ventCtx.fill();
+
         ventCtx.globalAlpha = 0.7;
-        ventCtx.drawImage(masterNoise, 0, 0, 256, 256);
+        ventCtx.drawImage(masterNoise, 0, 0, 512, 256);
         ventCtx.globalAlpha = 1.0;
+
         const ventTexture = new THREE.CanvasTexture(ventCanvas);
         ventTexture.wrapS = THREE.RepeatWrapping;
         ventTexture.wrapT = THREE.RepeatWrapping;
-        ventTexture.repeat.set(16, 16);
-        const ventMat = new THREE.MeshStandardMaterial({map: ventTexture, roughness: 0.7, metalness: 0.4, bumpMap: ventTexture, bumpScale: 0.02});
+        ventTexture.repeat.set(1, 1);
+        const ventMat = new THREE.MeshStandardMaterial({map: ventTexture, roughness: 0.7, metalness: 0.15, bumpMap: ventTexture, bumpScale: 0.02});
         const lightCanvas = document.createElement('canvas');
         lightCanvas.width = 128;
         lightCanvas.height = 256;

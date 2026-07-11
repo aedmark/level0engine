@@ -30,6 +30,7 @@ export default class PlayerController {
         this.maxStamina = 100.0;
         this.stamina = 100.0;
         this.exhaustion = 0.0;
+        this.isWinded = false;
         this.isChased = false;
         this.isPeeking = false;
         this.targetLean = 0.0;
@@ -343,17 +344,26 @@ export default class PlayerController {
             this.camera.updateProjectionMatrix();
         }
         const adrenalineMultiplier = this.isChased ? 1.15 : 1.0;
-        let currentSpeed = (this.isSqueezing ? 20.0 : (this.isCrawling ? 15.0 : (this.isCrouching ? 30.0 : (this.isRunning ? 125.0 : 60.0)))) * this.speedMultiplier * adrenalineMultiplier;
+        const dynamicWalkSpeed = 60.0 - (this.exhaustion * 20.0);
+        const dynamicRunSpeed = dynamicWalkSpeed + (65.0 * (1.0 - this.exhaustion));
+        let currentSpeed = (this.isSqueezing ? 20.0 : (this.isCrawling ? 15.0 : (this.isCrouching ? 30.0 : (this.isRunning ? dynamicRunSpeed : dynamicWalkSpeed)))) * this.speedMultiplier * adrenalineMultiplier;
         const isMoving = this.direction.lengthSq() > 0 || this.touchMove.active;
-        if (this.isRunning && isMoving && !this.isSqueezing) {
+        if (this.isWinded && this.stamina > 50.0) {
+            this.isWinded = false;
+        }
+
+        if (this.isRunning && isMoving && !this.isSqueezing && !this.isWinded) {
             const burnRate = this.isChased ? 10.0 : 4.0;
             this.stamina = Math.max(0, this.stamina - burnRate * delta);
             if (this.stamina <= 0.0) {
                 this.isRunning = false;
-                currentSpeed = 60.0 * this.speedMultiplier;
+                this.isWinded = true;
+                currentSpeed = dynamicWalkSpeed * this.speedMultiplier;
+                document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.5}}));
             }
         } else {
-            const recoveryRate = this.isChased ? 6.0 : 10.0;
+            if (this.isRunning && this.isWinded) this.isRunning = false;
+            const recoveryRate = this.isChased ? 6.0 : (this.isWinded ? 3.0 : 10.0);
             this.stamina = Math.max(0.0, Math.min(this.maxStamina, this.stamina + recoveryRate * delta));
         }
         const currentActualSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
@@ -481,7 +491,10 @@ export default class PlayerController {
         }
         const isColliding = hitX || hitZ;
         if (isColliding) {
-            const impact = (Math.abs(this.velocity.x) + Math.abs(this.velocity.z)) * delta;
+            const impactX = hitX ? Math.abs(this.velocity.x) : 0;
+            const impactZ = hitZ ? Math.abs(this.velocity.z) : 0;
+            const impact = (impactX + impactZ) * delta;
+
             if (impact > 0.05 && this.enableHeadBob && !this.wasColliding) {
                 this.camera.rotation.z += (Math.random() - 0.5) * impact * 0.5;
                 this.camera.rotation.x -= impact * 0.2;
@@ -504,9 +517,9 @@ export default class PlayerController {
         const postIntentSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
 
         const baseBobFreq = this.isRunning ? 3.5 : 2.0;
-        const breathFreq = baseBobFreq + (this.exhaustion * 1.2);
+        const breathFreq = Math.max(1.0, baseBobFreq - (this.exhaustion * 0.8));
 
-        const timerDelta = (postIntentSpeed + (this.exhaustion * 0.25)) * delta;
+        const timerDelta = (postIntentSpeed * (1.0 - (this.exhaustion * 0.4)) + (this.exhaustion * 0.15)) * delta;
         this.headBobTimer = (this.headBobTimer || 0) + timerDelta;
 
         let bobOffset = 0;
@@ -514,11 +527,12 @@ export default class PlayerController {
 
         if (this.enableHeadBob) {
             if (postIntentSpeed > 0.5) {
-                const bobAmp = this.isRunning ? 0.08 : 0.05;
+                const bobAmp = this.isRunning ? 0.08 : (0.05 + (this.exhaustion * 0.04));
                 const prevBob = Math.sin((this.headBobTimer - timerDelta) * breathFreq) * bobAmp;
                 bobOffset = Math.sin(this.headBobTimer * breathFreq) * bobAmp;
                 if (prevBob > 0 && bobOffset <= 0 && !this.isCrouching) {
-                    document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: this.isRunning ? 1.0 : 0.3}}));
+                    const stepWeight = this.isRunning ? 1.0 : (0.3 + (this.exhaustion * 0.6));
+                    document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: stepWeight}}));
                 }
                 swayRoll = Math.cos(this.headBobTimer * (breathFreq * 0.5)) * (bobAmp * 0.05);
             } else if (this.exhaustion > 0.1) {

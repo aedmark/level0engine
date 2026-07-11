@@ -576,7 +576,7 @@ export default class Environment {
             this.tableBaseGeo = new THREE.BoxGeometry(0.5, 0.8, 0.5);
             this.wallVentMat = this.ventMat.clone();
             this.wallVentMat.map = this.ventMat.map.clone();
-            this.wallVentMat.map.repeat.set(2, 0.5);
+            this.wallVentMat.map.repeat.set(1, 1);
             this.breakerBaseGeo = new THREE.BoxGeometry(0.6, 0.8, 0.20);
             this.breakerDoorGeo = new THREE.BoxGeometry(0.6, 0.8, 0.05);
             this.breakerDoorGeo.translate(0.3, 0, 0);
@@ -596,6 +596,11 @@ export default class Environment {
             chunkGroup,
             stagingMeshes,
             buildWall: (w, d, mat, h = 3.0, yOffset = 0) => {
+                w = Math.round(w * 20) / 20;
+                d = Math.round(d * 20) / 20;
+                h = Math.round(h * 20) / 20;
+                yOffset = Math.round(yOffset * 20) / 20;
+
                 const key = `${w}_${h}_${d}_${yOffset}`;
                 let geo = this.geoCache.get(key);
                 if (!geo) {
@@ -666,7 +671,7 @@ export default class Environment {
                         }
                     }
                 }
-                const grateGeo = new THREE.BoxGeometry(blocksX ? 0.05 : 1.2, 0.65, blocksX ? 1.2 : 0.05);
+                const grateGeo = new THREE.BoxGeometry(blocksX ? 0.05 : 1.16, 0.65, blocksX ? 1.16 : 0.05);
                 const grate = new THREE.Mesh(grateGeo, this.wallVentMat);
                 grate.position.set(px, py, pz);
                 grate.userData = {type: 'grate', active: true, chunkHash: hash, blocksX: blocksX};
@@ -967,6 +972,19 @@ export default class Environment {
                         liningCeil.position.set(x * this.cellSize, holeH - (liningH / 2), z * this.cellSize);
                         addGeometry(liningCeil);
 
+                        const liningSideW = tunnelOnZ ? liningH : linW;
+                        const liningSideD = tunnelOnZ ? linD : liningH;
+                        const sideH = holeH - (liningH * 2);
+                        const sideOffsetLining = (holeW / 2) - (liningH / 2);
+
+                        const liningLeft = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
+                        liningLeft.position.set(x * this.cellSize + (tunnelOnZ ? -sideOffsetLining : 0), holeH / 2, z * this.cellSize + (tunnelOnZ ? 0 : -sideOffsetLining));
+                        addGeometry(liningLeft);
+
+                        const liningRight = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
+                        liningRight.position.set(x * this.cellSize + (tunnelOnZ ? sideOffsetLining : 0), holeH / 2, z * this.cellSize + (tunnelOnZ ? 0 : sideOffsetLining));
+                        addGeometry(liningRight);
+
                         const blockBox = new THREE.Box3(
                             new THREE.Vector3(x * this.cellSize - (tunnelOnZ ? holeW/2 : this.cellSize/2), 0, z * this.cellSize - (tunnelOnZ ? this.cellSize/2 : holeW/2)),
                             new THREE.Vector3(x * this.cellSize + (tunnelOnZ ? holeW/2 : this.cellSize/2), 3.0, z * this.cellSize + (tunnelOnZ ? this.cellSize/2 : holeW/2))
@@ -990,17 +1008,17 @@ export default class Environment {
                         addGeometry(wall);
                         const ventGeo = new THREE.BoxGeometry(1.2, 0.6, 0.05);
                         const vent = new THREE.Mesh(ventGeo, this.wallVentMat);
-                        const offset = (this.cellSize / 2) - 0.025;
+                        const finalOffset = (this.cellSize / 2) + 0.06;
                         if (face === 0) {
-                            vent.position.set(x * this.cellSize, 2.6, z * this.cellSize + offset);
+                            vent.position.set(x * this.cellSize, 2.6, z * this.cellSize + finalOffset);
                         } else if (face === 1) {
-                            vent.position.set(x * this.cellSize, 2.6, z * this.cellSize - offset);
+                            vent.position.set(x * this.cellSize, 2.6, z * this.cellSize - finalOffset);
                         } else if (face === 2) {
                             vent.rotation.y = Math.PI / 2;
-                            vent.position.set(x * this.cellSize + offset, 2.6, z * this.cellSize);
+                            vent.position.set(x * this.cellSize + finalOffset, 2.6, z * this.cellSize);
                         } else {
                             vent.rotation.y = Math.PI / 2;
-                            vent.position.set(x * this.cellSize - offset, 2.6, z * this.cellSize);
+                            vent.position.set(x * this.cellSize - finalOffset, 2.6, z * this.cellSize);
                         }
                         addGeometry(vent);
                     }
@@ -1054,6 +1072,19 @@ export default class Environment {
                         const liningCeil = buildWall(dirZ ? tunnelW : this.cellSize + 0.05, dirZ ? this.cellSize + 0.05 : tunnelW, this.ventMat, liningH);
                         liningCeil.position.set(x * this.cellSize, tunnelH - (liningH / 2), z * this.cellSize);
                         addGeometry(liningCeil);
+
+                        const liningSideW = dirZ ? liningH : this.cellSize + 0.05;
+                        const liningSideD = dirZ ? this.cellSize + 0.05 : liningH;
+                        const sideH = tunnelH - (liningH * 2);
+                        const sideOffsetLining = (tunnelW / 2) - (liningH / 2);
+
+                        const liningLeft = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
+                        liningLeft.position.set(x * this.cellSize + (dirZ ? -sideOffsetLining : 0), tunnelH / 2, z * this.cellSize + (dirZ ? 0 : -sideOffsetLining));
+                        addGeometry(liningLeft);
+
+                        const liningRight = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
+                        liningRight.position.set(x * this.cellSize + (dirZ ? sideOffsetLining : 0), tunnelH / 2, z * this.cellSize + (dirZ ? 0 : sideOffsetLining));
+                        addGeometry(liningRight);
 
                         const blockBox = new THREE.Box3(
                             new THREE.Vector3(x * this.cellSize - (dirZ ? tunnelW/2 : this.cellSize/2), 0, z * this.cellSize - (dirZ ? this.cellSize/2 : tunnelW/2)),
