@@ -222,7 +222,11 @@ export default class Environment {
         if (this.interactables) {
             this.interactables.forEach(obj => {
                 if (obj.userData.type === 'grate' && !obj.userData.active) {
-                    obj.rotation.x += (-Math.PI / 2 - obj.rotation.x) * 15.0 * delta;
+                    if (obj.userData.blocksX) {
+                        obj.rotation.z += (-Math.PI / 2 - obj.rotation.z) * 15.0 * delta;
+                    } else {
+                        obj.rotation.x += (-Math.PI / 2 - obj.rotation.x) * 15.0 * delta;
+                    }
                     obj.position.y += (0.05 - obj.position.y) * 15.0 * delta;
                     if (obj.userData.box && !obj.userData.box.isEmpty()) {
                         obj.userData.box.makeEmpty();
@@ -665,7 +669,7 @@ export default class Environment {
                 const grateGeo = new THREE.BoxGeometry(blocksX ? 0.05 : 1.2, 0.65, blocksX ? 1.2 : 0.05);
                 const grate = new THREE.Mesh(grateGeo, this.wallVentMat);
                 grate.position.set(px, py, pz);
-                grate.userData = {type: 'grate', active: true, chunkHash: hash};
+                grate.userData = {type: 'grate', active: true, chunkHash: hash, blocksX: blocksX};
                 chunkGroup.add(grate);
                 this.interactables.push(grate);
                 const grateBox = new THREE.Box3().setFromObject(grate);
@@ -1837,35 +1841,39 @@ export default class Environment {
             this.audioDirection = new THREE.Vector3();
         }
         this.localFixtures.length = 0;
-        this.fixtureData.forEach(fixture => {
-            const dx = Math.abs(cameraPos.x - fixture.position.x);
-            const dz = Math.abs(cameraPos.z - fixture.position.z);
-            if (dx > 30 || dz > 30) {
+        for (let i = 0, len = this.fixtureData.length; i < len; i++) {
+            const fixture = this.fixtureData[i];
+            const dx = cameraPos.x - fixture.position.x;
+            const dz = cameraPos.z - fixture.position.z;
+
+            if (dx > 30.0 || dx < -30.0 || dz > 30.0 || dz < -30.0) {
                 fixture.hasShadow = false;
-                return;
+                continue;
             }
+
             const distSq = (dx * dx) + (dz * dz);
-            if (distSq < 900) {
-                const dist = Math.sqrt(distSq);
-                const weight = (30.0 - dist) / 30.0;
+            if (distSq < 900.0) {
+                const weight = 1.0 - (distSq * 0.00111); // 1.0 - (distSq / 900)
                 if (!fixture.isDead) {
                     ambientLightLevel += weight;
                 } else {
                     darknessPressure += weight;
                 }
+
                 fixture.distSq = fixture.hasShadow ? distSq - 40.0 : distSq;
-                if (!fixture.isFake) {
-                    this.localFixtures.push(fixture);
-                }
+                if (!fixture.isFake) this.localFixtures.push(fixture);
             } else {
                 fixture.hasShadow = false;
             }
-        });
+        }
+
         this.localFixtures.sort(this._lightSortCache);
-        this.localFixtures.forEach(fixture => {
+
+        for (let i = 0, len = this.localFixtures.length; i < len; i++) {
+            const fixture = this.localFixtures[i];
             if (fixture.hasShadow) fixture.distSq += 40.0;
             fixture.hasShadow = false;
-        });
+        }
         this.player.darknessPressure = darknessPressure;
         let nearestFixture = null;
         let minLightDist = Infinity;
@@ -1961,6 +1969,9 @@ export default class Environment {
             } else if (sectorRoll <= 0.91) {
                 activeSector = "MAINTENANCE";
                 targetFog = 0.10;
+            } else if (sectorRoll <= 0.99) {
+                activeSector = "CHASM";
+                targetFog = 0.015;
             } else {
                 activeSector = "ATRIUM";
                 targetFog = 0.18;

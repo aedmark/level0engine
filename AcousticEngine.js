@@ -87,6 +87,16 @@ export default class AcousticEngine {
                 whine: 0.006,
                 whineOcc: 0.002,
                 dynamicWhine: false
+            },
+            "CHASM": {
+                noise: 0.25,
+                peace: 0.0,
+                rumble: 30,
+                freq: 40,
+                freqOcc: 40,
+                whine: 0.0,
+                whineOcc: 0.0,
+                dynamicWhine: false
             }
         };
         this.foleyProfiles = {
@@ -242,10 +252,15 @@ export default class AcousticEngine {
         if (this.atriumGain) setParam('atrium', this.atriumGain.gain, mix.noise, 1.0);
         if (this.peaceGain) setParam('peace', this.peaceGain.gain, mix.peace, 2.0);
         if (this.entityGain) setParam('entity', this.entityGain.gain, anomalyPressure > 0.0 ? anomalyPressure * 0.4 : 0.0, 0.2);
-        if (this.subRumble) setParam('rumble', this.subRumble.frequency, mix.rumble + (anomalyPressure * 40.0), 2.0);
+        if (this.subRumble) {
+            const heartbeatFreq = playerExhaustion > 0.3 ? 80.0 + (Math.sin(this.ctx.currentTime * (10.0 + playerExhaustion * 5.0)) * 20.0 * playerExhaustion) : 0.0;
+            setParam('rumble', this.subRumble.frequency, mix.rumble + (anomalyPressure * 40.0) + heartbeatFreq, 1.0);
+        }
         if (this.kineticFilter) {
             const baseFreq = isOccluded ? mix.freqOcc : mix.freq;
-            setParam('exertion', this.exertionGain.gain, playerSpeed * 5.0, 0.2);
+            if (this.exertionLFO) setParam('exertionRate', this.exertionLFO.frequency, 1.27 + (playerExhaustion * 4.0), 1.0);
+            setParam('exertion', this.exertionGain.gain, (playerSpeed * 5.0) + (playerExhaustion * 150.0), 0.2);
+
             const targetFreq = Math.min(Math.max(40, baseFreq + (playerSpeed * (isOccluded ? 2.0 : 8.0)) - (anomalyPressure * 150.0) - (playerExhaustion * 100.0)), 2000);
             const timeConstant = (isOccluded || activeSector === "ATRIUM" || anomalyPressure > 0.0 || playerExhaustion > 0.0) ? 0.2 : 3.0;
             setParam('kinetic', this.kineticFilter.frequency, targetFreq, timeConstant);
@@ -271,6 +286,7 @@ export default class AcousticEngine {
             noise.buffer = this.noiseSrc.buffer;
             osc.connect(this.stepGain);
             noise.connect(this.stepFilter);
+            this.stepGain.gain.cancelScheduledValues(t);
             this.stepGain.gain.setValueAtTime(0, t);
             this.stepGain.gain.linearRampToValueAtTime(profile.gain * intensity * distScalar, t + profile.attack);
             this.stepGain.gain.exponentialRampToValueAtTime(0.001, t + profile.decay);

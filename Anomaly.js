@@ -101,11 +101,13 @@ export default class Anomaly {
             if (this.breadcrumbs.length > 20) this.breadcrumbs.shift();
         }
         let detectionRadius = 25.0;
-        if (this.player.isCrouching) detectionRadius -= 10.0;
-        if (this.player.isRunning) detectionRadius += 15.0;
-        if (this.player.flashlightActive) detectionRadius += 20.0;
-        detectionRadius += (this.player.exhaustion * 10.0);
-        const perceptionThresholdSq = detectionRadius * detectionRadius;
+        let stealthMultiplier = 1.0;
+        if (this.player.isCrouching) stealthMultiplier -= 0.5;
+        if (!this.player.flashlightActive) stealthMultiplier -= 0.3;
+
+        detectionRadius = (detectionRadius * stealthMultiplier) + (this.player.isRunning ? 25.0 : 0.0) + (this.player.exhaustion * 15.0);
+
+        const perceptionThresholdSq = Math.max(9.0, detectionRadius * detectionRadius);
 
         if (this.backtrackTimer > 0) {
             this.backtrackTimer -= delta;

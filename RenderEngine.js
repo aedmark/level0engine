@@ -35,6 +35,7 @@ export default class RenderEngine {
                 exhaustion: {value: 0.0},
                 squeeze: {value: 0.0},
                 anomaly: {value: 0.0},
+                darkness: {value: 0.0},
                 globalSeed: {value: 0.0}
             },
             vertexShader: `
@@ -50,6 +51,7 @@ export default class RenderEngine {
                 uniform float exhaustion;
                 uniform float squeeze;
                 uniform float anomaly;
+                uniform float darkness;
                 uniform float globalSeed;
                 varying vec2 vUv;
                 
@@ -84,11 +86,13 @@ export default class RenderEngine {
                     col += phaseGhost * 0.002;
                     float distSq = dot(centerUv, centerUv);
                     float vignettePulse = pulse * (exhaustion * 0.05); 
-                    float vignetteRadius = 0.25 - (exhaustion * 0.15) - (anomaly * 0.1) + vignettePulse;
+                    float vignetteRadius = 0.25 - (exhaustion * 0.1) - (anomaly * 0.1) - (darkness * 0.15) + vignettePulse;
+                    vignetteRadius = max(0.02, vignetteRadius);
                     col *= smoothstep(0.9, vignetteRadius, distSq + 0.2); 
                     float lateralDist = abs(centerUv.x);
                     col *= mix(1.0, smoothstep(0.45, 0.15, lateralDist), squeeze);
                     col = mix(col, vec3(luminance * 0.6), anomaly * 0.85);
+                    col = mix(col, vec3(luminance * 0.3), darkness * 0.6 * smoothstep(0.0, 0.5, distSq));
                     col = smoothstep(0.0, 1.0, col);
                     gl_FragColor = vec4(col, 1.0);
                 }
@@ -112,7 +116,6 @@ export default class RenderEngine {
             }
         }
 
-        // Force strictly even integers to prevent CSS sub-pixel smearing
         w = Math.floor(w);
         h = Math.floor(h);
         if (w % 2 !== 0) w -= 1;
@@ -152,6 +155,7 @@ export default class RenderEngine {
         this.postMaterial.uniforms.exhaustion.value = this.exhaustion;
         this.postMaterial.uniforms.squeeze.value = this.squeeze || 0.0;
         this.postMaterial.uniforms.anomaly.value = this.anomaly || 0.0;
+        this.postMaterial.uniforms.darkness.value = this.darkness || 0.0;
         this.postMaterial.uniforms.globalSeed.value = Math.random();
         this.renderer.setRenderTarget(null);
         this.renderer.render(this.postScene, this.postCamera);

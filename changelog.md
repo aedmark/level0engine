@@ -1,5 +1,30 @@
 # Level 0 Engine Changelog
 
+## [v0.3.2] - 2026-07-10
+
+### Added
+
+- **[AUDIO] The Somatic Heartbeat:** Wired the player's exhaustion telemetry directly into the acoustic topology. The sub-rumble frequency and kinetic LFO now dynamically spike to simulate a pounding heartbeat when stamina is depleted.
+- **[ENVIRONMENT] The Chasm Biome Acoustics:** Injected a dedicated acoustic profile and telemetry hook for the void. Stepping into the Chasm now physically drops the volumetric fog to reveal the drop, and alters the DSP to simulate deep, hollow emptiness (high noise floor, 30Hz rumble).
+
+### Changed
+
+- **[MECHANICS] True Stealth Multiplication:** Replaced the flat integer stealth modifiers with a compounding `stealthMultiplier`. Crouching in the dark with the flashlight off now geometrically collapses the Anomaly's perception threshold.
+- **[MECHANICS] Psychological Darkness vs Physical Exhaustion:** Decoupled ambient lighting from the metabolic stamina loop. Standing in pitch-black darkness no longer burns aerobic stamina, but instead applies severe claustrophobic pressure to the camera's FOV.
+- **[WEBGL] Peripheral Desaturation:** The post-processing shader now mathematically responds to environmental darkness, shrinking the safe vignette radius and bleeding color from the periphery as paranoia stacks.
+- **[MECHANICS] Flashlight Psychological Mitigation:** The flashlight beam now acts as a psychological anchor. Illuminating the darkness actively neutralizes the claustrophobic FOV constraints and restores systemic equilibrium based on active battery voltage.
+
+### Optimized
+
+- **[ENVIRONMENT] O(1) Photon Culling:** Excoriated the heavy `forEach` iteration and `Math.sqrt()` calls from the active lighting loop. Implemented distance-squared bounding rejection to stabilize the volumetric light pressure without choking the CPU.
+
+### Fixed
+
+- **[WEBGL] The Retinal Inversion Anomaly:** Intercepted the unbounded darkness summation that was mathematically collapsing the projection matrix. Applied an asymptotic curve (`1.0 - Math.exp`) to normalize psychological pressure and injected a hard geometric floor (`max(0.02)`) into the vignette shader.
+- **[GEOMETRY] Directional Grate Hinges:** Stamped spatial orientation metadata (`blocksX`) onto procedural vent covers at birth. Destroyed grates now read their origin axis and apply torque to the correct local hinge, cleanly snapping to the floor instead of balancing on their sides.
+- **[AUDIO] Zero-Crossing Temporal Desync:** Corrected the somatic step trigger math by perfectly isolating the exact elapsed `timerDelta` variable, preventing phase-shifting false positives when exhaustion alters the breath frequency.
+- **[AUDIO] Envelope Collision Tearing:** Instructed the `stepGain` DSP node to explicitly execute `cancelScheduledValues()` before applying new impact envelopes, eliminating popping audio artifacts during rapid, exhausted footsteps.
+
 # [v0.3.1] - 2026-07-10
 
 ### Added

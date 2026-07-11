@@ -345,17 +345,15 @@ export default class PlayerController {
         const adrenalineMultiplier = this.isChased ? 1.15 : 1.0;
         let currentSpeed = (this.isSqueezing ? 20.0 : (this.isCrawling ? 15.0 : (this.isCrouching ? 30.0 : (this.isRunning ? 125.0 : 60.0)))) * this.speedMultiplier * adrenalineMultiplier;
         const isMoving = this.direction.lengthSq() > 0 || this.touchMove.active;
-        const baseDarknessPenalty = (this.darknessPressure || 0.0) * 12.0;
-
         if (this.isRunning && isMoving && !this.isSqueezing) {
-            const burnRate = (this.isChased ? 10.0 : 4.0) + baseDarknessPenalty;
+            const burnRate = this.isChased ? 10.0 : 4.0;
             this.stamina = Math.max(0, this.stamina - burnRate * delta);
             if (this.stamina <= 0.0) {
                 this.isRunning = false;
                 currentSpeed = 60.0 * this.speedMultiplier;
             }
         } else {
-            const recoveryRate = (this.isChased ? 6.0 : 10.0) - baseDarknessPenalty;
+            const recoveryRate = this.isChased ? 6.0 : 10.0;
             this.stamina = Math.max(0.0, Math.min(this.maxStamina, this.stamina + recoveryRate * delta));
         }
         const currentActualSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
@@ -406,13 +404,20 @@ export default class PlayerController {
 
         targetFov -= (this.exhaustion * 7.0);
 
-        // SCHUR: Paranoia narrowing. As anomaly pressure builds, the FOV restricts, inducing claustrophobia.
         const externalPressure = this.anomalyPressure || 0.0;
-        targetFov -= (externalPressure * 15.0);
+        let rawDarkness = this.darknessPressure || 0.0;
+        let normalizedDarkness = 1.0 - Math.exp(-rawDarkness * 0.3);
+
+        if (this.flashlightActive && this.flashlightBattery > 0) {
+            const safetyFactor = Math.min(1.0, this.flashlightBattery / 20.0);
+            normalizedDarkness *= (1.0 - (0.85 * safetyFactor));
+        }
+        this.perceivedDarkness = normalizedDarkness;
+
+        targetFov -= (externalPressure * 15.0) + (this.perceivedDarkness * 15.0);
 
         if (Math.abs(this.currentFov - targetFov) > 0.1) {
-            // PINKER: Accelerated interpolation when external pressure is applied for a sudden snap effect
-            const fovSpeed = externalPressure > 0.1 ? 15.0 : 8.0;
+            const fovSpeed = (externalPressure > 0.1 || this.perceivedDarkness > 0.5) ? 15.0 : 8.0;
             this.currentFov += (targetFov - this.currentFov) * fovSpeed * delta;
             this.camera.fov = this.currentFov;
             this.camera.updateProjectionMatrix();
@@ -485,25 +490,24 @@ export default class PlayerController {
             }
             if (hitX) {
                 this.velocity.x *= 0.1;
-                if (Math.abs(this.velocity.z) > 1.0) this.velocity.z *= 1.05; // Deflect energy into Z
+                if (Math.abs(this.velocity.z) > 1.0) this.velocity.z *= 1.05;
             }
             if (hitZ) {
                 this.velocity.z *= 0.1;
-                if (Math.abs(this.velocity.x) > 1.0) this.velocity.x *= 1.05; // Deflect energy into X
+                if (Math.abs(this.velocity.x) > 1.0) this.velocity.x *= 1.05;
             }
         }
         this.wasColliding = isColliding;
 
-        // FULLER: Apply the movement vector only if the specific axis is unblocked.
         if (!hitX) this.camera.position.x += moveX;
         if (!hitZ) this.camera.position.z += moveZ;
         const postIntentSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
 
-        // SCHUR: Exhaustion is a state of being. Slowing down the breath frequency slightly for a deeper, more labored heave.
         const baseBobFreq = this.isRunning ? 3.5 : 2.0;
         const breathFreq = baseBobFreq + (this.exhaustion * 1.2);
 
-        this.headBobTimer = (this.headBobTimer || 0) + (postIntentSpeed + (this.exhaustion * 0.25)) * delta;
+        const timerDelta = (postIntentSpeed + (this.exhaustion * 0.25)) * delta;
+        this.headBobTimer = (this.headBobTimer || 0) + timerDelta;
 
         let bobOffset = 0;
         let swayRoll = 0;
@@ -511,7 +515,7 @@ export default class PlayerController {
         if (this.enableHeadBob) {
             if (postIntentSpeed > 0.5) {
                 const bobAmp = this.isRunning ? 0.08 : 0.05;
-                const prevBob = Math.sin((this.headBobTimer - postIntentSpeed * delta) * breathFreq) * bobAmp;
+                const prevBob = Math.sin((this.headBobTimer - timerDelta) * breathFreq) * bobAmp;
                 bobOffset = Math.sin(this.headBobTimer * breathFreq) * bobAmp;
                 if (prevBob > 0 && bobOffset <= 0 && !this.isCrouching) {
                     document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: this.isRunning ? 1.0 : 0.3}}));
