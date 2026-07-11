@@ -110,6 +110,7 @@ export default class Environment {
         this.isBuildingChunk = false;
         this.isSpawning = false;
         this._lightSortCache = (a, b) => a.distSq - b.distSq;
+        this.blackoutChunks = new Set();
     }
 
     updateChunks(playerPos) {
@@ -147,6 +148,7 @@ export default class Environment {
                     }
                 });
                 this.activeChunks.delete(hash);
+                this.blackoutChunks.delete(hash);
                 this.walls = this.walls.filter(w => w.userData.chunkHash !== hash);
                 this.fixtureData = this.fixtureData.filter(f => f.chunkHash !== hash);
                 this.spatialGrid.removeByChunk(hash);
@@ -443,48 +445,100 @@ export default class Environment {
                     }
                 }
             });
-            if (hit && hit.userData.type === 'breaker' && hit.userData.active) {
+            if (hit && hit.userData.type === 'breaker') {
+                if (!hit.userData.active) return;
                 hit.userData.active = false;
-                if (hit.userData.door) {
+
+                const chunkHash = hit.userData.chunkHash;
+                const isBlackout = this.blackoutChunks.has(chunkHash);
+
+                if (hit.userData.door && !hit.userData.doorOpen) {
                     hit.userData.door.rotation.y = -Math.PI / 1.5;
+                    hit.userData.doorOpen = true;
                 }
+
                 document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 1.0, intensity: 2.0}}));
-                this.fixtureData.forEach(fixture => {
-                    if (fixture.position.distanceToSquared(hit.position) < 2500.0) {
-                        fixture.baseIntensity = 2.5;
-                        fixture.targetIntensity = 2.5;
-                        fixture.currentIntensity = 2.5;
-                        fixture.isDead = true;
-                        if (fixture.isFake && fixture.material) {
-                            fixture.material.emissiveIntensity = 2.0;
-                        }
-                        setTimeout(() => {
-                            fixture.baseIntensity = 0.0;
-                            fixture.targetIntensity = 0.0;
-                            fixture.currentIntensity = 0.0;
-                            if (fixture.material && fixture.material.color) {
+
+                if (!isBlackout) {
+                    this.blackoutChunks.add(chunkHash);
+                    this.fixtureData.forEach(fixture => {
+                        if (fixture.chunkHash === chunkHash && !fixture.isDead) {
+                            fixture.originalFaulty = fixture.isFaulty;
+                            fixture.baseIntensity = 2.5;
+                            fixture.targetIntensity = 2.5;
+                            fixture.currentIntensity = 2.5;
+                            fixture.isDead = true;
+
+                            if (fixture.isFake && fixture.material) fixture.material.emissiveIntensity = 2.0;
+
+                            if (fixture.material && fixture.material.color && !fixture.originalColor) {
                                 fixture.originalColor = fixture.material.color.getHex();
                                 fixture.originalEmissive = fixture.material.emissive.getHex();
-                                fixture.material.color.setHex(0x333333);
-                                fixture.material.emissive.setHex(0x000000);
-                                fixture.material.emissiveIntensity = 0.0;
                             }
-                        }, 200 + Math.random() * 600);
-                        setTimeout(() => {
+
+                            clearTimeout(fixture.flickerTimer);
+                            clearTimeout(fixture.restoreTimer);
+
+                            fixture.flickerTimer = setTimeout(() => {
+                                fixture.baseIntensity = 0.0;
+                                fixture.targetIntensity = 0.0;
+                                fixture.currentIntensity = 0.0;
+                                if (fixture.material && fixture.originalColor) {
+                                    fixture.material.color.setHex(0x333333);
+                                    fixture.material.emissive.setHex(0x000000);
+                                    fixture.material.emissiveIntensity = 0.0;
+                                }
+                            }, 200 + Math.random() * 600);
+
+                            fixture.restoreTimer = setTimeout(() => {
+                                this.blackoutChunks.delete(chunkHash);
+                                fixture.isDead = false;
+                                fixture.isFaulty = fixture.originalFaulty !== undefined ? fixture.originalFaulty : false;
+                                fixture.baseIntensity = fixture.isFake ? 0.0 : 0.6;
+                                fixture.targetIntensity = fixture.baseIntensity;
+                                fixture.currentIntensity = fixture.baseIntensity;
+
+                                if (fixture.material && fixture.originalColor) {
+                                    fixture.material.color.setHex(fixture.originalColor);
+                                    fixture.material.emissive.setHex(fixture.originalEmissive);
+                                    if (fixture.isFake) fixture.material.emissiveIntensity = 0.4;
+                                }
+                            }, 25000 + Math.random() * 10000);
+                        }
+                    });
+                } else {
+                    this.blackoutChunks.delete(chunkHash);
+                    this.fixtureData.forEach(fixture => {
+                        if (fixture.chunkHash === chunkHash) {
+                            clearTimeout(fixture.flickerTimer);
+                            clearTimeout(fixture.restoreTimer);
                             fixture.isDead = false;
-                            fixture.isFaulty = true;
-                            fixture.baseIntensity = 0.5;
+                            fixture.isFaulty = fixture.originalFaulty !== undefined ? fixture.originalFaulty : false;
+                            fixture.baseIntensity = fixture.isFake ? 0.0 : 0.6;
+                            fixture.targetIntensity = fixture.baseIntensity;
+                            fixture.currentIntensity = fixture.baseIntensity;
+
                             if (fixture.material && fixture.originalColor) {
                                 fixture.material.color.setHex(fixture.originalColor);
                                 fixture.material.emissive.setHex(fixture.originalEmissive);
                                 if (fixture.isFake) fixture.material.emissiveIntensity = 0.4;
                             }
-                        }, 25000 + Math.random() * 10000);
-                    }
-                });
+                        }
+                    });
+                }
             } else if (hit && hit.userData.type === 'grate' && hit.userData.active) {
                 hit.userData.active = false;
                 document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 1.0, intensity: 1.5}}));
+            } else if (hit && hit.userData.type === 'battery' && hit.userData.active) {
+                hit.userData.active = false;
+                hit.visible = false;
+                document.dispatchEvent(new CustomEvent('somatic-battery', {detail: {amount: 40.0}}));
+                document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 1.0, intensity: 0.5}}));
+            } else if (hit && hit.userData.type === 'almond' && hit.userData.active) {
+                hit.userData.active = false;
+                hit.visible = false;
+                document.dispatchEvent(new CustomEvent('somatic-almond-water', {detail: {duration: 15.0}}));
+                document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 1.0, intensity: 0.6}}));
             }
         });
     }
@@ -518,6 +572,7 @@ export default class Environment {
         this.interactables = [];
         this.spatialGrid.clear();
         this.currentChunkCoords = {x: null, z: null};
+        this.blackoutChunks.clear();
         if (this.tagPool) {
             this.tagPool.forEach(tag => tag.visible = false);
             this.tagIndex = 0;
@@ -580,6 +635,10 @@ export default class Environment {
             this.breakerBaseGeo = new THREE.BoxGeometry(0.6, 0.8, 0.20);
             this.breakerDoorGeo = new THREE.BoxGeometry(0.6, 0.8, 0.05);
             this.breakerDoorGeo.translate(0.3, 0, 0);
+            this.batteryGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.25, 8);
+            this.batteryGeo.rotateZ(Math.PI / 2);
+            this.almondGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.18, 8);
+            this.almondGeo.translate(0, 0.09, 0);
             this.geoCache = new Map();
             this.sharedAssets = new Set();
             Object.values(this).forEach(v => {
@@ -851,18 +910,6 @@ export default class Environment {
                 }
             },
             {
-                prob: 0.60, build: (x, z) => {
-                    const isZ = random() > 0.5;
-                    const halfWall = buildWall(isZ ? 0.2 : this.cellSize, isZ ? this.cellSize : 0.2, this.fabricMat, 1.2);
-                    halfWall.position.set(x * this.cellSize, 0.6, z * this.cellSize);
-                    addGeometry(halfWall);
-                    if (random() > 0.4) {
-                        const desk = buildTable(x * this.cellSize + (isZ ? 0.8 : 0), 0, z * this.cellSize + (isZ ? 0 : 0.8));
-                        addFurniture(desk);
-                    }
-                }
-            },
-            {
                 prob: 0.55, build: (x, z) => {
                     const back = buildWall(this.cellSize, 0.5, this.sharedWallMat);
                     back.position.set(x * this.cellSize, 1.5, z * this.cellSize - (this.cellSize / 2) + 0.25);
@@ -879,52 +926,62 @@ export default class Environment {
             },
             {
                 prob: 0.48, build: (x, z) => {
-                    if (random() > 0.25) return;
-                    const isMagic = random() > 0.75;
-                    const dir = Math.floor(random() * 4);
-                    const isZ = dir % 2 === 0;
-                    const w1 = buildWall(isZ ? 0.5 : this.cellSize, isZ ? this.cellSize : 0.5, this.sharedWallMat);
-                    w1.position.set(x * this.cellSize + (isZ ? -(this.cellSize / 2) + 0.25 : 0), 1.5, z * this.cellSize + (isZ ? 0 : -(this.cellSize / 2) + 0.25));
-                    addGeometry(w1);
-                    const w2 = buildWall(isZ ? 0.5 : this.cellSize, isZ ? this.cellSize : 0.5, this.sharedWallMat);
-                    w2.position.set(x * this.cellSize + (isZ ? (this.cellSize / 2) - 0.25 : 0), 1.5, z * this.cellSize + (isZ ? 0 : (this.cellSize / 2) - 0.25));
-                    addGeometry(w2);
-                    const w3 = buildWall(isZ ? this.cellSize : 0.5, isZ ? 0.5 : this.cellSize, this.sharedWallMat);
-                    const backOffset = (this.cellSize / 2) - 0.25;
-                    const sign = (dir === 2 || dir === 3) ? 1 : -1;
-                    w3.position.set(x * this.cellSize + (isZ ? 0 : sign * backOffset), 1.5, z * this.cellSize + (isZ ? sign * backOffset : 0));
-                    addGeometry(w3);
-                    const stepCount = 10;
-                    const stepDepth = (this.cellSize - 0.5) / stepCount;
-                    const stepHeight = 3.0 / stepCount;
-                    const innerW = this.cellSize - 1.0;
-                    for (let s = 0; s < stepCount; s++) {
-                        const h = (s + 1) * stepHeight;
-                        const wX = isZ ? innerW : stepDepth;
-                        const wZ = isZ ? stepDepth : innerW;
-                        const step = new THREE.Mesh(new THREE.BoxGeometry(wX, h, wZ), this.structMat);
-                        let offset = (this.cellSize / 2) - (stepDepth / 2) - (s * stepDepth);
-                        if (dir === 2 || dir === 3) offset = -offset;
-                        const posX = x * this.cellSize + (isZ ? 0 : offset);
-                        const posZ = z * this.cellSize + (isZ ? offset : 0);
-                        step.position.set(posX, h / 2, posZ);
-                        const isTopStep = (s === stepCount - 1);
-                        addGeometry(step, isMagic && isTopStep);
-                    }
-                }
-            },
-            {
-                prob: 0.44, build: (x, z) => {
-                    const core = buildWall(1.2, 1.2, this.structMat);
-                    core.position.set(x * this.cellSize, 1.5, z * this.cellSize);
-                    addGeometry(core);
-                    for (let i = 0; i < 4; i++) {
-                        if (random() > 0.2) {
-                            const pipe = new THREE.Mesh(this.vPipeGeo, this.rustMat);
-                            const px = (i < 2) ? 0.75 : -0.75;
-                            const pz = (i % 2 === 0) ? 0.75 : -0.75;
-                            pipe.position.set(x * this.cellSize + px, 1.5, z * this.cellSize + pz);
-                            addGeometry(pipe);
+                    const structureType = random();
+                    if (structureType > 0.40) {
+                        const dir = Math.floor(random() * 4);
+                        const isZ = dir % 2 === 0;
+                        const sign = (dir > 1) ? 1 : -1;
+
+                        const longWall = buildWall(isZ ? 0.6 : this.cellSize * 0.8, isZ ? this.cellSize * 0.8 : 0.6, this.sharedWallMat);
+                        longWall.position.set(x * this.cellSize + (isZ ? sign * 1.2 : 0), 1.5, z * this.cellSize + (isZ ? 0 : sign * 1.2));
+                        longWall.userData.isEntityBlocker = true;
+                        addGeometry(longWall);
+
+                        const shortWall = buildWall(isZ ? this.cellSize * 0.6 : 0.6, isZ ? 0.6 : this.cellSize * 0.6, this.sharedWallMat);
+                        const sOffsetX = isZ ? (sign * 1.2) - (this.cellSize * 0.3) : sign * 1.2;
+                        const sOffsetZ = isZ ? sign * 1.2 : (sign * 1.2) - (this.cellSize * 0.3);
+                        shortWall.position.set(x * this.cellSize + sOffsetX, 1.5, z * this.cellSize + sOffsetZ);
+                        shortWall.userData.isEntityBlocker = true;
+                        addGeometry(shortWall);
+
+                        if (random() > 0.5) {
+                            const clutter = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.8), this.woodMat);
+                            clutter.position.set(x * this.cellSize, 0.6, z * this.cellSize);
+                            clutter.rotation.y = random() * Math.PI;
+                            clutter.userData.isEntityBlocker = true;
+                            addGeometry(clutter);
+                        }
+                    } else {
+                        const isMagic = random() > 0.75;
+                        const dir = Math.floor(random() * 4);
+                        const isZ = dir % 2 === 0;
+                        const w1 = buildWall(isZ ? 0.5 : this.cellSize, isZ ? this.cellSize : 0.5, this.sharedWallMat);
+                        w1.position.set(x * this.cellSize + (isZ ? -(this.cellSize / 2) + 0.25 : 0), 1.5, z * this.cellSize + (isZ ? 0 : -(this.cellSize / 2) + 0.25));
+                        addGeometry(w1);
+                        const w2 = buildWall(isZ ? 0.5 : this.cellSize, isZ ? this.cellSize : 0.5, this.sharedWallMat);
+                        w2.position.set(x * this.cellSize + (isZ ? (this.cellSize / 2) - 0.25 : 0), 1.5, z * this.cellSize + (isZ ? 0 : (this.cellSize / 2) - 0.25));
+                        addGeometry(w2);
+                        const w3 = buildWall(isZ ? this.cellSize : 0.5, isZ ? 0.5 : this.cellSize, this.sharedWallMat);
+                        const backOffset = (this.cellSize / 2) - 0.25;
+                        const sign = (dir === 2 || dir === 3) ? 1 : -1;
+                        w3.position.set(x * this.cellSize + (isZ ? 0 : sign * backOffset), 1.5, z * this.cellSize + (isZ ? sign * backOffset : 0));
+                        addGeometry(w3);
+                        const stepCount = 10;
+                        const stepDepth = (this.cellSize - 0.5) / stepCount;
+                        const stepHeight = 3.0 / stepCount;
+                        const innerW = this.cellSize - 1.0;
+                        for (let s = 0; s < stepCount; s++) {
+                            const h = (s + 1) * stepHeight;
+                            const wX = isZ ? innerW : stepDepth;
+                            const wZ = isZ ? stepDepth : innerW;
+                            const step = new THREE.Mesh(new THREE.BoxGeometry(wX, h, wZ), this.structMat);
+                            let offset = (this.cellSize / 2) - (stepDepth / 2) - (s * stepDepth);
+                            if (dir === 2 || dir === 3) offset = -offset;
+                            const posX = x * this.cellSize + (isZ ? 0 : offset);
+                            const posZ = z * this.cellSize + (isZ ? offset : 0);
+                            step.position.set(posX, h / 2, posZ);
+                            const isTopStep = (s === stepCount - 1);
+                            addGeometry(step, isMagic && isTopStep);
                         }
                     }
                 }
@@ -1026,19 +1083,43 @@ export default class Environment {
             },
             {
                 prob: 0.35, build: (x, z) => {
-                    const dir = Math.floor(random() * 2);
-                    const isZ = dir === 0;
-                    const w1 = isZ ? 1.75 : this.cellSize;
-                    const d1 = isZ ? this.cellSize : 1.75;
-                    const offset = (1.75 / 2) + 0.25;
-                    const block1 = buildWall(w1, d1, this.sharedWallMat);
-                    block1.position.set(x * this.cellSize - (isZ ? offset : 0), 1.5, z * this.cellSize - (isZ ? 0 : offset));
-                    block1.userData.isEntityBlocker = true;
-                    addGeometry(block1);
-                    const block2 = buildWall(w1, d1, this.sharedWallMat);
-                    block2.position.set(x * this.cellSize + (isZ ? offset : 0), 1.5, z * this.cellSize + (isZ ? 0 : offset));
-                    block2.userData.isEntityBlocker = true;
-                    addGeometry(block2);
+                    const isStraight = random() > 0.5;
+                    const blockW = 1.85;
+                    const offset = 1.075;
+
+                    if (isStraight) {
+                        const isZ = random() > 0.5;
+                        const w1 = isZ ? blockW : this.cellSize;
+                        const d1 = isZ ? this.cellSize : blockW;
+
+                        const block1 = buildWall(w1, d1, this.sharedWallMat);
+                        block1.position.set(x * this.cellSize - (isZ ? offset : 0), 1.5, z * this.cellSize - (isZ ? 0 : offset));
+                        block1.userData.isEntityBlocker = true;
+                        addGeometry(block1);
+
+                        const block2 = buildWall(w1, d1, this.sharedWallMat);
+                        block2.position.set(x * this.cellSize + (isZ ? offset : 0), 1.5, z * this.cellSize + (isZ ? 0 : offset));
+                        block2.userData.isEntityBlocker = true;
+                        addGeometry(block2);
+                    } else {
+                        const flipX = random() > 0.5 ? 1 : -1;
+                        const flipZ = random() > 0.5 ? 1 : -1;
+
+                        const innerBlock = buildWall(blockW, blockW, this.sharedWallMat);
+                        innerBlock.position.set(x * this.cellSize + (flipX * offset), 1.5, z * this.cellSize + (flipZ * offset));
+                        innerBlock.userData.isEntityBlocker = true;
+                        addGeometry(innerBlock);
+
+                        const wallX = buildWall(blockW, this.cellSize, this.sharedWallMat);
+                        wallX.position.set(x * this.cellSize - (flipX * offset), 1.5, z * this.cellSize);
+                        wallX.userData.isEntityBlocker = true;
+                        addGeometry(wallX);
+
+                        const wallZ = buildWall(this.cellSize, blockW, this.sharedWallMat);
+                        wallZ.position.set(x * this.cellSize, 1.5, z * this.cellSize - (flipZ * offset));
+                        wallZ.userData.isEntityBlocker = true;
+                        addGeometry(wallZ);
+                    }
                 }
             },
             {
@@ -1603,6 +1684,10 @@ export default class Environment {
         const isMacroStructure = random() > 0.90 && (Math.abs(chunkX) > 0 || Math.abs(chunkZ) > 0);
         let activeSector = null;
         let sectorMaze = null;
+        let chunkBreakerCount = 0;
+        let chunkBatteryCount = 0;
+        let chunkAlmondCount = 0;
+        const breakerPositions = [];
         if (isMacroStructure) {
             const sectorRoll = random();
             let cumulative = 0;
@@ -1744,24 +1829,79 @@ export default class Environment {
                                 stagingMeshes.push(glow);
                             }
                         }
-                    } else if (!hasTallObstacle && random() > 0.95) {
-                        const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.8, 3.0, 0.8), this.structMat);
-                        pillar.position.set(x * this.cellSize, 1.5, z * this.cellSize);
-                        chunkGroup.add(pillar);
-                        const breakerGroup = new THREE.Group();
-                        breakerGroup.position.set(x * this.cellSize, 1.5, z * this.cellSize + 0.525);
-                        const breakerBase = new THREE.Mesh(this.breakerBaseGeo, this.rustMat);
-                        breakerBase.position.set(0, 0, -0.025);
-                        breakerGroup.add(breakerBase);
-                        const breakerDoor = new THREE.Mesh(this.breakerDoorGeo, this.hazardMat);
-                        breakerDoor.position.set(-0.3, 0, 0.1);
-                        breakerGroup.add(breakerDoor);
-                        breakerGroup.userData = {type: 'breaker', chunkHash: hash, active: true, door: breakerDoor};
-                        chunkGroup.add(breakerGroup);
-                        this.interactables.push(breakerGroup);
-                        const pBox = new THREE.Box3().setFromObject(pillar);
-                        pBox.chunkHash = hash;
-                        this.spatialGrid.insert(pBox);
+                    } else if (!hasTallObstacle && random() > 0.99 && chunkAlmondCount < 1) {
+                        chunkAlmondCount++;
+                        const almondGroup = new THREE.Group();
+
+                        const offsetX = (random() * 2 - 1) * 1.5;
+                        const offsetZ = (random() * 2 - 1) * 1.5;
+                        almondGroup.position.set(x * this.cellSize + offsetX, 0, z * this.cellSize + offsetZ);
+                        almondGroup.rotation.y = random() * Math.PI;
+
+                        const almondMesh = new THREE.Mesh(this.almondGeo, this.clinicMat);
+                        almondGroup.add(almondMesh);
+
+                        const glow = new THREE.Mesh(this.glowGeo, this.glowMat);
+                        glow.scale.set(0.12, 0.12, 0.12);
+                        glow.position.y = 0.01;
+                        almondGroup.add(glow);
+
+                        almondGroup.userData = {type: 'almond', chunkHash: hash, active: true};
+                        chunkGroup.add(almondGroup);
+                        this.interactables.push(almondGroup);
+                    } else if (!hasTallObstacle && random() > 0.985 && chunkBatteryCount < 2) {
+                        chunkBatteryCount++;
+                        const batGroup = new THREE.Group();
+
+                        const offsetX = (random() * 2 - 1) * 1.5;
+                        const offsetZ = (random() * 2 - 1) * 1.5;
+                        batGroup.position.set(x * this.cellSize + offsetX, 0.06, z * this.cellSize + offsetZ);
+                        batGroup.rotation.y = random() * Math.PI;
+
+                        const batMesh = new THREE.Mesh(this.batteryGeo, this.hazardMat);
+                        batGroup.add(batMesh);
+
+                        const glow = new THREE.Mesh(this.glowGeo, this.glowMat);
+                        glow.scale.set(0.15, 0.15, 0.15);
+                        glow.position.y = -0.05;
+                        batGroup.add(glow);
+
+                        batGroup.userData = {type: 'battery', chunkHash: hash, active: true};
+                        chunkGroup.add(batGroup);
+                        this.interactables.push(batGroup);
+                    } else if (!hasTallObstacle && random() > 0.95 && chunkBreakerCount < 3) {
+                        const px = x * this.cellSize;
+                        const pz = z * this.cellSize;
+                        let isTooClose = false;
+                        for (let b = 0; b < breakerPositions.length; b++) {
+                            const dx = px - breakerPositions[b].x;
+                            const dz = pz - breakerPositions[b].z;
+                            if (dx * dx + dz * dz < 256.0) {
+                                isTooClose = true;
+                                break;
+                            }
+                        }
+                        if (!isTooClose) {
+                            chunkBreakerCount++;
+                            breakerPositions.push({x: px, z: pz});
+                            const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.8, 3.0, 0.8), this.structMat);
+                            pillar.position.set(px, 1.5, pz);
+                            chunkGroup.add(pillar);
+                            const breakerGroup = new THREE.Group();
+                            breakerGroup.position.set(px, 1.5, pz + 0.525);
+                            const breakerBase = new THREE.Mesh(this.breakerBaseGeo, this.rustMat);
+                            breakerBase.position.set(0, 0, -0.025);
+                            breakerGroup.add(breakerBase);
+                            const breakerDoor = new THREE.Mesh(this.breakerDoorGeo, this.hazardMat);
+                            breakerDoor.position.set(-0.3, 0, 0.102);
+                            breakerGroup.add(breakerDoor);
+                            breakerGroup.userData = {type: 'breaker', chunkHash: hash, active: true, door: breakerDoor};
+                            chunkGroup.add(breakerGroup);
+                            this.interactables.push(breakerGroup);
+                            const pBox = new THREE.Box3().setFromObject(pillar);
+                            pBox.chunkHash = hash;
+                            this.spatialGrid.insert(pBox);
+                        }
                     }
                 }
             }

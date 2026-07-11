@@ -73,6 +73,14 @@ export default class PlayerController {
         });
         document.addEventListener('contextmenu', (e) => e.preventDefault());
         document.addEventListener('mousemove', (e) => this.onMouseMove(e));
+        document.addEventListener('somatic-battery', (e) => {
+            this.flashlightBattery = Math.min(100.0, this.flashlightBattery + e.detail.amount);
+        });
+        document.addEventListener('somatic-almond-water', (e) => {
+            this.staminaBoostTimer = e.detail.duration;
+            this.stamina = this.maxStamina;
+            this.isWinded = false;
+        });
         window.addEventListener('blur', () => {
             this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = this.isRunning = this.isPeeking = false;
             this.targetLean = 0.0;
@@ -351,7 +359,11 @@ export default class PlayerController {
             this.isWinded = false;
         }
 
-        if (this.isRunning && isMoving && !this.isSqueezing && !this.isWinded) {
+        if (this.staminaBoostTimer > 0) {
+            this.staminaBoostTimer -= delta;
+            this.stamina = this.maxStamina;
+            this.isWinded = false;
+        } else if (this.isRunning && isMoving && !this.isSqueezing && !this.isWinded) {
             const burnRate = this.isChased ? 10.0 : 4.0;
             this.stamina = Math.max(0, this.stamina - burnRate * delta);
             if (this.stamina <= 0.0) {

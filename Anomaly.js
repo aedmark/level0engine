@@ -160,8 +160,12 @@ export default class Anomaly {
             if (lookDir.dot(toEntity) > 0.85) {
                 isObserved = true;
                 speed = 0.0;
-                this.player.flashlightBattery = Math.max(0, this.player.flashlightBattery - 35.0 * delta);
-                this.core.position.set((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4);
+
+                const proximityDrain = 35.0 + (150.0 / Math.max(1.0, distToPlayerSq));
+                this.player.flashlightBattery = Math.max(0, this.player.flashlightBattery - proximityDrain * delta);
+
+                const panicJitter = 0.8 * (1.0 - (this.player.flashlightBattery / 100.0)) + 0.1;
+                this.core.position.set((Math.random() - 0.5) * panicJitter, (Math.random() - 0.5) * panicJitter, (Math.random() - 0.5) * panicJitter);
 
                 if (distToPlayerSq < 144.0 && Math.random() < 0.08) {
                     document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 1.0, intensity: 1.8}}));
@@ -176,8 +180,8 @@ export default class Anomaly {
 
     _resolveLocomotion(speed, delta, time) {
         if (Math.random() < 0.2) {
-            for (let i = 0; i < this.env.fixtureData.length; i++) {
-                const fixture = this.env.fixtureData[i];
+            for (let i = 0; i < this.env.localFixtures.length; i++) {
+                const fixture = this.env.localFixtures[i];
                 if (!fixture.isDead && fixture.position.distanceToSquared(this.group.position) < 16.0) {
                     fixture.isDead = true;
                     fixture.baseIntensity = 0.0;

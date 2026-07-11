@@ -1,5 +1,24 @@
 # Level 0 Engine Changelog
 
+## [v0.3.4] - 2026-07-11
+
+### Added
+- **[MECHANICS] Battery Economy:** Deployed procedural battery cylinder collectibles (max 2 per chunk). Collecting one restores 40% flashlight voltage to counter electromagnetic drain.
+- **[MECHANICS] Almond Water:** Deployed procedural almond water canisters (max 1 per chunk). Grants 15 seconds of infinite stamina to aggressively outrun entities.
+
+### Changed
+- **[GEOMETRY] Architectural Pruning:** Excised the misplaced corporate office partitions (desks, fabric half-walls) and floating rust-pipe concrete pillars from the generation matrix to maximize authentic liminal emptiness.
+- **[GEOMETRY] The Claustrophobic Dogleg:** Transformed trivial 0.5-unit wall gaps into absolute squeeze bottlenecks and blind L-shaped barricades to force kinetic friction during traversal.
+- **[MECHANICS] Flashlight Paranoia:** The Anomaly now dynamically drains the player's flashlight battery based on physical proximity (`35.0 + (150.0 / dist)`), and its geometric core jitters violently as voltage drops.
+- **[MECHANICS] Breaker Box Topology:** Overhauled Surge Breakers to toggle chunk-wide blackouts. Enforced a 3-per-chunk spawn limit and a 16-unit spatial exclusion zone to distribute them organically across the grid.
+
+### Optimized
+- **[PERFORMANCE] O(1) Photon Culling:** Ripped out the massive O(N) global array iteration inside the Anomaly's locomotion solver, binding the entity's light-shattering logic strictly to the heavily-culled `localFixtures` cache.
+
+### Fixed
+- **[WEBGL] Breaker Restorations:** Fixed the illumination restoration cascade to properly re-ignite authentic WebGL point lights instead of locking them in a permanent, flickering brownout.
+- **[GEOMETRY] Z-Fighting Isolation:** Pushed the breaker door geometry out by a microscopic `0.002` units (`z = 0.102`) to eliminate depth-buffer tearing against the rusted backplate.
+
 ## [v0.3.3] - 2026-07-11
 
 ### Added
