@@ -91,6 +91,9 @@ export default class PlayerController {
     bindTouchEvents() {
         const zoneLeft = document.getElementById('touch-left');
         const zoneRight = document.getElementById('touch-right');
+
+        const joystickBase = document.getElementById('joystick-base');
+        const joystickKnob = document.getElementById('joystick-knob');
         const runBtn = document.getElementById('mobile-run');
         const crouchBtn = document.getElementById('mobile-crouch');
         const flashBtn = document.getElementById('mobile-flashlight');
@@ -131,6 +134,13 @@ export default class PlayerController {
             this.touchMove.id = touch.identifier;
             this.touchMove.startX = touch.clientX;
             this.touchMove.startY = touch.clientY;
+
+            if (joystickBase) {
+                joystickBase.style.display = 'block';
+                joystickBase.style.left = touch.clientX + 'px';
+                joystickBase.style.top = touch.clientY + 'px';
+                if (joystickKnob) joystickKnob.style.transform = `translate(-50%, -50%)`;
+            }
         }, {passive: false});
         zoneLeft.addEventListener('touchmove', (e) => {
             e.preventDefault();
@@ -139,6 +149,19 @@ export default class PlayerController {
                 if (touch.identifier === this.touchMove.id) {
                     this.touchMove.deltaX = Math.max(-120, Math.min(120, touch.clientX - this.touchMove.startX));
                     this.touchMove.deltaY = Math.max(-120, Math.min(120, touch.clientY - this.touchMove.startY));
+
+                    if (joystickKnob) {
+                        const distance = Math.sqrt(this.touchMove.deltaX ** 2 + this.touchMove.deltaY ** 2);
+                        const maxVisualRadius = 50;
+                        let visualX = this.touchMove.deltaX;
+                        let visualY = this.touchMove.deltaY;
+
+                        if (distance > maxVisualRadius) {
+                            visualX = (visualX / distance) * maxVisualRadius;
+                            visualY = (visualY / distance) * maxVisualRadius;
+                        }
+                        joystickKnob.style.transform = `translate(calc(-50% + ${visualX}px), calc(-50% + ${visualY}px))`;
+                    }
                 }
             }
         }, {passive: false});
@@ -149,6 +172,8 @@ export default class PlayerController {
                     this.touchMove.active = false;
                     this.touchMove.deltaX = 0;
                     this.touchMove.deltaY = 0;
+
+                    if (joystickBase) joystickBase.style.display = 'none';
                 }
             }
         });

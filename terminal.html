@@ -40,7 +40,7 @@
             margin: 0;
             background-color: #050505;
             color: #d4c382;
-            overflow: hidden; /* Prevent body scroll to lock the terminal in place */
+            overflow-x: hidden;
             user-select: none;
             -webkit-user-select: none;
         }
@@ -119,7 +119,7 @@
         }
     </style>
 </head>
-<body class="font-mono text-sm antialiased h-screen w-screen flex flex-col relative">
+<body class="font-mono text-sm antialiased min-h-screen w-screen flex flex-col relative">
 
 <div class="noise-overlay"></div>
 <div class="scanlines"></div>
@@ -141,7 +141,6 @@
             </div>
         </header>
 
-        <!-- Container housing the WebGL Engine -->
         <div class="flex-grow relative border border-liminal-800 bg-[#020202] overflow-hidden iframe-container">
             <iframe
                     id="engine-frame"

@@ -95,7 +95,9 @@ export default class Environment {
         this.walls = [];
         this.lightPool = [];
         this.fixtureData = [];
-        this.maxActiveLights = 40;
+        this.isMobile = /Mobi|Android/i.test(navigator.userAgent);
+        this.maxActiveLights = this.isMobile ? 12 : 40;
+        this.maxShadowLights = this.isMobile ? 2 : 10;
         this.spatialGrid = new SpatialHashGrid(4);
         this.wallBoxes = [];
         this.chunkSize = 16;
@@ -311,9 +313,9 @@ export default class Environment {
         this.dustCloud = new THREE.Points(dustGeo, dustMat);
         this.scene.add(this.dustCloud);
         for (let i = 0; i < this.maxActiveLights; i++) {
-            const radius = i < 10 ? 20 : 30;
+            const radius = i < this.maxShadowLights ? 20 : 30;
             const light = new THREE.PointLight(0xffebd6, 0, radius, 2.0);
-            if (i < 10) {
+            if (i < this.maxShadowLights) {
                 light.castShadow = true;
                 light.shadow.mapSize.width = 512;
                 light.shadow.mapSize.height = 512;
@@ -2051,10 +2053,11 @@ export default class Environment {
         for (let i = 0; i < this.maxActiveLights; i++) {
             const light = this.lightPool[i];
             const fixture = this.localFixtures[i];
-            const activeRadius = i < 15 ? 20 : 30;
+            const activeRadius = i < this.maxShadowLights ? 20 : 30;
             const activeRadiusSq = activeRadius * activeRadius;
+
             if (fixture && fixture.distSq < activeRadiusSq) {
-                if (i < 15) {
+                if (i < this.maxShadowLights) {
                     fixture.hasShadow = true;
                 }
                 light.position.copy(fixture.position);
@@ -2064,7 +2067,8 @@ export default class Environment {
                     nearestFixture = fixture;
                 }
                 const fadeEnvelope = Math.max(0, Math.min(1, (activeRadius - dist) / 8.0));
-                const intensityScalar = i < 15 ? 0.65 : 0.35;
+                const intensityScalar = i < this.maxShadowLights ? 0.65 : 0.35;
+
                 if (fixture.isDead) {
                     light.intensity = 0.0;
                     if (fixture.material) fixture.material.emissiveIntensity = 0.0;

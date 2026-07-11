@@ -4,7 +4,7 @@
 export default class RenderEngine {
     constructor() {
         this.aspectRatio = 1.3333333333;
-        this.resolutionScale = 1.0;
+        this.resolutionScale = 0.5;
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0xa89f68);
         this.scene.fog = new THREE.FogExp2(0xa89f68, 0.05);

@@ -489,6 +489,11 @@
 <div id="mobile-ui">
     <div id="touch-left" class="touch-zone"></div>
     <div id="touch-right" class="touch-zone"></div>
+
+    <div id="joystick-base" style="display: none; position: absolute; width: 100px; height: 100px; border-radius: 50%; border: 2px solid rgba(212, 195, 130, 0.4); background: rgba(20, 20, 15, 0.3); pointer-events: none; z-index: 25; transform: translate(-50%, -50%);">
+        <div id="joystick-knob" style="position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; border-radius: 50%; background: rgba(212, 195, 130, 0.8); transform: translate(-50%, -50%);"></div>
+    </div>
+
     <button id="mobile-run" class="mobile-action-btn">RUN</button>
     <button id="mobile-crouch" class="mobile-action-btn">CROUCH</button>
     <button id="mobile-flashlight" class="mobile-action-btn">LIGHT</button>
@@ -536,7 +541,7 @@
         <label>Internal Resolution</label>
         <select id="resolutionSelect">
             <option value="1.0">100% (Native)</option>
-            <option value="0.5">50% (Retro / Performance)</option>
+            <option value="0.5" selected>50% (Retro / Performance)</option>
             <option value="0.25">25% (PS1 / Extreme Performance)</option>
         </select>
         <label>Master Volume (%)</label>

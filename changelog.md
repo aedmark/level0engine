@@ -1,5 +1,17 @@
 # Level 0 Engine Changelog
 
+## [v0.3.5] - 2026-07-11
+
+### Added
+- **[CONTROLS] Dynamic Virtual Joystick:** Engineered a tactile visual joystick overlay for the mobile left-touch zone. The UI elements dynamically anchor to the initial touch coordinates and clamp to a 50px visual radius, heavily grounding the player's somatic feedback during traversal.
+
+### Changed
+- **[PERFORMANCE] Resolution Baseline:** Shifted the systemic default internal resolution from 100% (Native) down to 50% (Retro / Performance) deep within the `RenderEngine` constructor. This protects baseline hardware thresholds and organically enforces the grimy VHS aesthetic on a fresh boot.
+
+### Fixed
+- **[WEBGL] Mobile Shader Panic (The Yellow Fog):** Averted a fatal mobile GPU texture uniform limit crash. Injected a `userAgent` hardware check to dynamically throttle `maxActiveLights` (40 -> 12) and `maxShadowLights` (10 -> 2) strictly on mobile devices. This prevents shadow-map buffer overflows that stripped the geometry and trapped players in an infinite fog void.
+- **[UI] Terminal Viewport Lock:** Shattered the absolute vertical lock in `terminal.html` by shifting `overflow: hidden` to `overflow-x: hidden` and relaxing `h-screen` to `min-h-screen`. This rescues the execution footer and Fullscreen UI from the mobile layout abyss.
+
 ## [v0.3.4] - 2026-07-11
 
 ### Added
