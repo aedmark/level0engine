@@ -77,6 +77,11 @@ document.addEventListener('click', bootAudio, {once: true});
 document.addEventListener('keydown', bootAudio, {once: true});
 document.addEventListener('somatic-step', (e) => acoustics.triggerSomaticEvent('step', 0, e.detail.intensity));
 document.addEventListener('somatic-door', (e) => acoustics.triggerSomaticEvent('door', e.detail.distSq, e.detail.intensity));
+
+document.addEventListener('somatic-vent', (e) => acoustics.triggerSomaticEvent('vent', e.detail.distSq, e.detail.intensity));
+document.addEventListener('somatic-breaker', (e) => acoustics.triggerSomaticEvent('breaker', e.detail.distSq, e.detail.intensity));
+document.addEventListener('somatic-item', (e) => acoustics.triggerSomaticEvent('item', e.detail.distSq, e.detail.intensity));
+
 const saveInterval = setInterval(saveState, 2500);
 document.getElementById('clearSaveBtn')?.addEventListener('click', async () => {
     player.isDead = true;
@@ -159,23 +164,37 @@ function animate() {
     engine.squeeze = Math.max(0.0, Math.min(1.0, squeezeFactor));
     const telemetry = environment.updateLights(time);
     acoustics.update(telemetry);
-    engine.anomaly = telemetry.anomalyPressure;
+    engine.anomaly = telemetry.anomalyPressure + (player.paranoia * 0.5);
     engine.darkness = player.perceivedDarkness || 0.0;
-    document.getElementById('coords').innerText = `X: ${engine.camera.position.x.toFixed(2)} | Z: ${engine.camera.position.z.toFixed(2)}`;
-    const batLevel = document.getElementById('battery-level');
-    if (batLevel) {
-        batLevel.style.width = `${player.flashlightBattery}%`;
-        if (player.flashlightBattery > 50) {
-            batLevel.style.backgroundColor = '#55ff55';
-        } else if (player.flashlightBattery > 20) {
-            batLevel.style.backgroundColor = '#ffff55';
-        } else {
-            batLevel.style.backgroundColor = '#ff5555';
+
+    if (time - (window._lastDomUpdate || 0) > 0.1) {
+        window._lastDomUpdate = time;
+
+        const coordsEl = document.getElementById('coords');
+        if (coordsEl) {
+            const newCoords = `X: ${engine.camera.position.x.toFixed(1)} | Z: ${engine.camera.position.z.toFixed(1)}`;
+            if (coordsEl._lastText !== newCoords) {
+                coordsEl.innerText = newCoords;
+                coordsEl._lastText = newCoords;
+            }
+        }
+
+        const batLevel = document.getElementById('battery-level');
+        if (batLevel) {
+            const batInt = Math.round(player.flashlightBattery);
+            if (batLevel._lastBat !== batInt) {
+                batLevel.style.width = `${batInt}%`;
+                batLevel.style.backgroundColor = batInt > 50 ? '#55ff55' : (batInt > 20 ? '#ffff55' : '#ff5555');
+                batLevel._lastBat = batInt;
+            }
         }
     }
+
     if (!player.isRunning) {
         const runBtn = document.getElementById('mobile-run');
-        if (runBtn) runBtn.classList.remove('active');
+        if (runBtn && runBtn.classList.contains('active')) {
+            runBtn.classList.remove('active');
+        }
     }
     engine.render();
 }

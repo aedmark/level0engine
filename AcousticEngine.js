@@ -320,6 +320,64 @@ export default class AcousticEngine {
                 osc.disconnect();
                 noise.disconnect();
             };
+        } else if (type === 'vent') {
+            const osc = this.ctx.createOscillator();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(400, t);
+            osc.frequency.exponentialRampToValueAtTime(80, t + 0.4);
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this.noiseSrc.buffer;
+
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(1500, t);
+            filter.frequency.exponentialRampToValueAtTime(300, t + 0.4);
+
+            const localGain = this.ctx.createGain();
+            osc.connect(localGain);
+            noise.connect(filter);
+            filter.connect(localGain);
+            localGain.connect(this.masterGain);
+
+            localGain.gain.setValueAtTime(0, t);
+            localGain.gain.linearRampToValueAtTime(0.1 * intensity * distScalar, t + 0.03);
+            localGain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+
+            osc.start(t); osc.stop(t + 0.5);
+            noise.start(t); noise.stop(t + 0.5);
+            osc.onended = () => { osc.disconnect(); noise.disconnect(); filter.disconnect(); localGain.disconnect(); };
+        } else if (type === 'breaker') {
+            const osc = this.ctx.createOscillator();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(900, t);
+            osc.frequency.exponentialRampToValueAtTime(100, t + 0.15);
+
+            const localGain = this.ctx.createGain();
+            osc.connect(localGain);
+            localGain.connect(this.masterGain);
+
+            localGain.gain.setValueAtTime(0, t);
+            localGain.gain.linearRampToValueAtTime(0.12 * intensity * distScalar, t + 0.01);
+            localGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+
+            osc.start(t); osc.stop(t + 0.15);
+            osc.onended = () => { osc.disconnect(); localGain.disconnect(); };
+        } else if (type === 'item') {
+            const osc = this.ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1200, t);
+            osc.frequency.exponentialRampToValueAtTime(600, t + 0.3);
+
+            const localGain = this.ctx.createGain();
+            osc.connect(localGain);
+            localGain.connect(this.masterGain);
+
+            localGain.gain.setValueAtTime(0, t);
+            localGain.gain.linearRampToValueAtTime(0.08 * intensity * distScalar, t + 0.02);
+            localGain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+
+            osc.start(t); osc.stop(t + 0.4);
+            osc.onended = () => { osc.disconnect(); localGain.disconnect(); };
         }
     }
 

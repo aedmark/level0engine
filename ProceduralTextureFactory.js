@@ -88,6 +88,10 @@ export default class ProceduralTextureFactory {
         const carpetTexture = new THREE.CanvasTexture(carpetCanvas);
         carpetTexture.wrapS = THREE.RepeatWrapping;
         carpetTexture.wrapT = THREE.RepeatWrapping;
+
+        carpetTexture.magFilter = THREE.NearestFilter;
+        carpetTexture.minFilter = THREE.NearestMipmapLinearFilter;
+
         const moldCanvas = document.createElement('canvas');
         moldCanvas.width = 256;
         moldCanvas.height = 256;
@@ -147,16 +151,25 @@ export default class ProceduralTextureFactory {
         const ceilingStainGeo = new THREE.PlaneGeometry(3, 3);
         ceilingStainGeo.rotateX(Math.PI / 2);
         const ceilingCanvas = document.createElement('canvas');
-        ceilingCanvas.width = 256;
-        ceilingCanvas.height = 256;
+        ceilingCanvas.width = 512;
+        ceilingCanvas.height = 512;
         const ceilCtx = ceilingCanvas.getContext('2d');
         ceilCtx.fillStyle = '#e0dbcf';
-        ceilCtx.fillRect(0, 0, 256, 256);
+        ceilCtx.fillRect(0, 0, 512, 512);
+        ceilCtx.fillStyle = 'rgba(0,0,0,0.08)';
+        for(let i = 0; i < 2000; i++) {
+            ceilCtx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+        }
+
         ceilCtx.strokeStyle = '#b5b1a5';
-        ceilCtx.lineWidth = 2;
+        ceilCtx.lineWidth = 4;
         ceilCtx.strokeRect(0, 0, 256, 256);
-        ceilCtx.globalAlpha = 0.3;
-        ceilCtx.drawImage(masterNoise, 0, 0, 256, 256);
+        ceilCtx.strokeRect(256, 0, 256, 256);
+        ceilCtx.strokeRect(0, 256, 256, 256);
+        ceilCtx.strokeRect(256, 256, 256, 256);
+
+        ceilCtx.globalAlpha = 0.25;
+        ceilCtx.drawImage(masterNoise, 0, 0, 512, 512);
         ceilCtx.globalAlpha = 1.0;
         const ceilingTexture = new THREE.CanvasTexture(ceilingCanvas);
         ceilingTexture.wrapS = THREE.RepeatWrapping;
@@ -547,15 +560,15 @@ export default class ProceduralTextureFactory {
         };
         Object.values(assets).forEach(item => {
             if (item && item.isTexture) {
-                item.anisotropy = 4;
+                item.anisotropy = 16;
                 item.colorSpace = THREE.SRGBColorSpace;
             }
             if (item && item.map && item.map.isTexture) {
-                item.map.anisotropy = 4;
+                item.map.anisotropy = 16;
                 item.map.colorSpace = THREE.SRGBColorSpace;
             }
             if (item && item.emissiveMap && item.emissiveMap.isTexture) {
-                item.emissiveMap.anisotropy = 4;
+                item.emissiveMap.anisotropy = 16;
                 item.emissiveMap.colorSpace = THREE.SRGBColorSpace;
             }
         });

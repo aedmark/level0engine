@@ -34,6 +34,7 @@ export default class PlayerController {
         this.isChased = false;
         this.isPeeking = false;
         this.targetLean = 0.0;
+        this.paranoia = 0.0;
         this.currentLean = 0.0;
         this._leanOffset = new THREE.Vector3();
         this.baseFov = camera.fov;
@@ -388,18 +389,25 @@ export default class PlayerController {
             this.staminaBoostTimer -= delta;
             this.stamina = this.maxStamina;
             this.isWinded = false;
-        } else if (this.isRunning && isMoving && !this.isSqueezing && !this.isWinded) {
-            const burnRate = this.isChased ? 10.0 : 4.0;
+        } else if ((this.isRunning || this.isSqueezing) && isMoving && !this.isWinded) {
+            const baseBurn = this.isSqueezing ? 8.0 : (this.isChased ? 10.0 : 4.0);
+            const burnRate = baseBurn * (1.0 + (this.paranoia * 0.5));
             this.stamina = Math.max(0, this.stamina - burnRate * delta);
+
             if (this.stamina <= 0.0) {
-                this.isRunning = false;
-                this.isWinded = true;
-                currentSpeed = dynamicWalkSpeed * this.speedMultiplier;
-                document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.5}}));
+                if (this.isChased && this.flashlightBattery > 5.0) {
+                    this.flashlightBattery -= 25.0 * delta;
+                } else {
+                    this.isRunning = false;
+                    this.isWinded = true;
+                    currentSpeed = dynamicWalkSpeed * this.speedMultiplier;
+                    document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.5}}));
+                }
             }
         } else {
             if (this.isRunning && this.isWinded) this.isRunning = false;
-            const recoveryRate = this.isChased ? 6.0 : (this.isWinded ? 3.0 : 10.0);
+            const isResting = !isMoving && this.perceivedDarkness < 0.2 && this.paranoia === 0.0;
+            const recoveryRate = this.isChased ? 6.0 : (this.isWinded ? 3.0 : (isResting ? 25.0 : 10.0));
             this.stamina = Math.max(0.0, Math.min(this.maxStamina, this.stamina + recoveryRate * delta));
         }
         const currentActualSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
@@ -460,7 +468,17 @@ export default class PlayerController {
         }
         this.perceivedDarkness = normalizedDarkness;
 
-        targetFov -= (externalPressure * 15.0) + (this.perceivedDarkness * 15.0);
+        if (externalPressure > 0.05 || this.perceivedDarkness > 0.6) {
+            this.paranoia = Math.min(1.0, this.paranoia + (delta * 0.02));
+        } else {
+            this.paranoia = Math.max(0.0, this.paranoia - (delta * 0.05));
+        }
+
+        targetFov -= (externalPressure * 15.0) + (this.perceivedDarkness * 15.0) + (this.paranoia * 10.0);
+
+        if (this.paranoia > 0.8 && Math.random() < (0.5 * delta)) {
+            document.dispatchEvent(new CustomEvent('somatic-step', { detail: { intensity: 0.5 * this.paranoia } }));
+        }
 
         if (Math.abs(this.currentFov - targetFov) > 0.1) {
             const fovSpeed = (externalPressure > 0.1 || this.perceivedDarkness > 0.5) ? 15.0 : 8.0;

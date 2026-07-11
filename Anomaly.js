@@ -57,7 +57,10 @@ export default class Anomaly {
     }
 
     update(delta, time) {
-        if (!this.isActive) return null;
+        if (!this.isActive) {
+            if (this.player.anomalyPressure > 0) this.player.anomalyPressure = 0;
+            return null;
+        }
 
         const playerPos = this.camera.position;
         const distToPlayerSq = this.group.position.distanceToSquared(playerPos);
@@ -72,6 +75,13 @@ export default class Anomaly {
         this._animate(time, delta);
         const speed = this._updateSenses(playerPos, distToPlayerSq, delta);
         this._resolveLocomotion(speed, delta, time);
+
+        let pressure = 0;
+        if (distToPlayerSq < 225.0) {
+            pressure = 1.0 - (Math.sqrt(distToPlayerSq) / 15.0);
+        }
+        this.player.anomalyPressure = pressure;
+
         return null;
     }
 
@@ -179,22 +189,21 @@ export default class Anomaly {
     }
 
     _resolveLocomotion(speed, delta, time) {
+        if (this.env && this.env.interactiveDoors) {
+            for (let i = 0; i < this.env.interactiveDoors.length; i++) {
+                const door = this.env.interactiveDoors[i];
+                if (this.group.position.distanceToSquared(door.position) < 16.0) {
+                    door.userData.entityOpen = true;
+                    door.userData.entityZ = this.group.position.z;
+                }
+            }
+        }
+
         if (Math.random() < 0.2) {
             for (let i = 0; i < this.env.localFixtures.length; i++) {
                 const fixture = this.env.localFixtures[i];
                 if (!fixture.isDead && fixture.position.distanceToSquared(this.group.position) < 16.0) {
-                    fixture.isDead = true;
-                    fixture.baseIntensity = 0.0;
-                    fixture.currentIntensity = 0.0;
-                    if (fixture.material) {
-                        fixture.material.emissiveIntensity = 0.0;
-                        if (fixture.material.color) fixture.material.color.setHex(0x222222);
-                        if (fixture.material.emissive) fixture.material.emissive.setHex(0x000000);
-                    }
-                    const pDistSq = this.camera.position.distanceToSquared(fixture.position);
-                    if (pDistSq < 625.0) {
-                        document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: pDistSq, intensity: 1.2}}));
-                    }
+                    if (this.env.shatterFixture) this.env.shatterFixture(fixture);
                 }
             }
         }

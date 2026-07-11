@@ -1,5 +1,28 @@
 # Level 0 Engine Changelog
 
+## [v0.3.6] - 2026-07-11
+
+### Added
+- **[MECHANICS] The Oasis & Tactical Sanctuaries:** Added a rare (3%) high-yield room generating guaranteed almond water and batteries to break visual monotony[cite: 13].
+- **[MECHANICS] The Deep Breath:** Stamina now regenerates 2.5x faster when the player stands perfectly still in well-lit, low-paranoia areas[cite: 13].
+- **[MECHANICS] Adrenaline Overdrive:** Exhausting aerobic stamina while being pursued by the Anomaly now mathematically siphons flashlight battery voltage to sustain sprint speed, delaying the lethargic walk state until complete electromagnetic failure[cite: 13].
+- **[AUDIO] Distinct Acoustic Topologies:** Synthesized custom DSP envelopes for metallic vent interactions, sharp mechanical breaker box clicks, and synthetic item acquisition chimes, decoupling them from the monolithic heavy door slam[cite: 13].
+- **[ENVIRONMENT] Data Embers:** Injected a secondary, localized particle system for the Server Farm. Cyan, additive-blended particulate dynamically swells into existence and counter-rotates against standard dust motes to simulate super-heated air exhausted from the cooling fans[cite: 13].
+
+### Changed
+- **[WEBGL] Authentic CRT Barrel Distortion:** Warped the post-processing UV coordinates natively in the fragment shader to map a mathematically precise geodesic CRT curve, complete with hard boundary clipping to swallow out-of-bounds coordinates into the void[cite: 13].
+- **[WEBGL] Exponential Paranoia Shader:** Shattered linear chromatic aberration. RGB channel separation now scales exponentially with anomaly pressure and exhaustion. Injected a luma-dependent halation pass to simulate failing phosphor decay, and coupled scanline opacity directly to the player's physical stamina[cite: 13].
+- **[TEXTURES] True Ceiling Tile Topology:** Rewrote the procedural ceiling drop-tile generation to explicitly draw a 2x2 grid on a 512x512 canvas, halving the geometric scale and protecting against systemic stretching errors. Added acoustical dot detailing for material honesty[cite: 13].
+- **[TEXTURES] Carpet Fidelity:** Eradicated WebGL linear interpolation blur on the procedural carpet canvas by forcing a strict `NearestFilter` magnification[cite: 13].
+- **[TEXTURES] Anisotropic Push:** Crushed grazing-angle aliasing by pushing global `anisotropy` from 4 to 16 across the entire PBR procedural pipeline[cite: 13].
+- **[TEXTURES] Decoupled Server Foundation:** Severed the Server Farm floor from the 1x1 wall vent material. Cloned a dedicated instance with a 64x32 UV repeat to yield mathematically crisp 1x2 meter industrial floor plates across the macro-structure[cite: 13].
+
+### Fixed
+- **[UI] Terminal Viewport Expansion:** Cured the CSS flexbox collapse and 1600px artificial width ceiling in the execution terminal. The interface now fluidly stretches to absolute viewport edges[cite: 13].
+- **[GEOMETRY] The 27% Oasis Anomaly:** Restored rarity equilibrium by inverting the structural probability floor. The generic wall mesh now properly catches the mathematical delta (at `prob: 0.03`), trapping the Oasis strictly at the `0.00` absolute floor for a true 3% yield[cite: 13].
+- **[SYSTEM] Dynamic Cell Binding:** Excised the hardcoded magic number `4` from chunk boundary calculations, binding the spatial grid strictly to the dynamic `cellSize` variable to preserve tensegrity during scale mutations[cite: 13].
+- **[AUDIO] Event Re-Tethering:** Fixed a syntax collision that dropped the battery an
+
 ## [v0.3.5] - 2026-07-11
 
 ### Added
