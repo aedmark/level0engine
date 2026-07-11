@@ -1,5 +1,19 @@
 # Level 0 Engine Changelog
 
+# [v0.3.1] - 2026-07-10
+
+### Added
+- [ARCHITECTURE] Entity Autonomy: Decoupled the predatory hazard from the `Environment` monolith into a dedicated `Anomaly.js` class, permanently isolating its traversal, rendering, and lifecycle loops.
+
+### Changed
+- [TEXTURES] True Planar UV Mapping: Refactored the `buildWall` geometry factory to accept a `yOffset` parameter. Mathematically clamped horizontal top/bottom face coordinates to the `[0.2, 0.8]` safe zone, completely obliterating the dark phantom baseboards on suspended architectural structures.
+- [GEOMETRY] The Seamless Cutout: Purged all standalone concrete (`structMat`) barriers encapsulating HVAC ducts and crawlspaces. Structures are now painted with `sharedWallMat` and utilize a localized, invisible topological forcefield (`isInvisibleBlocker`) to natively restrict entity pathfinding without generating brutalist tumors.
+- [MECHANICS] Somatic Heaving: Slowed the camera bob frequency and increased the vertical amplitude when the stamina pool is depleted. The physics engine now physically simulates a heavy, labored bodily sag rather than a hyperactive caffeine jitter.
+- [ENTITY] The Scent Gradient: Extracted the Anomaly's spatial backtrack logic from the local perception block. The entity now continuously tracks a mathematical scent gradient, preventing topological paralysis when wandering into dead-ends outside the player's radius.
+
+### Fixed
+- [SYSTEM] Namespace Lexical Drop: Fixed a fatal `ReferenceError: Mesh is not defined` engine crash during procedural generation by restoring the explicit `THREE.` namespace prefix to the `buildWall` factory return statement.
+
 ## [v0.3.0] - 2026-07-10
 
 ### Changed

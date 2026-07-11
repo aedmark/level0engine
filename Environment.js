@@ -2,6 +2,7 @@
 // LEVEL 0 ENVIRONMENT & MEMORY MANAGER
 
 import ProceduralTextureFactory from './ProceduralTextureFactory.js';
+import Anomaly from './Anomaly.js';
 
 class SpatialHashGrid {
     constructor(cellSize) {
@@ -158,7 +159,7 @@ export default class Environment {
     updateInteractives(playerPos, delta) {
         this.interactiveDoors.forEach(door => {
             const pDistSq = playerPos.distanceToSquared(door.position);
-            const eDistSq = this.entityActive ? this.entityGroup.position.distanceToSquared(door.position) : Infinity;
+            const eDistSq = this.anomaly.isActive ? this.anomaly.group.position.distanceToSquared(door.position) : Infinity;
             const playerOpen = pDistSq < 12.25;
             const entityOpen = eDistSq < 16.0;
             const isOpen = playerOpen || entityOpen;
@@ -176,14 +177,14 @@ export default class Environment {
                         let blockPosZ = false;
                         for (let i = 0; i < localBoxes.length; i++) {
                             const b = localBoxes[i];
-                            if (b === door.userData.box) continue;
+                            if (b === door.userData.box || b.isInvisibleBlocker) continue;
                             if (b.intersectsBox(testBoxNegZ)) blockNegZ = true;
                             if (b.intersectsBox(testBoxPosZ)) blockPosZ = true;
                         }
                         if (blockNegZ && !blockPosZ) door.userData.swingConstraint = -(Math.PI / 2);
                         else if (blockPosZ && !blockNegZ) door.userData.swingConstraint = (Math.PI / 2);
                     }
-                    const triggerZ = (entityOpen && !playerOpen) ? this.entityGroup.position.z : playerPos.z;
+                    const triggerZ = (entityOpen && !playerOpen) ? this.anomaly.group.position.z : playerPos.z;
                     const approachZ = triggerZ - door.position.z;
                     let desiredRot = approachZ < 0 ? -(Math.PI / 2) : (Math.PI / 2);
                     if (door.userData.swingConstraint !== 0) desiredRot = door.userData.swingConstraint;
@@ -318,24 +319,9 @@ export default class Environment {
             this.scene.add(light);
             this.lightPool.push(light);
         }
-        this.entityGroup = new THREE.Group();
-        const nullMat = new THREE.MeshBasicMaterial({color: 0x000000});
-        const coreGeo = new THREE.IcosahedronGeometry(0.6, 0);
-        this.entityCore = new THREE.Mesh(coreGeo, nullMat);
-        this.entityGroup.add(this.entityCore);
-        this.entityShards = [];
-        for (let i = 0; i < 4; i++) {
-            const shard = new THREE.Mesh(new THREE.TetrahedronGeometry(0.2, 0), nullMat);
-            this.entityShards.push({
-                mesh: shard,
-                speed: Math.random() * 2.0 + 1.0,
-                offset: Math.random() * Math.PI * 2
-            });
-            this.entityGroup.add(shard);
-        }
-        this.scene.add(this.entityGroup);
-        this.entityActive = false;
-        this.entityTarget = new THREE.Vector3();
+
+        this.anomaly = new Anomaly(this.scene, this.camera, this.player, this);
+
         this.tagPool = [];
         this.tagIndex = 0;
         this.tagGroup = new THREE.Group();
@@ -535,22 +521,17 @@ export default class Environment {
         this.chunkQueue = [];
         this.isBuildingChunk = false;
         this.player.velocity.set(0, 0, 0);
-        this.entityActive = true;
-        this.entityBreadcrumbs = [];
-        this.entityBacktrackTimer = 0;
-        this.breadcrumbTimer = 0;
+
         if (isWarp) {
             const signX = Math.random() > 0.5 ? 1 : -1;
             const signZ = Math.random() > 0.5 ? 1 : -1;
             const warpX = this.camera.position.x + (signX * (1500 + Math.random() * 2000));
             const warpZ = this.camera.position.z + (signZ * (1500 + Math.random() * 2000));
             this.camera.position.set(warpX, 1.6, warpZ);
-            this.entityGroup.position.set(warpX + 32, 1.5, warpZ + 32);
-            this.entityTarget.copy(this.entityGroup.position);
+            this.anomaly.reset(warpX + 32, 1.5, warpZ + 32);
         } else {
             this.camera.position.set(0, 1.6, 0);
-            this.entityGroup.position.set(32, 1.5, 32);
-            this.entityTarget.copy(this.entityGroup.position);
+            this.anomaly.reset(32, 1.5, 32);
             const seedString = document.getElementById('seedInput').value || "ASYNC RESEARCH INSTITUTE";
             this.baseSeed = 0;
             for (let i = 0; i < seedString.length; i++) {
@@ -610,15 +591,22 @@ export default class Environment {
             hash,
             chunkGroup,
             stagingMeshes,
-            buildWall: (w, d, mat, h = 3.0) => {
-                const key = `${w}_${h}_${d}`;
+            buildWall: (w, d, mat, h = 3.0, yOffset = 0) => {
+                const key = `${w}_${h}_${d}_${yOffset}`;
                 let geo = this.geoCache.get(key);
                 if (!geo) {
                     geo = new THREE.BoxGeometry(w + 0.02, h, d + 0.02);
                     const uv = geo.attributes.uv;
                     for (let i = 0; i < 8; i++) uv.setX(i, uv.getX(i) * (d / this.cellSize));
                     for (let i = 16; i < 24; i++) uv.setX(i, uv.getX(i) * (w / this.cellSize));
-                    if (h !== 3.0) {
+
+                    if (h !== 3.0 || yOffset > 0) {
+                        const vStart = yOffset / 3.0;
+                        const vRange = h / 3.0;
+                        for (let i = 0; i < 8; i++) uv.setY(i, vStart + uv.getY(i) * vRange);
+                        for (let i = 16; i < 24; i++) uv.setY(i, vStart + uv.getY(i) * vRange);
+                    }
+                    if (h !== 3.0 && yOffset === 0) {
                         for (let i = 8; i < 16; i++) uv.setY(i, uv.getY(i) * (h / 3.0));
                     }
                     this.geoCache.set(key, geo);
@@ -643,7 +631,6 @@ export default class Environment {
                 group.updateMatrixWorld(true);
                 const box = new THREE.Box3().setFromObject(group);
 
-                // BENEDICT: Pre-flight check to prevent furniture from clipping into generated architecture
                 const localBoxes = this.spatialGrid.getNearby(group.position.x, group.position.z, 2.0);
                 for (let i = 0; i < localBoxes.length; i++) {
                     if (localBoxes[i].intersectsBox(box)) return;
@@ -660,19 +647,17 @@ export default class Environment {
                 });
             },
             addGrate: (px, py, pz, blocksX) => {
-                // THE ARTISAN: Grate Annihilation Protocol. If a grate meets another grate, they vanish to form a seamless continuous tunnel.
                 const localBoxes = this.spatialGrid.getNearby(px, pz, 1.0);
                 for (let i = 0; i < localBoxes.length; i++) {
                     const b = localBoxes[i];
                     if (b.isGrate) {
                         const dist = Math.abs(b.meshRef.position.x - px) + Math.abs(b.meshRef.position.z - pz);
                         if (dist < 0.1) {
-                            // BENEDICT: Legacy-safe topological decoupling
                             if (b.meshRef.parent) {
                                 b.meshRef.parent.remove(b.meshRef);
                             }
                             this.interactables = this.interactables.filter(item => item !== b.meshRef);
-                            b.isGrate = false; // Defuse the phantom collision box
+                            b.isGrate = false;
                             return;
                         }
                     }
@@ -778,7 +763,7 @@ export default class Environment {
                     const p2 = buildWall(isZ ? pW : this.cellSize, isZ ? this.cellSize : pW, this.sharedWallMat);
                     p2.position.set(x * this.cellSize + (isZ ? offset : 0), 1.5, z * this.cellSize + (isZ ? 0 : offset));
                     addGeometry(p2);
-                    const header = buildWall(isZ ? this.cellSize - (pW * 2) : this.cellSize, isZ ? this.cellSize : this.cellSize - (pW * 2), this.headerMat, 0.8);
+                    const header = buildWall(isZ ? this.cellSize - (pW * 2) : this.cellSize, isZ ? this.cellSize : this.cellSize - (pW * 2), this.headerMat, 0.8, 2.2);
                     header.position.set(x * this.cellSize, 2.6, z * this.cellSize);
                     addGeometry(header);
                 }
@@ -938,7 +923,6 @@ export default class Environment {
             {
                 prob: 0.40, build: (x, z) => {
                     const face = Math.floor(random() * 4);
-                    // BENEDICT: If face is 0 (+Z) or 1 (-Z), the hole must tunnel through the Z-axis.
                     const tunnelOnZ = (face === 0 || face === 1);
                     const isFloorLevel = random() > 0.3;
 
@@ -951,29 +935,19 @@ export default class Environment {
                         const w1 = tunnelOnZ ? sideW : this.cellSize;
                         const d1 = tunnelOnZ ? this.cellSize : sideW;
 
-                        // BENEDICT: Correctly aligning width/depth to the proper X/Z offsets
                         const side1 = buildWall(w1, d1, this.sharedWallMat);
-                        side1.position.set(
-                            x * this.cellSize + (tunnelOnZ ? -sideOffset : 0),
-                            1.5,
-                            z * this.cellSize + (tunnelOnZ ? 0 : -sideOffset)
-                        );
+                        side1.position.set(x * this.cellSize + (tunnelOnZ ? -sideOffset : 0), 1.5, z * this.cellSize + (tunnelOnZ ? 0 : -sideOffset));
                         addGeometry(side1);
 
                         const side2 = buildWall(w1, d1, this.sharedWallMat);
-                        side2.position.set(
-                            x * this.cellSize + (tunnelOnZ ? sideOffset : 0),
-                            1.5,
-                            z * this.cellSize + (tunnelOnZ ? 0 : sideOffset)
-                        );
+                        side2.position.set(x * this.cellSize + (tunnelOnZ ? sideOffset : 0), 1.5, z * this.cellSize + (tunnelOnZ ? 0 : sideOffset));
                         addGeometry(side2);
 
                         const topH = 3.0 - holeH;
                         const topW = tunnelOnZ ? holeW : this.cellSize;
                         const topD = tunnelOnZ ? this.cellSize : holeW;
 
-                        // THE ARTISAN: Use structMat for the top to eliminate floating baseboards
-                        const top = buildWall(topW, topD, this.structMat, topH);
+                        const top = buildWall(topW, topD, this.sharedWallMat, topH, holeH);
                         top.position.set(x * this.cellSize, holeH + (topH / 2), z * this.cellSize);
                         addGeometry(top);
 
@@ -989,8 +963,16 @@ export default class Environment {
                         liningCeil.position.set(x * this.cellSize, holeH - (liningH / 2), z * this.cellSize);
                         addGeometry(liningCeil);
 
-                        const grateOffset = (this.cellSize / 2) - 0.025;
+                        const blockBox = new THREE.Box3(
+                            new THREE.Vector3(x * this.cellSize - (tunnelOnZ ? holeW/2 : this.cellSize/2), 0, z * this.cellSize - (tunnelOnZ ? this.cellSize/2 : holeW/2)),
+                            new THREE.Vector3(x * this.cellSize + (tunnelOnZ ? holeW/2 : this.cellSize/2), 3.0, z * this.cellSize + (tunnelOnZ ? this.cellSize/2 : holeW/2))
+                        );
+                        blockBox.isEntityBlocker = true;
+                        blockBox.isInvisibleBlocker = true;
+                        blockBox.chunkHash = hash;
+                        this.spatialGrid.insert(blockBox);
 
+                        const grateOffset = (this.cellSize / 2) - 0.025;
                         if (tunnelOnZ) {
                             ctx.addGrate(x * this.cellSize, 0.35, z * this.cellSize + grateOffset, false);
                             ctx.addGrate(x * this.cellSize, 0.35, z * this.cellSize - grateOffset, false);
@@ -1027,11 +1009,11 @@ export default class Environment {
                     const w1 = isZ ? 1.75 : this.cellSize;
                     const d1 = isZ ? this.cellSize : 1.75;
                     const offset = (1.75 / 2) + 0.25;
-                    const block1 = buildWall(w1, d1, this.structMat);
+                    const block1 = buildWall(w1, d1, this.sharedWallMat);
                     block1.position.set(x * this.cellSize - (isZ ? offset : 0), 1.5, z * this.cellSize - (isZ ? 0 : offset));
                     block1.userData.isEntityBlocker = true;
                     addGeometry(block1);
-                    const block2 = buildWall(w1, d1, this.structMat);
+                    const block2 = buildWall(w1, d1, this.sharedWallMat);
                     block2.position.set(x * this.cellSize + (isZ ? offset : 0), 1.5, z * this.cellSize + (isZ ? 0 : offset));
                     block2.userData.isEntityBlocker = true;
                     addGeometry(block2);
@@ -1042,38 +1024,42 @@ export default class Environment {
                     const typeRoll = random();
                     const dirZ = random() > 0.5;
                     if (typeRoll > 0.66) {
-                        // Crawl Vent: 0.7 height, forced crawl, exterior is wall, interior is vent
                         const tunnelW = 1.2;
                         const tunnelH = 0.7;
                         const sideW = (this.cellSize - tunnelW) / 2;
                         const sideOffset = (this.cellSize / 2) - (sideW / 2);
 
-                        // THE ARTISAN: Exterior is standard wall material to blend in flawlessly
                         const side1 = buildWall(dirZ ? sideW : this.cellSize, dirZ ? this.cellSize : sideW, this.sharedWallMat);
                         side1.position.set(x * this.cellSize + (dirZ ? -sideOffset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : -sideOffset));
-                        side1.userData.isEntityBlocker = true;
                         addGeometry(side1);
 
                         const side2 = buildWall(dirZ ? sideW : this.cellSize, dirZ ? this.cellSize : sideW, this.sharedWallMat);
                         side2.position.set(x * this.cellSize + (dirZ ? sideOffset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : sideOffset));
-                        side2.userData.isEntityBlocker = true;
                         addGeometry(side2);
 
-                        // Use structMat for top wall to prevent floating baseboards
                         const roofH_block = 3.0 - tunnelH;
-                        const roof = buildWall(dirZ ? tunnelW : this.cellSize, dirZ ? this.cellSize : tunnelW, this.structMat, roofH_block);
+                        const roof = buildWall(dirZ ? tunnelW : this.cellSize, dirZ ? this.cellSize : tunnelW, this.sharedWallMat, roofH_block, tunnelH);
                         roof.position.set(x * this.cellSize, tunnelH + (roofH_block / 2), z * this.cellSize);
-                        roof.userData.isEntityBlocker = true;
                         addGeometry(roof);
+
                         const liningH = 0.05;
                         const liningFloor = buildWall(dirZ ? tunnelW : this.cellSize + 0.05, dirZ ? this.cellSize + 0.05 : tunnelW, this.ventMat, liningH);
                         liningFloor.position.set(x * this.cellSize, liningH / 2, z * this.cellSize);
                         addGeometry(liningFloor);
+
                         const liningCeil = buildWall(dirZ ? tunnelW : this.cellSize + 0.05, dirZ ? this.cellSize + 0.05 : tunnelW, this.ventMat, liningH);
                         liningCeil.position.set(x * this.cellSize, tunnelH - (liningH / 2), z * this.cellSize);
                         addGeometry(liningCeil);
 
-                        // BENEDICT: Cap both ends with grates. They will annihilate if connected to another vent.
+                        const blockBox = new THREE.Box3(
+                            new THREE.Vector3(x * this.cellSize - (dirZ ? tunnelW/2 : this.cellSize/2), 0, z * this.cellSize - (dirZ ? this.cellSize/2 : tunnelW/2)),
+                            new THREE.Vector3(x * this.cellSize + (dirZ ? tunnelW/2 : this.cellSize/2), 3.0, z * this.cellSize + (dirZ ? this.cellSize/2 : tunnelW/2))
+                        );
+                        blockBox.isEntityBlocker = true;
+                        blockBox.isInvisibleBlocker = true;
+                        blockBox.chunkHash = hash;
+                        this.spatialGrid.insert(blockBox);
+
                         const grateOffset = (this.cellSize / 2) - 0.025;
                         if (dirZ) {
                             ctx.addGrate(x * this.cellSize, 0.35, z * this.cellSize + grateOffset, false);
@@ -1085,11 +1071,13 @@ export default class Environment {
                     } else if (typeRoll > 0.33) {
                         const wallW = (this.cellSize - 0.3) / 2;
                         const offset = (wallW / 2) + 0.15;
-                        const block1 = buildWall(dirZ ? wallW : this.cellSize, dirZ ? this.cellSize : wallW, this.structMat);
+
+                        const block1 = buildWall(dirZ ? wallW : this.cellSize, dirZ ? this.cellSize : wallW, this.sharedWallMat);
                         block1.position.set(x * this.cellSize + (dirZ ? -offset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : -offset));
-                        block1.userData.isEntityBlocker = true;
+                        block1.userData.isEntityBlocker = true; // These are solid walls, they block natively.
                         addGeometry(block1);
-                        const block2 = buildWall(dirZ ? wallW : this.cellSize, dirZ ? this.cellSize : wallW, this.structMat);
+
+                        const block2 = buildWall(dirZ ? wallW : this.cellSize, dirZ ? this.cellSize : wallW, this.sharedWallMat);
                         block2.position.set(x * this.cellSize + (dirZ ? offset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : offset));
                         block2.userData.isEntityBlocker = true;
                         addGeometry(block2);
@@ -1098,18 +1086,27 @@ export default class Environment {
                         const sideOffset = (this.cellSize / 2) - (sideW / 2);
                         const roofW = this.cellSize - (sideW * 2);
                         const roofH = 1.8;
+
                         const side1 = buildWall(dirZ ? sideW : this.cellSize, dirZ ? this.cellSize : sideW, this.sharedWallMat);
                         side1.position.set(x * this.cellSize + (dirZ ? -sideOffset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : -sideOffset));
-                        side1.userData.isEntityBlocker = true;
                         addGeometry(side1);
+
                         const side2 = buildWall(dirZ ? sideW : this.cellSize, dirZ ? this.cellSize : sideW, this.sharedWallMat);
                         side2.position.set(x * this.cellSize + (dirZ ? sideOffset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : sideOffset));
-                        side2.userData.isEntityBlocker = true;
                         addGeometry(side2);
-                        const roof = buildWall(dirZ ? roofW : this.cellSize, dirZ ? this.cellSize : roofW, this.structMat, roofH);
+
+                        const roof = buildWall(dirZ ? roofW : this.cellSize, dirZ ? this.cellSize : roofW, this.sharedWallMat, roofH, 1.2);
                         roof.position.set(x * this.cellSize, 1.2 + (roofH / 2), z * this.cellSize);
-                        roof.userData.isEntityBlocker = true;
                         addGeometry(roof);
+
+                        const blockBox = new THREE.Box3(
+                            new THREE.Vector3(x * this.cellSize - (dirZ ? roofW/2 : this.cellSize/2), 0, z * this.cellSize - (dirZ ? this.cellSize/2 : roofW/2)),
+                            new THREE.Vector3(x * this.cellSize + (dirZ ? roofW/2 : this.cellSize/2), 3.0, z * this.cellSize + (dirZ ? this.cellSize/2 : roofW/2))
+                        );
+                        blockBox.isEntityBlocker = true;
+                        blockBox.isInvisibleBlocker = true;
+                        blockBox.chunkHash = hash;
+                        this.spatialGrid.insert(blockBox);
                     }
                 }
             },
@@ -1828,154 +1825,7 @@ export default class Environment {
     }
 
     updateEntity(playerPos, delta, time) {
-        if (!this.entityActive) return;
-        if (!this._entDir) {
-            this._entDir = new THREE.Vector3();
-            this._entToPlayer = new THREE.Vector3();
-            this._entLookDir = new THREE.Vector3();
-            this._entNextPos = new THREE.Vector3();
-            this._entBox = new THREE.Box3();
-            this._entBoxX = new THREE.Box3();
-            this._entBoxZ = new THREE.Box3();
-            this._entMin = new THREE.Vector3();
-            this._entMax = new THREE.Vector3();
-        }
-        const distToPlayerSq = this.entityGroup.position.distanceToSquared(playerPos);
-        if (distToPlayerSq < 0.64) {
-            this.player.stamina = this.player.maxStamina;
-            this.player.exhaustion = 0.0;
-            this.player.isChased = false;
-            return {consumed: true};
-        }
-        this._animateAnomaly(time, delta);
-        const speed = this._updateAnomalySenses(playerPos, distToPlayerSq, delta);
-        this._resolveAnomalyLocomotion(speed, delta, time);
-    }
-
-    _animateAnomaly(time, delta) {
-        this.entityCore.rotation.y = time * 0.8;
-        this.entityCore.rotation.x = time * 0.5;
-        const pulse = 1.0 + Math.sin(time * 4.0) * 0.15;
-        this.entityCore.scale.set(pulse, pulse, pulse);
-        this.entityShards.forEach((shardData, i) => {
-            const panicJitter = this.player.exhaustion > 0.2 ? (Math.random() - 0.5) * this.player.exhaustion * 0.4 : 0;
-            const angle = time * shardData.speed + shardData.offset;
-            shardData.mesh.position.set(
-                Math.cos(angle) * (1.2 + panicJitter),
-                Math.sin(time * 3.0 + i) * 0.4 + panicJitter,
-                Math.sin(angle) * (1.2 + panicJitter)
-            );
-            shardData.mesh.rotation.x += delta * (2.0 + panicJitter * 10);
-            shardData.mesh.rotation.y += delta * (3.0 + panicJitter * 10);
-        });
-    }
-
-    _updateAnomalySenses(playerPos, distToPlayerSq, delta) {
-        this.breadcrumbTimer = (this.breadcrumbTimer || 0) + delta;
-        if (this.breadcrumbTimer > 0.5 && this.entityBacktrackTimer <= 0) {
-            this.breadcrumbTimer = 0;
-            this.entityBreadcrumbs.push(this.entityGroup.position.clone());
-            if (this.entityBreadcrumbs.length > 20) this.entityBreadcrumbs.shift();
-        }
-        let detectionRadius = 25.0;
-        if (this.player.isCrouching) detectionRadius -= 10.0;
-        if (this.player.isRunning) detectionRadius += 15.0;
-        if (this.player.flashlightActive) detectionRadius += 20.0;
-        detectionRadius += (this.player.exhaustion * 10.0);
-        const perceptionThresholdSq = detectionRadius * detectionRadius;
-        if (distToPlayerSq < perceptionThresholdSq) {
-            if (this.entityBacktrackTimer > 0) {
-                this.entityBacktrackTimer -= delta;
-                if (this.entityBreadcrumbs.length > 0) {
-                    const targetCrumb = this.entityBreadcrumbs[this.entityBreadcrumbs.length - 1];
-                    this.entityTarget.copy(targetCrumb);
-                    if (this.entityGroup.position.distanceToSquared(targetCrumb) < 1.0) {
-                        this.entityBreadcrumbs.pop();
-                    }
-                } else {
-                    this.entityBacktrackTimer = 0;
-                }
-                this.player.isChased = false;
-            } else {
-                this.entityTarget.copy(playerPos);
-                this.player.isChased = distToPlayerSq < 225.0;
-            }
-        } else {
-            this.player.isChased = false;
-            if (Math.random() < 0.02) {
-                this.entityTarget.x += (Math.random() - 0.5) * 15.0;
-                this.entityTarget.z += (Math.random() - 0.5) * 15.0;
-            }
-        }
-        const baseSpeed = distToPlayerSq < 225.0 ? 3.8 : 1.8;
-        let speed = baseSpeed + (Math.min(this.player.exhaustion, 0.6) * 1.2);
-        let isObserved = false;
-        if (this.player.flashlightActive && distToPlayerSq < 625.0) {
-            const toEntity = this._entToPlayer.subVectors(this.entityGroup.position, playerPos).normalize();
-            const lookDir = this._entLookDir.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
-            if (lookDir.dot(toEntity) > 0.85) {
-                isObserved = true;
-                speed = 0.0;
-                this.player.flashlightBattery = Math.max(0, this.player.flashlightBattery - 25.0 * delta);
-                this.entityCore.position.set((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4);
-            }
-        }
-        if (!isObserved) {
-            this.entityCore.position.set(0, 0, 0);
-        }
-        return speed;
-    }
-
-    _resolveAnomalyLocomotion(speed, delta, time) {
-        const dir = this._entDir.subVectors(this.entityTarget, this.entityGroup.position);
-        dir.y = 0;
-        const distToTarget = dir.length();
-        if (distToTarget > 0.1) {
-            dir.normalize();
-            const moveVec = dir.multiplyScalar(speed * delta);
-            this._entNextPos.copy(this.entityGroup.position).add(moveVec);
-            this._entMin.set(this._entNextPos.x - 0.6, 0.0, this._entNextPos.z - 0.6);
-            this._entMax.set(this._entNextPos.x + 0.6, 3.0, this._entNextPos.z + 0.6);
-            this._entBox.set(this._entMin, this._entMax);
-            let blocked = false;
-            const localBoxes = this.spatialGrid.getNearby(this._entNextPos.x, this._entNextPos.z, 2.0);
-            for (let i = 0; i < localBoxes.length; i++) {
-                if (localBoxes[i].isEntityBlocker && this._entBox.intersectsBox(localBoxes[i])) {
-                    blocked = true;
-                    break;
-                }
-            }
-            if (!blocked) {
-                this.entityGroup.position.add(moveVec);
-            } else {
-                let blockedX = false;
-                let blockedZ = false;
-                this._entBoxX.copy(this._entBox);
-                this._entBoxX.min.z = this.entityGroup.position.z - 0.5;
-                this._entBoxX.max.z = this.entityGroup.position.z + 0.5;
-                this._entBoxZ.copy(this._entBox);
-                this._entBoxZ.min.x = this.entityGroup.position.x - 0.5;
-                this._entBoxZ.max.x = this.entityGroup.position.x + 0.5;
-                for (let i = 0; i < localBoxes.length; i++) {
-                    if (localBoxes[i].isEntityBlocker) {
-                        if (!blockedX && this._entBoxX.intersectsBox(localBoxes[i])) blockedX = true;
-                        if (!blockedZ && this._entBoxZ.intersectsBox(localBoxes[i])) blockedZ = true;
-                    }
-                }
-                if (!blockedX && blockedZ) {
-                    this.entityGroup.position.x += moveVec.x;
-                } else if (!blockedZ && blockedX) {
-                    this.entityGroup.position.z += moveVec.z;
-                } else {
-                    if (this.entityBacktrackTimer <= 0) {
-                        this.entityBacktrackTimer = 5.0;
-                    }
-                    this.entityGroup.position.x += (Math.random() - 0.5) * speed * delta;
-                    this.entityGroup.position.z += (Math.random() - 0.5) * speed * delta;
-                }
-            }
-        }
-        this.entityGroup.position.y = 1.5 + Math.sin(time * 2.0) * 0.2;
+        return this.anomaly.update(delta, time);
     }
 
     updateLights(time) {
@@ -2060,11 +1910,15 @@ export default class Environment {
                 this.audioRaycaster.set(cameraPos, this.audioDirection);
                 if (!this._rayTarget) this._rayTarget = new THREE.Vector3();
                 let isHit = false;
-                const localBoxes = this.spatialGrid.getNearby(cameraPos.x, cameraPos.z, minLightDist);
+
+                const localBoxes = this.spatialGrid.getNearby(cameraPos.x, cameraPos.z, Math.min(minLightDist, 15.0));
                 const ray = this.audioRaycaster.ray;
+                const distSqLimit = minLightDist * minLightDist;
+
                 for (let i = 0; i < localBoxes.length; i++) {
+                    if (localBoxes[i].isInvisibleBlocker) continue;
                     if (ray.intersectBox(localBoxes[i], this._rayTarget)) {
-                        if (cameraPos.distanceToSquared(this._rayTarget) < (minLightDist * minLightDist)) {
+                        if (cameraPos.distanceToSquared(this._rayTarget) < distSqLimit) {
                             isHit = true;
                             break;
                         }
@@ -2126,10 +1980,13 @@ export default class Environment {
             this.dustCloud.rotation.z = time * 0.02;
         }
         let anomalyPressure = 0;
-        if (this.entityActive) {
-            const distToAnomaly = cameraPos.distanceTo(this.entityGroup.position);
+        if (this.anomaly.isActive) {
+            const distToAnomaly = cameraPos.distanceTo(this.anomaly.group.position);
             if (distToAnomaly < 15.0) anomalyPressure = 1.0 - (distToAnomaly / 15.0);
         }
+
+        this.player.anomalyPressure = anomalyPressure;
+
         if (this.flashlight) {
             let targetIntensity = this.player.flashlightActive ? 1.1 : 0.0;
             if (this.player.flashlightActive) {

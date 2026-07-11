@@ -299,6 +299,9 @@ export default class PlayerController {
 
         for (let i = 0; i < localBoxes.length; i++) {
             const box = localBoxes[i];
+            // FULLER: Ignore invisible topological bounds when calculating physical headroom
+            if (box.isInvisibleBlocker) continue;
+
             if (!box.isVoid && box.min.y > currentFeetY + 0.4 && this._floorBox.intersectsBox(box)) {
                 const available = box.min.y - currentFeetY;
                 if (available < maxAvailableHeight) maxAvailableHeight = available;
@@ -325,6 +328,7 @@ export default class PlayerController {
             this._vecMax.set(px + this.baseRadius, currentFeetY + (this.isCrawling ? 0.5 : 1.1), pz + this.baseRadius);
             this._floorBox.set(this._vecMin, this._vecMax);
             for (let i = 0; i < localBoxes.length; i++) {
+                if (localBoxes[i].isInvisibleBlocker) continue;
                 if (this._floorBox.intersectsBox(localBoxes[i])) {
                     targetRadius = this.squeezeRadius;
                     this.isSqueezing = true;
@@ -344,14 +348,14 @@ export default class PlayerController {
         const baseDarknessPenalty = (this.darknessPressure || 0.0) * 12.0;
 
         if (this.isRunning && isMoving && !this.isSqueezing) {
-            const burnRate = (this.isChased ? 25.0 : 4.0) + baseDarknessPenalty;
+            const burnRate = (this.isChased ? 10.0 : 4.0) + baseDarknessPenalty;
             this.stamina = Math.max(0, this.stamina - burnRate * delta);
             if (this.stamina <= 0.0) {
                 this.isRunning = false;
                 currentSpeed = 60.0 * this.speedMultiplier;
             }
         } else {
-            const recoveryRate = (this.isChased ? 4.0 : 10.0) - baseDarknessPenalty;
+            const recoveryRate = (this.isChased ? 6.0 : 10.0) - baseDarknessPenalty;
             this.stamina = Math.max(0.0, Math.min(this.maxStamina, this.stamina + recoveryRate * delta));
         }
         const currentActualSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
@@ -399,10 +403,17 @@ export default class PlayerController {
         if (this.isSqueezing) targetFov -= 18.0;
         if (this.isCrawling) targetFov -= 15.0;
         else if (this.isCrouching) targetFov -= 8.0;
+
         targetFov -= (this.exhaustion * 7.0);
 
+        // SCHUR: Paranoia narrowing. As anomaly pressure builds, the FOV restricts, inducing claustrophobia.
+        const externalPressure = this.anomalyPressure || 0.0;
+        targetFov -= (externalPressure * 15.0);
+
         if (Math.abs(this.currentFov - targetFov) > 0.1) {
-            this.currentFov += (targetFov - this.currentFov) * 8.0 * delta;
+            // PINKER: Accelerated interpolation when external pressure is applied for a sudden snap effect
+            const fovSpeed = externalPressure > 0.1 ? 15.0 : 8.0;
+            this.currentFov += (targetFov - this.currentFov) * fovSpeed * delta;
             this.camera.fov = this.currentFov;
             this.camera.updateProjectionMatrix();
         }
@@ -440,6 +451,10 @@ export default class PlayerController {
 
         for (let i = 0, len = localBoxes.length; i < len; i++) {
             const box = localBoxes[i];
+
+            // THE ARTISAN: The player ignores invisible topological blockers meant only for the entity.
+            if (box.isInvisibleBlocker) continue;
+
             if (box.isVoid && this._floorBox.intersectsBox(box)) {
                 inVoid = true;
             }
@@ -468,25 +483,44 @@ export default class PlayerController {
                 this.camera.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this.camera.rotation.x));
                 document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: impact * 2.0}}));
             }
-            if (hitX) this.velocity.x *= 0.5;
-            if (hitZ) this.velocity.z *= 0.5;
+            if (hitX) {
+                this.velocity.x *= 0.1;
+                if (Math.abs(this.velocity.z) > 1.0) this.velocity.z *= 1.05; // Deflect energy into Z
+            }
+            if (hitZ) {
+                this.velocity.z *= 0.1;
+                if (Math.abs(this.velocity.x) > 1.0) this.velocity.x *= 1.05; // Deflect energy into X
+            }
         }
         this.wasColliding = isColliding;
+
+        // FULLER: Apply the movement vector only if the specific axis is unblocked.
         if (!hitX) this.camera.position.x += moveX;
         if (!hitZ) this.camera.position.z += moveZ;
         const postIntentSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
-        this.headBobTimer = (this.headBobTimer || 0) + postIntentSpeed * delta;
+
+        // SCHUR: Exhaustion is a state of being. Slowing down the breath frequency slightly for a deeper, more labored heave.
+        const baseBobFreq = this.isRunning ? 3.5 : 2.0;
+        const breathFreq = baseBobFreq + (this.exhaustion * 1.2);
+
+        this.headBobTimer = (this.headBobTimer || 0) + (postIntentSpeed + (this.exhaustion * 0.25)) * delta;
+
         let bobOffset = 0;
         let swayRoll = 0;
-        if (this.enableHeadBob && postIntentSpeed > 0.5) {
-            const bobFreq = this.isRunning ? 3.5 : 2.5;
-            const bobAmp = this.isRunning ? 0.08 : 0.05;
-            const prevBob = Math.sin((this.headBobTimer - postIntentSpeed * delta) * bobFreq) * bobAmp;
-            bobOffset = Math.sin(this.headBobTimer * bobFreq) * bobAmp;
-            if (prevBob > 0 && bobOffset <= 0 && !this.isCrouching) {
-                document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: this.isRunning ? 1.0 : 0.3}}));
+
+        if (this.enableHeadBob) {
+            if (postIntentSpeed > 0.5) {
+                const bobAmp = this.isRunning ? 0.08 : 0.05;
+                const prevBob = Math.sin((this.headBobTimer - postIntentSpeed * delta) * breathFreq) * bobAmp;
+                bobOffset = Math.sin(this.headBobTimer * breathFreq) * bobAmp;
+                if (prevBob > 0 && bobOffset <= 0 && !this.isCrouching) {
+                    document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: this.isRunning ? 1.0 : 0.3}}));
+                }
+                swayRoll = Math.cos(this.headBobTimer * (breathFreq * 0.5)) * (bobAmp * 0.05);
+            } else if (this.exhaustion > 0.1) {
+                bobOffset = Math.sin(this.headBobTimer * breathFreq * 0.4) * (this.exhaustion * 0.04);
+                swayRoll = Math.cos(this.headBobTimer * breathFreq * 0.2) * (this.exhaustion * 0.015);
             }
-            swayRoll = Math.cos(this.headBobTimer * (bobFreq * 0.5)) * (bobAmp * 0.05);
         }
         this.currentLean += (this.targetLean - this.currentLean) * (1.0 - Math.exp(-15.0 * delta));
         const rollDamping = 1.0 - Math.exp(-12.0 * delta);

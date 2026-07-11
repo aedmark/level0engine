@@ -1,6 +1,6 @@
 // sw.js
 
-const CACHE_NAME = '031';
+const CACHE_NAME = '032';
 const ASSETS = [
     './',
     './index.html',
@@ -11,7 +11,8 @@ const ASSETS = [
     './ProceduralTextureFactory.js',
     './RenderEngine.js',
     './three.min.js',
-    './manifest.json'
+    './manifest.json',
+    './Anomaly.js'
 ];
 
 self.addEventListener('install', (e) => {
