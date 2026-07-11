@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LEVEL 0 ENGINE // Terminal 003</title>
+    <title>LEVEL 0 ENGINE // Execution</title>
     <meta name="theme-color" content="#050505">
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -40,13 +40,12 @@
             margin: 0;
             background-color: #050505;
             color: #d4c382;
-            overflow-x: hidden;
-            /* Artisan Note: Prevent text selection to maintain terminal illusion */
+            overflow: hidden; /* Prevent body scroll to lock the terminal in place */
             user-select: none;
             -webkit-user-select: none;
         }
 
-        /* NOISE OVERLAY - Adds structural grit */
+        /* NOISE OVERLAY */
         .noise-overlay {
             position: fixed;
             inset: 0;
@@ -56,7 +55,7 @@
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
         }
 
-        /* SCANLINES - Enforces the temporal displacement */
+        /* SCANLINES */
         .scanlines {
             background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
             background-size: 100% 4px;
@@ -66,7 +65,7 @@
             z-index: 49;
         }
 
-        /* TERMINAL GLOW - The heartbeat of the machine */
+        /* TERMINAL GLOW */
         @keyframes flicker {
             0% { opacity: 0.9; text-shadow: 0 0 4px rgba(212, 195, 130, 0.4); }
             5% { opacity: 0.5; text-shadow: none; }
@@ -108,77 +107,81 @@
             background: #d4c382;
             color: #050505;
         }
+
+        /* Specialized iframe styling */
+        .iframe-container {
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
+        }
+
+        iframe {
+            /* Ensures iframe content is not selectable */
+            -webkit-touch-callout: none;
+        }
     </style>
 </head>
-<body class="font-mono text-sm antialiased flex flex-col min-h-screen">
+<body class="font-mono text-sm antialiased h-screen w-screen flex flex-col relative">
 
 <div class="noise-overlay"></div>
 <div class="scanlines"></div>
 
-<main class="flex-grow flex items-center justify-center p-4 md:p-8 relative z-10">
+<main class="flex-grow flex items-center justify-center p-2 sm:p-4 md:p-6 lg:p-8 relative z-10 w-full h-full">
 
-    <div class="max-w-3xl w-full bg-black/60 border border-liminal-800 p-6 md:p-10 shadow-2xl relative">
+    <div class="w-full h-full max-w-[1600px] bg-black/70 border border-liminal-800 p-4 md:p-6 shadow-2xl flex flex-col relative">
 
         <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-liminal-800 to-transparent opacity-50"></div>
 
-        <header class="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 border-b border-liminal-800 pb-4">
+        <header class="flex justify-between items-end mb-4 border-b border-liminal-800 pb-3 flex-shrink-0">
             <div>
-                <h1 class="text-5xl md:text-6xl font-bold font-vhs terminal-glow tracking-widest text-liminal-100 uppercase">LEVEL 0 ENGINE</h1>
-                <p class="text-liminal-500 mt-1 tracking-[0.2em] text-xs uppercase">LICENSE: Edmark Research Labs // Terminal 003</p>
+                <h1 class="text-3xl md:text-4xl lg:text-5xl font-bold font-vhs terminal-glow tracking-widest text-liminal-100 uppercase">LVL0.SYS.EXEC</h1>
+                <p class="text-liminal-500 mt-1 tracking-[0.2em] text-[10px] md:text-xs uppercase">PROCESS: engine.exe // VOLATILE MEMORY // ISOLATED MANIFOLD</p>
             </div>
-            <div class="mt-4 md:mt-0 text-left md:text-right text-xs text-liminal-800 font-bold tracking-widest">
-                SYS.VER 0.3.5<br>
-                <span class="text-red-900/80 blink animate-pulse">UNAUTHORIZED ACCESS</span>
+            <div class="text-right text-[10px] md:text-xs text-liminal-800 font-bold tracking-widest flex flex-col gap-2">
+                <span class="text-red-900/80 blink animate-pulse">ACTIVE INSTANCE</span>
+                <a href="index.html" class="text-liminal-500 hover:text-red-500 hover:terminal-glow transition-colors uppercase tracking-[0.2em]">[ ABORT MANIFOLD ]</a>
             </div>
         </header>
 
-        <article class="space-y-6 text-liminal-400 leading-relaxed text-sm">
-            <p class="text-base font-bold text-liminal-100">
-                > INITIATING PROTOCOL: LEVEL 0
-            </p>
+        <!-- Container housing the WebGL Engine -->
+        <div class="flex-grow relative border border-liminal-800 bg-[#020202] overflow-hidden iframe-container">
+            <iframe
+                    id="engine-frame"
+                    src="engine.html"
+                    class="w-full h-full border-0 outline-none block"
+                    title="Level 0 Engine Workspace"
+                    allow="fullscreen; autoplay; pointer-lock"
+            ></iframe>
+        </div>
 
-            <p>
-                You are attempting to access a volatile, thermodynamically isolated manifold. This is not a standard rendering pipeline. The architecture ahead relies on pure, procedural generation.
-            </p>
-
-            <div class="pl-4 border-l-2 border-liminal-800 space-y-4 text-liminal-500 py-2">
-                <p>
-                    <strong>I. Geodesic Reality:</strong> The environment is generated deterministically. Corridors map to memory decay. Do not trust dead ends.
-                </p>
-                <p>
-                    <strong>II. Somatic Coupling:</strong> The engine links directly to exhaust metrics. Running burns stamina. Panic burns logic. If your battery depletes, the structural integrity of your viewport will collapse.
-                </p>
-                <p>
-                    <strong>III. The Anomaly:</strong> The system is not empty. It hunts via auditory and line-of-sight perception. Silence is your only leverage.
-                </p>
+        <footer class="mt-4 pt-3 border-t border-liminal-800 flex justify-between items-center flex-shrink-0">
+            <div class="text-[10px] md:text-xs text-liminal-800 font-mono tracking-widest flex items-center gap-2">
+                <span class="text-liminal-500 animate-pulse">>></span> SOMATIC LINK ESTABLISHED
             </div>
 
-            <div class="bg-red-950/20 border border-red-900/30 p-4 mt-8">
-                <p class="text-red-500/80 text-xs tracking-widest uppercase">
-                    [!] Hazard Acknowledgment
-                </p>
-                <p class="mt-2 text-liminal-500 text-xs">
-                    By proceeding, you accept you have read the <strong><a href="./readme.html">HANDBOOK</a></strong> all liability for temporal displacement, somatic phantom-pain, and permanent structural cognitive drift. Async Research Institute is not responsible for entities encountered beyond the threshold.
-                </p>
+            <div class="flex gap-4">
+                <button onclick="document.getElementById('engine-frame').contentWindow.location.reload();" class="text-liminal-500 hover:text-liminal-100 text-[10px] md:text-xs uppercase tracking-widest transition-colors">
+                    [ SOFT REBOOT ]
+                </button>
+                <button onclick="requestEngineFullscreen()" class="btn-glitch inline-block border border-liminal-400 text-liminal-400 px-4 md:px-8 py-2 text-center uppercase tracking-[0.2em] font-bold text-[10px] md:text-xs">
+                    Engage Fullscreen
+                </button>
             </div>
-        </article>
-
-        <footer class="mt-12 flex flex-col sm:flex-row justify-between items-center gap-6">
-            <div class="text-xs text-liminal-800 tracking-widest uppercase">
-                Awaiting somatic handshake...
-            </div>
-
-            <a href="terminal.html" class="btn-glitch block w-full sm:w-auto border border-liminal-400 text-liminal-400 px-8 py-3 text-center uppercase tracking-[0.2em] font-bold text-sm">
-                Open The Airlock
-            </a>
         </footer>
 
     </div>
 </main>
 
-<footer class="relative z-10 text-center p-4 text-xs text-liminal-800 font-mono tracking-widest">
-    &copy; 1997 EDMARK RESEARCH LABS | ALL RIGHTS RESERVED | <strong><a href="https://github.com/aedmark/level0engine">CAREER OPPORTUNITIES</a></strong>
-</footer>
+<script>
+    function requestEngineFullscreen() {
+        const iframe = document.getElementById('engine-frame');
+        if (iframe.requestFullscreen) {
+            iframe.requestFullscreen();
+        } else if (iframe.webkitRequestFullscreen) { /* Safari */
+            iframe.webkitRequestFullscreen();
+        } else if (iframe.msRequestFullscreen) { /* IE11 */
+            iframe.msRequestFullscreen();
+        }
+    }
+</script>
 
 </body>
 </html>
