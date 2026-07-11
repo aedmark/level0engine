@@ -300,7 +300,6 @@ export default class PlayerController {
 
         for (let i = 0; i < localBoxes.length; i++) {
             const box = localBoxes[i];
-            // FULLER: Ignore invisible topological bounds when calculating physical headroom
             if (box.isInvisibleBlocker) continue;
 
             if (!box.isVoid && box.min.y > currentFeetY + 0.4 && this._floorBox.intersectsBox(box)) {
@@ -467,7 +466,6 @@ export default class PlayerController {
         for (let i = 0, len = localBoxes.length; i < len; i++) {
             const box = localBoxes[i];
 
-            // THE ARTISAN: The player ignores invisible topological blockers meant only for the entity.
             if (box.isInvisibleBlocker) continue;
 
             if (box.isVoid && this._floorBox.intersectsBox(box)) {
@@ -552,7 +550,7 @@ export default class PlayerController {
         this.camera.position.x += this._leanOffset.x;
         this.camera.position.z += this._leanOffset.z;
 
-        if (!inVoid && targetFeetY === -100) targetFeetY = 0; // Solid ground default
+        if (!inVoid && targetFeetY === -100) targetFeetY = 0;
 
         const maxCamY = this.onWarpZone ? 5.0 : 2.8;
         let targetCamY = Math.min(targetFeetY + visualHeight, maxCamY) + bobOffset - leanDrop;

@@ -239,17 +239,14 @@ export default class ProceduralTextureFactory {
         ventCanvas.width = 512;
         ventCanvas.height = 256;
         const ventCtx = ventCanvas.getContext('2d');
-        // VENT FRAME AND BASE COLOR (GRAY)
         ventCtx.fillStyle = '#808080';
         ventCtx.fillRect(0, 0, 512, 256);
 
-        // Frame edge highlight
         ventCtx.fillStyle = '#9a9a9a';
         ventCtx.fillRect(2, 2, 508, 252);
         ventCtx.fillStyle = '#808080';
         ventCtx.fillRect(6, 6, 500, 244);
 
-        // SINGLE LOUVER SLOT (Procedural Inset)
         const slotColor = '#151515';
         const slotWidth = 480;
         const slotX = 16;
@@ -259,7 +256,6 @@ export default class ProceduralTextureFactory {
         ventCtx.fillStyle = slotColor;
         ventCtx.fillRect(slotX, slotY, slotWidth, slotHeight);
 
-        // THICKER SLATS (Procedural Slat Construction)
         const slatCount = 14;
         const slatSpacing = Math.floor(slotHeight / slatCount);
         const slatHeight = 8;
@@ -269,14 +265,12 @@ export default class ProceduralTextureFactory {
             ventCtx.fillStyle = '#a0a0a0';
             ventCtx.fillRect(slotX, yPos, slotWidth, slatHeight);
 
-            // Highlight and shadow
             ventCtx.fillStyle = '#d0d0d0';
             ventCtx.fillRect(slotX, yPos, slotWidth, 2);
             ventCtx.fillStyle = '#505050';
             ventCtx.fillRect(slotX, yPos + slatHeight - 2, slotWidth, 2);
         }
 
-        // MOUNTING SCREWS
         const screwColor = '#c0c0c0';
         const screwSize = 4;
         ventCtx.fillStyle = screwColor;
