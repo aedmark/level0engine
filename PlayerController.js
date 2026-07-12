@@ -345,7 +345,8 @@ export default class PlayerController {
         const breathFreq = Math.max(1.0, baseBobFreq - (this.exhaustion * 0.8));
 
         const timerDelta = (postIntentSpeed * (1.0 - (this.exhaustion * 0.4)) + (this.exhaustion * 0.15)) * delta;
-        this.headBobTimer = (this.headBobTimer || 0) + timerDelta;
+
+        this.headBobPhase = (this.headBobPhase || 0) + (timerDelta * breathFreq);
 
         let bobOffset = 0;
         let swayRoll = 0;
@@ -353,16 +354,18 @@ export default class PlayerController {
         if (this.enableHeadBob) {
             if (postIntentSpeed > 0.5) {
                 const bobAmp = state.isRunning ? 0.08 : (0.05 + (this.exhaustion * 0.04));
-                const prevBob = Math.sin((this.headBobTimer - timerDelta) * breathFreq) * bobAmp;
-                bobOffset = Math.sin(this.headBobTimer * breathFreq) * bobAmp;
+
+                const prevBob = Math.sin(this.headBobPhase - (timerDelta * breathFreq)) * bobAmp;
+                bobOffset = Math.sin(this.headBobPhase) * bobAmp;
+
                 if (prevBob > 0 && bobOffset <= 0 && !state.isCrouching) {
                     const stepWeight = state.isRunning ? 1.0 : (0.3 + (this.exhaustion * 0.6));
                     document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: stepWeight}}));
                 }
-                swayRoll = Math.cos(this.headBobTimer * (breathFreq * 0.5)) * (bobAmp * 0.05);
+                swayRoll = Math.cos(this.headBobPhase * 0.5) * (bobAmp * 0.05);
             } else if (this.exhaustion > 0.1) {
-                bobOffset = Math.sin(this.headBobTimer * breathFreq * 0.4) * (this.exhaustion * 0.04);
-                swayRoll = Math.cos(this.headBobTimer * breathFreq * 0.2) * (this.exhaustion * 0.015);
+                bobOffset = Math.sin(this.headBobPhase * 0.4) * (this.exhaustion * 0.04);
+                swayRoll = Math.cos(this.headBobPhase * 0.2) * (this.exhaustion * 0.015);
             }
         }
 

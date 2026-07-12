@@ -3,7 +3,7 @@
 
 export default class TheArchitect {
     static getStructuralMatrix(ctx) {
-        const {random, buildWall, addGeometry, buildChair, buildTable, addFurniture, chunkGroup, hash} = ctx;
+        const {random, buildWall, addGeometry, buildChair, buildTable, addFurniture, chunkGroup, hash, stagingMeshes} = ctx;
         return [
             {
                 prob: 0.95, build: (x, z) => {
@@ -456,37 +456,101 @@ export default class TheArchitect {
             },
             {
                 prob: 0.00, build: (x, z) => {
-                    const w1 = buildWall(this.cellSize, 0.5, this.sharedWallMat);
-                    w1.position.set(x * this.cellSize, 1.5, z * this.cellSize - (this.cellSize / 2) + 0.25);
-                    addGeometry(w1);
+                    if (ctx.claimOasis && ctx.claimOasis()) {
+                        const cx = x * this.cellSize;
+                        const cz = z * this.cellSize;
+                        const half = this.cellSize / 2;
 
-                    const table = buildTable(x * this.cellSize, 0, z * this.cellSize - 0.5);
-                    addFurniture(table);
+                        const floorGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize);
+                        const floor = new THREE.Mesh(floorGeo, this.tileMat);
+                        floor.rotation.x = -Math.PI / 2;
+                        floor.position.set(cx, 0.01, cz);
+                        addGeometry(floor);
 
-                    const almondGroup = new THREE.Group();
-                    const almondMesh = new THREE.Mesh(this.almondGeo, this.clinicMat);
-                    almondGroup.add(almondMesh);
-                    const aGlow = new THREE.Mesh(this.glowGeo, this.glowMat);
-                    aGlow.scale.set(0.12, 0.12, 0.12);
-                    aGlow.position.y = 0.01;
-                    almondGroup.add(aGlow);
-                    almondGroup.position.set(x * this.cellSize - 0.3, 0.85, z * this.cellSize - 0.5);
-                    almondGroup.userData = {type: 'almond', chunkHash: hash, active: true};
-                    chunkGroup.add(almondGroup);
-                    this.interactables = this.interactables || [];
-                    this.interactables.push(almondGroup);
+                        const wBack = buildWall(this.cellSize, 0.5, this.woodMat);
+                        wBack.position.set(cx, 1.5, cz - half + 0.25);
+                        wBack.userData.isEntityBlocker = true;
+                        addGeometry(wBack);
 
-                    const batGroup = new THREE.Group();
-                    const batMesh = new THREE.Mesh(this.batteryGeo, this.hazardMat);
-                    batGroup.add(batMesh);
-                    const bGlow = new THREE.Mesh(this.glowGeo, this.glowMat);
-                    bGlow.scale.set(0.15, 0.15, 0.15);
-                    bGlow.position.y = -0.05;
-                    batGroup.add(bGlow);
-                    batGroup.position.set(x * this.cellSize + 0.3, 0.85, z * this.cellSize - 0.5);
-                    batGroup.userData = {type: 'battery', chunkHash: hash, active: true};
-                    chunkGroup.add(batGroup);
-                    this.interactables.push(batGroup);
+                        const wLeft = buildWall(0.5, this.cellSize, this.woodMat);
+                        wLeft.position.set(cx - half + 0.25, 1.5, cz);
+                        wLeft.userData.isEntityBlocker = true;
+                        addGeometry(wLeft);
+
+                        const wRight = buildWall(0.5, this.cellSize, this.woodMat);
+                        wRight.position.set(cx + half - 0.25, 1.5, cz);
+                        wRight.userData.isEntityBlocker = true;
+                        addGeometry(wRight);
+
+                        const table = buildTable(cx, 0, cz);
+                        table.userData.chunkHash = hash;
+                        table.updateMatrixWorld(true);
+
+                        const tBox = new THREE.Box3().setFromObject(table);
+                        tBox.chunkHash = hash;
+                        tBox.isEntityBlocker = true;
+                        this.spatialGrid.insert(tBox);
+
+                        table.traverse((child) => {
+                            if (child.isMesh) {
+                                child.userData.chunkHash = hash;
+                                child.updateMatrixWorld(true);
+                                stagingMeshes.push(child);
+                            }
+                        });
+
+                        const almondGroup = new THREE.Group();
+                        const almondMesh = this.almondPrefab.clone();
+                        almondGroup.add(almondMesh);
+                        const aGlow = new THREE.Mesh(this.glowGeo, this.glowMat);
+                        aGlow.scale.set(0.15, 0.15, 0.15);
+                        aGlow.position.y = 0.01;
+                        almondGroup.add(aGlow);
+
+                        almondGroup.position.set(cx - 0.3, 0.825, cz);
+
+                        almondGroup.rotation.y = (random() - 0.5) * 0.8;
+                        almondGroup.userData = {type: 'almond', chunkHash: hash, active: true};
+                        chunkGroup.add(almondGroup);
+                        if (!this.interactables) this.interactables = [];
+                        this.interactables.push(almondGroup);
+
+                        const batGroup = new THREE.Group();
+                        const batMesh = this.batteryPrefab.clone();
+                        batGroup.add(batMesh);
+                        const bGlow = new THREE.Mesh(this.glowGeo, this.glowMat);
+                        bGlow.scale.set(0.20, 0.20, 0.20);
+                        bGlow.position.y = 0.01;
+                        batGroup.add(bGlow);
+                        batGroup.position.set(cx + 0.3, 0.825, cz);
+                        batGroup.rotation.y = (random() - 0.5) * 0.8;
+                        batGroup.userData = {type: 'battery', chunkHash: hash, active: true};
+                        chunkGroup.add(batGroup);
+                        this.interactables.push(batGroup);
+
+                        const activeMat = this.baseLightMat.clone();
+                        activeMat.color.setHex(0xffeedd);
+                        activeMat.emissive.setHex(0xffaa55);
+                        const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                        panel.position.set(cx, 2.98, cz);
+                        chunkGroup.add(panel);
+                        this.walls.push(panel);
+                        this.fixtureData.push({
+                            chunkHash: hash,
+                            position: new THREE.Vector3(cx, 2.8, cz),
+                            flickerOffset: 0,
+                            material: activeMat,
+                            isFaulty: false,
+                            baseIntensity: 0.8,
+                            targetIntensity: 0.8,
+                            currentIntensity: 0.8,
+                            isFake: false
+                        });
+                    } else {
+                        const wall = new THREE.Mesh(this.sharedWallGeo, this.sharedWallMat);
+                        wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                        addGeometry(wall);
+                    }
                 }
             }
         ];

@@ -6,45 +6,50 @@
     <title>LEVEL 0 ENGINE // Handbook</title>
     <meta name="theme-color" content="#050505">
 
-    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=VT323&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        liminal: {
-                            900: '#1a1811',
-                            800: '#332d1c',
-                            500: '#a89f68',
-                            400: '#d4c382',
-                            100: '#ffffe0'
-                        },
-                        crt: '#151515'
-                    },
-                    fontFamily: {
-                        mono: ['"Space Mono"', 'monospace'],
-                        vhs: ['VT323', 'monospace']
-                    },
-                    animation: {
-                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                    }
-                }
-            }
-        }
-    </script>
-
     <style>
+        /* CSS Variables based on original Tailwind config */
+        :root {
+            --liminal-900: #1a1811;
+            --liminal-800: #332d1c;
+            --liminal-500: #a89f68;
+            --liminal-400: #d4c382;
+            --liminal-100: #ffffe0;
+            --font-mono: 'Space Mono', monospace;
+            --font-vhs: 'VT323', monospace;
+        }
+
+        /* Base CSS Reset (Simulating Tailwind Preflight) */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        h1, h2, p, ol, ul {
+            margin: 0;
+            padding: 0;
+        }
+
         body {
             margin: 0;
             background-color: #050505;
-            color: #d4c382;
+            color: var(--liminal-400);
+            font-family: var(--font-mono);
+            font-size: 0.875rem; /* text-sm */
+            -webkit-font-smoothing: antialiased;
             overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+
             /* Artisan Note: Prevent text selection to maintain terminal illusion */
             user-select: none;
             -webkit-user-select: none;
         }
+
+        /* ============================
+           ATMOSPHERIC EFFECTS
+           ============================ */
 
         /* NOISE OVERLAY - Adds structural grit */
         .noise-overlay {
@@ -80,14 +85,222 @@
             animation: flicker 5s infinite alternate;
         }
 
+        ::selection {
+            background: var(--liminal-400);
+            color: #050505;
+        }
+
+        /* ============================
+           LAYOUT & COMPONENTS
+           ============================ */
+
+        .main-wrapper {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            margin-top: 2rem;
+            margin-bottom: 2rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        .terminal-box {
+            max-width: 56rem; /* max-w-4xl */
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--liminal-800);
+            padding: 1.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+
+        .terminal-gradient {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 0.25rem;
+            background: linear-gradient(to right, transparent, var(--liminal-800), transparent);
+            opacity: 0.5;
+        }
+
+        .terminal-header {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 2.5rem;
+            border-bottom: 1px solid var(--liminal-800);
+            padding-bottom: 1rem;
+        }
+
+        .terminal-title {
+            font-size: 3rem;
+            font-weight: 700;
+            font-family: var(--font-vhs);
+            letter-spacing: 0.1em;
+            color: var(--liminal-100);
+            text-transform: uppercase;
+        }
+
+        .terminal-subtitle {
+            color: var(--liminal-500);
+            margin-top: 0.25rem;
+            letter-spacing: 0.2em;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        .sys-info {
+            margin-top: 1rem;
+            text-align: left;
+            font-size: 0.75rem;
+            color: var(--liminal-800);
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .return-link {
+            color: var(--liminal-500);
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            transition: color 0.2s ease;
+        }
+
+        .return-link:hover {
+            color: var(--liminal-100);
+            animation: flicker 5s infinite alternate;
+        }
+
+        .terminal-article {
+            line-height: 1.625;
+            font-size: 0.875rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem; /* space-y-8 */
+        }
+
+        .terminal-article p.intro-text {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .terminal-article p.mb-4 {
+            margin-bottom: 1rem;
+        }
+
+        .section-title {
+            font-size: 1.25rem; /* text-xl */
+            font-weight: 700;
+            color: var(--liminal-100);
+            border-bottom: 1px solid var(--liminal-800);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .info-block {
+            padding-left: 1rem;
+            border-left: 2px solid var(--liminal-800);
+            color: var(--liminal-400);
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem; /* space-y-4 */
+        }
+
+        .highlight-text {
+            color: var(--liminal-100);
+            font-weight: 700;
+        }
+
+        .block-title {
+            display: block;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--liminal-100);
+            font-weight: 700;
+        }
+
+        .sub-text {
+            color: var(--liminal-500);
+            font-style: italic;
+            font-size: 0.75rem;
+        }
+
+        /* Lists */
+        .ordered-list {
+            list-style-type: decimal;
+            padding-left: 1.5rem; /* pl-6 */
+            display: flex;
+            flex-direction: column;
+            gap: 1rem; /* space-y-4 */
+        }
+
+        .ordered-list > li::marker {
+            color: var(--liminal-800);
+            font-weight: 700;
+        }
+
+        .sub-list {
+            list-style-type: disc;
+            padding-left: 1rem;
+            border-left: 1px solid var(--liminal-800);
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .sub-list > li::marker {
+            color: var(--liminal-800);
+        }
+
+        /* Inline code styling */
+        code {
+            background-color: rgba(26, 24, 17, 0.8);
+            color: var(--liminal-100);
+            padding: 0.125rem 0.375rem;
+            border: 1px solid var(--liminal-800);
+            border-radius: 0.125rem;
+            font-size: 0.85em;
+        }
+
+        .terminal-footer {
+            margin-top: 4rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--liminal-800);
+            display: flex;
+            justify-content: center;
+        }
+
         .btn-glitch {
+            display: inline-block;
+            border: 1px solid var(--liminal-400);
+            color: var(--liminal-400);
+            padding: 1rem 3rem;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            font-weight: 700;
+            font-size: 0.875rem;
+            text-decoration: none;
             transition: all 0.2s ease;
             position: relative;
             overflow: hidden;
+            cursor: pointer;
         }
 
         .btn-glitch:hover {
-            background-color: #d4c382;
+            background-color: var(--liminal-400);
             color: #050505;
             box-shadow: 0 0 15px rgba(212, 195, 130, 0.5);
         }
@@ -104,48 +317,76 @@
             left: 100%;
         }
 
-        ::selection {
-            background: #d4c382;
-            color: #050505;
+        .page-footer {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            padding: 1rem 1rem 2rem 1rem;
+            font-size: 0.75rem;
+            color: var(--liminal-800);
+            letter-spacing: 0.1em;
         }
 
-        /* Inline code styling for the handbook */
-        code {
-            background-color: rgba(26, 24, 17, 0.8);
-            color: #ffffe0;
-            padding: 0.125rem 0.375rem;
-            border: 1px solid #332d1c;
-            border-radius: 0.125rem;
-            font-size: 0.85em;
+        .career-link {
+            color: inherit;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .career-link:hover {
+            color: var(--liminal-500);
+        }
+
+        /* ============================
+           RESPONSIVE QUERIES
+           ============================ */
+
+        @media (min-width: 768px) { /* Tailwind md: */
+            .main-wrapper {
+                padding: 2rem;
+            }
+            .terminal-box {
+                padding: 2.5rem;
+            }
+            .terminal-header {
+                flex-direction: row;
+                align-items: flex-end;
+            }
+            .terminal-title {
+                font-size: 3.75rem;
+            }
+            .sys-info {
+                margin-top: 0;
+                text-align: right;
+            }
         }
     </style>
 </head>
-<body class="font-mono text-sm antialiased flex flex-col min-h-screen">
+<body>
 
 <div class="noise-overlay"></div>
 <div class="scanlines"></div>
 
-<main class="flex-grow flex items-center justify-center p-4 md:p-8 relative z-10 my-8">
+<main class="main-wrapper">
+    <div class="terminal-box">
 
-    <div class="max-w-4xl w-full bg-black/60 border border-liminal-800 p-6 md:p-10 shadow-2xl relative">
+        <div class="terminal-gradient"></div>
 
-        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-liminal-800 to-transparent opacity-50"></div>
-
-        <header class="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 border-b border-liminal-800 pb-4">
+        <header class="terminal-header">
             <div>
-                <h1 class="text-5xl md:text-6xl font-bold font-vhs terminal-glow tracking-widest text-liminal-100 uppercase">SYS.HANDBOOK</h1>
-                <p class="text-liminal-500 mt-1 tracking-[0.2em] text-xs uppercase">Level 0 Engine: Procedural Liminal Space Simulator v0.3.6<p>
+                <h1 class="terminal-title terminal-glow">SYS.HANDBOOK</h1>
+                <p class="terminal-subtitle">Level 0 Engine: Procedural Liminal Space Simulator v0.3.7</p>
             </div>
-            <div class="mt-4 md:mt-0 text-left md:text-right text-xs text-liminal-800 font-bold tracking-widest flex flex-col gap-2">
-                <span>SYS.VER 0.3.6</span>
-                <a href="index.html" class="text-liminal-500 hover:text-liminal-100 hover:terminal-glow transition-colors uppercase tracking-[0.2em]">[ RETURN ]</a>
+            <div class="sys-info">
+                <span>SYS.VER 0.3.7</span>
+                <a href="index.html" class="return-link">[ RETURN ]</a>
             </div>
         </header>
 
-        <article class="space-y-8 text-liminal-400 leading-relaxed text-sm">
+        <article class="terminal-article">
 
             <section>
-                <p class="mb-4 text-base">
+                <p class="intro-text mb-4">
                     A minimal-dependency, mathematically pure, procedural 3D environment generator running entirely natively in the browser via ES6 modules.
                 </p>
                 <p class="mb-4">
@@ -154,39 +395,39 @@
             </section>
 
             <section>
-                <h2 class="text-xl font-bold text-liminal-100 border-b border-liminal-800 pb-2 mb-4 tracking-widest uppercase">> Core Philosophy</h2>
-                <p class="mb-4 text-liminal-500">This engine is built on absolute architectural minimalism and thermodynamic efficiency.</p>
+                <h2 class="section-title">> Core Philosophy</h2>
+                <p class="mb-4" style="color: var(--liminal-500)">This engine is built on absolute architectural minimalism and thermodynamic efficiency.</p>
 
-                <div class="pl-4 border-l-2 border-liminal-800 space-y-4 text-liminal-400 py-2">
-                    <p><strong class="text-liminal-100">Procedural Geometry & The Sector Matrix:</strong> The maze is generated via a Julia Set fractal algorithm. It is infinite, chaotic, and deterministic. The engine utilizes Geodesic Chunking to maintain a strict memory budget, routing the generation through a <strong class="text-liminal-100">Sector Matrix</strong> to procedurally spawn distinct "Villages" (The Boardroom, The Archive, The Server Farm, The Overgrown Atrium, The Poolrooms, etc.), each with unique materials, density, and atmospheric physics.</p>
+                <div class="info-block">
+                    <p><strong class="highlight-text">Procedural Geometry & The Sector Matrix:</strong> The maze is generated via a Julia Set fractal algorithm. It is infinite, chaotic, and deterministic. The engine utilizes Geodesic Chunking to maintain a strict memory budget, routing the generation through a <strong class="highlight-text">Sector Matrix</strong> to procedurally spawn distinct "Villages" (The Boardroom, The Archive, The Server Farm, The Overgrown Atrium, The Poolrooms, etc.), each with unique materials, density, and atmospheric physics.</p>
 
-                    <p><strong class="text-liminal-100">Geodesic Physics & Lighting:</strong> Collision detection relies on a highly optimized O(1) <code>SpatialHashGrid</code>. Dynamic lighting is managed by a Virtual Light Pool that teleports a fixed set of hardware shadow-casters using Spatial Hysteresis and continuous Fade Envelopes to eliminate visual popping.</p>
+                    <p><strong class="highlight-text">Geodesic Physics & Lighting:</strong> Collision detection relies on a highly optimized O(1) <code>SpatialHashGrid</code>. Dynamic lighting is managed by a Virtual Light Pool that teleports a fixed set of hardware shadow-casters using Spatial Hysteresis and continuous Fade Envelopes to eliminate visual popping.</p>
 
-                    <p><strong class="text-liminal-100">Procedural Textures:</strong> The Obsidian Void PBR skin, overgrown moss, structural concrete, interactive wood doors, and server racks are drawn pixel-by-pixel using the HTML5 Canvas API and injected directly into WebGL memory.</p>
+                    <p><strong class="highlight-text">Procedural Textures:</strong> The Obsidian Void PBR skin, overgrown moss, structural concrete, interactive wood doors, and server racks are drawn pixel-by-pixel using the HTML5 Canvas API and injected directly into WebGL memory.</p>
 
-                    <p><strong class="text-liminal-100">Procedural Audio & Acoustic Routing:</strong> The ambient soundscape is not an MP3. It is a live digital signal processor (DSP). The engine uses a Unified Thermodynamic Read to shift the acoustics natively based on your spatial sector—from the sterile hiss of corporate HVACs to 35Hz sub-bass server growls. The engine also casts volumetric audio raycasts to physically muffle sounds when occluded by walls. This is paired with <strong class="text-liminal-100">Surface-Aware Foley</strong>, dynamically shifting the acoustic profile of your footsteps based on the spatial sector (wet splashes in the Poolrooms, metallic clinks in Maintenance).</p>
+                    <p><strong class="highlight-text">Procedural Audio & Acoustic Routing:</strong> The ambient soundscape is not an MP3. It is a live digital signal processor (DSP). The engine uses a Unified Thermodynamic Read to shift the acoustics natively based on your spatial sector—from the sterile hiss of corporate HVACs to 35Hz sub-bass server growls. The engine also casts volumetric audio raycasts to physically muffle sounds when occluded by walls. This is paired with <strong class="highlight-text">Surface-Aware Foley</strong>, dynamically shifting the acoustic profile of your footsteps based on the spatial sector (wet splashes in the Poolrooms, metallic clinks in Maintenance).</p>
 
-                    <p><strong class="text-liminal-100">Adrenaline Economy & The Lethargy Curve:</strong> The player has a biological carrying capacity governed by an <strong class="text-liminal-100">Adrenaline Economy</strong>. Sprinting during casual exploration is efficient, but active pursuit by the Anomaly spikes adrenaline, burning oxygen twice as fast. Reaching terminal exhaustion physically crushes the audio filter, blurs the WebGL pipeline, and triggers a <strong class="text-liminal-100">Lethargy Curve</strong>—seamlessly decaying your velocity into a heavy, dragging stumble. This heavy breathing dynamically expands the Anomaly's auditory perception radius, and its pursuit speed is inversely coupled to your exhaustion: it literally feeds on panic.</p>
+                    <p><strong class="highlight-text">Adrenaline Economy & The Lethargy Curve:</strong> The player has a biological carrying capacity governed by an <strong class="highlight-text">Adrenaline Economy</strong>. Sprinting during casual exploration is efficient, but active pursuit by the Anomaly spikes adrenaline, burning oxygen twice as fast. Reaching terminal exhaustion physically crushes the audio filter, blurs the WebGL pipeline, and triggers a <strong class="highlight-text">Lethargy Curve</strong>—seamlessly decaying your velocity into a heavy, dragging stumble. This heavy breathing dynamically expands the Anomaly's auditory perception radius, and its pursuit speed is inversely coupled to your exhaustion: it literally feeds on panic.</p>
 
-                    <p><strong class="text-liminal-100">The Quantum Observer Effect & Decoys:</strong> The Anomaly actively hunts via line-of-sight and utilizes short-term spatial memory. It is also attracted to dropped UV tags, allowing for intentional misdirection. Catching the entity within a 30-degree cone of your flashlight mathematically freezes it in place, but holding this quantum lock violently hemorrhages your battery voltage and triggers somatic camera jolts. The environment is systemic: the Anomaly does not ghost through walls; it violently slams doors off their hinges during pursuit. If it catches you, the engine executes a void blackout, mutates your seed string, and procedurally rebuilds a new reality.</p>
+                    <p><strong class="highlight-text">The Quantum Observer Effect & Decoys:</strong> The Anomaly actively hunts via line-of-sight and utilizes short-term spatial memory. It is also attracted to dropped UV tags, allowing for intentional misdirection. Catching the entity within a 30-degree cone of your flashlight mathematically freezes it in place, but holding this quantum lock violently hemorrhages your battery voltage and triggers somatic camera jolts. The environment is systemic: the Anomaly does not ghost through walls; it violently slams doors off their hinges during pursuit. If it catches you, the engine executes a void blackout, mutates your seed string, and procedurally rebuilds a new reality.</p>
 
-                    <p><strong class="text-liminal-100">Illumination & Systemic Cascades:</strong> Traversal requires managing a heavy, incandescent flashlight operating on a true piezoelectric circuit—you must generate physical kinetic energy by sprinting in the dark or violently shaking your camera to crank out voltage. Players can find and interact with articulated <strong class="text-liminal-100">Surge Breakers</strong> in the environment. Pulling a breaker triggers a catastrophic localized illumination cascade, shattering the bulbs and plunging the sector's atmospheric fog into a true, pitch-black void before executing a flickering reboot sequence.</p>
+                    <p><strong class="highlight-text">Illumination & Systemic Cascades:</strong> Traversal requires managing a heavy, incandescent flashlight operating on a true piezoelectric circuit—you must generate physical kinetic energy by sprinting in the dark or violently shaking your camera to crank out voltage. Players can find and interact with articulated <strong class="highlight-text">Surge Breakers</strong> in the environment. Pulling a breaker triggers a catastrophic localized illumination cascade, shattering the bulbs and plunging the sector's atmospheric fog into a true, pitch-black void before executing a flickering reboot sequence.</p>
 
-                    <p><strong class="text-liminal-100">Native Post-Processing:</strong> The engine features a custom <code>WebGLRenderTarget</code> pipeline, applying dynamic Chromatic Aberration, crawling static, CRT scanlines, claustrophobic vignettes, and somatic retinal blurring. The optical feed is directly tethered to the Anomaly's proximity pressure, violently degrading into horizontal V-Hold tearing and desaturated static as the entity enters striking distance.</p>
+                    <p><strong class="highlight-text">Native Post-Processing:</strong> The engine features a custom <code>WebGLRenderTarget</code> pipeline, applying dynamic Chromatic Aberration, crawling static, CRT scanlines, claustrophobic vignettes, and somatic retinal blurring. The optical feed is directly tethered to the Anomaly's proximity pressure, violently degrading into horizontal V-Hold tearing and desaturated static as the entity enters striking distance.</p>
 
-                    <p><strong class="text-liminal-100">Progressive Web App (PWA):</strong> Built with a Thermodynamic Cache Service Worker and web manifest, the engine can be installed directly to your OS and runs entirely offline.</p>
+                    <p><strong class="highlight-text">Progressive Web App (PWA):</strong> Built with a Thermodynamic Cache Service Worker and web manifest, the engine can be installed directly to your OS and runs entirely offline.</p>
                 </div>
             </section>
 
             <section>
-                <h2 class="text-xl font-bold text-liminal-100 border-b border-liminal-800 pb-2 mb-4 tracking-widest uppercase">> Usage</h2>
-                <ol class="list-decimal pl-6 space-y-4 text-liminal-400 marker:text-liminal-800 marker:font-bold">
+                <h2 class="section-title">> Usage</h2>
+                <ol class="ordered-list">
                     <li>Clone the repository or install as a PWA on supported browsers.</li>
-                    <li>Serve the directory using a local web server (e.g., <code>python -m http.server</code>, <code>npx http-server</code>, or VSCode Live Server). <br><span class="text-liminal-500 italic text-xs">Note: Opening index.html directly via the file:// protocol will fail due to strict ES6 module CORS policies.</span></li>
+                    <li>Serve the directory using a local web server (e.g., <code>python -m http.server</code>, <code>npx http-server</code>, or VSCode Live Server). <br><span class="sub-text">Note: Opening index.html directly via the file:// protocol will fail due to strict ES6 module CORS policies.</span></li>
                     <li>Open the localhost URL in any modern web browser.</li>
                     <li>
-                        <strong class="text-liminal-100 block mb-2 mt-2">Desktop Controls:</strong>
-                        <ul class="space-y-2 pl-4 border-l border-liminal-800">
+                        <strong class="block-title">Desktop Controls:</strong>
+                        <ul class="sub-list">
                             <li><code>Left-Click</code> : Engage a Pointer Lock (Look around)</li>
                             <li><code>Right-Click</code> (Hold) : Kinematic Peek (Physically lean your camera 80cm around corners)</li>
                             <li><code>W, A, S, D</code> : Navigate spatial coordinates</li>
@@ -200,59 +441,59 @@
                         </ul>
                     </li>
                     <li>
-                        <strong class="text-liminal-100 block mb-2 mt-2">Mobile Controls (Landscape Only):</strong>
-                        <ul class="space-y-2 pl-4 border-l border-liminal-800">
-                            <li><strong class="text-liminal-100">Left Screen Half:</strong> Virtual joystick for movement.</li>
-                            <li><strong class="text-liminal-100">Right Screen Half:</strong> Swipe to look around.</li>
-                            <li><strong class="text-liminal-100">On-Screen Buttons:</strong> Smart-canceling toggles for Run, Crouch, and the Flashlight.</li>
+                        <strong class="block-title">Mobile Controls (Landscape Only):</strong>
+                        <ul class="sub-list">
+                            <li><strong class="highlight-text">Left Screen Half:</strong> Virtual joystick for movement.</li>
+                            <li><strong class="highlight-text">Right Screen Half:</strong> Swipe to look around.</li>
+                            <li><strong class="highlight-text">On-Screen Buttons:</strong> Smart-canceling toggles for Run, Crouch, and the Flashlight.</li>
                         </ul>
                     </li>
                 </ol>
             </section>
 
             <section>
-                <h2 class="text-xl font-bold text-liminal-100 border-b border-liminal-800 pb-2 mb-4 tracking-widest uppercase">> The Environment</h2>
-                <div class="pl-4 border-l-2 border-liminal-800 space-y-4 text-liminal-400 py-2">
-                    <p><strong class="text-liminal-100">The Surge Breakers:</strong> Interactive, articulated breaker boxes. Press 'E' to crack the panel open and trigger a chunk-wide blackout cascade. Breakers are distributed organically with a 16-unit spatial exclusion zone and a maximum of 3 per chunk. Blackouts automatically resolve and restore lighting via an autonomic 25-35 second timer to preserve dynamic equilibrium.</p>
+                <h2 class="section-title">> The Environment</h2>
+                <div class="info-block">
+                    <p><strong class="highlight-text">The Surge Breakers:</strong> Interactive, articulated breaker boxes. Press 'E' to crack the panel open and trigger a chunk-wide blackout cascade. Breakers are distributed organically with a 16-unit spatial exclusion zone and a maximum of 3 per chunk. Blackouts automatically resolve and restore lighting via an autonomic 25-35 second timer to preserve dynamic equilibrium.</p>
 
-                    <p><strong class="text-liminal-100">Scavenged Resources:</strong> The grid maintains a strict thermodynamic inflow of resources. Procedural battery cylinders restore 40% flashlight voltage, capped at 2 per chunk. Almond Water canisters grant 15 seconds of infinite stamina to aggressively outrun entities, capped at 1 per chunk.</p>
+                    <p><strong class="highlight-text">Scavenged Resources:</strong> The grid maintains a strict thermodynamic inflow of resources. Procedural battery cylinders restore 40% flashlight voltage, capped at 2 per chunk. Almond Water canisters grant 15 seconds of infinite stamina to aggressively outrun entities, capped at 1 per chunk.</p>
 
-                    <p><strong class="text-liminal-100">The Liminal Breach (Fast Travel):</strong> Dead-end staircases have a 15% chance to spawn as open breaches. Walking up them uncaps the Y-axis constraints, allowing you to mathematically phase through the ceiling and warp thousands of units across the grid without mutating the quantum seed.</p>
+                    <p><strong class="highlight-text">The Liminal Breach (Fast Travel):</strong> Dead-end staircases have a 15% chance to spawn as open breaches. Walking up them uncaps the Y-axis constraints, allowing you to mathematically phase through the ceiling and warp thousands of units across the grid without mutating the quantum seed.</p>
 
-                    <p><strong class="text-liminal-100">Ultraviolet Breadcrumbs:</strong> Press 'T' to spray a glowing, high-visibility UV paint decal on walls (via surface-normal raycasting) to map the labyrinth and prevent circling.</p>
+                    <p><strong class="highlight-text">Ultraviolet Breadcrumbs:</strong> Press 'T' to spray a glowing, high-visibility UV paint decal on walls (via surface-normal raycasting) to map the labyrinth and prevent circling.</p>
 
-                    <p><strong class="text-liminal-100">Somatic Collisions:</strong> High-speed kinematic impacts against structural geometry violently jolt the camera, bleed momentum, and trigger acoustic foley events. Kinematic vectors are decoupled, allowing you to seamlessly graze and slide along walls without losing perpendicular momentum.</p>
+                    <p><strong class="highlight-text">Somatic Collisions:</strong> High-speed kinematic impacts against structural geometry violently jolt the camera, bleed momentum, and trigger acoustic foley events. Kinematic vectors are decoupled, allowing you to seamlessly graze and slide along walls without losing perpendicular momentum.</p>
 
-                    <p><strong class="text-liminal-100">Interactive Doors:</strong> Approach a wood-grain door to trigger a kinematic latch, swinging it open precisely 90 degrees away from your approach vector.</p>
+                    <p><strong class="highlight-text">Interactive Doors:</strong> Approach a wood-grain door to trigger a kinematic latch, swinging it open precisely 90 degrees away from your approach vector.</p>
 
-                    <p><strong class="text-liminal-100">Claustrophobic Bottlenecks:</strong> Corporate partitions have been excised in favor of absolute liminal emptiness and brutalist friction. The labyrinth dynamically generates blind L-shaped doglegs and tight 0.3-unit gaps. You must physically compress your body ('Q') to slide through them, restricting traversal speed.</p>
+                    <p><strong class="highlight-text">Claustrophobic Bottlenecks:</strong> Corporate partitions have been excised in favor of absolute liminal emptiness and brutalist friction. The labyrinth dynamically generates blind L-shaped doglegs and tight 0.3-unit gaps. You must physically compress your body ('Q') to slide through them, restricting traversal speed.</p>
                 </div>
             </section>
 
             <section>
-                <h2 class="text-xl font-bold text-liminal-100 border-b border-liminal-800 pb-2 mb-4 tracking-widest uppercase">> The Generator</h2>
-                <p class="mb-4 text-liminal-500">The UI provides a structural control panel.</p>
-                <div class="pl-4 border-l-2 border-liminal-800 space-y-4 text-liminal-400 py-2">
-                    <p><strong class="text-liminal-100">Architecture Seed:</strong> Enter any string. The engine hashes the string into a 32-bit integer to seed the Julia Set.</p>
-                    <p><strong class="text-liminal-100">Display Format:</strong> Enforce strict cinematic aspect ratios (Dynamic, 4:3, 16:9, 21:9) via dynamic letterboxing.</p>
-                    <p><strong class="text-liminal-100">Fog Density:</strong> Adjust the volumetric atmospheric drag (which dynamically "breathes" using an LFO).</p>
-                    <p><strong class="text-liminal-100">Internal Resolution:</strong> Downscale the internal WebGL rendering (100%, 50%, 25%) to boost GPU performance and heavily enhance the retro VHS pixelation.</p>
-                    <p><strong class="text-liminal-100">Rebuild Geometry:</strong> Destroys the current manifold, resets the Spatial Hash Grid, and generates a new one.</p>
-                    <p><strong class="text-liminal-100">Capture Asset:</strong> Triggers a simulated camera flash and downloads a mathematically pure <code>.png</code> of your exact coordinates.</p>
+                <h2 class="section-title">> The Generator</h2>
+                <p class="mb-4" style="color: var(--liminal-500)">The UI provides a structural control panel.</p>
+                <div class="info-block">
+                    <p><strong class="highlight-text">Architecture Seed:</strong> Enter any string. The engine hashes the string into a 32-bit integer to seed the Julia Set.</p>
+                    <p><strong class="highlight-text">Display Format:</strong> Enforce strict cinematic aspect ratios (Dynamic, 4:3, 16:9, 21:9) via dynamic letterboxing.</p>
+                    <p><strong class="highlight-text">Fog Density:</strong> Adjust the volumetric atmospheric drag (which dynamically "breathes" using an LFO).</p>
+                    <p><strong class="highlight-text">Internal Resolution:</strong> Downscale the internal WebGL rendering (100%, 50%, 25%) to boost GPU performance and heavily enhance the retro VHS pixelation.</p>
+                    <p><strong class="highlight-text">Rebuild Geometry:</strong> Destroys the current manifold, resets the Spatial Hash Grid, and generates a new one.</p>
+                    <p><strong class="highlight-text">Capture Asset:</strong> Triggers a simulated camera flash and downloads a mathematically pure <code>.png</code> of your exact coordinates.</p>
                 </div>
             </section>
 
             <section>
-                <h2 class="text-xl font-bold text-liminal-100 border-b border-liminal-800 pb-2 mb-4 tracking-widest uppercase">> Dependencies</h2>
-                <div class="pl-4 border-l-2 border-liminal-800 space-y-4 text-liminal-400 py-2">
-                    <p><strong class="text-liminal-100">Three.js (r128)</strong> - Loaded via local minified JS to preserve the zero-build-tool philosophy.</p>
+                <h2 class="section-title">> Dependencies</h2>
+                <div class="info-block">
+                    <p><strong class="highlight-text">Three.js (r128)</strong> - Loaded via local minified JS to preserve the zero-build-tool philosophy.</p>
                 </div>
             </section>
 
         </article>
 
-        <footer class="mt-16 pt-8 border-t border-liminal-800 flex justify-center">
-            <a href="index.html" class="btn-glitch inline-block border border-liminal-400 text-liminal-400 px-12 py-4 text-center uppercase tracking-[0.2em] font-bold text-sm">
+        <footer class="terminal-footer">
+            <a href="index.html" class="btn-glitch">
                 Acknowledge & Return
             </a>
         </footer>
@@ -260,8 +501,8 @@
     </div>
 </main>
 
-<footer class="relative z-10 text-center p-4 pb-8 text-xs text-liminal-800 font-mono tracking-widest">
-    &copy; 1997 EDMARK RESEARCH LABS | ALL RIGHTS RESERVED | <a href="https://github.com/aedmark/level0engine" class="hover:text-liminal-500 transition-colors">CAREER OPPORTUNITIES</a>
+<footer class="page-footer">
+    &copy; 1997 EDMARK RESEARCH LABS | ALL RIGHTS RESERVED | <a href="https://github.com/aedmark/level0engine" class="career-link">CAREER OPPORTUNITIES</a>
 </footer>
 
 </body>

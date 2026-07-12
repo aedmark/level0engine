@@ -72,15 +72,18 @@ export default class RenderEngine {
                 void main() {
                     vec2 uv = curve(vUv);
                     vec2 centerUv = uv - 0.5;
+                    float distSq = dot(centerUv, centerUv);
                     
-                    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+                    float border = smoothstep(0.0, 0.03, uv.x) * smoothstep(1.0, 0.97, uv.x) * 
+                                   smoothstep(0.0, 0.03, uv.y) * smoothstep(1.0, 0.97, uv.y);
+                    
+                    if (border <= 0.0) {
                         gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
                         return;
                     }
 
-                    float phasePos = fract(time * 0.01); 
-                    float phaseBand = 1.0 - smoothstep(0.0, 0.01, abs(uv.y - phasePos));
-                    float phaseGhost = 1.0 - smoothstep(0.0, 0.05, abs(uv.y - phasePos + 0.02));
+                    float phasePos = fract(time * 0.05); 
+                    float phaseBand = 1.0 - smoothstep(0.0, 0.02, abs(uv.y - phasePos));
                     
                     if (anomaly > 0.01) {
                         float tear = step(0.9, sin(uv.y * 40.0 + time * 15.0));
@@ -88,9 +91,7 @@ export default class RenderEngine {
                     }
                     uv.x += phaseBand * 0.0002 * sin(time * 50.0);
                     
-                    float pulse = sin(time * 8.0);
-                    
-                    float caShift = 0.0015 + (squeeze * 0.003) + pow(anomaly, 1.5) * 0.05 + pow(exhaustion, 2.0) * 0.01;
+                    float caShift = 0.001 + (distSq * 0.004) + (squeeze * 0.003) + pow(anomaly, 1.5) * 0.05 + pow(exhaustion, 2.0) * 0.01;
                     vec2 offset = vec2(caShift, 0.0); 
                     
                     vec3 col = vec3(0.0);
@@ -99,19 +100,19 @@ export default class RenderEngine {
                     col.b = texture2D(tDiffuse, uv - offset).b;
                     
                     float luminance = dot(col, vec3(0.299, 0.587, 0.114));
-                    vec3 halation = vec3(0.1, 0.02, 0.0) * luminance * caShift * 50.0;
-                    col += halation;
+                    
+                    vec3 halation = texture2D(tDiffuse, uv + vec2(0.0, 0.003)).rgb * 0.3 + 
+                                    texture2D(tDiffuse, uv - vec2(0.0, 0.003)).rgb * 0.3;
+                    col += max(vec3(0.0), halation - 0.5) * 0.4;
 
                     float noise = random(uv + mod(time, 10.0));
-                    col -= (noise * (0.08 + anomaly * 0.9)) * (1.0 - luminance);
+                    col -= (noise * (0.05 + darkness * 0.15 + anomaly * 0.9)) * (1.0 - luminance);
                     
-                    float scanline = sin(uv.y * 800.0) * (0.04 + exhaustion * 0.04); 
+                    float scanline = sin((uv.y - time * 0.02) * 800.0) * (0.03 + exhaustion * 0.05); 
                     col -= scanline * luminance;
-                    col += phaseBand * 0.005 * (1.0 + noise);
-                    col += phaseGhost * 0.002;
+                    col += phaseBand * 0.004 * (1.0 + noise);
                     
-                    float distSq = dot(centerUv, centerUv);
-                    float vignettePulse = pulse * (exhaustion * 0.05); 
+                    float vignettePulse = sin(time * 8.0) * (exhaustion * 0.05); 
                     float vignetteRadius = 0.28 - (exhaustion * 0.12) - (anomaly * 0.15) - (darkness * 0.15) + vignettePulse;
                     vignetteRadius = max(0.02, vignetteRadius);
                     
@@ -120,7 +121,9 @@ export default class RenderEngine {
                     col *= mix(1.0, smoothstep(0.45, 0.15, lateralDist), squeeze);
                     
                     col = mix(col, vec3(luminance * 0.6), anomaly * 0.85);
-                    col = mix(col, vec3(luminance * 0.25), darkness * 0.7 * smoothstep(0.0, 0.5, distSq));
+                    col = mix(col, vec3(luminance * 0.15), darkness * 0.8 * smoothstep(0.0, 0.5, distSq));
+                    
+                    col *= border;
                     col = smoothstep(0.0, 1.0, col);
                     
                     gl_FragColor = vec4(col, 1.0);

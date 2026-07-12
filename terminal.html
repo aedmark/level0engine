@@ -6,44 +6,51 @@
     <title>LEVEL 0 ENGINE // Execution</title>
     <meta name="theme-color" content="#050505">
 
-    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=VT323&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        liminal: {
-                            900: '#1a1811',
-                            800: '#332d1c',
-                            500: '#a89f68',
-                            400: '#d4c382',
-                            100: '#ffffe0'
-                        },
-                        crt: '#151515'
-                    },
-                    fontFamily: {
-                        mono: ['"Space Mono"', 'monospace'],
-                        vhs: ['VT323', 'monospace']
-                    },
-                    animation: {
-                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                    }
-                }
-            }
-        }
-    </script>
-
     <style>
+        /* CSS Variables based on original Tailwind config */
+        :root {
+            --liminal-900: #1a1811;
+            --liminal-800: #332d1c;
+            --liminal-500: #a89f68;
+            --liminal-400: #d4c382;
+            --liminal-100: #ffffe0;
+            --font-mono: 'Space Mono', monospace;
+            --font-vhs: 'VT323', monospace;
+        }
+
+        /* Base CSS Reset (Simulating Tailwind Preflight) */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        h1, p {
+            margin: 0;
+        }
+
         body {
             margin: 0;
             background-color: #050505;
-            color: #d4c382;
-            overflow-x: hidden;
+            color: var(--liminal-400);
+            font-family: var(--font-mono);
+            font-size: 0.875rem; /* text-sm */
+            -webkit-font-smoothing: antialiased;
+            overflow: hidden; /* overflow-hidden */
+            display: flex;
+            flex-direction: column;
+            height: 100vh; /* h-screen */
+            width: 100vw; /* w-screen */
+            position: relative;
+
+            /* Artisan Note: Prevent text selection to maintain terminal illusion */
             user-select: none;
             -webkit-user-select: none;
         }
+
+        /* ============================
+           ATMOSPHERIC EFFECTS
+           ============================ */
 
         .noise-overlay {
             position: fixed;
@@ -76,14 +83,202 @@
             animation: flicker 5s infinite alternate;
         }
 
+        @keyframes pulse-anim {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+
+        .animate-pulse {
+            animation: pulse-anim 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        ::selection {
+            background: var(--liminal-400);
+            color: #050505;
+        }
+
+        /* ============================
+           LAYOUT & COMPONENTS
+           ============================ */
+
+        .main-wrapper {
+            flex-grow: 1;
+            display: flex;
+            align-items: stretch;
+            justify-content: center;
+            padding: 0.5rem; /* p-2 */
+            position: relative;
+            z-index: 10;
+            width: 100%;
+        }
+
+        .terminal-box {
+            width: 100%;
+            flex-grow: 1;
+            background-color: rgba(0, 0, 0, 0.7); /* bg-black/70 */
+            border: 1px solid var(--liminal-800);
+            padding: 1rem; /* p-4 */
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .terminal-gradient {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 0.25rem;
+            background: linear-gradient(to right, transparent, var(--liminal-800), transparent);
+            opacity: 0.5;
+        }
+
+        .terminal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--liminal-800);
+            padding-bottom: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .terminal-title {
+            font-size: 1.875rem; /* text-3xl */
+            font-weight: 700;
+            font-family: var(--font-vhs);
+            letter-spacing: 0.1em;
+            color: var(--liminal-100);
+            text-transform: uppercase;
+        }
+
+        .terminal-subtitle {
+            color: var(--liminal-500);
+            margin-top: 0.25rem;
+            letter-spacing: 0.2em;
+            font-size: 10px; /* text-[10px] */
+            text-transform: uppercase;
+        }
+
+        .sys-info {
+            text-align: right;
+            font-size: 10px; /* text-[10px] */
+            color: var(--liminal-800);
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .active-instance {
+            color: rgba(127, 29, 29, 0.8); /* text-red-900/80 */
+        }
+
+        .abort-link {
+            color: var(--liminal-500);
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            transition: color 0.2s ease;
+        }
+
+        .abort-link:hover {
+            color: #ef4444; /* text-red-500 */
+            animation: flicker 5s infinite alternate;
+        }
+
+        /* Iframe Styles */
+        .iframe-wrapper {
+            flex-grow: 1;
+            relative: relative;
+            border: 1px solid var(--liminal-800);
+            background-color: #020202;
+            overflow: hidden;
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
+            position: relative; /* ensure absolute child is contained */
+        }
+
+        iframe {
+            -webkit-touch-callout: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+            outline: none;
+            display: block;
+        }
+
+        .terminal-footer {
+            margin-top: 1rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--liminal-800);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .somatic-status {
+            font-size: 10px; /* text-[10px] */
+            color: var(--liminal-800);
+            font-family: var(--font-mono);
+            letter-spacing: 0.1em;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .somatic-arrows {
+            color: var(--liminal-500);
+        }
+
+        .footer-actions {
+            display: flex;
+            gap: 1rem; /* gap-4 */
+        }
+
+        .btn-reboot {
+            background: transparent;
+            border: none;
+            color: var(--liminal-500);
+            font-size: 10px; /* text-[10px] */
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            transition: color 0.2s ease;
+            cursor: pointer;
+            padding: 0;
+            font-family: inherit;
+        }
+
+        .btn-reboot:hover {
+            color: var(--liminal-100);
+        }
+
         .btn-glitch {
+            display: inline-block;
+            background: transparent;
+            border: 1px solid var(--liminal-400);
+            color: var(--liminal-400);
+            padding: 0.5rem 1rem; /* py-2 px-4 */
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            font-weight: 700;
+            font-size: 10px; /* text-[10px] */
+            text-decoration: none;
             transition: all 0.2s ease;
             position: relative;
             overflow: hidden;
+            cursor: pointer;
+            font-family: inherit;
         }
 
         .btn-glitch:hover {
-            background-color: #d4c382;
+            background-color: var(--liminal-400);
             color: #050505;
             box-shadow: 0 0 15px rgba(212, 195, 130, 0.5);
         }
@@ -100,62 +295,71 @@
             left: 100%;
         }
 
-        ::selection {
-            background: #d4c382;
-            color: #050505;
+        /* ============================
+           RESPONSIVE QUERIES
+           ============================ */
+
+        @media (min-width: 640px) { /* sm: */
+            .main-wrapper { padding: 1rem; }
         }
 
-        .iframe-container {
-            box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
+        @media (min-width: 768px) { /* md: */
+            .main-wrapper { padding: 1.5rem; }
+            .terminal-box { padding: 1.5rem; }
+            .terminal-title { font-size: 2.25rem; }
+            .terminal-subtitle { font-size: 0.75rem; }
+            .sys-info { font-size: 0.75rem; }
+            .somatic-status { font-size: 0.75rem; }
+            .btn-reboot { font-size: 0.75rem; }
+            .btn-glitch { font-size: 0.75rem; padding-left: 2rem; padding-right: 2rem; }
         }
 
-        iframe {
-            -webkit-touch-callout: none;
+        @media (min-width: 1024px) { /* lg: */
+            .main-wrapper { padding: 2rem; }
+            .terminal-title { font-size: 3rem; }
         }
     </style>
 </head>
-<body class="font-mono text-sm antialiased h-screen w-screen flex flex-col relative overflow-hidden">
+<body>
 
 <div class="noise-overlay"></div>
 <div class="scanlines"></div>
 
-<main class="flex-grow flex items-stretch justify-center p-2 sm:p-4 md:p-6 lg:p-8 relative z-10 w-full">
+<main class="main-wrapper">
+    <div class="terminal-box">
 
-    <div class="w-full flex-grow bg-black/70 border border-liminal-800 p-4 md:p-6 shadow-2xl flex flex-col relative">
+        <div class="terminal-gradient"></div>
 
-        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-liminal-800 to-transparent opacity-50"></div>
-
-        <header class="flex justify-between items-end mb-4 border-b border-liminal-800 pb-3 flex-shrink-0">
+        <header class="terminal-header">
             <div>
-                <h1 class="text-3xl md:text-4xl lg:text-5xl font-bold font-vhs terminal-glow tracking-widest text-liminal-100 uppercase">LVL0.SYS.EXEC</h1>
-                <p class="text-liminal-500 mt-1 tracking-[0.2em] text-[10px] md:text-xs uppercase">PROCESS: engine.exe // VOLATILE MEMORY // ISOLATED MANIFOLD</p>
+                <h1 class="terminal-title terminal-glow">LVL0.SYS.EXEC</h1>
+                <p class="terminal-subtitle">PROCESS: engine.exe // VOLATILE MEMORY // ISOLATED MANIFOLD</p>
             </div>
-            <div class="text-right text-[10px] md:text-xs text-liminal-800 font-bold tracking-widest flex flex-col gap-2">
-                <span class="text-red-900/80 blink animate-pulse">ACTIVE INSTANCE</span>
-                <a href="index.html" class="text-liminal-500 hover:text-red-500 hover:terminal-glow transition-colors uppercase tracking-[0.2em]">[ ABORT MANIFOLD ]</a>
+            <div class="sys-info">
+                <span class="active-instance animate-pulse">ACTIVE INSTANCE</span>
+                <a href="index.html" class="abort-link">[ ABORT MANIFOLD ]</a>
             </div>
         </header>
 
-        <div class="flex-grow relative border border-liminal-800 bg-[#020202] overflow-hidden iframe-container">
+        <div class="iframe-wrapper">
             <iframe
                     id="engine-frame"
                     src="engine.html"
-                    class="absolute top-0 left-0 w-full h-full border-0 outline-none block"
                     title="Level 0 Engine Workspace"
                     allow="fullscreen; autoplay; pointer-lock"
             ></iframe>
         </div>
 
-        <footer class="mt-4 pt-3 border-t border-liminal-800 flex justify-between items-center flex-shrink-0">
-            <div class="text-[10px] md:text-xs text-liminal-800 font-mono tracking-widest flex items-center gap-2">
-                <span class="text-liminal-500 animate-pulse">>></span> SOMATIC LINK ESTABLISHED
+        <footer class="terminal-footer">
+            <div class="somatic-status">
+                <span class="somatic-arrows animate-pulse">>></span> SOMATIC LINK ESTABLISHED
             </div>
 
-            <div class="flex gap-4">
-                <button onclick="document.getElementById('engine-frame').contentWindow.location.reload();" class="text-liminal-500 hover:text-liminal-100 text-[10px] md:text-xs uppercase tracking-widest transition-colors">
+            <div class="footer-actions">
+                <button onclick="document.getElementById('engine-frame').contentWindow.location.reload();" class="btn-reboot">
                     [ SOFT REBOOT ]
                 </button>
-                <button onclick="requestEngineFullscreen()" class="btn-glitch inline-block border border-liminal-400 text-liminal-400 px-4 md:px-8 py-2 text-center uppercase tracking-[0.2em] font-bold text-[10px] md:text-xs">
+                <button onclick="requestEngineFullscreen()" class="btn-glitch">
                     Engage Fullscreen
                 </button>
             </div>

@@ -6,47 +6,42 @@
     <title>LEVEL 0 ENGINE // Terminal 003</title>
     <meta name="theme-color" content="#050505">
 
-    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=VT323&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        liminal: {
-                            900: '#1a1811',
-                            800: '#332d1c',
-                            500: '#a89f68',
-                            400: '#d4c382',
-                            100: '#ffffe0'
-                        },
-                        crt: '#151515'
-                    },
-                    fontFamily: {
-                        mono: ['"Space Mono"', 'monospace'],
-                        vhs: ['VT323', 'monospace']
-                    },
-                    animation: {
-                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                    }
-                }
-            }
-        }
-    </script>
-
     <style>
+        :root {
+            --liminal-900: #1a1811;
+            --liminal-800: #332d1c;
+            --liminal-500: #a89f68;
+            --liminal-400: #d4c382;
+            --liminal-100: #ffffe0;
+            --font-mono: 'Space Mono', monospace;
+            --font-vhs: 'VT323', monospace;
+        }
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        h1, p {
+            margin: 0;
+        }
+
         body {
             margin: 0;
             background-color: #050505;
-            color: #d4c382;
+            color: var(--liminal-400);
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            -webkit-font-smoothing: antialiased;
             overflow-x: hidden;
-            /* Artisan Note: Prevent text selection to maintain terminal illusion */
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+
             user-select: none;
             -webkit-user-select: none;
         }
 
-        /* NOISE OVERLAY - Adds structural grit */
         .noise-overlay {
             position: fixed;
             inset: 0;
@@ -56,7 +51,6 @@
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
         }
 
-        /* SCANLINES - Enforces the temporal displacement */
         .scanlines {
             background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
             background-size: 100% 4px;
@@ -66,7 +60,6 @@
             z-index: 49;
         }
 
-        /* TERMINAL GLOW - The heartbeat of the machine */
         @keyframes flicker {
             0% { opacity: 0.9; text-shadow: 0 0 4px rgba(212, 195, 130, 0.4); }
             5% { opacity: 0.5; text-shadow: none; }
@@ -80,14 +73,174 @@
             animation: flicker 5s infinite alternate;
         }
 
+        ::selection {
+            background: var(--liminal-400);
+            color: #050505;
+        }
+
+        .main-wrapper {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        .terminal-box {
+            max-width: 48rem;
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--liminal-800);
+            padding: 1.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+
+        .terminal-gradient {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 0.25rem;
+            background: linear-gradient(to right, transparent, var(--liminal-800), transparent);
+            opacity: 0.5;
+        }
+
+        .terminal-header {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 2.5rem;
+            border-bottom: 1px solid var(--liminal-800);
+            padding-bottom: 1rem;
+        }
+
+        .terminal-title {
+            font-size: 3rem;
+            font-weight: 700;
+            font-family: var(--font-vhs);
+            letter-spacing: 0.1em;
+            color: var(--liminal-100);
+            text-transform: uppercase;
+        }
+
+        .terminal-subtitle {
+            color: var(--liminal-500);
+            margin-top: 0.25rem;
+            letter-spacing: 0.2em;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        .sys-info {
+            margin-top: 1rem;
+            text-align: left;
+            font-size: 0.75rem;
+            color: var(--liminal-800);
+            font-weight: 700;
+            letter-spacing: 0.1em;
+        }
+
+        @keyframes pulse-anim {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+
+        .warning-text {
+            color: rgba(127, 29, 29, 0.8);
+            animation: pulse-anim 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        .terminal-article {
+            line-height: 1.625;
+            font-size: 0.875rem;
+        }
+
+        .terminal-article > * + * {
+            margin-top: 1.5rem;
+        }
+
+        .init-text {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--liminal-100);
+        }
+
+        .rule-list {
+            padding-left: 1rem;
+            border-left: 2px solid var(--liminal-800);
+            color: var(--liminal-500);
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+        }
+
+        .rule-list > * + * {
+            margin-top: 1rem;
+        }
+
+        .hazard-box {
+            background-color: rgba(69, 10, 10, 0.2);
+            border: 1px solid rgba(127, 29, 29, 0.3);
+            padding: 1rem;
+            margin-top: 2rem;
+        }
+
+        .hazard-title {
+            color: rgba(239, 68, 68, 0.8);
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .hazard-text {
+            margin-top: 0.5rem;
+            color: var(--liminal-500);
+            font-size: 0.75rem;
+        }
+
+        .hazard-text a {
+            color: inherit;
+        }
+
+        .terminal-footer {
+            margin-top: 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .handshake-text {
+            font-size: 0.75rem;
+            color: var(--liminal-800);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
         .btn-glitch {
+            display: block;
+            width: 100%;
+            border: 1px solid var(--liminal-400);
+            color: var(--liminal-400);
+            padding: 0.75rem 2rem;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            font-weight: 700;
+            font-size: 0.875rem;
+            text-decoration: none;
             transition: all 0.2s ease;
             position: relative;
             overflow: hidden;
+            cursor: pointer;
         }
 
         .btn-glitch:hover {
-            background-color: #d4c382;
+            background-color: var(--liminal-400);
             color: #050505;
             box-shadow: 0 0 15px rgba(212, 195, 130, 0.5);
         }
@@ -104,36 +257,73 @@
             left: 100%;
         }
 
-        ::selection {
-            background: #d4c382;
-            color: #050505;
+        .page-footer {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            padding: 1rem;
+            font-size: 0.75rem;
+            color: var(--liminal-800);
+            letter-spacing: 0.1em;
+        }
+
+        .page-footer a {
+            color: inherit;
+        }
+
+        @media (min-width: 640px) {
+            .terminal-footer {
+                flex-direction: row;
+            }
+            .btn-glitch {
+                width: auto;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .main-wrapper {
+                padding: 2rem;
+            }
+            .terminal-box {
+                padding: 2.5rem;
+            }
+            .terminal-header {
+                flex-direction: row;
+                align-items: flex-end;
+            }
+            .terminal-title {
+                font-size: 3.75rem;
+            }
+            .sys-info {
+                margin-top: 0;
+                text-align: right;
+            }
         }
     </style>
 </head>
-<body class="font-mono text-sm antialiased flex flex-col min-h-screen">
+<body>
 
 <div class="noise-overlay"></div>
 <div class="scanlines"></div>
 
-<main class="flex-grow flex items-center justify-center p-4 md:p-8 relative z-10">
+<main class="main-wrapper">
+    <div class="terminal-box">
 
-    <div class="max-w-3xl w-full bg-black/60 border border-liminal-800 p-6 md:p-10 shadow-2xl relative">
+        <div class="terminal-gradient"></div>
 
-        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-liminal-800 to-transparent opacity-50"></div>
-
-        <header class="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 border-b border-liminal-800 pb-4">
+        <header class="terminal-header">
             <div>
-                <h1 class="text-5xl md:text-6xl font-bold font-vhs terminal-glow tracking-widest text-liminal-100 uppercase">LEVEL 0 ENGINE</h1>
-                <p class="text-liminal-500 mt-1 tracking-[0.2em] text-xs uppercase">LICENSE: Edmark Research Labs // Terminal 003</p>
+                <h1 class="terminal-title terminal-glow">LEVEL 0 ENGINE</h1>
+                <p class="terminal-subtitle">LICENSE: Edmark Research Labs // Terminal 003</p>
             </div>
-            <div class="mt-4 md:mt-0 text-left md:text-right text-xs text-liminal-800 font-bold tracking-widest">
-                SYS.VER 0.3.6<br>
-                <span class="text-red-900/80 blink animate-pulse">UNAUTHORIZED ACCESS</span>
+            <div class="sys-info">
+                SYS.VER 0.3.7<br>
+                <span class="warning-text">UNAUTHORIZED ACCESS</span>
             </div>
         </header>
 
-        <article class="space-y-6 text-liminal-400 leading-relaxed text-sm">
-            <p class="text-base font-bold text-liminal-100">
+        <article class="terminal-article">
+            <p class="init-text">
                 > INITIATING PROTOCOL: LEVEL 0
             </p>
 
@@ -141,7 +331,7 @@
                 You are attempting to access a volatile, thermodynamically isolated manifold. This is not a standard rendering pipeline. The architecture ahead relies on pure, procedural generation.
             </p>
 
-            <div class="pl-4 border-l-2 border-liminal-800 space-y-4 text-liminal-500 py-2">
+            <div class="rule-list">
                 <p>
                     <strong>I. Geodesic Reality:</strong> The environment is generated deterministically. Corridors map to memory decay. Do not trust dead ends.
                 </p>
@@ -153,22 +343,22 @@
                 </p>
             </div>
 
-            <div class="bg-red-950/20 border border-red-900/30 p-4 mt-8">
-                <p class="text-red-500/80 text-xs tracking-widest uppercase">
+            <div class="hazard-box">
+                <p class="hazard-title">
                     [!] Hazard Acknowledgment
                 </p>
-                <p class="mt-2 text-liminal-500 text-xs">
+                <p class="hazard-text">
                     By proceeding, you accept you have read the <strong><a href="./readme.html">HANDBOOK</a></strong> all liability for temporal displacement, somatic phantom-pain, and permanent structural cognitive drift. Async Research Institute is not responsible for entities encountered beyond the threshold.
                 </p>
             </div>
         </article>
 
-        <footer class="mt-12 flex flex-col sm:flex-row justify-between items-center gap-6">
-            <div class="text-xs text-liminal-800 tracking-widest uppercase">
+        <footer class="terminal-footer">
+            <div class="handshake-text">
                 Awaiting somatic handshake...
             </div>
 
-            <a href="terminal.html" class="btn-glitch block w-full sm:w-auto border border-liminal-400 text-liminal-400 px-8 py-3 text-center uppercase tracking-[0.2em] font-bold text-sm">
+            <a href="terminal.html" class="btn-glitch">
                 Open The Airlock
             </a>
         </footer>
@@ -176,7 +366,7 @@
     </div>
 </main>
 
-<footer class="relative z-10 text-center p-4 text-xs text-liminal-800 font-mono tracking-widest">
+<footer class="page-footer">
     &copy; 1997 EDMARK RESEARCH LABS | ALL RIGHTS RESERVED | <strong><a href="https://github.com/aedmark/level0engine">CAREER OPPORTUNITIES</a></strong>
 </footer>
 

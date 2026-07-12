@@ -237,7 +237,7 @@ export default class AcousticEngine {
         if (!this.initialized || !this.mainGain || this.ctx.state === 'suspended') return;
         const time = this.ctx.currentTime;
         if (time < 0.1) return;
-        const {minLightDist, isOccluded, activeSector, anomalyPressure, playerSpeed, playerExhaustion} = telemetry;
+        const {minLightDist, isOccluded, activeSector, anomalyPressure, playerSpeed, playerExhaustion, isBlackout} = telemetry;
         const proximity = Math.max(0, 1.0 - (minLightDist / 20.0));
         const mix = this.sectors[activeSector] || this.sectors["NORMAL"];
         const setParam = (key, param, target, timeConstant) => {
@@ -246,15 +246,24 @@ export default class AcousticEngine {
                 this._cache.set(key, target);
             }
         };
-        setParam('main', this.mainGain.gain, 0.003 + (proximity * 0.01), 0.5);
-        const whineTarget = isOccluded ? mix.whineOcc : mix.whine + (mix.dynamicWhine ? proximity * 0.003 : 0.0);
-        setParam('whine', this.whineGain.gain, whineTarget, 0.5);
-        if (this.atriumGain) setParam('atrium', this.atriumGain.gain, mix.noise, 1.0);
+        const voidBreath = isBlackout ? 0.0008 + (Math.sin(time * 0.25) * 0.0004) : 0.0;
+        const mainTarget = isBlackout ? voidBreath : 0.003 + (proximity * 0.01);
+        setParam('main', this.mainGain.gain, mainTarget, 0.5);
+
+        const baseWhine = isBlackout ? 0.0 : (isOccluded ? mix.whineOcc : mix.whine + (mix.dynamicWhine ? proximity * 0.003 : 0.0));
+        setParam('whine', this.whineGain.gain, baseWhine, 0.5);
+
+        if (this.atriumGain) setParam('atrium', this.atriumGain.gain, isBlackout ? mix.noise * 0.1 : mix.noise, 1.0);
         if (this.peaceGain) setParam('peace', this.peaceGain.gain, mix.peace, 2.0);
         if (this.entityGain) setParam('entity', this.entityGain.gain, anomalyPressure > 0.0 ? anomalyPressure * 0.4 : 0.0, 0.2);
+
         if (this.subRumble) {
-            const heartbeatFreq = playerExhaustion > 0.3 ? 80.0 + (Math.sin(this.ctx.currentTime * (10.0 + playerExhaustion * 5.0)) * 20.0 * playerExhaustion) : 0.0;
-            setParam('rumble', this.subRumble.frequency, mix.rumble + (anomalyPressure * 40.0) + heartbeatFreq, 1.0);
+            const heartbeatFreq = playerExhaustion > 0.3 ? 80.0 + (Math.sin(time * (10.0 + playerExhaustion * 5.0)) * 20.0 * playerExhaustion) : 0.0;
+
+            const blackoutLFO = isBlackout ? 25.0 + (Math.sin(time * 0.15) * 10.0) : 0.0;
+            const baseRumble = isBlackout ? blackoutLFO : mix.rumble;
+
+            setParam('rumble', this.subRumble.frequency, baseRumble + (anomalyPressure * 40.0) + heartbeatFreq, 1.0);
         }
         if (this.kineticFilter) {
             const baseFreq = isOccluded ? mix.freqOcc : mix.freq;
@@ -274,110 +283,61 @@ export default class AcousticEngine {
         const distScalar = Math.max(0, 1.0 - (Math.sqrt(distanceSq) / 40.0));
         if (distScalar <= 0.01) return;
         const t = this.ctx.currentTime;
+
+        const spawnVoice = (oscType, startFreq, targetFreq, rampTime, maxGain, attack, decay, noiseConfig) => {
+            const osc = this.ctx.createOscillator();
+            osc.type = oscType;
+            osc.frequency.setValueAtTime(startFreq, t);
+            if (targetFreq) osc.frequency.exponentialRampToValueAtTime(targetFreq, t + rampTime);
+
+            const localGain = this.ctx.createGain();
+            localGain.gain.setValueAtTime(0, t);
+            localGain.gain.linearRampToValueAtTime(maxGain * intensity * distScalar, t + attack);
+            localGain.gain.exponentialRampToValueAtTime(0.001, t + decay);
+
+            osc.connect(localGain);
+
+            let noise, filter;
+            if (noiseConfig) {
+                noise = this.ctx.createBufferSource();
+                noise.buffer = this.noiseSrc.buffer;
+                filter = this.ctx.createBiquadFilter();
+                filter.type = noiseConfig.type;
+                filter.frequency.setValueAtTime(noiseConfig.start, t);
+                if (noiseConfig.end) filter.frequency.exponentialRampToValueAtTime(noiseConfig.end, t + noiseConfig.ramp);
+
+                noise.connect(filter);
+                filter.connect(localGain);
+
+                noise.start(t);
+                noise.stop(t + decay);
+            }
+
+            localGain.connect(this.masterGain);
+            osc.start(t);
+            osc.stop(t + decay);
+
+            osc.onended = () => {
+                osc.disconnect();
+                localGain.disconnect();
+                if (noise) {
+                    noise.disconnect();
+                    filter.disconnect();
+                }
+            };
+        };
+
         if (type === 'step') {
-            const profile = this.foleyProfiles[this.currentSector] || this.foleyProfiles["DEFAULT"];
-            this.stepFilter.type = profile.filterType;
-            this.stepFilter.frequency.setValueAtTime(profile.filterFreq, t);
-            const osc = this.ctx.createOscillator();
-            osc.type = (profile.oscFreq > 200) ? 'triangle' : 'sine';
-            osc.frequency.setValueAtTime(profile.oscFreq, t);
-            osc.frequency.exponentialRampToValueAtTime(20, t + profile.attack);
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this.noiseSrc.buffer;
-            osc.connect(this.stepGain);
-            noise.connect(this.stepFilter);
-            this.stepGain.gain.cancelScheduledValues(t);
-            this.stepGain.gain.setValueAtTime(0, t);
-            this.stepGain.gain.linearRampToValueAtTime(profile.gain * intensity * distScalar, t + profile.attack);
-            this.stepGain.gain.exponentialRampToValueAtTime(0.001, t + profile.decay);
-            osc.start(t);
-            osc.stop(t + profile.decay);
-            noise.start(t);
-            noise.stop(t + profile.decay);
-            osc.onended = () => {
-                osc.disconnect();
-                noise.disconnect();
-            };
+            const p = this.foleyProfiles[this.currentSector] || this.foleyProfiles["DEFAULT"];
+            spawnVoice(p.oscFreq > 200 ? 'triangle' : 'sine', p.oscFreq, 20, p.attack, p.gain, p.attack, p.decay, { type: p.filterType, start: p.filterFreq, end: null, ramp: 0 });
         } else if (type === 'door') {
-            const osc = this.ctx.createOscillator();
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(120, t);
-            osc.frequency.exponentialRampToValueAtTime(30, t + 0.3);
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this.noiseSrc.buffer;
-            this.doorFilter.frequency.setValueAtTime(1000, t);
-            this.doorFilter.frequency.exponentialRampToValueAtTime(100, t + 0.4);
-            osc.connect(this.doorGain);
-            noise.connect(this.doorFilter);
-            this.doorGain.gain.setValueAtTime(0, t);
-            this.doorGain.gain.linearRampToValueAtTime(0.08 * intensity * distScalar, t + 0.03);
-            this.doorGain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-            osc.start(t);
-            osc.stop(t + 0.5);
-            noise.start(t);
-            noise.stop(t + 0.5);
-            osc.onended = () => {
-                osc.disconnect();
-                noise.disconnect();
-            };
+            spawnVoice('square', 120, 30, 0.3, 0.08, 0.03, 0.5, { type: 'lowpass', start: 1000, end: 100, ramp: 0.4 });
         } else if (type === 'vent') {
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(400, t);
-            osc.frequency.exponentialRampToValueAtTime(80, t + 0.4);
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this.noiseSrc.buffer;
-
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'bandpass';
-            filter.frequency.setValueAtTime(1500, t);
-            filter.frequency.exponentialRampToValueAtTime(300, t + 0.4);
-
-            const localGain = this.ctx.createGain();
-            osc.connect(localGain);
-            noise.connect(filter);
-            filter.connect(localGain);
-            localGain.connect(this.masterGain);
-
-            localGain.gain.setValueAtTime(0, t);
-            localGain.gain.linearRampToValueAtTime(0.1 * intensity * distScalar, t + 0.03);
-            localGain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-
-            osc.start(t); osc.stop(t + 0.5);
-            noise.start(t); noise.stop(t + 0.5);
-            osc.onended = () => { osc.disconnect(); noise.disconnect(); filter.disconnect(); localGain.disconnect(); };
+            spawnVoice('sawtooth', 400, 80, 0.4, 0.1, 0.03, 0.5, { type: 'bandpass', start: 1500, end: 300, ramp: 0.4 });
         } else if (type === 'breaker') {
-            const osc = this.ctx.createOscillator();
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(900, t);
-            osc.frequency.exponentialRampToValueAtTime(100, t + 0.15);
-
-            const localGain = this.ctx.createGain();
-            osc.connect(localGain);
-            localGain.connect(this.masterGain);
-
-            localGain.gain.setValueAtTime(0, t);
-            localGain.gain.linearRampToValueAtTime(0.12 * intensity * distScalar, t + 0.01);
-            localGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-
-            osc.start(t); osc.stop(t + 0.15);
-            osc.onended = () => { osc.disconnect(); localGain.disconnect(); };
+            spawnVoice('square', 900, 100, 0.15, 0.12, 0.01, 0.15, null);
         } else if (type === 'item') {
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(1200, t);
-            osc.frequency.exponentialRampToValueAtTime(600, t + 0.3);
-
-            const localGain = this.ctx.createGain();
-            osc.connect(localGain);
-            localGain.connect(this.masterGain);
-
-            localGain.gain.setValueAtTime(0, t);
-            localGain.gain.linearRampToValueAtTime(0.08 * intensity * distScalar, t + 0.02);
-            localGain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-
-            osc.start(t); osc.stop(t + 0.4);
-            osc.onended = () => { osc.disconnect(); localGain.disconnect(); };
+            spawnVoice('sine', 1200, 600, 0.3, 0.08, 0.02, 0.4, null);
         }
     }
 

@@ -1,5 +1,34 @@
 # Level 0 Engine Changelog
 
+### [v0.3.7] - 2026-07-12
+
+#### Added
+
+- **[MECHANICS] Adrenal Burnout & Co-regulation:** Sprinting under extreme paranoia now permanently degrades `maxStamina`. Recovery rates have been mathematically slashed; players must actively seek well-lit, safe zones to heal.
+- **[ARCHITECTURE] Somatic Input Manifold:** Completely decoupled DOM event listeners and input state from the `PlayerController` physics loop, routing them through a dedicated `SomaticInput.js` peripheral nervous system.
+- **[MECHANICS] The Sanctuary:** Deployed an architectural oasis utilizing a strict 50/50 generative token (`claimOasis`). Spawns a dedicated 3x3 tile-floored, wood-paneled alcove featuring guaranteed resources and a pristine, non-flickering golden light.
+
+#### Changed
+
+- **[WEBGL] Analog Phosphor & Optical Decay:** Upgraded the CRT shader to feature true phosphor halation (warm lights bloom into darks), a feathered `smoothstep` bezel, and radial chromatic aberration. Analog noise now dynamically thickens in response to `darknessPressure`.
+- **[AUDIO] Polyphonic Voice Spawner:** Re-engineered `AcousticEngine` somatic events into a unified, ephemeral synthesizer. Footsteps and doors now spawn self-contained, auto-garbage-collecting wave topologies, eliminating ADSR envelope clipping.
+- **[AUDIO] The Blackout Throb:** Wired the `isBlackout` macro-state directly into the acoustic telemetry. When the breaker flips, the 60Hz ambient room hum physically decays into a 25Hz psychoacoustic undulation and the master gain breathes.
+- **[GEOMETRY] Industrial Prefabs:** Replaced raw geometric floor loot with compound `THREE.Group` prefabs (vintage glass Almond Water, 6V Lantern Batteries). Snapped their origins flawlessly to the mathematical surface of the Sanctuary table (`y=0.825`).
+- **[ENTITY] Optical Physics:** The Anomaly now requires true Line of Sight (LOS). Integrated a dedicated `_sightRaycaster` against the `spatialGrid` to eradicate wall-hacking perception and prevent flashlight-freezing through solid geometry.
+
+#### Optimized
+
+- **[PERFORMANCE] Algorithmic Photon Culling:** Amputated the catastrophic $O(N \log N)$ `Array.sort()` in the lighting loop. Implemented a bounded O(N) insertion loop against a pre-allocated `_activeFixtures` memory block to permanently starve the Garbage Collector.
+- **[PERFORMANCE] Structural Time Budget:** Defused the recursive stack bomb in the chunk builder. Replaced `setTimeout(0)` with a dynamic 8ms thermal boundary and `requestAnimationFrame` yielding, eliminating 64ms of artificial frame-pacing lag.
+- **[ARCHITECTURE] Factory Ephemeralization:** Sliced the monolithic 400-line `ProceduralTextureFactory` into domain-specific surface generators and consolidated Canvas DOM instantiations to prevent severe initialization memory spikes.
+
+#### Fixed
+
+- **[PHYSICS] Kinetic Gating:** Interactive doors and grates now calculate mathematical resting thresholds. When rotations resolve, the engine snaps the matrix and completely shuts off the kinetic calculation loop.
+- **[AUDIO] Frequency Tearing:** Fixed the rapid-fire footstep glitch when stamina depletes. Excised `time * frequency` multiplication and integrated a continuous `headBobPhase` delta to preserve geometric wave continuity.
+- **[SYSTEM] Architectural Telemetry Unpacking:** Fixed fatal `ReferenceError` crashes by properly destructuring `isBlackout` for the Acoustic Engine and `stagingMeshes` for the chunk generator payloads.
+
+
 ## [v0.3.6] - 2026-07-11
 
 ### Added

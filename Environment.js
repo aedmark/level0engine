@@ -145,32 +145,50 @@ export default class Environment {
                 door.userData.isLatched = false;
                 door.userData.swingSpeed = 8.0;
             }
-            door.userData.currentRot += (targetRot - door.userData.currentRot) * door.userData.swingSpeed * delta;
-            door.rotation.y = door.userData.currentRot;
-            if (door.userData.box) {
-                if (isOpen) {
-                    door.userData.box.makeEmpty();
-                } else {
-                    door.updateMatrixWorld();
-                    if (!door.userData.baseBox) {
-                        door.geometry.computeBoundingBox();
-                        door.userData.baseBox = door.geometry.boundingBox.clone();
+            const rotDiff = targetRot - door.userData.currentRot;
+
+            if (Math.abs(rotDiff) > 0.001) {
+                door.userData.currentRot += rotDiff * door.userData.swingSpeed * delta;
+                door.rotation.y = door.userData.currentRot;
+
+                door.updateMatrixWorld();
+
+                if (door.userData.box) {
+                    if (isOpen) {
+                        if (!door.userData.box.isEmpty()) door.userData.box.makeEmpty();
+                    } else {
+                        if (!door.userData.baseBox) {
+                            door.geometry.computeBoundingBox();
+                            door.userData.baseBox = door.geometry.boundingBox.clone();
+                        }
+                        door.userData.box.copy(door.userData.baseBox).applyMatrix4(door.matrixWorld);
                     }
+                }
+            } else if (door.userData.currentRot !== targetRot) {
+                door.userData.currentRot = targetRot;
+                door.rotation.y = targetRot;
+                if (!isOpen && door.userData.box) {
+                    door.updateMatrixWorld();
                     door.userData.box.copy(door.userData.baseBox).applyMatrix4(door.matrixWorld);
                 }
             }
         });
+
         if (this.interactables) {
             this.interactables.forEach(obj => {
                 if (obj.userData.type === 'grate' && !obj.userData.active) {
-                    if (obj.userData.blocksX) {
-                        obj.rotation.z += (-Math.PI / 2 - obj.rotation.z) * 15.0 * delta;
-                    } else {
-                        obj.rotation.x += (-Math.PI / 2 - obj.rotation.x) * 15.0 * delta;
-                    }
-                    obj.position.y += (0.05 - obj.position.y) * 15.0 * delta;
-                    if (obj.userData.box && !obj.userData.box.isEmpty()) {
-                        obj.userData.box.makeEmpty();
+                    const targetRot = -Math.PI / 2;
+                    const diff = obj.userData.blocksX ? (targetRot - obj.rotation.z) : (targetRot - obj.rotation.x);
+
+                    if (Math.abs(diff) > 0.01) {
+                        if (obj.userData.blocksX) obj.rotation.z += diff * 15.0 * delta;
+                        else obj.rotation.x += diff * 15.0 * delta;
+
+                        obj.position.y += (0.05 - obj.position.y) * 15.0 * delta;
+
+                        if (obj.userData.box && !obj.userData.box.isEmpty()) {
+                            obj.userData.box.makeEmpty();
+                        }
                     }
                 }
             });
@@ -179,29 +197,31 @@ export default class Environment {
 
     async processChunkQueue() {
         if (this.isBuildingChunk) return;
-        if (this.chunkQueue.length === 0) {
-            if (this.isSpawning) {
-                this.isSpawning = false;
-                const flash = document.getElementById('flash-overlay');
-                if (flash) {
-                    flash.style.transition = 'opacity 2.0s ease-in';
-                    flash.style.opacity = '0';
-                    setTimeout(() => {
-                        if (flash.style.opacity === '0') flash.style.backgroundColor = '#fff';
-                    }, 2050);
-                }
-            }
-            return;
-        }
         this.isBuildingChunk = true;
-        const chunk = this.chunkQueue.shift();
-        const currentX = Math.floor(this.camera.position.x / (this.chunkSize * 4));
-        const currentZ = Math.floor(this.camera.position.z / (this.chunkSize * 4));
-        if (Math.abs(chunk.x - currentX) <= this.renderDistance && Math.abs(chunk.z - currentZ) <= this.renderDistance) {
-            await this.buildChunk(chunk.x, chunk.z, chunk.hash);
+
+        while (this.chunkQueue.length > 0) {
+            const chunk = this.chunkQueue.shift();
+            const currentX = Math.floor(this.camera.position.x / (this.chunkSize * 4));
+            const currentZ = Math.floor(this.camera.position.z / (this.chunkSize * 4));
+
+            if (Math.abs(chunk.x - currentX) <= this.renderDistance && Math.abs(chunk.z - currentZ) <= this.renderDistance) {
+                await this.buildChunk(chunk.x, chunk.z, chunk.hash);
+            }
         }
+
         this.isBuildingChunk = false;
-        this.processChunkQueue();
+
+        if (this.isSpawning) {
+            this.isSpawning = false;
+            const flash = document.getElementById('flash-overlay');
+            if (flash) {
+                flash.style.transition = 'opacity 2.0s ease-in';
+                flash.style.opacity = '0';
+                setTimeout(() => {
+                    if (flash.style.opacity === '0') flash.style.backgroundColor = '#fff';
+                }, 2050);
+            }
+        }
     }
 
     setup() {
@@ -209,7 +229,7 @@ export default class Environment {
         Object.assign(this, assets);
         const {carpetTexture, ceilingTexture} = assets;
         carpetTexture.repeat.set(16, 16);
-        ceilingTexture.repeat.set(128, 128); // THE ARTISAN: Properly scaled 1.5ft office drop tiles
+        ceilingTexture.repeat.set(128, 128);
 
         this.carpetMat = new THREE.MeshStandardMaterial({
             map: carpetTexture,
@@ -220,7 +240,7 @@ export default class Environment {
         this.ceilMat = new THREE.MeshStandardMaterial({
             map: ceilingTexture,
             color: 0xffffff,
-            emissive: 0x444444, // MEADOWS: Lift the shadow floor significantly
+            emissive: 0x444444,
             roughness: 0.9,
             bumpMap: ceilingTexture,
             bumpScale: 0.005
@@ -597,11 +617,33 @@ export default class Environment {
             this.breakerBaseGeo = new THREE.BoxGeometry(0.6, 0.8, 0.20);
             this.breakerDoorGeo = new THREE.BoxGeometry(0.6, 0.8, 0.05);
             this.breakerDoorGeo.translate(0.3, 0, 0);
-            this.batteryGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.25, 8);
-            this.batteryGeo.rotateZ(Math.PI / 2);
-            this.almondGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.18, 8);
-            this.almondGeo.translate(0, 0.09, 0);
             this.geoCache = new Map();
+
+            this.almondPrefab = new THREE.Group();
+            const aBodyGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.12, 16);
+            const aNeckGeo = new THREE.CylinderGeometry(0.012, 0.035, 0.05, 16);
+            const aCapGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.015, 12);
+            const aBody = new THREE.Mesh(aBodyGeo, this.almondMat);
+            aBody.position.y = 0.06;
+            const aNeck = new THREE.Mesh(aNeckGeo, this.clinicMat);
+            aNeck.position.y = 0.12 + 0.025;
+            const aCap = new THREE.Mesh(aCapGeo, this.metalMat);
+            aCap.position.y = 0.12 + 0.05 + 0.0075;
+            this.almondPrefab.add(aBody, aNeck, aCap);
+
+            this.batteryPrefab = new THREE.Group();
+            const bBodyGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.16, 16);
+            const bRimGeo = new THREE.CylinderGeometry(0.052, 0.052, 0.015, 16);
+            const bTermGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.02, 12);
+            const bBody = new THREE.Mesh(bBodyGeo, this.hazardMat);
+            bBody.position.y = 0.08;
+            const bTopRim = new THREE.Mesh(bRimGeo, this.metalMat);
+            bTopRim.position.y = 0.16 - 0.0075;
+            const bBotRim = new THREE.Mesh(bRimGeo, this.metalMat);
+            bBotRim.position.y = 0.0075;
+            const bTerm = new THREE.Mesh(bTermGeo, this.metalMat);
+            bTerm.position.y = 0.16 + 0.01;
+            this.batteryPrefab.add(bBody, bTopRim, bBotRim, bTerm);
             this.sharedAssets = new Set();
             Object.values(this).forEach(v => {
                 if (v && v.isGeometry) this.sharedAssets.add(v.uuid);
@@ -611,11 +653,20 @@ export default class Environment {
     }
 
     _createChunkHelpers(hash, chunkGroup, stagingMeshes, random) {
+        let hasOasis = random() > 0.5;
+
         return {
             random,
             hash,
             chunkGroup,
             stagingMeshes,
+            claimOasis: () => {
+                if (hasOasis) {
+                    hasOasis = false;
+                    return true;
+                }
+                return false;
+            },
             buildWall: (w, d, mat, h = 3.0, yOffset = 0) => {
                 w = Math.round(w * 20) / 20;
                 d = Math.round(d * 20) / 20;
@@ -764,8 +815,6 @@ export default class Environment {
         let activeSector = null;
         let sectorMaze = null;
         let chunkBreakerCount = 0;
-        let chunkBatteryCount = 0;
-        let chunkAlmondCount = 0;
         const breakerPositions = [];
         if (isMacroStructure) {
             const sectorRoll = random();
@@ -808,6 +857,9 @@ export default class Environment {
             ceil.position.set(startX * this.cellSize + centerOffset, 3, startZ * this.cellSize + centerOffset);
             chunkGroup.add(ceil);
         }
+
+        let chunkStartTime = performance.now();
+
         for (let x = startX; x < startX + this.chunkSize; x++) {
             for (let z = startZ; z < startZ + this.chunkSize; z++) {
                 if (Math.abs(x) < 2 && Math.abs(z) < 2) continue;
@@ -908,46 +960,7 @@ export default class Environment {
                                 stagingMeshes.push(glow);
                             }
                         }
-                    } else if (!hasTallObstacle && random() > 0.99 && chunkAlmondCount < 1) {
-                        chunkAlmondCount++;
-                        const almondGroup = new THREE.Group();
-
-                        const offsetX = (random() * 2 - 1) * 1.5;
-                        const offsetZ = (random() * 2 - 1) * 1.5;
-                        almondGroup.position.set(x * this.cellSize + offsetX, 0, z * this.cellSize + offsetZ);
-                        almondGroup.rotation.y = random() * Math.PI;
-
-                        const almondMesh = new THREE.Mesh(this.almondGeo, this.clinicMat);
-                        almondGroup.add(almondMesh);
-
-                        const glow = new THREE.Mesh(this.glowGeo, this.glowMat);
-                        glow.scale.set(0.12, 0.12, 0.12);
-                        glow.position.y = 0.01;
-                        almondGroup.add(glow);
-
-                        almondGroup.userData = {type: 'almond', chunkHash: hash, active: true};
-                        chunkGroup.add(almondGroup);
-                        this.interactables.push(almondGroup);
-                    } else if (!hasTallObstacle && random() > 0.985 && chunkBatteryCount < 2) {
-                        chunkBatteryCount++;
-                        const batGroup = new THREE.Group();
-
-                        const offsetX = (random() * 2 - 1) * 1.5;
-                        const offsetZ = (random() * 2 - 1) * 1.5;
-                        batGroup.position.set(x * this.cellSize + offsetX, 0.06, z * this.cellSize + offsetZ);
-                        batGroup.rotation.y = random() * Math.PI;
-
-                        const batMesh = new THREE.Mesh(this.batteryGeo, this.hazardMat);
-                        batGroup.add(batMesh);
-
-                        const glow = new THREE.Mesh(this.glowGeo, this.glowMat);
-                        glow.scale.set(0.15, 0.15, 0.15);
-                        glow.position.y = -0.05;
-                        batGroup.add(glow);
-
-                        batGroup.userData = {type: 'battery', chunkHash: hash, active: true};
-                        chunkGroup.add(batGroup);
-                        this.interactables.push(batGroup);
+                        // SCHUR: Random floor drops excised completely.
                     } else if (!hasTallObstacle && random() > 0.95 && chunkBreakerCount < 3) {
                         const px = x * this.cellSize;
                         const pz = z * this.cellSize;
@@ -984,7 +997,11 @@ export default class Environment {
                     }
                 }
             }
-            await new Promise(resolve => setTimeout(resolve, 0));
+
+            if (performance.now() - chunkStartTime > 8.0) {
+                await new Promise(resolve => requestAnimationFrame(resolve));
+                chunkStartTime = performance.now();
+            }
         }
         this._compileInstances(hash, chunkGroup, stagingMeshes, random);
     }
@@ -1090,7 +1107,9 @@ export default class Environment {
             this.audioRaycaster = new THREE.Raycaster();
             this.audioDirection = new THREE.Vector3();
         }
-        this.localFixtures.length = 0;
+        if (!this._activeFixtures) this._activeFixtures = new Array(this.maxActiveLights).fill(null);
+        this._activeFixtures.fill(null);
+
         for (let i = 0, len = this.fixtureData.length; i < len; i++) {
             const fixture = this.fixtureData[i];
             const dx = cameraPos.x - fixture.position.x;
@@ -1103,48 +1122,60 @@ export default class Environment {
 
             const distSq = (dx * dx) + (dz * dz);
             if (distSq < 900.0) {
-                const weight = 1.0 - (distSq * 0.00111); // 1.0 - (distSq / 900)
+                const weight = 1.0 - (distSq * 0.00111);
                 if (!fixture.isDead) {
                     ambientLightLevel += weight;
                 } else {
                     darknessPressure += weight;
                 }
 
-                fixture.distSq = fixture.hasShadow ? distSq - 40.0 : distSq;
-                if (!fixture.isFake) this.localFixtures.push(fixture);
+                if (!fixture.isFake) {
+                    fixture.distSq = distSq;
+
+                    fixture._biasedDistSq = fixture.hasShadow ? distSq - 40.0 : distSq;
+
+                    let insertPos = -1;
+                    for (let j = 0; j < this.maxActiveLights; j++) {
+                        if (!this._activeFixtures[j] || fixture._biasedDistSq < this._activeFixtures[j]._biasedDistSq) {
+                            insertPos = j;
+                            break;
+                        }
+                    }
+
+                    if (insertPos !== -1) {
+                        for (let j = this.maxActiveLights - 1; j > insertPos; j--) {
+                            this._activeFixtures[j] = this._activeFixtures[j - 1];
+                        }
+                        this._activeFixtures[insertPos] = fixture;
+                    }
+                }
             } else {
                 fixture.hasShadow = false;
             }
         }
 
-        this.localFixtures.sort(this._lightSortCache);
-
-        for (let i = 0, len = this.localFixtures.length; i < len; i++) {
-            const fixture = this.localFixtures[i];
-            if (fixture.hasShadow) fixture.distSq += 40.0;
-            fixture.hasShadow = false;
-        }
         this.player.darknessPressure = darknessPressure;
         let nearestFixture = null;
-        let minLightDist = Infinity;
+        let minLightDistSq = Infinity;
+
         for (let i = 0; i < this.maxActiveLights; i++) {
             const light = this.lightPool[i];
-            const fixture = this.localFixtures[i];
-            const activeRadius = i < this.maxShadowLights ? 20 : 30;
-            const activeRadiusSq = activeRadius * activeRadius;
+            const fixture = this._activeFixtures[i];
 
-            if (fixture && fixture.distSq < activeRadiusSq) {
-                if (i < this.maxShadowLights) {
-                    fixture.hasShadow = true;
-                }
-                light.position.copy(fixture.position);
-                const dist = Math.sqrt(fixture.distSq);
-                if (dist < minLightDist) {
-                    minLightDist = dist;
+            if (fixture) {
+                const isShadowCaster = i < this.maxShadowLights;
+                fixture.hasShadow = isShadowCaster;
+
+                if (fixture.distSq < minLightDistSq) {
+                    minLightDistSq = fixture.distSq;
                     nearestFixture = fixture;
                 }
+
+                light.position.copy(fixture.position);
+                const dist = Math.sqrt(fixture.distSq);
+                const activeRadius = isShadowCaster ? 20 : 30;
                 const fadeEnvelope = Math.max(0, Math.min(1, (activeRadius - dist) / 8.0));
-                const intensityScalar = i < this.maxShadowLights ? 0.65 : 0.35;
+                const intensityScalar = isShadowCaster ? 0.65 : 0.35;
 
                 if (fixture.isDead) {
                     light.intensity = 0.0;
@@ -1164,6 +1195,8 @@ export default class Environment {
                 light.intensity = 0;
             }
         }
+
+        const minLightDist = nearestFixture ? Math.sqrt(minLightDistSq) : Infinity;
         if (nearestFixture && minLightDist > 1.0) {
             if (time - this.lastAudioOcclusionTime > 0.1) {
                 this.audioDirection.subVectors(nearestFixture.position, cameraPos).normalize();
@@ -1294,7 +1327,8 @@ export default class Environment {
             activeSector,
             anomalyPressure,
             playerSpeed,
-            playerExhaustion: this.player.exhaustion
+            playerExhaustion: this.player.exhaustion,
+            isBlackout: this.blackoutChunks.size > 0
         };
     }
 }

@@ -25,6 +25,9 @@ export default class Anomaly {
         this._min = new THREE.Vector3();
         this._max = new THREE.Vector3();
 
+        this._sightRaycaster = new THREE.Raycaster();
+        this._rayTarget = new THREE.Vector3();
+
         this._buildMesh();
 
         document.addEventListener('somatic-step', (e) => this._handleNoise(e, 18.0));
@@ -136,6 +139,30 @@ export default class Anomaly {
 
         const perceptionThresholdSq = Math.max(9.0, detectionRadius * detectionRadius);
 
+        let hasLOS = false;
+        if (distToPlayerSq < Math.max(perceptionThresholdSq, 625.0)) {
+            const toPlayerDir = this._toPlayer.subVectors(playerPos, this.group.position).normalize();
+            this._sightRaycaster.set(this.group.position, toPlayerDir);
+
+            let isOccluded = false;
+            const searchDist = Math.sqrt(distToPlayerSq);
+            if (this.env && this.env.spatialGrid) {
+                const localBoxes = this.env.spatialGrid.getNearby(this.group.position.x, this.group.position.z, searchDist);
+                for (let i = 0; i < localBoxes.length; i++) {
+                    const box = localBoxes[i];
+                    if (box.isEntityBlocker && !box.isInvisibleBlocker) {
+                        if (this._sightRaycaster.ray.intersectBox(box, this._rayTarget)) {
+                            if (this.group.position.distanceToSquared(this._rayTarget) < distToPlayerSq) {
+                                isOccluded = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            hasLOS = !isOccluded;
+        }
+
         if (this.backtrackTimer > 0) {
             this.backtrackTimer -= delta;
             if (this.breadcrumbs.length > 0) {
@@ -148,7 +175,8 @@ export default class Anomaly {
                 this.backtrackTimer = 0;
             }
             this.player.isChased = false;
-        } else if (distToPlayerSq < perceptionThresholdSq) {
+            // MEADOWS: The Anomaly will only lock on and trigger a chase if physical Line of Sight is confirmed.
+        } else if (distToPlayerSq < perceptionThresholdSq && hasLOS) {
             this.target.copy(playerPos);
             this.player.isChased = distToPlayerSq < 225.0;
         } else {
@@ -182,7 +210,8 @@ export default class Anomaly {
         this.rage = this.rage || 0.0;
         let speed = baseSpeed + (Math.min(this.player.exhaustion, 0.6) * 1.2) + (this.rage * 5.0);
         let isObserved = false;
-        if (this.player.flashlightActive && distToPlayerSq < 625.0) {
+
+        if (this.player.flashlightActive && distToPlayerSq < 625.0 && hasLOS) {
             const toEntity = this._toPlayer.subVectors(this.group.position, playerPos).normalize();
             const lookDir = this._lookDir.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
             if (lookDir.dot(toEntity) > 0.85) {
