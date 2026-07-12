@@ -226,10 +226,33 @@
             transition: width 0.2s linear, background-color 0.2s;
         }
 
-        #battery-tip {
-            width: 4px;
+           #battery-tip {
+               width: 4px;
+               height: 10px;
+               background-color: #fff;
+           }
+
+        #stamina-wrapper {
+            top: 4.5rem;
+            left: 3rem;
+            display: flex;
+            align-items: center;
+            filter: drop-shadow(2px 2px 0px rgba(0, 0, 0, 1)) drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
+        }
+
+        #stamina-body {
+            width: 37px;
             height: 10px;
+            border: 2px solid #fff;
+            padding: 2px;
+            box-sizing: border-box;
+        }
+
+        #stamina-level {
+            width: 100%;
+            height: 100%;
             background-color: #fff;
+            transition: width 0.2s linear, background-color 0.2s;
         }
 
         @media (max-width: 900px), (max-height: 500px) {
@@ -266,6 +289,18 @@
             #battery-tip {
                 width: 2px;
                 height: 6px;
+            }
+
+            #stamina-wrapper {
+                top: 2.5rem;
+                left: 1.2rem;
+            }
+
+            #stamina-body {
+                width: 35px;
+                height: 8px;
+                border-width: 1px;
+                padding: 1px;
             }
         }
 
@@ -510,6 +545,11 @@
             <div id="battery-level"></div>
         </div>
         <div id="battery-tip"></div>
+    </div>
+    <div id="stamina-wrapper" class="osd-element">
+        <div id="stamina-body">
+            <div id="stamina-level"></div>
+        </div>
     </div>
     <div class="status-bar osd-element">
         <span id="coords">X: 0.00 | Z: 0.00</span>

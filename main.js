@@ -79,6 +79,18 @@ document.addEventListener('somatic-step', (e) => acoustics.triggerSomaticEvent('
 document.addEventListener('somatic-door', (e) => acoustics.triggerSomaticEvent('door', e.detail.distSq, e.detail.intensity));
 
 document.addEventListener('somatic-vent', (e) => acoustics.triggerSomaticEvent('vent', e.detail.distSq, e.detail.intensity));
+document.addEventListener('somatic-blink', () => {
+    const flash = document.getElementById('flash-overlay');
+    if (flash) {
+        flash.style.transition = 'none';
+        flash.style.backgroundColor = '#000';
+        flash.style.opacity = '1';
+        setTimeout(() => {
+            flash.style.transition = 'opacity 0.15s ease-out';
+            flash.style.opacity = '0';
+        }, 150);
+    }
+});
 document.addEventListener('somatic-breaker', (e) => acoustics.triggerSomaticEvent('breaker', e.detail.distSq, e.detail.intensity));
 document.addEventListener('somatic-item', (e) => acoustics.triggerSomaticEvent('item', e.detail.distSq, e.detail.intensity));
 
@@ -188,9 +200,19 @@ function animate() {
                 batLevel._lastBat = batInt;
             }
         }
+
+        const stamLevel = document.getElementById('stamina-level');
+        if (stamLevel) {
+            const stamInt = Math.round(player.stamina);
+            if (stamLevel._lastStam !== stamInt) {
+                stamLevel.style.width = `${stamInt}%`;
+                stamLevel.style.backgroundColor = stamInt > 50 ? '#ffffff' : (stamInt > 20 ? '#aaaaaa' : '#ff5555');
+                stamLevel._lastStam = stamInt;
+            }
+        }
     }
 
-    if (!player.isRunning) {
+    if (!player.input.state.isRunning) {
         const runBtn = document.getElementById('mobile-run');
         if (runBtn && runBtn.classList.contains('active')) {
             runBtn.classList.remove('active');

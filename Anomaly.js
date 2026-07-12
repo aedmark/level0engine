@@ -26,6 +26,23 @@ export default class Anomaly {
         this._max = new THREE.Vector3();
 
         this._buildMesh();
+
+        document.addEventListener('somatic-step', (e) => this._handleNoise(e, 18.0));
+        document.addEventListener('somatic-door', (e) => this._handleNoise(e, 60.0));
+        document.addEventListener('somatic-vent', (e) => this._handleNoise(e, 80.0));
+        document.addEventListener('somatic-breaker', (e) => this._handleNoise(e, 120.0));
+    }
+
+    _handleNoise(e, baseRadius) {
+        if (!this.isActive || this.player.isChased) return;
+        const intensity = e.detail.intensity || 1.0;
+        const radiusSq = (baseRadius * intensity) ** 2;
+        if (this.group.position.distanceToSquared(this.camera.position) < radiusSq) {
+            this.target.copy(this.camera.position);
+            this.target.x += (Math.random() - 0.5) * 8.0;
+            this.target.z += (Math.random() - 0.5) * 8.0;
+            this.backtrackTimer = 0;
+        }
     }
 
     _buildMesh() {
@@ -162,7 +179,8 @@ export default class Anomaly {
             }
         }
         const baseSpeed = distToPlayerSq < 225.0 ? 3.8 : 1.8;
-        let speed = baseSpeed + (Math.min(this.player.exhaustion, 0.6) * 1.2);
+        this.rage = this.rage || 0.0;
+        let speed = baseSpeed + (Math.min(this.player.exhaustion, 0.6) * 1.2) + (this.rage * 5.0);
         let isObserved = false;
         if (this.player.flashlightActive && distToPlayerSq < 625.0) {
             const toEntity = this._toPlayer.subVectors(this.group.position, playerPos).normalize();
@@ -170,9 +188,7 @@ export default class Anomaly {
             if (lookDir.dot(toEntity) > 0.85) {
                 isObserved = true;
                 speed = 0.0;
-
-                const proximityDrain = 35.0 + (150.0 / Math.max(1.0, distToPlayerSq));
-                this.player.flashlightBattery = Math.max(0, this.player.flashlightBattery - proximityDrain * delta);
+                this.rage = Math.min(1.0, this.rage + (delta * 0.15));
 
                 const panicJitter = 0.8 * (1.0 - (this.player.flashlightBattery / 100.0)) + 0.1;
                 this.core.position.set((Math.random() - 0.5) * panicJitter, (Math.random() - 0.5) * panicJitter, (Math.random() - 0.5) * panicJitter);
@@ -184,6 +200,7 @@ export default class Anomaly {
         }
         if (!isObserved) {
             this.core.position.set(0, 0, 0);
+            this.rage = Math.max(0.0, this.rage - (delta * 0.05));
         }
         return speed;
     }

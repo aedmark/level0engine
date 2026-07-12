@@ -1,27 +1,19 @@
 // PlayerController.js
 // LEVEL 0 PLAYER CONTROLLER
 
+import SomaticInput from './SomaticInput.js';
+
 export default class PlayerController {
     constructor(camera, domElement) {
         this.camera = camera;
         this.domElement = domElement;
+        this.input = new SomaticInput(camera);
+
         this.velocity = new THREE.Vector3();
         this.direction = new THREE.Vector3();
-        this.moveForward = false;
-        this.moveBackward = false;
-        this.moveLeft = false;
-        this.moveRight = false;
-        this.isRunning = false;
-        this.isCrouching = false;
-        this.isCrawling = false;
-        this._cKeyDown = false;
-        this._cKeyPressTime = 0;
-        this._cKeyHandled = false;
+
         this.isSqueezing = false;
-        this.squeezeIntent = false;
-        this.flashlightActive = false;
         this.flashlightBattery = 100.0;
-        this.isLocked = false;
         this.baseRadius = 0.4;
         this.squeezeRadius = 0.12;
         this.playerRadius = 0.4;
@@ -32,15 +24,12 @@ export default class PlayerController {
         this.exhaustion = 0.0;
         this.isWinded = false;
         this.isChased = false;
-        this.isPeeking = false;
-        this.targetLean = 0.0;
         this.paranoia = 0.0;
         this.currentLean = 0.0;
-        this._leanOffset = new THREE.Vector3();
         this.baseFov = camera.fov;
         this.currentFov = camera.fov;
-        this.touchMove = {active: false, id: null, startX: 0, startY: 0, deltaX: 0, deltaY: 0};
-        this.touchLook = {active: false, id: null, startX: 0, startY: 0, lastX: 0, lastY: 0};
+
+        this._leanOffset = new THREE.Vector3();
         this._boxX = new THREE.Box3();
         this._boxZ = new THREE.Box3();
         this._floorBox = new THREE.Box3();
@@ -48,32 +37,16 @@ export default class PlayerController {
         this._vecMax = new THREE.Vector3();
         this._euler = new THREE.Euler(0, 0, 0, 'YXZ');
         this._moveDelta = new THREE.Vector3();
-        this.bindEvents();
+
+        this._bindMetabolicListeners();
     }
 
-    bindEvents() {
-        document.addEventListener('keydown', (e) => this.onKeyDown(e));
-        document.addEventListener('keyup', (e) => this.onKeyUp(e));
-        const touchSurface = document.getElementById('mobile-ui');
-        touchSurface.addEventListener('click', () => document.body.requestPointerLock());
-        document.addEventListener('pointerlockchange', () => {
-            this.isLocked = (document.pointerLockElement === document.body);
-            if (!this.isLocked) {
-                this.isPeeking = false;
-                this.targetLean = 0.0;
-            }
-        });
-        document.addEventListener('mousedown', (e) => {
-            if (this.isLocked && e.button === 2) this.isPeeking = true;
-        });
-        document.addEventListener('mouseup', (e) => {
-            if (e.button === 2) {
-                this.isPeeking = false;
-                this.targetLean = 0.0;
-            }
-        });
-        document.addEventListener('contextmenu', (e) => e.preventDefault());
-        document.addEventListener('mousemove', (e) => this.onMouseMove(e));
+    get isRunning() { return this.input.state.isRunning; }
+    get isCrouching() { return this.input.state.isCrouching; }
+    get isCrawling() { return this.input.state.isCrawling; }
+    get flashlightActive() { return this.input.state.flashlightActive; }
+
+    _bindMetabolicListeners() {
         document.addEventListener('somatic-battery', (e) => {
             this.flashlightBattery = Math.min(100.0, this.flashlightBattery + e.detail.amount);
         });
@@ -82,249 +55,26 @@ export default class PlayerController {
             this.stamina = this.maxStamina;
             this.isWinded = false;
         });
-        window.addEventListener('blur', () => {
-            this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = this.isRunning = this.isPeeking = false;
-            this.targetLean = 0.0;
-        });
-        this.bindTouchEvents();
-    }
-
-    bindTouchEvents() {
-        const zoneLeft = document.getElementById('touch-left');
-        const zoneRight = document.getElementById('touch-right');
-
-        const joystickBase = document.getElementById('joystick-base');
-        const joystickKnob = document.getElementById('joystick-knob');
-        const runBtn = document.getElementById('mobile-run');
-        const crouchBtn = document.getElementById('mobile-crouch');
-        const flashBtn = document.getElementById('mobile-flashlight');
-        if (runBtn && crouchBtn) {
-            runBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.isRunning = !this.isRunning;
-                runBtn.classList.toggle('active', this.isRunning);
-                if (this.isRunning && this.isCrouching) {
-                    this.isCrouching = false;
-                    crouchBtn.classList.remove('active');
-                }
-            }, {passive: false});
-            crouchBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.isCrouching = !this.isCrouching;
-                crouchBtn.classList.toggle('active', this.isCrouching);
-                if (this.isCrouching && this.isRunning) {
-                    this.isRunning = false;
-                    runBtn.classList.remove('active');
-                }
-            }, {passive: false});
-            if (flashBtn) {
-                flashBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.flashlightActive = !this.flashlightActive;
-                    flashBtn.classList.toggle('active', this.flashlightActive);
-                }, {passive: false});
-            }
-        }
-        zoneLeft.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = e.changedTouches[0];
-            this.touchMove.active = true;
-            this.touchMove.id = touch.identifier;
-            this.touchMove.startX = touch.clientX;
-            this.touchMove.startY = touch.clientY;
-
-            if (joystickBase) {
-                joystickBase.style.display = 'block';
-                joystickBase.style.left = touch.clientX + 'px';
-                joystickBase.style.top = touch.clientY + 'px';
-                if (joystickKnob) joystickKnob.style.transform = `translate(-50%, -50%)`;
-            }
-        }, {passive: false});
-        zoneLeft.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                if (touch.identifier === this.touchMove.id) {
-                    this.touchMove.deltaX = Math.max(-120, Math.min(120, touch.clientX - this.touchMove.startX));
-                    this.touchMove.deltaY = Math.max(-120, Math.min(120, touch.clientY - this.touchMove.startY));
-
-                    if (joystickKnob) {
-                        const distance = Math.sqrt(this.touchMove.deltaX ** 2 + this.touchMove.deltaY ** 2);
-                        const maxVisualRadius = 50;
-                        let visualX = this.touchMove.deltaX;
-                        let visualY = this.touchMove.deltaY;
-
-                        if (distance > maxVisualRadius) {
-                            visualX = (visualX / distance) * maxVisualRadius;
-                            visualY = (visualY / distance) * maxVisualRadius;
-                        }
-                        joystickKnob.style.transform = `translate(calc(-50% + ${visualX}px), calc(-50% + ${visualY}px))`;
-                    }
-                }
-            }
-        }, {passive: false});
-        zoneLeft.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                if (e.changedTouches[i].identifier === this.touchMove.id) {
-                    this.touchMove.active = false;
-                    this.touchMove.deltaX = 0;
-                    this.touchMove.deltaY = 0;
-
-                    if (joystickBase) joystickBase.style.display = 'none';
-                }
-            }
-        });
-        zoneRight.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = e.changedTouches[0];
-            this.touchLook.active = true;
-            this.touchLook.id = touch.identifier;
-            this.touchLook.lastX = touch.clientX;
-            this.touchLook.lastY = touch.clientY;
-        }, {passive: false});
-        zoneRight.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                if (touch.identifier === this.touchLook.id) {
-                    const movementX = touch.clientX - this.touchLook.lastX;
-                    const movementY = touch.clientY - this.touchLook.lastY;
-                    this.camera.rotation.order = "YXZ";
-                    this.camera.rotation.y -= movementX * 0.020;
-                    this.camera.rotation.x -= movementY * 0.020;
-                    this.camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.camera.rotation.x));
-                    this.touchLook.lastX = touch.clientX;
-                    this.touchLook.lastY = touch.clientY;
-                }
-            }
-        }, {passive: false});
-        zoneRight.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                if (e.changedTouches[i].identifier === this.touchLook.id) {
-                    this.touchLook.active = false;
-                }
-            }
-        });
-    }
-
-    onKeyDown(event) {
-        if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
-        const key = event.code;
-        if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyQ', 'KeyF', 'KeyE'].includes(key)) {
-            event.preventDefault();
-        }
-        if (event.key === 'Shift') this.isRunning = true;
-        if (event.code === 'KeyC') {
-            if (!this._cKeyDown) {
-                this._cKeyDown = true;
-                this._cKeyPressTime = performance.now();
-                this._cKeyHandled = false;
-            }
-        }
-        if (event.code === 'KeyX') document.dispatchEvent(new Event('capture-screenshot'));
-        if (event.code === 'KeyQ') this.squeezeIntent = true;
-        if (event.code === 'KeyF') {
-            this.flashlightActive = !this.flashlightActive;
-            const flashBtn = document.getElementById('mobile-flashlight');
-            if (flashBtn) flashBtn.classList.toggle('active', this.flashlightActive);
-        }
-        if (event.code === 'KeyT') {
-            document.dispatchEvent(new Event('somatic-tag'));
-        }
-        if (event.code === 'KeyE') {
-            document.dispatchEvent(new CustomEvent('somatic-interact', {
-                detail: {position: this.camera.position, direction: this.camera.getWorldDirection(new THREE.Vector3())}
-            }));
-        }
-        switch (key) {
-            case 'ArrowUp':
-            case 'KeyW':
-                this.moveForward = true;
-                break;
-            case 'ArrowLeft':
-            case 'KeyA':
-                this.moveLeft = true;
-                break;
-            case 'ArrowDown':
-            case 'KeyS':
-                this.moveBackward = true;
-                break;
-            case 'ArrowRight':
-            case 'KeyD':
-                this.moveRight = true;
-                break;
-        }
-    }
-
-    onKeyUp(event) {
-        if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
-        if (event.key === 'Shift') this.isRunning = false;
-        if (event.code === 'KeyQ') this.squeezeIntent = false;
-        if (event.code === 'KeyC') {
-            this._cKeyDown = false;
-            if (!this._cKeyHandled) {
-                if (this.isCrawling) {
-                    this.isCrawling = false;
-                    this.isCrouching = true;
-                } else {
-                    this.isCrouching = !this.isCrouching;
-                    this.isCrawling = false;
-                }
-            }
-        }
-        switch (event.code) {
-            case 'ArrowUp':
-            case 'KeyW':
-                this.moveForward = false;
-                break;
-            case 'ArrowLeft':
-            case 'KeyA':
-                this.moveLeft = false;
-                break;
-            case 'ArrowDown':
-            case 'KeyS':
-                this.moveBackward = false;
-                break;
-            case 'ArrowRight':
-            case 'KeyD':
-                this.moveRight = false;
-                break;
-        }
-    }
-
-    onMouseMove(e) {
-        if (!this.isLocked) return;
-        if (this.isPeeking) {
-            this.targetLean -= e.movementX * 0.002;
-            this.targetLean = Math.max(-0.5, Math.min(0.5, this.targetLean));
-        } else {
-            this.camera.rotation.y -= e.movementX * 0.002;
-            this.camera.rotation.x -= e.movementY * 0.002;
-            this.camera.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this.camera.rotation.x));
-            this.camera.rotation.order = "YXZ";
-        }
     }
 
     update(delta, spatialGrid) {
         delta = Math.min(delta, 0.05);
+        this.input.update();
+        const state = this.input.state;
+
         this.camera.position.x -= this._leanOffset.x;
         this.camera.position.z -= this._leanOffset.z;
         const damping = Math.exp(-25.0 * delta);
         this.velocity.x *= damping;
         this.velocity.z *= damping;
-        this.direction.z = Number(this.moveForward) - Number(this.moveBackward);
-        this.direction.x = Number(this.moveRight) - Number(this.moveLeft);
+        this.direction.z = Number(state.moveForward) - Number(state.moveBackward);
+        this.direction.x = Number(state.moveRight) - Number(state.moveLeft);
         if (this.direction.lengthSq() > 0) this.direction.normalize();
         const px = this.camera.position.x;
         const pz = this.camera.position.z;
         const localBoxes = spatialGrid.getNearby(px, pz, 2.0);
 
-        const currentVisHeight = this.isCrawling ? 0.3 : (this.isCrouching ? 0.8 : 1.6);
+        const currentVisHeight = state.isCrawling ? 0.3 : (state.isCrouching ? 0.8 : 1.6);
         const currentFeetY = this.camera.position.y - currentVisHeight;
 
         let maxAvailableHeight = 3.0;
@@ -342,24 +92,18 @@ export default class PlayerController {
             }
         }
 
-        if (this._cKeyDown && !this._cKeyHandled && (performance.now() - this._cKeyPressTime > 300)) {
-            this.isCrawling = !this.isCrawling;
-            this.isCrouching = false;
-            this._cKeyHandled = true;
-        }
-
         if (maxAvailableHeight < 1.3) {
-            this.isCrawling = true;
-            this.isCrouching = false;
+            state.isCrawling = true;
+            state.isCrouching = false;
         } else if (maxAvailableHeight < 2.5) {
-            if (!this.isCrawling) this.isCrouching = true;
+            if (!state.isCrawling) state.isCrouching = true;
         }
 
-        this.isSqueezing = this.squeezeIntent;
+        this.isSqueezing = state.squeezeIntent;
         let targetRadius = this.isSqueezing ? this.squeezeRadius : this.baseRadius;
         if (!this.isSqueezing && this.playerRadius < this.baseRadius - 0.01) {
             this._vecMin.set(px - this.baseRadius, currentFeetY + 0.1, pz - this.baseRadius);
-            this._vecMax.set(px + this.baseRadius, currentFeetY + (this.isCrawling ? 0.5 : 1.1), pz + this.baseRadius);
+            this._vecMax.set(px + this.baseRadius, currentFeetY + (state.isCrawling ? 0.5 : 1.1), pz + this.baseRadius);
             this._floorBox.set(this._vecMin, this._vecMax);
             for (let i = 0; i < localBoxes.length; i++) {
                 if (localBoxes[i].isInvisibleBlocker) continue;
@@ -379,8 +123,23 @@ export default class PlayerController {
         const adrenalineMultiplier = this.isChased ? 1.15 : 1.0;
         const dynamicWalkSpeed = 60.0 - (this.exhaustion * 20.0);
         const dynamicRunSpeed = dynamicWalkSpeed + (65.0 * (1.0 - this.exhaustion));
-        let currentSpeed = (this.isSqueezing ? 20.0 : (this.isCrawling ? 15.0 : (this.isCrouching ? 30.0 : (this.isRunning ? dynamicRunSpeed : dynamicWalkSpeed)))) * this.speedMultiplier * adrenalineMultiplier;
-        const isMoving = this.direction.lengthSq() > 0 || this.touchMove.active;
+
+        let baseSpeed = dynamicWalkSpeed;
+        if (this.isSqueezing) {
+            baseSpeed = 20.0;
+            state.isRunning = false;
+        } else if (state.isCrawling) {
+            baseSpeed = 15.0;
+            state.isRunning = false;
+        } else if (state.isCrouching) {
+            baseSpeed = 30.0;
+            state.isRunning = false;
+        } else if (state.isRunning) {
+            baseSpeed = dynamicRunSpeed;
+        }
+
+        let currentSpeed = baseSpeed * this.speedMultiplier * adrenalineMultiplier;
+        const isMoving = this.direction.lengthSq() > 0 || state.touchMoveActive;
         if (this.isWinded && this.stamina > 50.0) {
             this.isWinded = false;
         }
@@ -389,33 +148,38 @@ export default class PlayerController {
             this.staminaBoostTimer -= delta;
             this.stamina = this.maxStamina;
             this.isWinded = false;
-        } else if ((this.isRunning || this.isSqueezing) && isMoving && !this.isWinded) {
-            const baseBurn = this.isSqueezing ? 8.0 : (this.isChased ? 10.0 : 4.0);
-            const burnRate = baseBurn * (1.0 + (this.paranoia * 0.5));
+        } else if ((state.isRunning || this.isSqueezing) && isMoving && !this.isWinded) {
+            const baseBurn = this.isSqueezing ? 8.0 : (this.isChased ? 10.0 : 6.0);
+
+            const burnRate = baseBurn * (1.0 + (this.paranoia * 0.6));
             this.stamina = Math.max(0, this.stamina - burnRate * delta);
 
+            if (this.paranoia > 0.8) {
+                this.maxStamina = Math.max(40.0, this.maxStamina - (2.5 * delta));
+            }
+
             if (this.stamina <= 0.0) {
-                if (this.isChased && this.flashlightBattery > 5.0) {
-                    this.flashlightBattery -= 25.0 * delta;
-                } else {
-                    this.isRunning = false;
-                    this.isWinded = true;
-                    currentSpeed = dynamicWalkSpeed * this.speedMultiplier;
-                    document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.5}}));
-                }
+                state.isRunning = false;
+                this.isWinded = true;
+                currentSpeed = dynamicWalkSpeed * this.speedMultiplier;
+                document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.5}}));
             }
         } else {
-            if (this.isRunning && this.isWinded) this.isRunning = false;
+            if (state.isRunning && this.isWinded) state.isRunning = false;
             const isResting = !isMoving && this.perceivedDarkness < 0.2 && this.paranoia === 0.0;
-            const recoveryRate = this.isChased ? 6.0 : (this.isWinded ? 3.0 : (isResting ? 25.0 : 10.0));
+            const recoveryRate = this.isChased ? 1.0 : (this.isWinded ? 2.0 : (isResting ? 12.0 : 5.0));
             this.stamina = Math.max(0.0, Math.min(this.maxStamina, this.stamina + recoveryRate * delta));
+
+            if (isResting && this.maxStamina < 100.0) {
+                this.maxStamina = Math.min(100.0, this.maxStamina + (1.5 * delta));
+            }
         }
         const currentActualSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
-        if (this.flashlightActive) {
-            const panicDrain = (this.stamina <= 0.1 && (this.darknessPressure || 0.0) > 0.4) ? 5.0 : 1.5;
+        if (state.flashlightActive) {
+            const panicDrain = (this.stamina <= 0.1 && (this.darknessPressure || 0.0) > 0.4) ? 2.0 : 1.0;
             this.flashlightBattery = Math.max(0, this.flashlightBattery - panicDrain * delta);
             if (this.flashlightBattery === 0) {
-                this.flashlightActive = false;
+                state.flashlightActive = false;
                 const flashBtn = document.getElementById('mobile-flashlight');
                 if (flashBtn) flashBtn.classList.remove('active');
             }
@@ -433,11 +197,11 @@ export default class PlayerController {
         this.exhaustion = fatigueRatio < 0.3 ? Math.pow(1.0 - (fatigueRatio / 0.3), 2.0) : 0.0;
         let intentX = this.direction.x;
         let intentZ = this.direction.z;
-        if (this.touchMove.active) {
+        if (state.touchMoveActive) {
             const deadzone = 10.0;
             const mapAxis = (touchPx) => Math.abs(touchPx) > deadzone ? (touchPx - Math.sign(touchPx) * deadzone) / 110.0 : 0.0;
-            intentX = mapAxis(this.touchMove.deltaX);
-            intentZ = -mapAxis(this.touchMove.deltaY);
+            intentX = mapAxis(state.touchDeltaX);
+            intentZ = -mapAxis(state.touchDeltaY);
         }
         const intentSq = (intentX * intentX) + (intentZ * intentZ);
         if (intentSq > 1.0) {
@@ -451,10 +215,10 @@ export default class PlayerController {
         }
 
         let targetFov = this.baseFov;
-        if (this.isRunning) targetFov += 8.0;
+        if (state.isRunning) targetFov += 8.0;
         if (this.isSqueezing) targetFov -= 18.0;
-        if (this.isCrawling) targetFov -= 15.0;
-        else if (this.isCrouching) targetFov -= 8.0;
+        if (state.isCrawling) targetFov -= 15.0;
+        else if (state.isCrouching) targetFov -= 8.0;
 
         targetFov -= (this.exhaustion * 7.0);
 
@@ -478,6 +242,9 @@ export default class PlayerController {
 
         if (this.paranoia > 0.8 && Math.random() < (0.5 * delta)) {
             document.dispatchEvent(new CustomEvent('somatic-step', { detail: { intensity: 0.5 * this.paranoia } }));
+        }
+        if (this.paranoia > 0.95 && Math.random() < (0.4 * delta)) {
+            document.dispatchEvent(new CustomEvent('somatic-blink'));
         }
 
         if (Math.abs(this.currentFov - targetFov) > 0.1) {
@@ -569,7 +336,12 @@ export default class PlayerController {
         if (!hitZ) this.camera.position.z += moveZ;
         const postIntentSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
 
-        const baseBobFreq = this.isRunning ? 3.5 : 2.0;
+        this._applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid);
+    }
+
+    _applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid) {
+        const state = this.input.state;
+        const baseBobFreq = state.isRunning ? 3.5 : 2.0;
         const breathFreq = Math.max(1.0, baseBobFreq - (this.exhaustion * 0.8));
 
         const timerDelta = (postIntentSpeed * (1.0 - (this.exhaustion * 0.4)) + (this.exhaustion * 0.15)) * delta;
@@ -580,11 +352,11 @@ export default class PlayerController {
 
         if (this.enableHeadBob) {
             if (postIntentSpeed > 0.5) {
-                const bobAmp = this.isRunning ? 0.08 : (0.05 + (this.exhaustion * 0.04));
+                const bobAmp = state.isRunning ? 0.08 : (0.05 + (this.exhaustion * 0.04));
                 const prevBob = Math.sin((this.headBobTimer - timerDelta) * breathFreq) * bobAmp;
                 bobOffset = Math.sin(this.headBobTimer * breathFreq) * bobAmp;
-                if (prevBob > 0 && bobOffset <= 0 && !this.isCrouching) {
-                    const stepWeight = this.isRunning ? 1.0 : (0.3 + (this.exhaustion * 0.6));
+                if (prevBob > 0 && bobOffset <= 0 && !state.isCrouching) {
+                    const stepWeight = state.isRunning ? 1.0 : (0.3 + (this.exhaustion * 0.6));
                     document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: stepWeight}}));
                 }
                 swayRoll = Math.cos(this.headBobTimer * (breathFreq * 0.5)) * (bobAmp * 0.05);
@@ -593,12 +365,15 @@ export default class PlayerController {
                 swayRoll = Math.cos(this.headBobTimer * breathFreq * 0.2) * (this.exhaustion * 0.015);
             }
         }
-        this.currentLean += (this.targetLean - this.currentLean) * (1.0 - Math.exp(-15.0 * delta));
+
+        this.currentLean += (state.targetLean - this.currentLean) * (1.0 - Math.exp(-15.0 * delta));
         const rollDamping = 1.0 - Math.exp(-12.0 * delta);
         const velocityRoll = this.velocity.x * (this.isSqueezing ? 0.005 : 0.015);
         const peekRoll = -this.currentLean * 0.35;
+
         this.camera.rotation.z += ((velocityRoll + peekRoll) - this.camera.rotation.z) * rollDamping;
         this.camera.rotation.z += swayRoll;
+
         const leanLateral = Math.sin(this.currentLean) * 0.8;
         const leanDrop = (1.0 - Math.cos(this.currentLean)) * 0.8;
         this._leanOffset.set(leanLateral, 0, 0).applyEuler(this._euler);
