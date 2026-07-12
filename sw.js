@@ -12,7 +12,13 @@ const ASSETS = [
     './RenderEngine.js',
     './three.min.js',
     './manifest.json',
-    './Anomaly.js'
+    './Anomaly.js',
+    './TheArchitect.js',
+    './terminal.html',
+    './SpatialHashGrid.js',
+    './SomaticInput.js',
+    './readme.html',
+    './engine.html'
 ];
 
 self.addEventListener('install', (e) => {
