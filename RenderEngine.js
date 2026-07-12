@@ -91,7 +91,8 @@ export default class RenderEngine {
                     }
                     uv.x += phaseBand * 0.0002 * sin(time * 50.0);
                     
-                    float caShift = 0.001 + (distSq * 0.004) + (squeeze * 0.003) + pow(anomaly, 1.5) * 0.05 + pow(exhaustion, 2.0) * 0.01;
+                    float heartbeatCA = exhaustion > 0.3 ? sin(time * (10.0 + exhaustion * 5.0)) * 0.004 * exhaustion : 0.0;
+                    float caShift = 0.001 + (distSq * 0.004) + (squeeze * 0.003) + pow(anomaly, 1.5) * 0.05 + pow(exhaustion, 2.0) * 0.01 + heartbeatCA;
                     vec2 offset = vec2(caShift, 0.0); 
                     
                     vec3 col = vec3(0.0);

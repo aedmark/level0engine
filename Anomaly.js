@@ -175,7 +175,6 @@ export default class Anomaly {
                 this.backtrackTimer = 0;
             }
             this.player.isChased = false;
-            // MEADOWS: The Anomaly will only lock on and trigger a chase if physical Line of Sight is confirmed.
         } else if (distToPlayerSq < perceptionThresholdSq && hasLOS) {
             this.target.copy(playerPos);
             this.player.isChased = distToPlayerSq < 225.0;

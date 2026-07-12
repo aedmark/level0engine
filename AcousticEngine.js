@@ -327,18 +327,16 @@ export default class AcousticEngine {
             };
         };
 
-        if (type === 'step') {
-            const p = this.foleyProfiles[this.currentSector] || this.foleyProfiles["DEFAULT"];
-            spawnVoice(p.oscFreq > 200 ? 'triangle' : 'sine', p.oscFreq, 20, p.attack, p.gain, p.attack, p.decay, { type: p.filterType, start: p.filterFreq, end: null, ramp: 0 });
-        } else if (type === 'door') {
-            spawnVoice('square', 120, 30, 0.3, 0.08, 0.03, 0.5, { type: 'lowpass', start: 1000, end: 100, ramp: 0.4 });
-        } else if (type === 'vent') {
-            spawnVoice('sawtooth', 400, 80, 0.4, 0.1, 0.03, 0.5, { type: 'bandpass', start: 1500, end: 300, ramp: 0.4 });
-        } else if (type === 'breaker') {
-            spawnVoice('square', 900, 100, 0.15, 0.12, 0.01, 0.15, null);
-        } else if (type === 'item') {
-            spawnVoice('sine', 1200, 600, 0.3, 0.08, 0.02, 0.4, null);
-        }
+        const p = this.foleyProfiles[this.currentSector] || this.foleyProfiles["DEFAULT"];
+        const voices = {
+            'step':    [p.oscFreq > 200 ? 'triangle' : 'sine', p.oscFreq, 20, p.attack, p.gain, p.attack, p.decay, { type: p.filterType, start: p.filterFreq, end: null, ramp: 0 }],
+            'door':    ['square', 120, 30, 0.3, 0.08, 0.03, 0.5, { type: 'lowpass', start: 1000, end: 100, ramp: 0.4 }],
+            'vent':    ['sawtooth', 400, 80, 0.4, 0.1, 0.03, 0.5, { type: 'bandpass', start: 1500, end: 300, ramp: 0.4 }],
+            'breaker': ['square', 900, 100, 0.15, 0.12, 0.01, 0.15, null],
+            'item':    ['sine', 1200, 600, 0.3, 0.08, 0.02, 0.4, null]
+        };
+
+        if (voices[type]) spawnVoice(...voices[type]);
     }
 
     setVolume(val) {

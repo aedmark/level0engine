@@ -167,11 +167,15 @@ export default class PlayerController {
         } else {
             if (state.isRunning && this.isWinded) state.isRunning = false;
             const isResting = !isMoving && this.perceivedDarkness < 0.2 && this.paranoia === 0.0;
-            const recoveryRate = this.isChased ? 1.0 : (this.isWinded ? 2.0 : (isResting ? 12.0 : 5.0));
+
+            const paranoiaPenalty = 1.0 - (this.paranoia * 0.7);
+            const recoveryRate = this.isChased ? 1.0 : (this.isWinded ? 2.0 : (isResting ? 12.0 : 5.0 * paranoiaPenalty));
+
             this.stamina = Math.max(0.0, Math.min(this.maxStamina, this.stamina + recoveryRate * delta));
 
             if (isResting && this.maxStamina < 100.0) {
-                this.maxStamina = Math.min(100.0, this.maxStamina + (1.5 * delta));
+                const healingFactor = this.perceivedDarkness === 0.0 ? 3.0 : 1.5;
+                this.maxStamina = Math.min(100.0, this.maxStamina + (healingFactor * delta));
             }
         }
         const currentActualSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);

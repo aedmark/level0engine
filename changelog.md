@@ -1,5 +1,31 @@
 # Level 0 Engine Changelog
 
+### [v0.3.8] - 2026-07-12
+
+#### Added
+
+- **[ARCHITECTURE] Autonomous Perimeter Protocol:** Macro-sectors now deterministically calculate `inDir` and `outDir` from their spatial hashes to build absolute 16x16 walled enclosures with exactly two viable exit/entry points, ensuring true containment.
+- **[GEOMETRY] Continuous Spatial Extrusion:** Vents, crevices, and crawlspaces no longer spawn as isolated tiles. They generate as cohesive, extruded linear bursts spanning multiple grid cells, complete with end-capping grates to seal the burst boundaries.
+- **[MECHANICS] The Topological Node (Checkpoints):** Promoted choke points from random clutter to a dedicated macro-sector (`THE CHECKPOINT`). Generates a solid 16x16 block of rock intersected by a singular hallway containing exactly one mandatory, impassable traversal valve.
+
+#### Changed
+
+- **[DYNAMICS] Biome Density & Atmospheric Sync:** Slashed the macro-structure rarity threshold from `0.90` to `0.70`. Biomes now occupy 30% of the infinite generation matrix, with dynamic volumetric fog transitions mapped perfectly to the new probability curves.
+- **[MECHANICS] Dynamic Door Pull:** Excised static hinge constraints. Doors now actively read the coordinate vector of the interacting entity (Player or Anomaly) and calculate an inward rotational arc to swing into pre-cleared physical space, mathematically eliminating drywall clipping.
+- **[MECHANICS] Paranoia & The Lucidity Mechanic:** Paranoia is no longer just visual flair; it operates as a heavy physiological penalty, directly choking stamina recovery multipliers. Players must navigate to fully lit zones to actively restore shattered `maxStamina`.
+- **[WEBGL] Exhaustion Halation:** The post-processing fragment shader's chromatic aberration now mathematically pulses in sync with the player's simulated heart rate when critical exhaustion is reached.
+
+#### Optimized
+
+- **[PERFORMANCE] Spatial Door Culling:** `Environment.js` now aggressively culls coordinate matrix calculations for distant doors. If the player's distance exceeds `400.0` units, the inverse kinematics engine bypasses the logic to conserve active compute.
+- **[PERFORMANCE] Syntactic Purge:** Eradicated the toxic `if/else if` mountain in `AcousticEngine`'s somatic spawner, replacing it with a clean, low-friction object-mapping dictionary.
+- **[ARCHITECTURE] Trim Ephemeralization:** Removed heavy industrial rusted pipes from drywall thresholds across all choke points, replacing them with clean architectural wood tracking to preserve aesthetic dignity.
+
+#### Fixed
+
+- **[SYSTEM] Lexical Scope Leak:** Fixed a fatal `ReferenceError: nx is not defined` crash in the procedural maze generator by properly anchoring `nx` and `nz` coordinate derivations within the `for` loop's block scope.
+- **[GEOMETRY] Dimensional Inversion Collision:** Repaired the Checkpoint doorway generator that translated the hinge correctly but failed to swap the width/depth values on the Z-axis, preventing 1.4-meter doors from violently jamming into 0.1-meter gaps.
+
 ### [v0.3.7] - 2026-07-12
 
 #### Added

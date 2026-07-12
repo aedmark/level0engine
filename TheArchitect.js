@@ -69,7 +69,9 @@ export default class TheArchitect {
                     const top = new THREE.Mesh(new THREE.BoxGeometry(gap, 0.3, this.cellSize), this.headerMat);
                     top.position.set(x * this.cellSize, 2.85, z * this.cellSize);
                     addGeometry(top);
-                    const frameMat = this.structMat;
+
+                    // THE ARTISAN: Clean architectural wood framing replacing structural beams.
+                    const frameMat = this.woodMat;
                     const jambL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.65, 0.32), frameMat);
                     jambL.position.set(x * this.cellSize - 0.75, 1.325, z * this.cellSize + 1.85);
                     addGeometry(jambL);
@@ -79,8 +81,9 @@ export default class TheArchitect {
                     const jambT = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.1, 0.32), frameMat);
                     jambT.position.set(x * this.cellSize, 2.70, z * this.cellSize + 1.85);
                     addGeometry(jambT);
+
                     const doorGeo = new THREE.BoxGeometry(1.4, 2.65, 0.1);
-                    doorGeo.translate(0.7, 0, 0);
+                    doorGeo.translate(0.7, 0, 0.05);
                     const door = new THREE.Mesh(doorGeo, this.doorMat);
                     door.position.set(x * this.cellSize - 0.7, 1.325, z * this.cellSize + 1.85);
                     door.castShadow = door.receiveShadow = true;
@@ -214,71 +217,74 @@ export default class TheArchitect {
                     const isFloorLevel = random() > 0.3;
 
                     if (isFloorLevel) {
+                        const burstLength = Math.floor(random() * 3) + 1;
                         const holeW = 1.2;
                         const holeH = 0.7;
                         const sideW = (this.cellSize - holeW) / 2;
                         const sideOffset = (this.cellSize / 2) - (sideW / 2);
-
-                        const w1 = tunnelOnZ ? sideW : this.cellSize;
-                        const d1 = tunnelOnZ ? this.cellSize : sideW;
-
-                        const side1 = buildWall(w1, d1, this.sharedWallMat);
-                        side1.position.set(x * this.cellSize + (tunnelOnZ ? -sideOffset : 0), 1.5, z * this.cellSize + (tunnelOnZ ? 0 : -sideOffset));
-                        addGeometry(side1);
-
-                        const side2 = buildWall(w1, d1, this.sharedWallMat);
-                        side2.position.set(x * this.cellSize + (tunnelOnZ ? sideOffset : 0), 1.5, z * this.cellSize + (tunnelOnZ ? 0 : sideOffset));
-                        addGeometry(side2);
-
                         const topH = 3.0 - holeH;
-                        const topW = tunnelOnZ ? holeW : this.cellSize;
-                        const topD = tunnelOnZ ? this.cellSize : holeW;
-
-                        const top = buildWall(topW, topD, this.sharedWallMat, topH, holeH);
-                        top.position.set(x * this.cellSize, holeH + (topH / 2), z * this.cellSize);
-                        addGeometry(top);
-
                         const liningH = 0.05;
-                        const linW = tunnelOnZ ? holeW : this.cellSize + 0.02;
-                        const linD = tunnelOnZ ? this.cellSize + 0.02 : holeW;
-
-                        const liningFloor = buildWall(linW, linD, this.ventMat, liningH);
-                        liningFloor.position.set(x * this.cellSize, liningH / 2, z * this.cellSize);
-                        addGeometry(liningFloor);
-
-                        const liningCeil = buildWall(linW, linD, this.ventMat, liningH);
-                        liningCeil.position.set(x * this.cellSize, holeH - (liningH / 2), z * this.cellSize);
-                        addGeometry(liningCeil);
-
-                        const liningSideW = tunnelOnZ ? liningH : linW;
-                        const liningSideD = tunnelOnZ ? linD : liningH;
                         const sideH = holeH - (liningH * 2);
                         const sideOffsetLining = (holeW / 2) - (liningH / 2);
 
-                        const liningLeft = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
-                        liningLeft.position.set(x * this.cellSize + (tunnelOnZ ? -sideOffsetLining : 0), holeH / 2, z * this.cellSize + (tunnelOnZ ? 0 : -sideOffsetLining));
-                        addGeometry(liningLeft);
+                        for (let i = 0; i < burstLength; i++) {
+                            const segX = x + (tunnelOnZ ? 0 : i);
+                            const segZ = z + (tunnelOnZ ? i : 0);
+                            const w1 = tunnelOnZ ? sideW : this.cellSize;
+                            const d1 = tunnelOnZ ? this.cellSize : sideW;
 
-                        const liningRight = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
-                        liningRight.position.set(x * this.cellSize + (tunnelOnZ ? sideOffsetLining : 0), holeH / 2, z * this.cellSize + (tunnelOnZ ? 0 : sideOffsetLining));
-                        addGeometry(liningRight);
+                            const side1 = buildWall(w1, d1, this.sharedWallMat);
+                            side1.position.set(segX * this.cellSize + (tunnelOnZ ? -sideOffset : 0), 1.5, segZ * this.cellSize + (tunnelOnZ ? 0 : -sideOffset));
+                            addGeometry(side1);
 
-                        const blockBox = new THREE.Box3(
-                            new THREE.Vector3(x * this.cellSize - (tunnelOnZ ? holeW/2 : this.cellSize/2), 0, z * this.cellSize - (tunnelOnZ ? this.cellSize/2 : holeW/2)),
-                            new THREE.Vector3(x * this.cellSize + (tunnelOnZ ? holeW/2 : this.cellSize/2), 3.0, z * this.cellSize + (tunnelOnZ ? this.cellSize/2 : holeW/2))
-                        );
-                        blockBox.isEntityBlocker = true;
-                        blockBox.isInvisibleBlocker = true;
-                        blockBox.chunkHash = hash;
-                        this.spatialGrid.insert(blockBox);
+                            const side2 = buildWall(w1, d1, this.sharedWallMat);
+                            side2.position.set(segX * this.cellSize + (tunnelOnZ ? sideOffset : 0), 1.5, segZ * this.cellSize + (tunnelOnZ ? 0 : sideOffset));
+                            addGeometry(side2);
 
-                        const grateOffset = (this.cellSize / 2) - 0.025;
-                        if (tunnelOnZ) {
-                            ctx.addGrate(x * this.cellSize, 0.35, z * this.cellSize + grateOffset, false);
-                            ctx.addGrate(x * this.cellSize, 0.35, z * this.cellSize - grateOffset, false);
-                        } else {
-                            ctx.addGrate(x * this.cellSize + grateOffset, 0.35, z * this.cellSize, true);
-                            ctx.addGrate(x * this.cellSize - grateOffset, 0.35, z * this.cellSize, true);
+                            const topW = tunnelOnZ ? holeW : this.cellSize;
+                            const topD = tunnelOnZ ? this.cellSize : holeW;
+                            const top = buildWall(topW, topD, this.sharedWallMat, topH, holeH);
+                            top.position.set(segX * this.cellSize, holeH + (topH / 2), segZ * this.cellSize);
+                            addGeometry(top);
+
+                            const linW = tunnelOnZ ? holeW : this.cellSize + 0.02;
+                            const linD = tunnelOnZ ? this.cellSize + 0.02 : holeW;
+                            const liningFloor = buildWall(linW, linD, this.ventMat, liningH);
+                            liningFloor.position.set(segX * this.cellSize, liningH / 2, segZ * this.cellSize);
+                            addGeometry(liningFloor);
+
+                            const liningCeil = buildWall(linW, linD, this.ventMat, liningH);
+                            liningCeil.position.set(segX * this.cellSize, holeH - (liningH / 2), segZ * this.cellSize);
+                            addGeometry(liningCeil);
+
+                            const liningSideW = tunnelOnZ ? liningH : linW;
+                            const liningSideD = tunnelOnZ ? linD : liningH;
+                            const liningLeft = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
+                            liningLeft.position.set(segX * this.cellSize + (tunnelOnZ ? -sideOffsetLining : 0), holeH / 2, segZ * this.cellSize + (tunnelOnZ ? 0 : -sideOffsetLining));
+                            addGeometry(liningLeft);
+
+                            const liningRight = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
+                            liningRight.position.set(segX * this.cellSize + (tunnelOnZ ? sideOffsetLining : 0), holeH / 2, segZ * this.cellSize + (tunnelOnZ ? 0 : sideOffsetLining));
+                            addGeometry(liningRight);
+
+                            const blockBox = new THREE.Box3(
+                                new THREE.Vector3(segX * this.cellSize - (tunnelOnZ ? holeW/2 : this.cellSize/2), 0, segZ * this.cellSize - (tunnelOnZ ? this.cellSize/2 : holeW/2)),
+                                new THREE.Vector3(segX * this.cellSize + (tunnelOnZ ? holeW/2 : this.cellSize/2), 3.0, segZ * this.cellSize + (tunnelOnZ ? this.cellSize/2 : holeW/2))
+                            );
+                            blockBox.isEntityBlocker = true;
+                            blockBox.isInvisibleBlocker = true;
+                            blockBox.chunkHash = hash;
+                            this.spatialGrid.insert(blockBox);
+
+                            const grateOffset = (this.cellSize / 2) - 0.025;
+                            if (i === 0) {
+                                if (tunnelOnZ) ctx.addGrate(segX * this.cellSize, 0.35, segZ * this.cellSize - grateOffset, false);
+                                else ctx.addGrate(segX * this.cellSize - grateOffset, 0.35, segZ * this.cellSize, true);
+                            }
+                            if (i === burstLength - 1) {
+                                if (tunnelOnZ) ctx.addGrate(segX * this.cellSize, 0.35, segZ * this.cellSize + grateOffset, false);
+                                else ctx.addGrate(segX * this.cellSize + grateOffset, 0.35, segZ * this.cellSize, true);
+                            }
                         }
                     } else {
                         const wall = new THREE.Mesh(this.sharedWallGeo, this.sharedWallMat);
@@ -347,103 +353,121 @@ export default class TheArchitect {
                 prob: 0.30, build: (x, z) => {
                     const typeRoll = random();
                     const dirZ = random() > 0.5;
+                    const burstLength = Math.floor(random() * 4) + 1;
+
                     if (typeRoll > 0.66) {
                         const tunnelW = 1.2;
                         const tunnelH = 0.7;
                         const sideW = (this.cellSize - tunnelW) / 2;
                         const sideOffset = (this.cellSize / 2) - (sideW / 2);
-
-                        const side1 = buildWall(dirZ ? sideW : this.cellSize, dirZ ? this.cellSize : sideW, this.sharedWallMat);
-                        side1.position.set(x * this.cellSize + (dirZ ? -sideOffset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : -sideOffset));
-                        addGeometry(side1);
-
-                        const side2 = buildWall(dirZ ? sideW : this.cellSize, dirZ ? this.cellSize : sideW, this.sharedWallMat);
-                        side2.position.set(x * this.cellSize + (dirZ ? sideOffset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : sideOffset));
-                        addGeometry(side2);
-
                         const roofH_block = 3.0 - tunnelH;
-                        const roof = buildWall(dirZ ? tunnelW : this.cellSize, dirZ ? this.cellSize : tunnelW, this.sharedWallMat, roofH_block, tunnelH);
-                        roof.position.set(x * this.cellSize, tunnelH + (roofH_block / 2), z * this.cellSize);
-                        addGeometry(roof);
-
                         const liningH = 0.05;
-                        const liningFloor = buildWall(dirZ ? tunnelW : this.cellSize + 0.05, dirZ ? this.cellSize + 0.05 : tunnelW, this.ventMat, liningH);
-                        liningFloor.position.set(x * this.cellSize, liningH / 2, z * this.cellSize);
-                        addGeometry(liningFloor);
-
-                        const liningCeil = buildWall(dirZ ? tunnelW : this.cellSize + 0.05, dirZ ? this.cellSize + 0.05 : tunnelW, this.ventMat, liningH);
-                        liningCeil.position.set(x * this.cellSize, tunnelH - (liningH / 2), z * this.cellSize);
-                        addGeometry(liningCeil);
-
-                        const liningSideW = dirZ ? liningH : this.cellSize + 0.05;
-                        const liningSideD = dirZ ? this.cellSize + 0.05 : liningH;
                         const sideH = tunnelH - (liningH * 2);
                         const sideOffsetLining = (tunnelW / 2) - (liningH / 2);
 
-                        const liningLeft = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
-                        liningLeft.position.set(x * this.cellSize + (dirZ ? -sideOffsetLining : 0), tunnelH / 2, z * this.cellSize + (dirZ ? 0 : -sideOffsetLining));
-                        addGeometry(liningLeft);
+                        for (let i = 0; i < burstLength; i++) {
+                            const segX = x + (dirZ ? 0 : i);
+                            const segZ = z + (dirZ ? i : 0);
 
-                        const liningRight = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
-                        liningRight.position.set(x * this.cellSize + (dirZ ? sideOffsetLining : 0), tunnelH / 2, z * this.cellSize + (dirZ ? 0 : sideOffsetLining));
-                        addGeometry(liningRight);
+                            const side1 = buildWall(dirZ ? sideW : this.cellSize, dirZ ? this.cellSize : sideW, this.sharedWallMat);
+                            side1.position.set(segX * this.cellSize + (dirZ ? -sideOffset : 0), 1.5, segZ * this.cellSize + (dirZ ? 0 : -sideOffset));
+                            addGeometry(side1);
 
-                        const blockBox = new THREE.Box3(
-                            new THREE.Vector3(x * this.cellSize - (dirZ ? tunnelW/2 : this.cellSize/2), 0, z * this.cellSize - (dirZ ? this.cellSize/2 : tunnelW/2)),
-                            new THREE.Vector3(x * this.cellSize + (dirZ ? tunnelW/2 : this.cellSize/2), 3.0, z * this.cellSize + (dirZ ? this.cellSize/2 : tunnelW/2))
-                        );
-                        blockBox.isEntityBlocker = true;
-                        blockBox.isInvisibleBlocker = true;
-                        blockBox.chunkHash = hash;
-                        this.spatialGrid.insert(blockBox);
+                            const side2 = buildWall(dirZ ? sideW : this.cellSize, dirZ ? this.cellSize : sideW, this.sharedWallMat);
+                            side2.position.set(segX * this.cellSize + (dirZ ? sideOffset : 0), 1.5, segZ * this.cellSize + (dirZ ? 0 : sideOffset));
+                            addGeometry(side2);
 
-                        const grateOffset = (this.cellSize / 2) - 0.025;
-                        if (dirZ) {
-                            ctx.addGrate(x * this.cellSize, 0.35, z * this.cellSize + grateOffset, false);
-                            ctx.addGrate(x * this.cellSize, 0.35, z * this.cellSize - grateOffset, false);
-                        } else {
-                            ctx.addGrate(x * this.cellSize + grateOffset, 0.35, z * this.cellSize, true);
-                            ctx.addGrate(x * this.cellSize - grateOffset, 0.35, z * this.cellSize, true);
+                            const roof = buildWall(dirZ ? tunnelW : this.cellSize, dirZ ? this.cellSize : tunnelW, this.sharedWallMat, roofH_block, tunnelH);
+                            roof.position.set(segX * this.cellSize, tunnelH + (roofH_block / 2), segZ * this.cellSize);
+                            addGeometry(roof);
+
+                            const liningFloor = buildWall(dirZ ? tunnelW : this.cellSize + 0.05, dirZ ? this.cellSize + 0.05 : tunnelW, this.ventMat, liningH);
+                            liningFloor.position.set(segX * this.cellSize, liningH / 2, segZ * this.cellSize);
+                            addGeometry(liningFloor);
+
+                            const liningCeil = buildWall(dirZ ? tunnelW : this.cellSize + 0.05, dirZ ? this.cellSize + 0.05 : tunnelW, this.ventMat, liningH);
+                            liningCeil.position.set(segX * this.cellSize, tunnelH - (liningH / 2), segZ * this.cellSize);
+                            addGeometry(liningCeil);
+
+                            const liningSideW = dirZ ? liningH : this.cellSize + 0.05;
+                            const liningSideD = dirZ ? this.cellSize + 0.05 : liningH;
+
+                            const liningLeft = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
+                            liningLeft.position.set(segX * this.cellSize + (dirZ ? -sideOffsetLining : 0), tunnelH / 2, segZ * this.cellSize + (dirZ ? 0 : -sideOffsetLining));
+                            addGeometry(liningLeft);
+
+                            const liningRight = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
+                            liningRight.position.set(segX * this.cellSize + (dirZ ? sideOffsetLining : 0), tunnelH / 2, segZ * this.cellSize + (dirZ ? 0 : sideOffsetLining));
+                            addGeometry(liningRight);
+
+                            const blockBox = new THREE.Box3(
+                                new THREE.Vector3(segX * this.cellSize - (dirZ ? tunnelW/2 : this.cellSize/2), 0, segZ * this.cellSize - (dirZ ? this.cellSize/2 : tunnelW/2)),
+                                new THREE.Vector3(segX * this.cellSize + (dirZ ? tunnelW/2 : this.cellSize/2), 3.0, segZ * this.cellSize + (dirZ ? this.cellSize/2 : tunnelW/2))
+                            );
+                            blockBox.isEntityBlocker = true;
+                            blockBox.isInvisibleBlocker = true;
+                            blockBox.chunkHash = hash;
+                            this.spatialGrid.insert(blockBox);
+
+                            const grateOffset = (this.cellSize / 2) - 0.025;
+                            if (i === 0) {
+                                if (dirZ) ctx.addGrate(segX * this.cellSize, 0.35, segZ * this.cellSize - grateOffset, false);
+                                else ctx.addGrate(segX * this.cellSize - grateOffset, 0.35, segZ * this.cellSize, true);
+                            }
+                            if (i === burstLength - 1) {
+                                if (dirZ) ctx.addGrate(segX * this.cellSize, 0.35, segZ * this.cellSize + grateOffset, false);
+                                else ctx.addGrate(segX * this.cellSize + grateOffset, 0.35, segZ * this.cellSize, true);
+                            }
                         }
                     } else if (typeRoll > 0.33) {
                         const wallW = (this.cellSize - 0.3) / 2;
                         const offset = (wallW / 2) + 0.15;
 
-                        const block1 = buildWall(dirZ ? wallW : this.cellSize, dirZ ? this.cellSize : wallW, this.sharedWallMat);
-                        block1.position.set(x * this.cellSize + (dirZ ? -offset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : -offset));
-                        block1.userData.isEntityBlocker = true;
-                        addGeometry(block1);
+                        for (let i = 0; i < burstLength; i++) {
+                            const segX = x + (dirZ ? 0 : i);
+                            const segZ = z + (dirZ ? i : 0);
 
-                        const block2 = buildWall(dirZ ? wallW : this.cellSize, dirZ ? this.cellSize : wallW, this.sharedWallMat);
-                        block2.position.set(x * this.cellSize + (dirZ ? offset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : offset));
-                        block2.userData.isEntityBlocker = true;
-                        addGeometry(block2);
+                            const block1 = buildWall(dirZ ? wallW : this.cellSize, dirZ ? this.cellSize : wallW, this.sharedWallMat);
+                            block1.position.set(segX * this.cellSize + (dirZ ? -offset : 0), 1.5, segZ * this.cellSize + (dirZ ? 0 : -offset));
+                            block1.userData.isEntityBlocker = true;
+                            addGeometry(block1);
+
+                            const block2 = buildWall(dirZ ? wallW : this.cellSize, dirZ ? this.cellSize : wallW, this.sharedWallMat);
+                            block2.position.set(segX * this.cellSize + (dirZ ? offset : 0), 1.5, segZ * this.cellSize + (dirZ ? 0 : offset));
+                            block2.userData.isEntityBlocker = true;
+                            addGeometry(block2);
+                        }
                     } else {
                         const sideW = 1.0;
                         const sideOffset = (this.cellSize / 2) - (sideW / 2);
                         const roofW = this.cellSize - (sideW * 2);
                         const roofH = 1.8;
 
-                        const side1 = buildWall(dirZ ? sideW : this.cellSize, dirZ ? this.cellSize : sideW, this.sharedWallMat);
-                        side1.position.set(x * this.cellSize + (dirZ ? -sideOffset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : -sideOffset));
-                        addGeometry(side1);
+                        for (let i = 0; i < burstLength; i++) {
+                            const segX = x + (dirZ ? 0 : i);
+                            const segZ = z + (dirZ ? i : 0);
 
-                        const side2 = buildWall(dirZ ? sideW : this.cellSize, dirZ ? this.cellSize : sideW, this.sharedWallMat);
-                        side2.position.set(x * this.cellSize + (dirZ ? sideOffset : 0), 1.5, z * this.cellSize + (dirZ ? 0 : sideOffset));
-                        addGeometry(side2);
+                            const side1 = buildWall(dirZ ? sideW : this.cellSize, dirZ ? this.cellSize : sideW, this.sharedWallMat);
+                            side1.position.set(segX * this.cellSize + (dirZ ? -sideOffset : 0), 1.5, segZ * this.cellSize + (dirZ ? 0 : -sideOffset));
+                            addGeometry(side1);
 
-                        const roof = buildWall(dirZ ? roofW : this.cellSize, dirZ ? this.cellSize : roofW, this.sharedWallMat, roofH, 1.2);
-                        roof.position.set(x * this.cellSize, 1.2 + (roofH / 2), z * this.cellSize);
-                        addGeometry(roof);
+                            const side2 = buildWall(dirZ ? sideW : this.cellSize, dirZ ? this.cellSize : sideW, this.sharedWallMat);
+                            side2.position.set(segX * this.cellSize + (dirZ ? sideOffset : 0), 1.5, segZ * this.cellSize + (dirZ ? 0 : sideOffset));
+                            addGeometry(side2);
 
-                        const blockBox = new THREE.Box3(
-                            new THREE.Vector3(x * this.cellSize - (dirZ ? roofW/2 : this.cellSize/2), 0, z * this.cellSize - (dirZ ? this.cellSize/2 : roofW/2)),
-                            new THREE.Vector3(x * this.cellSize + (dirZ ? roofW/2 : this.cellSize/2), 3.0, z * this.cellSize + (dirZ ? this.cellSize/2 : roofW/2))
-                        );
-                        blockBox.isEntityBlocker = true;
-                        blockBox.isInvisibleBlocker = true;
-                        blockBox.chunkHash = hash;
-                        this.spatialGrid.insert(blockBox);
+                            const roof = buildWall(dirZ ? roofW : this.cellSize, dirZ ? this.cellSize : roofW, this.sharedWallMat, roofH, 1.2);
+                            roof.position.set(segX * this.cellSize, 1.2 + (roofH / 2), segZ * this.cellSize);
+                            addGeometry(roof);
+
+                            const blockBox = new THREE.Box3(
+                                new THREE.Vector3(segX * this.cellSize - (dirZ ? roofW/2 : this.cellSize/2), 0, segZ * this.cellSize - (dirZ ? this.cellSize/2 : roofW/2)),
+                                new THREE.Vector3(segX * this.cellSize + (dirZ ? roofW/2 : this.cellSize/2), 3.0, segZ * this.cellSize + (dirZ ? this.cellSize/2 : roofW/2))
+                            );
+                            blockBox.isEntityBlocker = true;
+                            blockBox.isInvisibleBlocker = true;
+                            blockBox.chunkHash = hash;
+                            this.spatialGrid.insert(blockBox);
+                        }
                     }
                 }
             },
@@ -571,9 +595,10 @@ export default class TheArchitect {
         return [
             {
                 name: "THE POOLROOMS",
-                prob: 0.16,
+                prob: 0.12,
                 foundationMat: this.structMat,
-                build: (x, z, localX, localZ, maze) => {
+                build: (x, z, localX, localZ, maze, inDir, outDir) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
                     const isWall = maze && maze[localX][localZ];
                     if (isWall) {
                         const cPillar = new THREE.Mesh(this.vPipeGeo, this.rustMat);
@@ -614,90 +639,76 @@ export default class TheArchitect {
             },
             {
                 name: "THE CLINIC",
-                prob: 0.16,
+                prob: 0.12,
                 foundationMat: this.clinicMat,
-                build: (x, z, localX, localZ) => {
-                    const isPerimeter = localX === 0 || localX === this.chunkSize - 1 || localZ === 0 || localZ === this.chunkSize - 1;
-                    const isDoorway = (localX >= 7 && localX <= 8) || (localZ >= 7 && localZ <= 8);
-                    if (isPerimeter && !isDoorway) {
-                        const wall = new THREE.Mesh(this.sharedWallGeo, this.sharedWallMat);
-                        wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
-                        addGeometry(wall);
-                        return;
-                    }
-                    if (!isPerimeter && !isDoorway) {
-                        if (localX % 2 === 1 && localZ % 2 === 1) {
-                            const curtain = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize * 0.9, 2.2, 0.05), this.fabricMat);
-                            curtain.position.set(x * this.cellSize, 1.1, z * this.cellSize - 1.8);
-                            addGeometry(curtain);
-                            const cotFrame = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 2.0), this.structMat);
-                            cotFrame.position.set(x * this.cellSize, 0.25, z * this.cellSize);
-                            addGeometry(cotFrame);
-                            const mattress = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.15, 1.9), this.fabricMat);
-                            mattress.position.set(x * this.cellSize, 0.575, z * this.cellSize);
-                            addGeometry(mattress);
-                            const pole = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.0, 0.08), this.rustMat);
-                            pole.position.set(x * this.cellSize + 0.8, 1.0, z * this.cellSize + 0.8);
-                            addGeometry(pole);
-                            if (random() > 0.3) {
-                                const chair = buildChair(x * this.cellSize - 0.8, 0, z * this.cellSize + 0.5, random() * Math.PI);
-                                addFurniture(chair);
+                build: (x, z, localX, localZ, maze, inDir, outDir) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
+                    if (localX % 2 === 1 && localZ % 2 === 1) {
+                        const curtain = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize * 0.9, 2.2, 0.05), this.fabricMat);
+                        curtain.position.set(x * this.cellSize, 1.1, z * this.cellSize - 1.8);
+                        addGeometry(curtain);
+                        const cotFrame = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 2.0), this.structMat);
+                        cotFrame.position.set(x * this.cellSize, 0.25, z * this.cellSize);
+                        addGeometry(cotFrame);
+                        const mattress = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.15, 1.9), this.fabricMat);
+                        mattress.position.set(x * this.cellSize, 0.575, z * this.cellSize);
+                        addGeometry(mattress);
+                        const pole = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.0, 0.08), this.rustMat);
+                        pole.position.set(x * this.cellSize + 0.8, 1.0, z * this.cellSize + 0.8);
+                        addGeometry(pole);
+                        if (random() > 0.3) {
+                            const chair = buildChair(x * this.cellSize - 0.8, 0, z * this.cellSize + 0.5, random() * Math.PI);
+                            addFurniture(chair);
+                        }
+                        const activeMat = this.baseLightMat.clone();
+                        activeMat.color.setHex(0xd0e8ff);
+                        activeMat.emissive.setHex(0xa0d0ff);
+                        const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                        panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
+                        chunkGroup.add(panel);
+                        this.walls.push(panel);
+                        this.fixtureData.push({
+                            chunkHash: hash,
+                            position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
+                            flickerOffset: random() * 500,
+                            material: activeMat,
+                            isFaulty: random() > 0.6,
+                            baseIntensity: 0.5,
+                            targetIntensity: 0.5,
+                            currentIntensity: 0.5
+                        });
+                    } else {
+                        const clutterRoll = random();
+                        if (clutterRoll > 0.65) {
+                            const isRotated = random() > 0.5;
+                            const screenW = isRotated ? 0.1 : this.cellSize * 0.8;
+                            const screenD = isRotated ? this.cellSize * 0.8 : 0.1;
+                            const screen = new THREE.Mesh(new THREE.BoxGeometry(screenW, 2.4, screenD), this.fabricMat);
+                            screen.position.set(x * this.cellSize, 1.2, z * this.cellSize);
+                            addGeometry(screen);
+                        } else if (clutterRoll > 0.50) {
+                            const boxCount = Math.floor(random() * 3) + 1;
+                            for (let i = 0; i < boxCount; i++) {
+                                const mBox = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.6), this.woodMat);
+                                mBox.position.set(x * this.cellSize + (random() * 0.4 - 0.2), 0.25 + (i * 0.5), z * this.cellSize + (random() * 0.4 - 0.2));
+                                mBox.rotation.y = random() * Math.PI;
+                                mBox.rotation.x = random() > 0.8 ? Math.PI / 2 : 0;
+                                addGeometry(mBox);
                             }
-                            const activeMat = this.baseLightMat.clone();
-                            activeMat.color.setHex(0xd0e8ff);
-                            activeMat.emissive.setHex(0xa0d0ff);
-                            const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
-                            panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
-                            chunkGroup.add(panel);
-                            this.walls.push(panel);
-                            this.fixtureData.push({
-                                chunkHash: hash,
-                                position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
-                                flickerOffset: random() * 500,
-                                material: activeMat,
-                                isFaulty: random() > 0.6,
-                                baseIntensity: 0.5,
-                                targetIntensity: 0.5,
-                                currentIntensity: 0.5
-                            });
-                        } else {
-                            const clutterRoll = random();
-                            if (clutterRoll > 0.65) {
-                                const isRotated = random() > 0.5;
-                                const screenW = isRotated ? 0.1 : this.cellSize * 0.8;
-                                const screenD = isRotated ? this.cellSize * 0.8 : 0.1;
-                                const screen = new THREE.Mesh(new THREE.BoxGeometry(screenW, 2.4, screenD), this.fabricMat);
-                                screen.position.set(x * this.cellSize, 1.2, z * this.cellSize);
-                                addGeometry(screen);
-                            } else if (clutterRoll > 0.50) {
-                                const boxCount = Math.floor(random() * 3) + 1;
-                                for (let i = 0; i < boxCount; i++) {
-                                    const mBox = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.6), this.woodMat);
-                                    mBox.position.set(x * this.cellSize + (random() * 0.4 - 0.2), 0.25 + (i * 0.5), z * this.cellSize + (random() * 0.4 - 0.2));
-                                    mBox.rotation.y = random() * Math.PI;
-                                    mBox.rotation.x = random() > 0.8 ? Math.PI / 2 : 0;
-                                    addGeometry(mBox);
-                                }
-                            } else if (clutterRoll > 0.40) {
-                                const chair = buildChair(x * this.cellSize, 0, z * this.cellSize, random() * Math.PI * 2);
-                                addFurniture(chair);
-                            }
+                        } else if (clutterRoll > 0.40) {
+                            const chair = buildChair(x * this.cellSize, 0, z * this.cellSize, random() * Math.PI * 2);
+                            addFurniture(chair);
                         }
                     }
                 }
             },
             {
                 name: "THE BOARDROOM",
-                prob: 0.17,
+                prob: 0.12,
                 foundationMat: this.tileMat,
-                build: (x, z, localX, localZ) => {
-                    const isPerimeter = localX === 0 || localX === this.chunkSize - 1 || localZ === 0 || localZ === this.chunkSize - 1;
-                    const isDoorway = (localX >= 7 && localX <= 8) || (localZ >= 7 && localZ <= 8);
-                    if (isPerimeter && !isDoorway) {
-                        const wall = new THREE.Mesh(this.sharedWallGeo, this.sharedWallMat);
-                        wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
-                        addGeometry(wall);
-                    } else if (!isPerimeter && localX >= 3 && localX <= 12 && (localZ === 7 || localZ === 8)) {
+                build: (x, z, localX, localZ, maze, inDir, outDir) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
+                    if (localX >= 3 && localX <= 12 && (localZ === 7 || localZ === 8)) {
                         const table = buildTable(x * this.cellSize, 0, z * this.cellSize);
                         addFurniture(table);
                         if (localZ === 8) {
@@ -732,9 +743,10 @@ export default class TheArchitect {
             },
             {
                 name: "THE ARCHIVE",
-                prob: 0.17,
+                prob: 0.12,
                 foundationMat: this.structMat,
-                build: (x, z, localX, localZ, maze) => {
+                build: (x, z, localX, localZ, maze, inDir, outDir) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.structMat)) return;
                     const isWall = maze && maze[localX][localZ];
                     if (isWall) {
                         const rack = buildWall(this.cellSize * 0.95, this.cellSize * 0.95, this.structMat);
@@ -773,9 +785,10 @@ export default class TheArchitect {
             },
             {
                 name: "THE SERVER FARM",
-                prob: 0.17,
+                prob: 0.12,
                 foundationMat: this.serverFloorMat,
-                build: (x, z, localX, localZ, maze) => {
+                build: (x, z, localX, localZ, maze, inDir, outDir) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
                     const isWall = maze && maze[localX][localZ];
                     if (isWall) {
                         const rack = buildWall(this.cellSize * 0.85, this.cellSize * 0.85, this.serverMat);
@@ -836,9 +849,10 @@ export default class TheArchitect {
             },
             {
                 name: "THE MAINTENANCE SHAFTS",
-                prob: 0.08,
+                prob: 0.10,
                 foundationMat: this.ventMat,
-                build: (x, z, localX, localZ, maze) => {
+                build: (x, z, localX, localZ, maze, inDir, outDir) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.structMat)) return;
                     const isWall = maze && maze[localX][localZ];
                     if (isWall) {
                         const block = buildWall(this.cellSize, this.cellSize, this.structMat);
@@ -911,17 +925,32 @@ export default class TheArchitect {
             },
             {
                 name: "THE CHASM",
-                prob: 0.08,
+                prob: 0.06,
                 foundationMat: null,
-                build: (x, z, localX, localZ) => {
-                    const isBridge = (localX >= 6 && localX <= 9);
+                build: (x, z, localX, localZ, maze, inDir, outDir) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
+
+                    const isBridgeZ = localX >= 6 && localX <= 8;
+                    const isBridgeX = localZ >= 6 && localZ <= 8;
+                    const needsBridgeZ = inDir === 0 || inDir === 2 || outDir === 0 || outDir === 2;
+                    const needsBridgeX = inDir === 1 || inDir === 3 || outDir === 1 || outDir === 3;
+
+                    let isBridge = false;
+                    if (needsBridgeZ && isBridgeZ) isBridge = true;
+                    if (needsBridgeX && isBridgeX) isBridge = true;
+
                     if (isBridge) {
                         const bFloor = buildWall(this.cellSize, this.cellSize, this.structMat, 0.5);
                         bFloor.position.set(x * this.cellSize, -0.25, z * this.cellSize);
                         addGeometry(bFloor);
-                        if (localX === 6 || localX === 9) {
+
+                        if (!isBridgeX && (localX === 6 || localX === 8)) {
                             const railing = buildWall(0.2, this.cellSize, this.rustMat, 1.2);
                             railing.position.set(x * this.cellSize + (localX === 6 ? 1.8 : -1.8), 0.6, z * this.cellSize);
+                            addGeometry(railing);
+                        } else if (!isBridgeZ && (localZ === 6 || localZ === 8)) {
+                            const railing = buildWall(this.cellSize, 0.2, this.rustMat, 1.2);
+                            railing.position.set(x * this.cellSize, 0.6, z * this.cellSize + (localZ === 6 ? 1.8 : -1.8));
                             addGeometry(railing);
                         }
                     } else {
@@ -931,6 +960,7 @@ export default class TheArchitect {
                         voidBox.isVoid = true;
                         voidBox.chunkHash = hash;
                         this.spatialGrid.insert(voidBox);
+
                         if ((localX === 2 || localX === 13) && localZ % 4 === 0) {
                             const pillar = buildWall(2.0, 2.0, this.rustMat, 40.0);
                             pillar.position.set(x * this.cellSize, -15.0, z * this.cellSize);
@@ -941,9 +971,10 @@ export default class TheArchitect {
             },
             {
                 name: "THE OVERGROWN ATRIUM",
-                prob: 0.09,
+                prob: 0.08,
                 foundationMat: this.mossMat,
-                build: (x, z, localX, localZ) => {
+                build: (x, z, localX, localZ, maze, inDir, outDir) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
                     if (random() > 0.45) {
                         const w = 0.4 + (random() * 0.8);
                         const d = 0.4 + (random() * 0.8);
@@ -978,6 +1009,150 @@ export default class TheArchitect {
                             targetIntensity: 0.15,
                             currentIntensity: 0.15
                         });
+                    }
+                }
+            },
+            {
+                name: "THE CHECKPOINT",
+                prob: 0.16,
+                foundationMat: this.tileMat,
+                build: (x, z, localX, localZ, maze, inDir, outDir) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.structMat)) return;
+
+                    // Calculate a singular dynamic hallway based strictly on the in/out paths
+                    const isPathN = (inDir === 0 || outDir === 0) && localX === 7 && localZ <= 7;
+                    const isPathS = (inDir === 2 || outDir === 2) && localX === 7 && localZ >= 7;
+                    const isPathW = (inDir === 3 || outDir === 3) && localZ === 7 && localX <= 7;
+                    const isPathE = (inDir === 1 || outDir === 1) && localZ === 7 && localX >= 7;
+
+                    const isPath = isPathN || isPathS || isPathW || isPathE;
+
+                    // If not on the path, seal the grid in solid rock
+                    if (!isPath) {
+                        const block = buildWall(this.cellSize, this.cellSize, this.structMat);
+                        block.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                        block.userData.isEntityBlocker = true;
+                        addGeometry(block);
+                        return;
+                    }
+
+                    // Place exactly one dynamic bottleneck directly in the center of the traversal path
+                    if (localX === 7 && localZ === 7) {
+                        const spansX = (inDir === 1 || inDir === 3) && (outDir === 1 || outDir === 3);
+                        const chokeType = Math.floor(random() * 4); // 0: Squeeze, 1: Crawl, 2: Crouch, 3: Door
+
+                        const wallThick = 0.6;
+                        const gapW = chokeType === 0 ? 0.35 : 1.4;
+                        const sideW = (this.cellSize - gapW) / 2;
+                        const sOff = (this.cellSize / 2) - (sideW / 2);
+
+                        const p1 = buildWall(spansX ? sideW : wallThick, spansX ? wallThick : sideW, this.sharedWallMat);
+                        p1.position.set(x * this.cellSize + (spansX ? -sOff : 0), 1.5, z * this.cellSize + (spansX ? 0 : -sOff));
+                        p1.userData.isEntityBlocker = true;
+                        addGeometry(p1);
+
+                        const p2 = buildWall(spansX ? sideW : wallThick, spansX ? wallThick : sideW, this.sharedWallMat);
+                        p2.position.set(x * this.cellSize + (spansX ? sOff : 0), 1.5, z * this.cellSize + (spansX ? 0 : sOff));
+                        p2.userData.isEntityBlocker = true;
+                        addGeometry(p2);
+
+                        if (chokeType === 0) {
+                            const top = buildWall(spansX ? gapW : wallThick, spansX ? wallThick : gapW, this.structMat, 0.5);
+                            top.position.set(x * this.cellSize, 2.75, z * this.cellSize);
+                            addGeometry(top);
+
+                            const frame1 = new THREE.Mesh(new THREE.BoxGeometry(spansX ? 0.05 : wallThick + 0.02, 3.0, spansX ? wallThick + 0.02 : 0.05), this.woodMat);
+                            frame1.position.set(x * this.cellSize + (spansX ? -gapW/2 - 0.025 : 0), 1.5, z * this.cellSize + (spansX ? 0 : -gapW/2 - 0.025));
+                            addGeometry(frame1);
+
+                            const frame2 = new THREE.Mesh(new THREE.BoxGeometry(spansX ? 0.05 : wallThick + 0.02, 3.0, spansX ? wallThick + 0.02 : 0.05), this.woodMat);
+                            frame2.position.set(x * this.cellSize + (spansX ? gapW/2 + 0.025 : 0), 1.5, z * this.cellSize + (spansX ? 0 : gapW/2 + 0.025));
+                            addGeometry(frame2);
+                        } else if (chokeType === 1 || chokeType === 2) {
+                            const gapH = chokeType === 1 ? 0.6 : 1.2;
+                            const topH = 3.0 - gapH;
+
+                            const top = buildWall(spansX ? gapW : wallThick, spansX ? wallThick : gapW, this.sharedWallMat, topH, gapH);
+                            top.position.set(x * this.cellSize, gapH + (topH / 2), z * this.cellSize);
+                            top.userData.isEntityBlocker = true;
+                            addGeometry(top);
+
+                            const frameTop = new THREE.Mesh(new THREE.BoxGeometry(spansX ? gapW : wallThick + 0.02, 0.05, spansX ? wallThick + 0.02 : gapW), this.woodMat);
+                            frameTop.position.set(x * this.cellSize, gapH + 0.025, z * this.cellSize);
+                            addGeometry(frameTop);
+
+                            const blockBox = new THREE.Box3(
+                                new THREE.Vector3(x * this.cellSize - (spansX ? gapW/2 : wallThick/2), 0, z * this.cellSize - (spansX ? wallThick/2 : gapW/2)),
+                                new THREE.Vector3(x * this.cellSize + (spansX ? gapW/2 : wallThick/2), 3.0, z * this.cellSize + (spansX ? wallThick/2 : gapW/2))
+                            );
+                            blockBox.isEntityBlocker = true;
+                            blockBox.isInvisibleBlocker = true;
+                            blockBox.chunkHash = hash;
+                            this.spatialGrid.insert(blockBox);
+                        } else if (chokeType === 3) {
+                            const top = buildWall(spansX ? gapW : wallThick, spansX ? wallThick : gapW, this.structMat, 0.35, 2.65);
+                            top.position.set(x * this.cellSize, 2.825, z * this.cellSize);
+                            addGeometry(top);
+
+                            const jambL = new THREE.Mesh(new THREE.BoxGeometry(spansX ? 0.1 : wallThick+0.05, 2.65, spansX ? wallThick+0.05 : 0.1), this.woodMat);
+                            jambL.position.set(x * this.cellSize + (spansX ? -0.75 : 0), 1.325, z * this.cellSize + (spansX ? 0 : -0.75));
+                            addGeometry(jambL);
+
+                            const jambR = new THREE.Mesh(new THREE.BoxGeometry(spansX ? 0.1 : wallThick+0.05, 2.65, spansX ? wallThick+0.05 : 0.1), this.woodMat);
+                            jambR.position.set(x * this.cellSize + (spansX ? 0.75 : 0), 1.325, z * this.cellSize + (spansX ? 0 : 0.75));
+                            addGeometry(jambR);
+
+                            const jambT = new THREE.Mesh(new THREE.BoxGeometry(spansX ? 1.6 : wallThick+0.05, 0.1, spansX ? wallThick+0.05 : 1.6), this.woodMat);
+                            jambT.position.set(x * this.cellSize, 2.70, z * this.cellSize);
+                            addGeometry(jambT);
+
+                            const doorW = 1.4;
+                            const doorT = 0.1;
+                            let doorGeo;
+                            let doorMesh;
+
+                            if (spansX) {
+                                doorGeo = new THREE.BoxGeometry(doorW, 2.65, doorT);
+                                doorGeo.translate(doorW/2, 0, doorT/2);
+                                doorMesh = new THREE.Mesh(doorGeo, this.doorMat);
+                                doorMesh.position.set(x * this.cellSize - doorW/2, 1.325, z * this.cellSize);
+                                doorMesh.userData = { chunkHash: hash, closedRot: 0, currentRot: 0 };
+                            } else {
+                                doorGeo = new THREE.BoxGeometry(doorT, 2.65, doorW);
+                                doorGeo.translate(doorT/2, 0, doorW/2);
+                                doorMesh = new THREE.Mesh(doorGeo, this.doorMat);
+                                doorMesh.position.set(x * this.cellSize, 1.325, z * this.cellSize - doorW/2);
+                                doorMesh.userData = { chunkHash: hash, closedRot: -Math.PI / 2, currentRot: -Math.PI / 2 };
+                            }
+
+                            doorMesh.castShadow = doorMesh.receiveShadow = true;
+                            chunkGroup.add(doorMesh);
+                            this.interactiveDoors.push(doorMesh);
+                            this.walls.push(doorMesh);
+                            doorMesh.updateMatrixWorld();
+                            const dBox = new THREE.Box3().setFromObject(doorMesh);
+                            dBox.chunkHash = hash;
+                            doorMesh.userData.box = dBox;
+                            this.spatialGrid.insert(dBox);
+                        }
+                    } else {
+                        if ((localX % 3 === 0 || localZ % 3 === 0) && random() > 0.5) {
+                            const activeMat = this.baseLightMat.clone();
+                            const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                            panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
+                            chunkGroup.add(panel);
+                            this.walls.push(panel);
+                            this.fixtureData.push({
+                                chunkHash: hash,
+                                position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
+                                flickerOffset: random() * 500,
+                                material: activeMat,
+                                isFaulty: random() > 0.8,
+                                baseIntensity: 0.7,
+                                targetIntensity: 0.7,
+                                currentIntensity: 0.7
+                            });
+                        }
                     }
                 }
             }

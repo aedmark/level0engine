@@ -99,6 +99,9 @@ export default class Environment {
     updateInteractives(playerPos, delta) {
         this.interactiveDoors.forEach(door => {
             const pDistSq = playerPos.distanceToSquared(door.position);
+
+            if (pDistSq > 400.0 && !door.userData.isLatched && !door.userData.entityOpen) return;
+
             const playerOpen = pDistSq < 12.25;
             const entityOpen = door.userData.entityOpen === true;
             door.userData.entityOpen = false;
@@ -107,37 +110,24 @@ export default class Environment {
             let targetRot = door.userData.closedRot;
             if (isOpen) {
                 if (!door.userData.isLatched) {
-                    if (door.userData.swingConstraint === undefined) {
-                        door.userData.swingConstraint = 0;
-                        const cx = door.position.x;
-                        const cz = door.position.z;
-                        const localBoxes = this.spatialGrid.getNearby(cx, cz, 2.0);
-                        const testBoxNegZ = new THREE.Box3(new THREE.Vector3(cx - 0.1, 0, cz - 1.4), new THREE.Vector3(cx + 0.1, 3.0, cz));
-                        const testBoxPosZ = new THREE.Box3(new THREE.Vector3(cx - 0.1, 0, cz), new THREE.Vector3(cx + 0.1, 3.0, cz + 1.4));
-                        let blockNegZ = false;
-                        let blockPosZ = false;
-                        for (let i = 0; i < localBoxes.length; i++) {
-                            const b = localBoxes[i];
-                            if (b === door.userData.box || b.isInvisibleBlocker) continue;
-                            if (b.intersectsBox(testBoxNegZ)) blockNegZ = true;
-                            if (b.intersectsBox(testBoxPosZ)) blockPosZ = true;
-                        }
-                        if (blockNegZ && !blockPosZ) door.userData.swingConstraint = -(Math.PI / 2);
-                        else if (blockPosZ && !blockNegZ) door.userData.swingConstraint = (Math.PI / 2);
+                    const triggerPos = (entityOpen && !playerOpen) ? this.anomaly.group.position : playerPos;
+                    const isZDoor = Math.abs(door.userData.closedRot) < 0.1 || Math.abs(door.userData.closedRot - Math.PI) < 0.1;
+
+                    let desiredRot = door.userData.closedRot;
+                    if (isZDoor) {
+                        const approachZ = triggerPos.z - door.position.z;
+                        desiredRot = approachZ < 0 ? (door.userData.closedRot + Math.PI / 2) : (door.userData.closedRot - Math.PI / 2);
+                    } else {
+                        const approachX = triggerPos.x - door.position.x;
+                        desiredRot = approachX < 0 ? (door.userData.closedRot - Math.PI / 2) : (door.userData.closedRot + Math.PI / 2);
                     }
-                    const triggerZ = (entityOpen && !playerOpen) ? door.userData.entityZ : playerPos.z;
-                    const approachZ = triggerZ - door.position.z;
-                    let desiredRot = approachZ < 0 ? -(Math.PI / 2) : (Math.PI / 2);
-                    if (door.userData.swingConstraint !== 0) desiredRot = door.userData.swingConstraint;
+
                     door.userData.latchedRot = desiredRot;
                     door.userData.isLatched = true;
                     door.userData.swingSpeed = (entityOpen && !playerOpen) ? 35.0 : 8.0;
                     const intensity = (entityOpen && !playerOpen) ? 1.0 : 0.25;
                     document.dispatchEvent(new CustomEvent('somatic-door', {
-                        detail: {
-                            distSq: pDistSq,
-                            intensity: intensity
-                        }
+                        detail: { distSq: pDistSq, intensity: intensity }
                     }));
                 }
                 targetRot = door.userData.latchedRot;
@@ -790,6 +780,44 @@ export default class Environment {
                 group.add(base);
                 group.position.set(x, y, z);
                 return group;
+            },
+            buildPerimeter: (x, z, localX, localZ, inDir, outDir, wallMat) => {
+                const isPerimeter = localX === 0 || localX === this.chunkSize - 1 || localZ === 0 || localZ === this.chunkSize - 1;
+                if (!isPerimeter) return false;
+
+                let isDoorway = false;
+                // FULLER: Limit doorways to exactly one cell width (4 meters) centered on the chunk edge.
+                if (localX === 7) {
+                    if (localZ === 0 && (inDir === 0 || outDir === 0)) isDoorway = true;
+                    if (localZ === this.chunkSize - 1 && (inDir === 2 || outDir === 2)) isDoorway = true;
+                }
+                if (localZ === 7) {
+                    if (localX === 0 && (inDir === 3 || outDir === 3)) isDoorway = true;
+                    if (localX === this.chunkSize - 1 && (inDir === 1 || outDir === 1)) isDoorway = true;
+                }
+
+                if (!isDoorway) {
+                    const key = `${this.cellSize}_3.0_${this.cellSize}_0`;
+                    let geo = this.geoCache.get(key);
+                    if (!geo) {
+                        geo = new THREE.BoxGeometry(this.cellSize + 0.02, 3.0, this.cellSize + 0.02);
+                        this.geoCache.set(key, geo);
+                        this.geoCache.set(geo.uuid, true);
+                    }
+                    const wall = new THREE.Mesh(geo, wallMat || this.sharedWallMat);
+                    wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+
+                    wall.userData.chunkHash = hash;
+                    wall.updateMatrixWorld(true);
+                    if (!wall.geometry.boundingBox) wall.geometry.computeBoundingBox();
+                    const box = wall.geometry.boundingBox.clone().applyMatrix4(wall.matrixWorld);
+                    box.chunkHash = hash;
+                    box.isEntityBlocker = true;
+                    this.spatialGrid.insert(box);
+                    stagingMeshes.push(wall);
+                    return true;
+                }
+                return false;
             }
         };
     }
@@ -811,11 +839,16 @@ export default class Environment {
         const sectorMatrix = TheArchitect.getSectorMatrix.call(this, ctx);
         const startX = chunkX * this.chunkSize;
         const startZ = chunkZ * this.chunkSize;
-        const isMacroStructure = random() > 0.90 && (Math.abs(chunkX) > 0 || Math.abs(chunkZ) > 0);
+        const isMacroStructure = random() > 0.70 && (Math.abs(chunkX) > 0 || Math.abs(chunkZ) > 0);
         let activeSector = null;
         let sectorMaze = null;
         let chunkBreakerCount = 0;
         const breakerPositions = [];
+
+        const hashVal = Math.abs((chunkX * 104729) + (chunkZ * 1299827));
+        const inDir = hashVal % 4; // 0: N, 1: E, 2: S, 3: W
+        const outDir = (hashVal + 1 + (hashVal % 3)) % 4; // Guarantees a different exit edge
+
         if (isMacroStructure) {
             const sectorRoll = random();
             let cumulative = 0;
@@ -828,7 +861,7 @@ export default class Environment {
             }
             if (!activeSector) activeSector = sectorMatrix[0];
             if (["THE ARCHIVE", "THE SERVER FARM", "THE MAINTENANCE SHAFTS", "THE POOLROOMS"].includes(activeSector.name)) {
-                sectorMaze = this._generateSectorMaze(random);
+                sectorMaze = this._generateSectorMaze(random, inDir, outDir);
             }
             if (activeSector.foundationMat) {
                 const foundationGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
@@ -866,7 +899,7 @@ export default class Environment {
                 const localX = x - startX;
                 const localZ = z - startZ;
                 if (isMacroStructure) {
-                    activeSector.build(x, z, localX, localZ, typeof sectorMaze !== 'undefined' ? sectorMaze : null);
+                    activeSector.build(x, z, localX, localZ, typeof sectorMaze !== 'undefined' ? sectorMaze : null, inDir, outDir);
                     continue;
                 }
                 let zx = x * 0.15;
@@ -1006,7 +1039,7 @@ export default class Environment {
         this._compileInstances(hash, chunkGroup, stagingMeshes, random);
     }
 
-    _generateSectorMaze(randomFn) {
+    _generateSectorMaze(randomFn, inDir, outDir) {
         const maze = Array(this.chunkSize).fill().map(() => Array(this.chunkSize).fill(true));
         const carve = (cx, cz) => {
             maze[cx][cz] = false;
@@ -1014,24 +1047,29 @@ export default class Environment {
             dirs.sort(() => randomFn() - 0.5);
             for (let [dx, dz] of dirs) {
                 const nx = cx + dx, nz = cz + dz;
-                if (nx > 0 && nx < this.chunkSize && nz > 0 && nz < this.chunkSize && maze[nx][nz]) {
+                if (nx > 0 && nx < this.chunkSize - 1 && nz > 0 && nz < this.chunkSize - 1 && maze[nx][nz]) {
                     maze[cx + dx / 2][cz + dz / 2] = false;
                     carve(nx, nz);
                 }
             }
         };
-        carve(1, 1);
+        carve(7, 7);
         for (let i = 0; i < 20; i++) {
-            let rx = Math.floor(randomFn() * (this.chunkSize - 2)) + 1;
-            let rz = Math.floor(randomFn() * (this.chunkSize - 2)) + 1;
+            let rx = Math.floor(randomFn() * (this.chunkSize - 4)) + 2;
+            let rz = Math.floor(randomFn() * (this.chunkSize - 4)) + 2;
             maze[rx][rz] = false;
         }
-        for (let i = 1; i < this.chunkSize - 1; i += 3) {
-            maze[i][0] = false;
-            maze[i][this.chunkSize - 1] = false;
-            maze[0][i] = false;
-            maze[this.chunkSize - 1][i] = false;
-        }
+
+        // Ensure perfect connectivity from the maze core directly to the in/out valves
+        const carveDoor = (dir) => {
+            if (dir === 0) { maze[7][0]=false; maze[7][1]=false; }
+            if (dir === 1) { maze[15][7]=false; maze[14][7]=false; }
+            if (dir === 2) { maze[7][15]=false; maze[7][14]=false; }
+            if (dir === 3) { maze[0][7]=false; maze[1][7]=false; }
+        };
+        carveDoor(inDir);
+        carveDoor(outDir);
+
         return maze;
     }
 
@@ -1231,35 +1269,38 @@ export default class Environment {
             pSeed = (pSeed * 1664525 + 1013904223) >>> 0;
             return pSeed / 4294967296.0;
         };
-        const isMacroLoc = pRandom() > 0.90 && (Math.abs(pChunkX) > 0 || Math.abs(pChunkZ) > 0);
+        const isMacroLoc = pRandom() > 0.70 && (Math.abs(pChunkX) > 0 || Math.abs(pChunkZ) > 0);
         const sectorRoll = pRandom();
         let activeSector = "NORMAL";
         let targetFog = 0.05;
         if (isMacroLoc) {
-            if (sectorRoll <= 0.16) {
+            if (sectorRoll <= 0.12) {
                 activeSector = "POOLROOMS";
                 targetFog = 0.08;
-            } else if (sectorRoll <= 0.32) {
+            } else if (sectorRoll <= 0.24) {
                 activeSector = "CLINIC";
                 targetFog = 0.03;
-            } else if (sectorRoll <= 0.49) {
+            } else if (sectorRoll <= 0.36) {
                 activeSector = "BOARDROOM";
                 targetFog = 0.015;
-            } else if (sectorRoll <= 0.66) {
+            } else if (sectorRoll <= 0.48) {
                 activeSector = "ARCHIVE";
                 targetFog = 0.12;
-            } else if (sectorRoll <= 0.83) {
+            } else if (sectorRoll <= 0.60) {
                 activeSector = "SERVER";
                 targetFog = 0.08;
-            } else if (sectorRoll <= 0.91) {
+            } else if (sectorRoll <= 0.70) {
                 activeSector = "MAINTENANCE";
                 targetFog = 0.10;
-            } else if (sectorRoll <= 0.99) {
+            } else if (sectorRoll <= 0.76) {
                 activeSector = "CHASM";
                 targetFog = 0.015;
-            } else {
+            } else if (sectorRoll <= 0.84) {
                 activeSector = "ATRIUM";
                 targetFog = 0.18;
+            } else {
+                activeSector = "CHECKPOINT";
+                targetFog = 0.05;
             }
         }
         if (this.baseFogDensity !== undefined) {
