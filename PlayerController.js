@@ -21,6 +21,9 @@ export default class PlayerController {
         this.speedMultiplier = 1.0;
         this.maxStamina = 100.0;
         this.stamina = 100.0;
+        this.inventory = { batteries: 0, almondWater: 0 };
+        this.MAX_BATTERIES = 3;
+        this.MAX_ALMOND_WATER = 2;
         this.exhaustion = 0.0;
         this.isWinded = false;
         this.isChased = false;
@@ -47,13 +50,31 @@ export default class PlayerController {
     get flashlightActive() { return this.input.state.flashlightActive; }
 
     _bindMetabolicListeners() {
-        document.addEventListener('somatic-battery', (e) => {
-            this.flashlightBattery = Math.min(100.0, this.flashlightBattery + e.detail.amount);
+        document.addEventListener('somatic-pickup-battery', () => {
+            if (this.inventory.batteries < this.MAX_BATTERIES) {
+                this.inventory.batteries++;
+                document.dispatchEvent(new CustomEvent('somatic-item', {detail: {distSq: 1.0, intensity: 0.5}}));
+            }
         });
-        document.addEventListener('somatic-almond-water', (e) => {
-            this.staminaBoostTimer = e.detail.duration;
-            this.stamina = this.maxStamina;
-            this.isWinded = false;
+        document.addEventListener('somatic-pickup-almond', () => {
+            if (this.inventory.almondWater < this.MAX_ALMOND_WATER) {
+                this.inventory.almondWater++;
+                document.dispatchEvent(new CustomEvent('somatic-item', {detail: {distSq: 1.0, intensity: 0.6}}));
+            }
+        });
+        document.addEventListener('somatic-use-battery', () => {
+            if (this.inventory.batteries > 0 && this.flashlightBattery < 100.0) {
+                this.inventory.batteries--;
+                this.flashlightBattery = Math.min(100.0, this.flashlightBattery + 40.0);
+            }
+        });
+        document.addEventListener('somatic-use-almond', () => {
+            if (this.inventory.almondWater > 0) {
+                this.inventory.almondWater--;
+                this.staminaBoostTimer = 15.0;
+                this.stamina = this.maxStamina;
+                this.isWinded = false;
+            }
         });
     }
 
@@ -246,9 +267,18 @@ export default class PlayerController {
 
         if (this.paranoia > 0.8 && Math.random() < (0.5 * delta)) {
             document.dispatchEvent(new CustomEvent('somatic-step', { detail: { intensity: 0.5 * this.paranoia } }));
+
+            if (Math.random() < 0.1) {
+                const fakeDistSq = 50.0 + Math.random() * 200.0;
+                document.dispatchEvent(new CustomEvent('somatic-door', { detail: { distSq: fakeDistSq, intensity: 0.4 } }));
+            }
         }
         if (this.paranoia > 0.95 && Math.random() < (0.4 * delta)) {
             document.dispatchEvent(new CustomEvent('somatic-blink'));
+
+            if (Math.random() < 0.05) {
+                document.dispatchEvent(new CustomEvent('somatic-vent', { detail: { distSq: 100.0, intensity: 0.5 } }));
+            }
         }
 
         if (Math.abs(this.currentFov - targetFov) > 0.1) {

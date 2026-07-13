@@ -230,6 +230,8 @@ export default class TheArchitect {
                         for (let i = 0; i < burstLength; i++) {
                             const segX = x + (tunnelOnZ ? 0 : i);
                             const segZ = z + (tunnelOnZ ? i : 0);
+                            if (ctx.markOccupied) ctx.markOccupied(segX, segZ);
+
                             const w1 = tunnelOnZ ? sideW : this.cellSize;
                             const d1 = tunnelOnZ ? this.cellSize : sideW;
 
@@ -368,6 +370,7 @@ export default class TheArchitect {
                         for (let i = 0; i < burstLength; i++) {
                             const segX = x + (dirZ ? 0 : i);
                             const segZ = z + (dirZ ? i : 0);
+                            if (ctx.markOccupied) ctx.markOccupied(segX, segZ);
 
                             const side1 = buildWall(dirZ ? sideW : this.cellSize, dirZ ? this.cellSize : sideW, this.sharedWallMat);
                             side1.position.set(segX * this.cellSize + (dirZ ? -sideOffset : 0), 1.5, segZ * this.cellSize + (dirZ ? 0 : -sideOffset));
@@ -426,6 +429,7 @@ export default class TheArchitect {
                         for (let i = 0; i < burstLength; i++) {
                             const segX = x + (dirZ ? 0 : i);
                             const segZ = z + (dirZ ? i : 0);
+                            if (ctx.markOccupied) ctx.markOccupied(segX, segZ);
 
                             const block1 = buildWall(dirZ ? wallW : this.cellSize, dirZ ? this.cellSize : wallW, this.sharedWallMat);
                             block1.position.set(segX * this.cellSize + (dirZ ? -offset : 0), 1.5, segZ * this.cellSize + (dirZ ? 0 : -offset));
@@ -446,6 +450,7 @@ export default class TheArchitect {
                         for (let i = 0; i < burstLength; i++) {
                             const segX = x + (dirZ ? 0 : i);
                             const segZ = z + (dirZ ? i : 0);
+                            if (ctx.markOccupied) ctx.markOccupied(segX, segZ);
 
                             const side1 = buildWall(dirZ ? sideW : this.cellSize, dirZ ? this.cellSize : sideW, this.sharedWallMat);
                             side1.position.set(segX * this.cellSize + (dirZ ? -sideOffset : 0), 1.5, segZ * this.cellSize + (dirZ ? 0 : -sideOffset));

@@ -50,6 +50,8 @@ function saveState() {
         ry: engine.camera.rotation.y,
         stamina: player.stamina,
         battery: player.flashlightBattery,
+        invBat: player.inventory.batteries,
+        invH2o: player.inventory.almondWater,
         seed: document.getElementById('seedInput').value,
         aspect: document.getElementById('aspectSelect').value,
         fog: document.getElementById('fogSlider').value,
@@ -70,6 +72,8 @@ if (savedState) {
     engine.camera.rotation.set(savedState.rx, savedState.ry, 0, 'YXZ');
     player.stamina = savedState.stamina;
     if (savedState.battery !== undefined) player.flashlightBattery = savedState.battery;
+    if (savedState.invBat !== undefined) player.inventory.batteries = savedState.invBat;
+    if (savedState.invH2o !== undefined) player.inventory.almondWater = savedState.invH2o;
     environment.baseFogDensity = (Number(savedState.fog) || 5) / 100;
 }
 const bootAudio = () => acoustics.init();
@@ -208,6 +212,21 @@ function animate() {
                 stamLevel.style.width = `${stamInt}%`;
                 stamLevel.style.backgroundColor = stamInt > 50 ? '#ffffff' : (stamInt > 20 ? '#aaaaaa' : '#ff5555');
                 stamLevel._lastStam = stamInt;
+            }
+        }
+
+        const invBat = document.getElementById('inv-bat');
+        const invH2o = document.getElementById('inv-h2o');
+        if (invBat && invH2o) {
+            if (invBat._lastVal !== player.inventory.batteries) {
+                invBat.innerText = player.inventory.batteries;
+                invBat.style.color = player.inventory.batteries === 0 ? '#ff5555' : '#55ff55';
+                invBat._lastVal = player.inventory.batteries;
+            }
+            if (invH2o._lastVal !== player.inventory.almondWater) {
+                invH2o.innerText = player.inventory.almondWater;
+                invH2o.style.color = player.inventory.almondWater === 0 ? '#ff5555' : '#55ff55';
+                invH2o._lastVal = player.inventory.almondWater;
             }
         }
     }

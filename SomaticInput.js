@@ -225,6 +225,14 @@ export default class SomaticInput {
             if (flashBtn) flashBtn.classList.toggle('active', this.state.flashlightActive);
         }
 
+        if (event.code === 'Digit1') {
+            document.dispatchEvent(new Event('somatic-use-battery'));
+        }
+
+        if (event.code === 'Digit2') {
+            document.dispatchEvent(new Event('somatic-use-almond'));
+        }
+
         if (event.code === 'KeyT') {
             document.dispatchEvent(new Event('somatic-tag'));
         }

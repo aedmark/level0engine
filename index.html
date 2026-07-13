@@ -6,7 +6,8 @@
     <title>LEVEL 0 ENGINE // Terminal 003</title>
     <meta name="theme-color" content="#050505">
 
-    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap"
+          rel="stylesheet">
 
     <style>
         :root {
@@ -18,6 +19,7 @@
             --font-mono: 'Space Mono', monospace;
             --font-vhs: 'VT323', monospace;
         }
+
         *, *::before, *::after {
             box-sizing: border-box;
         }
@@ -42,31 +44,93 @@
             -webkit-user-select: none;
         }
 
+        @keyframes static-noise {
+            0%, 100% {
+                background-position: 0 0;
+            }
+            10% {
+                background-position: -5% -10%;
+            }
+            20% {
+                background-position: -15% 5%;
+            }
+            30% {
+                background-position: 7% -25%;
+            }
+            40% {
+                background-position: 20% 25%;
+            }
+            50% {
+                background-position: -25% 10%;
+            }
+            60% {
+                background-position: 15% 5%;
+            }
+            70% {
+                background-position: 0% 15%;
+            }
+            80% {
+                background-position: 25% 35%;
+            }
+            90% {
+                background-position: -10% 10%;
+            }
+        }
+
+        @keyframes scanline-scroll {
+            0% {
+                background-position: 0 0;
+            }
+            100% {
+                background-position: 0 4px;
+            }
+        }
+
         .noise-overlay {
-            position: fixed;
+            position: absolute;
             inset: 0;
             pointer-events: none;
             z-index: 50;
             opacity: 0.04;
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            animation: static-noise 0.4s steps(2) infinite;
         }
 
         .scanlines {
-            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.1) 50%, rgba(0, 0, 0, 0.1));
             background-size: 100% 4px;
-            position: fixed;
+            position: absolute;
             inset: 0;
             pointer-events: none;
             z-index: 49;
+            animation: scanline-scroll 0.5s linear infinite;
         }
 
         @keyframes flicker {
-            0% { opacity: 0.9; text-shadow: 0 0 4px rgba(212, 195, 130, 0.4); }
-            5% { opacity: 0.5; text-shadow: none; }
-            10% { opacity: 0.9; text-shadow: 0 0 4px rgba(212, 195, 130, 0.4); }
-            15% { opacity: 1; text-shadow: 0 0 8px rgba(212, 195, 130, 0.6); }
-            50% { opacity: 0.8; text-shadow: 0 0 4px rgba(212, 195, 130, 0.4); }
-            100% { opacity: 1; text-shadow: 0 0 10px rgba(212, 195, 130, 0.8); }
+            0% {
+                opacity: 0.9;
+                text-shadow: 0 0 4px rgba(212, 195, 130, 0.4);
+            }
+            5% {
+                opacity: 0.5;
+                text-shadow: none;
+            }
+            10% {
+                opacity: 0.9;
+                text-shadow: 0 0 4px rgba(212, 195, 130, 0.4);
+            }
+            15% {
+                opacity: 1;
+                text-shadow: 0 0 8px rgba(212, 195, 130, 0.6);
+            }
+            50% {
+                opacity: 0.8;
+                text-shadow: 0 0 4px rgba(212, 195, 130, 0.4);
+            }
+            100% {
+                opacity: 1;
+                text-shadow: 0 0 10px rgba(212, 195, 130, 0.8);
+            }
         }
 
         .terminal-glow {
@@ -96,6 +160,7 @@
             padding: 1.5rem;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
             position: relative;
+            overflow: hidden;
         }
 
         .terminal-gradient {
@@ -145,8 +210,12 @@
         }
 
         @keyframes pulse-anim {
-            0%, 100% { opacity: 1; }
-            50% { opacity: .5; }
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: .5;
+            }
         }
 
         .warning-text {
@@ -248,8 +317,11 @@
         .btn-glitch::before {
             content: '';
             position: absolute;
-            top: 0; left: -100%; width: 100%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
             transition: left 0.5s ease;
         }
 
@@ -275,6 +347,7 @@
             .terminal-footer {
                 flex-direction: row;
             }
+
             .btn-glitch {
                 width: auto;
             }
@@ -284,16 +357,20 @@
             .main-wrapper {
                 padding: 2rem;
             }
+
             .terminal-box {
                 padding: 2.5rem;
             }
+
             .terminal-header {
                 flex-direction: row;
                 align-items: flex-end;
             }
+
             .terminal-title {
                 font-size: 3.75rem;
             }
+
             .sys-info {
                 margin-top: 0;
                 text-align: right;
@@ -302,13 +379,10 @@
     </style>
 </head>
 <body>
-
-<div class="noise-overlay"></div>
-<div class="scanlines"></div>
-
 <main class="main-wrapper">
     <div class="terminal-box">
-
+        <div class="noise-overlay"></div>
+        <div class="scanlines"></div>
         <div class="terminal-gradient"></div>
 
         <header class="terminal-header">
@@ -328,18 +402,23 @@
             </p>
 
             <p>
-                You are attempting to access a volatile, thermodynamically isolated manifold. This is not a standard rendering pipeline. The architecture ahead relies on pure, procedural generation.
+                You are attempting to access a volatile, thermodynamically isolated manifold. This is not a standard
+                rendering pipeline. The architecture ahead relies on pure, procedural generation.
             </p>
 
             <div class="rule-list">
                 <p>
-                    <strong>I. Geodesic Reality:</strong> The environment is generated deterministically. Corridors map to memory decay. Do not trust dead ends.
+                    <strong>I. Geodesic Reality:</strong> The environment is generated deterministically. Corridors map
+                    to memory decay. Do not trust dead ends.
                 </p>
                 <p>
-                    <strong>II. Somatic Coupling:</strong> The engine links directly to exhaust metrics. Running burns stamina. Panic burns logic. If your battery depletes, the structural integrity of your viewport will collapse.
+                    <strong>II. Somatic Coupling:</strong> The engine links directly to exhaust metrics. Running burns
+                    stamina. Panic burns logic. If your battery depletes, the structural integrity of your viewport will
+                    collapse.
                 </p>
                 <p>
-                    <strong>III. The Anomaly:</strong> The system is not empty. It hunts via auditory and line-of-sight perception. Silence is your only leverage.
+                    <strong>III. The Anomaly:</strong> The system is not empty. It hunts via auditory and line-of-sight
+                    perception. Silence is your only leverage.
                 </p>
             </div>
 
@@ -348,7 +427,9 @@
                     [!] Hazard Acknowledgment
                 </p>
                 <p class="hazard-text">
-                    By proceeding, you accept you have read the <strong><a href="./readme.html">HANDBOOK</a></strong> all liability for temporal displacement, somatic phantom-pain, and permanent structural cognitive drift. Async Research Institute is not responsible for entities encountered beyond the threshold.
+                    By proceeding, you accept you have read the <strong><a href="./readme.html">HANDBOOK</a></strong>
+                    all liability for temporal displacement, somatic phantom-pain, and permanent structural cognitive
+                    drift. Async Research Institute is not responsible for entities encountered beyond the threshold.
                 </p>
             </div>
         </article>
@@ -367,7 +448,8 @@
 </main>
 
 <footer class="page-footer">
-    &copy; 1997 EDMARK RESEARCH LABS | ALL RIGHTS RESERVED | <strong><a href="https://github.com/aedmark/level0engine">CAREER OPPORTUNITIES</a></strong>
+    &copy; 1997 EDMARK RESEARCH LABS | ALL RIGHTS RESERVED | <strong><a href="https://github.com/aedmark/level0engine">CAREER
+    OPPORTUNITIES</a></strong>
 </footer>
 
 </body>

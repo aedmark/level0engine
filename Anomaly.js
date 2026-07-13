@@ -93,7 +93,7 @@ export default class Anomaly {
         }
 
         this._animate(time, delta);
-        const speed = this._updateSenses(playerPos, distToPlayerSq, delta);
+        const speed = this._updateSenses(playerPos, distToPlayerSq, delta, time);
         this._resolveLocomotion(speed, delta, time);
 
         let pressure = 0;
@@ -123,7 +123,7 @@ export default class Anomaly {
         });
     }
 
-    _updateSenses(playerPos, distToPlayerSq, delta) {
+    _updateSenses(playerPos, distToPlayerSq, delta, time) {
         this.breadcrumbTimer = (this.breadcrumbTimer || 0) + delta;
         if (this.breadcrumbTimer > 0.5 && this.backtrackTimer <= 0) {
             this.breadcrumbTimer = 0;
@@ -139,28 +139,34 @@ export default class Anomaly {
 
         const perceptionThresholdSq = Math.max(9.0, detectionRadius * detectionRadius);
 
-        let hasLOS = false;
-        if (distToPlayerSq < Math.max(perceptionThresholdSq, 625.0)) {
-            const toPlayerDir = this._toPlayer.subVectors(playerPos, this.group.position).normalize();
-            this._sightRaycaster.set(this.group.position, toPlayerDir);
+        if (this._lastLOSTime === undefined) this._lastLOSTime = 0;
+        let hasLOS = this._lastLOSResult || false;
 
-            let isOccluded = false;
-            const searchDist = Math.sqrt(distToPlayerSq);
-            if (this.env && this.env.spatialGrid) {
-                const localBoxes = this.env.spatialGrid.getNearby(this.group.position.x, this.group.position.z, searchDist);
-                for (let i = 0; i < localBoxes.length; i++) {
-                    const box = localBoxes[i];
-                    if (box.isEntityBlocker && !box.isInvisibleBlocker) {
-                        if (this._sightRaycaster.ray.intersectBox(box, this._rayTarget)) {
-                            if (this.group.position.distanceToSquared(this._rayTarget) < distToPlayerSq) {
-                                isOccluded = true;
-                                break;
+        if (distToPlayerSq < Math.max(perceptionThresholdSq, 625.0)) {
+            if (time - this._lastLOSTime > 0.1) {
+                const toPlayerDir = this._toPlayer.subVectors(playerPos, this.group.position).normalize();
+                this._sightRaycaster.set(this.group.position, toPlayerDir);
+
+                let isOccluded = false;
+                const searchDist = Math.sqrt(distToPlayerSq);
+                if (this.env && this.env.spatialGrid) {
+                    const localBoxes = this.env.spatialGrid.getNearby(this.group.position.x, this.group.position.z, searchDist);
+                    for (let i = 0; i < localBoxes.length; i++) {
+                        const box = localBoxes[i];
+                        if (box.isEntityBlocker && !box.isInvisibleBlocker) {
+                            if (this._sightRaycaster.ray.intersectBox(box, this._rayTarget)) {
+                                if (this.group.position.distanceToSquared(this._rayTarget) < distToPlayerSq) {
+                                    isOccluded = true;
+                                    break;
+                                }
                             }
                         }
                     }
                 }
+                hasLOS = !isOccluded;
+                this._lastLOSResult = hasLOS;
+                this._lastLOSTime = time;
             }
-            hasLOS = !isOccluded;
         }
 
         if (this.backtrackTimer > 0) {

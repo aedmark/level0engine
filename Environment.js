@@ -5,6 +5,7 @@ import ProceduralTextureFactory from './ProceduralTextureFactory.js';
 import Anomaly from './Anomaly.js';
 import SpatialHashGrid from './SpatialHashGrid.js';
 import TheArchitect from './TheArchitect.js';
+import LumenGrid from './LumenGrid.js';
 
 export default class Environment {
     constructor(engine, player) {
@@ -13,11 +14,8 @@ export default class Environment {
         this.camera = engine.camera;
         this.player = player;
         this.walls = [];
-        this.lightPool = [];
         this.fixtureData = [];
         this.isMobile = /Mobi|Android/i.test(navigator.userAgent);
-        this.maxActiveLights = this.isMobile ? 12 : 40;
-        this.maxShadowLights = this.isMobile ? 2 : 10;
         this.spatialGrid = new SpatialHashGrid(4);
         this.wallBoxes = [];
         this.chunkSize = 16;
@@ -141,24 +139,19 @@ export default class Environment {
                 door.userData.currentRot += rotDiff * door.userData.swingSpeed * delta;
                 door.rotation.y = door.userData.currentRot;
 
-                door.updateMatrixWorld();
-
-                if (door.userData.box) {
-                    if (isOpen) {
-                        if (!door.userData.box.isEmpty()) door.userData.box.makeEmpty();
-                    } else {
-                        if (!door.userData.baseBox) {
-                            door.geometry.computeBoundingBox();
-                            door.userData.baseBox = door.geometry.boundingBox.clone();
-                        }
-                        door.userData.box.copy(door.userData.baseBox).applyMatrix4(door.matrixWorld);
-                    }
+                if (door.userData.box && isOpen) {
+                    if (!door.userData.box.isEmpty()) door.userData.box.makeEmpty();
                 }
             } else if (door.userData.currentRot !== targetRot) {
                 door.userData.currentRot = targetRot;
                 door.rotation.y = targetRot;
+
                 if (!isOpen && door.userData.box) {
-                    door.updateMatrixWorld();
+                    door.updateMatrixWorld(true);
+                    if (!door.userData.baseBox) {
+                        door.geometry.computeBoundingBox();
+                        door.userData.baseBox = door.geometry.boundingBox.clone();
+                    }
                     door.userData.box.copy(door.userData.baseBox).applyMatrix4(door.matrixWorld);
                 }
             }
@@ -279,21 +272,7 @@ export default class Environment {
         this.exhaustCloud = new THREE.Points(exhaustGeo, this.exhaustMat);
         this.scene.add(this.exhaustCloud);
 
-        for (let i = 0; i < this.maxActiveLights; i++) {
-            const radius = i < this.maxShadowLights ? 20 : 30;
-            const light = new THREE.PointLight(0xffebd6, 0, radius, 2.0);
-            if (i < this.maxShadowLights) {
-                light.castShadow = true;
-                light.shadow.mapSize.width = 512;
-                light.shadow.mapSize.height = 512;
-                light.shadow.camera.near = 0.5;
-                light.shadow.camera.far = 20;
-                light.shadow.bias = -0.0001;
-                light.shadow.normalBias = 0.05;
-            }
-            this.scene.add(light);
-            this.lightPool.push(light);
-        }
+        this.lumenGrid = new LumenGrid(this.scene, this.isMobile);
 
         this.anomaly = new Anomaly(this.scene, this.camera, this.player, this);
 
@@ -499,15 +478,17 @@ export default class Environment {
                 hit.userData.active = false;
                 document.dispatchEvent(new CustomEvent('somatic-vent', {detail: {distSq: 1.0, intensity: 1.5}}));
             } else if (hit && hit.userData.type === 'battery' && hit.userData.active) {
-                hit.userData.active = false;
-                hit.visible = false;
-                document.dispatchEvent(new CustomEvent('somatic-battery', {detail: {amount: 40.0}}));
-                document.dispatchEvent(new CustomEvent('somatic-item', {detail: {distSq: 1.0, intensity: 0.5}}));
+                if (this.player.inventory.batteries < this.player.MAX_BATTERIES) {
+                    hit.userData.active = false;
+                    hit.visible = false;
+                    document.dispatchEvent(new Event('somatic-pickup-battery'));
+                }
             } else if (hit && hit.userData.type === 'almond' && hit.userData.active) {
-                hit.userData.active = false;
-                hit.visible = false;
-                document.dispatchEvent(new CustomEvent('somatic-almond-water', {detail: {duration: 15.0}}));
-                document.dispatchEvent(new CustomEvent('somatic-item', {detail: {distSq: 1.0, intensity: 0.6}}));
+                if (this.player.inventory.almondWater < this.player.MAX_ALMOND_WATER) {
+                    hit.userData.active = false;
+                    hit.visible = false;
+                    document.dispatchEvent(new Event('somatic-pickup-almond'));
+                }
             }
         });
     }
@@ -893,9 +874,17 @@ export default class Environment {
 
         let chunkStartTime = performance.now();
 
+        const occupied = new Set();
+        ctx.markOccupied = (ox, oz) => occupied.add(`${ox},${oz}`);
+        ctx.isOccupied = (ox, oz) => occupied.has(`${ox},${oz}`);
+
         for (let x = startX; x < startX + this.chunkSize; x++) {
             for (let z = startZ; z < startZ + this.chunkSize; z++) {
                 if (Math.abs(x) < 2 && Math.abs(z) < 2) continue;
+
+                if (ctx.isOccupied(x, z)) continue;
+                ctx.markOccupied(x, z);
+
                 const localX = x - startX;
                 const localZ = z - startZ;
                 if (isMacroStructure) {
@@ -1060,7 +1049,6 @@ export default class Environment {
             maze[rx][rz] = false;
         }
 
-        // Ensure perfect connectivity from the maze core directly to the in/out valves
         const carveDoor = (dir) => {
             if (dir === 0) { maze[7][0]=false; maze[7][1]=false; }
             if (dir === 1) { maze[15][7]=false; maze[14][7]=false; }
@@ -1138,101 +1126,18 @@ export default class Environment {
     }
 
     updateLights(time) {
-        let ambientLightLevel = 0;
-        let darknessPressure = 0;
         const cameraPos = this.camera.position;
         if (!this.audioRaycaster) {
             this.audioRaycaster = new THREE.Raycaster();
             this.audioDirection = new THREE.Vector3();
         }
-        if (!this._activeFixtures) this._activeFixtures = new Array(this.maxActiveLights).fill(null);
-        this._activeFixtures.fill(null);
 
-        for (let i = 0, len = this.fixtureData.length; i < len; i++) {
-            const fixture = this.fixtureData[i];
-            const dx = cameraPos.x - fixture.position.x;
-            const dz = cameraPos.z - fixture.position.z;
-
-            if (dx > 30.0 || dx < -30.0 || dz > 30.0 || dz < -30.0) {
-                fixture.hasShadow = false;
-                continue;
-            }
-
-            const distSq = (dx * dx) + (dz * dz);
-            if (distSq < 900.0) {
-                const weight = 1.0 - (distSq * 0.00111);
-                if (!fixture.isDead) {
-                    ambientLightLevel += weight;
-                } else {
-                    darknessPressure += weight;
-                }
-
-                if (!fixture.isFake) {
-                    fixture.distSq = distSq;
-
-                    fixture._biasedDistSq = fixture.hasShadow ? distSq - 40.0 : distSq;
-
-                    let insertPos = -1;
-                    for (let j = 0; j < this.maxActiveLights; j++) {
-                        if (!this._activeFixtures[j] || fixture._biasedDistSq < this._activeFixtures[j]._biasedDistSq) {
-                            insertPos = j;
-                            break;
-                        }
-                    }
-
-                    if (insertPos !== -1) {
-                        for (let j = this.maxActiveLights - 1; j > insertPos; j--) {
-                            this._activeFixtures[j] = this._activeFixtures[j - 1];
-                        }
-                        this._activeFixtures[insertPos] = fixture;
-                    }
-                }
-            } else {
-                fixture.hasShadow = false;
-            }
-        }
+        const lumenData = this.lumenGrid.update(cameraPos, this.fixtureData, time);
+        const darknessPressure = lumenData.darknessPressure;
+        const nearestFixture = lumenData.nearestFixture;
+        const minLightDistSq = lumenData.minLightDistSq;
 
         this.player.darknessPressure = darknessPressure;
-        let nearestFixture = null;
-        let minLightDistSq = Infinity;
-
-        for (let i = 0; i < this.maxActiveLights; i++) {
-            const light = this.lightPool[i];
-            const fixture = this._activeFixtures[i];
-
-            if (fixture) {
-                const isShadowCaster = i < this.maxShadowLights;
-                fixture.hasShadow = isShadowCaster;
-
-                if (fixture.distSq < minLightDistSq) {
-                    minLightDistSq = fixture.distSq;
-                    nearestFixture = fixture;
-                }
-
-                light.position.copy(fixture.position);
-                const dist = Math.sqrt(fixture.distSq);
-                const activeRadius = isShadowCaster ? 20 : 30;
-                const fadeEnvelope = Math.max(0, Math.min(1, (activeRadius - dist) / 8.0));
-                const intensityScalar = isShadowCaster ? 0.65 : 0.35;
-
-                if (fixture.isDead) {
-                    light.intensity = 0.0;
-                    if (fixture.material) fixture.material.emissiveIntensity = 0.0;
-                } else if (fixture.isFaulty) {
-                    if (Math.random() < 0.02) {
-                        fixture.targetIntensity = Math.random() < 0.4 ? 0.05 : fixture.baseIntensity + (Math.random() * 0.4);
-                    }
-                    fixture.currentIntensity += (fixture.targetIntensity - fixture.currentIntensity) * 0.4;
-                    light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
-                    if (fixture.material) fixture.material.emissiveIntensity = Math.max(0.05, fixture.currentIntensity * 0.6);
-                } else {
-                    light.intensity = (fixture.baseIntensity + (Math.sin(time * 120 + fixture.flickerOffset) * 0.02)) * fadeEnvelope * intensityScalar;
-                    if (fixture.material) fixture.material.emissiveIntensity = 0.4;
-                }
-            } else {
-                light.intensity = 0;
-            }
-        }
 
         const minLightDist = nearestFixture ? Math.sqrt(minLightDistSq) : Infinity;
         if (nearestFixture && minLightDist > 1.0) {
@@ -1269,6 +1174,9 @@ export default class Environment {
             pSeed = (pSeed * 1664525 + 1013904223) >>> 0;
             return pSeed / 4294967296.0;
         };
+
+        const dummyOasisRoll = pRandom();
+
         const isMacroLoc = pRandom() > 0.70 && (Math.abs(pChunkX) > 0 || Math.abs(pChunkZ) > 0);
         const sectorRoll = pRandom();
         let activeSector = "NORMAL";
