@@ -1,5 +1,35 @@
 # Level 0 Engine Changelog
 
+### [v0.3.9] - 2026-07-12
+*The "Sector Stabilization" Update*
+
+#### Added
+- **[MECHANICS] The Toll of Hiding:** Crouching now vastly accelerates stamina recovery, but introduces a severe risk/reward loop: hiding in the dark rapidly spikes the player's paranoia.
+- **[MECHANICS] Sector Stabilization Phase:** Introduced a macro-objective loop. Players must explore the labyrinth to locate and engage three highly rare Dimensional Switches to restore power and reveal the exit.
+- **[MECHANICS] Diegetic Proximity Radar:** Weaponized the UI to serve as a triangulation tool for objectives. Displays distance to the nearest target, but scrambles (`ERR!_m`) under intense Anomaly electromagnetic pressure.
+- **[ARCHITECTURE] The Exit Threshold:** A heavily fortified extraction bunker that only manifests in the generation matrix after all sector breakers are thrown, triggering a massive somatic thud and facilitating level descent.
+- **[ARCHITECTURE] Safe Rooms (The Outpost):** Introduced a 1% chance for a fully enclosed, anomaly-shielded refuge featuring clean tile, a cot, guaranteed Almond Water, and an `isEntityBlocker` barrier that permits player entry while barring the entity.
+- **[ARCHITECTURE] The Furniture Anomaly:** Added a rare procedural chunk featuring a chaotic, physics-defying mountain of chairs and tables hiding a battery.
+- **[ARCHITECTURE] L-Shaped Vents:** Procedurally generated floor-level vents now have a 60% chance to construct complex 1x1 corner crawlspaces, properly connecting adjacent faces of a wall block instead of dead-ending.
+
+#### Changed
+- **[MECHANICS] Tactical Flashlight:** The flashlight is now a reliable, unyielding weapon. Removed Anomaly-induced flickering and completely decoupled the player's paranoia metric from battery drain.
+- **[MECHANICS] Somatic Doors:** Decoupled doors from proximity sensors. They now require direct, intentional somatic interaction and dynamically restrict their swing arc to ~81.8 degrees to prevent clipping into the door jamb. Auto-close springs engage if the player retreats further than 10 meters.
+- **[ARCHITECTURE] Blueprint Density Rebalance:** Slashed featureless wall generation thresholds from 30% to 10% to double the spawn rate of complex structural tunnels, choke points, and interactive Artisan doors.
+- **[ARCHITECTURE] Euclidean Quarantine:** Dimensional Switches (now centralized metal monoliths) are limited to a razor-thin 0.5% spawn probability and are governed by a global spatial array enforcing a strict 150-meter isolation radius to prevent clustering.
+
+#### Optimized
+- **[PERFORMANCE] Spatial Hashing:** Ripped out standard `Set` objects in the spatial grid and replaced them with cache-friendly contiguous Arrays utilizing O(1) swap-and-pop removal, drastically accelerating collision lookups.
+- **[PERFORMANCE] Spatial Bounds Fast-Fail:** Injected a fast vertical bounds check in the player collision loop to bypass expensive `intersectsBox` logic for overhead and underfoot geometry.
+- **[PERFORMANCE] Adaptive Lumen Culling:** Adjusted the lighting subsystem to dynamically scale its processing horizon based on device capability, aggressively culling distant lights on constrained hardware.
+
+#### Fixed
+- **[WEBGL] Door UV Mapping:** Re-engineered the procedural door material into a Multi-Material Array, providing pristine wood edges and mirroring the back face to prevent doorknob texture inversion and edge-stretching ghost artifacts.
+- **[WEBGL] Macro-Sector UV Stretching:** Re-routed the `THE MAINTENANCE SHAFTS` foundation material from the mapped 1x1 vent texture to the pre-tiled (64x32 repeat) server floor texture to eliminate catastrophic visual stretching.
+- **[WEBGL] Paranoia Tearing Shader:** Hooked the paranoia metric directly into the chromatic aberration shader, causing the player's vision to physically tear during high panic states.
+- **[UI] Render Area Anchoring:** Relocated the objective HUD from the global document body directly into the physical `#screen-wrapper` so it scales and bounds dynamically with the CRT viewport.
+- **[SYSTEM] Event Router Unified:** Excised broken, cascading interaction loops and successfully unified the `somatic-interact` event router to cleanly handle original blackouts, objective triggers, and spatial interactions without syntax faults.
+
 ### [v0.3.8] - 2026-07-12
 
 #### Added

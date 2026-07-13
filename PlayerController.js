@@ -25,8 +25,10 @@ export default class PlayerController {
 
         this.objectives = { fixed: 0, total: 3, escaped: false };
         this.objectiveUI = document.createElement('div');
-        this.objectiveUI.style.cssText = 'position: absolute; top: 30px; left: 30px; color: #ccaa88; font-family: monospace; font-size: 16px; text-shadow: 0 0 4px #000; z-index: 100; pointer-events: none; text-transform: uppercase; letter-spacing: 2px; line-height: 1.5;';
-        document.body.appendChild(this.objectiveUI);
+        // [SLASH PATCH] Relocated HUD UI into the physical render wrapper so it scales and bounds dynamically with the CRT viewport.
+        this.objectiveUI.style.cssText = 'position: absolute; top: 85%; right: 5%; text-align: right; color: #222222; font-family: "Courier New", monospace; font-size: max(1.5vh, 12px); text-shadow: 0 0 4px #000; z-index: 100; pointer-events: none; text-transform: uppercase; letter-spacing: 2px; line-height: 1.5;';
+        const renderArea = document.getElementById('screen-wrapper') || document.body;
+        renderArea.appendChild(this.objectiveUI);
 
         // [SLASH PATCH] Upgraded HUD to support continuous proximity scanning.
         this.updateObjectives = (signalText = 'SCANNING...') => {

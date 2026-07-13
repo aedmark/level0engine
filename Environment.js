@@ -1291,23 +1291,28 @@ export default class Environment {
 
         const anomalyPressure = this.player.anomalyPressure || 0;
 
+        // [SLASH PATCH] Continuous spatial proximity scan for objectives.
         if (this.interactables && this.player && this.player.updateObjectives) {
             let nearestDist = Infinity;
-            const targetType = this.player.objectives.fixed >= this.player.objectives.total ? 'exit' : 'exit_switch';
+            const isExitPhase = this.player.objectives.fixed >= this.player.objectives.total;
+            const targetType = isExitPhase ? 'exit' : 'exit_switch';
 
             for (let i = 0; i < this.interactables.length; i++) {
                 const item = this.interactables[i];
-                if (item.userData.type === targetType && item.userData.active) {
+                // Switches are active=false until flipped. The exit elevator is active=true. We must scan for valid states.
+                const isValidTarget = isExitPhase ? item.userData.active === true : item.userData.active === false;
+
+                if (item.userData.type === targetType && isValidTarget) {
                     const dist = cameraPos.distanceTo(item.position);
                     if (dist < nearestDist) nearestDist = dist;
                 }
             }
 
-            let signalText = nearestDist < Infinity ? `${nearestDist.toFixed(1)}m` : 'WEAK - RELOCATE';
+            let signalText = nearestDist < 1000 ? `${nearestDist.toFixed(1)}m` : 'WEAK - RELOCATE';
 
             // Thematic scrambling: Anomaly proximity disrupts the radar's reading
-            if (anomalyPressure > 0.2 && nearestDist < Infinity) {
-                signalText = Math.random() > (1.0 - anomalyPressure) ? 'ERR!_m' : signalText;
+            if (anomalyPressure > 0.05 && nearestDist < 1000) {
+                signalText = Math.random() < (anomalyPressure * 1.5) ? 'ERR!_m' : signalText;
             }
 
             this.player.updateObjectives(signalText);
