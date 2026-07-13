@@ -387,7 +387,7 @@
 
             <section>
                 <p class="intro-text mb-4">
-                    A minimal-dependency, mathematically pure, procedural 3D environment generator running entirely natively in the browser via ES6 modules.
+                    A minimal-dependency, mathematically pure, procedural 3D environment generator running natively in a browser via ES6 modules.
                 </p>
                 <p class="mb-4">
                     There are no external image assets. There are no imported audio files. There are no build tools, package managers, or framework abstractions. Everything you see and hear is generated locally via raw physics, procedural mathematics, and the Web Audio API.
@@ -396,26 +396,26 @@
 
             <section>
                 <h2 class="section-title">> Core Philosophy</h2>
-                <p class="mb-4" style="color: var(--liminal-500)">This engine is built on absolute architectural minimalism and thermodynamic efficiency.</p>
+                <p class="mb-4" style="color: var(--liminal-500)">This engine is built on absolute architectural minimalism and efficiency:</p>
 
                 <div class="info-block">
-                    <p><strong class="highlight-text">Procedural Geometry & The Sector Matrix:</strong> The maze is generated via a Julia Set fractal algorithm. It is infinite, chaotic, and deterministic. The engine utilizes Geodesic Chunking to maintain a strict memory budget, routing the generation through a <strong class="highlight-text">Sector Matrix</strong> to procedurally spawn distinct "Villages" (The Boardroom, The Archive, The Server Farm, The Overgrown Atrium, The Poolrooms, etc.), each with unique materials, density, and atmospheric physics.</p>
+                    <p><strong class="highlight-text">Procedural Geometry & The Sector Matrix:</strong> The maze is generated via a Julia Set fractal algorithm. It is infinite, chaotic, and deterministic. The engine utilizes Geodesic Chunking to maintain a strict memory budget, routing the generation through a <strong class="highlight-text">Sector Matrix</strong> to procedurally spawn distinct "Zones" (The Boardroom, The Archive, The Server Farm, The Overgrown Atrium, The Poolrooms, etc.), each with unique materials, density, and atmospheric physics.</p>
 
-                    <p><strong class="highlight-text">Geodesic Physics & Lighting:</strong> Collision detection relies on a highly optimized O(1) <code>SpatialHashGrid</code>. Dynamic lighting is managed by a Virtual Light Pool that teleports a fixed set of hardware shadow-casters using Spatial Hysteresis and continuous Fade Envelopes to eliminate visual popping.</p>
+                    <p><strong class="highlight-text">Physics & Lighting:</strong> Collision detection relies on a highly optimized O(1) <code>SpatialHashGrid</code>. Dynamic lighting is managed by a 'Lumen Grid' that teleports a fixed set of hardware shadow-casters and continuous 'Fade Envelopes' to eliminate visual popping.</p>
 
-                    <p><strong class="highlight-text">Procedural Textures:</strong> The Obsidian Void PBR skin, overgrown moss, structural concrete, interactive wood doors, and server racks are drawn pixel-by-pixel using the HTML5 Canvas API and injected directly into WebGL memory.</p>
+                    <p><strong class="highlight-text">Procedural Textures:</strong> Every single texture is drawn pixel-by-pixel using the HTML5 Canvas API and injected directly into WebGL memory.</p>
 
-                    <p><strong class="highlight-text">Procedural Audio & Acoustic Routing:</strong> The ambient soundscape is not an MP3. It is a live digital signal processor (DSP). The engine uses a Unified Thermodynamic Read to shift the acoustics natively based on your spatial sector—from the sterile hiss of corporate HVACs to 35Hz sub-bass server growls. The engine also casts volumetric audio raycasts to physically muffle sounds when occluded by walls. This is paired with <strong class="highlight-text">Surface-Aware Foley</strong>, dynamically shifting the acoustic profile of your footsteps based on the spatial sector (wet splashes in the Poolrooms, metallic clinks in Maintenance).</p>
+                    <p><strong class="highlight-text">Procedural Audio & Acoustic Routing:</strong> The ambient soundscape is powered by a live, made-from-scratch digital signal processor (DSP). The engine shifts the acoustics natively based on spatial logic from the sterile hiss of corporate HVACs to 35Hz sub-bass server growls. The engine also casts volumetric audio raycasts to physically muffle sounds when occluded by walls. This is paired with <strong class="highlight-text">Surface-Aware Foley</strong>, dynamically shifting the acoustic profile of your footsteps based on the zone.</p>
 
-                    <p><strong class="highlight-text">Adrenaline Economy & The Lethargy Curve:</strong> The player has a biological carrying capacity governed by an <strong class="highlight-text">Adrenaline Economy</strong>. Sprinting during casual exploration is efficient, but active pursuit by the Anomaly spikes adrenaline, burning oxygen twice as fast. Reaching terminal exhaustion physically crushes the audio filter, blurs the WebGL pipeline, and triggers a <strong class="highlight-text">Lethargy Curve</strong>—seamlessly decaying your velocity into a heavy, dragging stumble. This heavy breathing dynamically expands the Anomaly's auditory perception radius, and its pursuit speed is inversely coupled to your exhaustion: it literally feeds on panic.</p>
+                    <p><strong class="highlight-text">Adrenaline & Lethargy Curves:</strong> Sprinting during casual exploration is efficient, but active pursuit by the Anomaly spikes adrenaline, burning oxygen twice as fast. Reaching terminal exhaustion physically crushes the audio filter, blurs the WebGL pipeline, and triggers a seamless decay of your velocity into a heavy, dragging stumble. This heavy breathing dynamically expands the Anomaly's auditory perception radius, and its pursuit speed is inversely coupled to your exhaustion: it literally feeds on panic. Furthermore, the body rejects preemptive healing; drinking Almond Water while above 70% capacity locks stamina recovery until the player reaches absolute exhaustion.</p>
 
-                    <p><strong class="highlight-text">The Quantum Observer Effect & Decoys:</strong> The Anomaly actively hunts via line-of-sight and utilizes short-term spatial memory. It is also attracted to dropped UV tags, allowing for intentional misdirection. Catching the entity within a 30-degree cone of your flashlight mathematically freezes it in place, but holding this quantum lock violently hemorrhages your battery voltage and triggers somatic camera jolts. The environment is systemic: the Anomaly does not ghost through walls; it violently slams doors off their hinges during pursuit. If it catches you, the engine executes a void blackout, mutates your seed string, and procedurally rebuilds a new reality.</p>
+                    <p><strong class="highlight-text">The Psychological Threshold:</strong> The flashlight acts as a psychological shield, throttling the accumulation of paranoia but never reversing it. Hallucinations are strictly gated; visual FOV distortion, phantom auditory footsteps, and entity proximity hallucinations remain completely dormant until the player's psyche fractures past the 50% threshold.</p>
 
-                    <p><strong class="highlight-text">Illumination & Systemic Cascades:</strong> Traversal requires managing a heavy, incandescent flashlight operating on a true piezoelectric circuit—you must generate physical kinetic energy by sprinting in the dark or violently shaking your camera to crank out voltage. Players can find and interact with articulated <strong class="highlight-text">Surge Breakers</strong> in the environment. Pulling a breaker triggers a catastrophic localized illumination cascade, shattering the bulbs and plunging the sector's atmospheric fog into a true, pitch-black void before executing a flickering reboot sequence.</p>
+                    <p><strong class="highlight-text">The Quantum Observer Effect & Decoys:</strong> The Anomaly actively hunts via line-of-sight and utilizes short-term spatial memory. It is also attracted to dropped UV tags, allowing for intentional misdirection. Catching the entity within a 30-degree cone of your flashlight mathematically freezes it in place. This angers it. And if it catches you, the engine executes a void blackout, mutates your seed string, and procedurally rebuilds a new reality.</p>
+
+                    <p><strong class="highlight-text">Illumination & Systemic Cascades:</strong> Traversal requires managing a heavy, incandescent flashlight that recharges from kinetic energy by sprinting in the dark or violently shaking your camera to crank out voltage. Players can find and interact with articulated <strong class="highlight-text">Surge Breakers</strong> in the environment. Pulling a breaker triggers a catastrophic localized illumination cascade, shattering the bulbs and plunging the sector's atmospheric fog into a true, pitch-black void before executing a flickering reboot sequence.</p>
 
                     <p><strong class="highlight-text">Native Post-Processing:</strong> The engine features a custom <code>WebGLRenderTarget</code> pipeline, applying dynamic Chromatic Aberration, crawling static, CRT scanlines, claustrophobic vignettes, and somatic retinal blurring. The optical feed is directly tethered to the Anomaly's proximity pressure, violently degrading into horizontal V-Hold tearing and desaturated static as the entity enters striking distance.</p>
-
-                    <p><strong class="highlight-text">Progressive Web App (PWA):</strong> Built with a Thermodynamic Cache Service Worker and web manifest, the engine can be installed directly to your OS and runs entirely offline.</p>
                 </div>
             </section>
 
@@ -437,6 +437,8 @@
                             <li><code>F</code> : Toggle Flashlight (Consumes battery, expands detection radius)</li>
                             <li><code>E</code> : Somatic Interact (Crack open Surge Breakers, consume items)</li>
                             <li><code>T</code> : Spray UV Decoy Breadcrumb (Mark your path and distract the Anomaly)</li>
+                            <li><code>1</code> : Use Battery</li>
+                            <li><code>2</code> : Use Almond Water</li>
                             <li><code>ESC</code> : Release Pointer Lock/rest</li>
                         </ul>
                     </li>
@@ -454,19 +456,27 @@
             <section>
                 <h2 class="section-title">> The Environment</h2>
                 <div class="info-block">
-                    <p><strong class="highlight-text">The Surge Breakers:</strong> Interactive, articulated breaker boxes. Press 'E' to crack the panel open and trigger a chunk-wide blackout cascade. Breakers are distributed organically with a 16-unit spatial exclusion zone and a maximum of 3 per chunk. Blackouts automatically resolve and restore lighting via an autonomic 25-35 second timer to preserve dynamic equilibrium.</p>
+                    <p><strong class="highlight-text">Sector Stabilization & Diegetic Radar:</strong> Players must explore the labyrinth to locate and engage three highly rare Dimensional Switches to restore power and reveal the exit. The UI serves as a triangulation tool for these objectives, displaying distance to the nearest target, but scrambles (<code>ERR!_m</code>) under intense Anomaly electromagnetic pressure.</p>
 
-                    <p><strong class="highlight-text">Scavenged Resources:</strong> The grid maintains a strict thermodynamic inflow of resources. Procedural battery cylinders restore 40% flashlight voltage, capped at 2 per chunk. Almond Water canisters grant 15 seconds of infinite stamina to aggressively outrun entities, capped at 1 per chunk.</p>
+                    <p><strong class="highlight-text">The Exit Threshold:</strong> A heavily fortified extraction bunker that only manifests in the generation matrix after all sector breakers are thrown, triggering a massive somatic thud and facilitating level descent.</p>
+
+                    <p><strong class="highlight-text">Safe Rooms (The Outpost):</strong> A rare chance for a fully enclosed, anomaly-shielded refuge featuring clean tile, a cot, guaranteed Almond Water, and an <code>isEntityBlocker</code> barrier that permits player entry while barring the entity.</p>
+
+                    <p><strong class="highlight-text">The Surge Breakers:</strong> Interactive, articulated breaker boxes. Press 'E' to crack the panel open and trigger a chunk-wide blackout cascade. Blackouts automatically resolve and restore lighting via an autonomic 25-35 second timer to preserve dynamic equilibrium.</p>
+
+                    <p><strong class="highlight-text">Scavenged Resources:</strong> Procedural battery cylinders restore 40% flashlight voltage, capped at 2 per chunk. Almond Water canisters grant 15 seconds of infinite stamina to aggressively outrun entities.</p>
 
                     <p><strong class="highlight-text">The Liminal Breach (Fast Travel):</strong> Dead-end staircases have a 15% chance to spawn as open breaches. Walking up them uncaps the Y-axis constraints, allowing you to mathematically phase through the ceiling and warp thousands of units across the grid without mutating the quantum seed.</p>
 
-                    <p><strong class="highlight-text">Ultraviolet Breadcrumbs:</strong> Press 'T' to spray a glowing, high-visibility UV paint decal on walls (via surface-normal raycasting) to map the labyrinth and prevent circling.</p>
+                    <p><strong class="highlight-text">Ultraviolet Breadcrumbs:</strong> Spray a glowing, high-visibility UV paint decal on walls (via surface-normal raycasting) to map the labyrinth and prevent circling.</p>
 
                     <p><strong class="highlight-text">Somatic Collisions:</strong> High-speed kinematic impacts against structural geometry violently jolt the camera, bleed momentum, and trigger acoustic foley events. Kinematic vectors are decoupled, allowing you to seamlessly graze and slide along walls without losing perpendicular momentum.</p>
 
                     <p><strong class="highlight-text">Interactive Doors:</strong> Approach a wood-grain door to trigger a kinematic latch, swinging it open precisely 90 degrees away from your approach vector.</p>
 
                     <p><strong class="highlight-text">Claustrophobic Bottlenecks:</strong> Corporate partitions have been excised in favor of absolute liminal emptiness and brutalist friction. The labyrinth dynamically generates blind L-shaped doglegs and tight 0.3-unit gaps. You must physically compress your body ('Q') to slide through them, restricting traversal speed.</p>
+
+                    <p><strong class="highlight-text">Claustrophobic Particulates:</strong> The volumetric dust cloud dynamically spikes in opacity and particle size when the player physically crawls through vents, simulating a choking atmosphere.</p>
                 </div>
             </section>
 
