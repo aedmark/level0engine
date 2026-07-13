@@ -100,9 +100,13 @@ export default class Environment {
 
             if (pDistSq > 400.0 && !door.userData.isLatched && !door.userData.entityOpen) return;
 
-            const playerOpen = pDistSq < 12.25;
+            const playerOpen = door.userData.playerOpen === true;
             const entityOpen = door.userData.entityOpen === true;
             door.userData.entityOpen = false;
+
+            if (playerOpen && pDistSq > 100.0) {
+                door.userData.playerOpen = false;
+            }
 
             const isOpen = playerOpen || entityOpen;
             let targetRot = door.userData.closedRot;
@@ -111,13 +115,15 @@ export default class Environment {
                     const triggerPos = (entityOpen && !playerOpen) ? this.anomaly.group.position : playerPos;
                     const isZDoor = Math.abs(door.userData.closedRot) < 0.1 || Math.abs(door.userData.closedRot - Math.PI) < 0.1;
 
+                    const swingAngle = Math.PI / 2.2;
                     let desiredRot = door.userData.closedRot;
+
                     if (isZDoor) {
                         const approachZ = triggerPos.z - door.position.z;
-                        desiredRot = approachZ < 0 ? (door.userData.closedRot + Math.PI / 2) : (door.userData.closedRot - Math.PI / 2);
+                        desiredRot = approachZ < 0 ? (door.userData.closedRot + swingAngle) : (door.userData.closedRot - swingAngle);
                     } else {
                         const approachX = triggerPos.x - door.position.x;
-                        desiredRot = approachX < 0 ? (door.userData.closedRot - Math.PI / 2) : (door.userData.closedRot + Math.PI / 2);
+                        desiredRot = approachX < 0 ? (door.userData.closedRot - swingAngle) : (door.userData.closedRot + swingAngle);
                     }
 
                     door.userData.latchedRot = desiredRot;
@@ -380,10 +386,10 @@ export default class Environment {
             }
         });
         document.addEventListener('somatic-interact', (e) => {
-            if (!this.interactables) return;
             let hit = null;
             let closestDist = 3.0;
-            this.interactables.forEach(obj => {
+
+            const checkObj = (obj) => {
                 const dist = obj.position.distanceTo(e.detail.position);
                 if (dist < closestDist) {
                     const dirToObj = new THREE.Vector3().subVectors(obj.position, e.detail.position).normalize();
@@ -392,7 +398,17 @@ export default class Environment {
                         hit = obj;
                     }
                 }
-            });
+            };
+
+            if (this.interactables) this.interactables.forEach(checkObj);
+            if (this.interactiveDoors) this.interactiveDoors.forEach(checkObj);
+
+            if (hit && hit.userData.closedRot !== undefined) {
+                hit.userData.playerOpen = !hit.userData.playerOpen;
+                document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 1.0, intensity: 0.5}}));
+                return;
+            }
+
             if (hit && hit.userData.type === 'breaker') {
                 if (!hit.userData.active) return;
                 hit.userData.active = false;
@@ -474,6 +490,20 @@ export default class Environment {
                         }
                     });
                 }
+            } else if (hit && hit.userData.type === 'exit_switch') {
+                if (!hit.userData.active) {
+                    hit.userData.active = true;
+
+                    hit.children[0].material = new THREE.MeshBasicMaterial({color: 0x55ff55});
+
+                    this.player.objectives.fixed++;
+                    this.player.updateObjectives();
+
+                    document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 0.1, intensity: 1.5}}));
+                    if (this.engine.ambientLight) {
+                        this.engine.ambientLight.intensity = 2.0;
+                    }
+                }
             } else if (hit && hit.userData.type === 'grate' && hit.userData.active) {
                 hit.userData.active = false;
                 document.dispatchEvent(new CustomEvent('somatic-vent', {detail: {distSq: 1.0, intensity: 1.5}}));
@@ -488,6 +518,29 @@ export default class Environment {
                     hit.userData.active = false;
                     hit.visible = false;
                     document.dispatchEvent(new Event('somatic-pickup-almond'));
+                }
+            } else if (hit && hit.userData.type === 'exit' && hit.userData.active) {
+                hit.userData.active = false;
+                this.player.objectives.escaped = true;
+                this.player.objectiveUI.innerHTML = '> SECTOR BREACHED.<br>> DESCENDING TO DEEPER LAYER...';
+                this.player.objectiveUI.style.color = '#aa55ff';
+
+                document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 0.1, intensity: 3.0}}));
+                if (this.engine.ambientLight) this.engine.ambientLight.intensity = 5.0;
+
+                const flash = document.getElementById('flash-overlay');
+                if (flash) {
+                    flash.style.transition = 'opacity 3.0s ease-in';
+                    flash.style.backgroundColor = '#000';
+                    flash.style.opacity = '1';
+
+                    setTimeout(() => {
+                        this.player.objectives.fixed = 0;
+                        this.player.objectives.escaped = false;
+                        this.player.updateObjectives();
+
+                        this.generate(true);
+                    }, 3500);
                 }
             }
         });
@@ -1238,6 +1291,28 @@ export default class Environment {
 
         const anomalyPressure = this.player.anomalyPressure || 0;
 
+        if (this.interactables && this.player && this.player.updateObjectives) {
+            let nearestDist = Infinity;
+            const targetType = this.player.objectives.fixed >= this.player.objectives.total ? 'exit' : 'exit_switch';
+
+            for (let i = 0; i < this.interactables.length; i++) {
+                const item = this.interactables[i];
+                if (item.userData.type === targetType && item.userData.active) {
+                    const dist = cameraPos.distanceTo(item.position);
+                    if (dist < nearestDist) nearestDist = dist;
+                }
+            }
+
+            let signalText = nearestDist < Infinity ? `${nearestDist.toFixed(1)}m` : 'WEAK - RELOCATE';
+
+            // Thematic scrambling: Anomaly proximity disrupts the radar's reading
+            if (anomalyPressure > 0.2 && nearestDist < Infinity) {
+                signalText = Math.random() > (1.0 - anomalyPressure) ? 'ERR!_m' : signalText;
+            }
+
+            this.player.updateObjectives(signalText);
+        }
+
         if (this.flashlight) {
             let targetIntensity = this.player.flashlightActive ? 1.1 : 0.0;
             if (this.player.flashlightActive) {
@@ -1245,10 +1320,6 @@ export default class Environment {
                 targetIntensity *= (0.1 + 0.9 * batteryFactor);
                 if (this.player.flashlightBattery < 15.0 && Math.random() > 0.8) {
                     targetIntensity *= 0.1;
-                }
-                if (anomalyPressure > 0) {
-                    const flicker = Math.random() > (0.5 - anomalyPressure * 0.4) ? 0.1 : 1.0;
-                    targetIntensity *= flicker * (1.0 - anomalyPressure * 0.7);
                 }
             }
             this.flashlight.intensity += (targetIntensity - this.flashlight.intensity) * 0.4;

@@ -111,7 +111,18 @@ export default class ProceduralTextureFactory {
         doorCtx.fillRect(32, 260, 192, 4); doorCtx.fillRect(32, 260, 4, 220);
         doorCtx.fillStyle = '#8a7e32'; doorCtx.beginPath(); doorCtx.arc(210, 260, 12, 0, Math.PI * 2); doorCtx.fill();
         const doorTexture = new THREE.CanvasTexture(doorCanvas);
-        const doorMat = new THREE.MeshStandardMaterial({ map: doorTexture, roughness: 0.9 });
+
+        const { canvas: doorBackCanvas, ctx: doorBackCtx } = this._createContext(256, 512);
+        doorBackCtx.translate(256, 0);
+        doorBackCtx.scale(-1, 1);
+        doorBackCtx.drawImage(doorCanvas, 0, 0);
+        const doorBackTexture = new THREE.CanvasTexture(doorBackCanvas);
+
+        const doorMatFront = new THREE.MeshStandardMaterial({ map: doorTexture, roughness: 0.9 });
+        const doorMatBack = new THREE.MeshStandardMaterial({ map: doorBackTexture, roughness: 0.9 });
+        const doorMatEdge = new THREE.MeshStandardMaterial({ map: woodTexture, roughness: 0.9 });
+
+        const doorMat = [doorMatEdge, doorMatEdge, doorMatEdge, doorMatEdge, doorMatFront, doorMatBack];
 
         return { headerMat, wallTexture, structMat, woodMat, doorMat };
     }
@@ -374,8 +385,7 @@ export default class ProceduralTextureFactory {
             ...hazardAssets
         };
 
-        // Apply shared hardware optimizations
-        Object.values(assets).forEach(item => {
+        const applyOpt = (item) => {
             if (item && item.isTexture) {
                 item.anisotropy = 16;
                 item.colorSpace = THREE.SRGBColorSpace;
@@ -387,6 +397,14 @@ export default class ProceduralTextureFactory {
             if (item && item.emissiveMap && item.emissiveMap.isTexture) {
                 item.emissiveMap.anisotropy = 16;
                 item.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+            }
+        };
+
+        Object.values(assets).forEach(item => {
+            if (Array.isArray(item)) {
+                item.forEach(applyOpt);
+            } else {
+                applyOpt(item);
             }
         });
 

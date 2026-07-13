@@ -29,8 +29,8 @@ export default class SpatialHashGrid {
         for (let x = startX; x <= endX; x++) {
             for (let z = startZ; z <= endZ; z++) {
                 const key = (x << 16) | (z & 0xFFFF);
-                if (!this.cells.has(key)) this.cells.set(key, new Set());
-                this.cells.get(key).add(box);
+                if (!this.cells.has(key)) this.cells.set(key, []);
+                this.cells.get(key).push(box);
             }
         }
     }
@@ -48,8 +48,12 @@ export default class SpatialHashGrid {
                     const key = (x << 16) | (z & 0xFFFF);
                     const cell = this.cells.get(key);
                     if (cell) {
-                        cell.delete(box);
-                        if (cell.size === 0) this.cells.delete(key);
+                        const idx = cell.indexOf(box);
+                        if (idx !== -1) {
+                            const last = cell.pop();
+                            if (idx < cell.length) cell[idx] = last;
+                        }
+                        if (cell.length === 0) this.cells.delete(key);
                     }
                 }
             }

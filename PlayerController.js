@@ -22,6 +22,32 @@ export default class PlayerController {
         this.maxStamina = 100.0;
         this.stamina = 100.0;
         this.inventory = { batteries: 0, almondWater: 0 };
+
+        this.objectives = { fixed: 0, total: 3, escaped: false };
+        this.objectiveUI = document.createElement('div');
+        this.objectiveUI.style.cssText = 'position: absolute; top: 30px; left: 30px; color: #ccaa88; font-family: monospace; font-size: 16px; text-shadow: 0 0 4px #000; z-index: 100; pointer-events: none; text-transform: uppercase; letter-spacing: 2px; line-height: 1.5;';
+        document.body.appendChild(this.objectiveUI);
+
+        // [SLASH PATCH] Upgraded HUD to support continuous proximity scanning.
+        this.updateObjectives = (signalText = 'SCANNING...') => {
+            if (this.objectives.escaped) return; // Prevent overwriting the extraction sequence text
+
+            let uiHTML = '';
+            if (this.objectives.fixed >= this.objectives.total) {
+                uiHTML = `> SECTOR STABILIZED.<br>> LOCATE EXIT THRESHOLD.<br>> SIGNAL: ${signalText}`;
+                this.objectiveUI.style.color = '#88cc88';
+            } else {
+                uiHTML = `> PRIMARY DIRECTIVE: RESTORE POWER<br>> BREAKERS RESET: [ ${this.objectives.fixed} / ${this.objectives.total} ]<br>> SIGNAL: ${signalText}`;
+                this.objectiveUI.style.color = '#ccaa88';
+            }
+
+            // Only write to DOM if changed to prevent layout thrashing
+            if (this.objectiveUI.innerHTML !== uiHTML) {
+                this.objectiveUI.innerHTML = uiHTML;
+            }
+        };
+        this.updateObjectives();
+
         this.MAX_BATTERIES = 3;
         this.MAX_ALMOND_WATER = 2;
         this.exhaustion = 0.0;
@@ -190,7 +216,13 @@ export default class PlayerController {
             const isResting = !isMoving && this.perceivedDarkness < 0.2 && this.paranoia === 0.0;
 
             const paranoiaPenalty = 1.0 - (this.paranoia * 0.7);
-            const recoveryRate = this.isChased ? 1.0 : (this.isWinded ? 2.0 : (isResting ? 12.0 : 5.0 * paranoiaPenalty));
+
+            let crouchBonus = state.isCrouching ? 2.5 : 1.0;
+            if (state.isCrouching && this.perceivedDarkness > 0.5) {
+                this.paranoia = Math.min(1.0, this.paranoia + (delta * 0.06));
+            }
+
+            const recoveryRate = this.isChased ? 1.0 : (this.isWinded ? 2.0 : (isResting ? 12.0 * crouchBonus : 5.0 * paranoiaPenalty * crouchBonus));
 
             this.stamina = Math.max(0.0, Math.min(this.maxStamina, this.stamina + recoveryRate * delta));
 
@@ -202,8 +234,7 @@ export default class PlayerController {
         const currentActualSpeed = Math.sqrt((this.velocity.x * this.velocity.x) + (this.velocity.z * this.velocity.z));
         if (state.flashlightActive) {
             const panicDrain = (this.stamina <= 0.1 && (this.darknessPressure || 0.0) > 0.4) ? 2.0 : 1.0;
-            const paranoiaDrain = this.paranoia > 0.5 ? (this.paranoia * 1.5) : 0;
-            this.flashlightBattery = Math.max(0, this.flashlightBattery - (panicDrain + paranoiaDrain) * delta);
+            this.flashlightBattery = Math.max(0, this.flashlightBattery - panicDrain * delta);
             if (this.flashlightBattery === 0) {
                 state.flashlightActive = false;
                 const flashBtn = document.getElementById('mobile-flashlight');
@@ -324,6 +355,9 @@ export default class PlayerController {
             const box = localBoxes[i];
 
             if (box.isInvisibleBlocker) continue;
+
+            const isVerticallyRelevant = (box.min.y <= feetY + physicalTop && box.max.y >= feetY - 10.0);
+            if (!isVerticallyRelevant && !box.isVoid) continue;
 
             if (box.isVoid && this._floorBox.intersectsBox(box)) {
                 inVoid = true;

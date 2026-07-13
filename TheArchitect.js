@@ -58,7 +58,7 @@ export default class TheArchitect {
                 }
             },
             {
-                prob: 0.82, build: (x, z) => {
+                prob: 0.78, build: (x, z) => {
                     const pW = 1.2, offset = (this.cellSize / 2) - (pW / 2), gap = this.cellSize - (pW * 2);
                     const p1 = buildWall(pW, this.cellSize, this.sharedWallMat);
                     p1.position.set(x * this.cellSize - offset, 1.5, z * this.cellSize);
@@ -217,61 +217,79 @@ export default class TheArchitect {
                     const isFloorLevel = random() > 0.3;
 
                     if (isFloorLevel) {
-                        const burstLength = Math.floor(random() * 3) + 1;
                         const holeW = 1.2;
                         const holeH = 0.7;
+                        const topH = 3.0 - holeH;
                         const sideW = (this.cellSize - holeW) / 2;
                         const sideOffset = (this.cellSize / 2) - (sideW / 2);
-                        const topH = 3.0 - holeH;
                         const liningH = 0.05;
                         const sideH = holeH - (liningH * 2);
                         const sideOffsetLining = (holeW / 2) - (liningH / 2);
 
-                        for (let i = 0; i < burstLength; i++) {
-                            const segX = x + (tunnelOnZ ? 0 : i);
-                            const segZ = z + (tunnelOnZ ? i : 0);
-                            if (ctx.markOccupied) ctx.markOccupied(segX, segZ);
+                        const isCorner = random() > 0.4;
 
-                            const w1 = tunnelOnZ ? sideW : this.cellSize;
-                            const d1 = tunnelOnZ ? this.cellSize : sideW;
+                        if (isCorner) {
+                            if (ctx.markOccupied) ctx.markOccupied(x, z);
 
-                            const side1 = buildWall(w1, d1, this.sharedWallMat);
-                            side1.position.set(segX * this.cellSize + (tunnelOnZ ? -sideOffset : 0), 1.5, segZ * this.cellSize + (tunnelOnZ ? 0 : -sideOffset));
-                            addGeometry(side1);
+                            const flipX = random() > 0.5 ? 1 : -1;
+                            const flipZ = random() > 0.5 ? 1 : -1;
 
-                            const side2 = buildWall(w1, d1, this.sharedWallMat);
-                            side2.position.set(segX * this.cellSize + (tunnelOnZ ? sideOffset : 0), 1.5, segZ * this.cellSize + (tunnelOnZ ? 0 : sideOffset));
-                            addGeometry(side2);
+                            const outer = buildWall(sideW, sideW, this.sharedWallMat);
+                            outer.position.set(x * this.cellSize - (flipX * (this.cellSize/2 - sideW/2)), 1.5, z * this.cellSize - (flipZ * (this.cellSize/2 - sideW/2)));
+                            addGeometry(outer);
 
-                            const topW = tunnelOnZ ? holeW : this.cellSize;
-                            const topD = tunnelOnZ ? this.cellSize : holeW;
-                            const top = buildWall(topW, topD, this.sharedWallMat, topH, holeH);
-                            top.position.set(segX * this.cellSize, holeH + (topH / 2), segZ * this.cellSize);
-                            addGeometry(top);
+                            const full = buildWall(sideW, this.cellSize, this.sharedWallMat);
+                            full.position.set(x * this.cellSize + (flipX * (this.cellSize/2 - sideW/2)), 1.5, z * this.cellSize);
+                            addGeometry(full);
 
-                            const linW = tunnelOnZ ? holeW : this.cellSize + 0.02;
-                            const linD = tunnelOnZ ? this.cellSize + 0.02 : holeW;
-                            const liningFloor = buildWall(linW, linD, this.ventMat, liningH);
-                            liningFloor.position.set(segX * this.cellSize, liningH / 2, segZ * this.cellSize);
-                            addGeometry(liningFloor);
+                            const innerW = this.cellSize - sideW;
+                            const inner = buildWall(innerW, sideW, this.sharedWallMat);
+                            inner.position.set(x * this.cellSize - (flipX * (this.cellSize/2 - innerW/2)), 1.5, z * this.cellSize + (flipZ * (this.cellSize/2 - sideW/2)));
+                            addGeometry(inner);
 
-                            const liningCeil = buildWall(linW, linD, this.ventMat, liningH);
-                            liningCeil.position.set(segX * this.cellSize, holeH - (liningH / 2), segZ * this.cellSize);
-                            addGeometry(liningCeil);
+                            const roof1 = buildWall(holeW, innerW, this.sharedWallMat, topH, holeH);
+                            roof1.position.set(x * this.cellSize, holeH + topH/2, z * this.cellSize - (flipZ * (this.cellSize/2 - innerW/2)));
+                            addGeometry(roof1);
 
-                            const liningSideW = tunnelOnZ ? liningH : linW;
-                            const liningSideD = tunnelOnZ ? linD : liningH;
-                            const liningLeft = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
-                            liningLeft.position.set(segX * this.cellSize + (tunnelOnZ ? -sideOffsetLining : 0), holeH / 2, segZ * this.cellSize + (tunnelOnZ ? 0 : -sideOffsetLining));
-                            addGeometry(liningLeft);
+                            const roof2 = buildWall(sideW, holeW, this.sharedWallMat, topH, holeH);
+                            roof2.position.set(x * this.cellSize - (flipX * (this.cellSize/2 - sideW/2)), holeH + topH/2, z * this.cellSize);
+                            addGeometry(roof2);
 
-                            const liningRight = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
-                            liningRight.position.set(segX * this.cellSize + (tunnelOnZ ? sideOffsetLining : 0), holeH / 2, segZ * this.cellSize + (tunnelOnZ ? 0 : sideOffsetLining));
-                            addGeometry(liningRight);
+                            const floor1 = buildWall(holeW, innerW, this.ventMat, liningH);
+                            floor1.position.set(x * this.cellSize, liningH/2, z * this.cellSize - (flipZ * (this.cellSize/2 - innerW/2)));
+                            addGeometry(floor1);
+
+                            const floor2 = buildWall(sideW, holeW, this.ventMat, liningH);
+                            floor2.position.set(x * this.cellSize - (flipX * (this.cellSize/2 - sideW/2)), liningH/2, z * this.cellSize);
+                            addGeometry(floor2);
+
+                            const ceil1 = buildWall(holeW, innerW, this.ventMat, liningH);
+                            ceil1.position.set(x * this.cellSize, holeH - liningH/2, z * this.cellSize - (flipZ * (this.cellSize/2 - innerW/2)));
+                            addGeometry(ceil1);
+
+                            const ceil2 = buildWall(sideW, holeW, this.ventMat, liningH);
+                            ceil2.position.set(x * this.cellSize - (flipX * (this.cellSize/2 - sideW/2)), holeH - liningH/2, z * this.cellSize);
+                            addGeometry(ceil2);
+
+                            const lOuterX = buildWall(liningH, sideW, this.ventMat, sideH);
+                            lOuterX.position.set(x * this.cellSize - (flipX * (holeW/2 - liningH/2)), holeH/2, z * this.cellSize - (flipZ * (this.cellSize/2 - sideW/2)));
+                            addGeometry(lOuterX);
+
+                            const lOuterZ = buildWall(sideW, liningH, this.ventMat, sideH);
+                            lOuterZ.position.set(x * this.cellSize - (flipX * (this.cellSize/2 - sideW/2)), holeH/2, z * this.cellSize - (flipZ * (holeW/2 - liningH/2)));
+                            addGeometry(lOuterZ);
+
+                            const lInnerX = buildWall(liningH, innerW, this.ventMat, sideH);
+                            lInnerX.position.set(x * this.cellSize + (flipX * (holeW/2 - liningH/2)), holeH/2, z * this.cellSize - (flipZ * (this.cellSize/2 - innerW/2)));
+                            addGeometry(lInnerX);
+
+                            const lInnerZ = buildWall(innerW, liningH, this.ventMat, sideH);
+                            lInnerZ.position.set(x * this.cellSize - (flipX * (this.cellSize/2 - innerW/2)), holeH/2, z * this.cellSize + (flipZ * (holeW/2 - liningH/2)));
+                            addGeometry(lInnerZ);
 
                             const blockBox = new THREE.Box3(
-                                new THREE.Vector3(segX * this.cellSize - (tunnelOnZ ? holeW/2 : this.cellSize/2), 0, segZ * this.cellSize - (tunnelOnZ ? this.cellSize/2 : holeW/2)),
-                                new THREE.Vector3(segX * this.cellSize + (tunnelOnZ ? holeW/2 : this.cellSize/2), 3.0, segZ * this.cellSize + (tunnelOnZ ? this.cellSize/2 : holeW/2))
+                                new THREE.Vector3(x * this.cellSize - this.cellSize/2, 0, z * this.cellSize - this.cellSize/2),
+                                new THREE.Vector3(x * this.cellSize + this.cellSize/2, 3.0, z * this.cellSize + this.cellSize/2)
                             );
                             blockBox.isEntityBlocker = true;
                             blockBox.isInvisibleBlocker = true;
@@ -279,13 +297,72 @@ export default class TheArchitect {
                             this.spatialGrid.insert(blockBox);
 
                             const grateOffset = (this.cellSize / 2) - 0.025;
-                            if (i === 0) {
-                                if (tunnelOnZ) ctx.addGrate(segX * this.cellSize, 0.35, segZ * this.cellSize - grateOffset, false);
-                                else ctx.addGrate(segX * this.cellSize - grateOffset, 0.35, segZ * this.cellSize, true);
-                            }
-                            if (i === burstLength - 1) {
-                                if (tunnelOnZ) ctx.addGrate(segX * this.cellSize, 0.35, segZ * this.cellSize + grateOffset, false);
-                                else ctx.addGrate(segX * this.cellSize + grateOffset, 0.35, segZ * this.cellSize, true);
+                            ctx.addGrate(x * this.cellSize, 0.35, z * this.cellSize - (flipZ * grateOffset), false);
+                            ctx.addGrate(x * this.cellSize - (flipX * grateOffset), 0.35, z * this.cellSize, true);
+
+                        } else {
+                            const burstLength = Math.floor(random() * 3) + 1;
+
+                            for (let i = 0; i < burstLength; i++) {
+                                const segX = x + (tunnelOnZ ? 0 : i);
+                                const segZ = z + (tunnelOnZ ? i : 0);
+                                if (ctx.markOccupied) ctx.markOccupied(segX, segZ);
+
+                                const w1 = tunnelOnZ ? sideW : this.cellSize;
+                                const d1 = tunnelOnZ ? this.cellSize : sideW;
+
+                                const side1 = buildWall(w1, d1, this.sharedWallMat);
+                                side1.position.set(segX * this.cellSize + (tunnelOnZ ? -sideOffset : 0), 1.5, segZ * this.cellSize + (tunnelOnZ ? 0 : -sideOffset));
+                                addGeometry(side1);
+
+                                const side2 = buildWall(w1, d1, this.sharedWallMat);
+                                side2.position.set(segX * this.cellSize + (tunnelOnZ ? sideOffset : 0), 1.5, segZ * this.cellSize + (tunnelOnZ ? 0 : sideOffset));
+                                addGeometry(side2);
+
+                                const topW = tunnelOnZ ? holeW : this.cellSize;
+                                const topD = tunnelOnZ ? this.cellSize : holeW;
+                                const top = buildWall(topW, topD, this.sharedWallMat, topH, holeH);
+                                top.position.set(segX * this.cellSize, holeH + (topH / 2), segZ * this.cellSize);
+                                addGeometry(top);
+
+                                const linW = tunnelOnZ ? holeW : this.cellSize + 0.02;
+                                const linD = tunnelOnZ ? this.cellSize + 0.02 : holeW;
+                                const liningFloor = buildWall(linW, linD, this.ventMat, liningH);
+                                liningFloor.position.set(segX * this.cellSize, liningH / 2, segZ * this.cellSize);
+                                addGeometry(liningFloor);
+
+                                const liningCeil = buildWall(linW, linD, this.ventMat, liningH);
+                                liningCeil.position.set(segX * this.cellSize, holeH - (liningH / 2), segZ * this.cellSize);
+                                addGeometry(liningCeil);
+
+                                const liningSideW = tunnelOnZ ? liningH : linW;
+                                const liningSideD = tunnelOnZ ? linD : liningH;
+                                const liningLeft = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
+                                liningLeft.position.set(segX * this.cellSize + (tunnelOnZ ? -sideOffsetLining : 0), holeH / 2, segZ * this.cellSize + (tunnelOnZ ? 0 : -sideOffsetLining));
+                                addGeometry(liningLeft);
+
+                                const liningRight = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
+                                liningRight.position.set(segX * this.cellSize + (tunnelOnZ ? sideOffsetLining : 0), holeH / 2, segZ * this.cellSize + (tunnelOnZ ? 0 : sideOffsetLining));
+                                addGeometry(liningRight);
+
+                                const blockBox = new THREE.Box3(
+                                    new THREE.Vector3(segX * this.cellSize - (tunnelOnZ ? holeW/2 : this.cellSize/2), 0, segZ * this.cellSize - (tunnelOnZ ? this.cellSize/2 : holeW/2)),
+                                    new THREE.Vector3(segX * this.cellSize + (tunnelOnZ ? holeW/2 : this.cellSize/2), 3.0, segZ * this.cellSize + (tunnelOnZ ? this.cellSize/2 : holeW/2))
+                                );
+                                blockBox.isEntityBlocker = true;
+                                blockBox.isInvisibleBlocker = true;
+                                blockBox.chunkHash = hash;
+                                this.spatialGrid.insert(blockBox);
+
+                                const grateOffset = (this.cellSize / 2) - 0.025;
+                                if (i === 0) {
+                                    if (tunnelOnZ) ctx.addGrate(segX * this.cellSize, 0.35, segZ * this.cellSize - grateOffset, false);
+                                    else ctx.addGrate(segX * this.cellSize - grateOffset, 0.35, segZ * this.cellSize, true);
+                                }
+                                if (i === burstLength - 1) {
+                                    if (tunnelOnZ) ctx.addGrate(segX * this.cellSize, 0.35, segZ * this.cellSize + grateOffset, false);
+                                    else ctx.addGrate(segX * this.cellSize + grateOffset, 0.35, segZ * this.cellSize, true);
+                                }
                             }
                         }
                     } else {
@@ -352,7 +429,7 @@ export default class TheArchitect {
                 }
             },
             {
-                prob: 0.30, build: (x, z) => {
+                prob: 0.10, build: (x, z) => {
                     const typeRoll = random();
                     const dirZ = random() > 0.5;
                     const burstLength = Math.floor(random() * 4) + 1;
@@ -477,10 +554,206 @@ export default class TheArchitect {
                 }
             },
             {
-                prob: 0.03, build: (x, z) => {
-                    const wall = new THREE.Mesh(this.sharedWallGeo, this.sharedWallMat);
+                // [SLASH PATCH] Standard Wall padding. Absorbs the 26.5% probability gap to protect rare spawns below it.
+                prob: 0.035, build: (x, z) => {
+                    const wall = buildWall(this.cellSize, this.cellSize, this.sharedWallMat);
                     wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                    wall.userData.isEntityBlocker = true;
                     addGeometry(wall);
+                }
+            },
+            {
+                // [SLASH PATCH] The Dimensional Switch. Probability crushed to 0.5%. Includes global spatial isolation constraint.
+                prob: 0.03, build: (x, z) => {
+                    const cx = x * this.cellSize;
+                    const cz = z * this.cellSize;
+
+                    if (!this._globalSwitches) this._globalSwitches = [];
+
+                    // Enforce a massive 150m radius (22,500 sq) to prevent clustering
+                    for (let i = 0; i < this._globalSwitches.length; i++) {
+                        const sx = this._globalSwitches[i].x;
+                        const sz = this._globalSwitches[i].z;
+                        const distSq = (cx - sx) * (cx - sx) + (cz - sz) * (cz - sz);
+                        if (distSq < 22500.0) {
+                            // Fallback to standard wall if trying to spawn too close to another switch
+                            const wall = buildWall(this.cellSize, this.cellSize, this.sharedWallMat);
+                            wall.position.set(cx, 1.5, cz);
+                            wall.userData.isEntityBlocker = true;
+                            addGeometry(wall);
+                            return;
+                        }
+                    }
+
+                    this._globalSwitches.push({x: cx, z: cz});
+                    if (ctx.markOccupied) ctx.markOccupied(x, z);
+
+                    // Central monolith
+                    const pillar = buildWall(1.5, 1.5, this.metalMat);
+                    pillar.position.set(cx, 1.5, cz);
+                    pillar.userData.isEntityBlocker = true;
+                    addGeometry(pillar);
+
+                    const bBox = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.2), this.rustMat);
+                    const isZ = random() > 0.5;
+                    const sign = random() > 0.5 ? 1 : -1;
+
+                    if (isZ) {
+                        bBox.position.set(cx, 1.5, cz + (sign * 0.85));
+                    } else {
+                        bBox.rotation.y = Math.PI / 2;
+                        bBox.position.set(cx + (sign * 0.85), 1.5, cz);
+                    }
+
+                    bBox.userData = { type: 'exit_switch', chunkHash: hash, active: false };
+                    chunkGroup.add(bBox);
+                    if (!this.interactables) this.interactables = [];
+                    this.interactables.push(bBox);
+
+                    const lightMesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.25), this.hazardMat);
+                    lightMesh.position.set(0, 0.3, 0);
+                    bBox.add(lightMesh);
+                }
+            },
+            {
+                prob: 0.025, build: (x, z) => {
+                    const cx = x * this.cellSize;
+                    const cz = z * this.cellSize;
+
+                    for (let i = 0; i < 3; i++) {
+                        const t = buildTable(cx + (random() * 0.4 - 0.2), i * 0.8, cz + (random() * 0.4 - 0.2));
+                        t.rotation.set(random() * 0.2, random() * Math.PI, random() * 0.2);
+                        addFurniture(t);
+                    }
+                    for (let i = 0; i < 6; i++) {
+                        const c = buildChair(cx + (random() * 1.2 - 0.6), i * 0.4, cz + (random() * 1.2 - 0.6), random() * Math.PI * 2);
+                        c.rotation.set(random() * Math.PI, random() * Math.PI, random() * Math.PI);
+                        addFurniture(c);
+                    }
+
+                    const batGroup = new THREE.Group();
+                    const batMesh = this.batteryPrefab.clone();
+                    batGroup.add(batMesh);
+                    const bGlow = new THREE.Mesh(this.glowGeo, this.glowMat);
+                    bGlow.scale.set(0.20, 0.20, 0.20);
+                    bGlow.position.y = 0.01;
+                    batGroup.add(bGlow);
+                    batGroup.position.set(cx, 0.1, cz);
+                    batGroup.rotation.y = random() * Math.PI;
+                    batGroup.userData = {type: 'battery', chunkHash: hash, active: true};
+                    chunkGroup.add(batGroup);
+                    if (!this.interactables) this.interactables = [];
+                    this.interactables.push(batGroup);
+                }
+            },
+            {
+                // [SLASH PATCH] The Outpost: A naturally occurring, safe refuge with clean tile and Almond Water.
+                prob: 0.01, build: (x, z) => {
+                    const cx = x * this.cellSize;
+                    const cz = z * this.cellSize;
+
+                    if (ctx.markOccupied) ctx.markOccupied(x, z);
+
+                    const dir = Math.floor(random() * 4); // 0: N, 1: E, 2: S, 3: W
+                    const thick = 0.4;
+                    const off = (this.cellSize / 2) - (thick / 2);
+
+                    // Build 4 enclosing walls (1 with a doorway)
+                    for(let i = 0; i < 4; i++) {
+                        const isZ = (i === 0 || i === 2);
+                        const sign = (i === 1 || i === 2) ? 1 : -1;
+
+                        if (i === dir) {
+                            // Doorway
+                            const pW = 1.2;
+                            const pOff = (this.cellSize / 2) - (pW / 2);
+                            const gap = this.cellSize - (pW * 2);
+
+                            const p1 = buildWall(isZ ? pW : thick, isZ ? thick : pW, this.sharedWallMat);
+                            p1.position.set(cx + (isZ ? -pOff : sign*off), 1.5, cz + (isZ ? sign*off : -pOff));
+                            addGeometry(p1);
+
+                            const p2 = buildWall(isZ ? pW : thick, isZ ? thick : pW, this.sharedWallMat);
+                            p2.position.set(cx + (isZ ? pOff : sign*off), 1.5, cz + (isZ ? sign*off : pOff));
+                            addGeometry(p2);
+
+                            const head = buildWall(isZ ? gap : thick, isZ ? thick : gap, this.sharedWallMat, 0.8, 2.2);
+                            head.position.set(cx + (isZ ? 0 : sign*off), 2.6, cz + (isZ ? sign*off : 0));
+                            addGeometry(head);
+                        } else {
+                            // Solid wall
+                            const w = buildWall(isZ ? this.cellSize : thick, isZ ? thick : this.cellSize, this.sharedWallMat);
+                            w.position.set(cx + (isZ ? 0 : sign*off), 1.5, cz + (isZ ? sign*off : 0));
+                            addGeometry(w);
+                        }
+                    }
+
+                    // Entity Blocker (Impenetrable by Anomaly, Ignored by Player)
+                    const blockBox = new THREE.Box3(
+                        new THREE.Vector3(cx - this.cellSize/2, 0, cz - this.cellSize/2),
+                        new THREE.Vector3(cx + this.cellSize/2, 3.0, cz + this.cellSize/2)
+                    );
+                    blockBox.isEntityBlocker = true;
+                    blockBox.isInvisibleBlocker = true;
+                    blockBox.chunkHash = hash;
+                    this.spatialGrid.insert(blockBox);
+
+                    // Tile Floor
+                    const floor = new THREE.Mesh(new THREE.PlaneGeometry(this.cellSize - thick, this.cellSize - thick), this.tileMat);
+                    floor.rotation.x = -Math.PI / 2;
+                    floor.position.set(cx, 0.02, cz);
+                    addGeometry(floor);
+
+                    // Solid Ceiling
+                    const roof = buildWall(this.cellSize, this.cellSize, this.structMat, 0.2);
+                    roof.position.set(cx, 2.9, cz);
+                    addGeometry(roof);
+
+                    // Furniture placement (Opposite of the door)
+                    const cotX = (dir === 1) ? -0.8 : (dir === 3 ? 0.8 : 0);
+                    const cotZ = (dir === 0) ? 0.8 : (dir === 2 ? -0.8 : 0);
+                    const cotRot = (dir === 0 || dir === 2) ? Math.PI / 2 : 0;
+
+                    const cotFrame = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 2.0), this.structMat);
+                    cotFrame.position.set(cx + cotX, 0.25, cz + cotZ);
+                    cotFrame.rotation.y = cotRot;
+                    addGeometry(cotFrame);
+
+                    const almondGroup = new THREE.Group();
+                    const almondMesh = this.almondPrefab.clone();
+                    almondGroup.add(almondMesh);
+                    const aGlow = new THREE.Mesh(this.glowGeo, this.glowMat);
+                    aGlow.scale.set(0.15, 0.15, 0.15);
+                    aGlow.position.y = 0.01;
+                    almondGroup.add(aGlow);
+
+                    // Put almond water on the cot
+                    almondGroup.position.set(cx + cotX, 0.5, cz + cotZ);
+                    almondGroup.rotation.y = random() * Math.PI;
+                    almondGroup.userData = {type: 'almond', chunkHash: hash, active: true};
+                    chunkGroup.add(almondGroup);
+                    if (!this.interactables) this.interactables = [];
+                    this.interactables.push(almondGroup);
+
+                    const activeMat = this.baseLightMat.clone();
+                    activeMat.color.setHex(0xe8f4f8);
+                    activeMat.emissive.setHex(0xb0d8e8);
+
+                    // Lowered slightly from 2.98 to 2.75 to fit under the new roof
+                    const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                    panel.position.set(cx, 2.75, cz);
+                    chunkGroup.add(panel);
+                    this.walls.push(panel);
+                    this.fixtureData.push({
+                        chunkHash: hash,
+                        position: new THREE.Vector3(cx, 2.5, cz),
+                        flickerOffset: 0,
+                        material: activeMat,
+                        isFaulty: false,
+                        baseIntensity: 0.9,
+                        targetIntensity: 0.9,
+                        currentIntensity: 0.9
+                    });
                 }
             },
             {
@@ -598,6 +871,62 @@ export default class TheArchitect {
             stagingMeshes
         } = ctx;
         return [
+            {
+                // [SLASH PATCH] The Exit Threshold: A heavily fortified bunker that only appears once power is restored.
+                name: "THE EXIT THRESHOLD",
+                prob: (this.player && this.player.objectives && this.player.objectives.fixed >= this.player.objectives.total && !this.player.objectives.escaped) ? 0.35 : 0.0,
+                foundationMat: this.tileMat,
+                build: (x, z, localX, localZ, maze, inDir, outDir) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.structMat)) return;
+
+                    const isPathX = localZ === 7;
+                    const isPathZ = localX === 7;
+
+                    // Center bunker footprint
+                    if (localX >= 5 && localX <= 9 && localZ >= 5 && localZ <= 9) {
+                        // Bunker walls
+                        if (localX === 5 || localX === 9 || localZ === 5 || localZ === 9) {
+                            if ((localX === 7 && isPathZ) || (localZ === 7 && isPathX)) {
+                                // Leave 1-cell doorways open
+                            } else {
+                                const wall = buildWall(this.cellSize, this.cellSize, this.metalMat);
+                                wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                                wall.userData.isEntityBlocker = true;
+                                addGeometry(wall);
+                            }
+                        } else if (localX === 7 && localZ === 7) {
+                            // The Extraction Elevator / Terminal
+                            const elevator = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize * 0.8, 3.0, this.cellSize * 0.8), this.rustMat);
+                            elevator.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                            elevator.userData = { type: 'exit', chunkHash: hash, active: true };
+                            chunkGroup.add(elevator);
+                            if (!this.interactables) this.interactables = [];
+                            this.interactables.push(elevator);
+
+                            // Glowing interaction band
+                            const pad = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize * 0.85, 0.8, this.cellSize * 0.85), this.metalMat);
+                            pad.position.set(0, -0.2, 0);
+                            elevator.add(pad);
+                            const light = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize * 0.9, 0.4, this.cellSize * 0.9), this.hazardMat);
+                            light.material = new THREE.MeshBasicMaterial({color: 0x55ff55});
+                            pad.add(light);
+
+                            const eBox = new THREE.Box3().setFromObject(elevator);
+                            eBox.chunkHash = hash;
+                            eBox.isEntityBlocker = true;
+                            this.spatialGrid.insert(eBox);
+                        }
+                    } else if (isPathX || isPathZ) {
+                        // Clear paths leading through the solid rock to the bunker
+                    } else {
+                        // Solid rock encasing the bunker
+                        const block = buildWall(this.cellSize, this.cellSize, this.structMat);
+                        block.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                        block.userData.isEntityBlocker = true;
+                        addGeometry(block);
+                    }
+                }
+            },
             {
                 name: "THE POOLROOMS",
                 prob: 0.12,
@@ -855,7 +1184,7 @@ export default class TheArchitect {
             {
                 name: "THE MAINTENANCE SHAFTS",
                 prob: 0.10,
-                foundationMat: this.ventMat,
+                foundationMat: this.serverFloorMat,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.structMat)) return;
                     const isWall = maze && maze[localX][localZ];

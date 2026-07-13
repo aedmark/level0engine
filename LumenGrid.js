@@ -30,12 +30,13 @@ export default class LumenGrid {
         let darknessPressure = 0;
         this._activeFixtures.fill(null);
 
+        const cullingLimit = this.maxActiveLights > 12 ? 35.0 : 22.0;
         for (let i = 0, len = fixtureData.length; i < len; i++) {
             const fixture = fixtureData[i];
             const dx = cameraPos.x - fixture.position.x;
             const dz = cameraPos.z - fixture.position.z;
 
-            if (dx > 30.0 || dx < -30.0 || dz > 30.0 || dz < -30.0) {
+            if (dx > cullingLimit || dx < -cullingLimit || dz > cullingLimit || dz < -cullingLimit) {
                 fixture.hasShadow = false;
                 continue;
             }
