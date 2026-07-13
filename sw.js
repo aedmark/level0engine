@@ -1,6 +1,6 @@
 // sw.js
 
-const CACHE_NAME = '038';
+const CACHE_NAME = '03';
 const ASSETS = [
     './',
     './index.html',
@@ -18,6 +18,7 @@ const ASSETS = [
     './SpatialHashGrid.js',
     './SomaticInput.js',
     './readme.html',
+    './LumenGrid.js',
     './engine.html'
 ];
 
