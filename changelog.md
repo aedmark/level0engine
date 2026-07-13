@@ -1,5 +1,14 @@
 # Level 0 Engine Changelog
 
+### [v0.4.0] - 2026-07-13
+*The Psychological Threshold Update*
+
+#### Changed
+- **[MECHANICS] Flashlight Paranoia Cap:** The flashlight no longer acts as a metabolic heat sink that actively heals paranoia. It now functions strictly as a psychological shield, throttling the accumulation of tension but never reversing it unless the player finds absolute, dark-free safety.
+- **[WEBGL] Sensorial Gating:** Interpolated the paranoia threshold. Visual FOV distortion, phantom auditory footsteps, and entity proximity hallucinations now mathematically gate themselves, remaining completely dormant until the player's psyche fractures past the 50% threshold.
+- **[AUDIO] Auditory Tension Floor:** Pushed the ambient tension noise floor (sub-rumble and atrium static) deeper into the DSP matrix, guaranteeing pure silence during the early stages of a run before structural tension manifests.
+- **[ENVIRONMENT] Claustrophobic Particulates:** Dynamically scaled the environmental dust particulate system. The volumetric `dustCloud` now spikes in both opacity (to 0.35) and particle size (to 0.08) when the player is physically crawling, simulating the choking atmosphere of rusted air ducts.
+
 ### [v0.3.9] - 2026-07-12
 *The "Sector Stabilization" Update*
 

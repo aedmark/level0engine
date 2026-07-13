@@ -301,7 +301,10 @@ export default class TheArchitect {
                             ctx.addGrate(x * this.cellSize - (flipX * grateOffset), 0.35, z * this.cellSize, true);
 
                         } else {
-                            const burstLength = Math.floor(random() * 3) + 1;
+                            const rawBurst = Math.floor(random() * 3) + 1;
+                            const modX = ((x % this.chunkSize) + this.chunkSize) % this.chunkSize;
+                            const modZ = ((z % this.chunkSize) + this.chunkSize) % this.chunkSize;
+                            const burstLength = Math.min(rawBurst, tunnelOnZ ? this.chunkSize - modZ : this.chunkSize - modX);
 
                             for (let i = 0; i < burstLength; i++) {
                                 const segX = x + (tunnelOnZ ? 0 : i);
@@ -432,7 +435,11 @@ export default class TheArchitect {
                 prob: 0.10, build: (x, z) => {
                     const typeRoll = random();
                     const dirZ = random() > 0.5;
-                    const burstLength = Math.floor(random() * 4) + 1;
+
+                    const rawBurst = Math.floor(random() * 4) + 1;
+                    const modX = ((x % this.chunkSize) + this.chunkSize) % this.chunkSize;
+                    const modZ = ((z % this.chunkSize) + this.chunkSize) % this.chunkSize;
+                    const burstLength = Math.min(rawBurst, dirZ ? this.chunkSize - modZ : this.chunkSize - modX);
 
                     if (typeRoll > 0.66) {
                         const tunnelW = 1.2;
@@ -563,29 +570,34 @@ export default class TheArchitect {
                 }
             },
             {
-                // [SLASH PATCH] The Dimensional Switch. Probability crushed to 0.5%. Includes global spatial isolation constraint.
                 prob: 0.03, build: (x, z) => {
                     const cx = x * this.cellSize;
                     const cz = z * this.cellSize;
 
                     if (!this._globalSwitches) this._globalSwitches = [];
 
-                    // Enforce a massive 150m radius (22,500 sq) to prevent clustering
+                    let tooClose = false;
                     for (let i = 0; i < this._globalSwitches.length; i++) {
                         const sx = this._globalSwitches[i].x;
                         const sz = this._globalSwitches[i].z;
                         const distSq = (cx - sx) * (cx - sx) + (cz - sz) * (cz - sz);
-                        if (distSq < 22500.0) {
-                            // Fallback to standard wall if trying to spawn too close to another switch
-                            const wall = buildWall(this.cellSize, this.cellSize, this.sharedWallMat);
-                            wall.position.set(cx, 1.5, cz);
-                            wall.userData.isEntityBlocker = true;
-                            addGeometry(wall);
-                            return;
+                        if (distSq > 0.1 && distSq < 2500.0) {
+                            tooClose = true;
+                            break;
                         }
                     }
 
-                    this._globalSwitches.push({x: cx, z: cz});
+                    if (tooClose) {
+                        const wall = buildWall(this.cellSize, this.cellSize, this.sharedWallMat);
+                        wall.position.set(cx, 1.5, cz);
+                        wall.userData.isEntityBlocker = true;
+                        addGeometry(wall);
+                        return;
+                    }
+
+                    if (!this._globalSwitches.some(s => Math.abs(s.x - cx) < 0.1 && Math.abs(s.z - cz) < 0.1)) {
+                        this._globalSwitches.push({x: cx, z: cz});
+                    }
                     if (ctx.markOccupied) ctx.markOccupied(x, z);
 
                     // Central monolith
@@ -1266,12 +1278,8 @@ export default class TheArchitect {
 
                     const isBridgeZ = localX >= 6 && localX <= 8;
                     const isBridgeX = localZ >= 6 && localZ <= 8;
-                    const needsBridgeZ = inDir === 0 || inDir === 2 || outDir === 0 || outDir === 2;
-                    const needsBridgeX = inDir === 1 || inDir === 3 || outDir === 1 || outDir === 3;
 
-                    let isBridge = false;
-                    if (needsBridgeZ && isBridgeZ) isBridge = true;
-                    if (needsBridgeX && isBridgeX) isBridge = true;
+                    let isBridge = isBridgeZ || isBridgeX;
 
                     if (isBridge) {
                         const bFloor = buildWall(this.cellSize, this.cellSize, this.structMat, 0.5);
@@ -1353,11 +1361,12 @@ export default class TheArchitect {
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.structMat)) return;
 
-                    // Calculate a singular dynamic hallway based strictly on the in/out paths
-                    const isPathN = (inDir === 0 || outDir === 0) && localX === 7 && localZ <= 7;
-                    const isPathS = (inDir === 2 || outDir === 2) && localX === 7 && localZ >= 7;
-                    const isPathW = (inDir === 3 || outDir === 3) && localZ === 7 && localX <= 7;
-                    const isPathE = (inDir === 1 || outDir === 1) && localZ === 7 && localX >= 7;
+                    // [SLASH PATCH: THE ARTISAN] Universal 4-Way Cross.
+                    // The Checkpoint now connects to all adjacent chunks to prevent dead ends.
+                    const isPathN = localX === 7 && localZ <= 7;
+                    const isPathS = localX === 7 && localZ >= 7;
+                    const isPathW = localZ === 7 && localX <= 7;
+                    const isPathE = localZ === 7 && localX >= 7;
 
                     const isPath = isPathN || isPathS || isPathW || isPathE;
 
@@ -1372,7 +1381,7 @@ export default class TheArchitect {
 
                     // Place exactly one dynamic bottleneck directly in the center of the traversal path
                     if (localX === 7 && localZ === 7) {
-                        const spansX = (inDir === 1 || inDir === 3) && (outDir === 1 || outDir === 3);
+                        const spansX = random() > 0.5; // [SLASH PATCH] Randomize bottleneck axis since it's a 4-way intersection now.
                         const chokeType = Math.floor(random() * 4); // 0: Squeeze, 1: Crawl, 2: Crouch, 3: Door
 
                         const wallThick = 0.6;

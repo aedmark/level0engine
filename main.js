@@ -156,9 +156,16 @@ class UIManager {
         if (!this.invH2o) this.invH2o = document.getElementById('inv-h2o');
 
         if (this.coordsEl) {
-            const newCoords = `X: ${engine.camera.position.x.toFixed(1)} | Z: ${engine.camera.position.z.toFixed(1)}`;
+            const prnInt = Math.round((player.paranoia || 0.0) * 100);
+            const newCoords = `X: ${engine.camera.position.x.toFixed(1)} | Z: ${engine.camera.position.z.toFixed(1)} | PRN: ${prnInt.toString().padStart(2, '0')}%`;
+
             if (this.coordsEl._last !== newCoords) {
                 this.coordsEl.innerText = newCoords;
+
+                if (prnInt > 80) this.coordsEl.style.color = '#ff5555';
+                else if (prnInt > 40) this.coordsEl.style.color = '#ffaa55';
+                else this.coordsEl.style.color = '';
+
                 this.coordsEl._last = newCoords;
             }
         }
@@ -238,10 +245,18 @@ function animate() {
     const squeezeFactor = (player.baseRadius - player.playerRadius) / (player.baseRadius - player.squeezeRadius);
     engine.squeeze = Math.max(0.0, Math.min(1.0, squeezeFactor));
     const telemetry = environment.updateLights(time);
+
+    telemetry.paranoia = player.paranoia || 0.0;
     acoustics.update(telemetry);
-    engine.anomaly = telemetry.anomalyPressure + (player.paranoia * 0.5);
+
+    engine.anomaly = telemetry.anomalyPressure + (telemetry.paranoia * 0.5);
     engine.darkness = player.perceivedDarkness || 0.0;
-    engine.paranoia = player.paranoia || 0.0;
+    engine.paranoia = telemetry.paranoia;
+
+    if (engine.paranoia > 0.4 && Math.random() < (engine.paranoia * delta * 0.3)) {
+        const fakeDistSq = Math.pow(10.0 + (Math.random() * 20.0), 2); // 10m to 30m away
+        acoustics.triggerSomaticEvent(Math.random() > 0.7 ? 'door' : 'step', fakeDistSq, 0.3 + Math.random() * 0.5);
+    }
 
     UIManager.update(time, engine, player);
 

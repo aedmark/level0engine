@@ -14,6 +14,7 @@ export default class Anomaly {
         this.breadcrumbs = [];
         this.backtrackTimer = 0;
         this.breadcrumbTimer = 0;
+        this.graceTimer = 0;
 
         this._dir = new THREE.Vector3();
         this._toPlayer = new THREE.Vector3();
@@ -30,10 +31,10 @@ export default class Anomaly {
 
         this._buildMesh();
 
-        document.addEventListener('somatic-step', (e) => this._handleNoise(e, 18.0));
-        document.addEventListener('somatic-door', (e) => this._handleNoise(e, 60.0));
-        document.addEventListener('somatic-vent', (e) => this._handleNoise(e, 80.0));
-        document.addEventListener('somatic-breaker', (e) => this._handleNoise(e, 120.0));
+        document.addEventListener('somatic-step', (e) => this._handleNoise(e, 9.0));
+        document.addEventListener('somatic-door', (e) => this._handleNoise(e, 30.0));
+        document.addEventListener('somatic-vent', (e) => this._handleNoise(e, 40.0));
+        document.addEventListener('somatic-breaker', (e) => this._handleNoise(e, 60.0));
     }
 
     _handleNoise(e, baseRadius) {
@@ -72,6 +73,9 @@ export default class Anomaly {
         this.breadcrumbs = [];
         this.backtrackTimer = 0;
         this.breadcrumbTimer = 0;
+
+        this.graceTimer = 12.0;
+
         this.group.position.set(x, y, z);
         this.target.copy(this.group.position);
     }
@@ -82,8 +86,28 @@ export default class Anomaly {
             return null;
         }
 
+        if (this.graceTimer > 0) {
+            this.graceTimer -= delta;
+            this._animate(time, delta);
+            if (this.player.anomalyPressure > 0) this.player.anomalyPressure = 0;
+            return null;
+        }
+
         const playerPos = this.camera.position;
         const distToPlayerSq = this.group.position.distanceToSquared(playerPos);
+
+        if (distToPlayerSq > 6400.0) {
+            const spawnAngle = Math.random() * Math.PI * 2;
+            const spawnDist = 40.0 + (Math.random() * 15.0);
+            this.group.position.set(
+                playerPos.x + Math.cos(spawnAngle) * spawnDist,
+                1.5,
+                playerPos.z + Math.sin(spawnAngle) * spawnDist
+            );
+            this.target.copy(this.group.position);
+            this.breadcrumbs = [];
+            return null;
+        }
 
         if (distToPlayerSq < 0.64) {
             this.player.stamina = this.player.maxStamina;
@@ -135,6 +159,9 @@ export default class Anomaly {
         if (this.player.isCrouching) stealthMultiplier -= 0.5;
         if (!this.player.flashlightActive) stealthMultiplier -= 0.3;
 
+        const darknessCloak = this.player.darknessPressure || 0.0;
+        if (darknessCloak > 0.5) stealthMultiplier *= 0.2;
+
         detectionRadius = (detectionRadius * stealthMultiplier) + (this.player.isRunning ? 25.0 : 0.0) + (this.player.exhaustion * 15.0);
 
         const perceptionThresholdSq = Math.max(9.0, detectionRadius * detectionRadius);
@@ -164,6 +191,11 @@ export default class Anomaly {
                     }
                 }
                 hasLOS = !isOccluded;
+
+                if (darknessCloak > 0.6 && !this.player.flashlightActive) {
+                    hasLOS = false;
+                }
+
                 this._lastLOSResult = hasLOS;
                 this._lastLOSTime = time;
             }
@@ -211,9 +243,10 @@ export default class Anomaly {
                 this.target.lerp(playerPos, 0.005);
             }
         }
-        const baseSpeed = distToPlayerSq < 225.0 ? 3.8 : 1.8;
+
+        const baseSpeed = distToPlayerSq < 225.0 ? 4.2 : 1.8;
         this.rage = this.rage || 0.0;
-        let speed = baseSpeed + (Math.min(this.player.exhaustion, 0.6) * 1.2) + (this.rage * 5.0);
+        let speed = baseSpeed + (this.rage * 2.0);
         let isObserved = false;
 
         if (this.player.flashlightActive && distToPlayerSq < 625.0 && hasLOS) {

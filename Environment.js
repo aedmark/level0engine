@@ -53,8 +53,10 @@ export default class Environment {
             }
         }
         this.processChunkQueue();
+        const deadHashes = new Set();
         for (const [hash, chunkGroup] of this.activeChunks.entries()) {
             if (!chunksToKeep.has(hash)) {
+                deadHashes.add(hash);
                 this.scene.remove(chunkGroup);
                 chunkGroup.traverse((child) => {
                     if (child.isInstancedMesh) child.dispose();
@@ -70,11 +72,16 @@ export default class Environment {
                 });
                 this.activeChunks.delete(hash);
                 this.blackoutChunks.delete(hash);
-                this.walls = this.walls.filter(w => w.userData.chunkHash !== hash);
-                this.fixtureData = this.fixtureData.filter(f => f.chunkHash !== hash);
                 this.spatialGrid.removeByChunk(hash);
-                this.interactiveDoors = this.interactiveDoors.filter(d => d.userData.chunkHash !== hash);
-                if (this.interactables) this.interactables = this.interactables.filter(i => i.userData.chunkHash !== hash);
+            }
+        }
+
+        if (deadHashes.size > 0) {
+            this.walls = this.walls.filter(w => !deadHashes.has(w.userData.chunkHash));
+            this.fixtureData = this.fixtureData.filter(f => !deadHashes.has(f.chunkHash));
+            this.interactiveDoors = this.interactiveDoors.filter(d => !deadHashes.has(d.userData.chunkHash));
+            if (this.interactables) {
+                this.interactables = this.interactables.filter(i => !deadHashes.has(i.userData.chunkHash));
             }
         }
     }
@@ -677,8 +684,7 @@ export default class Environment {
     }
 
     _createChunkHelpers(hash, chunkGroup, stagingMeshes, random) {
-        let hasOasis = random() > 0.5;
-
+        let hasOasis = random() > 0.95;
         return {
             random,
             hash,
@@ -820,15 +826,10 @@ export default class Environment {
                 if (!isPerimeter) return false;
 
                 let isDoorway = false;
-                // FULLER: Limit doorways to exactly one cell width (4 meters) centered on the chunk edge.
-                if (localX === 7) {
-                    if (localZ === 0 && (inDir === 0 || outDir === 0)) isDoorway = true;
-                    if (localZ === this.chunkSize - 1 && (inDir === 2 || outDir === 2)) isDoorway = true;
-                }
-                if (localZ === 7) {
-                    if (localX === 0 && (inDir === 3 || outDir === 3)) isDoorway = true;
-                    if (localX === this.chunkSize - 1 && (inDir === 1 || outDir === 1)) isDoorway = true;
-                }
+                // [SLASH PATCH: FULLER] Universal 4-Way Hubs.
+                // Eradicating dead-ends by forcing all macro-structures to carve doorways at all cardinal edges.
+                if (localX === 7 && (localZ === 0 || localZ === this.chunkSize - 1)) isDoorway = true;
+                if (localZ === 7 && (localX === 0 || localX === this.chunkSize - 1)) isDoorway = true;
 
                 if (!isDoorway) {
                     const key = `${this.cellSize}_3.0_${this.cellSize}_0`;
@@ -860,7 +861,13 @@ export default class Environment {
         const chunkGroup = new THREE.Group();
         this.scene.add(chunkGroup);
         this.activeChunks.set(hash, chunkGroup);
-        let prngSeed = (this.baseSeed + (chunkX * 104729) + (chunkZ * 1299827)) >>> 0;
+
+        let structuralShift = 0;
+        if (this.player && this.player.paranoia > 0.6) {
+            structuralShift = Math.floor(this.player.paranoia * 1000) * (chunkX % 2 === 0 ? 1 : -1);
+        }
+
+        let prngSeed = (this.baseSeed + structuralShift + (chunkX * 104729) + (chunkZ * 1299827)) >>> 0;
         const random = () => {
             prngSeed = (prngSeed * 1664525 + 1013904223) >>> 0;
             return prngSeed / 4294967296.0;
@@ -1102,14 +1109,11 @@ export default class Environment {
             maze[rx][rz] = false;
         }
 
-        const carveDoor = (dir) => {
-            if (dir === 0) { maze[7][0]=false; maze[7][1]=false; }
-            if (dir === 1) { maze[15][7]=false; maze[14][7]=false; }
-            if (dir === 2) { maze[7][15]=false; maze[7][14]=false; }
-            if (dir === 3) { maze[0][7]=false; maze[1][7]=false; }
-        };
-        carveDoor(inDir);
-        carveDoor(outDir);
+        // [SLASH PATCH: FULLER] Carve all 4 exits to match the universal perimeter hubs.
+        maze[7][0]=false; maze[7][1]=false;
+        maze[15][7]=false; maze[14][7]=false;
+        maze[7][15]=false; maze[7][14]=false;
+        maze[0][7]=false; maze[1][7]=false;
 
         return maze;
     }
@@ -1276,6 +1280,11 @@ export default class Environment {
             this.dustCloud.position.copy(cameraPos);
             this.dustCloud.rotation.y = time * 0.05;
             this.dustCloud.rotation.z = time * 0.02;
+
+            const targetDustOpacity = this.player.isCrawling ? 0.35 : 0.10;
+            const targetDustSize = this.player.isCrawling ? 0.08 : 0.05;
+            this.dustCloud.material.opacity += (targetDustOpacity - this.dustCloud.material.opacity) * 0.05;
+            this.dustCloud.material.size += (targetDustSize - this.dustCloud.material.size) * 0.05;
         }
 
         if (this.exhaustCloud) {

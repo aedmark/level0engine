@@ -237,9 +237,11 @@ export default class AcousticEngine {
         if (!this.initialized || !this.mainGain || this.ctx.state === 'suspended') return;
         const time = this.ctx.currentTime;
         if (time < 0.1) return;
-        const {minLightDist, isOccluded, activeSector, anomalyPressure, playerSpeed, playerExhaustion, isBlackout} = telemetry;
+        const {minLightDist, isOccluded, activeSector, anomalyPressure, playerSpeed, playerExhaustion, isBlackout, paranoia} = telemetry;
         const proximity = Math.max(0, 1.0 - (minLightDist / 20.0));
         const mix = this.sectors[activeSector] || this.sectors["NORMAL"];
+
+        const structuralTension = Math.max(0.0, ((paranoia || 0.0) - 0.5) * 1.0);
         const setParam = (key, param, target, timeConstant) => {
             if (Math.abs((this._cache.get(key) || -999) - target) > 0.001) {
                 param.setTargetAtTime(target, time + 0.02, timeConstant);
@@ -253,9 +255,11 @@ export default class AcousticEngine {
         const baseWhine = isBlackout ? 0.0 : (isOccluded ? mix.whineOcc : mix.whine + (mix.dynamicWhine ? proximity * 0.003 : 0.0));
         setParam('whine', this.whineGain.gain, baseWhine, 0.5);
 
-        if (this.atriumGain) setParam('atrium', this.atriumGain.gain, isBlackout ? mix.noise * 0.1 : mix.noise, 1.0);
-        if (this.peaceGain) setParam('peace', this.peaceGain.gain, mix.peace, 2.0);
-        if (this.entityGain) setParam('entity', this.entityGain.gain, anomalyPressure > 0.0 ? anomalyPressure * 0.4 : 0.0, 0.2);
+        if (this.atriumGain) setParam('atrium', this.atriumGain.gain, (isBlackout ? mix.noise * 0.1 : mix.noise) + structuralTension, 1.0);
+        if (this.peaceGain) setParam('peace', this.peaceGain.gain, Math.max(0, mix.peace - structuralTension), 2.0);
+
+        const perceivedThreat = anomalyPressure + (structuralTension * 0.8);
+        if (this.entityGain) setParam('entity', this.entityGain.gain, perceivedThreat > 0.0 ? perceivedThreat * 0.4 : 0.0, 0.2);
 
         if (this.subRumble) {
             const heartbeatFreq = playerExhaustion > 0.3 ? 80.0 + (Math.sin(time * (10.0 + playerExhaustion * 5.0)) * 20.0 * playerExhaustion) : 0.0;

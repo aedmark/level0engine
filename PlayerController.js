@@ -99,6 +99,11 @@ export default class PlayerController {
         document.addEventListener('somatic-use-almond', () => {
             if (this.inventory.almondWater > 0) {
                 this.inventory.almondWater--;
+
+                if ((this.stamina / this.maxStamina) >= 0.7) {
+                    this.isWaterlogged = true;
+                }
+
                 this.staminaBoostTimer = 15.0;
                 this.stamina = this.maxStamina;
                 this.isWinded = false;
@@ -198,7 +203,7 @@ export default class PlayerController {
             this.stamina = this.maxStamina;
             this.isWinded = false;
         } else if ((state.isRunning || this.isSqueezing) && isMoving && !this.isWinded) {
-            const baseBurn = this.isSqueezing ? 8.0 : (this.isChased ? 10.0 : 6.0);
+            const baseBurn = this.isSqueezing ? 1.5 : (this.isChased ? 10.0 : 6.0);
 
             const burnRate = baseBurn * (1.0 + (this.paranoia * 0.6));
             this.stamina = Math.max(0, this.stamina - burnRate * delta);
@@ -210,6 +215,7 @@ export default class PlayerController {
             if (this.stamina <= 0.0) {
                 state.isRunning = false;
                 this.isWinded = true;
+                this.isWaterlogged = false;
                 currentSpeed = dynamicWalkSpeed * this.speedMultiplier;
                 document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.5}}));
             }
@@ -224,7 +230,9 @@ export default class PlayerController {
                 this.paranoia = Math.min(1.0, this.paranoia + (delta * 0.06));
             }
 
-            const recoveryRate = this.isChased ? 1.0 : (this.isWinded ? 2.0 : (isResting ? 12.0 * crouchBonus : 5.0 * paranoiaPenalty * crouchBonus));
+            let recoveryRate = this.isChased ? 1.0 : (this.isWinded ? 2.0 : (isResting ? 12.0 * crouchBonus : 5.0 * paranoiaPenalty * crouchBonus));
+
+            if (this.isWaterlogged) recoveryRate = 0.0;
 
             this.stamina = Math.max(0.0, Math.min(this.maxStamina, this.stamina + recoveryRate * delta));
 
@@ -290,17 +298,17 @@ export default class PlayerController {
             normalizedDarkness *= (1.0 - (0.85 * safetyFactor));
         }
         this.perceivedDarkness = normalizedDarkness;
-
-        if (externalPressure > 0.05 || this.perceivedDarkness > 0.6) {
-            this.paranoia = Math.min(1.0, this.paranoia + (delta * 0.02));
-        } else {
-            this.paranoia = Math.max(0.0, this.paranoia - (delta * 0.05));
+        
+        const baseAccumulation = (externalPressure * 0.08) + (this.perceivedDarkness * 0.04);
+        if (baseAccumulation > 0.001) {
+            this.paranoia = Math.min(1.0, this.paranoia + (baseAccumulation * delta));
         }
 
-        targetFov -= (externalPressure * 15.0) + (this.perceivedDarkness * 15.0) + (this.paranoia * 10.0);
+        const visibleParanoia = Math.max(0.0, (this.paranoia - 0.5) * 2.0);
+        targetFov -= (externalPressure * 15.0) + (this.perceivedDarkness * 15.0) + (visibleParanoia * 15.0);
 
         if (this.paranoia > 0.8 && Math.random() < (0.5 * delta)) {
-            document.dispatchEvent(new CustomEvent('somatic-step', { detail: { intensity: 0.5 * this.paranoia } }));
+            document.dispatchEvent(new CustomEvent('somatic-step', { detail: { intensity: 0.5 * visibleParanoia } }));
 
             if (Math.random() < 0.1) {
                 const fakeDistSq = 50.0 + Math.random() * 200.0;
