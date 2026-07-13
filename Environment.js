@@ -1253,7 +1253,7 @@ export default class Environment {
             }
             this.flashlight.intensity += (targetIntensity - this.flashlight.intensity) * 0.4;
         }
-        const playerSpeed = Math.sqrt(this.player.velocity.x ** 2 + this.player.velocity.z ** 2);
+        const playerSpeed = Math.sqrt((this.player.velocity.x * this.player.velocity.x) + (this.player.velocity.z * this.player.velocity.z));
         if (this.engine.ambientLight) {
             const baseAmbient = 0.85;
             const minAmbient = 0.005;

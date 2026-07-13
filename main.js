@@ -98,7 +98,15 @@ document.addEventListener('somatic-blink', () => {
 document.addEventListener('somatic-breaker', (e) => acoustics.triggerSomaticEvent('breaker', e.detail.distSq, e.detail.intensity));
 document.addEventListener('somatic-item', (e) => acoustics.triggerSomaticEvent('item', e.detail.distSq, e.detail.intensity));
 
-const saveInterval = setInterval(saveState, 2500);
+function idleSaveState() {
+    if (window.requestIdleCallback) {
+        requestIdleCallback(() => saveState());
+    } else {
+        saveState();
+    }
+}
+
+const saveInterval = setInterval(idleSaveState, 2500);
 document.getElementById('clearSaveBtn')?.addEventListener('click', async () => {
     player.isDead = true;
     const flash = document.getElementById('flash-overlay');
@@ -135,6 +143,57 @@ function triggerAscension() {
     const parts = seedInput.value.split(" FL-");
     const floor = parts[1] ? parseInt(parts[1]) + 1 : 1;
     seedInput.value = parts[0] + " FL-" + floor;
+}
+
+class UIManager {
+    static update(time, engine, player) {
+        if (time - (this._lastUpdate || 0) < 0.1) return;
+        this._lastUpdate = time;
+        if (!this.coordsEl) this.coordsEl = document.getElementById('coords');
+        if (!this.batLevel) this.batLevel = document.getElementById('battery-level');
+        if (!this.stamLevel) this.stamLevel = document.getElementById('stamina-level');
+        if (!this.invBat) this.invBat = document.getElementById('inv-bat');
+        if (!this.invH2o) this.invH2o = document.getElementById('inv-h2o');
+
+        if (this.coordsEl) {
+            const newCoords = `X: ${engine.camera.position.x.toFixed(1)} | Z: ${engine.camera.position.z.toFixed(1)}`;
+            if (this.coordsEl._last !== newCoords) {
+                this.coordsEl.innerText = newCoords;
+                this.coordsEl._last = newCoords;
+            }
+        }
+
+        if (this.batLevel) {
+            const batInt = Math.round(player.flashlightBattery);
+            if (this.batLevel._last !== batInt) {
+                this.batLevel.style.width = `${batInt}%`;
+                this.batLevel.style.backgroundColor = batInt > 50 ? '#55ff55' : (batInt > 20 ? '#ffff55' : '#ff5555');
+                this.batLevel._last = batInt;
+            }
+        }
+
+        if (this.stamLevel) {
+            const stamInt = Math.round(player.stamina);
+            if (this.stamLevel._last !== stamInt) {
+                this.stamLevel.style.width = `${stamInt}%`;
+                this.stamLevel.style.backgroundColor = stamInt > 50 ? '#ffffff' : (stamInt > 20 ? '#aaaaaa' : '#ff5555');
+                this.stamLevel._last = stamInt;
+            }
+        }
+
+        if (this.invBat && this.invH2o) {
+            if (this.invBat._last !== player.inventory.batteries) {
+                this.invBat.innerText = player.inventory.batteries;
+                this.invBat.style.color = player.inventory.batteries === 0 ? '#ff5555' : '#55ff55';
+                this.invBat._last = player.inventory.batteries;
+            }
+            if (this.invH2o._last !== player.inventory.almondWater) {
+                this.invH2o.innerText = player.inventory.almondWater;
+                this.invH2o.style.color = player.inventory.almondWater === 0 ? '#ff5555' : '#55ff55';
+                this.invH2o._last = player.inventory.almondWater;
+            }
+        }
+    }
 }
 
 function animate() {
@@ -182,54 +241,9 @@ function animate() {
     acoustics.update(telemetry);
     engine.anomaly = telemetry.anomalyPressure + (player.paranoia * 0.5);
     engine.darkness = player.perceivedDarkness || 0.0;
+    engine.paranoia = player.paranoia || 0.0;
 
-    if (time - (window._lastDomUpdate || 0) > 0.1) {
-        window._lastDomUpdate = time;
-
-        const coordsEl = document.getElementById('coords');
-        if (coordsEl) {
-            const newCoords = `X: ${engine.camera.position.x.toFixed(1)} | Z: ${engine.camera.position.z.toFixed(1)}`;
-            if (coordsEl._lastText !== newCoords) {
-                coordsEl.innerText = newCoords;
-                coordsEl._lastText = newCoords;
-            }
-        }
-
-        const batLevel = document.getElementById('battery-level');
-        if (batLevel) {
-            const batInt = Math.round(player.flashlightBattery);
-            if (batLevel._lastBat !== batInt) {
-                batLevel.style.width = `${batInt}%`;
-                batLevel.style.backgroundColor = batInt > 50 ? '#55ff55' : (batInt > 20 ? '#ffff55' : '#ff5555');
-                batLevel._lastBat = batInt;
-            }
-        }
-
-        const stamLevel = document.getElementById('stamina-level');
-        if (stamLevel) {
-            const stamInt = Math.round(player.stamina);
-            if (stamLevel._lastStam !== stamInt) {
-                stamLevel.style.width = `${stamInt}%`;
-                stamLevel.style.backgroundColor = stamInt > 50 ? '#ffffff' : (stamInt > 20 ? '#aaaaaa' : '#ff5555');
-                stamLevel._lastStam = stamInt;
-            }
-        }
-
-        const invBat = document.getElementById('inv-bat');
-        const invH2o = document.getElementById('inv-h2o');
-        if (invBat && invH2o) {
-            if (invBat._lastVal !== player.inventory.batteries) {
-                invBat.innerText = player.inventory.batteries;
-                invBat.style.color = player.inventory.batteries === 0 ? '#ff5555' : '#55ff55';
-                invBat._lastVal = player.inventory.batteries;
-            }
-            if (invH2o._lastVal !== player.inventory.almondWater) {
-                invH2o.innerText = player.inventory.almondWater;
-                invH2o.style.color = player.inventory.almondWater === 0 ? '#ff5555' : '#55ff55';
-                invH2o._lastVal = player.inventory.almondWater;
-            }
-        }
-    }
+    UIManager.update(time, engine, player);
 
     if (!player.input.state.isRunning) {
         const runBtn = document.getElementById('mobile-run');

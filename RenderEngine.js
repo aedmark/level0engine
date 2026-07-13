@@ -36,6 +36,7 @@ export default class RenderEngine {
                 squeeze: {value: 0.0},
                 anomaly: {value: 0.0},
                 darkness: {value: 0.0},
+                paranoia: {value: 0.0},
                 globalSeed: {value: 0.0}
             },
             vertexShader: `
@@ -52,6 +53,7 @@ export default class RenderEngine {
                 uniform float squeeze;
                 uniform float anomaly;
                 uniform float darkness;
+                uniform float paranoia;
                 uniform float globalSeed;
                 varying vec2 vUv;
                 
@@ -85,9 +87,11 @@ export default class RenderEngine {
                     float phasePos = fract(time * 0.05); 
                     float phaseBand = 1.0 - smoothstep(0.0, 0.02, abs(uv.y - phasePos));
                     
-                    if (anomaly > 0.01) {
-                        float tear = step(0.9, sin(uv.y * 40.0 + time * 15.0));
-                        uv.x += tear * (globalSeed - 0.5) * anomaly * 0.3;
+                    if (anomaly > 0.01 || paranoia > 0.5) {
+                        float intensity = max(anomaly, (paranoia - 0.5) * 2.0);
+                        float tear = step(0.9 - (paranoia * 0.2), sin(uv.y * (40.0 + paranoia * 20.0) + time * 15.0));
+                        uv.x += tear * (globalSeed - 0.5) * intensity * 0.3;
+                        uv.y += tear * (globalSeed - 0.5) * intensity * 0.05;
                     }
                     uv.x += phaseBand * 0.0002 * sin(time * 50.0);
                     
@@ -189,6 +193,7 @@ export default class RenderEngine {
         this.postMaterial.uniforms.squeeze.value = this.squeeze || 0.0;
         this.postMaterial.uniforms.anomaly.value = this.anomaly || 0.0;
         this.postMaterial.uniforms.darkness.value = this.darkness || 0.0;
+        this.postMaterial.uniforms.paranoia.value = this.paranoia || 0.0;
         this.postMaterial.uniforms.globalSeed.value = Math.random();
         this.renderer.setRenderTarget(null);
         this.renderer.render(this.postScene, this.postCamera);

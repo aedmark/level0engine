@@ -199,10 +199,11 @@ export default class PlayerController {
                 this.maxStamina = Math.min(100.0, this.maxStamina + (healingFactor * delta));
             }
         }
-        const currentActualSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
+        const currentActualSpeed = Math.sqrt((this.velocity.x * this.velocity.x) + (this.velocity.z * this.velocity.z));
         if (state.flashlightActive) {
             const panicDrain = (this.stamina <= 0.1 && (this.darknessPressure || 0.0) > 0.4) ? 2.0 : 1.0;
-            this.flashlightBattery = Math.max(0, this.flashlightBattery - panicDrain * delta);
+            const paranoiaDrain = this.paranoia > 0.5 ? (this.paranoia * 1.5) : 0;
+            this.flashlightBattery = Math.max(0, this.flashlightBattery - (panicDrain + paranoiaDrain) * delta);
             if (this.flashlightBattery === 0) {
                 state.flashlightActive = false;
                 const flashBtn = document.getElementById('mobile-flashlight');
@@ -368,7 +369,7 @@ export default class PlayerController {
 
         if (!hitX) this.camera.position.x += moveX;
         if (!hitZ) this.camera.position.z += moveZ;
-        const postIntentSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
+        const postIntentSpeed = Math.sqrt((this.velocity.x * this.velocity.x) + (this.velocity.z * this.velocity.z));
 
         this._applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid);
     }
