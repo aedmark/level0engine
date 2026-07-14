@@ -87,16 +87,19 @@ export default class RenderEngine {
                     float phasePos = fract(time * 0.05); 
                     float phaseBand = 1.0 - smoothstep(0.0, 0.02, abs(uv.y - phasePos));
                     
-                    if (anomaly > 0.01 || paranoia > 0.5) {
-                        float intensity = max(anomaly, (paranoia - 0.5) * 2.0);
-                        float tear = step(0.9 - (paranoia * 0.2), sin(uv.y * (40.0 + paranoia * 20.0) + time * 15.0));
+                    float pCurve = pow(paranoia, 3.0);
+                    
+                    if (anomaly > 0.01 || paranoia > 0.01) {
+                        float intensity = max(anomaly, pCurve * 1.5);
+                        float tearThreshold = 0.98 - (pCurve * 0.3);
+                        float tear = step(tearThreshold, sin(uv.y * (40.0 + pCurve * 60.0) + time * 15.0));
                         uv.x += tear * (globalSeed - 0.5) * intensity * 0.3;
                         uv.y += tear * (globalSeed - 0.5) * intensity * 0.05;
                     }
                     uv.x += phaseBand * 0.0002 * sin(time * 50.0);
                     
                     float heartbeatCA = exhaustion > 0.3 ? sin(time * (10.0 + exhaustion * 5.0)) * 0.004 * exhaustion : 0.0;
-                    float panicTear = paranoia > 0.7 ? (sin(time * 25.0) * 0.02 * (paranoia - 0.7)) : 0.0;
+                    float panicTear = paranoia > 0.3 ? (sin(time * 25.0) * 0.02 * pCurve) : 0.0;
                     float caShift = 0.001 + (distSq * 0.004) + (squeeze * 0.003) + pow(anomaly, 1.5) * 0.05 + pow(exhaustion, 2.0) * 0.01 + heartbeatCA + panicTear;
                     vec2 offset = vec2(caShift, 0.0); 
                     

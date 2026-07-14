@@ -317,8 +317,9 @@ export default class PlayerController {
 
         let baseAccumulation = (externalPressure * 0.08) + (this.perceivedDarkness * 0.04);
 
-        if (this.perceivedDarkness < 0.1 && externalPressure === 0.0 && !isMoving) {
-            baseAccumulation -= 0.02;
+        if (externalPressure === 0.0 && this.perceivedDarkness < 0.3) {
+            const recoveryMultiplier = isMoving ? 1.0 : 3.0;
+            baseAccumulation -= 0.06 * recoveryMultiplier * (1.0 - this.perceivedDarkness);
         }
 
         this.paranoia = Math.max(0.0, Math.min(1.0, this.paranoia + (baseAccumulation * delta)));

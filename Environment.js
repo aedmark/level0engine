@@ -1325,7 +1325,10 @@ export default class Environment {
             } else if (sectorRoll <= 0.76) {
                 activeSector = "CHASM";
                 targetFog = 0.015;
-            } else if (sectorRoll <= 0.84) {
+            } else if (sectorRoll <= 0.82) {
+                activeSector = "INCINERATOR";
+                targetFog = 0.25;
+            } else if (sectorRoll <= 0.88) {
                 activeSector = "ATRIUM";
                 targetFog = 0.18;
             } else {
@@ -1356,7 +1359,7 @@ export default class Environment {
             this.exhaustCloud.position.copy(cameraPos);
             this.exhaustCloud.rotation.y = time * -0.07;
             this.exhaustCloud.rotation.x = time * 0.04;
-            const targetExhaustOpacity = (activeSector === "SERVER") ? 0.35 : 0.0;
+            const targetExhaustOpacity = (activeSector === "INCINERATOR") ? 0.85 : ((activeSector === "SERVER") ? 0.35 : 0.0);
             this.exhaustMat.opacity += (targetExhaustOpacity - this.exhaustMat.opacity) * 0.02;
             if (this.exhaustMat.opacity > 0.01) {
                 this.exhaustMat.size = 0.08 + (Math.sin(time * 12.0) * 0.02);

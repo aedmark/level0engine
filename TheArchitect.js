@@ -1324,6 +1324,52 @@ export default class TheArchitect {
                 }
             },
             {
+                name: "THE INCINERATOR",
+                prob: 0.08,
+                foundationMat: this.rustMat,
+                build: (x, z, localX, localZ, maze, inDir, outDir) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.rustMat)) return;
+
+                    if (localX >= 4 && localX <= 11 && localZ >= 4 && localZ <= 11) {
+                        const block = buildWall(this.cellSize, this.cellSize, this.rustMat, 3.0);
+                        block.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                        block.userData.isEntityBlocker = true;
+                        addGeometry(block);
+
+                        if ((localX === 4 || localX === 11) && localZ % 2 === 0) {
+                            const activeMat = this.baseLightMat.clone();
+                            activeMat.color.setHex(0xff3300);
+                            activeMat.emissive.setHex(0xff1100);
+                            const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+
+                            panel.position.set(x * this.cellSize + (localX === 4 ? -2 : 2), 1.5, z * this.cellSize);
+                            panel.rotation.z = Math.PI / 2;
+                            panel.rotation.x = Math.PI / 2;
+                            chunkGroup.add(panel);
+                            this.walls.push(panel);
+
+                            this.fixtureData.push({
+                                chunkHash: hash,
+                                position: new THREE.Vector3(x * this.cellSize, 1.5, z * this.cellSize),
+                                flickerOffset: random() * 500,
+                                material: activeMat,
+                                isFaulty: random() > 0.8,
+                                baseIntensity: 1.2,
+                                targetIntensity: 1.2,
+                                currentIntensity: 1.2
+                            });
+                        }
+                    } else {
+                        if (random() > 0.85) {
+                            const pipe = new THREE.Mesh(this.vPipeGeo, this.rustMat);
+                            pipe.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                            pipe.scale.set(1.5, 1.0, 1.5);
+                            addGeometry(pipe);
+                        }
+                    }
+                }
+            },
+            {
                 name: "THE OVERGROWN ATRIUM",
                 prob: 0.08,
                 foundationMat: this.mossMat,

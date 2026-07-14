@@ -88,6 +88,16 @@ export default class AcousticEngine {
                 whineOcc: 0.002,
                 dynamicWhine: false
             },
+            "INCINERATOR": {
+                noise: 0.65,
+                peace: 0.0,
+                rumble: 180,
+                freq: 60,
+                freqOcc: 60,
+                whine: 0.0,
+                whineOcc: 0.0,
+                dynamicWhine: false
+            },
             "CHASM": {
                 noise: 0.25,
                 peace: 0.0,
@@ -282,8 +292,8 @@ export default class AcousticEngine {
         if (this.entityGain) setParam('entity', this.entityGain.gain, perceivedThreat > 0.0 ? perceivedThreat * 0.4 : 0.0, 0.2);
 
         if (this.spatialDelay) {
-            const delayTimes = { "POOLROOMS": 0.6, "CHASM": 0.8, "ATRIUM": 0.4, "MAINTENANCE": 0.05, "NORMAL": 0.15 };
-            const feedbackVals = { "POOLROOMS": 0.5, "CHASM": 0.7, "ATRIUM": 0.3, "MAINTENANCE": 0.1, "NORMAL": 0.2 };
+            const delayTimes = { "POOLROOMS": 0.6, "CHASM": 0.8, "ATRIUM": 0.4, "MAINTENANCE": 0.05, "INCINERATOR": 0.02, "NORMAL": 0.15 };
+            const feedbackVals = { "POOLROOMS": 0.5, "CHASM": 0.7, "ATRIUM": 0.3, "MAINTENANCE": 0.1, "INCINERATOR": 0.05, "NORMAL": 0.2 };
 
             const targetDelay = delayTimes[activeSector] || 0.15;
             const targetFeedback = feedbackVals[activeSector] || 0.2;
