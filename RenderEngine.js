@@ -14,7 +14,7 @@ export default class RenderEngine {
         this.renderer.setPixelRatio(1.0);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.shadowMap.type = THREE.PCFShadowMap;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.2;
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -100,16 +100,16 @@ export default class RenderEngine {
                     float caShift = 0.001 + (distSq * 0.004) + (squeeze * 0.003) + pow(anomaly, 1.5) * 0.05 + pow(exhaustion, 2.0) * 0.01 + heartbeatCA + panicTear;
                     vec2 offset = vec2(caShift, 0.0); 
                     
-                    vec3 col = vec3(0.0);
-                    col.r = texture2D(tDiffuse, uv + offset).r;
-                    col.g = texture2D(tDiffuse, uv).g;
-                    col.b = texture2D(tDiffuse, uv - offset).b;
+                    vec4 texR = texture2D(tDiffuse, uv + offset);
+                    vec4 texG = texture2D(tDiffuse, uv);
+                    vec4 texB = texture2D(tDiffuse, uv - offset);
+                    
+                    vec3 col = vec3(texR.r, texG.g, texB.b);
                     
                     float luminance = dot(col, vec3(0.299, 0.587, 0.114));
                     
-                    vec3 halation = texture2D(tDiffuse, uv + vec2(0.0, 0.003)).rgb * 0.3 + 
-                                    texture2D(tDiffuse, uv - vec2(0.0, 0.003)).rgb * 0.3;
-                    col += max(vec3(0.0), halation - 0.5) * 0.4;
+                    vec3 fauxHalation = (texR.rgb + texB.rgb) * 0.3;
+                    col += max(vec3(0.0), fauxHalation - 0.5) * 0.35;
 
                     float noise = random(uv + mod(time, 10.0));
                     col -= (noise * (0.05 + darkness * 0.15 + anomaly * 0.9)) * (1.0 - luminance);

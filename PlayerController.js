@@ -77,6 +77,18 @@ export default class PlayerController {
     get isCrawling() { return this.input.state.isCrawling; }
     get flashlightActive() { return this.input.state.flashlightActive; }
 
+    resetMetabolism() {
+        this.stamina = this.maxStamina;
+        this.exhaustion = 0.0;
+        this.isWinded = false;
+        this.isChased = false;
+        this.paranoia = 0.0;
+        this.anomalyPressure = 0.0;
+        this.perceivedDarkness = 0.0;
+        this.flashlightBattery = 100.0;
+        this.velocity.set(0, 0, 0);
+    }
+
     _bindMetabolicListeners() {
         document.addEventListener('somatic-pickup-battery', () => {
             if (this.inventory.batteries < this.MAX_BATTERIES) {
@@ -189,7 +201,11 @@ export default class PlayerController {
             baseSpeed = 30.0;
             state.isRunning = false;
         } else if (state.isRunning) {
-            baseSpeed = dynamicRunSpeed;
+            baseSpeed = this.isChased ? dynamicRunSpeed + 25.0 : dynamicRunSpeed;
+        }
+
+        if (this.isChased && state.isRunning && this.exhaustion > 0.8) {
+            this.paranoia = Math.min(1.0, this.paranoia + (delta * 0.15));
         }
 
         let currentSpeed = baseSpeed * this.speedMultiplier * adrenalineMultiplier;
@@ -298,11 +314,14 @@ export default class PlayerController {
             normalizedDarkness *= (1.0 - (0.85 * safetyFactor));
         }
         this.perceivedDarkness = normalizedDarkness;
-        
-        const baseAccumulation = (externalPressure * 0.08) + (this.perceivedDarkness * 0.04);
-        if (baseAccumulation > 0.001) {
-            this.paranoia = Math.min(1.0, this.paranoia + (baseAccumulation * delta));
+
+        let baseAccumulation = (externalPressure * 0.08) + (this.perceivedDarkness * 0.04);
+
+        if (this.perceivedDarkness < 0.1 && externalPressure === 0.0 && !isMoving) {
+            baseAccumulation -= 0.02;
         }
+
+        this.paranoia = Math.max(0.0, Math.min(1.0, this.paranoia + (baseAccumulation * delta)));
 
         const visibleParanoia = Math.max(0.0, (this.paranoia - 0.5) * 2.0);
         targetFov -= (externalPressure * 15.0) + (this.perceivedDarkness * 15.0) + (visibleParanoia * 15.0);

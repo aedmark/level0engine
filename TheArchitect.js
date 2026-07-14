@@ -561,12 +561,16 @@ export default class TheArchitect {
                 }
             },
             {
-                // [SLASH PATCH] Standard Wall padding. Absorbs the 26.5% probability gap to protect rare spawns below it.
                 prob: 0.035, build: (x, z) => {
-                    const wall = buildWall(this.cellSize, this.cellSize, this.sharedWallMat);
-                    wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
-                    wall.userData.isEntityBlocker = true;
-                    addGeometry(wall);
+                    if (random() > 0.65 && ctx.addObserver) {
+                        ctx.addObserver(x * this.cellSize, z * this.cellSize);
+                        if (ctx.markOccupied) ctx.markOccupied(x, z);
+                    } else {
+                        const wall = buildWall(this.cellSize, this.cellSize, this.sharedWallMat);
+                        wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                        wall.userData.isEntityBlocker = true;
+                        addGeometry(wall);
+                    }
                 }
             },
             {
@@ -595,15 +599,17 @@ export default class TheArchitect {
                         return;
                     }
 
-                    if (!this._globalSwitches.some(s => Math.abs(s.x - cx) < 0.1 && Math.abs(s.z - cz) < 0.1)) {
+                    const isHallucination = (this.player && this.player.paranoia > 0.8) && (random() > 0.5);
+
+                    if (!isHallucination && !this._globalSwitches.some(s => Math.abs(s.x - cx) < 0.1 && Math.abs(s.z - cz) < 0.1)) {
                         this._globalSwitches.push({x: cx, z: cz});
                     }
                     if (ctx.markOccupied) ctx.markOccupied(x, z);
 
-                    // Central monolith
                     const pillar = buildWall(1.5, 1.5, this.metalMat);
                     pillar.position.set(cx, 1.5, cz);
-                    pillar.userData.isEntityBlocker = true;
+
+                    pillar.userData.isEntityBlocker = !isHallucination;
                     addGeometry(pillar);
 
                     const bBox = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.2), this.rustMat);
@@ -617,13 +623,18 @@ export default class TheArchitect {
                         bBox.position.set(cx + (sign * 0.85), 1.5, cz);
                     }
 
-                    bBox.userData = { type: 'exit_switch', chunkHash: hash, active: false };
+                    bBox.userData = { type: isHallucination ? 'grate' : 'exit_switch', chunkHash: hash, active: false };
                     chunkGroup.add(bBox);
                     if (!this.interactables) this.interactables = [];
                     this.interactables.push(bBox);
 
                     const lightMesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.25), this.hazardMat);
                     lightMesh.position.set(0, 0.3, 0);
+
+                    if (isHallucination) {
+                        lightMesh.material = new THREE.MeshBasicMaterial({color: 0xffaa00});
+                    }
+
                     bBox.add(lightMesh);
                 }
             },
@@ -953,12 +964,13 @@ export default class TheArchitect {
                         const fenceGeoX = new THREE.BoxGeometry(this.cellSize, 3.0, 0.05);
                         const fenceX = new THREE.Mesh(fenceGeoX, this.waterMat);
                         fenceX.position.set(x * this.cellSize, 1.5, z * this.cellSize + (this.cellSize / 2));
-                        fenceX.userData.isEntityBlocker = true;
+                        if (random() > 0.1) fenceX.userData.isEntityBlocker = true;
                         addGeometry(fenceX);
+
                         const fenceGeoZ = new THREE.BoxGeometry(0.05, 3.0, this.cellSize);
                         const fenceZ = new THREE.Mesh(fenceGeoZ, this.waterMat);
                         fenceZ.position.set(x * this.cellSize + (this.cellSize / 2), 1.5, z * this.cellSize);
-                        fenceZ.userData.isEntityBlocker = true;
+                        if (random() > 0.2) fenceZ.userData.isEntityBlocker = true;
                         addGeometry(fenceZ);
                     } else {
                         if (localX % 3 === 0 && localZ % 3 === 0 && random() > 0.5) {

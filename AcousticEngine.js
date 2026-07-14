@@ -210,7 +210,27 @@ export default class AcousticEngine {
         this.subRumble.connect(this.mainGain);
         this.kineticFilter.connect(this.mainGain);
         this.whineGain.connect(this.mainGain);
+
+        this.spatialDelay = this.ctx.createDelay(2.0);
+        this.spatialDelay.delayTime.value = 0.1;
+        this.feedbackGain = this.ctx.createGain();
+        this.feedbackGain.gain.value = 0.2;
+
+        this.mainGain.connect(this.spatialDelay);
+        this.spatialDelay.connect(this.feedbackGain);
+        this.feedbackGain.connect(this.spatialDelay);
+        this.spatialDelay.connect(this.masterGain);
         this.mainGain.connect(this.masterGain);
+
+        this.tinnitusOsc = this.ctx.createOscillator();
+        this.tinnitusOsc.type = 'sine';
+        this.tinnitusOsc.frequency.value = 4500.0;
+        this.tinnitusGain = this.ctx.createGain();
+        this.tinnitusGain.gain.value = 0.0;
+        this.tinnitusOsc.connect(this.tinnitusGain);
+        this.tinnitusGain.connect(this.masterGain);
+        this.tinnitusOsc.start();
+
         const t = this.ctx.currentTime;
         this.mainGain.gain.setValueAtTime(0, t);
         this.whineGain.gain.setValueAtTime(0, t);
@@ -260,6 +280,23 @@ export default class AcousticEngine {
 
         const perceivedThreat = anomalyPressure + (structuralTension * 0.8);
         if (this.entityGain) setParam('entity', this.entityGain.gain, perceivedThreat > 0.0 ? perceivedThreat * 0.4 : 0.0, 0.2);
+
+        if (this.spatialDelay) {
+            const delayTimes = { "POOLROOMS": 0.6, "CHASM": 0.8, "ATRIUM": 0.4, "MAINTENANCE": 0.05, "NORMAL": 0.15 };
+            const feedbackVals = { "POOLROOMS": 0.5, "CHASM": 0.7, "ATRIUM": 0.3, "MAINTENANCE": 0.1, "NORMAL": 0.2 };
+
+            const targetDelay = delayTimes[activeSector] || 0.15;
+            const targetFeedback = feedbackVals[activeSector] || 0.2;
+
+            setParam('delayTime', this.spatialDelay.delayTime, targetDelay, 1.0);
+            setParam('feedback', this.feedbackGain.gain, targetFeedback, 1.0);
+        }
+
+        if (this.tinnitusGain) {
+            const isPanicking = paranoia > 0.7 && playerExhaustion > 0.6;
+            const tinnitusVolume = isPanicking ? (paranoia - 0.7) * 0.15 : 0.0;
+            setParam('tinnitus', this.tinnitusGain.gain, tinnitusVolume, 2.0);
+        }
 
         if (this.subRumble) {
             const heartbeatFreq = playerExhaustion > 0.3 ? 80.0 + (Math.sin(time * (10.0 + playerExhaustion * 5.0)) * 20.0 * playerExhaustion) : 0.0;
@@ -337,9 +374,10 @@ export default class AcousticEngine {
             'door':    ['square', 120, 30, 0.3, 0.08, 0.03, 0.5, { type: 'lowpass', start: 1000, end: 100, ramp: 0.4 }],
             'vent':    ['sawtooth', 400, 80, 0.4, 0.1, 0.03, 0.5, { type: 'bandpass', start: 1500, end: 300, ramp: 0.4 }],
             'breaker': ['square', 900, 100, 0.15, 0.12, 0.01, 0.15, null],
-            'item':    ['sine', 1200, 600, 0.3, 0.08, 0.02, 0.4, null]
+            'item':    ['sine', 1200, 600, 0.3, 0.08, 0.02, 0.4, null],
+            'whisper': ['sine', 800, 200, 1.5, 0.04, 0.5, 1.5, { type: 'highpass', start: 1200, end: 600, ramp: 1.0 }],
+            'laugh':   ['square', 110, 35, 1.8, 0.25, 0.1, 2.5, { type: 'lowpass', start: 800, end: 150, ramp: 1.5 }]
         };
-
         if (voices[type]) spawnVoice(...voices[type]);
     }
 

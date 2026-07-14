@@ -83,6 +83,9 @@ document.addEventListener('somatic-step', (e) => acoustics.triggerSomaticEvent('
 document.addEventListener('somatic-door', (e) => acoustics.triggerSomaticEvent('door', e.detail.distSq, e.detail.intensity));
 
 document.addEventListener('somatic-vent', (e) => acoustics.triggerSomaticEvent('vent', e.detail.distSq, e.detail.intensity));
+
+document.addEventListener('somatic-lost', (e) => acoustics.triggerSomaticEvent(e.detail.isLaugh ? 'laugh' : 'whisper', e.detail.distSq, e.detail.intensity));
+
 document.addEventListener('somatic-blink', () => {
     const flash = document.getElementById('flash-overlay');
     if (flash) {
@@ -218,6 +221,7 @@ function animate() {
         player.isDead = true;
         setTimeout(() => {
             triggerBlackout();
+            player.resetMetabolism();
             environment.generate();
             player.isDead = false;
         }, 400);
@@ -231,6 +235,7 @@ function animate() {
         engine.camera.rotation.z = Math.PI / 2.5;
         setTimeout(() => {
             triggerBlackout();
+            player.resetMetabolism();
             environment.generate();
             player.isDead = false;
         }, 1500);

@@ -83,6 +83,9 @@ export default class Environment {
             if (this.interactables) {
                 this.interactables = this.interactables.filter(i => !deadHashes.has(i.userData.chunkHash));
             }
+            if (this.observers) {
+                this.observers = this.observers.filter(o => !deadHashes.has(o.userData.chunkHash));
+            }
         }
     }
 
@@ -188,6 +191,55 @@ export default class Environment {
                     }
                 }
             });
+        }
+        if (this.observers) {
+            for (let i = this.observers.length - 1; i >= 0; i--) {
+                const obs = this.observers[i];
+                if (!obs.userData.active) continue;
+
+                const distSq = playerPos.distanceToSquared(obs.position);
+                let beingLookedAt = false;
+
+                if (distSq < 625.0) {
+                    const toObs = new THREE.Vector3().subVectors(obs.position, playerPos).normalize();
+                    const lookDir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+                    if (lookDir.dot(toObs) > 0.90) beingLookedAt = true;
+                }
+
+                if (distSq < 36.0 || (beingLookedAt && this.player.flashlightActive && distSq < 400.0)) {
+                    obs.userData.fade -= delta * 1.2;
+                    if (obs.userData.fade <= 0) {
+                        obs.userData.active = false;
+                        obs.visible = false;
+
+                        if (this.player.paranoia < 0.9) this.player.paranoia += 0.05;
+
+                        const isLaugh = Math.random() > 0.85;
+                        document.dispatchEvent(new CustomEvent('somatic-lost', {
+                            detail: { distSq: distSq, isLaugh: isLaugh, intensity: isLaugh ? 2.0 : 0.6 }
+                        }));
+                        if (Math.random() > 0.8 && this.interactables) {
+                            const almondGroup = new THREE.Group();
+                            almondGroup.add(this.almondPrefab.clone());
+                            const aGlow = new THREE.Mesh(this.glowGeo, this.glowMat);
+                            aGlow.scale.set(0.15, 0.15, 0.15);
+                            aGlow.position.y = 0.01;
+                            almondGroup.add(aGlow);
+                            almondGroup.position.copy(obs.position);
+                            almondGroup.position.y = 0.1;
+                            almondGroup.userData = {type: 'almond', chunkHash: obs.userData.chunkHash, active: true};
+                            obs.parent.add(almondGroup);
+                            this.interactables.push(almondGroup);
+                        }
+                    } else {
+                        obs.material.opacity = obs.userData.fade;
+                        obs.position.x += (Math.random() - 0.5) * delta * 0.5;
+                        obs.position.z += (Math.random() - 0.5) * delta * 0.5;
+                    }
+                } else if (distSq < 900.0) {
+                    obs.lookAt(playerPos.x, obs.position.y, playerPos.z);
+                }
+            }
         }
     }
 
@@ -583,6 +635,7 @@ export default class Environment {
         this.spatialGrid.clear();
         this.currentChunkCoords = {x: null, z: null};
         this.blackoutChunks.clear();
+        this.observers = [];
         if (this.tagPool) {
             this.tagPool.forEach(tag => tag.visible = false);
             this.tagIndex = 0;
@@ -675,6 +728,11 @@ export default class Environment {
             const bTerm = new THREE.Mesh(bTermGeo, this.metalMat);
             bTerm.position.y = 0.16 + 0.01;
             this.batteryPrefab.add(bBody, bTopRim, bBotRim, bTerm);
+
+            this.observerMat = new THREE.MeshBasicMaterial({ color: 0x010101, transparent: true, opacity: 0.85 });
+            this.observerGeo = new THREE.CylinderGeometry(0.15, 0.1, 1.9, 8);
+            this.observers = [];
+
             this.sharedAssets = new Set();
             Object.values(this).forEach(v => {
                 if (v && v.isGeometry) this.sharedAssets.add(v.uuid);
@@ -756,6 +814,13 @@ export default class Environment {
                         stagingMeshes.push(child);
                     }
                 });
+            },
+            addObserver: (px, pz) => {
+                const obs = new THREE.Mesh(this.observerGeo, this.observerMat.clone());
+                obs.position.set(px, 0.95, pz);
+                obs.userData = { chunkHash: hash, active: true, fade: 0.85 };
+                chunkGroup.add(obs);
+                this.observers.push(obs);
             },
             addGrate: (px, py, pz, blocksX) => {
                 const localBoxes = this.spatialGrid.getNearby(px, pz, 1.0);
