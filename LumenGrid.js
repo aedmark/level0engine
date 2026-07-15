@@ -8,7 +8,6 @@ export default class LumenGrid {
         this.maxShadowLights = isMobile ? 2 : 10;
         this.lightPool = [];
         this._activeFixtures = new Array(this.maxActiveLights).fill(null);
-
         for (let i = 0; i < this.maxActiveLights; i++) {
             const radius = i < this.maxShadowLights ? 20 : 30;
             const light = new THREE.PointLight(0xffebd6, 0, radius, 2.0);
@@ -29,28 +28,23 @@ export default class LumenGrid {
     update(cameraPos, fixtureData, time) {
         let darknessPressure = 0;
         this._activeFixtures.fill(null);
-
         const cullingLimit = this.maxActiveLights > 12 ? 35.0 : 22.0;
         for (let i = 0, len = fixtureData.length; i < len; i++) {
             const fixture = fixtureData[i];
             const dx = cameraPos.x - fixture.position.x;
             const dz = cameraPos.z - fixture.position.z;
-
             if (dx > cullingLimit || dx < -cullingLimit || dz > cullingLimit || dz < -cullingLimit) {
                 fixture.hasShadow = false;
                 continue;
             }
-
             const distSq = (dx * dx) + (dz * dz);
             if (distSq < 900.0) {
                 if (fixture.isDead) {
                     darknessPressure += 1.0 - (distSq * 0.00111);
                 }
-
                 if (!fixture.isFake) {
                     fixture.distSq = distSq;
                     fixture._biasedDistSq = fixture.hasShadow ? distSq - 40.0 : distSq;
-
                     let insertPos = -1;
                     for (let j = 0; j < this.maxActiveLights; j++) {
                         if (!this._activeFixtures[j] || fixture._biasedDistSq < this._activeFixtures[j]._biasedDistSq) {
@@ -58,7 +52,6 @@ export default class LumenGrid {
                             break;
                         }
                     }
-
                     if (insertPos !== -1) {
                         for (let j = this.maxActiveLights - 1; j > insertPos; j--) {
                             this._activeFixtures[j] = this._activeFixtures[j - 1];
@@ -70,29 +63,23 @@ export default class LumenGrid {
                 fixture.hasShadow = false;
             }
         }
-
         let nearestFixture = null;
         let minLightDistSq = Infinity;
-
         for (let i = 0; i < this.maxActiveLights; i++) {
             const light = this.lightPool[i];
             const fixture = this._activeFixtures[i];
-
             if (fixture) {
                 const isShadowCaster = i < this.maxShadowLights;
                 fixture.hasShadow = isShadowCaster;
-
                 if (fixture.distSq < minLightDistSq) {
                     minLightDistSq = fixture.distSq;
                     nearestFixture = fixture;
                 }
-
                 light.position.copy(fixture.position);
                 const dist = Math.sqrt(fixture.distSq);
                 const activeRadius = isShadowCaster ? 20 : 30;
                 const fadeEnvelope = Math.max(0, Math.min(1, (activeRadius - dist) / 8.0));
                 const intensityScalar = isShadowCaster ? 0.65 : 0.35;
-
                 if (fixture.isDead) {
                     light.intensity = 0.0;
                     if (fixture.material) fixture.material.emissiveIntensity = 0.0;
@@ -111,7 +98,6 @@ export default class LumenGrid {
                 light.intensity = 0;
             }
         }
-
-        return { darknessPressure, nearestFixture, minLightDistSq };
+        return {darknessPressure, nearestFixture, minLightDistSq};
     }
 }

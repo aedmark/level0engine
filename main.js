@@ -1,6 +1,5 @@
 // main.js
 // LEVEL 0 SYSTEM BOOTSTRAP
-
 import RenderEngine from './RenderEngine.js';
 import PlayerController from './PlayerController.js';
 import Environment from './Environment.js';
@@ -81,14 +80,11 @@ document.addEventListener('click', bootAudio, {once: true});
 document.addEventListener('keydown', bootAudio, {once: true});
 document.addEventListener('somatic-step', (e) => acoustics.triggerSomaticEvent('step', 0, e.detail.intensity));
 document.addEventListener('somatic-door', (e) => acoustics.triggerSomaticEvent('door', e.detail.distSq, e.detail.intensity));
-
 document.addEventListener('somatic-vent', (e) => acoustics.triggerSomaticEvent('vent', e.detail.distSq, e.detail.intensity));
-
 document.addEventListener('somatic-lost', (e) => acoustics.triggerSomaticEvent(e.detail.isLaugh ? 'laugh' : 'whisper', e.detail.distSq, e.detail.intensity));
-
 document.addEventListener('somatic-blink', () => {
     const flash = document.getElementById('flash-overlay');
-    if (flash) {
+    if (flash && flash.style.opacity !== '0.98') {
         flash.style.transition = 'none';
         flash.style.backgroundColor = '#000';
         flash.style.opacity = '1';
@@ -96,6 +92,19 @@ document.addEventListener('somatic-blink', () => {
             flash.style.transition = 'opacity 0.15s ease-out';
             flash.style.opacity = '0';
         }, 150);
+    }
+});
+document.addEventListener('somatic-eyes', (e) => {
+    const flash = document.getElementById('flash-overlay');
+    if (flash) {
+        if (e.detail.closed) {
+            flash.style.transition = 'opacity 0.2s ease-in';
+            flash.style.backgroundColor = '#000';
+            flash.style.opacity = '0.98';
+        } else {
+            flash.style.transition = 'opacity 0.3s ease-out';
+            flash.style.opacity = '0';
+        }
     }
 });
 document.addEventListener('somatic-breaker', (e) => acoustics.triggerSomaticEvent('breaker', e.detail.distSq, e.detail.intensity));
@@ -157,22 +166,17 @@ class UIManager {
         if (!this.stamLevel) this.stamLevel = document.getElementById('stamina-level');
         if (!this.invBat) this.invBat = document.getElementById('inv-bat');
         if (!this.invH2o) this.invH2o = document.getElementById('inv-h2o');
-
         if (this.coordsEl) {
             const prnInt = Math.round((player.paranoia || 0.0) * 100);
             const newCoords = `X: ${engine.camera.position.x.toFixed(1)} | Z: ${engine.camera.position.z.toFixed(1)} | PRN: ${prnInt.toString().padStart(2, '0')}%`;
-
             if (this.coordsEl._last !== newCoords) {
                 this.coordsEl.innerText = newCoords;
-
                 if (prnInt > 80) this.coordsEl.style.color = '#ff5555';
                 else if (prnInt > 40) this.coordsEl.style.color = '#ffaa55';
                 else this.coordsEl.style.color = '';
-
                 this.coordsEl._last = newCoords;
             }
         }
-
         if (this.batLevel) {
             const batInt = Math.round(player.flashlightBattery);
             if (this.batLevel._last !== batInt) {
@@ -181,7 +185,6 @@ class UIManager {
                 this.batLevel._last = batInt;
             }
         }
-
         if (this.stamLevel) {
             const stamInt = Math.round(player.stamina);
             if (this.stamLevel._last !== stamInt) {
@@ -190,7 +193,6 @@ class UIManager {
                 this.stamLevel._last = stamInt;
             }
         }
-
         if (this.invBat && this.invH2o) {
             if (this.invBat._last !== player.inventory.batteries) {
                 this.invBat.innerText = player.inventory.batteries;
@@ -216,7 +218,6 @@ function animate() {
     }
     environment.updateChunks(engine.camera.position);
     environment.updateInteractives(engine.camera.position, delta);
-
     if (engine.camera.position.y < -15.0 && !player.isDead) {
         player.isDead = true;
         setTimeout(() => {
@@ -227,7 +228,6 @@ function animate() {
         }, 400);
         return;
     }
-
     const entityState = environment.updateEntity(engine.camera.position, delta, time);
     if (entityState && entityState.consumed) {
         player.isDead = true;
@@ -250,21 +250,20 @@ function animate() {
     const squeezeFactor = (player.baseRadius - player.playerRadius) / (player.baseRadius - player.squeezeRadius);
     engine.squeeze = Math.max(0.0, Math.min(1.0, squeezeFactor));
     const telemetry = environment.updateLights(time);
-
     telemetry.paranoia = player.paranoia || 0.0;
+    telemetry.adrenaline = engine.adrenaline;
+    telemetry.eyesClosed = engine.eyesClosed;
     acoustics.update(telemetry);
-
     engine.anomaly = telemetry.anomalyPressure + (telemetry.paranoia * 0.5);
     engine.darkness = player.perceivedDarkness || 0.0;
     engine.paranoia = telemetry.paranoia;
-
+    engine.adrenaline = player.adrenalineTimer > 0 ? (player.adrenalineTimer / 2.5) : 0.0;
+    engine.eyesClosed = player.input.state.isClosingEyes ? 1.0 : 0.0;
     if (engine.paranoia > 0.4 && Math.random() < (engine.paranoia * delta * 0.3)) {
-        const fakeDistSq = Math.pow(10.0 + (Math.random() * 20.0), 2); // 10m to 30m away
+        const fakeDistSq = Math.pow(10.0 + (Math.random() * 20.0), 2);
         acoustics.triggerSomaticEvent(Math.random() > 0.7 ? 'door' : 'step', fakeDistSq, 0.3 + Math.random() * 0.5);
     }
-
     UIManager.update(time, engine, player);
-
     if (!player.input.state.isRunning) {
         const runBtn = document.getElementById('mobile-run');
         if (runBtn && runBtn.classList.contains('active')) {

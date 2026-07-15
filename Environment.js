@@ -75,7 +75,6 @@ export default class Environment {
                 this.spatialGrid.removeByChunk(hash);
             }
         }
-
         if (deadHashes.size > 0) {
             this.walls = this.walls.filter(w => !deadHashes.has(w.userData.chunkHash));
             this.fixtureData = this.fixtureData.filter(f => !deadHashes.has(f.chunkHash));
@@ -107,27 +106,21 @@ export default class Environment {
     updateInteractives(playerPos, delta) {
         this.interactiveDoors.forEach(door => {
             const pDistSq = playerPos.distanceToSquared(door.position);
-
             if (pDistSq > 400.0 && !door.userData.isLatched && !door.userData.entityOpen) return;
-
             const playerOpen = door.userData.playerOpen === true;
             const entityOpen = door.userData.entityOpen === true;
             door.userData.entityOpen = false;
-
             if (playerOpen && pDistSq > 100.0) {
                 door.userData.playerOpen = false;
             }
-
             const isOpen = playerOpen || entityOpen;
             let targetRot = door.userData.closedRot;
             if (isOpen) {
                 if (!door.userData.isLatched) {
                     const triggerPos = (entityOpen && !playerOpen) ? this.anomaly.group.position : playerPos;
                     const isZDoor = Math.abs(door.userData.closedRot) < 0.1 || Math.abs(door.userData.closedRot - Math.PI) < 0.1;
-
                     const swingAngle = Math.PI / 2.2;
                     let desiredRot = door.userData.closedRot;
-
                     if (isZDoor) {
                         const approachZ = triggerPos.z - door.position.z;
                         desiredRot = approachZ < 0 ? (door.userData.closedRot + swingAngle) : (door.userData.closedRot - swingAngle);
@@ -135,13 +128,12 @@ export default class Environment {
                         const approachX = triggerPos.x - door.position.x;
                         desiredRot = approachX < 0 ? (door.userData.closedRot - swingAngle) : (door.userData.closedRot + swingAngle);
                     }
-
                     door.userData.latchedRot = desiredRot;
                     door.userData.isLatched = true;
                     door.userData.swingSpeed = (entityOpen && !playerOpen) ? 35.0 : 8.0;
                     const intensity = (entityOpen && !playerOpen) ? 1.0 : 0.25;
                     document.dispatchEvent(new CustomEvent('somatic-door', {
-                        detail: { distSq: pDistSq, intensity: intensity }
+                        detail: {distSq: pDistSq, intensity: intensity}
                     }));
                 }
                 targetRot = door.userData.latchedRot;
@@ -150,18 +142,15 @@ export default class Environment {
                 door.userData.swingSpeed = 8.0;
             }
             const rotDiff = targetRot - door.userData.currentRot;
-
             if (Math.abs(rotDiff) > 0.001) {
                 door.userData.currentRot += rotDiff * door.userData.swingSpeed * delta;
                 door.rotation.y = door.userData.currentRot;
-
                 if (door.userData.box && isOpen) {
                     if (!door.userData.box.isEmpty()) door.userData.box.makeEmpty();
                 }
             } else if (door.userData.currentRot !== targetRot) {
                 door.userData.currentRot = targetRot;
                 door.rotation.y = targetRot;
-
                 if (!isOpen && door.userData.box) {
                     door.updateMatrixWorld(true);
                     if (!door.userData.baseBox) {
@@ -172,19 +161,15 @@ export default class Environment {
                 }
             }
         });
-
         if (this.interactables) {
             this.interactables.forEach(obj => {
                 if (obj.userData.type === 'grate' && !obj.userData.active) {
                     const targetRot = -Math.PI / 2;
                     const diff = obj.userData.blocksX ? (targetRot - obj.rotation.z) : (targetRot - obj.rotation.x);
-
                     if (Math.abs(diff) > 0.01) {
                         if (obj.userData.blocksX) obj.rotation.z += diff * 15.0 * delta;
                         else obj.rotation.x += diff * 15.0 * delta;
-
                         obj.position.y += (0.05 - obj.position.y) * 15.0 * delta;
-
                         if (obj.userData.box && !obj.userData.box.isEmpty()) {
                             obj.userData.box.makeEmpty();
                         }
@@ -196,27 +181,22 @@ export default class Environment {
             for (let i = this.observers.length - 1; i >= 0; i--) {
                 const obs = this.observers[i];
                 if (!obs.userData.active) continue;
-
                 const distSq = playerPos.distanceToSquared(obs.position);
                 let beingLookedAt = false;
-
                 if (distSq < 625.0) {
                     const toObs = new THREE.Vector3().subVectors(obs.position, playerPos).normalize();
                     const lookDir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
                     if (lookDir.dot(toObs) > 0.90) beingLookedAt = true;
                 }
-
                 if (distSq < 36.0 || (beingLookedAt && this.player.flashlightActive && distSq < 400.0)) {
                     obs.userData.fade -= delta * 1.2;
                     if (obs.userData.fade <= 0) {
                         obs.userData.active = false;
                         obs.visible = false;
-
                         if (this.player.paranoia < 0.9) this.player.paranoia += 0.05;
-
                         const isLaugh = Math.random() > 0.85;
                         document.dispatchEvent(new CustomEvent('somatic-lost', {
-                            detail: { distSq: distSq, isLaugh: isLaugh, intensity: isLaugh ? 2.0 : 0.6 }
+                            detail: {distSq: distSq, isLaugh: isLaugh, intensity: isLaugh ? 2.0 : 0.6}
                         }));
                         if (Math.random() > 0.8 && this.interactables) {
                             const almondGroup = new THREE.Group();
@@ -246,19 +226,15 @@ export default class Environment {
     async processChunkQueue() {
         if (this.isBuildingChunk) return;
         this.isBuildingChunk = true;
-
         while (this.chunkQueue.length > 0) {
             const chunk = this.chunkQueue.shift();
             const currentX = Math.floor(this.camera.position.x / (this.chunkSize * 4));
             const currentZ = Math.floor(this.camera.position.z / (this.chunkSize * 4));
-
             if (Math.abs(chunk.x - currentX) <= this.renderDistance && Math.abs(chunk.z - currentZ) <= this.renderDistance) {
                 await this.buildChunk(chunk.x, chunk.z, chunk.hash);
             }
         }
-
         this.isBuildingChunk = false;
-
         if (this.isSpawning) {
             this.isSpawning = false;
             const flash = document.getElementById('flash-overlay');
@@ -278,7 +254,6 @@ export default class Environment {
         const {carpetTexture, ceilingTexture} = assets;
         carpetTexture.repeat.set(16, 16);
         ceilingTexture.repeat.set(128, 128);
-
         this.carpetMat = new THREE.MeshStandardMaterial({
             map: carpetTexture,
             roughness: 1.0,
@@ -317,7 +292,6 @@ export default class Environment {
         });
         this.dustCloud = new THREE.Points(dustGeo, dustMat);
         this.scene.add(this.dustCloud);
-
         const exhaustGeo = new THREE.BufferGeometry();
         const exhaustCount = 450;
         const exhaustPos = new Float32Array(exhaustCount * 3);
@@ -325,7 +299,6 @@ export default class Environment {
             exhaustPos[i] = (Math.random() - 0.5) * 30.0;
         }
         exhaustGeo.setAttribute('position', new THREE.BufferAttribute(exhaustPos, 3));
-
         this.exhaustMat = new THREE.PointsMaterial({
             color: 0x00ffcc,
             size: 0.08,
@@ -336,11 +309,8 @@ export default class Environment {
         });
         this.exhaustCloud = new THREE.Points(exhaustGeo, this.exhaustMat);
         this.scene.add(this.exhaustCloud);
-
         this.lumenGrid = new LumenGrid(this.scene, this.isMobile);
-
         this.anomaly = new Anomaly(this.scene, this.camera, this.player, this);
-
         this.tagPool = [];
         this.tagIndex = 0;
         this.tagGroup = new THREE.Group();
@@ -446,42 +416,34 @@ export default class Environment {
         });
         document.addEventListener('somatic-interact', (e) => {
             let hit = null;
-            let closestDist = 3.0;
-
+            let closestDistSq = 9.0;
             const checkObj = (obj) => {
-                const dist = obj.position.distanceTo(e.detail.position);
-                if (dist < closestDist) {
+                const distSq = obj.position.distanceToSquared(e.detail.position);
+                if (distSq < closestDistSq) {
                     const dirToObj = new THREE.Vector3().subVectors(obj.position, e.detail.position).normalize();
                     if (e.detail.direction.dot(dirToObj) > 0.75) {
-                        closestDist = dist;
+                        closestDistSq = distSq;
                         hit = obj;
                     }
                 }
             };
-
             if (this.interactables) this.interactables.forEach(checkObj);
             if (this.interactiveDoors) this.interactiveDoors.forEach(checkObj);
-
             if (hit && hit.userData.closedRot !== undefined) {
                 hit.userData.playerOpen = !hit.userData.playerOpen;
                 document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 1.0, intensity: 0.5}}));
                 return;
             }
-
             if (hit && hit.userData.type === 'breaker') {
                 if (!hit.userData.active) return;
                 hit.userData.active = false;
-
                 const chunkHash = hit.userData.chunkHash;
                 const isBlackout = this.blackoutChunks.has(chunkHash);
-
                 if (hit.userData.door && !hit.userData.doorOpen) {
                     hit.userData.door.rotation.y = -Math.PI / 1.5;
                     hit.userData.doorOpen = true;
                 }
-
                 document.dispatchEvent(new CustomEvent('somatic-breaker', {detail: {distSq: 1.0, intensity: 2.0}}));
-
                 if (!isBlackout) {
                     this.blackoutChunks.add(chunkHash);
                     this.fixtureData.forEach(fixture => {
@@ -491,17 +453,13 @@ export default class Environment {
                             fixture.targetIntensity = 2.5;
                             fixture.currentIntensity = 2.5;
                             fixture.isDead = true;
-
                             if (fixture.isFake && fixture.material) fixture.material.emissiveIntensity = 2.0;
-
                             if (fixture.material && fixture.material.color && !fixture.originalColor) {
                                 fixture.originalColor = fixture.material.color.getHex();
                                 fixture.originalEmissive = fixture.material.emissive.getHex();
                             }
-
                             clearTimeout(fixture.flickerTimer);
                             clearTimeout(fixture.restoreTimer);
-
                             fixture.flickerTimer = setTimeout(() => {
                                 fixture.baseIntensity = 0.0;
                                 fixture.targetIntensity = 0.0;
@@ -512,7 +470,6 @@ export default class Environment {
                                     fixture.material.emissiveIntensity = 0.0;
                                 }
                             }, 200 + Math.random() * 600);
-
                             fixture.restoreTimer = setTimeout(() => {
                                 this.blackoutChunks.delete(chunkHash);
                                 fixture.isDead = false;
@@ -520,7 +477,6 @@ export default class Environment {
                                 fixture.baseIntensity = fixture.isFake ? 0.0 : 0.6;
                                 fixture.targetIntensity = fixture.baseIntensity;
                                 fixture.currentIntensity = fixture.baseIntensity;
-
                                 if (fixture.material && fixture.originalColor) {
                                     fixture.material.color.setHex(fixture.originalColor);
                                     fixture.material.emissive.setHex(fixture.originalEmissive);
@@ -540,7 +496,6 @@ export default class Environment {
                             fixture.baseIntensity = fixture.isFake ? 0.0 : 0.6;
                             fixture.targetIntensity = fixture.baseIntensity;
                             fixture.currentIntensity = fixture.baseIntensity;
-
                             if (fixture.material && fixture.originalColor) {
                                 fixture.material.color.setHex(fixture.originalColor);
                                 fixture.material.emissive.setHex(fixture.originalEmissive);
@@ -552,12 +507,9 @@ export default class Environment {
             } else if (hit && hit.userData.type === 'exit_switch') {
                 if (!hit.userData.active) {
                     hit.userData.active = true;
-
                     hit.children[0].material = new THREE.MeshBasicMaterial({color: 0x55ff55});
-
                     this.player.objectives.fixed++;
                     this.player.updateObjectives();
-
                     document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 0.1, intensity: 1.5}}));
                     if (this.engine.ambientLight) {
                         this.engine.ambientLight.intensity = 2.0;
@@ -583,21 +535,17 @@ export default class Environment {
                 this.player.objectives.escaped = true;
                 this.player.objectiveUI.innerHTML = '> SECTOR BREACHED.<br>> DESCENDING TO DEEPER LAYER...';
                 this.player.objectiveUI.style.color = '#aa55ff';
-
                 document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 0.1, intensity: 3.0}}));
                 if (this.engine.ambientLight) this.engine.ambientLight.intensity = 5.0;
-
                 const flash = document.getElementById('flash-overlay');
                 if (flash) {
                     flash.style.transition = 'opacity 3.0s ease-in';
                     flash.style.backgroundColor = '#000';
                     flash.style.opacity = '1';
-
                     setTimeout(() => {
                         this.player.objectives.fixed = 0;
                         this.player.objectives.escaped = false;
                         this.player.updateObjectives();
-
                         this.generate(true);
                     }, 3500);
                 }
@@ -643,7 +591,6 @@ export default class Environment {
         this.chunkQueue = [];
         this.isBuildingChunk = false;
         this.player.velocity.set(0, 0, 0);
-
         if (isWarp) {
             const signX = Math.random() > 0.5 ? 1 : -1;
             const signZ = Math.random() > 0.5 ? 1 : -1;
@@ -702,7 +649,6 @@ export default class Environment {
             this.breakerDoorGeo = new THREE.BoxGeometry(0.6, 0.8, 0.05);
             this.breakerDoorGeo.translate(0.3, 0, 0);
             this.geoCache = new Map();
-
             this.almondPrefab = new THREE.Group();
             const aBodyGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.12, 16);
             const aNeckGeo = new THREE.CylinderGeometry(0.012, 0.035, 0.05, 16);
@@ -714,7 +660,6 @@ export default class Environment {
             const aCap = new THREE.Mesh(aCapGeo, this.metalMat);
             aCap.position.y = 0.12 + 0.05 + 0.0075;
             this.almondPrefab.add(aBody, aNeck, aCap);
-
             this.batteryPrefab = new THREE.Group();
             const bBodyGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.16, 16);
             const bRimGeo = new THREE.CylinderGeometry(0.052, 0.052, 0.015, 16);
@@ -728,11 +673,9 @@ export default class Environment {
             const bTerm = new THREE.Mesh(bTermGeo, this.metalMat);
             bTerm.position.y = 0.16 + 0.01;
             this.batteryPrefab.add(bBody, bTopRim, bBotRim, bTerm);
-
-            this.observerMat = new THREE.MeshBasicMaterial({ color: 0x010101, transparent: true, opacity: 0.85 });
+            this.observerMat = new THREE.MeshBasicMaterial({color: 0x010101, transparent: true, opacity: 0.85});
             this.observerGeo = new THREE.CylinderGeometry(0.15, 0.1, 1.9, 8);
             this.observers = [];
-
             this.sharedAssets = new Set();
             Object.values(this).forEach(v => {
                 if (v && v.isGeometry) this.sharedAssets.add(v.uuid);
@@ -760,7 +703,6 @@ export default class Environment {
                 d = Math.round(d * 20) / 20;
                 h = Math.round(h * 20) / 20;
                 yOffset = Math.round(yOffset * 20) / 20;
-
                 const key = `${w}_${h}_${d}_${yOffset}`;
                 let geo = this.geoCache.get(key);
                 if (!geo) {
@@ -768,7 +710,6 @@ export default class Environment {
                     const uv = geo.attributes.uv;
                     for (let i = 0; i < 8; i++) uv.setX(i, uv.getX(i) * (d / this.cellSize));
                     for (let i = 16; i < 24; i++) uv.setX(i, uv.getX(i) * (w / this.cellSize));
-
                     if (h !== 3.0 || yOffset > 0) {
                         const vStart = yOffset / 3.0;
                         const vRange = h / 3.0;
@@ -799,12 +740,10 @@ export default class Environment {
                 group.userData.chunkHash = hash;
                 group.updateMatrixWorld(true);
                 const box = new THREE.Box3().setFromObject(group);
-
                 const localBoxes = this.spatialGrid.getNearby(group.position.x, group.position.z, 2.0);
                 for (let i = 0; i < localBoxes.length; i++) {
                     if (localBoxes[i].intersectsBox(box)) return;
                 }
-
                 box.chunkHash = hash;
                 this.spatialGrid.insert(box);
                 group.traverse((child) => {
@@ -818,7 +757,7 @@ export default class Environment {
             addObserver: (px, pz) => {
                 const obs = new THREE.Mesh(this.observerGeo, this.observerMat.clone());
                 obs.position.set(px, 0.95, pz);
-                obs.userData = { chunkHash: hash, active: true, fade: 0.85 };
+                obs.userData = {chunkHash: hash, active: true, fade: 0.85};
                 chunkGroup.add(obs);
                 this.observers.push(obs);
             },
@@ -889,13 +828,9 @@ export default class Environment {
             buildPerimeter: (x, z, localX, localZ, inDir, outDir, wallMat) => {
                 const isPerimeter = localX === 0 || localX === this.chunkSize - 1 || localZ === 0 || localZ === this.chunkSize - 1;
                 if (!isPerimeter) return false;
-
                 let isDoorway = false;
-                // [SLASH PATCH: FULLER] Universal 4-Way Hubs.
-                // Eradicating dead-ends by forcing all macro-structures to carve doorways at all cardinal edges.
                 if (localX === 7 && (localZ === 0 || localZ === this.chunkSize - 1)) isDoorway = true;
                 if (localZ === 7 && (localX === 0 || localX === this.chunkSize - 1)) isDoorway = true;
-
                 if (!isDoorway) {
                     const key = `${this.cellSize}_3.0_${this.cellSize}_0`;
                     let geo = this.geoCache.get(key);
@@ -906,7 +841,6 @@ export default class Environment {
                     }
                     const wall = new THREE.Mesh(geo, wallMat || this.sharedWallMat);
                     wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
-
                     wall.userData.chunkHash = hash;
                     wall.updateMatrixWorld(true);
                     if (!wall.geometry.boundingBox) wall.geometry.computeBoundingBox();
@@ -926,12 +860,10 @@ export default class Environment {
         const chunkGroup = new THREE.Group();
         this.scene.add(chunkGroup);
         this.activeChunks.set(hash, chunkGroup);
-
         let structuralShift = 0;
         if (this.player && this.player.paranoia > 0.6) {
             structuralShift = Math.floor(this.player.paranoia * 1000) * (chunkX % 2 === 0 ? 1 : -1);
         }
-
         let prngSeed = (this.baseSeed + structuralShift + (chunkX * 104729) + (chunkZ * 1299827)) >>> 0;
         const random = () => {
             prngSeed = (prngSeed * 1664525 + 1013904223) >>> 0;
@@ -950,11 +882,9 @@ export default class Environment {
         let sectorMaze = null;
         let chunkBreakerCount = 0;
         const breakerPositions = [];
-
         const hashVal = Math.abs((chunkX * 104729) + (chunkZ * 1299827));
-        const inDir = hashVal % 4; // 0: N, 1: E, 2: S, 3: W
-        const outDir = (hashVal + 1 + (hashVal % 3)) % 4; // Guarantees a different exit edge
-
+        const inDir = hashVal % 4;
+        const outDir = (hashVal + 1 + (hashVal % 3)) % 4;
         if (isMacroStructure) {
             const sectorRoll = random();
             let cumulative = 0;
@@ -996,20 +926,15 @@ export default class Environment {
             ceil.position.set(startX * this.cellSize + centerOffset, 3, startZ * this.cellSize + centerOffset);
             chunkGroup.add(ceil);
         }
-
         let chunkStartTime = performance.now();
-
         const occupied = new Set();
         ctx.markOccupied = (ox, oz) => occupied.add(`${ox},${oz}`);
         ctx.isOccupied = (ox, oz) => occupied.has(`${ox},${oz}`);
-
         for (let x = startX; x < startX + this.chunkSize; x++) {
             for (let z = startZ; z < startZ + this.chunkSize; z++) {
                 if (Math.abs(x) < 2 && Math.abs(z) < 2) continue;
-
                 if (ctx.isOccupied(x, z)) continue;
                 ctx.markOccupied(x, z);
-
                 const localX = x - startX;
                 const localZ = z - startZ;
                 if (isMacroStructure) {
@@ -1107,7 +1032,6 @@ export default class Environment {
                                 stagingMeshes.push(glow);
                             }
                         }
-                        // SCHUR: Random floor drops excised completely.
                     } else if (!hasTallObstacle && random() > 0.95 && chunkBreakerCount < 3) {
                         const px = x * this.cellSize;
                         const pz = z * this.cellSize;
@@ -1144,7 +1068,6 @@ export default class Environment {
                     }
                 }
             }
-
             if (performance.now() - chunkStartTime > 8.0) {
                 await new Promise(resolve => requestAnimationFrame(resolve));
                 chunkStartTime = performance.now();
@@ -1173,13 +1096,14 @@ export default class Environment {
             let rz = Math.floor(randomFn() * (this.chunkSize - 4)) + 2;
             maze[rx][rz] = false;
         }
-
-        // [SLASH PATCH: FULLER] Carve all 4 exits to match the universal perimeter hubs.
-        maze[7][0]=false; maze[7][1]=false;
-        maze[15][7]=false; maze[14][7]=false;
-        maze[7][15]=false; maze[7][14]=false;
-        maze[0][7]=false; maze[1][7]=false;
-
+        maze[7][0] = false;
+        maze[7][1] = false;
+        maze[15][7] = false;
+        maze[14][7] = false;
+        maze[7][15] = false;
+        maze[7][14] = false;
+        maze[0][7] = false;
+        maze[1][7] = false;
         return maze;
     }
 
@@ -1253,14 +1177,11 @@ export default class Environment {
             this.audioRaycaster = new THREE.Raycaster();
             this.audioDirection = new THREE.Vector3();
         }
-
         const lumenData = this.lumenGrid.update(cameraPos, this.fixtureData, time);
         const darknessPressure = lumenData.darknessPressure;
         const nearestFixture = lumenData.nearestFixture;
         const minLightDistSq = lumenData.minLightDistSq;
-
         this.player.darknessPressure = darknessPressure;
-
         const minLightDist = nearestFixture ? Math.sqrt(minLightDistSq) : Infinity;
         if (nearestFixture && minLightDist > 1.0) {
             if (time - this.lastAudioOcclusionTime > 0.1) {
@@ -1268,11 +1189,9 @@ export default class Environment {
                 this.audioRaycaster.set(cameraPos, this.audioDirection);
                 if (!this._rayTarget) this._rayTarget = new THREE.Vector3();
                 let isHit = false;
-
                 const localBoxes = this.spatialGrid.getNearby(cameraPos.x, cameraPos.z, Math.min(minLightDist, 15.0));
                 const ray = this.audioRaycaster.ray;
                 const distSqLimit = minLightDist * minLightDist;
-
                 for (let i = 0; i < localBoxes.length; i++) {
                     if (localBoxes[i].isInvisibleBlocker) continue;
                     if (ray.intersectBox(localBoxes[i], this._rayTarget)) {
@@ -1296,9 +1215,7 @@ export default class Environment {
             pSeed = (pSeed * 1664525 + 1013904223) >>> 0;
             return pSeed / 4294967296.0;
         };
-
         const dummyOasisRoll = pRandom();
-
         const isMacroLoc = pRandom() > 0.70 && (Math.abs(pChunkX) > 0 || Math.abs(pChunkZ) > 0);
         const sectorRoll = pRandom();
         let activeSector = "NORMAL";
@@ -1348,13 +1265,11 @@ export default class Environment {
             this.dustCloud.position.copy(cameraPos);
             this.dustCloud.rotation.y = time * 0.05;
             this.dustCloud.rotation.z = time * 0.02;
-
             const targetDustOpacity = this.player.isCrawling ? 0.35 : 0.10;
             const targetDustSize = this.player.isCrawling ? 0.08 : 0.05;
             this.dustCloud.material.opacity += (targetDustOpacity - this.dustCloud.material.opacity) * 0.05;
             this.dustCloud.material.size += (targetDustSize - this.dustCloud.material.size) * 0.05;
         }
-
         if (this.exhaustCloud) {
             this.exhaustCloud.position.copy(cameraPos);
             this.exhaustCloud.rotation.y = time * -0.07;
@@ -1365,36 +1280,25 @@ export default class Environment {
                 this.exhaustMat.size = 0.08 + (Math.sin(time * 12.0) * 0.02);
             }
         }
-
         const anomalyPressure = this.player.anomalyPressure || 0;
-
-        // [SLASH PATCH] Continuous spatial proximity scan for objectives.
         if (this.interactables && this.player && this.player.updateObjectives) {
             let nearestDist = Infinity;
             const isExitPhase = this.player.objectives.fixed >= this.player.objectives.total;
             const targetType = isExitPhase ? 'exit' : 'exit_switch';
-
             for (let i = 0; i < this.interactables.length; i++) {
                 const item = this.interactables[i];
-                // Switches are active=false until flipped. The exit elevator is active=true. We must scan for valid states.
                 const isValidTarget = isExitPhase ? item.userData.active === true : item.userData.active === false;
-
                 if (item.userData.type === targetType && isValidTarget) {
                     const dist = cameraPos.distanceTo(item.position);
                     if (dist < nearestDist) nearestDist = dist;
                 }
             }
-
             let signalText = nearestDist < 1000 ? `${nearestDist.toFixed(1)}m` : 'WEAK - RELOCATE';
-
-            // Thematic scrambling: Anomaly proximity disrupts the radar's reading
             if (anomalyPressure > 0.05 && nearestDist < 1000) {
                 signalText = Math.random() < (anomalyPressure * 1.5) ? 'ERR!_m' : signalText;
             }
-
             this.player.updateObjectives(signalText);
         }
-
         if (this.flashlight) {
             let targetIntensity = this.player.flashlightActive ? 1.1 : 0.0;
             if (this.player.flashlightActive) {

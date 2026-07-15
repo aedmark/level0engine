@@ -11,6 +11,7 @@ export default class SomaticInput {
             squeezeIntent: false,
             flashlightActive: false,
             isPeeking: false, targetLean: 0.0,
+            isClosingEyes: false,
             touchMoveActive: false, touchDeltaX: 0, touchDeltaY: 0
         };
 
@@ -203,7 +204,7 @@ export default class SomaticInput {
     _onKeyDown(event) {
         if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
         const key = event.code;
-        if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyQ', 'KeyF', 'KeyE'].includes(key)) {
+        if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyV', 'KeyQ', 'KeyF', 'KeyE'].includes(key)) {
             event.preventDefault();
         }
         if (event.key === 'Shift') this.state.isRunning = true;
@@ -218,6 +219,10 @@ export default class SomaticInput {
 
         if (event.code === 'KeyX') document.dispatchEvent(new Event('capture-screenshot'));
         if (event.code === 'KeyQ') this.state.squeezeIntent = true;
+        if (event.code === 'KeyV') {
+            this.state.isClosingEyes = true;
+            document.dispatchEvent(new CustomEvent('somatic-eyes', { detail: { closed: true } }));
+        }
 
         if (event.code === 'KeyF') {
             this.state.flashlightActive = !this.state.flashlightActive;
@@ -259,7 +264,10 @@ export default class SomaticInput {
         if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
         if (event.key === 'Shift') this.state.isRunning = false;
         if (event.code === 'KeyQ') this.state.squeezeIntent = false;
-
+        if (event.code === 'KeyV') {
+            this.state.isClosingEyes = false;
+            document.dispatchEvent(new CustomEvent('somatic-eyes', { detail: { closed: false } }));
+        }
         if (event.code === 'KeyC') {
             this._cKeyDown = false;
             if (!this._cKeyHandled) {

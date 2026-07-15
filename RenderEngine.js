@@ -37,7 +37,9 @@ export default class RenderEngine {
                 anomaly: {value: 0.0},
                 darkness: {value: 0.0},
                 paranoia: {value: 0.0},
-                globalSeed: {value: 0.0}
+                globalSeed: {value: 0.0},
+                adrenaline: {value: 0.0},
+                eyesClosed: {value: 0.0}
             },
             vertexShader: `
                 varying vec2 vUv;
@@ -55,6 +57,8 @@ export default class RenderEngine {
                 uniform float darkness;
                 uniform float paranoia;
                 uniform float globalSeed;
+                uniform float adrenaline;
+                uniform float eyesClosed;
                 varying vec2 vUv;
                 
                 float random(vec2 st) {
@@ -120,24 +124,31 @@ export default class RenderEngine {
                     float scanline = sin((uv.y - time * 0.02) * 800.0) * (0.03 + exhaustion * 0.05); 
                     col -= scanline * luminance;
                     col += phaseBand * 0.004 * (1.0 + noise);
-                    
-                    float vignettePulse = sin(time * 8.0) * (exhaustion * 0.05); 
+                
+                    // Adrenaline: Chromatic aberration & exposure blow-out
+                    col += vec3(adrenaline * 0.25, 0.0, 0.0) * distSq;
+                    col += max(vec3(0.0), col - 0.5) * adrenaline * 1.2;
+                
+                    float vignettePulse = sin(time * (8.0 + adrenaline * 10.0)) * (exhaustion * 0.05 + adrenaline * 0.05); 
                     float vignetteRadius = 0.28 - (exhaustion * 0.12) - (anomaly * 0.15) - (darkness * 0.15) + vignettePulse;
                     vignetteRadius = max(0.02, vignetteRadius);
-                    
+                
                     col *= smoothstep(0.9, vignetteRadius, distSq + 0.15); 
                     float lateralDist = abs(centerUv.x);
                     col *= mix(1.0, smoothstep(0.45, 0.15, lateralDist), squeeze);
-                    
+                
                     col = mix(col, vec3(luminance * 0.6), anomaly * 0.85);
                     col = mix(col, vec3(luminance * 0.15), darkness * 0.8 * smoothstep(0.0, 0.5, distSq));
-                    
+                
+                    // Eyes Closed: Crush luminance to near-black void, preserving only the tearing and noise
+                    col = mix(col, vec3(0.02) * noise, eyesClosed);
+                
                     col *= border;
                     col = smoothstep(0.0, 1.0, col);
-                    
+                
                     gl_FragColor = vec4(col, 1.0);
                 }
-            `
+                `
         });
         const postPlane = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.postMaterial);
         this.postScene.add(postPlane);
@@ -199,6 +210,8 @@ export default class RenderEngine {
         this.postMaterial.uniforms.darkness.value = this.darkness || 0.0;
         this.postMaterial.uniforms.paranoia.value = this.paranoia || 0.0;
         this.postMaterial.uniforms.globalSeed.value = Math.random();
+        this.postMaterial.uniforms.adrenaline.value = this.adrenaline || 0.0;
+        this.postMaterial.uniforms.eyesClosed.value = this.eyesClosed || 0.0;
         this.renderer.setRenderTarget(null);
         this.renderer.render(this.postScene, this.postCamera);
     }

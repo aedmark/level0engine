@@ -7,7 +7,6 @@ export default class Anomaly {
         this.camera = camera;
         this.player = player;
         this.env = environment;
-
         this.isActive = false;
         this.group = new THREE.Group();
         this.target = new THREE.Vector3();
@@ -15,7 +14,6 @@ export default class Anomaly {
         this.backtrackTimer = 0;
         this.breadcrumbTimer = 0;
         this.graceTimer = 0;
-
         this._dir = new THREE.Vector3();
         this._toPlayer = new THREE.Vector3();
         this._lookDir = new THREE.Vector3();
@@ -25,12 +23,9 @@ export default class Anomaly {
         this._boxZ = new THREE.Box3();
         this._min = new THREE.Vector3();
         this._max = new THREE.Vector3();
-
         this._sightRaycaster = new THREE.Raycaster();
         this._rayTarget = new THREE.Vector3();
-
         this._buildMesh();
-
         document.addEventListener('somatic-step', (e) => this._handleNoise(e, 9.0));
         document.addEventListener('somatic-door', (e) => this._handleNoise(e, 30.0));
         document.addEventListener('somatic-vent', (e) => this._handleNoise(e, 40.0));
@@ -54,7 +49,6 @@ export default class Anomaly {
         const coreGeo = new THREE.IcosahedronGeometry(0.6, 0);
         this.core = new THREE.Mesh(coreGeo, nullMat);
         this.group.add(this.core);
-
         this.shards = [];
         for (let i = 0; i < 4; i++) {
             const shard = new THREE.Mesh(new THREE.TetrahedronGeometry(0.2, 0), nullMat);
@@ -73,9 +67,7 @@ export default class Anomaly {
         this.breadcrumbs = [];
         this.backtrackTimer = 0;
         this.breadcrumbTimer = 0;
-
         this.graceTimer = 12.0;
-
         this.group.position.set(x, y, z);
         this.target.copy(this.group.position);
     }
@@ -85,17 +77,14 @@ export default class Anomaly {
             if (this.player.anomalyPressure > 0) this.player.anomalyPressure = 0;
             return null;
         }
-
         if (this.graceTimer > 0) {
             this.graceTimer -= delta;
             this._animate(time, delta);
             if (this.player.anomalyPressure > 0) this.player.anomalyPressure = 0;
             return null;
         }
-
         const playerPos = this.camera.position;
         const distToPlayerSq = this.group.position.distanceToSquared(playerPos);
-
         if (distToPlayerSq > 6400.0) {
             const spawnAngle = Math.random() * Math.PI * 2;
             const spawnDist = 40.0 + (Math.random() * 15.0);
@@ -108,24 +97,20 @@ export default class Anomaly {
             this.breadcrumbs = [];
             return null;
         }
-
         if (distToPlayerSq < 0.64) {
             this.player.stamina = this.player.maxStamina;
             this.player.exhaustion = 0.0;
             this.player.isChased = false;
             return {consumed: true};
         }
-
         this._animate(time, delta);
         const speed = this._updateSenses(playerPos, distToPlayerSq, delta, time);
         this._resolveLocomotion(speed, delta, time);
-
         let pressure = 0;
         if (distToPlayerSq < 225.0) {
             pressure = 1.0 - (Math.sqrt(distToPlayerSq) / 15.0);
         }
         this.player.anomalyPressure = pressure;
-
         return null;
     }
 
@@ -158,22 +143,16 @@ export default class Anomaly {
         let stealthMultiplier = 1.0;
         if (this.player.isCrouching) stealthMultiplier -= 0.5;
         if (!this.player.flashlightActive) stealthMultiplier -= 0.3;
-
         const darknessCloak = this.player.darknessPressure || 0.0;
         if (darknessCloak > 0.5) stealthMultiplier *= 0.2;
-
         detectionRadius = (detectionRadius * stealthMultiplier) + (this.player.isRunning ? 25.0 : 0.0) + (this.player.exhaustion * 15.0);
-
         const perceptionThresholdSq = Math.max(9.0, detectionRadius * detectionRadius);
-
         if (this._lastLOSTime === undefined) this._lastLOSTime = 0;
         let hasLOS = this._lastLOSResult || false;
-
         if (distToPlayerSq < Math.max(perceptionThresholdSq, 625.0)) {
             if (time - this._lastLOSTime > 0.1) {
                 const toPlayerDir = this._toPlayer.subVectors(playerPos, this.group.position).normalize();
                 this._sightRaycaster.set(this.group.position, toPlayerDir);
-
                 let isOccluded = false;
                 const searchDist = Math.sqrt(distToPlayerSq);
                 if (this.env && this.env.spatialGrid) {
@@ -191,16 +170,13 @@ export default class Anomaly {
                     }
                 }
                 hasLOS = !isOccluded;
-
                 if (darknessCloak > 0.6 && !this.player.flashlightActive) {
                     hasLOS = false;
                 }
-
                 this._lastLOSResult = hasLOS;
                 this._lastLOSTime = time;
             }
         }
-
         if (this.backtrackTimer > 0) {
             this.backtrackTimer -= delta;
             if (this.breadcrumbs.length > 0) {
@@ -219,7 +195,6 @@ export default class Anomaly {
         } else {
             this.player.isChased = false;
             let distracted = false;
-
             if (this.env && this.env.tagPool) {
                 for (let i = 0; i < this.env.tagPool.length; i++) {
                     const tag = this.env.tagPool[i];
@@ -228,13 +203,17 @@ export default class Anomaly {
                         distracted = true;
                         if (tag.position.distanceToSquared(this.group.position) < 4.0 && Math.random() < 0.05) {
                             tag.visible = false;
-                            document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 25.0, intensity: 0.8}}));
+                            document.dispatchEvent(new CustomEvent('somatic-door', {
+                                detail: {
+                                    distSq: 25.0,
+                                    intensity: 0.8
+                                }
+                            }));
                         }
                         break;
                     }
                 }
             }
-
             if (!distracted) {
                 if (Math.random() < 0.02) {
                     this.target.x += (Math.random() - 0.5) * 15.0;
@@ -243,12 +222,10 @@ export default class Anomaly {
                 this.target.lerp(playerPos, 0.005);
             }
         }
-
         const baseSpeed = distToPlayerSq < 225.0 ? 4.2 : 1.8;
         this.rage = this.rage || 0.0;
         let speed = baseSpeed + (this.rage * 2.0);
         let isObserved = false;
-
         if (this.player.flashlightActive && distToPlayerSq < 625.0 && hasLOS) {
             const toEntity = this._toPlayer.subVectors(this.group.position, playerPos).normalize();
             const lookDir = this._lookDir.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
@@ -256,10 +233,8 @@ export default class Anomaly {
                 isObserved = true;
                 speed = 0.0;
                 this.rage = Math.min(1.0, this.rage + (delta * 0.15));
-
                 const panicJitter = 0.8 * (1.0 - (this.player.flashlightBattery / 100.0)) + 0.1;
                 this.core.position.set((Math.random() - 0.5) * panicJitter, (Math.random() - 0.5) * panicJitter, (Math.random() - 0.5) * panicJitter);
-
                 if (distToPlayerSq < 144.0 && Math.random() < 0.08) {
                     document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 1.0, intensity: 1.8}}));
                 }
@@ -282,7 +257,6 @@ export default class Anomaly {
                 }
             }
         }
-
         if (Math.random() < 0.2) {
             for (let i = 0; i < this.env.localFixtures.length; i++) {
                 const fixture = this.env.localFixtures[i];
@@ -291,7 +265,6 @@ export default class Anomaly {
                 }
             }
         }
-
         const dir = this._dir.subVectors(this.target, this.group.position);
         dir.y = 0;
         const distToTarget = dir.length();
@@ -303,7 +276,6 @@ export default class Anomaly {
             this._max.set(this._nextPos.x + 0.6, 3.0, this._nextPos.z + 0.6);
             this._box.set(this._min, this._max);
             let blocked = false;
-
             const localBoxes = this.env.spatialGrid.getNearby(this._nextPos.x, this._nextPos.z, 2.0);
             for (let i = 0; i < localBoxes.length; i++) {
                 if (localBoxes[i].isEntityBlocker && this._box.intersectsBox(localBoxes[i])) {
@@ -322,7 +294,6 @@ export default class Anomaly {
                 this._boxZ.copy(this._box);
                 this._boxZ.min.x = this.group.position.x - 0.5;
                 this._boxZ.max.x = this.group.position.x + 0.5;
-
                 for (let i = 0; i < localBoxes.length; i++) {
                     if (localBoxes[i].isEntityBlocker) {
                         if (!blockedX && this._boxX.intersectsBox(localBoxes[i])) blockedX = true;

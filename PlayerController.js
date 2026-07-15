@@ -214,7 +214,16 @@ export default class PlayerController {
             this.isWinded = false;
         }
 
-        if (this.staminaBoostTimer > 0) {
+        if (this.adrenalineTimer > 0) {
+            this.adrenalineTimer -= delta;
+            currentSpeed = dynamicRunSpeed * 1.5;
+            this.paranoia = 1.0;
+            if (this.adrenalineTimer <= 0) {
+                this.isWinded = true;
+                state.isRunning = false;
+                this.stamina = 0;
+            }
+        } else if (this.staminaBoostTimer > 0) {
             this.staminaBoostTimer -= delta;
             this.stamina = this.maxStamina;
             this.isWinded = false;
@@ -229,13 +238,20 @@ export default class PlayerController {
             }
 
             if (this.stamina <= 0.0) {
-                state.isRunning = false;
-                this.isWinded = true;
-                this.isWaterlogged = false;
-                currentSpeed = dynamicWalkSpeed * this.speedMultiplier;
-                document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.5}}));
+                if (this.paranoia > 0.85 && !this.isAdrenalineUsed) {
+                    this.adrenalineTimer = 2.5;
+                    this.isAdrenalineUsed = true;
+                    document.dispatchEvent(new CustomEvent('somatic-breaker', {detail: {distSq: 1.0, intensity: 2.0}}));
+                } else {
+                    state.isRunning = false;
+                    this.isWinded = true;
+                    this.isWaterlogged = false;
+                    currentSpeed = dynamicWalkSpeed * this.speedMultiplier;
+                    document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.5}}));
+                }
             }
         } else {
+            this.isAdrenalineUsed = false;
             if (state.isRunning && this.isWinded) state.isRunning = false;
             const isResting = !isMoving && this.perceivedDarkness < 0.2 && this.paranoia === 0.0;
 
@@ -317,7 +333,10 @@ export default class PlayerController {
 
         let baseAccumulation = (externalPressure * 0.08) + (this.perceivedDarkness * 0.04);
 
-        if (externalPressure === 0.0 && this.perceivedDarkness < 0.3) {
+        if (state.isClosingEyes) {
+            baseAccumulation -= 0.15;
+            currentSpeed *= 0.3;
+        } else if (externalPressure === 0.0 && this.perceivedDarkness < 0.3) {
             const recoveryMultiplier = isMoving ? 1.0 : 3.0;
             baseAccumulation -= 0.06 * recoveryMultiplier * (1.0 - this.perceivedDarkness);
         }
