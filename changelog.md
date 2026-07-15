@@ -1,5 +1,20 @@
 # Level 0 Engine Changelog
 
+## [v0.4.2] - 2026-07-15
+*The Somatic Deprivation & Dying Doorbell Update*
+
+#### Added
+- **[MECHANICS] Somatic Eye-Closure:** Implemented a voluntary blind state via `KeyV`. Holding the input triggers a feathered black vignette overlay (`0.98` maximum opacity), crushes player speed by 70%, and provides a massive `-0.15` reduction multiplier to active paranoia accumulation.
+- **[AUDIO] The Dying Doorbell Chime:** Isolated psychological paranoia from the Anomaly's predatory growl. Structural tension now drives a discrete, dissonant triangle-wave synthesizer modulated by a shifting LFO. As paranoia peaks, the pitch and oscillation frequency sag dramatically to simulate a failing analog chime circuit.
+- **[AUDIO] Friction Texturing:** Re-engineered spatial traversal foley. Replaced low-frequency tone modulations with white noise buffers routed through dynamic high-pass filters (`2500Hz -> 1200Hz`), synthesizing a crisp, gritty scrape of clothes and skin against tight partitions.
+
+#### Changed
+- **[AUDIO] Decoupled Shuffle Kinematics:** Decoupled tight crawl foley timing from physical camera locomotion. Traversing bottlenecks or vents now applies a `2.5x` mathematical phase multiplication to the head-bob cycle, doubling the zero-crossing check frequency to produce a rapid, grounded scraping rhythm.
+- **[AUDIO] Claustrophobic Gating:** Closing the player's eyes triggers a severe low-pass brickwall filter across the active audio pipeline, capping global foley frequencies at `80Hz` to induce total sensory isolation.
+
+#### Optimized
+- **[PERFORMANCE] Non-Euclidean Ray-Cull:** Swapped the interaction raycaster loop in the active chunk horizon from Euclidean `.distanceTo()` calculations to non-root `.distanceToSquared()` checks, eliminating the costly square root overhead on every interaction frame.
+
 ### [v0.4.1] - 2026-07-13
 *The Furnace & Phantom Update*
 

@@ -79,6 +79,7 @@ const bootAudio = () => acoustics.init();
 document.addEventListener('click', bootAudio, {once: true});
 document.addEventListener('keydown', bootAudio, {once: true});
 document.addEventListener('somatic-step', (e) => acoustics.triggerSomaticEvent('step', 0, e.detail.intensity));
+document.addEventListener('somatic-shuffle', (e) => acoustics.triggerSomaticEvent('shuffle', 0, e.detail.intensity));
 document.addEventListener('somatic-door', (e) => acoustics.triggerSomaticEvent('door', e.detail.distSq, e.detail.intensity));
 document.addEventListener('somatic-vent', (e) => acoustics.triggerSomaticEvent('vent', e.detail.distSq, e.detail.intensity));
 document.addEventListener('somatic-lost', (e) => acoustics.triggerSomaticEvent(e.detail.isLaugh ? 'laugh' : 'whisper', e.detail.distSq, e.detail.intensity));

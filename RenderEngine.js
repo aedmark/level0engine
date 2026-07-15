@@ -60,11 +60,9 @@ export default class RenderEngine {
                 uniform float adrenaline;
                 uniform float eyesClosed;
                 varying vec2 vUv;
-                
                 float random(vec2 st) {
                     return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
                 }
-
                 vec2 curve(vec2 uv) {
                     uv = (uv - 0.5) * 2.0;
                     uv *= 1.1; 
@@ -79,20 +77,15 @@ export default class RenderEngine {
                     vec2 uv = curve(vUv);
                     vec2 centerUv = uv - 0.5;
                     float distSq = dot(centerUv, centerUv);
-                    
                     float border = smoothstep(0.0, 0.03, uv.x) * smoothstep(1.0, 0.97, uv.x) * 
                                    smoothstep(0.0, 0.03, uv.y) * smoothstep(1.0, 0.97, uv.y);
-                    
                     if (border <= 0.0) {
                         gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
                         return;
                     }
-
                     float phasePos = fract(time * 0.05); 
                     float phaseBand = 1.0 - smoothstep(0.0, 0.02, abs(uv.y - phasePos));
-                    
                     float pCurve = pow(paranoia, 3.0);
-                    
                     if (anomaly > 0.01 || paranoia > 0.01) {
                         float intensity = max(anomaly, pCurve * 1.5);
                         float tearThreshold = 0.98 - (pCurve * 0.3);
@@ -101,51 +94,35 @@ export default class RenderEngine {
                         uv.y += tear * (globalSeed - 0.5) * intensity * 0.05;
                     }
                     uv.x += phaseBand * 0.0002 * sin(time * 50.0);
-                    
                     float heartbeatCA = exhaustion > 0.3 ? sin(time * (10.0 + exhaustion * 5.0)) * 0.004 * exhaustion : 0.0;
                     float panicTear = paranoia > 0.3 ? (sin(time * 25.0) * 0.02 * pCurve) : 0.0;
                     float caShift = 0.001 + (distSq * 0.004) + (squeeze * 0.003) + pow(anomaly, 1.5) * 0.05 + pow(exhaustion, 2.0) * 0.01 + heartbeatCA + panicTear;
                     vec2 offset = vec2(caShift, 0.0); 
-                    
                     vec4 texR = texture2D(tDiffuse, uv + offset);
                     vec4 texG = texture2D(tDiffuse, uv);
                     vec4 texB = texture2D(tDiffuse, uv - offset);
-                    
                     vec3 col = vec3(texR.r, texG.g, texB.b);
-                    
                     float luminance = dot(col, vec3(0.299, 0.587, 0.114));
-                    
                     vec3 fauxHalation = (texR.rgb + texB.rgb) * 0.3;
                     col += max(vec3(0.0), fauxHalation - 0.5) * 0.35;
-
                     float noise = random(uv + mod(time, 10.0));
                     col -= (noise * (0.05 + darkness * 0.15 + anomaly * 0.9)) * (1.0 - luminance);
-                    
                     float scanline = sin((uv.y - time * 0.02) * 800.0) * (0.03 + exhaustion * 0.05); 
                     col -= scanline * luminance;
                     col += phaseBand * 0.004 * (1.0 + noise);
-                
-                    // Adrenaline: Chromatic aberration & exposure blow-out
                     col += vec3(adrenaline * 0.25, 0.0, 0.0) * distSq;
                     col += max(vec3(0.0), col - 0.5) * adrenaline * 1.2;
-                
                     float vignettePulse = sin(time * (8.0 + adrenaline * 10.0)) * (exhaustion * 0.05 + adrenaline * 0.05); 
                     float vignetteRadius = 0.28 - (exhaustion * 0.12) - (anomaly * 0.15) - (darkness * 0.15) + vignettePulse;
                     vignetteRadius = max(0.02, vignetteRadius);
-                
                     col *= smoothstep(0.9, vignetteRadius, distSq + 0.15); 
                     float lateralDist = abs(centerUv.x);
                     col *= mix(1.0, smoothstep(0.45, 0.15, lateralDist), squeeze);
-                
                     col = mix(col, vec3(luminance * 0.6), anomaly * 0.85);
                     col = mix(col, vec3(luminance * 0.15), darkness * 0.8 * smoothstep(0.0, 0.5, distSq));
-                
-                    // Eyes Closed: Crush luminance to near-black void, preserving only the tearing and noise
                     col = mix(col, vec3(0.02) * noise, eyesClosed);
-                
                     col *= border;
                     col = smoothstep(0.0, 1.0, col);
-                
                     gl_FragColor = vec4(col, 1.0);
                 }
                 `

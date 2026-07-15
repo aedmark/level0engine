@@ -1,6 +1,5 @@
 // SomaticInput.js
 // LEVEL 0 PERIPHERAL NERVOUS SYSTEM
-
 export default class SomaticInput {
     constructor(camera) {
         this.camera = camera;
@@ -14,15 +13,12 @@ export default class SomaticInput {
             isClosingEyes: false,
             touchMoveActive: false, touchDeltaX: 0, touchDeltaY: 0
         };
-
         this.isLocked = false;
         this._cKeyDown = false;
         this._cKeyPressTime = 0;
         this._cKeyHandled = false;
-
-        this.touchMove = { id: null, startX: 0, startY: 0 };
-        this.touchLook = { active: false, id: null, lastX: 0, lastY: 0 };
-
+        this.touchMove = {id: null, startX: 0, startY: 0};
+        this.touchLook = {active: false, id: null, lastX: 0, lastY: 0};
         this._bindEvents();
     }
 
@@ -39,7 +35,6 @@ export default class SomaticInput {
         document.addEventListener('keyup', (e) => this._onKeyUp(e));
         const touchSurface = document.getElementById('mobile-ui');
         if (touchSurface) touchSurface.addEventListener('click', () => document.body.requestPointerLock());
-
         document.addEventListener('pointerlockchange', () => {
             this.isLocked = (document.pointerLockElement === document.body);
             if (!this.isLocked) {
@@ -47,26 +42,21 @@ export default class SomaticInput {
                 this.state.targetLean = 0.0;
             }
         });
-
         document.addEventListener('mousedown', (e) => {
             if (this.isLocked && e.button === 2) this.state.isPeeking = true;
         });
-
         document.addEventListener('mouseup', (e) => {
             if (e.button === 2) {
                 this.state.isPeeking = false;
                 this.state.targetLean = 0.0;
             }
         });
-
         document.addEventListener('contextmenu', (e) => e.preventDefault());
         document.addEventListener('mousemove', (e) => this._onMouseMove(e));
-
         window.addEventListener('blur', () => {
             this.state.moveForward = this.state.moveBackward = this.state.moveLeft = this.state.moveRight = this.state.isRunning = this.state.isPeeking = false;
             this.state.targetLean = 0.0;
         });
-
         this._bindTouchEvents();
     }
 
@@ -78,10 +68,10 @@ export default class SomaticInput {
         const runBtn = document.getElementById('mobile-run');
         const crouchBtn = document.getElementById('mobile-crouch');
         const flashBtn = document.getElementById('mobile-flashlight');
-
         if (runBtn && crouchBtn) {
             runBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault(); e.stopPropagation();
+                e.preventDefault();
+                e.stopPropagation();
                 this.state.isRunning = !this.state.isRunning;
                 runBtn.classList.toggle('active', this.state.isRunning);
                 if (this.state.isRunning && this.state.isCrouching) {
@@ -89,9 +79,9 @@ export default class SomaticInput {
                     crouchBtn.classList.remove('active');
                 }
             }, {passive: false});
-
             crouchBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault(); e.stopPropagation();
+                e.preventDefault();
+                e.stopPropagation();
                 this.state.isCrouching = !this.state.isCrouching;
                 crouchBtn.classList.toggle('active', this.state.isCrouching);
                 if (this.state.isCrouching && this.state.isRunning) {
@@ -99,16 +89,15 @@ export default class SomaticInput {
                     runBtn.classList.remove('active');
                 }
             }, {passive: false});
-
             if (flashBtn) {
                 flashBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault(); e.stopPropagation();
+                    e.preventDefault();
+                    e.stopPropagation();
                     this.state.flashlightActive = !this.state.flashlightActive;
                     flashBtn.classList.toggle('active', this.state.flashlightActive);
                 }, {passive: false});
             }
         }
-
         if (zoneLeft) {
             zoneLeft.addEventListener('touchstart', (e) => {
                 e.preventDefault();
@@ -117,7 +106,6 @@ export default class SomaticInput {
                 this.touchMove.id = touch.identifier;
                 this.touchMove.startX = touch.clientX;
                 this.touchMove.startY = touch.clientY;
-
                 if (joystickBase) {
                     joystickBase.style.display = 'block';
                     joystickBase.style.left = touch.clientX + 'px';
@@ -125,7 +113,6 @@ export default class SomaticInput {
                     if (joystickKnob) joystickKnob.style.transform = `translate(-50%, -50%)`;
                 }
             }, {passive: false});
-
             zoneLeft.addEventListener('touchmove', (e) => {
                 e.preventDefault();
                 for (let i = 0; i < e.changedTouches.length; i++) {
@@ -133,13 +120,11 @@ export default class SomaticInput {
                     if (touch.identifier === this.touchMove.id) {
                         this.state.touchDeltaX = Math.max(-120, Math.min(120, touch.clientX - this.touchMove.startX));
                         this.state.touchDeltaY = Math.max(-120, Math.min(120, touch.clientY - this.touchMove.startY));
-
                         if (joystickKnob) {
                             const distance = Math.sqrt(this.state.touchDeltaX ** 2 + this.state.touchDeltaY ** 2);
                             const maxVisualRadius = 50;
                             let visualX = this.state.touchDeltaX;
                             let visualY = this.state.touchDeltaY;
-
                             if (distance > maxVisualRadius) {
                                 visualX = (visualX / distance) * maxVisualRadius;
                                 visualY = (visualY / distance) * maxVisualRadius;
@@ -149,7 +134,6 @@ export default class SomaticInput {
                     }
                 }
             }, {passive: false});
-
             zoneLeft.addEventListener('touchend', (e) => {
                 e.preventDefault();
                 for (let i = 0; i < e.changedTouches.length; i++) {
@@ -162,7 +146,6 @@ export default class SomaticInput {
                 }
             });
         }
-
         if (zoneRight) {
             zoneRight.addEventListener('touchstart', (e) => {
                 e.preventDefault();
@@ -172,7 +155,6 @@ export default class SomaticInput {
                 this.touchLook.lastX = touch.clientX;
                 this.touchLook.lastY = touch.clientY;
             }, {passive: false});
-
             zoneRight.addEventListener('touchmove', (e) => {
                 e.preventDefault();
                 for (let i = 0; i < e.changedTouches.length; i++) {
@@ -189,7 +171,6 @@ export default class SomaticInput {
                     }
                 }
             }, {passive: false});
-
             zoneRight.addEventListener('touchend', (e) => {
                 e.preventDefault();
                 for (let i = 0; i < e.changedTouches.length; i++) {
@@ -208,7 +189,6 @@ export default class SomaticInput {
             event.preventDefault();
         }
         if (event.key === 'Shift') this.state.isRunning = true;
-
         if (event.code === 'KeyC') {
             if (!this._cKeyDown) {
                 this._cKeyDown = true;
@@ -216,47 +196,48 @@ export default class SomaticInput {
                 this._cKeyHandled = false;
             }
         }
-
         if (event.code === 'KeyX') document.dispatchEvent(new Event('capture-screenshot'));
         if (event.code === 'KeyQ') this.state.squeezeIntent = true;
         if (event.code === 'KeyV') {
             this.state.isClosingEyes = true;
-            document.dispatchEvent(new CustomEvent('somatic-eyes', { detail: { closed: true } }));
+            document.dispatchEvent(new CustomEvent('somatic-eyes', {detail: {closed: true}}));
         }
-
         if (event.code === 'KeyF') {
             this.state.flashlightActive = !this.state.flashlightActive;
             const flashBtn = document.getElementById('mobile-flashlight');
             if (flashBtn) flashBtn.classList.toggle('active', this.state.flashlightActive);
         }
-
         if (event.code === 'Digit1') {
             document.dispatchEvent(new Event('somatic-use-battery'));
         }
-
         if (event.code === 'Digit2') {
             document.dispatchEvent(new Event('somatic-use-almond'));
         }
-
         if (event.code === 'KeyT') {
             document.dispatchEvent(new Event('somatic-tag'));
         }
-
         if (event.code === 'KeyE') {
             document.dispatchEvent(new CustomEvent('somatic-interact', {
                 detail: {position: this.camera.position, direction: this.camera.getWorldDirection(new THREE.Vector3())}
             }));
         }
-
         switch (key) {
             case 'ArrowUp':
-            case 'KeyW': this.state.moveForward = true; break;
+            case 'KeyW':
+                this.state.moveForward = true;
+                break;
             case 'ArrowLeft':
-            case 'KeyA': this.state.moveLeft = true; break;
+            case 'KeyA':
+                this.state.moveLeft = true;
+                break;
             case 'ArrowDown':
-            case 'KeyS': this.state.moveBackward = true; break;
+            case 'KeyS':
+                this.state.moveBackward = true;
+                break;
             case 'ArrowRight':
-            case 'KeyD': this.state.moveRight = true; break;
+            case 'KeyD':
+                this.state.moveRight = true;
+                break;
         }
     }
 
@@ -266,7 +247,7 @@ export default class SomaticInput {
         if (event.code === 'KeyQ') this.state.squeezeIntent = false;
         if (event.code === 'KeyV') {
             this.state.isClosingEyes = false;
-            document.dispatchEvent(new CustomEvent('somatic-eyes', { detail: { closed: false } }));
+            document.dispatchEvent(new CustomEvent('somatic-eyes', {detail: {closed: false}}));
         }
         if (event.code === 'KeyC') {
             this._cKeyDown = false;
@@ -280,16 +261,23 @@ export default class SomaticInput {
                 }
             }
         }
-
         switch (event.code) {
             case 'ArrowUp':
-            case 'KeyW': this.state.moveForward = false; break;
+            case 'KeyW':
+                this.state.moveForward = false;
+                break;
             case 'ArrowLeft':
-            case 'KeyA': this.state.moveLeft = false; break;
+            case 'KeyA':
+                this.state.moveLeft = false;
+                break;
             case 'ArrowDown':
-            case 'KeyS': this.state.moveBackward = false; break;
+            case 'KeyS':
+                this.state.moveBackward = false;
+                break;
             case 'ArrowRight':
-            case 'KeyD': this.state.moveRight = false; break;
+            case 'KeyD':
+                this.state.moveRight = false;
+                break;
         }
     }
 

@@ -208,6 +208,33 @@ export default class AcousticEngine {
         this.entityGain.gain.value = 0.0;
         this.entityOsc.connect(this.entityGain);
         this.entityGain.connect(this.masterGain);
+
+        this.paranoiaOsc = this.ctx.createOscillator();
+        this.paranoiaOsc.type = 'triangle';
+        this.paranoiaOsc.frequency.value = 650;
+
+        this.paranoiaLFO = this.ctx.createOscillator();
+        this.paranoiaLFO.type = 'sine';
+        this.paranoiaLFO.frequency.value = 2.0;
+
+        this.paranoiaLFOGain = this.ctx.createGain();
+        this.paranoiaLFOGain.gain.value = 10;
+        this.paranoiaLFO.connect(this.paranoiaLFOGain);
+        this.paranoiaLFOGain.connect(this.paranoiaOsc.frequency);
+
+        this.paranoiaFilter = this.ctx.createBiquadFilter();
+        this.paranoiaFilter.type = 'lowpass';
+        this.paranoiaFilter.frequency.value = 1200;
+
+        this.paranoiaGain = this.ctx.createGain();
+        this.paranoiaGain.gain.value = 0.0;
+        this.paranoiaOsc.connect(this.paranoiaFilter);
+        this.paranoiaFilter.connect(this.paranoiaGain);
+        this.paranoiaGain.connect(this.masterGain);
+
+        this.paranoiaOsc.start();
+        this.paranoiaLFO.start();
+
         this.stepFilter = this.ctx.createBiquadFilter();
         this.stepGain = this.ctx.createGain();
         this.stepFilter.connect(this.stepGain);
@@ -291,8 +318,14 @@ export default class AcousticEngine {
         setParam('whine', this.whineGain.gain, baseWhine, 0.5);
         if (this.atriumGain) setParam('atrium', this.atriumGain.gain, (isBlackout ? mix.noise * 0.1 : mix.noise) + structuralTension, 1.0);
         if (this.peaceGain) setParam('peace', this.peaceGain.gain, Math.max(0, mix.peace - structuralTension), 2.0);
-        const perceivedThreat = anomalyPressure + (structuralTension * 0.8);
-        if (this.entityGain) setParam('entity', this.entityGain.gain, perceivedThreat > 0.0 ? perceivedThreat * 0.4 : 0.0, 0.2);
+
+        if (this.entityGain) setParam('entity', this.entityGain.gain, anomalyPressure > 0.0 ? anomalyPressure * 0.4 : 0.0, 0.2);
+        if (this.paranoiaGain) {
+            setParam('paranoiaVol', this.paranoiaGain.gain, structuralTension > 0.0 ? structuralTension * 0.2 : 0.0, 1.0);
+            setParam('paranoiaLFO', this.paranoiaLFO.frequency, Math.max(0.5, 4.0 - (structuralTension * 4.0)), 1.0);
+            setParam('paranoiaPitch', this.paranoiaOsc.frequency, Math.max(300, 650 - (structuralTension * 300.0)), 1.0);
+        }
+
         if (this.spatialDelay) {
             const delayTimes = {
                 "POOLROOMS": 0.6,
@@ -392,6 +425,7 @@ export default class AcousticEngine {
                 end: null,
                 ramp: 0
             }],
+            'shuffle': ['sine', 10, 10, 0.1, 0.15, 0.15, 0.45, {type: 'bandpass', start: 1500, end: 400, ramp: 0.4}],
             'door': ['square', 120, 30, 0.3, 0.08, 0.03, 0.5, {type: 'lowpass', start: 1000, end: 100, ramp: 0.4}],
             'vent': ['sawtooth', 400, 80, 0.4, 0.1, 0.03, 0.5, {type: 'bandpass', start: 1500, end: 300, ramp: 0.4}],
             'breaker': ['square', 900, 100, 0.15, 0.12, 0.01, 0.15, null],
