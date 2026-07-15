@@ -32,12 +32,13 @@ export default class LumenGrid {
         for (let i = 0, len = fixtureData.length; i < len; i++) {
             const fixture = fixtureData[i];
             const dx = cameraPos.x - fixture.position.x;
+            const dy = cameraPos.y - fixture.position.y;
             const dz = cameraPos.z - fixture.position.z;
-            if (dx > cullingLimit || dx < -cullingLimit || dz > cullingLimit || dz < -cullingLimit) {
+            if (dx > cullingLimit || dx < -cullingLimit || dz > cullingLimit || dz < -cullingLimit || dy > cullingLimit || dy < -cullingLimit) {
                 fixture.hasShadow = false;
                 continue;
             }
-            const distSq = (dx * dx) + (dz * dz);
+            const distSq = (dx * dx) + (dy * dy) + (dz * dz);
             if (distSq < 900.0) {
                 if (fixture.isDead) {
                     darknessPressure += 1.0 - (distSq * 0.00111);
@@ -80,18 +81,22 @@ export default class LumenGrid {
                 const activeRadius = isShadowCaster ? 20 : 30;
                 const fadeEnvelope = Math.max(0, Math.min(1, (activeRadius - dist) / 8.0));
                 const intensityScalar = isShadowCaster ? 0.65 : 0.35;
+                if (fixture.material && fixture.material.emissive) {
+                    light.color.copy(fixture.material.emissive);
+                }
+
                 if (fixture.isDead) {
                     light.intensity = 0.0;
                     if (fixture.material) fixture.material.emissiveIntensity = 0.0;
                 } else if (fixture.isFaulty) {
-                    if (Math.random() < 0.02) {
-                        fixture.targetIntensity = Math.random() < 0.4 ? 0.05 : fixture.baseIntensity + (Math.random() * 0.4);
-                    }
-                    fixture.currentIntensity += (fixture.targetIntensity - fixture.currentIntensity) * 0.4;
+                    const chaos = Math.sin(time * 15.0 + fixture.flickerOffset) *
+                        Math.sin(time * 22.0 - fixture.flickerOffset) *
+                        Math.cos(time * 7.0);
+                    fixture.currentIntensity = fixture.baseIntensity * (chaos > 0.3 ? 0.1 : 1.0 + chaos);
                     light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
                     if (fixture.material) fixture.material.emissiveIntensity = Math.max(0.05, fixture.currentIntensity * 0.6);
                 } else {
-                    light.intensity = (fixture.baseIntensity + (Math.sin(time * 120 + fixture.flickerOffset) * 0.02)) * fadeEnvelope * intensityScalar;
+                    light.intensity = (fixture.baseIntensity + (Math.sin(time * 120.0 + fixture.flickerOffset) * 0.02)) * fadeEnvelope * intensityScalar;
                     if (fixture.material) fixture.material.emissiveIntensity = 0.4;
                 }
             } else {

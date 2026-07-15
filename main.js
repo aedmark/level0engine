@@ -168,12 +168,12 @@ class UIManager {
         if (!this.invBat) this.invBat = document.getElementById('inv-bat');
         if (!this.invH2o) this.invH2o = document.getElementById('inv-h2o');
         if (this.coordsEl) {
-            const prnInt = Math.round((player.paranoia || 0.0) * 100);
-            const newCoords = `X: ${engine.camera.position.x.toFixed(1)} | Z: ${engine.camera.position.z.toFixed(1)} | PRN: ${prnInt.toString().padStart(2, '0')}%`;
+            const cohInt = Math.round((player.coherence !== undefined ? player.coherence : 1.0) * 100);
+            const newCoords = `X: ${engine.camera.position.x.toFixed(1)} | Z: ${engine.camera.position.z.toFixed(1)} | COH: ${cohInt.toString().padStart(2, '0')}%`;
             if (this.coordsEl._last !== newCoords) {
                 this.coordsEl.innerText = newCoords;
-                if (prnInt > 80) this.coordsEl.style.color = '#ff5555';
-                else if (prnInt > 40) this.coordsEl.style.color = '#ffaa55';
+                if (cohInt < 20) this.coordsEl.style.color = '#ff5555';
+                else if (cohInt < 50) this.coordsEl.style.color = '#ffaa55';
                 else this.coordsEl.style.color = '';
                 this.coordsEl._last = newCoords;
             }
@@ -197,12 +197,12 @@ class UIManager {
         if (this.invBat && this.invH2o) {
             if (this.invBat._last !== player.inventory.batteries) {
                 this.invBat.innerText = player.inventory.batteries;
-                this.invBat.style.color = player.inventory.batteries === 0 ? '#ff5555' : '#55ff55';
+                this.invBat.style.color = player.inventory.batteries === 0 ? '#ff5555' : '';
                 this.invBat._last = player.inventory.batteries;
             }
             if (this.invH2o._last !== player.inventory.almondWater) {
                 this.invH2o.innerText = player.inventory.almondWater;
-                this.invH2o.style.color = player.inventory.almondWater === 0 ? '#ff5555' : '#55ff55';
+                this.invH2o.style.color = player.inventory.almondWater === 0 ? '#ff5555' : '';
                 this.invH2o._last = player.inventory.almondWater;
             }
         }

@@ -79,14 +79,14 @@ export default class AcousticEngine {
                 dynamicWhine: false
             },
             "MAINTENANCE": {
-                noise: 0.02,
+                noise: 0.55,
                 peace: 0.0,
-                rumble: 90,
-                freq: 120,
-                freqOcc: 120,
-                whine: 0.006,
-                whineOcc: 0.002,
-                dynamicWhine: false
+                rumble: 110,
+                freq: 90,
+                freqOcc: 60,
+                whine: 0.008,
+                whineOcc: 0.003,
+                dynamicWhine: true
             },
             "INCINERATOR": {
                 noise: 0.65,
@@ -264,12 +264,24 @@ export default class AcousticEngine {
         this.tinnitusOsc.connect(this.tinnitusGain);
         this.tinnitusGain.connect(this.masterGain);
         this.tinnitusOsc.start();
+
+        // Specialized industrial warning relay for high-danger sectors
+        this.hazardBell = this.ctx.createOscillator();
+        this.hazardBell.type = 'triangle';
+        this.hazardBell.frequency.value = 180;
+        this.hazardBellGain = this.ctx.createGain();
+        this.hazardBellGain.gain.value = 0.0;
+        this.hazardBell.connect(this.hazardBellGain);
+        this.hazardBellGain.connect(this.masterGain);
+        this.hazardBell.start();
+
         const t = this.ctx.currentTime;
         this.mainGain.gain.setValueAtTime(0, t);
         this.whineGain.gain.setValueAtTime(0, t);
         this.atriumGain.gain.setValueAtTime(0, t);
         this.peaceGain.gain.setValueAtTime(0, t);
         this.entityGain.gain.setValueAtTime(0, t);
+        this.hazardBellGain.gain.setValueAtTime(0, t);
         this.subRumble.frequency.setValueAtTime(60, t);
         this.kineticFilter.frequency.setValueAtTime(250, t);
         this.subRumble.start();
@@ -317,6 +329,13 @@ export default class AcousticEngine {
         const baseWhine = isBlackout ? 0.0 : (isOccluded ? mix.whineOcc : mix.whine + (mix.dynamicWhine ? proximity * 0.003 : 0.0));
         setParam('whine', this.whineGain.gain, baseWhine, 0.5);
         if (this.atriumGain) setParam('atrium', this.atriumGain.gain, (isBlackout ? mix.noise * 0.1 : mix.noise) + structuralTension, 1.0);
+
+        const targetNoiseFreq = activeSector === "MAINTENANCE" ? 110.0 : (activeSector === "INCINERATOR" ? 400.0 : 300.0);
+        setParam('noiseFreq', this.noiseFilter.frequency, targetNoiseFreq, 0.4);
+
+        const bellPulse = activeSector === "MAINTENANCE" && !isBlackout ? (Math.max(0, Math.sin(time * 2.5)) ** 6.0) * 0.07 : 0.0;
+        if (this.hazardBellGain) setParam('hazardBell', this.hazardBellGain.gain, bellPulse, 0.05);
+
         if (this.peaceGain) setParam('peace', this.peaceGain.gain, Math.max(0, mix.peace - structuralTension), 2.0);
 
         if (this.entityGain) setParam('entity', this.entityGain.gain, anomalyPressure > 0.0 ? anomalyPressure * 0.4 : 0.0, 0.2);

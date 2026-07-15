@@ -36,7 +36,7 @@ export default class RenderEngine {
                 squeeze: {value: 0.0},
                 anomaly: {value: 0.0},
                 darkness: {value: 0.0},
-                paranoia: {value: 0.0},
+                panic: {value: 0.0},
                 globalSeed: {value: 0.0},
                 adrenaline: {value: 0.0},
                 eyesClosed: {value: 0.0}
@@ -55,7 +55,7 @@ export default class RenderEngine {
                 uniform float squeeze;
                 uniform float anomaly;
                 uniform float darkness;
-                uniform float paranoia;
+                uniform float panic;
                 uniform float globalSeed;
                 uniform float adrenaline;
                 uniform float eyesClosed;
@@ -64,13 +64,11 @@ export default class RenderEngine {
                     return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
                 }
                 vec2 curve(vec2 uv) {
-                    uv = (uv - 0.5) * 2.0;
-                    uv *= 1.1; 
-                    uv.x *= 1.0 + pow((abs(uv.y) / 5.0), 2.0);
-                    uv.y *= 1.0 + pow((abs(uv.x) / 4.0), 2.0);
-                    uv  = (uv / 2.0) + 0.5;
-                    uv =  uv * 0.92 + 0.04;
-                    return uv;
+                    vec2 coord = uv * 2.0 - 1.0;
+                    coord *= 1.1;
+                    coord.x *= 1.0 + (coord.y * coord.y) * 0.04;
+                    coord.y *= 1.0 + (coord.x * coord.x) * 0.0625;
+                    return coord * 0.46 + 0.5;
                 }
                 
                 void main() {
@@ -85,8 +83,8 @@ export default class RenderEngine {
                     }
                     float phasePos = fract(time * 0.05); 
                     float phaseBand = 1.0 - smoothstep(0.0, 0.02, abs(uv.y - phasePos));
-                    float pCurve = pow(paranoia, 3.0);
-                    if (anomaly > 0.01 || paranoia > 0.01) {
+                    float pCurve = pow(panic, 3.0);
+                    if (anomaly > 0.01 || panic > 0.01) {
                         float intensity = max(anomaly, pCurve * 1.5);
                         float tearThreshold = 0.98 - (pCurve * 0.3);
                         float tear = step(tearThreshold, sin(uv.y * (40.0 + pCurve * 60.0) + time * 15.0));
@@ -95,8 +93,8 @@ export default class RenderEngine {
                     }
                     uv.x += phaseBand * 0.0002 * sin(time * 50.0);
                     float heartbeatCA = exhaustion > 0.3 ? sin(time * (10.0 + exhaustion * 5.0)) * 0.004 * exhaustion : 0.0;
-                    float panicTear = paranoia > 0.3 ? (sin(time * 25.0) * 0.02 * pCurve) : 0.0;
-                    float caShift = 0.001 + (distSq * 0.004) + (squeeze * 0.003) + pow(anomaly, 1.5) * 0.05 + pow(exhaustion, 2.0) * 0.01 + heartbeatCA + panicTear;
+                    float panicTear = panic > 0.3 ? (sin(time * 25.0) * 0.02 * pCurve) : 0.0;
+                    float caShift = 0.0005 + (distSq * 0.0015) + (squeeze * 0.003) + pow(anomaly, 1.5) * 0.05 + pow(exhaustion, 2.0) * 0.01 + heartbeatCA + panicTear;
                     vec2 offset = vec2(caShift, 0.0); 
                     vec4 texR = texture2D(tDiffuse, uv + offset);
                     vec4 texG = texture2D(tDiffuse, uv);
@@ -104,16 +102,16 @@ export default class RenderEngine {
                     vec3 col = vec3(texR.r, texG.g, texB.b);
                     float luminance = dot(col, vec3(0.299, 0.587, 0.114));
                     vec3 fauxHalation = (texR.rgb + texB.rgb) * 0.3;
-                    col += max(vec3(0.0), fauxHalation - 0.5) * 0.35;
+                    col += max(vec3(0.0), fauxHalation - 0.5) * 0.15;
                     float noise = random(uv + mod(time, 10.0));
-                    col -= (noise * (0.05 + darkness * 0.15 + anomaly * 0.9)) * (1.0 - luminance);
-                    float scanline = sin((uv.y - time * 0.02) * 800.0) * (0.03 + exhaustion * 0.05); 
+                    col -= (noise * (0.015 + darkness * 0.15 + anomaly * 0.9)) * (1.0 - luminance);
+                    float scanline = sin((uv.y - time * 0.02) * 800.0) * (0.015 + exhaustion * 0.05); 
                     col -= scanline * luminance;
                     col += phaseBand * 0.004 * (1.0 + noise);
                     col += vec3(adrenaline * 0.25, 0.0, 0.0) * distSq;
                     col += max(vec3(0.0), col - 0.5) * adrenaline * 1.2;
                     float vignettePulse = sin(time * (8.0 + adrenaline * 10.0)) * (exhaustion * 0.05 + adrenaline * 0.05); 
-                    float vignetteRadius = 0.28 - (exhaustion * 0.12) - (anomaly * 0.15) - (darkness * 0.15) + vignettePulse;
+                    float vignetteRadius = 0.35 - (exhaustion * 0.12) - (anomaly * 0.15) - (darkness * 0.15) + vignettePulse;
                     vignetteRadius = max(0.02, vignetteRadius);
                     col *= smoothstep(0.9, vignetteRadius, distSq + 0.15); 
                     float lateralDist = abs(centerUv.x);
@@ -185,7 +183,7 @@ export default class RenderEngine {
         this.postMaterial.uniforms.squeeze.value = this.squeeze || 0.0;
         this.postMaterial.uniforms.anomaly.value = this.anomaly || 0.0;
         this.postMaterial.uniforms.darkness.value = this.darkness || 0.0;
-        this.postMaterial.uniforms.paranoia.value = this.paranoia || 0.0;
+        this.postMaterial.uniforms.panic.value = this.paranoia || 0.0;
         this.postMaterial.uniforms.globalSeed.value = Math.random();
         this.postMaterial.uniforms.adrenaline.value = this.adrenaline || 0.0;
         this.postMaterial.uniforms.eyesClosed.value = this.eyesClosed || 0.0;

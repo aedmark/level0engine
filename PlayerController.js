@@ -22,18 +22,22 @@ export default class PlayerController {
         this.inventory = {batteries: 0, almondWater: 0};
         this.objectives = {fixed: 0, total: 3, escaped: false};
         this.objectiveUI = document.createElement('div');
-        this.objectiveUI.style.cssText = 'position: absolute; top: 85%; right: 5%; text-align: right; color: #222222; font-family: "Courier New", monospace; font-size: max(1.5vh, 12px); text-shadow: 0 0 4px #000; z-index: 100; pointer-events: none; text-transform: uppercase; letter-spacing: 2px; line-height: 1.5;';
+        this.objectiveUI.className = 'osd-element';
+        this.objectiveUI.style.cssText = 'bottom: 3rem; right: 3rem; text-align: right; z-index: 100; pointer-events: none; line-height: 1.2; text-transform: uppercase;';
         const renderArea = document.getElementById('screen-wrapper') || document.body;
         renderArea.appendChild(this.objectiveUI);
         this.updateObjectives = (signalText = 'SCANNING...') => {
             if (this.objectives.escaped) return;
+            if (this._lastSignalText === signalText && this._lastFixed === this.objectives.fixed) return;
+            this._lastSignalText = signalText;
+            this._lastFixed = this.objectives.fixed;
             let uiHTML = '';
             if (this.objectives.fixed >= this.objectives.total) {
                 uiHTML = `> SECTOR STABILIZED.<br>> LOCATE EXIT THRESHOLD.<br>> SIGNAL: ${signalText}`;
                 this.objectiveUI.style.color = '#88cc88';
             } else {
                 uiHTML = `> PRIMARY DIRECTIVE: RESTORE POWER<br>> BREAKERS RESET: [ ${this.objectives.fixed} / ${this.objectives.total} ]<br>> SIGNAL: ${signalText}`;
-                this.objectiveUI.style.color = '#ccaa88';
+                this.objectiveUI.style.color = '#ffffff';
             }
             if (this.objectiveUI.innerHTML !== uiHTML) {
                 this.objectiveUI.innerHTML = uiHTML;
@@ -45,9 +49,11 @@ export default class PlayerController {
         this.exhaustion = 0.0;
         this.isWinded = false;
         this.isChased = false;
-        this.paranoia = 0.0;
+        this.coherence = 1.0;
         this.currentLean = 0.0;
+        this.isBlindFolded = false;
         this.baseFov = camera.fov;
+        this.linguisticDarkMatter = 0.0;
         this.currentFov = camera.fov;
         this._leanOffset = new THREE.Vector3();
         this._boxX = new THREE.Box3();
@@ -76,15 +82,19 @@ export default class PlayerController {
         return this.input.state.flashlightActive;
     }
 
+    get paranoia() { return 1.0 - this.coherence; }
+    set paranoia(val) { this.coherence = Math.max(0.0, Math.min(1.0, 1.0 - val)); }
+
     resetMetabolism() {
         this.stamina = this.maxStamina;
         this.exhaustion = 0.0;
         this.isWinded = false;
         this.isChased = false;
-        this.paranoia = 0.0;
+        this.coherence = 1.0;
         this.anomalyPressure = 0.0;
         this.perceivedDarkness = 0.0;
         this.flashlightBattery = 100.0;
+        this.linguisticDarkMatter = 0.0;
         this.velocity.set(0, 0, 0);
     }
 
@@ -179,8 +189,12 @@ export default class PlayerController {
         const adrenalineMultiplier = this.isChased ? 1.15 : 1.0;
         const dynamicWalkSpeed = 60.0 - (this.exhaustion * 20.0);
         const dynamicRunSpeed = dynamicWalkSpeed + (65.0 * (1.0 - this.exhaustion));
+        this.isBlindFolded = state.isClosingEyes || false;
         let baseSpeed = dynamicWalkSpeed;
-        if (this.isSqueezing) {
+        if (this.isBlindFolded) {
+            baseSpeed = dynamicWalkSpeed * 0.3;
+            state.isRunning = false;
+        } else if (this.isSqueezing) {
             baseSpeed = 20.0;
             state.isRunning = false;
         } else if (state.isCrawling) {
@@ -193,7 +207,7 @@ export default class PlayerController {
             baseSpeed = this.isChased ? dynamicRunSpeed + 25.0 : dynamicRunSpeed;
         }
         if (this.isChased && state.isRunning && this.exhaustion > 0.8) {
-            this.paranoia = Math.min(1.0, this.paranoia + (delta * 0.15));
+            this.coherence = Math.max(0.0, this.coherence - (delta * 0.20));
         }
         let currentSpeed = baseSpeed * this.speedMultiplier * adrenalineMultiplier;
         const isMoving = this.direction.lengthSq() > 0 || state.touchMoveActive;
@@ -203,7 +217,7 @@ export default class PlayerController {
         if (this.adrenalineTimer > 0) {
             this.adrenalineTimer -= delta;
             currentSpeed = dynamicRunSpeed * 1.5;
-            this.paranoia = 1.0;
+            this.coherence = 0.0;
             if (this.adrenalineTimer <= 0) {
                 this.isWinded = true;
                 state.isRunning = false;
@@ -214,14 +228,14 @@ export default class PlayerController {
             this.stamina = this.maxStamina;
             this.isWinded = false;
         } else if ((state.isRunning || this.isSqueezing) && isMoving && !this.isWinded) {
-            const baseBurn = this.isSqueezing ? 1.5 : (this.isChased ? 10.0 : 6.0);
-            const burnRate = baseBurn * (1.0 + (this.paranoia * 0.6));
+            const baseBurn = this.isSqueezing ? 1.5 : (this.isChased ? 12.0 : 8.0);
+            const burnRate = baseBurn * (1.0 + ((1.0 - this.coherence) * 0.6));
             this.stamina = Math.max(0, this.stamina - burnRate * delta);
-            if (this.paranoia > 0.8) {
-                this.maxStamina = Math.max(40.0, this.maxStamina - (2.5 * delta));
+            if (this.coherence < 0.2) {
+                this.maxStamina = Math.max(40.0, this.maxStamina - (3.5 * delta));
             }
             if (this.stamina <= 0.0) {
-                if (this.paranoia > 0.85 && !this.isAdrenalineUsed) {
+                if (this.coherence < 0.15 && !this.isAdrenalineUsed) {
                     this.adrenalineTimer = 2.5;
                     this.isAdrenalineUsed = true;
                     document.dispatchEvent(new CustomEvent('somatic-breaker', {detail: {distSq: 1.0, intensity: 2.0}}));
@@ -236,13 +250,13 @@ export default class PlayerController {
         } else {
             this.isAdrenalineUsed = false;
             if (state.isRunning && this.isWinded) state.isRunning = false;
-            const isResting = !isMoving && this.perceivedDarkness < 0.2 && this.paranoia === 0.0;
-            const paranoiaPenalty = 1.0 - (this.paranoia * 0.7);
+            const isResting = !isMoving && this.perceivedDarkness < 0.2 && this.coherence === 1.0;
+            const coherencePenalty = 1.0 - ((1.0 - this.coherence) * 0.7);
             let crouchBonus = state.isCrouching ? 2.5 : 1.0;
             if (state.isCrouching && this.perceivedDarkness > 0.5) {
-                this.paranoia = Math.min(1.0, this.paranoia + (delta * 0.06));
+                this.coherence = Math.max(0.0, this.coherence - (delta * 0.06));
             }
-            let recoveryRate = this.isChased ? 1.0 : (this.isWinded ? 2.0 : (isResting ? 12.0 * crouchBonus : 5.0 * paranoiaPenalty * crouchBonus));
+            let recoveryRate = this.isChased ? 1.0 : (this.isWinded ? 2.5 : (isResting ? 15.0 * crouchBonus : 6.0 * coherencePenalty * crouchBonus));
             if (this.isWaterlogged) recoveryRate = 0.0;
             this.stamina = Math.max(0.0, Math.min(this.maxStamina, this.stamina + recoveryRate * delta));
             if (isResting && this.maxStamina < 100.0) {
@@ -266,8 +280,15 @@ export default class PlayerController {
                 Math.abs(this.camera.rotation.x - (this._lastRotX || this.camera.rotation.x));
             this._lastRotY = this.camera.rotation.y;
             this._lastRotX = this.camera.rotation.x;
+            const currentParanoia = 1.0 - this.coherence;
+            if (currentParanoia > 0.2 && currentParanoia < 0.5) {
+                this.linguisticDarkMatter = Math.min(50.0, this.linguisticDarkMatter + (delta * 0.8));
+            } else if (this.isBlindFolded || (this.perceivedDarkness < 0.1 && currentParanoia === 0.0)) {
+                this.linguisticDarkMatter = Math.max(0.0, this.linguisticDarkMatter - (delta * 1.5));
+            }
+            const maxBatteryCeiling = 100.0 - this.linguisticDarkMatter;
             const kineticCharge = (currentActualSpeed * 0.15) + (angularSpeed * 20.0);
-            this.flashlightBattery = Math.min(100.0, this.flashlightBattery + (kineticCharge * delta));
+            this.flashlightBattery = Math.min(maxBatteryCeiling, this.flashlightBattery + (kineticCharge * delta));
         }
         const fatigueRatio = this.stamina / this.maxStamina;
         this.exhaustion = fatigueRatio < 0.3 ? Math.pow(1.0 - (fatigueRatio / 0.3), 2.0) : 0.0;
@@ -302,26 +323,28 @@ export default class PlayerController {
             normalizedDarkness *= (1.0 - (0.85 * safetyFactor));
         }
         this.perceivedDarkness = normalizedDarkness;
-        let baseAccumulation = (externalPressure * 0.08) + (this.perceivedDarkness * 0.04);
-        if (state.isClosingEyes) {
-            baseAccumulation -= 0.15;
-            currentSpeed *= 0.3;
+        let baseDrain = (externalPressure * 0.12) + (this.perceivedDarkness * 0.05);
+        if (this.exhaustion > 0.5) baseDrain *= 1.5;
+        if (this.isBlindFolded) {
+            baseDrain = -0.15;
         } else if (externalPressure === 0.0 && this.perceivedDarkness < 0.3) {
             const recoveryMultiplier = isMoving ? 1.0 : 3.0;
-            baseAccumulation -= 0.06 * recoveryMultiplier * (1.0 - this.perceivedDarkness);
+            baseDrain = -0.08 * recoveryMultiplier * (1.0 - this.perceivedDarkness);
         }
-        this.paranoia = Math.max(0.0, Math.min(1.0, this.paranoia + (baseAccumulation * delta)));
-        const visibleParanoia = Math.max(0.0, (this.paranoia - 0.5) * 2.0);
-        targetFov -= (externalPressure * 15.0) + (this.perceivedDarkness * 15.0) + (visibleParanoia * 15.0);
-        if (this.paranoia > 0.8 && Math.random() < (0.5 * delta)) {
+        this.coherence = Math.max(0.0, Math.min(1.0, this.coherence - (baseDrain * delta)));
+
+        const visiblePanic = Math.max(0.0, ((1.0 - this.coherence) - 0.5) * 2.0);
+        targetFov -= (externalPressure * 15.0) + (this.perceivedDarkness * 15.0) + (visiblePanic * 15.0);
+
+        if (this.coherence < 0.2 && Math.random() < (0.5 * delta)) {
             const fakeEvent = Math.random() > 0.6 ? 'somatic-shuffle' : 'somatic-step';
-            document.dispatchEvent(new CustomEvent(fakeEvent, {detail: {intensity: 0.5 * visibleParanoia}}));
+            document.dispatchEvent(new CustomEvent(fakeEvent, {detail: {intensity: 0.5 * visiblePanic}}));
             if (Math.random() < 0.1) {
                 const fakeDistSq = 50.0 + Math.random() * 200.0;
                 document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: fakeDistSq, intensity: 0.4}}));
             }
         }
-        if (this.paranoia > 0.95 && Math.random() < (0.4 * delta)) {
+        if (this.coherence < 0.05 && Math.random() < (0.4 * delta)) {
             document.dispatchEvent(new CustomEvent('somatic-blink'));
             if (Math.random() < 0.05) {
                 document.dispatchEvent(new CustomEvent('somatic-vent', {detail: {distSq: 100.0, intensity: 0.5}}));
@@ -335,10 +358,12 @@ export default class PlayerController {
         }
         this.velocity.x -= intentX * currentSpeed * delta;
         this.velocity.z -= intentZ * currentSpeed * delta;
-        this._euler.set(0, this.camera.rotation.y, 0, 'YXZ');
-        this._moveDelta.set(-this.velocity.x * delta, 0, this.velocity.z * delta).applyEuler(this._euler);
-        const moveX = this._moveDelta.x;
-        const moveZ = this._moveDelta.z;
+        const cosY = Math.cos(this.camera.rotation.y);
+        const sinY = Math.sin(this.camera.rotation.y);
+        const vx = -this.velocity.x * delta;
+        const vz = this.velocity.z * delta;
+        const moveX = vx * cosY + vz * sinY;
+        const moveZ = -vx * sinY + vz * cosY;
         const visualHeight = this.isCrawling ? 0.3 : (this.isCrouching ? 0.8 : 1.6);
         const physicalTop = this.isCrawling ? 0.55 : (this.isCrouching ? 1.2 : 2.5);
         const feetY = this.camera.position.y - visualHeight;
@@ -451,7 +476,9 @@ export default class PlayerController {
         this.camera.rotation.z += swayRoll;
         const leanLateral = Math.sin(this.currentLean) * 0.8;
         const leanDrop = (1.0 - Math.cos(this.currentLean)) * 0.8;
-        this._leanOffset.set(leanLateral, 0, 0).applyEuler(this._euler);
+        const cosY = Math.cos(this._euler.y);
+        const sinY = Math.sin(this._euler.y);
+        this._leanOffset.set(leanLateral * cosY, 0, -leanLateral * sinY);
         this.camera.position.x += this._leanOffset.x;
         this.camera.position.z += this._leanOffset.z;
         if (!inVoid && targetFeetY === -100) targetFeetY = 0;

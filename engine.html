@@ -171,7 +171,7 @@
             position: absolute;
             color: #ffffff;
             font-family: 'VT323', monospace;
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             letter-spacing: 0.05em;
             opacity: 0.9;
             text-shadow: 2px 2px 0px rgba(0, 0, 0, 1), 0 0 8px rgba(255, 255, 255, 0.8), 0 0 15px rgba(255, 255, 255, 0.4);
@@ -181,25 +181,24 @@
         }
 
         #vhs-time {
-            top: 2rem;
-            right: 3rem;
-            text-align: right;
-            line-height: 1.0;
-        }
-
-        #inventory-osd {
-            top: 5rem;
+            top: 3rem;
             right: 3rem;
             text-align: right;
             line-height: 1.2;
-            color: #55ff55;
+        }
+
+        #inventory-osd {
+            top: 3.6rem;
+            left: 7rem;
+            text-align: right;
+            line-height: 1.2;
         }
 
         .status-bar {
-            bottom: 2rem;
-            left: 0;
+            bottom: 3rem;
+            left: 1.5rem;
             width: 100%;
-            padding: 0 3rem;
+            padding: 0 2rem;
             box-sizing: border-box;
             display: flex;
             justify-content: flex-start;
@@ -207,13 +206,12 @@
         }
 
         #coords {
-            font-size: 1.2rem;
-            opacity: 0.6;
+            opacity: 0.9;
         }
 
         #battery-wrapper {
-            top: 2rem;
-            left: 3rem;
+            top: 3.8rem;
+            left: 3.5rem;
             display: flex;
             align-items: center;
             filter: drop-shadow(2px 2px 0px rgba(0, 0, 0, 1)) drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
@@ -234,15 +232,15 @@
             transition: width 0.2s linear, background-color 0.2s;
         }
 
-           #battery-tip {
-               width: 4px;
-               height: 10px;
-               background-color: #fff;
-           }
+        #battery-tip {
+            width: 4px;
+            height: 10px;
+            background-color: #fff;
+        }
 
         #stamina-wrapper {
-            top: 4.5rem;
-            left: 3rem;
+            top: 5.6rem;
+            left: 3.5rem;
             display: flex;
             align-items: center;
             filter: drop-shadow(2px 2px 0px rgba(0, 0, 0, 1)) drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
@@ -265,7 +263,7 @@
 
         @media (max-width: 900px), (max-height: 500px) {
             .osd-element {
-                font-size: 1.2rem;
+                font-size: 1rem;
             }
 
             #vhs-time {
@@ -274,17 +272,13 @@
             }
 
             #inventory-osd {
-                top: 2.5rem;
+                top: 3rem;
                 right: 1.2rem;
             }
 
             .status-bar {
                 padding: 0 1.2rem;
                 bottom: 1rem;
-            }
-
-            #coords {
-                font-size: 0.8rem;
             }
 
             #battery-wrapper {
@@ -549,13 +543,13 @@
 <div id="ui-layer">
     <button id="menuToggleBtn" class="btn">MENU</button>
     <div class="control-panel">
-        <h1>LEVEL 0 ENGINE v0.4.2</h1>
+        <h1>LEVEL 0 ENGINE v0.4.3</h1>
         <div class="instructions">
             <p align="center">WASD to Move | Shift to Run<br>'E' to Interact | 'C' to Crouch<br>'Q' to Squeeze | 'V' to Blink<br>'F' for
                 Flashlight | '1' Use Battery<br>'2' Use Water | LMB to Look<br>RMB to Lean</p><br>
         </div><br>
         <label>Architecture Seed (String)</label>
-        <input type="text" id="seedInput" value="LVL032">
+        <input type="text" id="seedInput" value="LVL042">
         <label>Display Format</label>
         <select id="aspectSelect">
             <option value="auto">Dynamic (Full Window)</option>

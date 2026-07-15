@@ -184,16 +184,18 @@ export default class Environment {
                 const distSq = playerPos.distanceToSquared(obs.position);
                 let beingLookedAt = false;
                 if (distSq < 625.0) {
-                    const toObs = new THREE.Vector3().subVectors(obs.position, playerPos).normalize();
-                    const lookDir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
-                    if (lookDir.dot(toObs) > 0.90) beingLookedAt = true;
+                    if (!this._sharedToObs) this._sharedToObs = new THREE.Vector3();
+                    if (!this._sharedLookDir) this._sharedLookDir = new THREE.Vector3();
+                    this._sharedToObs.subVectors(obs.position, playerPos).normalize();
+                    this._sharedLookDir.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
+                    if (this._sharedLookDir.dot(this._sharedToObs) > 0.90) beingLookedAt = true;
                 }
                 if (distSq < 36.0 || (beingLookedAt && this.player.flashlightActive && distSq < 400.0)) {
                     obs.userData.fade -= delta * 1.2;
                     if (obs.userData.fade <= 0) {
                         obs.userData.active = false;
                         obs.visible = false;
-                        if (this.player.paranoia < 0.9) this.player.paranoia += 0.05;
+                        if (this.player.coherence > 0.1) this.player.coherence -= 0.05;
                         const isLaugh = Math.random() > 0.85;
                         document.dispatchEvent(new CustomEvent('somatic-lost', {
                             detail: {distSq: distSq, isLaugh: isLaugh, intensity: isLaugh ? 2.0 : 0.6}
@@ -275,6 +277,13 @@ export default class Environment {
         if (this.ventMat) {
             this.ventMat.metalness = 0.4;
             this.ventMat.roughness = 0.3;
+        }
+        if (this.metalMat) {
+            this.metalMat.metalness = 0.4;
+            this.metalMat.roughness = 0.6;
+            this.metalMat.map = this.structMat.map;
+            this.metalMat.bumpMap = this.structMat.map;
+            this.metalMat.bumpScale = 0.02;
         }
         const dustGeo = new THREE.BufferGeometry();
         const dustCount = 600;
@@ -414,14 +423,15 @@ export default class Environment {
                 this.tagIndex = (this.tagIndex + 1) % this.tagPool.length;
             }
         });
+        this._interactDir = new THREE.Vector3();
         document.addEventListener('somatic-interact', (e) => {
             let hit = null;
             let closestDistSq = 9.0;
             const checkObj = (obj) => {
                 const distSq = obj.position.distanceToSquared(e.detail.position);
                 if (distSq < closestDistSq) {
-                    const dirToObj = new THREE.Vector3().subVectors(obj.position, e.detail.position).normalize();
-                    if (e.detail.direction.dot(dirToObj) > 0.75) {
+                    this._interactDir.subVectors(obj.position, e.detail.position).normalize();
+                    if (e.detail.direction.dot(this._interactDir) > 0.75) {
                         closestDistSq = distSq;
                         hit = obj;
                     }
@@ -584,6 +594,7 @@ export default class Environment {
         this.currentChunkCoords = {x: null, z: null};
         this.blackoutChunks.clear();
         this.observers = [];
+        this._globalSwitches = [];
         if (this.tagPool) {
             this.tagPool.forEach(tag => tag.visible = false);
             this.tagIndex = 0;
@@ -691,6 +702,7 @@ export default class Environment {
             hash,
             chunkGroup,
             stagingMeshes,
+            playerPos: this.camera.position,
             claimOasis: () => {
                 if (hasOasis) {
                     hasOasis = false;
@@ -1044,6 +1056,13 @@ export default class Environment {
                                 break;
                             }
                         }
+                        if (ctx.playerPos) {
+                            const dxPlayer = px - ctx.playerPos.x;
+                            const dzPlayer = pz - ctx.playerPos.z;
+                            if (dxPlayer * dxPlayer + dzPlayer * dzPlayer < 1600.0) {
+                                isTooClose = true;
+                            }
+                        }
                         if (!isTooClose) {
                             chunkBreakerCount++;
                             breakerPositions.push({x: px, z: pz});
@@ -1210,7 +1229,13 @@ export default class Environment {
         let isOccluded = this.currentOcclusionState;
         const pChunkX = Math.floor(cameraPos.x / (this.chunkSize * this.cellSize));
         const pChunkZ = Math.floor(cameraPos.z / (this.chunkSize * this.cellSize));
-        let pSeed = (this.baseSeed + (pChunkX * 104729) + (pChunkZ * 1299827)) >>> 0;
+
+        let structuralShift = 0;
+        if (this.player && this.player.coherence < 0.4) {
+            structuralShift = Math.floor((1.0 - this.player.coherence) * 1000) * (pChunkX % 2 === 0 ? 1 : -1);
+        }
+
+        let pSeed = (this.baseSeed + structuralShift + (pChunkX * 104729) + (pChunkZ * 1299827)) >>> 0;
         const pRandom = () => {
             pSeed = (pSeed * 1664525 + 1013904223) >>> 0;
             return pSeed / 4294967296.0;

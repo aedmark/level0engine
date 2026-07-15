@@ -508,7 +508,7 @@ export default class TheArchitect {
             },
             {
                 prob: 0.035, build: (x, z) => {
-                    if (random() > 0.65 && ctx.addObserver) {
+                    if (random() > 0.92 && ctx.addObserver) {
                         ctx.addObserver(x * this.cellSize, z * this.cellSize);
                         if (ctx.markOccupied) ctx.markOccupied(x, z);
                     } else {
@@ -532,6 +532,13 @@ export default class TheArchitect {
                         if (distSq > 0.1 && distSq < 2500.0) {
                             tooClose = true;
                             break;
+                        }
+                    }
+                    if (ctx.playerPos) {
+                        const dxPlayer = cx - ctx.playerPos.x;
+                        const dzPlayer = cz - ctx.playerPos.z;
+                        if (dxPlayer * dxPlayer + dzPlayer * dzPlayer < 1600.0) {
+                            tooClose = true;
                         }
                     }
                     if (tooClose) {
@@ -1098,22 +1105,61 @@ export default class TheArchitect {
                         block.userData.isEntityBlocker = true;
                         addGeometry(block);
                     } else {
-                        if (random() > 0.4) {
-                            const isZWall = random() > 0.5;
-                            const offset = random() > 0.5 ? 1.8 : -1.8;
-                            const trim = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize, 0.1, 0.4), this.hazardMat);
-                            if (isZWall) {
-                                trim.rotation.y = Math.PI / 2;
-                                trim.position.set(x * this.cellSize + offset, 0.05, z * this.cellSize);
-                            } else {
-                                trim.position.set(x * this.cellSize, 0.05, z * this.cellSize + offset);
+                        const isW = (lx, lz) => {
+                            if (lx < 0 || lx >= this.chunkSize || lz < 0 || lz >= this.chunkSize) {
+                                if ((lx === 7 && (lz === -1 || lz === this.chunkSize)) || (lz === 7 && (lx === -1 || lx === this.chunkSize))) return false;
+                                return true;
                             }
+                            return maze[lx][lz];
+                        };
+                        const wN = isW(localX, localZ - 1);
+                        const wS = isW(localX, localZ + 1);
+                        const wE = isW(localX + 1, localZ);
+                        const wW = isW(localX - 1, localZ);
+
+                        const tOff = (this.cellSize / 2) - 0.2;
+
+                        if (wN) {
+                            const extW = !isW(localX - 1, localZ - 1);
+                            const extE = !isW(localX + 1, localZ - 1);
+                            const len = this.cellSize + (extW ? 0.4 : 0) + (extE ? 0.4 : 0);
+                            const cx = (extE ? 0.2 : 0) - (extW ? 0.2 : 0);
+                            const trim = new THREE.Mesh(new THREE.BoxGeometry(len, 0.1, 0.4), this.hazardMat);
+                            trim.position.set(x * this.cellSize + cx, 0.050, z * this.cellSize - tOff);
                             addGeometry(trim);
                         }
-                        const openE = localX < this.chunkSize - 1 ? !maze[localX + 1][localZ] : !maze[localX][localZ];
-                        const openS = localZ < this.chunkSize - 1 ? !maze[localX][localZ + 1] : !maze[localX][localZ];
-                        const openN = localZ > 0 ? !maze[localX][localZ - 1] : !maze[localX][localZ];
-                        const openW = localX > 0 ? !maze[localX - 1][localZ] : !maze[localX][localZ];
+                        if (wS) {
+                            const extW = !isW(localX - 1, localZ + 1);
+                            const extE = !isW(localX + 1, localZ + 1);
+                            const len = this.cellSize + (extW ? 0.4 : 0) + (extE ? 0.4 : 0);
+                            const cx = (extE ? 0.2 : 0) - (extW ? 0.2 : 0);
+                            const trim = new THREE.Mesh(new THREE.BoxGeometry(len, 0.1, 0.4), this.hazardMat);
+                            trim.position.set(x * this.cellSize + cx, 0.050, z * this.cellSize + tOff);
+                            addGeometry(trim);
+                        }
+                        if (wE) {
+                            const extN = !isW(localX + 1, localZ - 1);
+                            const extS = !isW(localX + 1, localZ + 1);
+                            const len = this.cellSize + (extN ? 0.4 : 0) + (extS ? 0.4 : 0);
+                            const cz = (extS ? 0.2 : 0) - (extN ? 0.2 : 0);
+                            const trim = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, len), this.hazardMat);
+                            trim.position.set(x * this.cellSize + tOff, 0.051, z * this.cellSize + cz);
+                            addGeometry(trim);
+                        }
+                        if (wW) {
+                            const extN = !isW(localX - 1, localZ - 1);
+                            const extS = !isW(localX - 1, localZ + 1);
+                            const len = this.cellSize + (extN ? 0.4 : 0) + (extS ? 0.4 : 0);
+                            const cz = (extS ? 0.2 : 0) - (extN ? 0.2 : 0);
+                            const trim = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, len), this.hazardMat);
+                            trim.position.set(x * this.cellSize - tOff, 0.051, z * this.cellSize + cz);
+                            addGeometry(trim);
+                        }
+
+                        const openE = !wE;
+                        const openS = !wS;
+                        const openN = !wN;
+                        const openW = !wW;
                         const offset = -1.1;
                         let hasPipes = false;
                         if (openE) {
@@ -1257,12 +1303,14 @@ export default class TheArchitect {
                         addGeometry(trunk);
                         if (random() > 0.20) {
                             const cHeight = 0.4 + random() * 0.4;
-                            const canopyGeo = new THREE.BoxGeometry(this.cellSize * (1.2 + random()), cHeight, this.cellSize * (1.2 + random()));
-                            const canopy = new THREE.Mesh(canopyGeo, this.fabricMat);
+                            const scaleX = 1.2 + random();
+                            const scaleZ = 1.2 + random();
+                            const canopy = buildWall(this.cellSize, this.cellSize, this.fabricMat, 1.0, 0);
+                            canopy.scale.set(scaleX, cHeight, scaleZ);
                             canopy.position.set(x * this.cellSize + offsetX, 3.0 - (cHeight / 2), z * this.cellSize + offsetZ);
                             canopy.rotation.y = random() * Math.PI;
                             canopy.castShadow = true;
-                            chunkGroup.add(canopy);
+                            addGeometry(canopy);
                         }
                     }
                     if (random() > 0.90) {
