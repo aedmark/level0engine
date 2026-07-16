@@ -10,7 +10,6 @@ const ASSETS = [
     './AcousticEngine.js',
     './ProceduralTextureFactory.js',
     './RenderEngine.js',
-    './three.min.js',
     './manifest.json',
     './Anomaly.js',
     './TheArchitect.js',

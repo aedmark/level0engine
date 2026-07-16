@@ -1,5 +1,20 @@
 # Level 0 Engine Changelog
 
+## [v0.4.4] - 2026-07-15
+
+_The Subconscious Friction & Mechanical Obstruction Update_
+
+#### Added
+
+- **[GEOMETRY] The Compression Archway:** Injected a structural asset into the procedural generation matrix that instantiates modular overhead concrete beams and narrow supportive framing. The asset drops corridor headroom dynamically, forcing physical boundary alignment and axis-decoupled kinetic collisions.
+
+- **[GEOMETRY] The Ventilation Bulkhead:** Expanded the corridor infrastructure to procedurally drop deep ceiling masses mapped to the native ventilation materials. This mechanical mass is automatically intersected by transverse exposed piping configurations that vary spatial choke-point distribution.
+
+- **[AUDIO] The Industrial Hazard Circuit:** Overhauled the empty acoustic footprint of the Maintenance Shafts sector. Programmed a dynamic low-pass sweep down to 110Hz to mutate white noise assets into a suffocating industrial roar, paired with a rhythmic, phase-modulated 180Hz triangle-wave warning chime running natively on the core runtime clock.
+
+- **[METABOLICS] Linguistic Dark Matter Tracking:** Realized the Subconscious Grey Area mechanics within the active player state. Latent, low-level paranoia (between 20% and 50% threshold limits) is compiled into a hidden stress stock that silently clamps the maximum voltage capacity of kinetic flashlight battery recharging.
+
+
 ## [v0.4.3] - 2026-07-15
 *The Unified Manifold & Title-Safe Optical Pass*
 
