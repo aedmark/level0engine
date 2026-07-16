@@ -548,6 +548,37 @@ export default class TheArchitect {
                 }
             },
             {
+                name: "THE VENTILATION BULKHEAD",
+                prob: 0.028, build: (x, z) => {
+                    const cx = x * this.cellSize;
+                    const cz = z * this.cellSize;
+                    if (ctx.markOccupied) ctx.markOccupied(x, z);
+
+                    const isZOriented = random() > 0.5;
+                    const bulkheadThickness = 2.2;
+
+                    const bulkheadMass = buildWall(isZOriented ? bulkheadThickness : this.cellSize, isZOriented ? this.cellSize : bulkheadThickness, this.ventMat, 1.2, 1.8);
+                    bulkheadMass.position.set(cx, 1.8 + 0.6, cz);
+                    bulkheadMass.userData.isEntityBlocker = true;
+                    addGeometry(bulkheadMass);
+
+                    const pipeCount = Math.floor(random() * 2) + 2;
+                    for (let i = 0; i < pipeCount; i++) {
+                        const pipe = new THREE.Mesh(this.pipeGeo, this.rustMat);
+                        pipe.rotation.order = "YXZ";
+                        if (!isZOriented) pipe.rotation.y = Math.PI / 2;
+
+                        const offsetOffset = (i - (pipeCount - 1) / 2) * 0.7;
+                        pipe.position.set(
+                            cx + (isZOriented ? 0 : offsetOffset),
+                            1.6,
+                            cz + (isZOriented ? offsetOffset : 0)
+                        );
+                        chunkGroup.add(pipe);
+                    }
+                }
+            },
+            {
                 prob: 0.03, build: (x, z) => {
                     const cx = x * this.cellSize;
                     const cz = z * this.cellSize;
