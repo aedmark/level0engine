@@ -520,6 +520,34 @@ export default class TheArchitect {
                 }
             },
             {
+                name: "THE COMPRESSION ARCHWAY",
+                prob: 0.032, build: (x, z) => {
+                    const cx = x * this.cellSize;
+                    const cz = z * this.cellSize;
+                    if (ctx.markOccupied) ctx.markOccupied(x, z);
+
+                    const isAlignedZ = random() > 0.5;
+                    const pillarThickness = 0.8;
+                    const overheadHeight = 1.0;
+                    const verticalClearance = 3.0 - overheadHeight;
+
+                    const supportLeft = buildWall(isAlignedZ ? pillarThickness : this.cellSize, isAlignedZ ? this.cellSize : pillarThickness, this.sharedWallMat, verticalClearance, 0);
+                    supportLeft.position.set(cx + (isAlignedZ ? -1.6 : 0), verticalClearance / 2, cz + (isAlignedZ ? 0 : -1.6));
+                    supportLeft.userData.isEntityBlocker = true;
+                    addGeometry(supportLeft);
+
+                    const supportRight = buildWall(isAlignedZ ? pillarThickness : this.cellSize, isAlignedZ ? this.cellSize : pillarThickness, this.sharedWallMat, verticalClearance, 0);
+                    supportRight.position.set(cx + (isAlignedZ ? 1.6 : 0), verticalClearance / 2, cz + (isAlignedZ ? 0 : 1.6));
+                    supportRight.userData.isEntityBlocker = true;
+                    addGeometry(supportRight);
+
+                    const overheadBeam = buildWall(this.cellSize, this.cellSize, this.headerMat, overheadHeight, verticalClearance);
+                    overheadBeam.position.set(cx, verticalClearance + (overheadHeight / 2), cz);
+                    overheadBeam.userData.isEntityBlocker = true;
+                    addGeometry(overheadBeam);
+                }
+            },
+            {
                 prob: 0.03, build: (x, z) => {
                     const cx = x * this.cellSize;
                     const cz = z * this.cellSize;
