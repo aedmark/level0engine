@@ -4,7 +4,7 @@ const CACHE_NAME = '043';
 const ASSETS = [
     './',
     './index.html',
-    './main.js',
+    './Main.js',
     './Environment.js',
     './PlayerController.js',
     './AcousticEngine.js',
