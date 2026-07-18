@@ -28,8 +28,12 @@ export default class ProceduralTextureFactory {
 
     static _buildStructuralAssets(masterNoise) {
         const {canvas: wallCanvas, ctx: wallCtx} = this._createContext(512, 512);
+
+        // 1. Base Coat: The classic liminal yellow
         wallCtx.fillStyle = '#d4c382';
         wallCtx.fillRect(0, 0, 512, 512);
+
+        // 2. The Original Motif: Clean, alternating vertical pinstripes
         wallCtx.lineWidth = 4;
         for (let i = 0; i < 512; i += 16) {
             wallCtx.strokeStyle = (i % 32 === 0) ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)';
@@ -38,15 +42,14 @@ export default class ProceduralTextureFactory {
             wallCtx.lineTo(i, 512);
             wallCtx.stroke();
         }
+
+        // 3. Structural Noise
         wallCtx.globalAlpha = 0.5;
         wallCtx.drawImage(masterNoise, 0, 0);
         wallCtx.globalAlpha = 1.0;
-        for (let i = 0; i < 150; i++) {
-            wallCtx.fillStyle = `rgba(80, 70, 40, ${Math.random() * 0.04})`;
-            wallCtx.beginPath();
-            wallCtx.arc(Math.random() * 512, 450 + Math.random() * 62, Math.random() * 50, 0, Math.PI * 2);
-            wallCtx.fill();
-        }
+
+        // [SLASH] WE ARE OMITTING THE DISEASED DIMPLES HERE.
+
         const {canvas: headerCanvas, ctx: headerCtx} = this._createContext(512, 512);
         headerCtx.drawImage(wallCanvas, 0, 0);
         const headerTexture = new THREE.CanvasTexture(headerCanvas);
@@ -59,16 +62,20 @@ export default class ProceduralTextureFactory {
             bumpMap: headerTexture,
             bumpScale: 0.01
         });
+
+        // 4. Baseboard
         wallCtx.fillStyle = '#4a3d24';
         wallCtx.fillRect(0, 480, 512, 32);
         wallCtx.fillStyle = '#3a2d14';
         wallCtx.fillRect(0, 476, 512, 4);
-        wallCtx.fillStyle = 'rgba(0,0,0,0.15)';
-        wallCtx.fillRect(255, 0, 2, 512);
+
+        // [SLASH] WE ARE OMITTING THE HARD 2PX BLACK LINE HERE.
+
         const wallTexture = new THREE.CanvasTexture(wallCanvas);
         wallTexture.wrapS = THREE.RepeatWrapping;
         wallTexture.wrapT = THREE.ClampToEdgeWrapping;
         wallTexture.repeat.set(4, 1);
+
         const {canvas: structCanvas, ctx: structCtx} = this._createContext(512, 512);
         structCtx.fillStyle = '#5c5441';
         structCtx.fillRect(0, 0, 512, 512);
@@ -99,6 +106,7 @@ export default class ProceduralTextureFactory {
             bumpMap: structTexture,
             bumpScale: 0.02
         });
+
         const {canvas: woodCanvas, ctx: woodCtx} = this._createContext(256, 512);
         woodCtx.fillStyle = '#4a3219';
         woodCtx.fillRect(0, 0, 256, 512);
@@ -121,6 +129,7 @@ export default class ProceduralTextureFactory {
             bumpMap: woodTexture,
             bumpScale: 0.015
         });
+
         const {canvas: doorCanvas, ctx: doorCtx} = this._createContext(256, 512);
         doorCtx.drawImage(woodCanvas, 0, 0);
         doorCtx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -136,15 +145,18 @@ export default class ProceduralTextureFactory {
         doorCtx.arc(210, 260, 12, 0, Math.PI * 2);
         doorCtx.fill();
         const doorTexture = new THREE.CanvasTexture(doorCanvas);
+
         const {canvas: doorBackCanvas, ctx: doorBackCtx} = this._createContext(256, 512);
         doorBackCtx.translate(256, 0);
         doorBackCtx.scale(-1, 1);
         doorBackCtx.drawImage(doorCanvas, 0, 0);
         const doorBackTexture = new THREE.CanvasTexture(doorBackCanvas);
+
         const doorMatFront = new THREE.MeshStandardMaterial({map: doorTexture, roughness: 0.9});
         const doorMatBack = new THREE.MeshStandardMaterial({map: doorBackTexture, roughness: 0.9});
         const doorMatEdge = new THREE.MeshStandardMaterial({map: woodTexture, roughness: 0.9});
         const doorMat = [doorMatEdge, doorMatEdge, doorMatEdge, doorMatEdge, doorMatFront, doorMatBack];
+
         return {headerMat, wallTexture, structMat, woodMat, doorMat};
     }
 
@@ -542,6 +554,77 @@ export default class ProceduralTextureFactory {
         return {waterMat, hazardMat, glowMat, glowGeo, tagMat, tagGeo, voidMat, rustMat, metalMat, almondMat};
     }
 
+    // [SLASH] SURGICAL EXTRACTION PHASE 6: TEXTURE ATLAS COMPILATION
+    static _compileMasterAtlas(assets) {
+        const { canvas: atlasCanvas, ctx: atlasCtx } = this._createContext(2048, 2048);
+
+        // 1. Establish the void (absolute black background)
+        atlasCtx.fillStyle = '#000000';
+        atlasCtx.fillRect(0, 0, 2048, 2048);
+
+        const uvMap = new Map();
+        let currentX = 0;
+        let currentY = 0;
+        let rowHeight = 0;
+
+        // 2. Extraction heuristic to pull raw image data from legacy materials
+        const packTexture = (name, item, width, height) => {
+            let sourceCanvas = null;
+            if (Array.isArray(item)) item = item[4]; // Target the front face for multi-materials like doors
+            if (item && item.isTexture && item.image) sourceCanvas = item.image;
+            else if (item && item.map && item.map.image) sourceCanvas = item.map.image;
+
+            if (sourceCanvas) {
+                if (currentX + width > 2048) {
+                    currentX = 0;
+                    currentY += rowHeight;
+                    rowHeight = 0;
+                }
+
+                // Draw the raw image data into our packed grid
+                atlasCtx.drawImage(sourceCanvas, 0, 0, sourceCanvas.width, sourceCanvas.height, currentX, currentY, width, height);
+
+                // Calculate normalized UV bounds (0.0 to 1.0)
+                // WebGL reads V from bottom up, so we invert the Y-axis mathematically
+                uvMap.set(name, {
+                    u: currentX / 2048.0,
+                    v: 1.0 - ((currentY + height) / 2048.0),
+                    w: width / 2048.0,
+                    h: height / 2048.0
+                });
+
+                currentX += width;
+                rowHeight = Math.max(rowHeight, height);
+            }
+        };
+
+        // 3. Pack the load-bearing topological surfaces
+        packTexture('wall', assets.wallTexture, 512, 512);
+        packTexture('carpet', assets.carpetTexture, 512, 512);
+        packTexture('ceiling', assets.ceilingTexture, 512, 512);
+        packTexture('struct', assets.structMat, 512, 512);
+        packTexture('wood', assets.woodMat, 256, 512);
+        packTexture('door', assets.doorMat, 256, 512);
+        packTexture('fabric', assets.fabricMat, 256, 256);
+        packTexture('tile', assets.tileMat, 256, 256);
+        packTexture('clinic', assets.clinicMat, 256, 256);
+        packTexture('vent', assets.ventMat, 512, 256);
+        packTexture('server', assets.serverMat, 256, 512);
+        packTexture('light', assets.baseLightMat, 128, 256);
+        packTexture('hazard', assets.hazardMat, 256, 256);
+        packTexture('water', assets.waterMat, 64, 64);
+
+        // Convert the final atlas into a pristine WebGL-ready texture
+        const atlasTexture = new THREE.CanvasTexture(atlasCanvas);
+        // [SLASH] Disable Mipmaps to prevent void-bleeding on fractional UV wraps
+        atlasTexture.colorSpace = THREE.SRGBColorSpace;
+        atlasTexture.minFilter = THREE.LinearFilter;
+        atlasTexture.magFilter = THREE.LinearFilter;
+        atlasTexture.generateMipmaps = false;
+
+        return { atlasTexture, uvMap };
+    }
+
     static generateAssets() {
         const masterNoise = this._generateMasterNoise();
         const structAssets = this._buildStructuralAssets(masterNoise);
@@ -549,6 +632,7 @@ export default class ProceduralTextureFactory {
         const organicAssets = this._buildOrganicAssets(masterNoise);
         const techAssets = this._buildTechAssets(masterNoise);
         const hazardAssets = this._buildHazardAndMiscAssets(masterNoise);
+
         const assets = {
             ...structAssets,
             ...surfaceAssets,
@@ -556,6 +640,7 @@ export default class ProceduralTextureFactory {
             ...techAssets,
             ...hazardAssets
         };
+
         const applyOpt = (item) => {
             if (item && item.isTexture) {
                 item.anisotropy = 16;
@@ -570,6 +655,7 @@ export default class ProceduralTextureFactory {
                 item.emissiveMap.colorSpace = THREE.SRGBColorSpace;
             }
         };
+
         Object.values(assets).forEach(item => {
             if (Array.isArray(item)) {
                 item.forEach(applyOpt);
@@ -577,6 +663,12 @@ export default class ProceduralTextureFactory {
                 applyOpt(item);
             }
         });
+
+        // [SLASH] Weave the master atlas into the global asset payload
+        const atlasData = this._compileMasterAtlas(assets);
+        assets.masterAtlas = atlasData.atlasTexture;
+        assets.uvDictionary = atlasData.uvMap;
+
         return assets;
     }
 }

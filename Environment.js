@@ -73,6 +73,20 @@ export default class Environment {
                 this.activeChunks.delete(hash);
                 this.blackoutChunks.delete(hash);
                 this.spatialGrid.removeByChunk(hash);
+
+                if (this.engine.nativeChunks) {
+                    this.engine.nativeChunks = this.engine.nativeChunks.filter(c => {
+                        if (c.hash === hash) {
+                            this.engine.gl.deleteBuffer(c.posBuffer);
+                            this.engine.gl.deleteBuffer(c.normBuffer);
+                            if (c.uvBuffer) this.engine.gl.deleteBuffer(c.uvBuffer);
+                            this.engine.gl.deleteBuffer(c.colBuffer);
+                            if (c.rectBuffer) this.engine.gl.deleteBuffer(c.rectBuffer);
+                            return false;
+                        }
+                        return true;
+                    });
+                }
             }
         }
         if (deadHashes.size > 0) {
@@ -275,8 +289,8 @@ export default class Environment {
             this.serverMat.roughness = 0.2;
         }
         if (this.ventMat) {
-            this.ventMat.metalness = 0.4;
-            this.ventMat.roughness = 0.3;
+            this.ventMat.metalness = 0.15;
+            this.ventMat.roughness = 0.8;
         }
         if (this.metalMat) {
             this.metalMat.metalness = 0.4;
@@ -342,6 +356,7 @@ export default class Environment {
         this.flashlight.shadow.bias = -0.002;
         this.camera.add(this.flashlight);
         this.camera.add(this.flashlight.target);
+        if (this.masterAtlas) this.engine.setMasterAtlas(this.masterAtlas);
         this.baseFogDensity = 0.05;
         this.generate();
         const toggleBtn = document.getElementById('menuToggleBtn');
@@ -594,6 +609,14 @@ export default class Environment {
         this.currentChunkCoords = {x: null, z: null};
         this.blackoutChunks.clear();
         this.observers = [];
+        if (this.engine.nativeChunks) {
+            this.engine.nativeChunks.forEach(c => {
+                this.engine.gl.deleteBuffer(c.posBuffer);
+                this.engine.gl.deleteBuffer(c.normBuffer);
+                this.engine.gl.deleteBuffer(c.colBuffer);
+            });
+            this.engine.nativeChunks = [];
+        }
         this._globalSwitches = [];
         if (this.tagPool) {
             this.tagPool.forEach(tag => tag.visible = false);
@@ -650,12 +673,30 @@ export default class Environment {
             this.legGeo = new THREE.BoxGeometry(0.1, 0.4, 0.1);
             this.tableTopGeo = new THREE.BoxGeometry(1.2, 0.05, 1.2);
             this.tableBaseGeo = new THREE.BoxGeometry(0.5, 0.8, 0.5);
+
+            // The wall vent uses the native 1x1 scale. No texture cloning required.
             this.wallVentMat = this.ventMat.clone();
-            this.wallVentMat.map = this.ventMat.map.clone();
+            this.wallVentMat.map = new THREE.CanvasTexture(this.ventMat.map.image);
+            this.wallVentMat.bumpMap = new THREE.CanvasTexture(this.ventMat.bumpMap.image);
+            this.wallVentMat.map.colorSpace = THREE.SRGBColorSpace;
+            this.wallVentMat.map.anisotropy = 16;
+            this.wallVentMat.bumpMap.anisotropy = 16;
             this.wallVentMat.map.repeat.set(1, 1);
+            this.wallVentMat.bumpMap.repeat.set(1, 1);
+
             this.serverFloorMat = this.ventMat.clone();
-            this.serverFloorMat.map = this.ventMat.map.clone();
+            this.serverFloorMat.map = new THREE.CanvasTexture(this.ventMat.map.image);
+            this.serverFloorMat.bumpMap = new THREE.CanvasTexture(this.ventMat.bumpMap.image);
+            this.serverFloorMat.map.colorSpace = THREE.SRGBColorSpace;
+            this.serverFloorMat.map.wrapS = THREE.RepeatWrapping;
+            this.serverFloorMat.map.wrapT = THREE.RepeatWrapping;
+            this.serverFloorMat.bumpMap.wrapS = THREE.RepeatWrapping;
+            this.serverFloorMat.bumpMap.wrapT = THREE.RepeatWrapping;
+            this.serverFloorMat.map.anisotropy = 16;
+            this.serverFloorMat.bumpMap.anisotropy = 16;
             this.serverFloorMat.map.repeat.set(64, 32);
+            this.serverFloorMat.bumpMap.repeat.set(64, 32);
+
             this.breakerBaseGeo = new THREE.BoxGeometry(0.6, 0.8, 0.20);
             this.breakerDoorGeo = new THREE.BoxGeometry(0.6, 0.8, 0.05);
             this.breakerDoorGeo.translate(0.3, 0, 0);
@@ -687,12 +728,77 @@ export default class Environment {
             this.observerMat = new THREE.MeshBasicMaterial({color: 0x010101, transparent: true, opacity: 0.85});
             this.observerGeo = new THREE.CylinderGeometry(0.15, 0.1, 1.9, 8);
             this.observers = [];
+
+            this.sharedWallMat.userData.atlasKey = 'wall';
+            this.headerMat.userData.atlasKey = 'wall';
+            this.carpetMat.userData.atlasKey = 'carpet';
+            this.ceilMat.userData.atlasKey = 'ceiling';
+            this.structMat.userData.atlasKey = 'struct';
+            this.woodMat.userData.atlasKey = 'wood';
+            if (Array.isArray(this.doorMat)) this.doorMat.forEach(m => m.userData.atlasKey = 'door');
+            this.fabricMat.userData.atlasKey = 'fabric';
+            this.tileMat.userData.atlasKey = 'tile';
+            this.clinicMat.userData.atlasKey = 'clinic';
+            this.ventMat.userData.atlasKey = 'vent';
+            this.wallVentMat.userData.atlasKey = 'vent';
+            this.serverFloorMat.userData.atlasKey = 'vent';
+            this.serverMat.userData.atlasKey = 'server';
+            this.baseLightMat.userData.atlasKey = 'light';
+            this.baseBrokenLightMat.userData.atlasKey = 'light';
+            this.baseHousingMat.userData.atlasKey = 'struct';
+            this.rustMat.userData.atlasKey = 'struct';
+            this.metalMat.userData.atlasKey = 'struct';
+            this.hazardMat.userData.atlasKey = 'hazard';
+            this.waterMat.userData.atlasKey = 'water';
+            this.almondMat.userData.atlasKey = 'wood';
+
             this.sharedAssets = new Set();
             Object.values(this).forEach(v => {
                 if (v && v.isGeometry) this.sharedAssets.add(v.uuid);
                 if (v && v.isMaterial) this.sharedAssets.add(v.uuid);
             });
         }
+    }
+
+    _createNativeBoxBuffer(width, height, depth, yOffset) {
+        const hw = width / 2;
+        const hd = depth / 2;
+        const yTop = height / 2;
+        const yBot = -height / 2;
+        const positions = new Float32Array([
+            hw, yTop, hd, hw, yBot, hd, hw, yBot, -hd, hw, yTop, hd, hw, yBot, -hd, hw, yTop, -hd,
+            -hw, yTop, -hd, -hw, yBot, -hd, -hw, yBot, hd, -hw, yTop, -hd, -hw, yBot, hd, -hw, yTop, hd,
+            -hw, yTop, -hd, -hw, yTop, hd, hw, yTop, hd, -hw, yTop, -hd, hw, yTop, hd, hw, yTop, -hd,
+            -hw, yBot, hd, -hw, yBot, -hd, hw, yBot, -hd, -hw, yBot, hd, hw, yBot, -hd, hw, yBot, hd,
+            -hw, yTop, hd, -hw, yBot, hd, hw, yBot, hd, -hw, yTop, hd, hw, yBot, hd, hw, yTop, hd,
+            hw, yTop, -hd, hw, yBot, -hd, -hw, yBot, -hd, hw, yTop, -hd, -hw, yBot, -hd, -hw, yTop, -hd
+        ]);
+        const normals = new Float32Array([
+            1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,
+            -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0,
+            0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0,
+            0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0,
+            0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1,
+            0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1
+        ]);
+        const uX = depth / this.cellSize;
+        const uZ = width / this.cellSize;
+        const vStart = yOffset / 3.0;
+        const vRange = height / 3.0;
+        const vEnd = vStart + vRange;
+        const uvs = new Float32Array([
+            0, vEnd, 0, vStart, uX, vStart, 0, vEnd, uX, vStart, uX, vEnd,
+            0, vEnd, 0, vStart, uX, vStart, 0, vEnd, uX, vStart, uX, vEnd,
+            0, uX, 0, 0, uZ, 0, 0, uX, uZ, 0, uZ, uX,
+            0, uX, 0, 0, uZ, 0, 0, uX, uZ, 0, uZ, uX,
+            0, vEnd, 0, vStart, uZ, vStart, 0, vEnd, uZ, vStart, uZ, vEnd,
+            0, vEnd, 0, vStart, uZ, vStart, 0, vEnd, uZ, vStart, uZ, vEnd
+        ]);
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geo.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+        geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+        return geo;
     }
 
     _createChunkHelpers(hash, chunkGroup, stagingMeshes, random) {
@@ -715,22 +821,10 @@ export default class Environment {
                 d = Math.round(d * 20) / 20;
                 h = Math.round(h * 20) / 20;
                 yOffset = Math.round(yOffset * 20) / 20;
-                const key = `${w}_${h}_${d}_${yOffset}`;
+                const key = `RAW_${w}_${h}_${d}_${yOffset}`;
                 let geo = this.geoCache.get(key);
                 if (!geo) {
-                    geo = new THREE.BoxGeometry(w + 0.02, h, d + 0.02);
-                    const uv = geo.attributes.uv;
-                    for (let i = 0; i < 8; i++) uv.setX(i, uv.getX(i) * (d / this.cellSize));
-                    for (let i = 16; i < 24; i++) uv.setX(i, uv.getX(i) * (w / this.cellSize));
-                    if (h !== 3.0 || yOffset > 0) {
-                        const vStart = yOffset / 3.0;
-                        const vRange = h / 3.0;
-                        for (let i = 0; i < 8; i++) uv.setY(i, vStart + uv.getY(i) * vRange);
-                        for (let i = 16; i < 24; i++) uv.setY(i, vStart + uv.getY(i) * vRange);
-                    }
-                    if (h !== 3.0 && yOffset === 0) {
-                        for (let i = 8; i < 16; i++) uv.setY(i, uv.getY(i) * (h / 3.0));
-                    }
+                    geo = this._createNativeBoxBuffer(w + 0.02, h, d + 0.02, yOffset);
                     this.geoCache.set(key, geo);
                     this.geoCache.set(geo.uuid, true);
                 }
@@ -918,7 +1012,7 @@ export default class Environment {
                 const centerOffset = (this.chunkSize * this.cellSize) / 2 - (this.cellSize / 2);
                 foundation.position.set(startX * this.cellSize + centerOffset, 0.02, startZ * this.cellSize + centerOffset);
                 foundation.receiveShadow = true;
-                chunkGroup.add(foundation);
+                ctx.addGeometry(foundation);
             }
         }
         const isChasm = activeSector && activeSector.name === "THE CHASM";
@@ -930,13 +1024,13 @@ export default class Environment {
             floor.rotation.x = -Math.PI / 2;
             floor.position.set(startX * this.cellSize + centerOffset, 0, startZ * this.cellSize + centerOffset);
             floor.receiveShadow = true;
-            chunkGroup.add(floor);
+            ctx.addGeometry(floor);
         }
         if (!isChasm && (!activeSector || activeSector.name !== "THE OVERGROWN ATRIUM")) {
             const ceil = new THREE.Mesh(ceilGeo, this.ceilMat);
             ceil.rotation.x = Math.PI / 2;
             ceil.position.set(startX * this.cellSize + centerOffset, 3, startZ * this.cellSize + centerOffset);
-            chunkGroup.add(ceil);
+            ctx.addGeometry(ceil);
         }
         let chunkStartTime = performance.now();
         const occupied = new Set();
@@ -1127,53 +1221,161 @@ export default class Environment {
     }
 
     _compileInstances(hash, chunkGroup, stagingMeshes, randomFn) {
-        const instancedGroups = new Map();
+        const materialGroups = new Map();
+
+        // 1. First pass: filter non-mergeable objects and group by material
         stagingMeshes.forEach(mesh => {
-            const matSig = Array.isArray(mesh.material) ? mesh.material.map(m => m.uuid).join('_') : mesh.material.uuid;
-            const sig = `${mesh.geometry.uuid}_${matSig}`;
-            if (!instancedGroups.has(sig)) {
-                instancedGroups.set(sig, {
-                    geometry: mesh.geometry,
-                    material: mesh.material,
-                    meshes: []
-                });
+            // [SLASH] Guard: Strictly ignore interactables and existing monoliths
+            if (mesh.userData.isInteractable || mesh.geometry.isMonolithic || mesh.userData.type !== undefined) {
+                if (mesh.parent !== chunkGroup) chunkGroup.add(mesh);
+                return;
             }
-            instancedGroups.get(sig).meshes.push(mesh);
+
+            const isDecal = mesh.material === this.moldMat || mesh.material === this.ceilingStainMat || mesh.material === this.glowMat;
+            const mat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+            const matId = mat.uuid;
+
+            if (!materialGroups.has(matId)) {
+                materialGroups.set(matId, { material: mat, meshes: [], vertexCount: 0, isDecal: isDecal });
+            }
+            const vCount = mesh.geometry.index ? mesh.geometry.index.count : mesh.geometry.attributes.position.count;
+            materialGroups.get(matId).meshes.push(mesh);
+            materialGroups.get(matId).vertexCount += vCount;
         });
-        const dummyColor = new THREE.Color();
-        instancedGroups.forEach(group => {
-            const isDecal = group.material === this.moldMat || group.material === this.ceilingStainMat || group.material === this.glowMat;
-            if (group.meshes.length > 1) {
-                const iMesh = new THREE.InstancedMesh(group.geometry, group.material, group.meshes.length);
-                if (!isDecal) {
-                    iMesh.castShadow = true;
-                    iMesh.receiveShadow = true;
-                }
-                iMesh.userData.chunkHash = hash;
-                const isStructural = group.material === this.sharedWallMat || group.material === this.headerMat;
-                const needsColor = !isStructural && !isDecal;
-                group.meshes.forEach((mesh, index) => {
-                    iMesh.setMatrixAt(index, mesh.matrixWorld);
-                    if (needsColor) {
-                        const shade = 0.85 + (randomFn() * 0.15);
-                        dummyColor.setRGB(shade, shade * 0.95, shade * 0.90);
-                        iMesh.setColorAt(index, dummyColor);
+
+        materialGroups.forEach(group => {
+            if (group.isDecal || group.meshes.length === 1) {
+                group.meshes.forEach(mesh => {
+                    mesh.matrixWorld.decompose(mesh.position, mesh.quaternion, mesh.scale);
+                    if (!group.isDecal) {
+                        mesh.castShadow = true;
+                        mesh.receiveShadow = true;
+                        this.walls.push(mesh);
                     }
+                    chunkGroup.add(mesh);
                 });
-                iMesh.instanceMatrix.needsUpdate = true;
-                if (needsColor && iMesh.instanceColor) iMesh.instanceColor.needsUpdate = true;
-                chunkGroup.add(iMesh);
-                if (!isDecal) this.walls.push(iMesh);
-            } else {
-                const mesh = group.meshes[0];
-                mesh.matrixWorld.decompose(mesh.position, mesh.quaternion, mesh.scale);
-                if (!isDecal) {
-                    mesh.castShadow = true;
-                    mesh.receiveShadow = true;
-                    this.walls.push(mesh);
-                }
-                chunkGroup.add(mesh);
+                return;
             }
+
+            const vCount = group.vertexCount;
+            const mergedPositions = new Float32Array(vCount * 3);
+            const mergedNormals = new Float32Array(vCount * 3);
+            const mergedUvs = new Float32Array(vCount * 2);
+            const mergedColors = new Float32Array(vCount * 3).fill(1.0);
+            const mergedAtlasRects = new Float32Array(vCount * 4); // [SLASH] Buffer for atlas boundaries
+
+            let offset = 0;
+            let uvOffset = 0;
+            let rectOffset = 0;
+
+            const isStructural = group.material === this.sharedWallMat || group.material === this.headerMat;
+            const needsColor = !isStructural && !group.isDecal;
+
+            // [SLASH] MATERIAL POISONING FIX: Use a cached variant for vertex coloring
+            let monolithicMaterial = group.material;
+            if (needsColor) {
+                if (!group.material._coloredVariant) {
+                    group.material._coloredVariant = group.material.clone();
+                    group.material._coloredVariant.vertexColors = true;
+                }
+                monolithicMaterial = group.material._coloredVariant;
+            }
+
+            group.meshes.forEach(mesh => {
+                const geo = mesh.geometry;
+                const pos = geo.attributes.position.array;
+                const norm = geo.attributes.normal.array;
+                const uv = geo.attributes.uv.array;
+                const index = geo.index ? geo.index.array : null;
+
+                mesh.updateMatrixWorld(true);
+                const matrix = mesh.matrixWorld.elements;
+                const normalMatrix = new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld).elements;
+
+                let r = 1, g = 1, b = 1;
+                if (needsColor) {
+                    const shade = 0.85 + (randomFn() * 0.15);
+                    r = shade; g = shade * 0.95; b = shade * 0.90;
+                }
+
+                const vertexCount = index ? index.length : pos.length / 3;
+
+                for (let i = 0; i < vertexCount; i++) {
+                    const vIdx = index ? index[i] : i;
+                    const i3 = vIdx * 3;
+                    const i2 = vIdx * 2;
+
+                    const write3 = offset + i * 3;
+                    const write2 = uvOffset + i * 2;
+
+                    const vx = pos[i3];
+                    const vy = pos[i3 + 1];
+                    const vz = pos[i3 + 2];
+
+                    const tx = matrix[0] * vx + matrix[4] * vy + matrix[8] * vz + matrix[12];
+                    const ty = matrix[1] * vx + matrix[5] * vy + matrix[9] * vz + matrix[13];
+                    const tz = matrix[2] * vx + matrix[6] * vy + matrix[10] * vz + matrix[14];
+
+                    mergedPositions[write3] = tx;
+                    mergedPositions[write3 + 1] = ty;
+                    mergedPositions[write3 + 2] = tz;
+
+                    const nx = norm[i3];
+                    const ny = norm[i3 + 1];
+                    const nz = norm[i3 + 2];
+
+                    const tnx = normalMatrix[0] * nx + normalMatrix[3] * ny + normalMatrix[6] * nz;
+                    const tny = normalMatrix[1] * nx + normalMatrix[4] * ny + normalMatrix[7] * nz;
+                    const tnz = normalMatrix[2] * nx + normalMatrix[5] * ny + normalMatrix[8] * nz;
+
+                    const nLen = Math.sqrt(tnx*tnx + tny*tny + tnz*tnz);
+                    mergedNormals[write3] = tnx / nLen;
+                    mergedNormals[write3 + 1] = tny / nLen;
+                    mergedNormals[write3 + 2] = tnz / nLen;
+
+                    // [SLASH] SURGICAL EXTRACTION PHASE 8: ATLAS UV REMAPPING
+                    const atlasKey = monolithicMaterial.userData.atlasKey || 'struct';
+                    const rect = this.uvDictionary.get(atlasKey) || {u: 0, v: 0, w: 1, h: 1};
+
+                    // Send the raw geometric UVs un-clamped
+                    mergedUvs[write2] = uv[i2];
+                    mergedUvs[write2 + 1] = uv[i2 + 1];
+
+                    // Pass the atlas bounding box per-vertex
+                    const write4 = rectOffset + i * 4;
+                    mergedAtlasRects[write4] = rect.u;
+                    mergedAtlasRects[write4 + 1] = rect.v;
+                    mergedAtlasRects[write4 + 2] = rect.w;
+                    mergedAtlasRects[write4 + 3] = rect.h;
+
+                    if (needsColor) {
+                        mergedColors[write3] = r;
+                        mergedColors[write3 + 1] = g;
+                        mergedColors[write3 + 2] = b;
+                    }
+                }
+
+                offset += vertexCount * 3;
+                uvOffset += vertexCount * 2;
+                rectOffset += vertexCount * 4;
+            });
+
+            // [SLASH] SURGICAL EXTRACTION PHASE 8: GPU UPLOAD WITH UVS
+            // Hand the pure byte arrays over to our native buffer allocator
+            const nativeChunk = this.engine.allocateNativeChunk(mergedPositions, mergedNormals, mergedUvs, mergedColors, mergedAtlasRects, vCount);
+            nativeChunk.hash = hash;
+            this.engine.nativeChunks.push(nativeChunk);
+
+            // Construct a dummy shell strictly for collision physics and raycasting. Do not render it.
+            const mergedGeo = new THREE.BufferGeometry();
+            mergedGeo.setAttribute('position', new THREE.BufferAttribute(mergedPositions, 3));
+
+            const monolithicMesh = new THREE.Mesh(mergedGeo, new THREE.MeshBasicMaterial());
+            monolithicMesh.visible = false; // Bypassing legacy Three.js rendering entirely
+            monolithicMesh.userData.chunkHash = hash;
+
+            chunkGroup.add(monolithicMesh);
+            this.walls.push(monolithicMesh);
         });
     }
 
@@ -1229,12 +1431,10 @@ export default class Environment {
         let isOccluded = this.currentOcclusionState;
         const pChunkX = Math.floor(cameraPos.x / (this.chunkSize * this.cellSize));
         const pChunkZ = Math.floor(cameraPos.z / (this.chunkSize * this.cellSize));
-
         let structuralShift = 0;
         if (this.player && this.player.coherence < 0.4) {
             structuralShift = Math.floor((1.0 - this.player.coherence) * 1000) * (pChunkX % 2 === 0 ? 1 : -1);
         }
-
         let pSeed = (this.baseSeed + structuralShift + (pChunkX * 104729) + (pChunkZ * 1299827)) >>> 0;
         const pRandom = () => {
             pSeed = (pSeed * 1664525 + 1013904223) >>> 0;

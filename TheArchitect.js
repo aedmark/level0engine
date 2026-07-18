@@ -345,21 +345,6 @@ export default class TheArchitect {
                         const wall = new THREE.Mesh(this.sharedWallGeo, this.sharedWallMat);
                         wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                         addGeometry(wall);
-                        const ventGeo = new THREE.BoxGeometry(1.2, 0.6, 0.05);
-                        const vent = new THREE.Mesh(ventGeo, this.wallVentMat);
-                        const finalOffset = (this.cellSize / 2) + 0.06;
-                        if (face === 0) {
-                            vent.position.set(x * this.cellSize, 2.6, z * this.cellSize + finalOffset);
-                        } else if (face === 1) {
-                            vent.position.set(x * this.cellSize, 2.6, z * this.cellSize - finalOffset);
-                        } else if (face === 2) {
-                            vent.rotation.y = Math.PI / 2;
-                            vent.position.set(x * this.cellSize + finalOffset, 2.6, z * this.cellSize);
-                        } else {
-                            vent.rotation.y = Math.PI / 2;
-                            vent.position.set(x * this.cellSize - finalOffset, 2.6, z * this.cellSize);
-                        }
-                        addGeometry(vent);
                     }
                 }
             },

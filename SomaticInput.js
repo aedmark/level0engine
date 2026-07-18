@@ -23,11 +23,6 @@ export default class SomaticInput {
     }
 
     update() {
-        if (this._cKeyDown && !this._cKeyHandled && (performance.now() - this._cKeyPressTime > 300)) {
-            this.state.isCrawling = !this.state.isCrawling;
-            this.state.isCrouching = false;
-            this._cKeyHandled = true;
-        }
     }
 
     _bindEvents() {
@@ -185,15 +180,32 @@ export default class SomaticInput {
     _onKeyDown(event) {
         if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
         const key = event.code;
-        if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyV', 'KeyQ', 'KeyF', 'KeyE'].includes(key)) {
+        if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyZ', 'KeyX', 'KeyV', 'KeyQ', 'KeyF', 'KeyE'].includes(key)) {
             event.preventDefault();
         }
         if (event.key === 'Shift') this.state.isRunning = true;
-        if (event.code === 'KeyC') {
-            if (!this._cKeyDown) {
-                this._cKeyDown = true;
-                this._cKeyPressTime = performance.now();
-                this._cKeyHandled = false;
+        // [SLASH] HARD-GATED STATE TRANSITION: Prevent crouch-lock and crawl-lock
+        if (event.code === 'KeyC' && !event.repeat) {
+            if (this.state.isCrawling) {
+                // If prone, stand up partially (transition to crouch)
+                this.state.isCrawling = false;
+                this.state.isCrouching = true;
+            } else {
+                // If crouching or standing, toggle crouch state
+                this.state.isCrouching = !this.state.isCrouching;
+                this.state.isCrawling = false;
+            }
+        }
+
+        if (event.code === 'KeyZ' && !event.repeat) {
+            if (this.state.isCrouching) {
+                // If crouching, drop prone (transition to crawl)
+                this.state.isCrouching = false;
+                this.state.isCrawling = true;
+            } else {
+                // If crawling or standing, toggle crawl state
+                this.state.isCrawling = !this.state.isCrawling;
+                this.state.isCrouching = false;
             }
         }
         if (event.code === 'KeyX') document.dispatchEvent(new Event('capture-screenshot'));
@@ -248,18 +260,6 @@ export default class SomaticInput {
         if (event.code === 'KeyV') {
             this.state.isClosingEyes = false;
             document.dispatchEvent(new CustomEvent('somatic-eyes', {detail: {closed: false}}));
-        }
-        if (event.code === 'KeyC') {
-            this._cKeyDown = false;
-            if (!this._cKeyHandled) {
-                if (this.state.isCrawling) {
-                    this.state.isCrawling = false;
-                    this.state.isCrouching = true;
-                } else {
-                    this.state.isCrouching = !this.state.isCrouching;
-                    this.state.isCrawling = false;
-                }
-            }
         }
         switch (event.code) {
             case 'ArrowUp':

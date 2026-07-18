@@ -145,8 +145,7 @@ export default class PlayerController {
         const px = this.camera.position.x;
         const pz = this.camera.position.z;
         const localBoxes = spatialGrid.getNearby(px, pz, 2.0);
-        const currentVisHeight = state.isCrawling ? 0.3 : (state.isCrouching ? 0.8 : 1.6);
-        const currentFeetY = this.camera.position.y - currentVisHeight;
+        const currentFeetY = this._lastFeetY !== undefined ? this._lastFeetY : 0;
         let maxAvailableHeight = 3.0;
         this._vecMin.set(px - this.baseRadius, currentFeetY + 0.1, pz - this.baseRadius);
         this._vecMax.set(px + this.baseRadius, currentFeetY + 2.6, pz + this.baseRadius);
@@ -492,5 +491,6 @@ export default class PlayerController {
         }
         const lerpFactor = targetFeetY === -100 ? 1.0 : 1.0 - Math.exp(-12.0 * delta);
         this.camera.position.y += (targetCamY - this.camera.position.y) * lerpFactor;
+        this._lastFeetY = targetFeetY;
     }
 }
