@@ -21,12 +21,13 @@ function loadState() {
         document.getElementById('fogSlider').value = state.fog || "5";
         document.getElementById('fovSlider').value = state.fov || "75";
         document.getElementById('speedSlider').value = state.speed || "100";
-        document.getElementById('resolutionSelect').value = state.res || "0.5";
+        document.getElementById('resolutionSelect').value = state.res || "1.0";
         document.getElementById('volumeSlider').value = state.vol !== undefined ? state.vol : "100";
         document.getElementById('gammaSlider').value = state.gamma || "120";
         document.getElementById('headBobToggle').checked = state.headBob !== false;
+
         engine.aspectRatio = state.aspect === 'auto' ? 'auto' : parseFloat(state.aspect || 1.3333333333);
-        engine.resolutionScale = parseFloat(state.res) || 0.5;
+        engine.resolutionScale = parseFloat(state.res) || 1.0;
         engine.camera.fov = Number(state.fov) || 75;
         engine.renderer.toneMappingExposure = (Number(state.gamma) || 120) / 100;
         acoustics.masterVolume = (state.vol !== undefined ? Number(state.vol) : 100) / 100;

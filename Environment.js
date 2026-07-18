@@ -6,6 +6,7 @@ import Anomaly from './Anomaly.js';
 import SpatialHashGrid from './SpatialHashGrid.js';
 import TheArchitect from './TheArchitect.js';
 import LumenGrid from './LumenGrid.js';
+import { Vector3, Box3 } from './EngineMath.js';
 
 export default class Environment {
     constructor(engine, player) {
@@ -423,7 +424,7 @@ export default class Environment {
                 this.tagIndex = (this.tagIndex + 1) % this.tagPool.length;
             }
         });
-        this._interactDir = new THREE.Vector3();
+        this._interactDir = new Vector3();
         document.addEventListener('somatic-interact', (e) => {
             let hit = null;
             let closestDistSq = 9.0;
@@ -1027,7 +1028,7 @@ export default class Environment {
                             const isTracked = random() > 0.85;
                             this.fixtureData.push({
                                 chunkHash: hash,
-                                position: new THREE.Vector3(posX, 2.8, posZ),
+                                position: new Vector3(posX, 2.8, posZ),
                                 flickerOffset: random() * 500,
                                 material: activeMat,
                                 isFaulty: isTracked ? (random() > 0.75) : false,
@@ -1194,7 +1195,7 @@ export default class Environment {
         const cameraPos = this.camera.position;
         if (!this.audioRaycaster) {
             this.audioRaycaster = new THREE.Raycaster();
-            this.audioDirection = new THREE.Vector3();
+            this.audioDirection = new Vector3();
         }
         const lumenData = this.lumenGrid.update(cameraPos, this.fixtureData, time);
         const darknessPressure = lumenData.darknessPressure;
@@ -1206,7 +1207,7 @@ export default class Environment {
             if (time - this.lastAudioOcclusionTime > 0.1) {
                 this.audioDirection.subVectors(nearestFixture.position, cameraPos).normalize();
                 this.audioRaycaster.set(cameraPos, this.audioDirection);
-                if (!this._rayTarget) this._rayTarget = new THREE.Vector3();
+                if (!this._rayTarget) this._rayTarget = new Vector3();
                 let isHit = false;
                 const localBoxes = this.spatialGrid.getNearby(cameraPos.x, cameraPos.z, Math.min(minLightDist, 15.0));
                 const ray = this.audioRaycaster.ray;

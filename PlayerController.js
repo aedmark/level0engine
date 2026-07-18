@@ -2,6 +2,7 @@
 // LEVEL 0 PLAYER CONTROLLER
 
 import SomaticInput from './SomaticInput.js';
+import { Vector3, Box3, Euler } from './EngineMath.js';
 
 export default class PlayerController {
     constructor(camera, domElement) {
@@ -55,14 +56,13 @@ export default class PlayerController {
         this.baseFov = camera.fov;
         this.linguisticDarkMatter = 0.0;
         this.currentFov = camera.fov;
-        this._leanOffset = new THREE.Vector3();
-        this._boxX = new THREE.Box3();
-        this._boxZ = new THREE.Box3();
-        this._floorBox = new THREE.Box3();
-        this._vecMin = new THREE.Vector3();
-        this._vecMax = new THREE.Vector3();
-        this._euler = new THREE.Euler(0, 0, 0, 'YXZ');
-        this._moveDelta = new THREE.Vector3();
+        this._leanOffset = new Vector3();
+        this._boxX = new Box3();
+        this._boxZ = new Box3();
+        this._floorBox = new Box3();
+        this._vecMin = new Vector3();
+        this._vecMax = new Vector3();
+        this._moveDelta = new Vector3();
         this._bindMetabolicListeners();
     }
 
@@ -476,8 +476,8 @@ export default class PlayerController {
         this.camera.rotation.z += swayRoll;
         const leanLateral = Math.sin(this.currentLean) * 0.8;
         const leanDrop = (1.0 - Math.cos(this.currentLean)) * 0.8;
-        const cosY = Math.cos(this._euler.y);
-        const sinY = Math.sin(this._euler.y);
+        const cosY = Math.cos(this.camera.rotation.y);
+        const sinY = Math.sin(this.camera.rotation.y);
         this._leanOffset.set(leanLateral * cosY, 0, -leanLateral * sinY);
         this.camera.position.x += this._leanOffset.x;
         this.camera.position.z += this._leanOffset.z;

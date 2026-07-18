@@ -1,6 +1,8 @@
 // Anomaly.js
 // LEVEL 0 PREDATORY HAZARD
 
+import { Vector3, Box3 } from './EngineMath.js';
+
 export default class Anomaly {
     constructor(scene, camera, player, environment) {
         this.scene = scene;
@@ -9,22 +11,22 @@ export default class Anomaly {
         this.env = environment;
         this.isActive = false;
         this.group = new THREE.Group();
-        this.target = new THREE.Vector3();
+        this.target = new Vector3();
         this.breadcrumbs = [];
         this.backtrackTimer = 0;
         this.breadcrumbTimer = 0;
         this.graceTimer = 0;
-        this._dir = new THREE.Vector3();
-        this._toPlayer = new THREE.Vector3();
-        this._lookDir = new THREE.Vector3();
-        this._nextPos = new THREE.Vector3();
-        this._box = new THREE.Box3();
-        this._boxX = new THREE.Box3();
-        this._boxZ = new THREE.Box3();
-        this._min = new THREE.Vector3();
-        this._max = new THREE.Vector3();
+        this._dir = new Vector3();
+        this._toPlayer = new Vector3();
+        this._lookDir = new Vector3();
+        this._nextPos = new Vector3();
+        this._box = new Box3();
+        this._boxX = new Box3();
+        this._boxZ = new Box3();
+        this._min = new Vector3();
+        this._max = new Vector3();
         this._sightRaycaster = new THREE.Raycaster();
-        this._rayTarget = new THREE.Vector3();
+        this._rayTarget = new Vector3();
         this._buildMesh();
         document.addEventListener('somatic-step', (e) => this._handleNoise(e, 9.0));
         document.addEventListener('somatic-door', (e) => this._handleNoise(e, 30.0));
@@ -265,7 +267,7 @@ export default class Anomaly {
                 }
             }
         }
-        const dir = this._dir.subVectors(this.target, this.group.position);
+        const dir = new Vector3().subVectors(this.target, this.group.position);
         dir.y = 0;
         const distToTarget = dir.length();
         if (distToTarget > 0.1) {

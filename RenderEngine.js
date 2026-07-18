@@ -4,7 +4,7 @@
 export default class RenderEngine {
     constructor() {
         this.aspectRatio = 1.3333333333;
-        this.resolutionScale = 0.5;
+        this.resolutionScale = 1.0;
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0xa89f68);
         this.scene.fog = new THREE.FogExp2(0xa89f68, 0.05);
@@ -156,9 +156,10 @@ export default class RenderEngine {
         this.camera.aspect = w / h;
         this.camera.updateProjectionMatrix();
 
+        const dpr = window.devicePixelRatio || 1.0;
         const scale = this.resolutionScale;
-        const renderW = Math.floor(w * scale);
-        const renderH = Math.floor(h * scale);
+        const renderW = Math.floor(w * scale * dpr);
+        const renderH = Math.floor(h * scale * dpr);
 
         this.renderer.setSize(renderW, renderH, false);
         this.target.setSize(renderW, renderH);
