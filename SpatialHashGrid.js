@@ -10,6 +10,10 @@ export default class SpatialHashGrid {
         this.queryCache = [];
     }
 
+    _hash(x, z) {
+        return (x + 100000) * 200000 + (z + 100000);
+    }
+
     clear() {
         this.cells.clear();
         this.chunkMap.clear();
@@ -28,7 +32,7 @@ export default class SpatialHashGrid {
         }
         for (let x = startX; x <= endX; x++) {
             for (let z = startZ; z <= endZ; z++) {
-                const key = `${x},${z}`;
+                const key = this._hash(x, z);
                 if (!this.cells.has(key)) this.cells.set(key, []);
                 this.cells.get(key).push(box);
             }
@@ -45,7 +49,7 @@ export default class SpatialHashGrid {
             const endZ = Math.floor(box.max.z / this.cellSize);
             for (let x = startX; x <= endX; x++) {
                 for (let z = startZ; z <= endZ; z++) {
-                    const key = `${x},${z}`;
+                    const key = this._hash(x, z);
                     const cell = this.cells.get(key);
                     if (cell) {
                         const idx = cell.indexOf(box);
@@ -70,7 +74,7 @@ export default class SpatialHashGrid {
         const endZ = Math.floor((z + radius) / this.cellSize);
         for (let cx = startX; cx <= endX; cx++) {
             for (let cz = startZ; cz <= endZ; cz++) {
-                const key = `${cx},${cz}`;
+                const key = this._hash(cx,cz);
                 const cell = this.cells.get(key);
                 if (cell) {
                     for (const box of cell) {

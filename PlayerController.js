@@ -191,7 +191,10 @@ export default class PlayerController {
         const dynamicRunSpeed = dynamicWalkSpeed + (65.0 * (1.0 - this.exhaustion));
         this.isBlindFolded = state.isClosingEyes || false;
         let baseSpeed = dynamicWalkSpeed;
-        if (this.isBlindFolded) {
+        if (state.isReading) {
+            baseSpeed = 0.0;
+            state.isRunning = false;
+        } else if (this.isBlindFolded) {
             baseSpeed = dynamicWalkSpeed * 0.3;
             state.isRunning = false;
         } else if (this.isSqueezing) {
@@ -325,7 +328,10 @@ export default class PlayerController {
         this.perceivedDarkness = normalizedDarkness;
         let baseDrain = (externalPressure * 0.12) + (this.perceivedDarkness * 0.05);
         if (this.exhaustion > 0.5) baseDrain *= 1.5;
-        if (this.isBlindFolded) {
+
+        if (state.isReading) {
+            baseDrain = 0.0; // The mind focuses, halting passive drain.
+        } else if (this.isBlindFolded) {
             baseDrain = -0.15;
         } else if (externalPressure === 0.0 && this.perceivedDarkness < 0.3) {
             const recoveryMultiplier = isMoving ? 1.0 : 3.0;

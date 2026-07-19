@@ -1,5 +1,8 @@
 // SomaticInput.js
 // LEVEL 0 PERIPHERAL NERVOUS SYSTEM
+
+const PREVENT_KEYS = new Set(['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyV', 'KeyQ', 'KeyF', 'KeyE']);
+
 export default class SomaticInput {
     constructor(camera) {
         this.camera = camera;
@@ -11,6 +14,7 @@ export default class SomaticInput {
             flashlightActive: false,
             isPeeking: false, targetLean: 0.0,
             isClosingEyes: false,
+            isReading: false,
             touchMoveActive: false, touchDeltaX: 0, touchDeltaY: 0
         };
         this.isLocked = false;
@@ -185,7 +189,8 @@ export default class SomaticInput {
     _onKeyDown(event) {
         if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
         const key = event.code;
-        if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyV', 'KeyQ', 'KeyF', 'KeyE'].includes(key)) {
+
+        if (PREVENT_KEYS.has(key)) {
             event.preventDefault();
         }
         if (event.key === 'Shift') this.state.isRunning = true;
@@ -217,9 +222,13 @@ export default class SomaticInput {
             document.dispatchEvent(new Event('somatic-tag'));
         }
         if (event.code === 'KeyE') {
-            document.dispatchEvent(new CustomEvent('somatic-interact', {
-                detail: {position: this.camera.position, direction: this.camera.getWorldDirection(new THREE.Vector3())}
-            }));
+            if (this.state.isReading) {
+                document.dispatchEvent(new Event('somatic-close-document'));
+            } else {
+                document.dispatchEvent(new CustomEvent('somatic-interact', {
+                    detail: {position: this.camera.position, direction: this.camera.getWorldDirection(new THREE.Vector3())}
+                }));
+            }
         }
         switch (key) {
             case 'ArrowUp':

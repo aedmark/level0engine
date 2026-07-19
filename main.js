@@ -21,12 +21,12 @@ function loadState() {
         document.getElementById('fogSlider').value = state.fog || "5";
         document.getElementById('fovSlider').value = state.fov || "75";
         document.getElementById('speedSlider').value = state.speed || "100";
-        document.getElementById('resolutionSelect').value = state.res || "0.5";
+        document.getElementById('resolutionSelect').value = state.res || "1.0";
         document.getElementById('volumeSlider').value = state.vol !== undefined ? state.vol : "100";
         document.getElementById('gammaSlider').value = state.gamma || "120";
         document.getElementById('headBobToggle').checked = state.headBob !== false;
         engine.aspectRatio = state.aspect === 'auto' ? 'auto' : parseFloat(state.aspect || 1.3333333333);
-        engine.resolutionScale = parseFloat(state.res) || 0.5;
+        engine.resolutionScale = parseFloat(state.res) || 1.0;
         engine.camera.fov = Number(state.fov) || 75;
         engine.renderer.toneMappingExposure = (Number(state.gamma) || 120) / 100;
         acoustics.masterVolume = (state.vol !== undefined ? Number(state.vol) : 100) / 100;
@@ -110,6 +110,43 @@ document.addEventListener('somatic-eyes', (e) => {
 });
 document.addEventListener('somatic-breaker', (e) => acoustics.triggerSomaticEvent('breaker', e.detail.distSq, e.detail.intensity));
 document.addEventListener('somatic-item', (e) => acoustics.triggerSomaticEvent('item', e.detail.distSq, e.detail.intensity));
+
+// --- NARRATIVE ROUTER ---
+const ARCHIVE_LOGS = [
+    "ASYNC RESEARCH REPORT\n\nIt doesn't use the doors.\nIt doesn't need the doors.\nWhy did we build doors?",
+    "OBSERVATION 044\n\nThe architectural shift is directly proportional to the observer's heart rate. The walls aren't moving; the space between them is breathing.",
+    "INCIDENT LOG\n\nSubject exhibited extreme paranoia after 400 hours. Claimed the hum of the fluorescent lights was a linguistic sequence. We cut the power, but the humming didn't stop.",
+    "MAINTENANCE REQUEST\n\nPlease send someone to Level 0. The carpet is damp again. Also, stop leaving geometry in the negative coordinate space. The renderer is screaming.",
+    "MEMO\n\nIf you hear it scraping, stand still. If you hear it breathing, turn off the light. If you hear it laughing, close your eyes."
+];
+
+document.addEventListener('somatic-read', (e) => {
+    if (player.input.state.isReading) return;
+    player.input.state.isReading = true;
+    player.input.state.isRunning = false;
+
+    const docOverlay = document.getElementById('document-overlay');
+    const docContent = document.getElementById('document-content');
+
+    if (docContent) {
+        const logIndex = Math.floor(Math.random() * ARCHIVE_LOGS.length);
+        docContent.innerText = ARCHIVE_LOGS[logIndex];
+    }
+    if (docOverlay) docOverlay.style.display = 'block';
+
+    acoustics.triggerSomaticEvent('item', 1.0, 0.4);
+});
+
+document.addEventListener('somatic-close-document', () => {
+    player.input.state.isReading = false;
+    const docOverlay = document.getElementById('document-overlay');
+    if (docOverlay) docOverlay.style.display = 'none';
+
+    // Metabolic Tax: Processing classified data leaves a scar.
+    player.coherence = Math.max(0.0, player.coherence - 0.15);
+
+    acoustics.triggerSomaticEvent('item', 1.0, 0.2);
+});
 
 function idleSaveState() {
     if (window.requestIdleCallback) {

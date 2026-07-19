@@ -4,17 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Level 0 Engine</title>
-    <!--<link rel="manifest" href="manifest.json">-->
     <meta name="theme-color" content="#000000">
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <script src="https://edmark.neocities.org/level0/three.min.js"></script>
-    <!--<script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(err => console.error("SW Registration Failed:", err));
-            });
-        }
-    </script>-->
     <style>
         body {
             margin: 0;
@@ -519,6 +511,10 @@
 <div id="screen-wrapper">
     <div id="canvas-container"></div>
     <div id="flash-overlay"></div>
+    <div id="document-overlay" style="display: none; position: absolute; top: 15%; left: 50%; transform: translateX(-50%); width: 70%; max-width: 600px; height: 70%; background-color: #f4f1e1; color: #1a1811; z-index: 2000; padding: 2.5rem; font-family: 'Courier New', Courier, monospace; overflow-y: auto; border: 1px solid #a89f68; box-shadow: 0 0 30px rgba(0,0,0,0.9);">
+        <div id="document-content" style="font-size: 1.1rem; line-height: 1.5; white-space: pre-wrap; font-weight: bold;"></div>
+        <div style="margin-top: 2rem; border-top: 1px dashed #a89f68; padding-top: 1rem; text-align: center; font-size: 0.9rem; color: #555;">[ PRESS 'E' TO CLOSE ]</div>
+    </div>
     <div id="crosshair"></div>
     <span id="vhs-time" class="osd-element">AM 12:00:00 &nbsp;&nbsp; JAN 01 1997</span>
     <div id="inventory-osd" class="osd-element">
@@ -566,7 +562,7 @@
         <label>Internal Resolution</label>
         <select id="resolutionSelect">
             <option value="1.0">100% (Native)</option>
-            <option value="0.5" selected>50% (Retro / Performance)</option>
+            <option value="0.5" >50% (Retro / Performance)</option>
             <option value="0.25">25% (PS1 / Extreme Performance)</option>
         </select>
         <label>Master Volume (%)</label>

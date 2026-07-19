@@ -854,8 +854,7 @@ export default class TheArchitect {
         } = ctx;
         return [
             {
-                name: "THE EXIT THRESHOLD",
-                prob: (this.player && this.player.objectives && this.player.objectives.fixed >= this.player.objectives.total && !this.player.objectives.escaped) ? 0.35 : 0.0,
+                id: "EXIT",
                 foundationMat: this.tileMat,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.structMat)) return;
@@ -898,8 +897,7 @@ export default class TheArchitect {
                 }
             },
             {
-                name: "THE POOLROOMS",
-                prob: 0.12,
+                id: "POOLROOMS",
                 foundationMat: this.structMat,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
@@ -942,8 +940,7 @@ export default class TheArchitect {
                 }
             },
             {
-                name: "THE CLINIC",
-                prob: 0.12,
+                id: "CLINIC",
                 foundationMat: this.clinicMat,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
@@ -1007,8 +1004,7 @@ export default class TheArchitect {
                 }
             },
             {
-                name: "THE BOARDROOM",
-                prob: 0.12,
+                id: "BOARDROOM",
                 foundationMat: this.tileMat,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
@@ -1046,8 +1042,7 @@ export default class TheArchitect {
                 }
             },
             {
-                name: "THE ARCHIVE",
-                prob: 0.12,
+                id: "ARCHIVE",
                 foundationMat: this.structMat,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.structMat)) return;
@@ -1088,8 +1083,7 @@ export default class TheArchitect {
                 }
             },
             {
-                name: "THE SERVER FARM",
-                prob: 0.12,
+                id: "SERVER",
                 foundationMat: this.serverFloorMat,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
@@ -1152,8 +1146,7 @@ export default class TheArchitect {
                 }
             },
             {
-                name: "THE MAINTENANCE SHAFTS",
-                prob: 0.10,
+                id: "MAINTENANCE",
                 foundationMat: this.serverFloorMat,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.structMat)) return;
@@ -1267,8 +1260,7 @@ export default class TheArchitect {
                 }
             },
             {
-                name: "THE CHASM",
-                prob: 0.06,
+                id: "CHASM",
                 foundationMat: null,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
@@ -1304,11 +1296,11 @@ export default class TheArchitect {
                 }
             },
             {
-                name: "THE INCINERATOR",
-                prob: 0.08,
+                id: "INCINERATOR",
                 foundationMat: this.rustMat,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
-                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.rustMat)) return;
+                    // Force the standard yellow wallpaper on the exterior boundaries
+                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
                     if (localX >= 4 && localX <= 11 && localZ >= 4 && localZ <= 11) {
                         const block = buildWall(this.cellSize, this.cellSize, this.rustMat, 3.0);
                         block.position.set(x * this.cellSize, 1.5, z * this.cellSize);
@@ -1319,16 +1311,30 @@ export default class TheArchitect {
                             activeMat.color.setHex(0xff3300);
                             activeMat.emissive.setHex(0xff1100);
                             const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
-                            panel.position.set(x * this.cellSize + (localX === 4 ? -2 : 2), 1.5, z * this.cellSize);
+
+                            const px = x * this.cellSize + (localX === 4 ? -2 : 2);
+                            const py = 1.5;
+                            const pz = z * this.cellSize;
+
+                            panel.position.set(px, py, pz);
                             panel.rotation.z = Math.PI / 2;
                             panel.rotation.x = Math.PI / 2;
+
+                            // Inject actual PointLights to cast red light on the grimy walls
+                            const pLight = new THREE.PointLight(0xff2200, 1.5, 8.0, 2.0);
+                            // The light must be positioned locally relative to the rotated panel
+                            pLight.position.set(0, 0.6, 0);
+                            panel.add(pLight);
+
                             chunkGroup.add(panel);
                             this.walls.push(panel);
+
                             this.fixtureData.push({
                                 chunkHash: hash,
                                 position: new THREE.Vector3(x * this.cellSize, 1.5, z * this.cellSize),
                                 flickerOffset: random() * 500,
                                 material: activeMat,
+                                lightObj: pLight, // Pass the light to the update loop
                                 isFaulty: random() > 0.8,
                                 baseIntensity: 1.2,
                                 targetIntensity: 1.2,
@@ -1346,8 +1352,78 @@ export default class TheArchitect {
                 }
             },
             {
-                name: "THE OVERGROWN ATRIUM",
-                prob: 0.08,
+                id: "ANNEX",
+                foundationMat: this.clinicMat,
+                build: (x, z, localX, localZ, maze, inDir, outDir) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
+
+                    if (localX > 3 && localX < 12 && localZ > 3 && localZ < 12) {
+                        if (localX % 4 === 0 && localZ % 4 === 0 && random() > 0.3) {
+                            const table = buildTable(x * this.cellSize, 0, z * this.cellSize);
+                            addFurniture(table);
+
+                            const crtGroup = new THREE.Group();
+                            const body = new THREE.Mesh(this.terminalBodyGeo, this.baseHousingMat);
+                            body.position.set(0, 0.2, 0);
+                            const screen = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.35, 0.05), this.crtScreenMat);
+                            screen.position.set(0, 0.2, 0.26);
+                            crtGroup.add(body, screen);
+                            crtGroup.position.set(x * this.cellSize, 0.825, z * this.cellSize);
+                            crtGroup.rotation.y = random() * Math.PI * 2;
+
+                            // Bypass addGeometry since Groups lack .geometry,
+                            // and the table below already provides physical collision.
+                            chunkGroup.add(crtGroup);
+                            crtGroup.updateMatrixWorld(true);
+                            body.userData.chunkHash = hash;
+                            screen.userData.chunkHash = hash;
+                            stagingMeshes.push(body, screen);
+
+                            if (random() > 0.4) {
+                                const doc = new THREE.Mesh(this.documentGeo, this.documentMat);
+                                doc.position.set(x * this.cellSize + 0.35, 0.826, z * this.cellSize + 0.1);
+                                doc.rotation.y = random() * Math.PI;
+                                doc.userData = {
+                                    type: 'document',
+                                    chunkHash: hash,
+                                    active: true,
+                                    docId: 'LOG_' + Math.floor(random() * 9999)
+                                };
+                                chunkGroup.add(doc);
+                                if (!this.interactables) this.interactables = [];
+                                this.interactables.push(doc);
+
+                                const dBox = new THREE.Box3().setFromObject(doc);
+                                dBox.chunkHash = hash;
+                                doc.userData.box = dBox;
+                                this.spatialGrid.insert(dBox);
+                            }
+                        }
+                    } else {
+                        if ((localX % 3 === 0 || localZ % 3 === 0) && random() > 0.7) {
+                            const activeMat = this.baseLightMat.clone();
+                            activeMat.color.setHex(0xffaa55);
+                            activeMat.emissive.setHex(0xffaa55);
+                            const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                            panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
+                            chunkGroup.add(panel);
+                            this.walls.push(panel);
+                            this.fixtureData.push({
+                                chunkHash: hash,
+                                position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
+                                flickerOffset: random() * 500,
+                                material: activeMat,
+                                isFaulty: random() > 0.8,
+                                baseIntensity: 0.5,
+                                targetIntensity: 0.5,
+                                currentIntensity: 0.5
+                            });
+                        }
+                    }
+                }
+            },
+            {
+                id: "ATRIUM",
                 foundationMat: this.mossMat,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
@@ -1391,8 +1467,7 @@ export default class TheArchitect {
                 }
             },
             {
-                name: "THE CHECKPOINT",
-                prob: 0.16,
+                id: "CHECKPOINT",
                 foundationMat: this.tileMat,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.structMat)) return;

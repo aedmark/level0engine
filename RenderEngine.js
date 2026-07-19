@@ -4,7 +4,7 @@
 export default class RenderEngine {
     constructor() {
         this.aspectRatio = 1.3333333333;
-        this.resolutionScale = 0.5;
+        this.resolutionScale = 1.0;
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0xa89f68);
         this.scene.fog = new THREE.FogExp2(0xa89f68, 0.05);
@@ -37,7 +37,6 @@ export default class RenderEngine {
                 anomaly: {value: 0.0},
                 darkness: {value: 0.0},
                 panic: {value: 0.0},
-                globalSeed: {value: 0.0},
                 adrenaline: {value: 0.0},
                 eyesClosed: {value: 0.0}
             },
@@ -85,11 +84,12 @@ export default class RenderEngine {
                     float phaseBand = 1.0 - smoothstep(0.0, 0.02, abs(uv.y - phasePos));
                     float pCurve = pow(panic, 3.0);
                     if (anomaly > 0.01 || panic > 0.01) {
+                        float gpuSeed = random(uv + time);
                         float intensity = max(anomaly, pCurve * 1.5);
                         float tearThreshold = 0.98 - (pCurve * 0.3);
                         float tear = step(tearThreshold, sin(uv.y * (40.0 + pCurve * 60.0) + time * 15.0));
-                        uv.x += tear * (globalSeed - 0.5) * intensity * 0.3;
-                        uv.y += tear * (globalSeed - 0.5) * intensity * 0.05;
+                        uv.x += tear * (gpuSeed - 0.5) * intensity * 0.3;
+                        uv.y += tear * (gpuSeed - 0.5) * intensity * 0.05;
                     }
                     uv.x += phaseBand * 0.0002 * sin(time * 50.0);
                     float heartbeatCA = exhaustion > 0.3 ? sin(time * (10.0 + exhaustion * 5.0)) * 0.004 * exhaustion : 0.0;
@@ -184,7 +184,6 @@ export default class RenderEngine {
         this.postMaterial.uniforms.anomaly.value = this.anomaly || 0.0;
         this.postMaterial.uniforms.darkness.value = this.darkness || 0.0;
         this.postMaterial.uniforms.panic.value = this.paranoia || 0.0;
-        this.postMaterial.uniforms.globalSeed.value = Math.random();
         this.postMaterial.uniforms.adrenaline.value = this.adrenaline || 0.0;
         this.postMaterial.uniforms.eyesClosed.value = this.eyesClosed || 0.0;
         this.renderer.setRenderTarget(null);

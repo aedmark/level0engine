@@ -27,6 +27,7 @@ export default class Environment {
         this.lastAudioOcclusionTime = 0;
         this.currentOcclusionState = false;
         this.chunkQueue = [];
+        this.queuedHashes = new Set();
         this.isBuildingChunk = false;
         this.isSpawning = false;
         this._lightSortCache = (a, b) => a.distSq - b.distSq;
@@ -47,8 +48,9 @@ export default class Environment {
                 const targetZ = chunkZ + z;
                 const hash = `${targetX},${targetZ}`;
                 chunksToKeep.add(hash);
-                if (!this.activeChunks.has(hash) && !this.chunkQueue.some(q => q.hash === hash)) {
+                if (!this.activeChunks.has(hash) && !this.queuedHashes.has(hash)) {
                     this.chunkQueue.push({x: targetX, z: targetZ, hash: hash});
+                    this.queuedHashes.add(hash);
                 }
             }
         }
@@ -230,6 +232,7 @@ export default class Environment {
         this.isBuildingChunk = true;
         while (this.chunkQueue.length > 0) {
             const chunk = this.chunkQueue.shift();
+            this.queuedHashes.delete(chunk.hash);
             const currentX = Math.floor(this.camera.position.x / (this.chunkSize * 4));
             const currentZ = Math.floor(this.camera.position.z / (this.chunkSize * 4));
             if (Math.abs(chunk.x - currentX) <= this.renderDistance && Math.abs(chunk.z - currentZ) <= this.renderDistance) {
@@ -279,11 +282,11 @@ export default class Environment {
             this.ventMat.roughness = 0.3;
         }
         if (this.metalMat) {
-            this.metalMat.metalness = 0.4;
-            this.metalMat.roughness = 0.6;
+            this.metalMat.metalness = 0.6;
+            this.metalMat.roughness = 0.5;
             this.metalMat.map = this.structMat.map;
             this.metalMat.bumpMap = this.structMat.map;
-            this.metalMat.bumpScale = 0.02;
+            this.metalMat.bumpScale = 0.03;
         }
         const dustGeo = new THREE.BufferGeometry();
         const dustCount = 600;
@@ -479,6 +482,7 @@ export default class Environment {
                                     fixture.material.emissive.setHex(0x000000);
                                     fixture.material.emissiveIntensity = 0.0;
                                 }
+                                if (fixture.lightObj) fixture.lightObj.intensity = 0.0;
                             }, 200 + Math.random() * 600);
                             fixture.restoreTimer = setTimeout(() => {
                                 this.blackoutChunks.delete(chunkHash);
@@ -492,6 +496,7 @@ export default class Environment {
                                     fixture.material.emissive.setHex(fixture.originalEmissive);
                                     if (fixture.isFake) fixture.material.emissiveIntensity = 0.4;
                                 }
+                                if (fixture.lightObj) fixture.lightObj.intensity = fixture.baseIntensity;
                             }, 25000 + Math.random() * 10000);
                         }
                     });
@@ -540,6 +545,10 @@ export default class Environment {
                     hit.visible = false;
                     document.dispatchEvent(new Event('somatic-pickup-almond'));
                 }
+            } else if (hit && hit.userData.type === 'document' && hit.userData.active) {
+                document.dispatchEvent(new CustomEvent('somatic-read', {
+                    detail: { docId: hit.userData.docId }
+                }));
             } else if (hit && hit.userData.type === 'exit' && hit.userData.active) {
                 hit.userData.active = false;
                 this.player.objectives.escaped = true;
@@ -638,12 +647,12 @@ export default class Environment {
             this.pipeMountGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8);
             this.vPipeGeo = new THREE.CylinderGeometry(0.06, 0.06, 3.0, 8);
             this.rustMat = new THREE.MeshStandardMaterial({
-                color: 0x6b6358,
-                emissive: 0x222222,
-                roughness: 0.4,
-                metalness: 0.85,
+                color: 0x4a433a, // Darkened base color for more contrast
+                emissive: 0x111111,
+                roughness: 0.8, // Increased roughness for a more matte, oxidized look
+                metalness: 0.3, // Lowered metalness so it doesn't rely solely on reflections
                 bumpMap: this.structMat.map,
-                bumpScale: 0.015
+                bumpScale: 0.03 // Deeper bump map
             });
             this.cushionGeo = new THREE.BoxGeometry(0.8, 0.15, 0.8);
             this.backrestGeo = new THREE.BoxGeometry(0.8, 0.8, 0.15);
@@ -659,6 +668,23 @@ export default class Environment {
             this.breakerBaseGeo = new THREE.BoxGeometry(0.6, 0.8, 0.20);
             this.breakerDoorGeo = new THREE.BoxGeometry(0.6, 0.8, 0.05);
             this.breakerDoorGeo.translate(0.3, 0, 0);
+
+            // THE ANNEX PRIMITIVES
+            this.crtScreenMat = new THREE.MeshStandardMaterial({
+                color: 0xffb000,
+                emissive: 0xffb000,
+                emissiveIntensity: 0.8,
+                roughness: 0.2
+            });
+            this.documentMat = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                roughness: 0.9,
+                metalness: 0.0
+            });
+            this.terminalBodyGeo = new THREE.BoxGeometry(0.5, 0.4, 0.5);
+            this.documentGeo = new THREE.PlaneGeometry(0.2, 0.3);
+            this.documentGeo.rotateX(-Math.PI / 2);
+
             this.geoCache = new Map();
             this.almondPrefab = new THREE.Group();
             const aBodyGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.12, 16);
@@ -889,7 +915,8 @@ export default class Environment {
         const sectorMatrix = TheArchitect.getSectorMatrix.call(this, ctx);
         const startX = chunkX * this.chunkSize;
         const startZ = chunkZ * this.chunkSize;
-        const isMacroStructure = random() > 0.70 && (Math.abs(chunkX) > 0 || Math.abs(chunkZ) > 0);
+        // BUMP GLOBAL MACRO-STRUCTURE SPAWN RATE TO 70%
+        const isMacroStructure = random() > 0.60 && (Math.abs(chunkX) > 0 || Math.abs(chunkZ) > 0);
         let activeSector = null;
         let sectorMaze = null;
         let chunkBreakerCount = 0;
@@ -897,18 +924,22 @@ export default class Environment {
         const hashVal = Math.abs((chunkX * 104729) + (chunkZ * 1299827));
         const inDir = hashVal % 4;
         const outDir = (hashVal + 1 + (hashVal % 3)) % 4;
+
         if (isMacroStructure) {
+            const isExitPhase = this.player && this.player.objectives && this.player.objectives.fixed >= this.player.objectives.total && !this.player.objectives.escaped;
             const sectorRoll = random();
-            let cumulative = 0;
-            for (const sector of sectorMatrix) {
-                cumulative += sector.prob;
-                if (sectorRoll <= cumulative) {
-                    activeSector = sector;
-                    break;
-                }
-            }
-            if (!activeSector) activeSector = sectorMatrix[0];
-            if (["THE ARCHIVE", "THE SERVER FARM", "THE MAINTENANCE SHAFTS", "THE POOLROOMS"].includes(activeSector.name)) {
+
+            // Filter the matrix to ensure Exit and Checkpoint swap cleanly
+            const validSectors = sectorMatrix.filter(s => {
+                if (isExitPhase) return s.id !== "CHECKPOINT";
+                return s.id !== "EXIT";
+            });
+
+            // O(1) Array Indexing for perfect distribution
+            const sectorIndex = Math.floor(sectorRoll * validSectors.length);
+            activeSector = validSectors[sectorIndex];
+
+            if (["ARCHIVE", "SERVER", "MAINTENANCE", "POOLROOMS"].includes(activeSector.id)) {
                 sectorMaze = this._generateSectorMaze(random, inDir, outDir);
             }
             if (activeSector.foundationMat) {
@@ -921,7 +952,7 @@ export default class Environment {
                 chunkGroup.add(foundation);
             }
         }
-        const isChasm = activeSector && activeSector.name === "THE CHASM";
+        const isChasm = activeSector && activeSector.id === "CHASM";
         const centerOffset = (this.chunkSize * this.cellSize) / 2 - (this.cellSize / 2);
         const floorGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
         const ceilGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
@@ -932,7 +963,7 @@ export default class Environment {
             floor.receiveShadow = true;
             chunkGroup.add(floor);
         }
-        if (!isChasm && (!activeSector || activeSector.name !== "THE OVERGROWN ATRIUM")) {
+        if (!isChasm && (!activeSector || activeSector.id !== "ATRIUM")) {
             const ceil = new THREE.Mesh(ceilGeo, this.ceilMat);
             ceil.rotation.x = Math.PI / 2;
             ceil.position.set(startX * this.cellSize + centerOffset, 3, startZ * this.cellSize + centerOffset);
@@ -1230,62 +1261,108 @@ export default class Environment {
         const pChunkX = Math.floor(cameraPos.x / (this.chunkSize * this.cellSize));
         const pChunkZ = Math.floor(cameraPos.z / (this.chunkSize * this.cellSize));
 
-        let structuralShift = 0;
-        if (this.player && this.player.coherence < 0.4) {
-            structuralShift = Math.floor((1.0 - this.player.coherence) * 1000) * (pChunkX % 2 === 0 ? 1 : -1);
+        // Isolate local coordinates to determine exact room placement
+        const localX = (Math.floor(cameraPos.x / this.cellSize) % this.chunkSize + this.chunkSize) % this.chunkSize;
+        const localZ = (Math.floor(cameraPos.z / this.cellSize) % this.chunkSize + this.chunkSize) % this.chunkSize;
+
+        if (!this.lastInteriorSector) this.lastInteriorSector = { x: pChunkX, z: pChunkZ };
+
+        // Hysteresis Lock: Only swap the atmosphere when strictly inside the room bounds.
+        // This prevents the fog/audio from bleeding into adjacent spaces or doorways.
+        if (localX >= 1 && localX <= 14 && localZ >= 1 && localZ <= 14) {
+            this.lastInteriorSector.x = pChunkX;
+            this.lastInteriorSector.z = pChunkZ;
         }
 
-        let pSeed = (this.baseSeed + structuralShift + (pChunkX * 104729) + (pChunkZ * 1299827)) >>> 0;
+        let structuralShift = 0;
+        if (this.player && this.player.coherence < 0.4) {
+            structuralShift = Math.floor((1.0 - this.player.coherence) * 1000) * (this.lastInteriorSector.x % 2 === 0 ? 1 : -1);
+        }
+
+        let pSeed = (this.baseSeed + structuralShift + (this.lastInteriorSector.x * 104729) + (this.lastInteriorSector.z * 1299827)) >>> 0;
         const pRandom = () => {
             pSeed = (pSeed * 1664525 + 1013904223) >>> 0;
             return pSeed / 4294967296.0;
         };
         const dummyOasisRoll = pRandom();
-        const isMacroLoc = pRandom() > 0.70 && (Math.abs(pChunkX) > 0 || Math.abs(pChunkZ) > 0);
+
+        const isMacroLoc = pRandom() > 0.60 && (Math.abs(this.lastInteriorSector.x) > 0 || Math.abs(this.lastInteriorSector.z) > 0);
         const sectorRoll = pRandom();
+
         let activeSector = "NORMAL";
         let targetFog = 0.05;
+
         if (isMacroLoc) {
-            if (sectorRoll <= 0.12) {
-                activeSector = "POOLROOMS";
-                targetFog = 0.08;
-            } else if (sectorRoll <= 0.24) {
-                activeSector = "CLINIC";
-                targetFog = 0.03;
-            } else if (sectorRoll <= 0.36) {
-                activeSector = "BOARDROOM";
-                targetFog = 0.015;
-            } else if (sectorRoll <= 0.48) {
-                activeSector = "ARCHIVE";
-                targetFog = 0.12;
-            } else if (sectorRoll <= 0.60) {
-                activeSector = "SERVER";
-                targetFog = 0.08;
-            } else if (sectorRoll <= 0.70) {
-                activeSector = "MAINTENANCE";
-                targetFog = 0.10;
-            } else if (sectorRoll <= 0.76) {
-                activeSector = "CHASM";
-                targetFog = 0.015;
-            } else if (sectorRoll <= 0.82) {
-                activeSector = "INCINERATOR";
-                targetFog = 0.25;
-            } else if (sectorRoll <= 0.88) {
-                activeSector = "ATRIUM";
-                targetFog = 0.18;
+            const isExitPhase = this.player && this.player.objectives && this.player.objectives.fixed >= this.player.objectives.total && !this.player.objectives.escaped;
+
+            // Pure data array mapping to TheArchitect.js order
+            const sectorPool = [
+                { id: "POOLROOMS", fog: 0.08 },
+                { id: "CLINIC", fog: 0.03 },
+                { id: "BOARDROOM", fog: 0.015 },
+                { id: "ARCHIVE", fog: 0.12 },
+                { id: "SERVER", fog: 0.08 },
+                { id: "MAINTENANCE", fog: 0.10 },
+                { id: "CHASM", fog: 0.015 },
+                { id: "INCINERATOR", fog: 0.25 },
+                { id: "ANNEX", fog: 0.02 },
+                { id: "ATRIUM", fog: 0.18 }
+            ];
+
+            // Maintain exact array length and parity with buildChunk
+            if (isExitPhase) {
+                sectorPool.unshift({ id: "EXIT", fog: 0.05 });
             } else {
-                activeSector = "CHECKPOINT";
-                targetFog = 0.05;
+                sectorPool.push({ id: "CHECKPOINT", fog: 0.05 });
             }
+
+            // O(1) Array Indexing. No if/else chains.
+            const index = Math.floor(sectorRoll * sectorPool.length);
+            const selected = sectorPool[index];
+
+            activeSector = selected.id;
+            targetFog = selected.fog;
         }
         if (this.baseFogDensity !== undefined) {
             if (this.currentFogDensity === undefined) this.currentFogDensity = targetFog;
             const userMultiplier = this.baseFogDensity / 0.05;
             const scaledTargetFog = targetFog * userMultiplier;
-            this.currentFogDensity += (scaledTargetFog - this.currentFogDensity) * 0.02;
+
+            // Accelerate fog transition slightly to reduce bleed
+            this.currentFogDensity += (scaledTargetFog - this.currentFogDensity) * 0.05;
             const fogBreath = Math.sin(time * 0.05) * (this.currentFogDensity * 0.3);
             this.scene.fog.density = this.currentFogDensity + fogBreath;
         }
+
+        // --- DYNAMIC SECTOR COLOR SHIFT ---
+        if (!this._baseFogColor) this._baseFogColor = new THREE.Color(0xa89f68); // The Backrooms Yellow
+        if (!this._targetFogColor) this._targetFogColor = new THREE.Color();
+
+        switch(activeSector) {
+            case "INCINERATOR":
+                this._targetFogColor.setHex(0x551100); // Deep rusty red
+                break;
+            case "CLINIC":
+                this._targetFogColor.setHex(0x7799aa); // Cold sterile blue
+                break;
+            case "POOLROOMS":
+                this._targetFogColor.setHex(0x66aaaa); // Humid teal
+                break;
+            case "CHASM":
+                this._targetFogColor.setHex(0x111111); // Void black
+                break;
+            default:
+                this._targetFogColor.copy(this._baseFogColor);
+        }
+
+        // Blend the fog color toward the target color, weighted by the darkness pressure
+        if (!this._blackColor) this._blackColor = new THREE.Color(0x000000);
+        const darknessRatio = Math.min(1.0, darknessPressure * 0.4);
+        const finalTargetColor = this._targetFogColor.clone().lerp(this._blackColor, darknessRatio);
+
+        // Faster lerp for color to make the zone boundary feel distinct
+        this.scene.fog.color.lerp(finalTargetColor, 0.08);
+        this.scene.background.lerp(finalTargetColor, 0.08);
         if (this.dustCloud) {
             this.dustCloud.position.copy(cameraPos);
             this.dustCloud.rotation.y = time * 0.05;
@@ -1345,13 +1422,18 @@ export default class Environment {
                 const targetGlowOpacity = Math.max(0.0, 1.0 - (darknessPressure * 0.4));
                 this.glowMat.opacity += (targetGlowOpacity - this.glowMat.opacity) * 0.1;
             }
-            if (!this._baseEnvColor) this._baseEnvColor = new THREE.Color(0xa89f68);
-            if (!this._blackColor) this._blackColor = new THREE.Color(0x000000);
-            const darknessRatio = Math.min(1.0, darknessPressure * 0.4);
-            const targetColor = this._baseEnvColor.clone().lerp(this._blackColor, darknessRatio);
-            this.scene.background.lerp(targetColor, 0.05);
-            this.scene.fog.color.lerp(targetColor, 0.05);
         }
+
+        // Systemic Hook: Bind injected PointLights to their parent fixture's dynamic intensity state
+        if (this.fixtureData) {
+            for (let i = 0; i < this.fixtureData.length; i++) {
+                const fix = this.fixtureData[i];
+                if (fix.lightObj) {
+                    fix.lightObj.intensity = fix.currentIntensity;
+                }
+            }
+        }
+
         return {
             minLightDist,
             isOccluded,
