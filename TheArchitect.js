@@ -1,9 +1,6 @@
 // TheArchitect.js
 // LEVEL 0 PROCEDURAL BLUEPRINT FACTORY
 
-import { Vector3, Box3, Euler } from './EngineMath.js';
-import { Group, Mesh, BoxGeometry, MeshBasicMaterial } from './EngineScenegraph.js';
-
 export default class TheArchitect {
     static getStructuralMatrix(ctx) {
         const {
@@ -29,7 +26,7 @@ export default class TheArchitect {
                 prob: 0.92, build: (x, z) => {
                     const colCount = Math.floor(random() * 3) + 2;
                     for (let i = 0; i < colCount; i++) {
-                        const support = new Mesh(this.vPipeGeo, this.rustMat);
+                        const support = new THREE.Mesh(this.vPipeGeo, this.rustMat);
                         const scale = (0.1 + random() * 0.15) / 0.12;
                         support.scale.set(scale, 1, scale);
                         const offsetX = (random() - 0.5) * 2.0;
@@ -49,7 +46,7 @@ export default class TheArchitect {
                     const p2 = buildWall(pW, this.cellSize, this.sharedWallMat);
                     p2.position.set(x * this.cellSize + offset, 1.5, z * this.cellSize);
                     addGeometry(p2);
-                    const top = new Mesh(new BoxGeometry(gap, 0.3, this.cellSize), this.headerMat);
+                    const top = new THREE.Mesh(new THREE.BoxGeometry(gap, 0.3, this.cellSize), this.headerMat);
                     top.position.set(x * this.cellSize, 2.85, z * this.cellSize);
                     addGeometry(top);
                 }
@@ -79,22 +76,22 @@ export default class TheArchitect {
                     const p2 = buildWall(pW, this.cellSize, this.sharedWallMat);
                     p2.position.set(x * this.cellSize + offset, 1.5, z * this.cellSize);
                     addGeometry(p2);
-                    const top = new Mesh(new BoxGeometry(gap, 0.3, this.cellSize), this.headerMat);
+                    const top = new THREE.Mesh(new THREE.BoxGeometry(gap, 0.3, this.cellSize), this.headerMat);
                     top.position.set(x * this.cellSize, 2.85, z * this.cellSize);
                     addGeometry(top);
                     const frameMat = this.woodMat;
-                    const jambL = new Mesh(new BoxGeometry(0.1, 2.65, 0.32), frameMat);
+                    const jambL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.65, 0.32), frameMat);
                     jambL.position.set(x * this.cellSize - 0.75, 1.325, z * this.cellSize + 1.85);
                     addGeometry(jambL);
-                    const jambR = new Mesh(new BoxGeometry(0.1, 2.65, 0.32), frameMat);
+                    const jambR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.65, 0.32), frameMat);
                     jambR.position.set(x * this.cellSize + 0.75, 1.325, z * this.cellSize + 1.85);
                     addGeometry(jambR);
-                    const jambT = new Mesh(new BoxGeometry(1.6, 0.1, 0.32), frameMat);
+                    const jambT = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.1, 0.32), frameMat);
                     jambT.position.set(x * this.cellSize, 2.70, z * this.cellSize + 1.85);
                     addGeometry(jambT);
-                    const doorGeo = new BoxGeometry(1.4, 2.65, 0.1);
+                    const doorGeo = new THREE.BoxGeometry(1.4, 2.65, 0.1);
                     doorGeo.translate(0.7, 0, 0.05);
-                    const door = new Mesh(doorGeo, this.doorMat);
+                    const door = new THREE.Mesh(doorGeo, this.doorMat);
                     door.position.set(x * this.cellSize - 0.7, 1.325, z * this.cellSize + 1.85);
                     door.castShadow = door.receiveShadow = true;
                     door.userData = {
@@ -106,7 +103,7 @@ export default class TheArchitect {
                     this.interactiveDoors.push(door);
                     this.walls.push(door);
                     door.updateMatrixWorld();
-                    const dBox = new Box3().setFromObject(door);
+                    const dBox = new THREE.Box3().setFromObject(door);
                     dBox.chunkHash = hash;
                     door.userData.box = dBox;
                     this.spatialGrid.insert(dBox);
@@ -124,7 +121,7 @@ export default class TheArchitect {
                     const p2 = buildWall(w1, d1, this.sharedWallMat);
                     p2.position.set(x * this.cellSize + (dir === 0 ? offset : 0), 1.5, z * this.cellSize + (dir === 1 ? offset : 0));
                     addGeometry(p2);
-                    const top = new Mesh(new BoxGeometry(gapW, 0.3, gapD), this.headerMat);
+                    const top = new THREE.Mesh(new THREE.BoxGeometry(gapW, 0.3, gapD), this.headerMat);
                     top.position.set(x * this.cellSize, 2.85, z * this.cellSize);
                     addGeometry(top);
                 }
@@ -176,7 +173,7 @@ export default class TheArchitect {
                         shortWall.userData.isEntityBlocker = true;
                         addGeometry(shortWall);
                         if (random() > 0.5) {
-                            const clutter = new Mesh(new BoxGeometry(0.8, 1.2, 0.8), this.woodMat);
+                            const clutter = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.8), this.woodMat);
                             clutter.position.set(x * this.cellSize, 0.6, z * this.cellSize);
                             clutter.rotation.y = random() * Math.PI;
                             clutter.userData.isEntityBlocker = true;
@@ -205,7 +202,7 @@ export default class TheArchitect {
                             const h = (s + 1) * stepHeight;
                             const wX = isZ ? innerW : stepDepth;
                             const wZ = isZ ? stepDepth : innerW;
-                            const step = new Mesh(new BoxGeometry(wX, h, wZ), this.structMat);
+                            const step = new THREE.Mesh(new THREE.BoxGeometry(wX, h, wZ), this.structMat);
                             let offset = (this.cellSize / 2) - (stepDepth / 2) - (s * stepDepth);
                             if (dir === 2 || dir === 3) offset = -offset;
                             const posX = x * this.cellSize + (isZ ? 0 : offset);
@@ -276,9 +273,9 @@ export default class TheArchitect {
                             const lInnerZ = buildWall(innerW, liningH, this.ventMat, sideH);
                             lInnerZ.position.set(x * this.cellSize - (flipX * (this.cellSize / 2 - innerW / 2)), holeH / 2, z * this.cellSize + (flipZ * (holeW / 2 - liningH / 2)));
                             addGeometry(lInnerZ);
-                            const blockBox = new Box3(
-                                new Vector3(x * this.cellSize - this.cellSize / 2, 0, z * this.cellSize - this.cellSize / 2),
-                                new Vector3(x * this.cellSize + this.cellSize / 2, 3.0, z * this.cellSize + this.cellSize / 2)
+                            const blockBox = new THREE.Box3(
+                                new THREE.Vector3(x * this.cellSize - this.cellSize / 2, 0, z * this.cellSize - this.cellSize / 2),
+                                new THREE.Vector3(x * this.cellSize + this.cellSize / 2, 3.0, z * this.cellSize + this.cellSize / 2)
                             );
                             blockBox.isEntityBlocker = true;
                             blockBox.isInvisibleBlocker = true;
@@ -325,9 +322,9 @@ export default class TheArchitect {
                                 const liningRight = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
                                 liningRight.position.set(segX * this.cellSize + (tunnelOnZ ? sideOffsetLining : 0), holeH / 2, segZ * this.cellSize + (tunnelOnZ ? 0 : sideOffsetLining));
                                 addGeometry(liningRight);
-                                const blockBox = new Box3(
-                                    new Vector3(segX * this.cellSize - (tunnelOnZ ? holeW / 2 : this.cellSize / 2), 0, segZ * this.cellSize - (tunnelOnZ ? this.cellSize / 2 : holeW / 2)),
-                                    new Vector3(segX * this.cellSize + (tunnelOnZ ? holeW / 2 : this.cellSize / 2), 3.0, segZ * this.cellSize + (tunnelOnZ ? this.cellSize / 2 : holeW / 2))
+                                const blockBox = new THREE.Box3(
+                                    new THREE.Vector3(segX * this.cellSize - (tunnelOnZ ? holeW / 2 : this.cellSize / 2), 0, segZ * this.cellSize - (tunnelOnZ ? this.cellSize / 2 : holeW / 2)),
+                                    new THREE.Vector3(segX * this.cellSize + (tunnelOnZ ? holeW / 2 : this.cellSize / 2), 3.0, segZ * this.cellSize + (tunnelOnZ ? this.cellSize / 2 : holeW / 2))
                                 );
                                 blockBox.isEntityBlocker = true;
                                 blockBox.isInvisibleBlocker = true;
@@ -345,11 +342,11 @@ export default class TheArchitect {
                             }
                         }
                     } else {
-                        const wall = new Mesh(this.sharedWallGeo, this.sharedWallMat);
+                        const wall = new THREE.Mesh(this.sharedWallGeo, this.sharedWallMat);
                         wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                         addGeometry(wall);
-                        const ventGeo = new BoxGeometry(1.2, 0.6, 0.05);
-                        const vent = new Mesh(ventGeo, this.wallVentMat);
+                        const ventGeo = new THREE.BoxGeometry(1.2, 0.6, 0.05);
+                        const vent = new THREE.Mesh(ventGeo, this.wallVentMat);
                         const finalOffset = (this.cellSize / 2) + 0.06;
                         if (face === 0) {
                             vent.position.set(x * this.cellSize, 2.6, z * this.cellSize + finalOffset);
@@ -445,9 +442,9 @@ export default class TheArchitect {
                             const liningRight = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
                             liningRight.position.set(segX * this.cellSize + (dirZ ? sideOffsetLining : 0), tunnelH / 2, segZ * this.cellSize + (dirZ ? 0 : sideOffsetLining));
                             addGeometry(liningRight);
-                            const blockBox = new Box3(
-                                new Vector3(segX * this.cellSize - (dirZ ? tunnelW / 2 : this.cellSize / 2), 0, segZ * this.cellSize - (dirZ ? this.cellSize / 2 : tunnelW / 2)),
-                                new Vector3(segX * this.cellSize + (dirZ ? tunnelW / 2 : this.cellSize / 2), 3.0, segZ * this.cellSize + (dirZ ? this.cellSize / 2 : tunnelW / 2))
+                            const blockBox = new THREE.Box3(
+                                new THREE.Vector3(segX * this.cellSize - (dirZ ? tunnelW / 2 : this.cellSize / 2), 0, segZ * this.cellSize - (dirZ ? this.cellSize / 2 : tunnelW / 2)),
+                                new THREE.Vector3(segX * this.cellSize + (dirZ ? tunnelW / 2 : this.cellSize / 2), 3.0, segZ * this.cellSize + (dirZ ? this.cellSize / 2 : tunnelW / 2))
                             );
                             blockBox.isEntityBlocker = true;
                             blockBox.isInvisibleBlocker = true;
@@ -497,9 +494,9 @@ export default class TheArchitect {
                             const roof = buildWall(dirZ ? roofW : this.cellSize, dirZ ? this.cellSize : roofW, this.sharedWallMat, roofH, 1.2);
                             roof.position.set(segX * this.cellSize, 1.2 + (roofH / 2), segZ * this.cellSize);
                             addGeometry(roof);
-                            const blockBox = new Box3(
-                                new Vector3(segX * this.cellSize - (dirZ ? roofW / 2 : this.cellSize / 2), 0, segZ * this.cellSize - (dirZ ? this.cellSize / 2 : roofW / 2)),
-                                new Vector3(segX * this.cellSize + (dirZ ? roofW / 2 : this.cellSize / 2), 3.0, segZ * this.cellSize + (dirZ ? this.cellSize / 2 : roofW / 2))
+                            const blockBox = new THREE.Box3(
+                                new THREE.Vector3(segX * this.cellSize - (dirZ ? roofW / 2 : this.cellSize / 2), 0, segZ * this.cellSize - (dirZ ? this.cellSize / 2 : roofW / 2)),
+                                new THREE.Vector3(segX * this.cellSize + (dirZ ? roofW / 2 : this.cellSize / 2), 3.0, segZ * this.cellSize + (dirZ ? this.cellSize / 2 : roofW / 2))
                             );
                             blockBox.isEntityBlocker = true;
                             blockBox.isInvisibleBlocker = true;
@@ -567,7 +564,7 @@ export default class TheArchitect {
 
                     const pipeCount = Math.floor(random() * 2) + 2;
                     for (let i = 0; i < pipeCount; i++) {
-                        const pipe = new Mesh(this.pipeGeo, this.rustMat);
+                        const pipe = new THREE.Mesh(this.pipeGeo, this.rustMat);
                         pipe.rotation.order = "YXZ";
                         if (!isZOriented) pipe.rotation.y = Math.PI / 2;
 
@@ -619,7 +616,7 @@ export default class TheArchitect {
                     pillar.position.set(cx, 1.5, cz);
                     pillar.userData.isEntityBlocker = !isHallucination;
                     addGeometry(pillar);
-                    const bBox = new Mesh(new BoxGeometry(0.8, 1.2, 0.2), this.rustMat);
+                    const bBox = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.2), this.rustMat);
                     const isZ = random() > 0.5;
                     const sign = random() > 0.5 ? 1 : -1;
                     if (isZ) {
@@ -632,10 +629,10 @@ export default class TheArchitect {
                     chunkGroup.add(bBox);
                     if (!this.interactables) this.interactables = [];
                     this.interactables.push(bBox);
-                    const lightMesh = new Mesh(new BoxGeometry(0.2, 0.2, 0.25), this.hazardMat);
+                    const lightMesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.25), this.hazardMat);
                     lightMesh.position.set(0, 0.3, 0);
                     if (isHallucination) {
-                        lightMesh.material = new MeshBasicMaterial({color: 0xffaa00});
+                        lightMesh.material = new THREE.MeshBasicMaterial({color: 0xffaa00});
                     }
                     bBox.add(lightMesh);
                 }
@@ -654,10 +651,10 @@ export default class TheArchitect {
                         c.rotation.set(random() * Math.PI, random() * Math.PI, random() * Math.PI);
                         addFurniture(c);
                     }
-                    const batGroup = new Group();
+                    const batGroup = new THREE.Group();
                     const batMesh = this.batteryPrefab.clone();
                     batGroup.add(batMesh);
-                    const bGlow = new Mesh(this.glowGeo, this.glowMat);
+                    const bGlow = new THREE.Mesh(this.glowGeo, this.glowMat);
                     bGlow.scale.set(0.20, 0.20, 0.20);
                     bGlow.position.y = 0.01;
                     batGroup.add(bGlow);
@@ -699,15 +696,15 @@ export default class TheArchitect {
                             addGeometry(w);
                         }
                     }
-                    const blockBox = new Box3(
-                        new Vector3(cx - this.cellSize / 2, 0, cz - this.cellSize / 2),
-                        new Vector3(cx + this.cellSize / 2, 3.0, cz + this.cellSize / 2)
+                    const blockBox = new THREE.Box3(
+                        new THREE.Vector3(cx - this.cellSize / 2, 0, cz - this.cellSize / 2),
+                        new THREE.Vector3(cx + this.cellSize / 2, 3.0, cz + this.cellSize / 2)
                     );
                     blockBox.isEntityBlocker = true;
                     blockBox.isInvisibleBlocker = true;
                     blockBox.chunkHash = hash;
                     this.spatialGrid.insert(blockBox);
-                    const floor = new Mesh(new THREE.PlaneGeometry(this.cellSize - thick, this.cellSize - thick), this.tileMat);
+                    const floor = new THREE.Mesh(new THREE.PlaneGeometry(this.cellSize - thick, this.cellSize - thick), this.tileMat);
                     floor.rotation.x = -Math.PI / 2;
                     floor.position.set(cx, 0.02, cz);
                     addGeometry(floor);
@@ -717,14 +714,14 @@ export default class TheArchitect {
                     const cotX = (dir === 1) ? -0.8 : (dir === 3 ? 0.8 : 0);
                     const cotZ = (dir === 0) ? 0.8 : (dir === 2 ? -0.8 : 0);
                     const cotRot = (dir === 0 || dir === 2) ? Math.PI / 2 : 0;
-                    const cotFrame = new Mesh(new BoxGeometry(1.0, 0.5, 2.0), this.structMat);
+                    const cotFrame = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 2.0), this.structMat);
                     cotFrame.position.set(cx + cotX, 0.25, cz + cotZ);
                     cotFrame.rotation.y = cotRot;
                     addGeometry(cotFrame);
-                    const almondGroup = new Group();
+                    const almondGroup = new THREE.Group();
                     const almondMesh = this.almondPrefab.clone();
                     almondGroup.add(almondMesh);
-                    const aGlow = new Mesh(this.glowGeo, this.glowMat);
+                    const aGlow = new THREE.Mesh(this.glowGeo, this.glowMat);
                     aGlow.scale.set(0.15, 0.15, 0.15);
                     aGlow.position.y = 0.01;
                     almondGroup.add(aGlow);
@@ -737,13 +734,13 @@ export default class TheArchitect {
                     const activeMat = this.baseLightMat.clone();
                     activeMat.color.setHex(0xe8f4f8);
                     activeMat.emissive.setHex(0xb0d8e8);
-                    const panel = new Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                    const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
                     panel.position.set(cx, 2.75, cz);
                     chunkGroup.add(panel);
                     this.walls.push(panel);
                     this.fixtureData.push({
                         chunkHash: hash,
-                        position: new Vector3(cx, 2.5, cz),
+                        position: new THREE.Vector3(cx, 2.5, cz),
                         flickerOffset: 0,
                         material: activeMat,
                         isFaulty: false,
@@ -760,7 +757,7 @@ export default class TheArchitect {
                         const cz = z * this.cellSize;
                         const half = this.cellSize / 2;
                         const floorGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize);
-                        const floor = new Mesh(floorGeo, this.tileMat);
+                        const floor = new THREE.Mesh(floorGeo, this.tileMat);
                         floor.rotation.x = -Math.PI / 2;
                         floor.position.set(cx, 0.01, cz);
                         addGeometry(floor);
@@ -779,7 +776,7 @@ export default class TheArchitect {
                         const table = buildTable(cx, 0, cz);
                         table.userData.chunkHash = hash;
                         table.updateMatrixWorld(true);
-                        const tBox = new Box3().setFromObject(table);
+                        const tBox = new THREE.Box3().setFromObject(table);
                         tBox.chunkHash = hash;
                         tBox.isEntityBlocker = true;
                         this.spatialGrid.insert(tBox);
@@ -790,10 +787,10 @@ export default class TheArchitect {
                                 stagingMeshes.push(child);
                             }
                         });
-                        const almondGroup = new Group();
+                        const almondGroup = new THREE.Group();
                         const almondMesh = this.almondPrefab.clone();
                         almondGroup.add(almondMesh);
-                        const aGlow = new Mesh(this.glowGeo, this.glowMat);
+                        const aGlow = new THREE.Mesh(this.glowGeo, this.glowMat);
                         aGlow.scale.set(0.15, 0.15, 0.15);
                         aGlow.position.y = 0.01;
                         almondGroup.add(aGlow);
@@ -803,10 +800,10 @@ export default class TheArchitect {
                         chunkGroup.add(almondGroup);
                         if (!this.interactables) this.interactables = [];
                         this.interactables.push(almondGroup);
-                        const batGroup = new Group();
+                        const batGroup = new THREE.Group();
                         const batMesh = this.batteryPrefab.clone();
                         batGroup.add(batMesh);
-                        const bGlow = new Mesh(this.glowGeo, this.glowMat);
+                        const bGlow = new THREE.Mesh(this.glowGeo, this.glowMat);
                         bGlow.scale.set(0.20, 0.20, 0.20);
                         bGlow.position.y = 0.01;
                         batGroup.add(bGlow);
@@ -818,13 +815,13 @@ export default class TheArchitect {
                         const activeMat = this.baseLightMat.clone();
                         activeMat.color.setHex(0xffeedd);
                         activeMat.emissive.setHex(0xffaa55);
-                        const panel = new Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                        const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
                         panel.position.set(cx, 2.98, cz);
                         chunkGroup.add(panel);
                         this.walls.push(panel);
                         this.fixtureData.push({
                             chunkHash: hash,
-                            position: new Vector3(cx, 2.8, cz),
+                            position: new THREE.Vector3(cx, 2.8, cz),
                             flickerOffset: 0,
                             material: activeMat,
                             isFaulty: false,
@@ -834,7 +831,7 @@ export default class TheArchitect {
                             isFake: false
                         });
                     } else {
-                        const wall = new Mesh(this.sharedWallGeo, this.sharedWallMat);
+                        const wall = new THREE.Mesh(this.sharedWallGeo, this.sharedWallMat);
                         wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                         addGeometry(wall);
                     }
@@ -874,19 +871,19 @@ export default class TheArchitect {
                                 addGeometry(wall);
                             }
                         } else if (localX === 7 && localZ === 7) {
-                            const elevator = new Mesh(new BoxGeometry(this.cellSize * 0.8, 3.0, this.cellSize * 0.8), this.rustMat);
+                            const elevator = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize * 0.8, 3.0, this.cellSize * 0.8), this.rustMat);
                             elevator.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                             elevator.userData = {type: 'exit', chunkHash: hash, active: true};
                             chunkGroup.add(elevator);
                             if (!this.interactables) this.interactables = [];
                             this.interactables.push(elevator);
-                            const pad = new Mesh(new BoxGeometry(this.cellSize * 0.85, 0.8, this.cellSize * 0.85), this.metalMat);
+                            const pad = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize * 0.85, 0.8, this.cellSize * 0.85), this.metalMat);
                             pad.position.set(0, -0.2, 0);
                             elevator.add(pad);
-                            const light = new Mesh(new BoxGeometry(this.cellSize * 0.9, 0.4, this.cellSize * 0.9), this.hazardMat);
-                            light.material = new MeshBasicMaterial({color: 0x55ff55});
+                            const light = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize * 0.9, 0.4, this.cellSize * 0.9), this.hazardMat);
+                            light.material = new THREE.MeshBasicMaterial({color: 0x55ff55});
                             pad.add(light);
-                            const eBox = new Box3().setFromObject(elevator);
+                            const eBox = new THREE.Box3().setFromObject(elevator);
                             eBox.chunkHash = hash;
                             eBox.isEntityBlocker = true;
                             this.spatialGrid.insert(eBox);
@@ -908,16 +905,16 @@ export default class TheArchitect {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
                     const isWall = maze && maze[localX][localZ];
                     if (isWall) {
-                        const cPillar = new Mesh(this.vPipeGeo, this.rustMat);
+                        const cPillar = new THREE.Mesh(this.vPipeGeo, this.rustMat);
                         cPillar.position.set(x * this.cellSize + (this.cellSize / 2), 1.5, z * this.cellSize + (this.cellSize / 2));
                         addGeometry(cPillar);
-                        const fenceGeoX = new BoxGeometry(this.cellSize, 3.0, 0.05);
-                        const fenceX = new Mesh(fenceGeoX, this.waterMat);
+                        const fenceGeoX = new THREE.BoxGeometry(this.cellSize, 3.0, 0.05);
+                        const fenceX = new THREE.Mesh(fenceGeoX, this.waterMat);
                         fenceX.position.set(x * this.cellSize, 1.5, z * this.cellSize + (this.cellSize / 2));
                         if (random() > 0.1) fenceX.userData.isEntityBlocker = true;
                         addGeometry(fenceX);
-                        const fenceGeoZ = new BoxGeometry(0.05, 3.0, this.cellSize);
-                        const fenceZ = new Mesh(fenceGeoZ, this.waterMat);
+                        const fenceGeoZ = new THREE.BoxGeometry(0.05, 3.0, this.cellSize);
+                        const fenceZ = new THREE.Mesh(fenceGeoZ, this.waterMat);
                         fenceZ.position.set(x * this.cellSize + (this.cellSize / 2), 1.5, z * this.cellSize);
                         if (random() > 0.2) fenceZ.userData.isEntityBlocker = true;
                         addGeometry(fenceZ);
@@ -926,13 +923,13 @@ export default class TheArchitect {
                             const activeMat = this.baseLightMat.clone();
                             activeMat.color.setHex(0xffaa55);
                             activeMat.emissive.setHex(0xffaa55);
-                            const panel = new Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                            const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
                             panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
                             chunkGroup.add(panel);
                             this.walls.push(panel);
                             this.fixtureData.push({
                                 chunkHash: hash,
-                                position: new Vector3(x * this.cellSize, 2.8, z * this.cellSize),
+                                position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
                                 flickerOffset: random() * 500,
                                 material: activeMat,
                                 isFaulty: random() > 0.5,
@@ -951,16 +948,16 @@ export default class TheArchitect {
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
                     if (localX % 2 === 1 && localZ % 2 === 1) {
-                        const curtain = new Mesh(new BoxGeometry(this.cellSize * 0.9, 2.2, 0.05), this.fabricMat);
+                        const curtain = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize * 0.9, 2.2, 0.05), this.fabricMat);
                         curtain.position.set(x * this.cellSize, 1.1, z * this.cellSize - 1.8);
                         addGeometry(curtain);
-                        const cotFrame = new Mesh(new BoxGeometry(1.0, 0.5, 2.0), this.structMat);
+                        const cotFrame = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 2.0), this.structMat);
                         cotFrame.position.set(x * this.cellSize, 0.25, z * this.cellSize);
                         addGeometry(cotFrame);
-                        const mattress = new Mesh(new BoxGeometry(0.9, 0.15, 1.9), this.fabricMat);
+                        const mattress = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.15, 1.9), this.fabricMat);
                         mattress.position.set(x * this.cellSize, 0.575, z * this.cellSize);
                         addGeometry(mattress);
-                        const pole = new Mesh(new BoxGeometry(0.08, 2.0, 0.08), this.rustMat);
+                        const pole = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.0, 0.08), this.rustMat);
                         pole.position.set(x * this.cellSize + 0.8, 1.0, z * this.cellSize + 0.8);
                         addGeometry(pole);
                         if (random() > 0.3) {
@@ -970,13 +967,13 @@ export default class TheArchitect {
                         const activeMat = this.baseLightMat.clone();
                         activeMat.color.setHex(0xd0e8ff);
                         activeMat.emissive.setHex(0xa0d0ff);
-                        const panel = new Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                        const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
                         panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
                         chunkGroup.add(panel);
                         this.walls.push(panel);
                         this.fixtureData.push({
                             chunkHash: hash,
-                            position: new Vector3(x * this.cellSize, 2.8, z * this.cellSize),
+                            position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
                             flickerOffset: random() * 500,
                             material: activeMat,
                             isFaulty: random() > 0.6,
@@ -990,13 +987,13 @@ export default class TheArchitect {
                             const isRotated = random() > 0.5;
                             const screenW = isRotated ? 0.1 : this.cellSize * 0.8;
                             const screenD = isRotated ? this.cellSize * 0.8 : 0.1;
-                            const screen = new Mesh(new BoxGeometry(screenW, 2.4, screenD), this.fabricMat);
+                            const screen = new THREE.Mesh(new THREE.BoxGeometry(screenW, 2.4, screenD), this.fabricMat);
                             screen.position.set(x * this.cellSize, 1.2, z * this.cellSize);
                             addGeometry(screen);
                         } else if (clutterRoll > 0.50) {
                             const boxCount = Math.floor(random() * 3) + 1;
                             for (let i = 0; i < boxCount; i++) {
-                                const mBox = new Mesh(new BoxGeometry(0.6, 0.5, 0.6), this.woodMat);
+                                const mBox = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.6), this.woodMat);
                                 mBox.position.set(x * this.cellSize + (random() * 0.4 - 0.2), 0.25 + (i * 0.5), z * this.cellSize + (random() * 0.4 - 0.2));
                                 mBox.rotation.y = random() * Math.PI;
                                 mBox.rotation.x = random() > 0.8 ? Math.PI / 2 : 0;
@@ -1031,13 +1028,13 @@ export default class TheArchitect {
                             addFurniture(buildChair(x * this.cellSize + 1.2, 0, z * this.cellSize - 2.0, Math.PI / 2));
                         }
                         const activeMat = this.baseLightMat.clone();
-                        const panel = new Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                        const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
                         panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
                         chunkGroup.add(panel);
                         this.walls.push(panel);
                         this.fixtureData.push({
                             chunkHash: hash,
-                            position: new Vector3(x * this.cellSize, 2.8, z * this.cellSize),
+                            position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
                             flickerOffset: random() * 500,
                             material: activeMat,
                             isFaulty: random() > 0.8,
@@ -1063,7 +1060,7 @@ export default class TheArchitect {
                         for (let h = 0.4; h < 2.8; h += 0.6) {
                             if (random() > 0.4) {
                                 const boxW = 0.5 + random() * 0.5;
-                                const box = new Mesh(new BoxGeometry(boxW, 0.45, 0.65), this.woodMat);
+                                const box = new THREE.Mesh(new THREE.BoxGeometry(boxW, 0.45, 0.65), this.woodMat);
                                 box.position.set(x * this.cellSize + (random() * 0.4 - 0.2), h, z * this.cellSize + (random() * 0.4 - 0.2));
                                 box.rotation.y = (random() - 0.5) * 0.5;
                                 addGeometry(box);
@@ -1072,13 +1069,13 @@ export default class TheArchitect {
                     } else {
                         if (random() > 0.85) {
                             const activeMat = this.baseBrokenLightMat.clone();
-                            const panel = new Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                            const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
                             panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
                             chunkGroup.add(panel);
                             this.walls.push(panel);
                             this.fixtureData.push({
                                 chunkHash: hash,
-                                position: new Vector3(x * this.cellSize, 2.8, z * this.cellSize),
+                                position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
                                 flickerOffset: random() * 500,
                                 material: activeMat,
                                 isFaulty: true,
@@ -1110,24 +1107,24 @@ export default class TheArchitect {
                         const offset = 0.9;
                         let hasPipes = false;
                         if (openE) {
-                            const pipeE = new Mesh(this.pipeGeo, this.rustMat);
+                            const pipeE = new THREE.Mesh(this.pipeGeo, this.rustMat);
                             pipeE.position.set(x * this.cellSize + (this.cellSize / 2) + offset, 2.75, z * this.cellSize + offset);
                             addGeometry(pipeE);
                             hasPipes = true;
                         }
                         if (openS) {
-                            const pipeS = new Mesh(this.pipeGeo, this.rustMat);
+                            const pipeS = new THREE.Mesh(this.pipeGeo, this.rustMat);
                             pipeS.rotation.y = Math.PI / 2;
                             pipeS.position.set(x * this.cellSize + offset, 2.75, z * this.cellSize + (this.cellSize / 2) + offset);
                             addGeometry(pipeS);
                             hasPipes = true;
                         }
                         if (hasPipes || openN || openW) {
-                            const mount = new Mesh(this.pipeMountGeo, this.rustMat);
+                            const mount = new THREE.Mesh(this.pipeMountGeo, this.rustMat);
                             mount.position.set(x * this.cellSize + offset, 2.9, z * this.cellSize + offset);
                             addGeometry(mount);
                             if (random() > 0.1) {
-                                const junction = new Mesh(this.pipeJunctionGeo, this.rustMat);
+                                const junction = new THREE.Mesh(this.pipeJunctionGeo, this.rustMat);
                                 junction.position.set(x * this.cellSize + offset, 2.75, z * this.cellSize + offset);
                                 addGeometry(junction);
                             }
@@ -1136,13 +1133,13 @@ export default class TheArchitect {
                             const activeMat = this.baseLightMat.clone();
                             activeMat.color.setHex(0xff3333);
                             activeMat.emissive.setHex(0xff0000);
-                            const panel = new Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                            const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
                             panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
                             chunkGroup.add(panel);
                             this.walls.push(panel);
                             this.fixtureData.push({
                                 chunkHash: hash,
-                                position: new Vector3(x * this.cellSize, 2.8, z * this.cellSize),
+                                position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
                                 flickerOffset: random() * 500,
                                 material: activeMat,
                                 isFaulty: random() > 0.6,
@@ -1186,7 +1183,7 @@ export default class TheArchitect {
                             const extE = !isW(localX + 1, localZ - 1);
                             const len = this.cellSize + (extW ? 0.4 : 0) + (extE ? 0.4 : 0);
                             const cx = (extE ? 0.2 : 0) - (extW ? 0.2 : 0);
-                            const trim = new Mesh(new BoxGeometry(len, 0.1, 0.4), this.hazardMat);
+                            const trim = new THREE.Mesh(new THREE.BoxGeometry(len, 0.1, 0.4), this.hazardMat);
                             trim.position.set(x * this.cellSize + cx, 0.050, z * this.cellSize - tOff);
                             addGeometry(trim);
                         }
@@ -1195,7 +1192,7 @@ export default class TheArchitect {
                             const extE = !isW(localX + 1, localZ + 1);
                             const len = this.cellSize + (extW ? 0.4 : 0) + (extE ? 0.4 : 0);
                             const cx = (extE ? 0.2 : 0) - (extW ? 0.2 : 0);
-                            const trim = new Mesh(new BoxGeometry(len, 0.1, 0.4), this.hazardMat);
+                            const trim = new THREE.Mesh(new THREE.BoxGeometry(len, 0.1, 0.4), this.hazardMat);
                             trim.position.set(x * this.cellSize + cx, 0.050, z * this.cellSize + tOff);
                             addGeometry(trim);
                         }
@@ -1204,7 +1201,7 @@ export default class TheArchitect {
                             const extS = !isW(localX + 1, localZ + 1);
                             const len = this.cellSize + (extN ? 0.4 : 0) + (extS ? 0.4 : 0);
                             const cz = (extS ? 0.2 : 0) - (extN ? 0.2 : 0);
-                            const trim = new Mesh(new BoxGeometry(0.4, 0.1, len), this.hazardMat);
+                            const trim = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, len), this.hazardMat);
                             trim.position.set(x * this.cellSize + tOff, 0.051, z * this.cellSize + cz);
                             addGeometry(trim);
                         }
@@ -1213,7 +1210,7 @@ export default class TheArchitect {
                             const extS = !isW(localX - 1, localZ + 1);
                             const len = this.cellSize + (extN ? 0.4 : 0) + (extS ? 0.4 : 0);
                             const cz = (extS ? 0.2 : 0) - (extN ? 0.2 : 0);
-                            const trim = new Mesh(new BoxGeometry(0.4, 0.1, len), this.hazardMat);
+                            const trim = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, len), this.hazardMat);
                             trim.position.set(x * this.cellSize - tOff, 0.051, z * this.cellSize + cz);
                             addGeometry(trim);
                         }
@@ -1225,24 +1222,24 @@ export default class TheArchitect {
                         const offset = -1.1;
                         let hasPipes = false;
                         if (openE) {
-                            const pipeE = new Mesh(this.pipeGeo, this.rustMat);
+                            const pipeE = new THREE.Mesh(this.pipeGeo, this.rustMat);
                             pipeE.position.set(x * this.cellSize + (this.cellSize / 2) + offset, 2.8, z * this.cellSize + offset);
                             addGeometry(pipeE);
                             hasPipes = true;
                         }
                         if (openS) {
-                            const pipeS = new Mesh(this.pipeGeo, this.rustMat);
+                            const pipeS = new THREE.Mesh(this.pipeGeo, this.rustMat);
                             pipeS.rotation.y = Math.PI / 2;
                             pipeS.position.set(x * this.cellSize + offset, 2.8, z * this.cellSize + (this.cellSize / 2) + offset);
                             addGeometry(pipeS);
                             hasPipes = true;
                         }
                         if (hasPipes || openN || openW) {
-                            const mount = new Mesh(this.pipeMountGeo, this.rustMat);
+                            const mount = new THREE.Mesh(this.pipeMountGeo, this.rustMat);
                             mount.position.set(x * this.cellSize + offset, 2.925, z * this.cellSize + offset);
                             addGeometry(mount);
                             if (random() > 0.1) {
-                                const junction = new Mesh(this.pipeJunctionGeo, this.rustMat);
+                                const junction = new THREE.Mesh(this.pipeJunctionGeo, this.rustMat);
                                 junction.position.set(x * this.cellSize + offset, 2.8, z * this.cellSize + offset);
                                 addGeometry(junction);
                             }
@@ -1251,13 +1248,13 @@ export default class TheArchitect {
                             const activeMat = this.baseLightMat.clone();
                             activeMat.color.setHex(0xffaa00);
                             activeMat.emissive.setHex(0xaa5500);
-                            const panel = new Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                            const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
                             panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
                             chunkGroup.add(panel);
                             this.walls.push(panel);
                             this.fixtureData.push({
                                 chunkHash: hash,
-                                position: new Vector3(x * this.cellSize, 2.8, z * this.cellSize),
+                                position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
                                 flickerOffset: random() * 500,
                                 material: activeMat,
                                 isFaulty: true,
@@ -1292,7 +1289,7 @@ export default class TheArchitect {
                             addGeometry(railing);
                         }
                     } else {
-                        const voidBox = new Box3();
+                        const voidBox = new THREE.Box3();
                         voidBox.min.set(x * this.cellSize - 2, -100, z * this.cellSize - 2);
                         voidBox.max.set(x * this.cellSize + 2, 3, z * this.cellSize + 2);
                         voidBox.isVoid = true;
@@ -1321,7 +1318,7 @@ export default class TheArchitect {
                             const activeMat = this.baseLightMat.clone();
                             activeMat.color.setHex(0xff3300);
                             activeMat.emissive.setHex(0xff1100);
-                            const panel = new Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                            const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
                             panel.position.set(x * this.cellSize + (localX === 4 ? -2 : 2), 1.5, z * this.cellSize);
                             panel.rotation.z = Math.PI / 2;
                             panel.rotation.x = Math.PI / 2;
@@ -1329,7 +1326,7 @@ export default class TheArchitect {
                             this.walls.push(panel);
                             this.fixtureData.push({
                                 chunkHash: hash,
-                                position: new Vector3(x * this.cellSize, 1.5, z * this.cellSize),
+                                position: new THREE.Vector3(x * this.cellSize, 1.5, z * this.cellSize),
                                 flickerOffset: random() * 500,
                                 material: activeMat,
                                 isFaulty: random() > 0.8,
@@ -1340,7 +1337,7 @@ export default class TheArchitect {
                         }
                     } else {
                         if (random() > 0.85) {
-                            const pipe = new Mesh(this.vPipeGeo, this.rustMat);
+                            const pipe = new THREE.Mesh(this.vPipeGeo, this.rustMat);
                             pipe.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                             pipe.scale.set(1.5, 1.0, 1.5);
                             addGeometry(pipe);
@@ -1377,12 +1374,12 @@ export default class TheArchitect {
                     }
                     if (random() > 0.90) {
                         const activeMat = this.baseBrokenLightMat.clone();
-                        const panel = new Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                        const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
                         panel.position.set(x * this.cellSize, 0.05, z * this.cellSize);
                         chunkGroup.add(panel);
                         this.fixtureData.push({
                             chunkHash: hash,
-                            position: new Vector3(x * this.cellSize, 0.5, z * this.cellSize),
+                            position: new THREE.Vector3(x * this.cellSize, 0.5, z * this.cellSize),
                             flickerOffset: random() * 500,
                             material: activeMat,
                             isFaulty: true,
@@ -1430,10 +1427,10 @@ export default class TheArchitect {
                             const top = buildWall(spansX ? gapW : wallThick, spansX ? wallThick : gapW, this.structMat, 0.5);
                             top.position.set(x * this.cellSize, 2.75, z * this.cellSize);
                             addGeometry(top);
-                            const frame1 = new Mesh(new BoxGeometry(spansX ? 0.05 : wallThick + 0.02, 3.0, spansX ? wallThick + 0.02 : 0.05), this.woodMat);
+                            const frame1 = new THREE.Mesh(new THREE.BoxGeometry(spansX ? 0.05 : wallThick + 0.02, 3.0, spansX ? wallThick + 0.02 : 0.05), this.woodMat);
                             frame1.position.set(x * this.cellSize + (spansX ? -gapW / 2 - 0.025 : 0), 1.5, z * this.cellSize + (spansX ? 0 : -gapW / 2 - 0.025));
                             addGeometry(frame1);
-                            const frame2 = new Mesh(new BoxGeometry(spansX ? 0.05 : wallThick + 0.02, 3.0, spansX ? wallThick + 0.02 : 0.05), this.woodMat);
+                            const frame2 = new THREE.Mesh(new THREE.BoxGeometry(spansX ? 0.05 : wallThick + 0.02, 3.0, spansX ? wallThick + 0.02 : 0.05), this.woodMat);
                             frame2.position.set(x * this.cellSize + (spansX ? gapW / 2 + 0.025 : 0), 1.5, z * this.cellSize + (spansX ? 0 : gapW / 2 + 0.025));
                             addGeometry(frame2);
                         } else if (chokeType === 1 || chokeType === 2) {
@@ -1443,12 +1440,12 @@ export default class TheArchitect {
                             top.position.set(x * this.cellSize, gapH + (topH / 2), z * this.cellSize);
                             top.userData.isEntityBlocker = true;
                             addGeometry(top);
-                            const frameTop = new Mesh(new BoxGeometry(spansX ? gapW : wallThick + 0.02, 0.05, spansX ? wallThick + 0.02 : gapW), this.woodMat);
+                            const frameTop = new THREE.Mesh(new THREE.BoxGeometry(spansX ? gapW : wallThick + 0.02, 0.05, spansX ? wallThick + 0.02 : gapW), this.woodMat);
                             frameTop.position.set(x * this.cellSize, gapH + 0.025, z * this.cellSize);
                             addGeometry(frameTop);
-                            const blockBox = new Box3(
-                                new Vector3(x * this.cellSize - (spansX ? gapW / 2 : wallThick / 2), 0, z * this.cellSize - (spansX ? wallThick / 2 : gapW / 2)),
-                                new Vector3(x * this.cellSize + (spansX ? gapW / 2 : wallThick / 2), 3.0, z * this.cellSize + (spansX ? wallThick / 2 : gapW / 2))
+                            const blockBox = new THREE.Box3(
+                                new THREE.Vector3(x * this.cellSize - (spansX ? gapW / 2 : wallThick / 2), 0, z * this.cellSize - (spansX ? wallThick / 2 : gapW / 2)),
+                                new THREE.Vector3(x * this.cellSize + (spansX ? gapW / 2 : wallThick / 2), 3.0, z * this.cellSize + (spansX ? wallThick / 2 : gapW / 2))
                             );
                             blockBox.isEntityBlocker = true;
                             blockBox.isInvisibleBlocker = true;
@@ -1458,13 +1455,13 @@ export default class TheArchitect {
                             const top = buildWall(spansX ? gapW : wallThick, spansX ? wallThick : gapW, this.structMat, 0.35, 2.65);
                             top.position.set(x * this.cellSize, 2.825, z * this.cellSize);
                             addGeometry(top);
-                            const jambL = new Mesh(new BoxGeometry(spansX ? 0.1 : wallThick + 0.05, 2.65, spansX ? wallThick + 0.05 : 0.1), this.woodMat);
+                            const jambL = new THREE.Mesh(new THREE.BoxGeometry(spansX ? 0.1 : wallThick + 0.05, 2.65, spansX ? wallThick + 0.05 : 0.1), this.woodMat);
                             jambL.position.set(x * this.cellSize + (spansX ? -0.75 : 0), 1.325, z * this.cellSize + (spansX ? 0 : -0.75));
                             addGeometry(jambL);
-                            const jambR = new Mesh(new BoxGeometry(spansX ? 0.1 : wallThick + 0.05, 2.65, spansX ? wallThick + 0.05 : 0.1), this.woodMat);
+                            const jambR = new THREE.Mesh(new THREE.BoxGeometry(spansX ? 0.1 : wallThick + 0.05, 2.65, spansX ? wallThick + 0.05 : 0.1), this.woodMat);
                             jambR.position.set(x * this.cellSize + (spansX ? 0.75 : 0), 1.325, z * this.cellSize + (spansX ? 0 : 0.75));
                             addGeometry(jambR);
-                            const jambT = new Mesh(new BoxGeometry(spansX ? 1.6 : wallThick + 0.05, 0.1, spansX ? wallThick + 0.05 : 1.6), this.woodMat);
+                            const jambT = new THREE.Mesh(new THREE.BoxGeometry(spansX ? 1.6 : wallThick + 0.05, 0.1, spansX ? wallThick + 0.05 : 1.6), this.woodMat);
                             jambT.position.set(x * this.cellSize, 2.70, z * this.cellSize);
                             addGeometry(jambT);
                             const doorW = 1.4;
@@ -1472,15 +1469,15 @@ export default class TheArchitect {
                             let doorGeo;
                             let doorMesh;
                             if (spansX) {
-                                doorGeo = new BoxGeometry(doorW, 2.65, doorT);
+                                doorGeo = new THREE.BoxGeometry(doorW, 2.65, doorT);
                                 doorGeo.translate(doorW / 2, 0, doorT / 2);
-                                doorMesh = new Mesh(doorGeo, this.doorMat);
+                                doorMesh = new THREE.Mesh(doorGeo, this.doorMat);
                                 doorMesh.position.set(x * this.cellSize - doorW / 2, 1.325, z * this.cellSize);
                                 doorMesh.userData = {chunkHash: hash, closedRot: 0, currentRot: 0};
                             } else {
-                                doorGeo = new BoxGeometry(doorT, 2.65, doorW);
+                                doorGeo = new THREE.BoxGeometry(doorT, 2.65, doorW);
                                 doorGeo.translate(doorT / 2, 0, doorW / 2);
-                                doorMesh = new Mesh(doorGeo, this.doorMat);
+                                doorMesh = new THREE.Mesh(doorGeo, this.doorMat);
                                 doorMesh.position.set(x * this.cellSize, 1.325, z * this.cellSize - doorW / 2);
                                 doorMesh.userData = {
                                     chunkHash: hash,
@@ -1493,7 +1490,7 @@ export default class TheArchitect {
                             this.interactiveDoors.push(doorMesh);
                             this.walls.push(doorMesh);
                             doorMesh.updateMatrixWorld();
-                            const dBox = new Box3().setFromObject(doorMesh);
+                            const dBox = new THREE.Box3().setFromObject(doorMesh);
                             dBox.chunkHash = hash;
                             doorMesh.userData.box = dBox;
                             this.spatialGrid.insert(dBox);
@@ -1501,13 +1498,13 @@ export default class TheArchitect {
                     } else {
                         if ((localX % 3 === 0 || localZ % 3 === 0) && random() > 0.5) {
                             const activeMat = this.baseLightMat.clone();
-                            const panel = new Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+                            const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
                             panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
                             chunkGroup.add(panel);
                             this.walls.push(panel);
                             this.fixtureData.push({
                                 chunkHash: hash,
-                                position: new Vector3(x * this.cellSize, 2.8, z * this.cellSize),
+                                position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
                                 flickerOffset: random() * 500,
                                 material: activeMat,
                                 isFaulty: random() > 0.8,

@@ -1,9 +1,6 @@
 // Anomaly.js
 // LEVEL 0 PREDATORY HAZARD
 
-import { Vector3, Box3, Raycaster } from './EngineMath.js';
-import { Group, Mesh, MeshBasicMaterial } from './EngineScenegraph.js';
-
 export default class Anomaly {
     constructor(scene, camera, player, environment) {
         this.scene = scene;
@@ -11,23 +8,23 @@ export default class Anomaly {
         this.player = player;
         this.env = environment;
         this.isActive = false;
-        this.group = new Group();
-        this.target = new Vector3();
+        this.group = new THREE.Group();
+        this.target = new THREE.Vector3();
         this.breadcrumbs = [];
         this.backtrackTimer = 0;
         this.breadcrumbTimer = 0;
         this.graceTimer = 0;
-        this._dir = new Vector3();
-        this._toPlayer = new Vector3();
-        this._lookDir = new Vector3();
-        this._nextPos = new Vector3();
-        this._box = new Box3();
-        this._boxX = new Box3();
-        this._boxZ = new Box3();
-        this._min = new Vector3();
-        this._max = new Vector3();
-        this._sightRaycaster = new Raycaster();
-        this._rayTarget = new Vector3();
+        this._dir = new THREE.Vector3();
+        this._toPlayer = new THREE.Vector3();
+        this._lookDir = new THREE.Vector3();
+        this._nextPos = new THREE.Vector3();
+        this._box = new THREE.Box3();
+        this._boxX = new THREE.Box3();
+        this._boxZ = new THREE.Box3();
+        this._min = new THREE.Vector3();
+        this._max = new THREE.Vector3();
+        this._sightRaycaster = new THREE.Raycaster();
+        this._rayTarget = new THREE.Vector3();
         this._buildMesh();
         document.addEventListener('somatic-step', (e) => this._handleNoise(e, 9.0));
         document.addEventListener('somatic-door', (e) => this._handleNoise(e, 30.0));
@@ -48,13 +45,13 @@ export default class Anomaly {
     }
 
     _buildMesh() {
-        const nullMat = new MeshBasicMaterial({color: 0x000000});
+        const nullMat = new THREE.MeshBasicMaterial({color: 0x000000});
         const coreGeo = new THREE.IcosahedronGeometry(0.6, 0);
-        this.core = new Mesh(coreGeo, nullMat);
+        this.core = new THREE.Mesh(coreGeo, nullMat);
         this.group.add(this.core);
         this.shards = [];
         for (let i = 0; i < 4; i++) {
-            const shard = new Mesh(new THREE.TetrahedronGeometry(0.2, 0), nullMat);
+            const shard = new THREE.Mesh(new THREE.TetrahedronGeometry(0.2, 0), nullMat);
             this.shards.push({
                 mesh: shard,
                 speed: Math.random() * 2.0 + 1.0,
@@ -268,7 +265,7 @@ export default class Anomaly {
                 }
             }
         }
-        const dir = new Vector3().subVectors(this.target, this.group.position);
+        const dir = this._dir.subVectors(this.target, this.group.position);
         dir.y = 0;
         const distToTarget = dir.length();
         if (distToTarget > 0.1) {

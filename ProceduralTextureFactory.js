@@ -47,17 +47,28 @@ export default class ProceduralTextureFactory {
             wallCtx.arc(Math.random() * 512, 450 + Math.random() * 62, Math.random() * 50, 0, Math.PI * 2);
             wallCtx.fill();
         }
-
         const {canvas: headerCanvas, ctx: headerCtx} = this._createContext(512, 512);
         headerCtx.drawImage(wallCanvas, 0, 0);
-
+        const headerTexture = new THREE.CanvasTexture(headerCanvas);
+        headerTexture.wrapS = headerTexture.wrapT = THREE.RepeatWrapping;
+        headerTexture.repeat.set(4, 0.1);
+        headerTexture.offset.set(0, 0.9);
+        const headerMat = new THREE.MeshStandardMaterial({
+            map: headerTexture,
+            roughness: 0.8,
+            bumpMap: headerTexture,
+            bumpScale: 0.01
+        });
         wallCtx.fillStyle = '#4a3d24';
         wallCtx.fillRect(0, 480, 512, 32);
         wallCtx.fillStyle = '#3a2d14';
         wallCtx.fillRect(0, 476, 512, 4);
         wallCtx.fillStyle = 'rgba(0,0,0,0.15)';
         wallCtx.fillRect(255, 0, 2, 512);
-
+        const wallTexture = new THREE.CanvasTexture(wallCanvas);
+        wallTexture.wrapS = THREE.RepeatWrapping;
+        wallTexture.wrapT = THREE.ClampToEdgeWrapping;
+        wallTexture.repeat.set(4, 1);
         const {canvas: structCanvas, ctx: structCtx} = this._createContext(512, 512);
         structCtx.fillStyle = '#5c5441';
         structCtx.fillRect(0, 0, 512, 512);
@@ -79,7 +90,15 @@ export default class ProceduralTextureFactory {
             structCtx.fillRect(startX, 0, streakW, 512);
             if (startX + streakW > 512) structCtx.fillRect(startX - 512, 0, streakW, 512);
         }
-
+        const structTexture = new THREE.CanvasTexture(structCanvas);
+        structTexture.wrapS = structTexture.wrapT = THREE.RepeatWrapping;
+        structTexture.repeat.set(2, 2);
+        const structMat = new THREE.MeshStandardMaterial({
+            map: structTexture,
+            roughness: 1.0,
+            bumpMap: structTexture,
+            bumpScale: 0.02
+        });
         const {canvas: woodCanvas, ctx: woodCtx} = this._createContext(256, 512);
         woodCtx.fillStyle = '#4a3219';
         woodCtx.fillRect(0, 0, 256, 512);
@@ -95,7 +114,13 @@ export default class ProceduralTextureFactory {
         woodCtx.strokeStyle = 'rgba(0,0,0,0.12)';
         woodCtx.stroke();
         woodCtx.shadowColor = 'transparent';
-
+        const woodTexture = new THREE.CanvasTexture(woodCanvas);
+        const woodMat = new THREE.MeshStandardMaterial({
+            map: woodTexture,
+            roughness: 0.9,
+            bumpMap: woodTexture,
+            bumpScale: 0.015
+        });
         const {canvas: doorCanvas, ctx: doorCtx} = this._createContext(256, 512);
         doorCtx.drawImage(woodCanvas, 0, 0);
         doorCtx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -110,20 +135,17 @@ export default class ProceduralTextureFactory {
         doorCtx.beginPath();
         doorCtx.arc(210, 260, 12, 0, Math.PI * 2);
         doorCtx.fill();
-
+        const doorTexture = new THREE.CanvasTexture(doorCanvas);
         const {canvas: doorBackCanvas, ctx: doorBackCtx} = this._createContext(256, 512);
         doorBackCtx.translate(256, 0);
         doorBackCtx.scale(-1, 1);
         doorBackCtx.drawImage(doorCanvas, 0, 0);
-
-        return {
-            headerCanvas,
-            wallCanvas,
-            structCanvas,
-            woodCanvas,
-            doorCanvas,
-            doorBackCanvas
-        };
+        const doorBackTexture = new THREE.CanvasTexture(doorBackCanvas);
+        const doorMatFront = new THREE.MeshStandardMaterial({map: doorTexture, roughness: 0.9});
+        const doorMatBack = new THREE.MeshStandardMaterial({map: doorBackTexture, roughness: 0.9});
+        const doorMatEdge = new THREE.MeshStandardMaterial({map: woodTexture, roughness: 0.9});
+        const doorMat = [doorMatEdge, doorMatEdge, doorMatEdge, doorMatEdge, doorMatFront, doorMatBack];
+        return {headerMat, wallTexture, structMat, woodMat, doorMat};
     }
 
     static _buildSurfaceAssets(masterNoise) {
@@ -144,7 +166,10 @@ export default class ProceduralTextureFactory {
         carpetCtx.imageSmoothingEnabled = false;
         carpetCtx.drawImage(noiseCanvas, 0, 0, 512, 512);
         carpetCtx.imageSmoothingEnabled = true;
-
+        const carpetTexture = new THREE.CanvasTexture(carpetCanvas);
+        carpetTexture.wrapS = carpetTexture.wrapT = THREE.RepeatWrapping;
+        carpetTexture.magFilter = THREE.NearestFilter;
+        carpetTexture.minFilter = THREE.NearestMipmapLinearFilter;
         const {canvas: ceilingCanvas, ctx: ceilCtx} = this._createContext(512, 512);
         ceilCtx.fillStyle = '#e0dbcf';
         ceilCtx.fillRect(0, 0, 512, 512);
@@ -159,7 +184,8 @@ export default class ProceduralTextureFactory {
         ceilCtx.globalAlpha = 0.25;
         ceilCtx.drawImage(masterNoise, 0, 0, 512, 512);
         ceilCtx.globalAlpha = 1.0;
-
+        const ceilingTexture = new THREE.CanvasTexture(ceilingCanvas);
+        ceilingTexture.wrapS = ceilingTexture.wrapT = THREE.RepeatWrapping;
         const {canvas: tileCanvas, ctx: tileCtx} = this._createContext(256, 256);
         tileCtx.fillStyle = '#080808';
         tileCtx.fillRect(0, 0, 256, 256);
@@ -169,7 +195,10 @@ export default class ProceduralTextureFactory {
         tileCtx.globalAlpha = 0.15;
         tileCtx.drawImage(masterNoise, 0, 0, 256, 256);
         tileCtx.globalAlpha = 1.0;
-
+        const tileTexture = new THREE.CanvasTexture(tileCanvas);
+        tileTexture.wrapS = tileTexture.wrapT = THREE.RepeatWrapping;
+        tileTexture.repeat.set(16, 16);
+        const tileMat = new THREE.MeshStandardMaterial({map: tileTexture, roughness: 0.1, metalness: 0.6});
         const {canvas: clinicCanvas, ctx: cCtx} = this._createContext(256, 256);
         cCtx.fillStyle = '#e8ecef';
         cCtx.fillRect(0, 0, 256, 256);
@@ -179,15 +208,26 @@ export default class ProceduralTextureFactory {
         cCtx.strokeStyle = '#8a98a3';
         cCtx.lineWidth = 4;
         cCtx.strokeRect(0, 0, 256, 256);
-
         const {canvas: clinicBumpCanvas, ctx: cbCtx} = this._createContext(256, 256);
         cbCtx.fillStyle = '#ffffff';
         cbCtx.fillRect(0, 0, 256, 256);
         cbCtx.strokeStyle = '#000000';
         cbCtx.lineWidth = 4;
         cbCtx.strokeRect(0, 0, 256, 256);
-
-        return {carpetCanvas, ceilingCanvas, tileCanvas, clinicCanvas, clinicBumpCanvas};
+        const clinicTex = new THREE.CanvasTexture(clinicCanvas);
+        clinicTex.wrapS = clinicTex.wrapT = THREE.RepeatWrapping;
+        clinicTex.repeat.set(32, 32);
+        const clinicBumpTex = new THREE.CanvasTexture(clinicBumpCanvas);
+        clinicBumpTex.wrapS = clinicBumpTex.wrapT = THREE.RepeatWrapping;
+        clinicBumpTex.repeat.set(32, 32);
+        const clinicMat = new THREE.MeshStandardMaterial({
+            map: clinicTex,
+            bumpMap: clinicBumpTex,
+            bumpScale: 0.015,
+            roughness: 0.1,
+            metalness: 0.15
+        });
+        return {carpetTexture, ceilingTexture, tileMat, clinicMat};
     }
 
     static _buildOrganicAssets(masterNoise) {
@@ -203,7 +243,18 @@ export default class ProceduralTextureFactory {
             moldCtx.ellipse(cx, cy, r, r * (0.6 + Math.random() * 0.4), Math.random() * Math.PI, 0, Math.PI * 2);
             moldCtx.fill();
         }
-
+        const moldTexture = new THREE.CanvasTexture(moldCanvas);
+        const moldMat = new THREE.MeshStandardMaterial({
+            map: moldTexture,
+            transparent: true,
+            depthWrite: false,
+            opacity: 0.12,
+            roughness: 0.6,
+            polygonOffset: true,
+            polygonOffsetFactor: -1
+        });
+        const moldGeo = new THREE.PlaneGeometry(3, 3);
+        moldGeo.rotateX(-Math.PI / 2);
         const {canvas: ceilStainCanvas, ctx: ceilStainCtx} = this._createContext(256, 256);
         for (let i = 0; i < 8; i++) {
             const cx = 40 + Math.random() * 176, cy = 40 + Math.random() * 176, r = 10 + Math.random() * 25;
@@ -216,7 +267,18 @@ export default class ProceduralTextureFactory {
             ceilStainCtx.ellipse(cx, cy, r, r * (0.6 + Math.random() * 0.4), Math.random() * Math.PI, 0, Math.PI * 2);
             ceilStainCtx.fill();
         }
-
+        const ceilStainTexture = new THREE.CanvasTexture(ceilStainCanvas);
+        const ceilingStainMat = new THREE.MeshStandardMaterial({
+            map: ceilStainTexture,
+            transparent: true,
+            depthWrite: false,
+            opacity: 0.15,
+            roughness: 0.9,
+            polygonOffset: true,
+            polygonOffsetFactor: -1
+        });
+        const ceilingStainGeo = new THREE.PlaneGeometry(3, 3);
+        ceilingStainGeo.rotateX(Math.PI / 2);
         const {canvas: fabricCanvas, ctx: fCtx} = this._createContext(256, 256);
         fCtx.fillStyle = '#3a4a58';
         fCtx.fillRect(0, 0, 256, 256);
@@ -237,8 +299,20 @@ export default class ProceduralTextureFactory {
         fCtx.drawImage(masterNoise, 0, 0, 256, 1024);
         fCtx.drawImage(masterNoise, 0, 0, 1024, 256);
         fCtx.globalAlpha = 1.0;
-
-        return {moldCanvas, ceilStainCanvas, fabricCanvas, mossCanvas: fabricCanvas};
+        const fabricTexture = new THREE.CanvasTexture(fabricCanvas);
+        fabricTexture.wrapS = fabricTexture.wrapT = THREE.RepeatWrapping;
+        fabricTexture.repeat.set(4, 4);
+        const fabricMat = new THREE.MeshStandardMaterial({
+            map: fabricTexture,
+            roughness: 0.98,
+            bumpMap: fabricTexture,
+            bumpScale: 0.05
+        });
+        const mossTexture = new THREE.CanvasTexture(fabricCanvas);
+        mossTexture.wrapS = mossTexture.wrapT = THREE.RepeatWrapping;
+        mossTexture.repeat.set(32, 32);
+        const mossMat = new THREE.MeshStandardMaterial({map: mossTexture, roughness: 1.0});
+        return {moldMat, moldGeo, ceilingStainMat, ceilingStainGeo, fabricMat, mossMat};
     }
 
     static _buildTechAssets(masterNoise) {
@@ -272,7 +346,16 @@ export default class ProceduralTextureFactory {
         ventCtx.globalAlpha = 0.7;
         ventCtx.drawImage(masterNoise, 0, 0, 512, 256);
         ventCtx.globalAlpha = 1.0;
-
+        const ventTexture = new THREE.CanvasTexture(ventCanvas);
+        ventTexture.wrapS = ventTexture.wrapT = THREE.RepeatWrapping;
+        ventTexture.repeat.set(1, 1);
+        const ventMat = new THREE.MeshStandardMaterial({
+            map: ventTexture,
+            roughness: 0.7,
+            metalness: 0.15,
+            bumpMap: ventTexture,
+            bumpScale: 0.02
+        });
         const {canvas: serverCanvas, ctx: serverCtx} = this._createContext(256, 512);
         serverCtx.fillStyle = '#c4c1b5';
         serverCtx.fillRect(0, 0, 256, 512);
@@ -293,7 +376,10 @@ export default class ProceduralTextureFactory {
         serverCtx.strokeStyle = '#8c887d';
         serverCtx.lineWidth = 4;
         serverCtx.strokeRect(0, 0, 256, 512);
-
+        const serverTexture = new THREE.CanvasTexture(serverCanvas);
+        serverTexture.wrapS = serverTexture.wrapT = THREE.RepeatWrapping;
+        serverTexture.repeat.set(4, 1);
+        const serverMat = new THREE.MeshStandardMaterial({map: serverTexture, roughness: 0.3, metalness: 0.8});
         const {canvas: lightCanvas, ctx: lightCtx} = this._createContext(128, 256);
         lightCtx.fillStyle = '#ffffe0';
         lightCtx.fillRect(0, 0, 128, 256);
@@ -313,8 +399,26 @@ export default class ProceduralTextureFactory {
         lightCtx.strokeStyle = '#4a4a4a';
         lightCtx.lineWidth = 4;
         lightCtx.strokeRect(4, 4, 120, 248);
-
-        return {ventCanvas, serverCanvas, lightCanvas};
+        const lightTexture = new THREE.CanvasTexture(lightCanvas);
+        const baseLightMat = new THREE.MeshStandardMaterial({
+            map: lightTexture,
+            emissiveMap: lightTexture,
+            color: 0xffffe0,
+            emissive: 0xffffe0,
+            emissiveIntensity: 0.4,
+            roughness: 0.3,
+            metalness: 0.1
+        });
+        const baseBrokenLightMat = new THREE.MeshStandardMaterial({
+            map: lightTexture,
+            emissiveMap: lightTexture,
+            color: 0x8c9296,
+            emissive: 0x1a1f24,
+            emissiveIntensity: 1.0,
+            roughness: 0.8
+        });
+        const baseHousingMat = new THREE.MeshStandardMaterial({color: 0x1a1a1a, roughness: 0.9});
+        return {ventMat, serverMat, baseLightMat, baseBrokenLightMat, baseHousingMat};
     }
 
     static _buildHazardAndMiscAssets(masterNoise) {
@@ -333,7 +437,17 @@ export default class ProceduralTextureFactory {
         fenceCtx.drawImage(masterNoise, 0, 0, 64, 64);
         fenceCtx.globalCompositeOperation = 'source-over';
         fenceCtx.globalAlpha = 1.0;
-
+        const fenceTex = new THREE.CanvasTexture(fenceCanvas);
+        fenceTex.wrapS = fenceTex.wrapT = THREE.RepeatWrapping;
+        fenceTex.repeat.set(12, 12);
+        const fenceMat = new THREE.MeshStandardMaterial({
+            map: fenceTex,
+            roughness: 0.4,
+            metalness: 0.9,
+            alphaTest: 0.5,
+            side: THREE.DoubleSide
+        });
+        const waterMat = fenceMat;
         const {canvas: hazardCanvas, ctx: hazCtx} = this._createContext(256, 256);
         hazCtx.fillStyle = '#ffcc00';
         hazCtx.fillRect(0, 0, 256, 256);
@@ -349,14 +463,27 @@ export default class ProceduralTextureFactory {
         hazCtx.globalAlpha = 0.6;
         hazCtx.drawImage(masterNoise, 0, 0, 256, 256);
         hazCtx.globalAlpha = 1.0;
-
+        const hazardTexture = new THREE.CanvasTexture(hazardCanvas);
+        hazardTexture.wrapS = hazardTexture.wrapT = THREE.RepeatWrapping;
+        hazardTexture.repeat.set(2, 2);
+        const hazardMat = new THREE.MeshStandardMaterial({map: hazardTexture, roughness: 0.8});
         const {canvas: glowCanvas, ctx: glowCtx} = this._createContext(256, 256);
         const glowGrad = glowCtx.createRadialGradient(128, 128, 0, 128, 128, 128);
         glowGrad.addColorStop(0, 'rgba(255, 255, 220, 0.035)');
         glowGrad.addColorStop(1, 'rgba(255, 255, 220, 0)');
         glowCtx.fillStyle = glowGrad;
         glowCtx.fillRect(0, 0, 256, 256);
-
+        const glowTexture = new THREE.CanvasTexture(glowCanvas);
+        const glowMat = new THREE.MeshBasicMaterial({
+            map: glowTexture,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            polygonOffset: true,
+            polygonOffsetFactor: -2
+        });
+        const glowGeo = new THREE.PlaneGeometry(3.8, 3.8);
+        glowGeo.rotateX(-Math.PI / 2);
         const {canvas: tagCanvas, ctx: tagCtx} = this._createContext(128, 128);
         tagCtx.strokeStyle = '#ff0055';
         tagCtx.lineWidth = 12;
@@ -377,7 +504,26 @@ export default class ProceduralTextureFactory {
         tagCtx.moveTo(85, 80);
         tagCtx.lineTo(85, 100);
         tagCtx.stroke();
-
+        const tagTexture = new THREE.CanvasTexture(tagCanvas);
+        const tagMat = new THREE.MeshBasicMaterial({
+            map: tagTexture,
+            transparent: true,
+            depthWrite: false,
+            polygonOffset: true,
+            polygonOffsetFactor: -4
+        });
+        const tagGeo = new THREE.PlaneGeometry(0.5, 0.5);
+        const voidTexture = new THREE.CanvasTexture(masterNoise);
+        voidTexture.wrapS = voidTexture.wrapT = THREE.RepeatWrapping;
+        const voidMat = new THREE.MeshStandardMaterial({
+            color: 0x020202,
+            roughness: 0.15,
+            metalness: 0.8,
+            bumpMap: voidTexture,
+            bumpScale: 0.08
+        });
+        const rustMat = new THREE.MeshStandardMaterial({color: 0x3a1c14, roughness: 1.0, metalness: 0.3});
+        const metalMat = new THREE.MeshStandardMaterial({color: 0x999999, roughness: 0.35, metalness: 0.95});
         const {canvas: almondCanvas, ctx: aCtx} = this._createContext(256, 256);
         aCtx.fillStyle = '#e8ddcb';
         aCtx.fillRect(0, 0, 256, 256);
@@ -391,8 +537,9 @@ export default class ProceduralTextureFactory {
         aCtx.globalAlpha = 0.2;
         aCtx.drawImage(masterNoise, 0, 0, 256, 256);
         aCtx.globalAlpha = 1.0;
-
-        return {fenceCanvas, hazardCanvas, glowCanvas, tagCanvas, almondCanvas, masterNoise};
+        const almondTexture = new THREE.CanvasTexture(almondCanvas);
+        const almondMat = new THREE.MeshStandardMaterial({map: almondTexture, roughness: 0.8});
+        return {waterMat, hazardMat, glowMat, glowGeo, tagMat, tagGeo, voidMat, rustMat, metalMat, almondMat};
     }
 
     static generateAssets() {
@@ -402,13 +549,34 @@ export default class ProceduralTextureFactory {
         const organicAssets = this._buildOrganicAssets(masterNoise);
         const techAssets = this._buildTechAssets(masterNoise);
         const hazardAssets = this._buildHazardAndMiscAssets(masterNoise);
-
-        return {
+        const assets = {
             ...structAssets,
             ...surfaceAssets,
             ...organicAssets,
             ...techAssets,
             ...hazardAssets
         };
+        const applyOpt = (item) => {
+            if (item && item.isTexture) {
+                item.anisotropy = 16;
+                item.colorSpace = THREE.SRGBColorSpace;
+            }
+            if (item && item.map && item.map.isTexture) {
+                item.map.anisotropy = 16;
+                item.map.colorSpace = THREE.SRGBColorSpace;
+            }
+            if (item && item.emissiveMap && item.emissiveMap.isTexture) {
+                item.emissiveMap.anisotropy = 16;
+                item.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+            }
+        };
+        Object.values(assets).forEach(item => {
+            if (Array.isArray(item)) {
+                item.forEach(applyOpt);
+            } else {
+                applyOpt(item);
+            }
+        });
+        return assets;
     }
 }
