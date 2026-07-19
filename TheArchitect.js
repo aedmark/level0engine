@@ -1297,7 +1297,8 @@ export default class TheArchitect {
             },
             {
                 id: "INCINERATOR",
-                foundationMat: this.rustMat,
+                foundationMat: this.diamondPlateMat || this.rustMat,
+                ceilingMat: this.incinCeilingMat || null,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     // Double-shell boundary: yellow wallpaper camouflage stays on the exterior
                     // face, but the interior face is lined with rusted iron so the room never
@@ -1309,11 +1310,25 @@ export default class TheArchitect {
                         if (localX === lEdge) liners.push([-1, 0]);
                         if (localZ === 0) liners.push([0, 1]);
                         if (localZ === lEdge) liners.push([0, -1]);
-                        for (let li = 0; li < liners.length; li++) {
-                            const ldx = liners[li][0], ldz = liners[li][1];
-                            const liner = buildWall(ldx !== 0 ? 0.4 : this.cellSize, ldz !== 0 ? 0.4 : this.cellSize, this.rustMat, 3.0);
-                            liner.position.set(x * this.cellSize + ldx * 2.2, 1.5, z * this.cellSize + ldz * 2.2);
-                            addGeometry(liner);
+                        const isCorner = (localX === 0 || localX === lEdge) && (localZ === 0 || localZ === lEdge);
+                        if (isCorner) {
+                            // Corner cells must NOT run full-length liners: their outer
+                            // ends surface exactly coplanar with the building's exterior
+                            // faces, showing as grey strips bookending each corner in the
+                            // yellow halls. The neighboring cells' runs already cover the
+                            // inside-corner pocket, so a single interior post suffices.
+                            const sxp = localX === 0 ? 1 : -1;
+                            const szp = localZ === 0 ? 1 : -1;
+                            const post = buildWall(0.4, 0.4, this.rustMat, 3.0);
+                            post.position.set(x * this.cellSize + sxp * 2.2, 1.5, z * this.cellSize + szp * 2.2);
+                            addGeometry(post);
+                        } else {
+                            for (let li = 0; li < liners.length; li++) {
+                                const ldx = liners[li][0], ldz = liners[li][1];
+                                const liner = buildWall(ldx !== 0 ? 0.4 : this.cellSize, ldz !== 0 ? 0.4 : this.cellSize, this.rustMat, 3.0);
+                                liner.position.set(x * this.cellSize + ldx * 2.2, 1.5, z * this.cellSize + ldz * 2.2);
+                                addGeometry(liner);
+                            }
                         }
                         return;
                     }
@@ -1339,6 +1354,20 @@ export default class TheArchitect {
                         const header = buildWall(spansX ? 3.0 : 0.7, spansX ? 0.7 : 3.0, this.metalMat, 0.4);
                         header.position.set(dcx, 2.8, dcz);
                         addGeometry(header);
+
+                        // Rust cladding wraps the interior shell through the doorway
+                        // alcove up to the jambs, so the liner never terminates in a raw
+                        // end face at the mouth
+                        const inSign = (localZ === 0 || localX === 0) ? 1 : -1;
+                        for (let cs = -1; cs <= 1; cs += 2) {
+                            const clad = buildWall(spansX ? 0.4 : 1.7, spansX ? 1.7 : 0.4, this.rustMat, 3.0);
+                            clad.position.set(
+                                dcx + (spansX ? cs * 1.8 : inSign * 1.2),
+                                1.5,
+                                dcz + (spansX ? inSign * 1.2 : cs * 1.8)
+                            );
+                            addGeometry(clad);
+                        }
 
                         // Split sliding panels (retract into the flanking wall mass)
                         const doorGroup = new THREE.Group();
@@ -1393,8 +1422,6 @@ export default class TheArchitect {
 
                         const slideAxis = spansX ? 'x' : 'z';
                         const outSign = (localZ === 0 || localX === 0) ? -1 : 1;
-                        const dChunkX = Math.floor(x / this.chunkSize);
-                        const dChunkZ = Math.floor(z / this.chunkSize);
                         doorGroup.userData = {
                             chunkHash: hash,
                             isSlider: true,
@@ -1407,11 +1434,9 @@ export default class TheArchitect {
                             lastTarget: 0,
                             box: doorBox,
                             closedBox: doorBox.clone(),
-                            // Atmosphere hand-off: this door governs the sector swap
+                            // Atmosphere pre-arm: this door rolls its sector out on entry
                             sectorId: "INCINERATOR",
-                            outSign: outSign,
-                            inChunk: {x: dChunkX, z: dChunkZ},
-                            outChunk: {x: dChunkX + (spansX ? 0 : outSign), z: dChunkZ + (spansX ? outSign : 0)}
+                            outSign: outSign
                         };
                         this.interactiveDoors.push(doorGroup);
 
@@ -1447,47 +1472,197 @@ export default class TheArchitect {
                         block.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                         block.userData.isEntityBlocker = true;
                         addGeometry(block);
-                        if ((localX === 4 || localX === 11) && localZ % 2 === 0) {
+                        // Furnace sconces: rust housing + a fully-emissive cage lamp.
+                        // Every face of the lamp box glows, so there is no viewing angle
+                        // from which the fixture reads as a dead black rectangle.
+                        const buildSconce = (nx, nz) => {
+                            const fx = x * this.cellSize + nx * 2.0;
+                            const fz = z * this.cellSize + nz * 2.0;
                             const activeMat = this.baseLightMat.clone();
-                            activeMat.color.setHex(0xff3300);
-                            activeMat.emissive.setHex(0xff1100);
-                            const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
-
-                            const px = x * this.cellSize + (localX === 4 ? -2 : 2);
-                            const py = 1.5;
-                            const pz = z * this.cellSize;
-
-                            panel.position.set(px, py, pz);
-                            panel.rotation.z = Math.PI / 2;
-                            panel.rotation.x = Math.PI / 2;
-
-                            // Inject actual PointLights to cast red light on the grimy walls
+                            activeMat.color.setHex(0xff5522);
+                            activeMat.emissive.setHex(0xff2200);
+                            const housing = buildWall(nx !== 0 ? 0.16 : 0.8, nz !== 0 ? 0.16 : 0.8, this.rustMat, 0.5);
+                            housing.position.set(fx + nx * 0.08, 1.5, fz + nz * 0.08);
+                            addGeometry(housing);
+                            const plate = buildWall(nx !== 0 ? 0.1 : 0.55, nz !== 0 ? 0.1 : 0.55, activeMat, 0.32);
+                            plate.position.set(fx + nx * 0.21, 1.5, fz + nz * 0.21);
+                            plate.userData.chunkHash = hash;
                             const pLight = new THREE.PointLight(0xff2200, 1.5, 8.0, 2.0);
-                            // The light must be positioned locally relative to the rotated panel
-                            pLight.position.set(0, 0.6, 0);
-                            panel.add(pLight);
-
-                            chunkGroup.add(panel);
-                            this.walls.push(panel);
-
+                            pLight.position.set(nx * 0.4, 0, nz * 0.4);
+                            plate.add(pLight);
+                            chunkGroup.add(plate);
+                            plate.updateMatrixWorld(true);
+                            this.walls.push(plate);
                             this.fixtureData.push({
                                 chunkHash: hash,
-                                position: new THREE.Vector3(x * this.cellSize, 1.5, z * this.cellSize),
+                                position: new THREE.Vector3(fx + nx * 0.4, 1.5, fz + nz * 0.4),
                                 flickerOffset: random() * 500,
                                 material: activeMat,
-                                lightObj: pLight, // Pass the light to the update loop
+                                lightObj: pLight,
                                 isFaulty: random() > 0.8,
                                 baseIntensity: 1.2,
                                 targetIntensity: 1.2,
                                 currentIntensity: 1.2
                             });
-                        }
+                        };
+                        if (localX === 4 && localZ % 2 === 0) buildSconce(-1, 0);
+                        if (localX === 11 && localZ % 2 === 0) buildSconce(1, 0);
+                        if (localZ === 4 && localX % 2 === 1) buildSconce(0, -1);
+                        if (localZ === 11 && localX % 2 === 1) buildSconce(0, 1);
                     } else {
-                        if (random() > 0.85) {
-                            const pipe = new THREE.Mesh(this.vPipeGeo, this.rustMat);
-                            pipe.position.set(x * this.cellSize, 1.5, z * this.cellSize);
-                            pipe.scale.set(1.5, 1.0, 1.5);
-                            addGeometry(pipe);
+                        // ---- PIPE & FIRE-DUCT MAZE (ring galleries around the furnace core) ----
+                        const ductMat = this.ventMat || this.metalMat || this.rustMat;
+                        if (!this.emberGrilleMat) {
+                            this.emberGrilleMat = new THREE.MeshStandardMaterial({
+                                color: 0x2a1005, emissive: 0xff5500, emissiveIntensity: 1.2, roughness: 0.9
+                            });
+                            this.sharedAssets.add(this.emberGrilleMat.uuid);
+                        }
+                        if (!this.valveGeo) {
+                            this.valveGeo = new THREE.TorusGeometry(0.17, 0.03, 6, 12);
+                            this.geoCache.set(this.valveGeo.uuid, true);
+                        }
+                        const cxw = x * this.cellSize, czw = z * this.cellSize;
+
+                        // Door approach corridors: overhead spine duct with glowing underside
+                        // vents guiding the player, floor kept completely clear
+                        const isCorridorNS = localX === 7 && (localZ <= 3 || localZ >= 12);
+                        const isCorridorEW = localZ === 7 && (localX <= 3 || localX >= 12);
+                        if (isCorridorNS || isCorridorEW) {
+                            // Spine bottom clears the standing collision ceiling (2.5)
+                            const spine = buildWall(isCorridorNS ? 1.1 : this.cellSize, isCorridorNS ? this.cellSize : 1.1, ductMat, 0.4);
+                            spine.position.set(cxw, 2.78, czw);
+                            addGeometry(spine);
+                            if ((localX + localZ) % 2 === 0) {
+                                const grille = buildWall(0.5, 0.5, this.emberGrilleMat, 0.06);
+                                grille.position.set(cxw, 2.57, czw);
+                                addGeometry(grille);
+                            }
+                            // Where a gallery mid-lane duct meets the corridor, it arches
+                            // overhead instead of breaking: edge risers seat on the duct
+                            // ends in the flanking cells, bridged above head height
+                            const crossX = isCorridorNS && (localZ === 2 || localZ === 13);
+                            const crossZ = isCorridorEW && (localX === 2 || localX === 13);
+                            if (crossX || crossZ) {
+                                for (let as = -1; as <= 1; as += 2) {
+                                    const riser = buildWall(0.7, 0.7, ductMat, 1.15);
+                                    riser.position.set(cxw + (crossX ? as * 1.65 : 0), 2.0, czw + (crossX ? 0 : as * 1.65));
+                                    addGeometry(riser);
+                                }
+                                const bridge = buildWall(crossX ? this.cellSize : 0.7, crossX ? 0.7 : this.cellSize, ductMat, 0.4);
+                                bridge.position.set(cxw, 2.75, czw);
+                                addGeometry(bridge);
+                            }
+                            return;
+                        }
+
+                        // 1) Mid-lane fire ducts: run the length of each gallery at torso
+                        //    height (crawl space beneath), with riser elbows vanishing into
+                        //    the ceiling every 4th cell
+                        const midX = (localX === 2 || localX === 13);
+                        const midZ = (localZ === 2 || localZ === 13);
+                        // Each mid-lane run builds independently so corner cells (where
+                        // both lanes meet) become full crossings instead of cutting off
+                        // one run's block and breaking loop continuity
+                        const buildDuctRun = (alongZ) => {
+                            const gapCell = alongZ ? (localZ % 4 === 0) : (localX % 4 === 0);
+                            if (gapCell) {
+                                // Walk-through arch: the run rises at both cell edges and
+                                // bridges overhead — continuous ductwork, passable beneath
+                                for (let as = -1; as <= 1; as += 2) {
+                                    const riser = buildWall(0.7, 0.7, ductMat, 1.15);
+                                    riser.position.set(cxw + (alongZ ? 0 : as * 1.65), 2.0, czw + (alongZ ? as * 1.65 : 0));
+                                    addGeometry(riser);
+                                }
+                                const bridge = buildWall(alongZ ? 0.7 : this.cellSize, alongZ ? this.cellSize : 0.7, ductMat, 0.4);
+                                bridge.position.set(cxw, 2.75, czw);
+                                addGeometry(bridge);
+                            } else {
+                                const duct = buildWall(alongZ ? 0.7 : this.cellSize, alongZ ? this.cellSize : 0.7, ductMat, 0.7);
+                                duct.position.set(cxw, 1.15, czw);
+                                addGeometry(duct);
+                                if (random() > 0.65) {
+                                    const gs = random() > 0.5 ? 1 : -1;
+                                    const g = buildWall(alongZ ? 0.06 : 0.6, alongZ ? 0.6 : 0.06, this.emberGrilleMat, 0.3);
+                                    g.position.set(cxw + (alongZ ? gs * 0.38 : 0), 1.15, czw + (alongZ ? 0 : gs * 0.38));
+                                    addGeometry(g);
+                                }
+                            }
+                        };
+                        if (midX) buildDuctRun(true);
+                        if (midZ) buildDuctRun(false);
+                        if (!midX && !midZ && ((localX * 7 + localZ * 13) % 5 === 0) && random() > 0.35) {
+                            // 2) Vertical pipe clusters with hand valves on the open lanes
+                            const count = 1 + Math.floor(random() * 3);
+                            for (let pi = 0; pi < count; pi++) {
+                                const pox = (random() - 0.5) * 1.6, poz = (random() - 0.5) * 1.6;
+                                const ps = 0.8 + random() * 1.6;
+                                const pipe = new THREE.Mesh(this.vPipeGeo, this.rustMat);
+                                pipe.position.set(cxw + pox, 1.5, czw + poz);
+                                pipe.scale.set(ps, 1.0, ps);
+                                addGeometry(pipe);
+                                if (random() > 0.6) {
+                                    const valve = new THREE.Mesh(this.valveGeo, this.metalMat);
+                                    valve.rotation.x = Math.PI / 2;
+                                    valve.position.set(cxw + pox, 1.0 + random() * 1.0, czw + poz);
+                                    addGeometry(valve);
+                                }
+                            }
+                        }
+
+                        // 3) Overhead pipe lattice threading the whole ring (instanced)
+                        if (localZ % 2 === 1) {
+                            const hPipe = new THREE.Mesh(this.pipeGeo, this.rustMat);
+                            hPipe.position.set(cxw, 2.72, czw + 1.2);
+                            addGeometry(hPipe);
+                        }
+                        if (localX % 2 === 1) {
+                            const hPipe2 = new THREE.Mesh(this.pipeGeo, this.rustMat);
+                            hPipe2.rotation.y = Math.PI / 2;
+                            hPipe2.position.set(cxw + 1.2, 2.85, czw);
+                            addGeometry(hPipe2);
+                        }
+                        if (localZ % 2 === 1 && localX % 2 === 1) {
+                            // Junction collar at every lattice crossing so the two heights
+                            // read as one plumbed network
+                            const joint = new THREE.Mesh(this.pipeJointGeo, this.metalMat);
+                            joint.position.set(cxw + 1.2, 2.785, czw + 1.2);
+                            addGeometry(joint);
+                        }
+                        // Ceiling hanger rods anchoring the lattice on straight runs
+                        if (localZ % 2 === 1 && localX % 2 === 0) {
+                            const mnt = new THREE.Mesh(this.pipeMountGeo, this.rustMat);
+                            mnt.position.set(cxw, 2.88, czw + 1.2);
+                            addGeometry(mnt);
+                        }
+                        if (localX % 2 === 1 && localZ % 2 === 0) {
+                            const mnt2 = new THREE.Mesh(this.pipeMountGeo, this.rustMat);
+                            mnt2.position.set(cxw + 1.2, 2.94, czw);
+                            addGeometry(mnt2);
+                        }
+
+                        // 4) Feed ducts: complete circuits from the gallery mid-lane run
+                        //    into the furnace core — a riser column climbs off the low
+                        //    duct, crosses the gallery at ceiling height, and runs into
+                        //    the core wall. Rows are chosen to always land the riser on a
+                        //    solid duct segment (never an arch or corridor cell).
+                        if (localZ >= 4 && localZ <= 11 && (localX === 3 || localX === 12) && localZ % 3 === 2 && localZ % 4 !== 0) {
+                            const dirf = localX === 3 ? 1 : -1;
+                            const feed = buildWall(6.0, 0.6, ductMat, 0.4);
+                            feed.position.set(cxw - dirf * 1.0, 2.78, czw);
+                            addGeometry(feed);
+                            const climb = buildWall(0.6, 0.6, ductMat, 1.1);
+                            climb.position.set(cxw - dirf * 4.0, 2.03, czw);
+                            addGeometry(climb);
+                        }
+                        if (localX >= 4 && localX <= 11 && (localZ === 3 || localZ === 12) && localX % 3 === 2 && localX % 4 !== 0) {
+                            const dirf = localZ === 3 ? 1 : -1;
+                            const feed = buildWall(0.6, 6.0, ductMat, 0.4);
+                            feed.position.set(cxw, 2.78, czw - dirf * 1.0);
+                            addGeometry(feed);
+                            const climb = buildWall(0.6, 0.6, ductMat, 1.1);
+                            climb.position.set(cxw, 2.03, czw - dirf * 4.0);
+                            addGeometry(climb);
                         }
                     }
                 }

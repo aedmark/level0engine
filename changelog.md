@@ -1,5 +1,32 @@
 # Level 0 Engine Changelog
 
+## [v0.4.6] - 2026-07-19
+
+_The Ground Truth Update_
+
+#### Added
+
+- **[TEXTURES] Diamond Plate & Charred Ceiling:** The incinerator now owns both of its horizontal surfaces. The foundation swaps rusted iron for a procedural diamond tread plate — alternating 45-degree 3-bar clusters with relief highlights, grime streaks, and half-metallic response — while a new per-sector ceiling overlay system hangs a charred riveted-panel plane below the shared ceiling: soot blooms, plate seams, corner rivets, and faint ember-glow cracks. Both are canvas-generated at init and registered as shared assets.
+
+- **[GEOMETRY] Continuous Ductwork:** The fire duct network now fully connects, including gallery corners — the two mid-lane runs build independently per cell, so corner cells where both lanes meet produce full duct crossings instead of dropping one run's block. Walk-through gaps became overhead arches — the run rises at both cell edges, seats on the neighboring duct ends, and bridges above head height. Where mid-lane ducts meet the door corridors they arch over the walkway and tee into the corridor spine. Feed ducts are now complete circuits — a riser column climbs off the low mid-lane run, crosses the gallery at ceiling height, and runs into the furnace core, with feed rows chosen so risers always land on solid duct segments (never arches or corridors). Lattice crossings always get junction collars, and hanger rods anchor the overhead pipe runs on straight segments. All overhead ductwork (corridor spines, feeds, arch bridges) now clears the standing player's 2.5-unit collision ceiling, eliminating invisible head-height barriers.
+
+- **[GEOMETRY] The Combustion Galleries:** Replaced the incinerator ring's sparse scatter with a dense procedural mechanical maze. Mid-lane fire ducts now run the length of every gallery at torso height — forcing crawl-unders through the 0.8-unit gap beneath — punctuated by riser elbows that turn and vanish into the ceiling every fourth cell. Open lanes sprout vertical pipe clusters with hand-valve wheels, an overhead lattice of instanced pipe runs threads the entire ring at two heights with junction collars at crossings, and feed ducts jump from the galleries into the furnace core. Door approach corridors stay floor-clear beneath an overhead spine duct.
+
+- **[DYNAMIC ILLUMINATION] Ember Grilles & Cage Sconces:** Rebuilt the furnace core's wall fixtures — the old rotated ceiling panels aimed their single emissive face into the wall and read as dead black rectangles from every angle. Sconces are now a rust housing holding a fully-emissive cage lamp (every face glows) with the PointLight repositioned proud of the fixture, and now mount on all four faces of the core. Static ember grilles bleed hot orange light from duct flanks and corridor spine undersides.
+
+#### Fixed
+
+- **[GEOMETRY] Shell Liner Exterior Bleed:** Corner cells ran two full-length liner segments whose outer ends terminated exactly coplanar with the building's exterior wall faces — surfacing as grey rust strips bookending every outside corner of the zone in the yellow halls. Since the neighboring cells' liner runs already extend into the corner cell and cover the inside-corner pocket, corner cells now place only a single interior corner post. Rust cladding also wraps the shell through each doorway alcove up to the jambs so the liner never terminates in a raw end face at the mouth.
+
+- **[WORLDGEN] Origin-Adjacent Perimeter Holes:** The spawn-clearing guard skipped all cells within 2 of the world origin in global cell coordinates — but for chunks (-1,0), (0,-1), and (-1,-1) those are perimeter corner cells, so a macro zone rolled there generated with an exposed, doorless corner hole in its wall ring. The guard now applies only to loose backrooms fill; macro zones build every cell. The spawn point itself sits in chunk (0,0), which is never macro, so spawn clearance is unaffected.
+
+#### Changed
+
+- **[ATMOSPHERICS] Shell Volume Registry:** Ripped out the predictive sector detection — the mirrored PRNG replay that re-derived each chunk's sector from seeded rolls inside `updateLights`. It was structurally fragile: exterior wall strips and corners fell inside a zone chunk's coordinate footprint, the coherence-based seed shift could diverge from geometry built at a different sanity level, and the EXIT/CHECKPOINT pool swap silently shifted every sector index for chunks built before the objective phase flip. `buildChunk` now registers each macro zone's interior AABB — an invisible shell exactly matching the walkable interior — and the atmosphere is a pure containment test against volumes as actually built. A position outside the walls is categorically outside every shell; corner false-triggers are impossible by construction.
+
+- **[SYSTEMS] Simplified Door Pre-Arm:** With the shell as ground truth, the blast-door hand-off shrank to entry-only: an approach-gated force that rolls the sector atmosphere out through the parting panels and bridges the two-unit gap between the door plane and the shell edge. Exit purge needs no special case — the shell's inset boundary starts draining the atmosphere ~2 units before the player even reaches the door.
+
+
 ## [v0.4.5] - 2026-07-19
 
 _The Sealed Combustion Update_
