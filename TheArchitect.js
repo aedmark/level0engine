@@ -173,11 +173,26 @@ export default class TheArchitect {
                         shortWall.userData.isEntityBlocker = true;
                         addGeometry(shortWall);
                         if (random() > 0.5) {
-                            const clutter = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.8), this.woodMat);
-                            clutter.position.set(x * this.cellSize, 0.6, z * this.cellSize);
-                            clutter.rotation.y = random() * Math.PI;
-                            clutter.userData.isEntityBlocker = true;
-                            addGeometry(clutter);
+                            // Stacked cardboard cartons in place of the old wood block
+                            if (!this.cartonGeo) {
+                                this.cartonGeo = new THREE.BoxGeometry(0.6, 0.5, 0.6);
+                                this.geoCache.set(this.cartonGeo.uuid, true);
+                            }
+                            const stackN = 2 + (random() > 0.6 ? 1 : 0);
+                            const byaw = random() * Math.PI;
+                            const cartonPool = this.cartonMats || [this.fileBoxMat];
+                            for (let ci = 0; ci < stackN; ci++) {
+                                const carton = new THREE.Mesh(this.cartonGeo, cartonPool[Math.floor(random() * cartonPool.length)]);
+                                carton.scale.set(1.2 - ci * 0.12, 1.1, 1.2 - ci * 0.12);
+                                carton.position.set(
+                                    x * this.cellSize + (random() - 0.5) * 0.12,
+                                    0.275 + ci * 0.55,
+                                    z * this.cellSize + (random() - 0.5) * 0.12
+                                );
+                                carton.rotation.y = byaw + (random() - 0.5) * 0.5;
+                                carton.userData.isEntityBlocker = true;
+                                addGeometry(carton);
+                            }
                         }
                     } else {
                         const isMagic = random() > 0.75;
@@ -548,33 +563,103 @@ export default class TheArchitect {
                 }
             },
             {
-                name: "THE VENTILATION BULKHEAD",
+                name: "THE SETTLING FIELD",
                 prob: 0.028, build: (x, z) => {
+                    // Successor to the retired Ventilation Bulkhead. The same two main
+                    // PRNG draws are consumed, but now they seed a local generator, so
+                    // the scatter detail below never shifts the chunk's main stream.
+                    if (ctx.markOccupied) ctx.markOccupied(x, z);
                     const cx = x * this.cellSize;
                     const cz = z * this.cellSize;
-                    if (ctx.markOccupied) ctx.markOccupied(x, z);
+                    const dA = random();
+                    const dB = random();
+                    let lSeed = ((dA * 4294967296) ^ (dB * 65536)) >>> 0;
+                    const lRand = () => {
+                        lSeed = (lSeed * 1664525 + 1013904223) >>> 0;
+                        return lSeed / 4294967296.0;
+                    };
 
-                    const isZOriented = random() > 0.5;
-                    const bulkheadThickness = 2.2;
+                    if (!this.fallenTileGeo) {
+                        this.fallenTileGeo = new THREE.BoxGeometry(0.9, 0.04, 0.9);
+                        this.geoCache.set(this.fallenTileGeo.uuid, true);
+                    }
+                    if (!this.rottedTileMat) {
+                        // Water-rotted tiles: the clean ceiling material dingied down
+                        this.rottedTileMat = this.ceilMat.clone();
+                        this.rottedTileMat.color.setHex(0x93856b);
+                        this.rottedTileMat.roughness = 0.95;
+                        this.sharedAssets.add(this.rottedTileMat.uuid);
+                    }
+                    if (!this.ceilingHoleMat) {
+                        // Unlit void — reads as a hole regardless of lighting
+                        this.ceilingHoleMat = new THREE.MeshBasicMaterial({color: 0x060504});
+                        this.sharedAssets.add(this.ceilingHoleMat.uuid);
+                    }
 
-                    const bulkheadMass = buildWall(isZOriented ? bulkheadThickness : this.cellSize, isZOriented ? this.cellSize : bulkheadThickness, this.ventMat, 1.2, 1.8);
-                    bulkheadMass.position.set(cx, 1.8 + 0.6, cz);
-                    bulkheadMass.userData.isEntityBlocker = true;
-                    addGeometry(bulkheadMass);
+                    // Fallen ceiling tiles, some tilted where they lean on each other
+                    const tileCount = 2 + Math.floor(lRand() * 3);
+                    for (let i = 0; i < tileCount; i++) {
+                        const tile = new THREE.Mesh(this.fallenTileGeo, this.rottedTileMat);
+                        tile.position.set(cx + (lRand() - 0.5) * 2.6, 0.03 + lRand() * 0.09, cz + (lRand() - 0.5) * 2.6);
+                        tile.rotation.set((lRand() - 0.5) * 0.3, lRand() * Math.PI, (lRand() - 0.5) * 0.3);
+                        addGeometry(tile);
+                    }
 
-                    const pipeCount = Math.floor(random() * 2) + 2;
-                    for (let i = 0; i < pipeCount; i++) {
-                        const pipe = new THREE.Mesh(this.pipeGeo, this.rustMat);
-                        pipe.rotation.order = "YXZ";
-                        if (!isZOriented) pipe.rotation.y = Math.PI / 2;
+                    // The hole they fell from: a void patch just below the ceiling
+                    // plane, with rotted tiles still dangling from its rim
+                    const hole = buildWall(1.6, 1.6, this.ceilingHoleMat, 0.02);
+                    hole.position.set(cx, 2.975, cz);
+                    addGeometry(hole);
+                    if (!this.hingedTileGeo) {
+                        // Pivot on one edge so dangling tiles swing like trapdoors
+                        this.hingedTileGeo = new THREE.BoxGeometry(0.9, 0.04, 0.9);
+                        this.hingedTileGeo.translate(0, 0, 0.45);
+                        this.geoCache.set(this.hingedTileGeo.uuid, true);
+                    }
+                    const dangleCount = 1 + Math.floor(lRand() * 3);
+                    for (let i = 0; i < dangleCount; i++) {
+                        const side = Math.floor(lRand() * 4);
+                        const along = (lRand() - 0.5) * 1.0;
+                        const dangle = new THREE.Mesh(this.hingedTileGeo, this.rottedTileMat);
+                        const dxr = (side === 0 ? -0.85 : (side === 1 ? 0.85 : along));
+                        const dzr = (side === 2 ? -0.85 : (side === 3 ? 0.85 : along));
+                        dangle.position.set(cx + dxr, 2.955, cz + dzr);
+                        // Yaw aims the hinge arm at the hole center, then the tile
+                        // swings steeply down from the rim under its own weight.
+                        dangle.rotation.order = 'YXZ';
+                        dangle.rotation.y = (side === 0 ? Math.PI / 2 : (side === 1 ? -Math.PI / 2 : (side === 3 ? Math.PI : 0)));
+                        dangle.rotation.x = 1.0 + lRand() * 0.45;
+                        dangle.rotation.z = (lRand() - 0.5) * 0.12;
+                        // No collision box: 4cm of rotted fiber hanging below head
+                        // height should brush past, not wall the player off
+                        dangle.userData.chunkHash = hash;
+                        dangle.updateMatrixWorld(true);
+                        stagingMeshes.push(dangle);
+                    }
 
-                        const offsetOffset = (i - (pipeCount - 1) / 2) * 0.7;
-                        pipe.position.set(
-                            cx + (isZOriented ? 0 : offsetOffset),
-                            1.6,
-                            cz + (isZOriented ? offsetOffset : 0)
-                        );
-                        chunkGroup.add(pipe);
+                    // Scattered paperwork
+                    const paperCount = 2 + Math.floor(lRand() * 3);
+                    for (let i = 0; i < paperCount; i++) {
+                        const sheet = new THREE.Mesh(this.documentGeo, this.documentMat);
+                        sheet.position.set(cx + (lRand() - 0.5) * 3.2, 0.015, cz + (lRand() - 0.5) * 3.2);
+                        sheet.rotation.y = lRand() * Math.PI * 2;
+                        addGeometry(sheet);
+                    }
+
+                    // Water damage overhead marks where the tiles came from
+                    const stain = new THREE.Mesh(this.ceilingStainGeo, this.ceilingStainMat);
+                    stain.position.set(cx, 2.99, cz);
+                    stain.rotation.y = lRand() * Math.PI * 2;
+                    const stScale = 0.8 + lRand() * 0.6;
+                    stain.scale.set(stScale, stScale, stScale);
+                    addGeometry(stain);
+
+                    // Sometimes, an office chair on its side
+                    if (dA > 0.6) {
+                        const felled = buildChair(cx + (lRand() - 0.5) * 1.6, 0, cz + (lRand() - 0.5) * 1.6, lRand() * Math.PI * 2);
+                        felled.rotation.z = (lRand() > 0.5 ? 1 : -1) * Math.PI / 2;
+                        felled.position.y = 0.38;
+                        addFurniture(felled);
                     }
                 }
             },
@@ -988,9 +1073,15 @@ export default class TheArchitect {
                             screen.position.set(x * this.cellSize, 1.2, z * this.cellSize);
                             addGeometry(screen);
                         } else if (clutterRoll > 0.50) {
+                            // Cardboard cartons, same stacking and occasional tip-over
+                            if (!this.cartonGeo) {
+                                this.cartonGeo = new THREE.BoxGeometry(0.6, 0.5, 0.6);
+                                this.geoCache.set(this.cartonGeo.uuid, true);
+                            }
                             const boxCount = Math.floor(random() * 3) + 1;
+                            const cartonPool = this.cartonMats || [this.fileBoxMat];
                             for (let i = 0; i < boxCount; i++) {
-                                const mBox = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.6), this.woodMat);
+                                const mBox = new THREE.Mesh(this.cartonGeo, cartonPool[Math.floor(random() * cartonPool.length)]);
                                 mBox.position.set(x * this.cellSize + (random() * 0.4 - 0.2), 0.25 + (i * 0.5), z * this.cellSize + (random() * 0.4 - 0.2));
                                 mBox.rotation.y = random() * Math.PI;
                                 mBox.rotation.x = random() > 0.8 ? Math.PI / 2 : 0;
@@ -1005,38 +1096,133 @@ export default class TheArchitect {
             },
             {
                 id: "BOARDROOM",
-                foundationMat: this.tileMat,
+                foundationMat: this.boardTileMat || this.tileMat,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
-                    if (localX >= 3 && localX <= 12 && (localZ === 7 || localZ === 8)) {
-                        const table = buildTable(x * this.cellSize, 0, z * this.cellSize);
-                        addFurniture(table);
-                        if (localZ === 8) {
-                            addFurniture(buildChair(x * this.cellSize, 0, z * this.cellSize + 1.2, 0));
+
+                    const bx = x * this.cellSize, bz = z * this.cellSize;
+                    const glass = this.glassMat || this.fabricMat;
+
+                    // Glass partition grid: lines at local 3/6/9/12, door gaps wherever
+                    // the perpendicular index % 3 === 1. Since 7 % 3 === 1, row 7 and
+                    // col 7 are guaranteed clear corridors from doorway to doorway, and
+                    // every 2x2 fishbowl pocket has at least one gap per glass side.
+                    const onLineX = (localX === 3 || localX === 6 || localX === 9 || localX === 12);
+                    const onLineZ = (localZ === 3 || localZ === 6 || localZ === 9 || localZ === 12);
+
+                    const buildPane = (alongZ) => {
+                        const rail = buildWall(alongZ ? 0.12 : this.cellSize, alongZ ? this.cellSize : 0.12, this.metalMat, 0.1);
+                        rail.position.set(bx, 0.05, bz);
+                        addGeometry(rail);
+                        const head = buildWall(alongZ ? 0.12 : this.cellSize, alongZ ? this.cellSize : 0.12, this.metalMat, 0.1);
+                        head.position.set(bx, 2.95, bz);
+                        addGeometry(head);
+                        const post = buildWall(0.12, 0.12, this.metalMat, 3.0);
+                        post.position.set(bx + (alongZ ? 0 : -2), 1.5, bz + (alongZ ? -2 : 0));
+                        addGeometry(post);
+                        const pane = buildWall(alongZ ? 0.06 : this.cellSize, alongZ ? this.cellSize : 0.06, glass, 2.8);
+                        pane.position.set(bx, 1.5, bz);
+                        addGeometry(pane);
+                    };
+
+                    if (onLineX && onLineZ) {
+                        // Grid intersection: both panes cross here so every run connects
+                        // through the junction, tied by a chunky mullion column
+                        buildPane(true);
+                        buildPane(false);
+                        const post = buildWall(0.16, 0.16, this.metalMat, 3.0);
+                        post.position.set(bx, 1.5, bz);
+                        addGeometry(post);
+                        return;
+                    }
+                    if (onLineX) {
+                        if (localZ % 3 !== 1) buildPane(true);
+                        return;
+                    }
+                    if (onLineZ) {
+                        if (localX % 3 !== 1) buildPane(false);
+                        return;
+                    }
+
+                    // Fishbowl interiors: conference sets centered in the 2x2 pockets,
+                    // anchored at the pocket's low cell
+                    const isAnchor = (v) => (v === 1 || v === 4 || v === 10 || v === 13);
+                    if (isAnchor(localX) && isAnchor(localZ)) {
+                        const pcx = bx + 2, pcz = bz + 2;
+                        if (random() > 0.30) {
+                            // Full-size conference table: 3.2-unit top on twin pedestals,
+                            // long axis randomized per pocket
+                            const longX = random() > 0.5;
+                            const confTable = new THREE.Group();
+                            const top = new THREE.Mesh(new THREE.BoxGeometry(longX ? 3.2 : 1.4, 0.08, longX ? 1.4 : 3.2), this.woodMat);
+                            top.position.y = 0.82;
+                            confTable.add(top);
+                            for (let e = -1; e <= 1; e += 2) {
+                                const ped = new THREE.Mesh(this.tableBaseGeo, this.structMat);
+                                ped.position.set(longX ? e * 1.1 : 0, 0.4, longX ? 0 : e * 1.1);
+                                confTable.add(ped);
+                            }
+                            confTable.position.set(pcx, 0, pcz);
+                            addFurniture(confTable);
+
+                            // Chairs face the table: buildChair's backrest is at local -z,
+                            // so rotY 0 faces +z. Each seat rotates toward the center.
+                            const sideOff = 1.15, endOff = 2.05;
+                            for (let sc = -1; sc <= 1; sc += 2) {
+                                for (let sp = -1; sp <= 1; sp += 2) {
+                                    if (random() > 0.25) {
+                                        const cxp = pcx + (longX ? sp * 0.9 : sc * sideOff);
+                                        const czp = pcz + (longX ? sc * sideOff : sp * 0.9);
+                                        const face = longX
+                                            ? (sc > 0 ? Math.PI : 0)
+                                            : (sc > 0 ? -Math.PI / 2 : Math.PI / 2);
+                                        addFurniture(buildChair(cxp, 0, czp, face));
+                                    }
+                                }
+                            }
+                            if (random() > 0.5) {
+                                // Head-of-table seat
+                                const hx = pcx + (longX ? endOff : 0);
+                                const hz = pcz + (longX ? 0 : endOff);
+                                addFurniture(buildChair(hx, 0, hz, longX ? -Math.PI / 2 : Math.PI));
+                            }
+                            if (random() > 0.55) {
+                                // Presentation CRT left mid-meeting
+                                const crtGroup = new THREE.Group();
+                                const body = new THREE.Mesh(this.terminalBodyGeo, this.baseHousingMat);
+                                body.position.set(0, 0.2, 0);
+                                const screen = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.35, 0.05), this.crtScreenMat);
+                                screen.position.set(0, 0.2, 0.26);
+                                crtGroup.add(body, screen);
+                                crtGroup.position.set(pcx, 0.825, pcz);
+                                crtGroup.rotation.y = random() * Math.PI * 2;
+                                chunkGroup.add(crtGroup);
+                                crtGroup.updateMatrixWorld(true);
+                                body.userData.chunkHash = hash;
+                                screen.userData.chunkHash = hash;
+                                stagingMeshes.push(body, screen);
+                            }
                         }
-                        if (localZ === 7) {
-                            addFurniture(buildChair(x * this.cellSize, 0, z * this.cellSize - 1.2, Math.PI));
-                        }
-                        if (localX === 3 && localZ === 7) {
-                            addFurniture(buildChair(x * this.cellSize - 1.2, 0, z * this.cellSize + 2.0, -Math.PI / 2));
-                        }
-                        if (localX === 12 && localZ === 8) {
-                            addFurniture(buildChair(x * this.cellSize + 1.2, 0, z * this.cellSize - 2.0, Math.PI / 2));
-                        }
+                    }
+
+                    // Cool fluorescent panels over corridors and pockets
+                    if ((localX + localZ) % 3 === 0 && random() > 0.4) {
                         const activeMat = this.baseLightMat.clone();
+                        activeMat.color.setHex(0xe8f2ff);
+                        activeMat.emissive.setHex(0xd8e8ff);
                         const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
-                        panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
+                        panel.position.set(bx, 2.98, bz);
                         chunkGroup.add(panel);
                         this.walls.push(panel);
                         this.fixtureData.push({
                             chunkHash: hash,
-                            position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
+                            position: new THREE.Vector3(bx, 2.8, bz),
                             flickerOffset: random() * 500,
                             material: activeMat,
-                            isFaulty: random() > 0.8,
-                            baseIntensity: 0.6,
-                            targetIntensity: 0.6,
-                            currentIntensity: 0.6
+                            isFaulty: random() > 0.9,
+                            baseIntensity: 0.65,
+                            targetIntensity: 0.65,
+                            currentIntensity: 0.65
                         });
                     }
                 }
@@ -1047,21 +1233,100 @@ export default class TheArchitect {
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.structMat)) return;
                     const isWall = maze && maze[localX][localZ];
+                    const acx = x * this.cellSize, acz = z * this.cellSize;
+                    if (!this.bookRowGeo) {
+                        this.bookRowGeo = new THREE.BoxGeometry(3.5, 0.6, 0.36);
+                        this.geoCache.set(this.bookRowGeo.uuid, true);
+                        this.fileBoxGeo = new THREE.BoxGeometry(0.42, 0.3, 0.32);
+                        this.geoCache.set(this.fileBoxGeo.uuid, true);
+                    }
                     if (isWall) {
-                        const rack = buildWall(this.cellSize * 0.95, this.cellSize * 0.95, this.structMat);
-                        rack.position.set(x * this.cellSize, 1.5, z * this.cellSize);
-                        rack.userData.isEntityBlocker = true;
-                        addGeometry(rack);
-                        for (let h = 0.4; h < 2.8; h += 0.6) {
-                            if (random() > 0.4) {
-                                const boxW = 0.5 + random() * 0.5;
-                                const box = new THREE.Mesh(new THREE.BoxGeometry(boxW, 0.45, 0.65), this.woodMat);
-                                box.position.set(x * this.cellSize + (random() * 0.4 - 0.2), h, z * this.cellSize + (random() * 0.4 - 0.2));
-                                box.rotation.y = (random() - 0.5) * 0.5;
-                                addGeometry(box);
+                        // Double-sided steel archive stack in place of the old concrete
+                        // block (which entombed its boxes INSIDE the solid mass).
+                        // Orient the stack along the maze wall run it belongs to
+                        const inMaze = (nx, nz) => nx >= 0 && nx < this.chunkSize && nz >= 0 && nz < this.chunkSize && maze[nx][nz];
+                        const zRun = inMaze(localX, localZ - 1) || inMaze(localX, localZ + 1);
+                        const xRun = inMaze(localX - 1, localZ) || inMaze(localX + 1, localZ);
+                        const alongZ = zRun && !xRun ? true : (xRun && !zRun ? false : ((localX + localZ) % 2 === 0));
+
+                        // Frame: end uprights + full-height center spine (entity blocker)
+                        for (let e = -1; e <= 1; e += 2) {
+                            const upright = buildWall(alongZ ? 1.0 : 0.12, alongZ ? 0.12 : 1.0, this.metalMat, 3.0);
+                            upright.position.set(acx + (alongZ ? 0 : e * 1.92), 1.5, acz + (alongZ ? e * 1.92 : 0));
+                            addGeometry(upright);
+                        }
+                        const spine = buildWall(alongZ ? 0.08 : 3.9, alongZ ? 3.9 : 0.08, this.metalMat, 3.0);
+                        spine.position.set(acx, 1.5, acz);
+                        spine.userData.isEntityBlocker = true;
+                        addGeometry(spine);
+
+                        // Shelf boards and their contents, both faces
+                        const levels = [0.14, 0.88, 1.62, 2.36];
+                        for (let li = 0; li < levels.length; li++) {
+                            const shelfY = levels[li];
+                            const board = buildWall(alongZ ? 0.96 : 3.9, alongZ ? 3.9 : 0.96, this.woodMat, 0.06);
+                            board.position.set(acx, shelfY, acz);
+                            addGeometry(board);
+                            for (let face = -1; face <= 1; face += 2) {
+                                const roll = random();
+                                if (roll > 0.22) {
+                                    // Packed book row, slid and shortened at random
+                                    const row = new THREE.Mesh(this.bookRowGeo, this.bookRowMat);
+                                    const wScale = 0.45 + random() * 0.55;
+                                    const slide = (random() - 0.5) * 3.5 * (1 - wScale);
+                                    row.position.set(
+                                        acx + (alongZ ? face * 0.24 : slide),
+                                        shelfY + 0.34,
+                                        acz + (alongZ ? slide : face * 0.24)
+                                    );
+                                    if (alongZ) row.rotation.y = Math.PI / 2;
+                                    row.scale.set(wScale, 1, 1);
+                                    addGeometry(row);
+                                }
+                                if (roll < 0.4) {
+                                    // File boxes shelved beside (or instead of) the books
+                                    const boxCount = 1 + Math.floor(random() * 2);
+                                    for (let bi = 0; bi < boxCount; bi++) {
+                                        const fb = new THREE.Mesh(this.fileBoxGeo, this.fileBoxMat);
+                                        const bSlide = (random() - 0.5) * 3.0;
+                                        fb.position.set(
+                                            acx + (alongZ ? face * 0.26 : bSlide),
+                                            shelfY + 0.19,
+                                            acz + (alongZ ? bSlide : face * 0.26)
+                                        );
+                                        fb.rotation.y = (alongZ ? Math.PI / 2 : 0) + (random() - 0.5) * 0.25;
+                                        addGeometry(fb);
+                                    }
+                                }
                             }
                         }
+                        // Top cap
+                        const cap = buildWall(alongZ ? 0.96 : 3.9, alongZ ? 3.9 : 0.96, this.metalMat, 0.06);
+                        cap.position.set(acx, 2.92, acz);
+                        addGeometry(cap);
                     } else {
+                        // Aisle clutter: dropped paperwork and stacked file boxes
+                        if (random() > 0.72) {
+                            const sheets = 1 + Math.floor(random() * 2);
+                            for (let i = 0; i < sheets; i++) {
+                                const sheet = new THREE.Mesh(this.documentGeo, this.documentMat);
+                                sheet.position.set(acx + (random() - 0.5) * 2.6, 0.015, acz + (random() - 0.5) * 2.6);
+                                sheet.rotation.y = random() * Math.PI * 2;
+                                addGeometry(sheet);
+                            }
+                        }
+                        if (random() > 0.88) {
+                            const stackH = 1 + Math.floor(random() * 3);
+                            const sx = acx + (random() - 0.5) * 1.8;
+                            const sz = acz + (random() - 0.5) * 1.8;
+                            const cartonPool = this.cartonMats || [this.fileBoxMat];
+                            for (let i = 0; i < stackH; i++) {
+                                const fb = new THREE.Mesh(this.fileBoxGeo, cartonPool[Math.floor(random() * cartonPool.length)]);
+                                fb.position.set(sx + (random() - 0.5) * 0.08, 0.15 + i * 0.3, sz + (random() - 0.5) * 0.08);
+                                fb.rotation.y = random() * Math.PI * 2;
+                                addGeometry(fb);
+                            }
+                        }
                         if (random() > 0.85) {
                             const activeMat = this.baseBrokenLightMat.clone();
                             const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
@@ -1742,28 +2007,261 @@ export default class TheArchitect {
                 id: "ATRIUM",
                 foundationMat: this.mossMat,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
-                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
-                    if (random() > 0.45) {
-                        const w = 0.4 + (random() * 0.8);
-                        const d = 0.4 + (random() * 0.8);
-                        const trunk = buildWall(w, d, this.woodMat);
-                        const offsetX = (random() - 0.5) * 2.0;
-                        const offsetZ = (random() - 0.5) * 2.0;
-                        trunk.position.set(x * this.cellSize + offsetX, 1.5, z * this.cellSize + offsetZ);
-                        trunk.rotation.y = random() * Math.PI;
+                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) {
+                        const edge = this.chunkSize - 1;
+                        const isDoorwayNS = localX === 7 && (localZ === 0 || localZ === edge);
+                        const isDoorwayEW = localZ === 7 && (localX === 0 || localX === edge);
+                        if (isDoorwayNS || isDoorwayEW) {
+                            const spansX = isDoorwayNS;
+                            const dcx = x * this.cellSize;
+                            const dcz = z * this.cellSize;
+    
+                            const jambA = buildWall(spansX ? 0.5 : 0.7, spansX ? 0.7 : 0.5, this.structMat, 3.0);
+                            jambA.position.set(dcx - (spansX ? 1.75 : 0), 1.5, dcz - (spansX ? 0 : 1.75));
+                            addGeometry(jambA);
+                            const jambB = buildWall(spansX ? 0.5 : 0.7, spansX ? 0.7 : 0.5, this.structMat, 3.0);
+                            jambB.position.set(dcx + (spansX ? 1.75 : 0), 1.5, dcz + (spansX ? 0 : 1.75));
+                            addGeometry(jambB);
+                            const header = buildWall(spansX ? 3.0 : 0.7, spansX ? 0.7 : 3.0, this.metalMat, 0.4);
+                            header.position.set(dcx, 2.8, dcz);
+                            addGeometry(header);
+    
+                            const inSign = (localZ === 0 || localX === 0) ? 1 : -1;
+                            for (let cs = -1; cs <= 1; cs += 2) {
+                                const clad = buildWall(spansX ? 0.4 : 1.7, spansX ? 1.7 : 0.4, this.structMat, 3.0);
+                                clad.position.set(
+                                    dcx + (spansX ? cs * 1.8 : inSign * 1.2),
+                                    1.5,
+                                    dcz + (spansX ? inSign * 1.2 : cs * 1.8)
+                                );
+                                addGeometry(clad);
+                            }
+    
+                            const doorGroup = new THREE.Group();
+                            doorGroup.position.set(dcx, 0, dcz);
+                            const panelGeo = spansX
+                                ? new THREE.BoxGeometry(1.58, 2.6, 0.24)
+                                : new THREE.BoxGeometry(0.24, 2.6, 1.58);
+                            const stripeGeo = spansX
+                                ? new THREE.BoxGeometry(0.14, 2.6, 0.26)
+                                : new THREE.BoxGeometry(0.26, 2.6, 0.14);
+                            const ribGeo = spansX
+                                ? new THREE.BoxGeometry(1.58, 0.08, 0.28)
+                                : new THREE.BoxGeometry(0.28, 0.08, 1.58);
+    
+                            const mkPanel = (side) => {
+                                const p = new THREE.Mesh(panelGeo, this.metalMat);
+                                if (spansX) p.position.set(side * 0.76, 1.3, 0);
+                                else p.position.set(0, 1.3, side * 0.76);
+                                const stripe = new THREE.Mesh(stripeGeo, this.hazardMat);
+                                if (spansX) stripe.position.set(-side * 0.72, 0, 0);
+                                else stripe.position.set(0, 0, -side * 0.72);
+                                p.add(stripe);
+                                for (let ry = -1; ry <= 1; ry += 2) {
+                                    const rib = new THREE.Mesh(ribGeo, this.structMat);
+                                    rib.position.set(0, ry * 0.75, 0);
+                                    p.add(rib);
+                                }
+                                p.castShadow = p.receiveShadow = true;
+                                p.userData.chunkHash = hash;
+                                doorGroup.add(p);
+                                return p;
+                            };
+                            const panelL = mkPanel(-1);
+                            const panelR = mkPanel(1);
+                            chunkGroup.add(doorGroup);
+                            doorGroup.updateMatrixWorld(true);
+                            this.walls.push(panelL, panelR);
+    
+                            const doorBox = new THREE.Box3();
+                            if (spansX) {
+                                doorBox.min.set(dcx - 1.55, 0.0, dcz - 0.25);
+                                doorBox.max.set(dcx + 1.55, 2.6, dcz + 0.25);
+                            } else {
+                                doorBox.min.set(dcx - 0.25, 0.0, dcz - 1.55);
+                                doorBox.max.set(dcx + 0.25, 2.6, dcz + 1.55);
+                            }
+                            doorBox.chunkHash = hash;
+                            this.spatialGrid.insert(doorBox);
+    
+                            const slideAxis = spansX ? 'x' : 'z';
+                            const outSign = (localZ === 0 || localX === 0) ? -1 : 1;
+                            doorGroup.userData = {
+                                chunkHash: hash,
+                                isSlider: true,
+                                spansX: spansX,
+                                panels: [panelL, panelR],
+                                baseOffsets: [panelL.position[slideAxis], panelR.position[slideAxis]],
+                                signs: [-1, 1],
+                                slideDist: 1.62,
+                                progress: 0,
+                                lastTarget: 0,
+                                box: doorBox,
+                                closedBox: doorBox.clone(),
+                                sectorId: "ATRIUM",
+                                outSign: outSign
+                            };
+                            this.interactiveDoors.push(doorGroup);
+                        }
+                        return;
+                    }
+                    const gx = x * this.cellSize, gz = z * this.cellSize;
+
+                    if (!this.foliageGeo) {
+                        this.foliageGeo = new THREE.BoxGeometry(1.5, 0.4, 1.5);
+                        this.geoCache.set(this.foliageGeo.uuid, true);
+                        this.vineGeo = new THREE.BoxGeometry(0.06, 2.6, 0.06);
+                        this.geoCache.set(this.vineGeo.uuid, true);
+                        this.benchSeatGeo = new THREE.BoxGeometry(1.4, 0.08, 0.45);
+                        this.geoCache.set(this.benchSeatGeo.uuid, true);
+                        this.benchBackGeo = new THREE.BoxGeometry(1.4, 0.5, 0.06);
+                        this.geoCache.set(this.benchBackGeo.uuid, true);
+                        this.benchLegGeo = new THREE.BoxGeometry(0.08, 0.44, 0.4);
+                        this.geoCache.set(this.benchLegGeo.uuid, true);
+                    }
+                    const foliage = this.foliageMat || this.fabricMat;
+
+                    // Dried fountain centerpiece where the four walkways cross:
+                    // a tiered pedestal in a low, steppable basin, moss claiming the top
+                    if (localX === 7 && localZ === 7) {
+                        const fcx = gx + 2, fcz = gz + 2;
+                        for (let s = -1; s <= 1; s += 2) {
+                            const wallA = buildWall(2.6, 0.22, this.structMat, 0.45);
+                            wallA.position.set(fcx, 0.225, fcz + s * 1.2);
+                            addGeometry(wallA);
+                            const wallB = buildWall(0.22, 2.6, this.structMat, 0.45);
+                            wallB.position.set(fcx + s * 1.2, 0.225, fcz);
+                            addGeometry(wallB);
+                        }
+                        const pedestal = new THREE.Mesh(this.vPipeGeo, this.structMat);
+                        pedestal.scale.set(3.2, 0.38, 3.2);
+                        pedestal.position.set(fcx, 0.57, fcz);
+                        addGeometry(pedestal);
+                        const bowl = buildWall(1.0, 1.0, this.structMat, 0.14);
+                        bowl.position.set(fcx, 1.2, fcz);
+                        addGeometry(bowl);
+                        const spire = buildWall(0.5, 0.5, this.structMat, 0.5);
+                        spire.position.set(fcx, 1.5, fcz);
+                        addGeometry(spire);
+                        const mossCap = buildWall(0.56, 0.56, this.mossMat, 0.06);
+                        mossCap.position.set(fcx, 1.78, fcz);
+                        addGeometry(mossCap);
+                        return;
+                    }
+
+                    // Paved walkways between the doorways
+                    if (localX === 7 || localZ === 7) {
+                        const path = buildWall(localZ === 7 ? this.cellSize : 1.6, localZ === 7 ? 1.6 : this.cellSize, this.tileMat, 0.04);
+                        path.position.set(gx, 0.05, gz);
+                        addGeometry(path);
+                        return;
+                    }
+
+                    // Benches flanking the walkways, turned to face them
+                    const besideX = localX === 6 || localX === 9;
+                    const besideZ = localZ === 6 || localZ === 9;
+                    if ((besideX || besideZ) && random() > 0.8) {
+                        const bench = new THREE.Group();
+                        const seat = new THREE.Mesh(this.benchSeatGeo, this.woodMat);
+                        seat.position.y = 0.48;
+                        bench.add(seat);
+                        const back = new THREE.Mesh(this.benchBackGeo, this.woodMat);
+                        back.position.set(0, 0.75, -0.22);
+                        bench.add(back);
+                        for (let e = -1; e <= 1; e += 2) {
+                            const leg = new THREE.Mesh(this.benchLegGeo, this.metalMat);
+                            leg.position.set(e * 0.6, 0.22, 0);
+                            bench.add(leg);
+                        }
+                        bench.position.set(gx, 0, gz);
+                        bench.rotation.y = besideX ? (localX === 6 ? Math.PI / 2 : -Math.PI / 2) : (localZ === 6 ? 0 : Math.PI);
+                        addFurniture(bench);
+                        return;
+                    }
+
+                    // Raised planter beds: leaning trees in mossy soil, one in five dead
+                    if (localX % 3 === 1 && localZ % 3 === 1) {
+                        const planter = buildWall(1.9, 1.9, this.structMat, 0.42);
+                        planter.position.set(gx, 0.21, gz);
+                        addGeometry(planter);
+                        const soil = buildWall(1.7, 1.7, this.mossMat, 0.1);
+                        soil.position.set(gx, 0.47, gz);
+                        addGeometry(soil);
+
+                        const isDead = random() < 0.2;
+                        const lean = (random() - 0.5) * 0.16;
+                        const leanDir = random() * Math.PI * 2;
+                        const trunk = new THREE.Mesh(this.vPipeGeo, this.woodMat);
+                        trunk.scale.set(1.8 + random() * 1.4, 0.75 + random() * 0.2, 1.8 + random() * 1.4);
+                        trunk.position.set(gx, 1.35, gz);
+                        trunk.rotation.set(Math.cos(leanDir) * lean, 0, Math.sin(leanDir) * lean);
                         addGeometry(trunk);
-                        if (random() > 0.20) {
-                            const cHeight = 0.4 + random() * 0.4;
-                            const scaleX = 1.2 + random();
-                            const scaleZ = 1.2 + random();
-                            const canopy = buildWall(this.cellSize, this.cellSize, this.fabricMat, 1.0, 0);
-                            canopy.scale.set(scaleX, cHeight, scaleZ);
-                            canopy.position.set(x * this.cellSize + offsetX, 3.0 - (cHeight / 2), z * this.cellSize + offsetZ);
-                            canopy.rotation.y = random() * Math.PI;
-                            canopy.castShadow = true;
-                            addGeometry(canopy);
+
+                        if (isDead) {
+                            for (let bi = 0; bi < 2; bi++) {
+                                const branch = buildWall(0.07, 0.07, this.woodMat, 1.0);
+                                branch.position.set(gx + (random() - 0.5) * 0.8, 2.1 + random() * 0.5, gz + (random() - 0.5) * 0.8);
+                                branch.rotation.set((random() - 0.5) * 1.6, random() * Math.PI, (random() - 0.5) * 1.6);
+                                addGeometry(branch);
+                            }
+                        } else {
+                            const tiers = 2 + Math.floor(random() * 3);
+                            for (let ti = 0; ti < tiers; ti++) {
+                                const tier = new THREE.Mesh(this.foliageGeo, foliage);
+                                const ts = 1.25 - ti * 0.25 + random() * 0.3;
+                                tier.scale.set(ts, 0.8 + random() * 0.5, ts);
+                                tier.position.set(gx + (random() - 0.5) * 0.5, 2.15 + ti * 0.48, gz + (random() - 0.5) * 0.5);
+                                tier.rotation.y = random() * Math.PI;
+                                tier.castShadow = true;
+                                addGeometry(tier);
+                            }
+                        }
+                        return;
+                    }
+
+                    // Vines dangling out of the void — the atrium has no ceiling, and
+                    // whatever these hang from is not on this floor. Collisionless.
+                    if ((localX * 3 + localZ * 5) % 7 === 0 && random() > 0.35) {
+                        const vineCount = 1 + Math.floor(random() * 2);
+                        for (let vi = 0; vi < vineCount; vi++) {
+                            const vine = new THREE.Mesh(this.vineGeo, foliage);
+                            vine.position.set(gx + (random() - 0.5) * 2.8, 3.4 + random() * 0.8, gz + (random() - 0.5) * 2.8);
+                            vine.rotation.set((random() - 0.5) * 0.12, 0, (random() - 0.5) * 0.12);
+                            vine.scale.y = 0.7 + random() * 0.6;
+                            vine.userData.chunkHash = hash;
+                            vine.updateMatrixWorld(true);
+                            stagingMeshes.push(vine);
                         }
                     }
+
+                    // Garden lanterns at the four garden corners — the only warm
+                    // light in the zone
+                    if ((localX === 2 || localX === 13) && (localZ === 2 || localZ === 13)) {
+                        const post = new THREE.Mesh(this.vPipeGeo, this.metalMat);
+                        post.scale.set(0.9, 0.56, 0.9);
+                        post.position.set(gx, 0.84, gz);
+                        addGeometry(post);
+                        const lampMat = this.baseLightMat.clone();
+                        lampMat.color.setHex(0xffcc88);
+                        lampMat.emissive.setHex(0xff9944);
+                        const lamp = buildWall(0.24, 0.24, lampMat, 0.28);
+                        lamp.position.set(gx, 1.82, gz);
+                        lamp.userData.chunkHash = hash;
+                        chunkGroup.add(lamp);
+                        lamp.updateMatrixWorld(true);
+                        this.walls.push(lamp);
+                        this.fixtureData.push({
+                            chunkHash: hash,
+                            position: new THREE.Vector3(gx, 1.8, gz),
+                            flickerOffset: random() * 500,
+                            material: lampMat,
+                            isFaulty: random() > 0.75,
+                            baseIntensity: 0.55,
+                            targetIntensity: 0.55,
+                            currentIntensity: 0.55
+                        });
+                    }
+
                     if (random() > 0.90) {
                         const activeMat = this.baseBrokenLightMat.clone();
                         const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);

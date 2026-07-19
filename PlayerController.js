@@ -52,6 +52,7 @@ export default class PlayerController {
         this.coherence = 1.0;
         this.currentLean = 0.0;
         this.isBlindFolded = false;
+        this.isGodMode = false;
         this.baseFov = camera.fov;
         this.linguisticDarkMatter = 0.0;
         this.currentFov = camera.fov;
@@ -128,10 +129,28 @@ export default class PlayerController {
                 this.isWinded = false;
             }
         });
+        document.addEventListener('somatic-toggle-godmode', () => {
+            this.isGodMode = !this.isGodMode;
+            if (this.isGodMode) {
+                this.stamina = this.maxStamina;
+                this.coherence = 1.0;
+                this.exhaustion = 0.0;
+                this.isWinded = false;
+                console.log("God mode enabled");
+            } else {
+                console.log("God mode disabled");
+            }
+        });
     }
 
     update(delta, spatialGrid) {
         delta = Math.min(delta, 0.05);
+        if (this.isGodMode) {
+            this.stamina = this.maxStamina;
+            this.coherence = 1.0;
+            this.exhaustion = 0.0;
+            this.isWinded = false;
+        }
         this.input.update();
         const state = this.input.state;
         this.camera.position.x -= this._leanOffset.x;

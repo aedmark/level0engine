@@ -37,7 +37,7 @@ export default class Environment {
         this.sectorFog = {
             POOLROOMS: 0.08, CLINIC: 0.03, BOARDROOM: 0.015, ARCHIVE: 0.12,
             SERVER: 0.08, MAINTENANCE: 0.10, CHASM: 0.015, INCINERATOR: 0.25,
-            ANNEX: 0.02, ATRIUM: 0.18, EXIT: 0.05, CHECKPOINT: 0.05
+            ANNEX: 0.02, ATRIUM: 0.02, EXIT: 0.05, CHECKPOINT: 0.05
         };
     }
 
@@ -498,6 +498,18 @@ export default class Environment {
         document.getElementById('captureBtn').addEventListener('click', capture);
         document.addEventListener('capture-screenshot', capture);
         this.tagRaycaster = new THREE.Raycaster();
+        document.addEventListener('somatic-teleport-zone', () => {
+            if (this.macroZones.size > 0) {
+                const zones = Array.from(this.macroZones.values());
+                const zone = zones[Math.floor(Math.random() * zones.length)];
+                const centerX = (zone.minX + zone.maxX) / 2;
+                const centerZ = (zone.minZ + zone.maxZ) / 2;
+                this.camera.position.set(centerX, 1.6, centerZ);
+                console.log(`Teleported to zone: ${zone.id}`);
+            } else {
+                console.log("No macro zones available to teleport to.");
+            }
+        });
         document.addEventListener('somatic-tag', () => {
             this.tagRaycaster.set(this.camera.position, this.camera.getWorldDirection(new THREE.Vector3()));
             const intersects = this.tagRaycaster.intersectObjects(this.walls, false);
@@ -845,6 +857,220 @@ export default class Environment {
             this.incinCeilingMat = new THREE.MeshStandardMaterial({
                 map: ceilTex, bumpMap: ceilTex, bumpScale: 0.03, metalness: 0.3, roughness: 0.9
             });
+
+            // --- BOARDROOM SURFACES ---
+            // Polished office tile: warm light grey, large format, faint grout lines
+            const btc = document.createElement('canvas');
+            btc.width = btc.height = 256;
+            const btx = btc.getContext('2d');
+            btx.fillStyle = '#b3aea4';
+            btx.fillRect(0, 0, 256, 256);
+            for (let ty = 0; ty < 2; ty++) {
+                for (let tx = 0; tx < 2; tx++) {
+                    const sh = 172 + Math.floor(Math.random() * 14);
+                    btx.fillStyle = `rgb(${sh},${sh - 3},${sh - 10})`;
+                    btx.fillRect(tx * 128 + 2, ty * 128 + 2, 124, 124);
+                }
+            }
+            for (let i = 0; i < 40; i++) {
+                btx.fillStyle = `rgba(255,255,255,${0.02 + Math.random() * 0.04})`;
+                btx.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 40, 1);
+            }
+            btx.strokeStyle = '#8d887e';
+            btx.lineWidth = 3;
+            btx.strokeRect(0, 0, 256, 256);
+            btx.beginPath(); btx.moveTo(128, 0); btx.lineTo(128, 256); btx.stroke();
+            btx.beginPath(); btx.moveTo(0, 128); btx.lineTo(256, 128); btx.stroke();
+            const btTex = new THREE.CanvasTexture(btc);
+            btTex.wrapS = btTex.wrapT = THREE.RepeatWrapping;
+            btTex.repeat.set(14, 14);
+            this.boardTileMat = new THREE.MeshStandardMaterial({map: btTex, roughness: 0.35, metalness: 0.1});
+
+            // Office partition glass for the boardroom fishbowl maze
+            this.glassMat = new THREE.MeshStandardMaterial({
+                color: 0xbfe3ef, transparent: true, opacity: 0.22,
+                roughness: 0.08, metalness: 0.1, depthWrite: false
+            });
+
+            // --- ARCHIVE SURFACES ---
+            // Book spines: packed rows of muted cloth bindings with gaps
+            const bkc = document.createElement('canvas');
+            bkc.width = 256;
+            bkc.height = 128;
+            const bkx = bkc.getContext('2d');
+            bkx.fillStyle = '#17130f';
+            bkx.fillRect(0, 0, 256, 128);
+            const spinePalette = ['#6b3a34', '#3e4a63', '#5a5e46', '#7a6748', '#54504e', '#463b52', '#70543a', '#33413e'];
+            let spineX = 0;
+            while (spineX < 252) {
+                const sw = 6 + Math.floor(Math.random() * 9);
+                if (Math.random() > 0.08) {
+                    const sh = 96 + Math.floor(Math.random() * 28);
+                    bkx.fillStyle = spinePalette[Math.floor(Math.random() * spinePalette.length)];
+                    bkx.fillRect(spineX, 128 - sh, sw, sh);
+                    bkx.fillStyle = 'rgba(255,255,255,0.08)';
+                    bkx.fillRect(spineX, 128 - sh, 1, sh);
+                    bkx.fillStyle = 'rgba(0,0,0,0.35)';
+                    bkx.fillRect(spineX + sw - 1, 128 - sh, 1, sh);
+                    if (Math.random() > 0.5) {
+                        bkx.fillStyle = 'rgba(210,190,140,0.35)';
+                        bkx.fillRect(spineX + 1, 128 - sh + 8 + Math.floor(Math.random() * 20), sw - 2, 2);
+                    }
+                }
+                spineX += sw + 1;
+            }
+            const bkTex = new THREE.CanvasTexture(bkc);
+            bkTex.wrapS = bkTex.wrapT = THREE.RepeatWrapping;
+            bkTex.repeat.set(3, 1);
+            this.bookRowMat = new THREE.MeshStandardMaterial({map: bkTex, roughness: 0.9, metalness: 0.0});
+
+            // Manila file boxes with a fading label
+            const fbc = document.createElement('canvas');
+            fbc.width = fbc.height = 128;
+            const fbx = fbc.getContext('2d');
+            fbx.fillStyle = '#b59a6d';
+            fbx.fillRect(0, 0, 128, 128);
+            fbx.fillStyle = 'rgba(0,0,0,0.12)';
+            fbx.fillRect(0, 0, 128, 8);
+            fbx.fillRect(0, 56, 128, 6);
+            fbx.fillStyle = '#e8e2d2';
+            fbx.fillRect(38, 72, 52, 26);
+            fbx.strokeStyle = '#8a7a55';
+            fbx.strokeRect(38, 72, 52, 26);
+            fbx.fillStyle = 'rgba(60,50,30,0.5)';
+            fbx.fillRect(44, 80, 40, 2);
+            fbx.fillRect(44, 86, 28, 2);
+            const fbTex = new THREE.CanvasTexture(fbc);
+            this.fileBoxMat = new THREE.MeshStandardMaterial({map: fbTex, roughness: 0.85, metalness: 0.0});
+
+            // Moving box: brown cardboard, packing tape seam, marker scrawl
+            const mvc = document.createElement('canvas');
+            mvc.width = mvc.height = 128;
+            const mvx = mvc.getContext('2d');
+            mvx.fillStyle = '#a97e52';
+            mvx.fillRect(0, 0, 128, 128);
+            mvx.fillStyle = 'rgba(0,0,0,0.10)';
+            mvx.fillRect(0, 118, 128, 10);
+            mvx.fillRect(0, 0, 4, 128);
+            mvx.fillRect(124, 0, 4, 128);
+            mvx.fillStyle = 'rgba(196,178,142,0.85)';
+            mvx.fillRect(0, 18, 128, 14);
+            mvx.fillStyle = 'rgba(0,0,0,0.18)';
+            mvx.fillRect(0, 24, 128, 2);
+            mvx.strokeStyle = '#2a2118';
+            mvx.lineWidth = 3;
+            mvx.beginPath();
+            mvx.moveTo(24, 76); mvx.lineTo(52, 72); mvx.lineTo(78, 78); mvx.lineTo(102, 74);
+            mvx.stroke();
+            mvx.lineWidth = 2;
+            mvx.beginPath();
+            mvx.moveTo(30, 92); mvx.lineTo(66, 90); mvx.lineTo(88, 94);
+            mvx.stroke();
+            mvx.fillStyle = '#2a2118';
+            mvx.beginPath();
+            mvx.moveTo(112, 52); mvx.lineTo(106, 62); mvx.lineTo(118, 62);
+            mvx.closePath();
+            mvx.fill();
+            mvx.fillRect(110, 62, 4, 10);
+            const mvTex = new THREE.CanvasTexture(mvc);
+            this.movingBoxMat = new THREE.MeshStandardMaterial({map: mvTex, roughness: 0.85, metalness: 0.0});
+
+            // Banana box: fruit-brand oval and a handle hole
+            const bnc = document.createElement('canvas');
+            bnc.width = bnc.height = 128;
+            const bnx = bnc.getContext('2d');
+            bnx.fillStyle = '#b08d5a';
+            bnx.fillRect(0, 0, 128, 128);
+            bnx.fillStyle = 'rgba(0,0,0,0.12)';
+            bnx.fillRect(0, 0, 128, 6);
+            bnx.fillRect(0, 122, 128, 6);
+            bnx.fillStyle = '#241a10';
+            bnx.fillRect(44, 12, 40, 13);
+            bnx.fillStyle = '#1c4f8f';
+            bnx.beginPath();
+            bnx.ellipse(64, 74, 40, 26, 0, 0, Math.PI * 2);
+            bnx.fill();
+            bnx.fillStyle = '#f7d64a';
+            bnx.beginPath();
+            bnx.ellipse(64, 74, 29, 17, 0, 0, Math.PI * 2);
+            bnx.fill();
+            bnx.strokeStyle = '#1c4f8f';
+            bnx.lineWidth = 3;
+            bnx.beginPath();
+            bnx.moveTo(48, 78);
+            bnx.quadraticCurveTo(64, 62, 80, 78);
+            bnx.stroke();
+            const bnTex = new THREE.CanvasTexture(bnc);
+            this.bananaBoxMat = new THREE.MeshStandardMaterial({map: bnTex, roughness: 0.85, metalness: 0.0});
+
+            // Parcel: fresh cardboard, branded chevron tape, label with barcode
+            const pcc = document.createElement('canvas');
+            pcc.width = pcc.height = 128;
+            const pcx2 = pcc.getContext('2d');
+            pcx2.fillStyle = '#8f6a42';
+            pcx2.fillRect(0, 0, 128, 128);
+            pcx2.fillStyle = '#2b2b2e';
+            pcx2.fillRect(0, 16, 128, 16);
+            pcx2.strokeStyle = '#e8e8ea';
+            pcx2.lineWidth = 2;
+            for (let i = 0; i < 8; i++) {
+                pcx2.beginPath();
+                pcx2.moveTo(8 + i * 16, 20);
+                pcx2.lineTo(14 + i * 16, 24);
+                pcx2.lineTo(8 + i * 16, 28);
+                pcx2.stroke();
+            }
+            pcx2.fillStyle = '#efece4';
+            pcx2.fillRect(30, 56, 68, 48);
+            pcx2.fillStyle = 'rgba(40,40,40,0.6)';
+            pcx2.fillRect(36, 62, 44, 2);
+            pcx2.fillRect(36, 68, 30, 2);
+            pcx2.fillStyle = '#1a1a1a';
+            let barX = 36;
+            while (barX < 90) {
+                const bw = 1 + Math.floor(Math.random() * 3);
+                pcx2.fillRect(barX, 84, bw, 14);
+                barX += bw + 1 + Math.floor(Math.random() * 3);
+            }
+            // The legally distinct smiling arrow
+            pcx2.strokeStyle = '#c8771f';
+            pcx2.lineWidth = 3;
+            pcx2.beginPath();
+            pcx2.moveTo(40, 44);
+            pcx2.quadraticCurveTo(64, 54, 88, 44);
+            pcx2.stroke();
+            pcx2.fillStyle = '#c8771f';
+            pcx2.beginPath();
+            pcx2.moveTo(88, 38); pcx2.lineTo(94, 45); pcx2.lineTo(85, 48);
+            pcx2.closePath();
+            pcx2.fill();
+            const pcTex = new THREE.CanvasTexture(pcc);
+            this.parcelBoxMat = new THREE.MeshStandardMaterial({map: pcTex, roughness: 0.85, metalness: 0.0});
+
+            // The mixed pool every non-shelf carton spawn draws from
+            this.cartonMats = [this.fileBoxMat, this.movingBoxMat, this.bananaBoxMat, this.parcelBoxMat];
+
+            // --- ATRIUM FOLIAGE ---
+            // Mottled overgrowth: layered leaf-blob shades with shadow streaks
+            const flc = document.createElement('canvas');
+            flc.width = flc.height = 128;
+            const flx = flc.getContext('2d');
+            flx.fillStyle = '#2c3d24';
+            flx.fillRect(0, 0, 128, 128);
+            const leafShades = ['#3a5230', '#243620', '#4a6238', '#31452a', '#556b3e'];
+            for (let i = 0; i < 260; i++) {
+                flx.fillStyle = leafShades[Math.floor(Math.random() * leafShades.length)];
+                flx.beginPath();
+                flx.arc(Math.random() * 128, Math.random() * 128, 3 + Math.random() * 7, 0, Math.PI * 2);
+                flx.fill();
+            }
+            flx.fillStyle = 'rgba(0,0,0,0.18)';
+            for (let i = 0; i < 40; i++) {
+                flx.fillRect(Math.random() * 128, Math.random() * 128, 2 + Math.random() * 10, 1 + Math.random() * 3);
+            }
+            const flTex = new THREE.CanvasTexture(flc);
+            flTex.wrapS = flTex.wrapT = THREE.RepeatWrapping;
+            this.foliageMat = new THREE.MeshStandardMaterial({map: flTex, roughness: 0.95, metalness: 0.0});
 
             this.cushionGeo = new THREE.BoxGeometry(0.8, 0.15, 0.8);
             this.backrestGeo = new THREE.BoxGeometry(0.8, 0.8, 0.15);
@@ -1523,6 +1749,12 @@ export default class Environment {
             case "INCINERATOR":
                 this._targetFogColor.setHex(0x551100); // Deep rusty red
                 break;
+            case "ARCHIVE":
+                this._targetFogColor.setHex(0x6f695e); // Grey-brown smoke haze
+                break;
+            case "ATRIUM":
+                this._targetFogColor.setHex(0x51604b); // Humid overgrowth green
+                break;
             case "CLINIC":
                 this._targetFogColor.setHex(0x7799aa); // Cold sterile blue
                 break;
@@ -1550,8 +1782,10 @@ export default class Environment {
             this.dustCloud.position.copy(cameraPos);
             this.dustCloud.rotation.y = time * 0.05;
             this.dustCloud.rotation.z = time * 0.02;
-            const targetDustOpacity = this.player.isCrawling ? 0.35 : 0.10;
-            const targetDustSize = this.player.isCrawling ? 0.08 : 0.05;
+            // The archive hangs thick with paper dust
+            const inArchive = activeSector === "ARCHIVE";
+            const targetDustOpacity = this.player.isCrawling ? (inArchive ? 0.45 : 0.35) : (inArchive ? 0.30 : 0.10);
+            const targetDustSize = this.player.isCrawling ? (inArchive ? 0.09 : 0.08) : (inArchive ? 0.07 : 0.05);
             this.dustCloud.material.opacity += (targetDustOpacity - this.dustCloud.material.opacity) * 0.05;
             this.dustCloud.material.size += (targetDustSize - this.dustCloud.material.size) * 0.05;
         }

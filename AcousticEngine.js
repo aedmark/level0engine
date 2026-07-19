@@ -69,9 +69,9 @@ export default class AcousticEngine {
                 dynamicWhine: false
             },
             "ARCHIVE": {
-                noise: 0.0,
+                noise: 0.06,
                 peace: 0.0,
-                rumble: 60,
+                rumble: 45,
                 freq: 60,
                 freqOcc: 60,
                 whine: 0.0005,
@@ -107,6 +107,16 @@ export default class AcousticEngine {
                 whine: 0.0,
                 whineOcc: 0.0,
                 dynamicWhine: false
+            },
+            "ATRIUM": {
+                noise: 0.16,
+                peace: 0.04,
+                rumble: 40,
+                freq: 130,
+                freqOcc: 80,
+                whine: 0.0,
+                whineOcc: 0.0,
+                dynamicWhine: false
             }
         };
         this.foleyProfiles = {
@@ -119,6 +129,8 @@ export default class AcousticEngine {
                 decay: 0.15
             },
             "CLINIC": {oscFreq: 800, filterType: 'highpass', filterFreq: 3000, gain: 0.15, attack: 0.01, decay: 0.06},
+            "ARCHIVE": {oscFreq: 90, filterType: 'lowpass', filterFreq: 900, gain: 0.12, attack: 0.03, decay: 0.10},
+            "ATRIUM": {oscFreq: 70, filterType: 'lowpass', filterFreq: 700, gain: 0.09, attack: 0.04, decay: 0.22},
             "BOARDROOM": {oscFreq: 120, filterType: 'lowpass', filterFreq: 1400, gain: 0.18, attack: 0.02, decay: 0.12},
             "MAINTENANCE": {
                 oscFreq: 400,
@@ -352,6 +364,7 @@ export default class AcousticEngine {
                 "ATRIUM": 0.4,
                 "MAINTENANCE": 0.05,
                 "INCINERATOR": 0.02,
+                "ARCHIVE": 0.35,
                 "NORMAL": 0.15
             };
             const feedbackVals = {
@@ -360,12 +373,56 @@ export default class AcousticEngine {
                 "ATRIUM": 0.3,
                 "MAINTENANCE": 0.1,
                 "INCINERATOR": 0.05,
+                "ARCHIVE": 0.45,
                 "NORMAL": 0.2
             };
             const targetDelay = delayTimes[activeSector] || 0.15;
             const targetFeedback = feedbackVals[activeSector] || 0.2;
             setParam('delayTime', this.spatialDelay.delayTime, targetDelay, 1.0);
             setParam('feedback', this.feedbackGain.gain, targetFeedback, 1.0);
+        }
+
+        // ARCHIVE room tone: a quiet library that isn't actually quiet. Unseen
+        // patrons whisper, cough, and turn pages somewhere in the stacks, washed
+        // through the sector's long soft reverb.
+        if (activeSector === "ARCHIVE" && !isBlackout) {
+            if (!this._archiveNextEvent) this._archiveNextEvent = time + 2.0;
+            // Second burst of a double cough ("k-khh")
+            if (this._archiveCoughAt && time >= this._archiveCoughAt) {
+                this.triggerSomaticEvent('cough', this._archiveCoughDistSq, 0.7 + Math.random() * 0.4);
+                this._archiveCoughAt = 0;
+            }
+            if (time >= this._archiveNextEvent) {
+                this._archiveNextEvent = time + 4.0 + Math.random() * 9.0;
+                const roll = Math.random();
+                const fakeDistSq = 36.0 + Math.random() * 364.0;
+                if (roll < 0.45) this.triggerSomaticEvent('whisper', fakeDistSq, 0.5 + Math.random() * 0.4);
+                else if (roll < 0.75) {
+                    this.triggerSomaticEvent('cough', fakeDistSq, 0.9 + Math.random() * 0.4);
+                    this._archiveCoughAt = time + 0.1 + Math.random() * 0.06;
+                    this._archiveCoughDistSq = fakeDistSq;
+                } else {
+                    this.triggerSomaticEvent('page', fakeDistSq, 0.5 + Math.random() * 0.4);
+                }
+            }
+        } else {
+            this._archiveNextEvent = 0;
+            this._archiveCoughAt = 0;
+        }
+
+        // ATRIUM room tone: something rustles in the overgrowth; water finds
+        // its way down from wherever the vines come from.
+        if (activeSector === "ATRIUM" && !isBlackout) {
+            if (!this._atriumNextEvent) this._atriumNextEvent = time + 3.0;
+            if (time >= this._atriumNextEvent) {
+                this._atriumNextEvent = time + 5.0 + Math.random() * 10.0;
+                const aRoll = Math.random();
+                const aDistSq = 36.0 + Math.random() * 364.0;
+                if (aRoll < 0.55) this.triggerSomaticEvent('leaves', aDistSq, 0.5 + Math.random() * 0.5);
+                else this.triggerSomaticEvent('drip', aDistSq, 0.6 + Math.random() * 0.5);
+            }
+        } else {
+            this._atriumNextEvent = 0;
         }
         if (this.tinnitusGain) {
             const isPanicking = paranoia > 0.7 && playerExhaustion > 0.6;
@@ -449,7 +506,11 @@ export default class AcousticEngine {
             'vent': ['sawtooth', 400, 80, 0.4, 0.1, 0.03, 0.5, {type: 'bandpass', start: 1500, end: 300, ramp: 0.4}],
             'breaker': ['square', 900, 100, 0.15, 0.12, 0.01, 0.15, null],
             'item': ['sine', 1200, 600, 0.3, 0.08, 0.02, 0.4, null],
-            'whisper': ['sine', 800, 200, 1.5, 0.04, 0.5, 1.5, {type: 'highpass', start: 1200, end: 600, ramp: 1.0}],
+            'whisper': ['sine', 25, 20, 1.2, 0.06, 0.4, 1.4, {type: 'bandpass', start: 2800, end: 1600, ramp: 1.2}],
+            'cough': ['sine', 70, 45, 0.05, 0.22, 0.005, 0.16, {type: 'bandpass', start: 900, end: 350, ramp: 0.1}],
+            'page': ['sine', 30, 20, 0.1, 0.02, 0.05, 0.35, {type: 'highpass', start: 2500, end: 1500, ramp: 0.3}],
+            'leaves': ['sine', 22, 18, 0.9, 0.05, 0.3, 1.1, {type: 'bandpass', start: 1600, end: 900, ramp: 0.9}],
+            'drip': ['sine', 1100, 350, 0.06, 0.07, 0.005, 0.35, null],
             'laugh': ['square', 110, 35, 1.8, 0.25, 0.1, 2.5, {type: 'lowpass', start: 800, end: 150, ramp: 1.5}]
         };
         if (voices[type]) spawnVoice(...voices[type]);

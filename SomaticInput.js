@@ -1,7 +1,7 @@
 // SomaticInput.js
 // LEVEL 0 PERIPHERAL NERVOUS SYSTEM
 
-const PREVENT_KEYS = new Set(['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyV', 'KeyQ', 'KeyF', 'KeyE']);
+const PREVENT_KEYS = new Set(['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyV', 'KeyQ', 'KeyF', 'KeyE', 'KeyG', 'KeyZ']);
 
 export default class SomaticInput {
     constructor(camera) {
@@ -229,6 +229,12 @@ export default class SomaticInput {
                     detail: {position: this.camera.position, direction: this.camera.getWorldDirection(new THREE.Vector3())}
                 }));
             }
+        }
+        if (event.code === 'KeyG') {
+            document.dispatchEvent(new Event('somatic-toggle-godmode'));
+        }
+        if (event.code === 'KeyZ') {
+            document.dispatchEvent(new Event('somatic-teleport-zone'));
         }
         switch (key) {
             case 'ArrowUp':
