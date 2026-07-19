@@ -9,8 +9,8 @@ export default class PlayerController {
         this.camera = camera;
         this.domElement = domElement;
         this.input = new SomaticInput(camera);
-        this.velocity = new THREE.Vector3();
-        this.direction = new THREE.Vector3();
+        this.velocity = new Vector3();
+        this.direction = new Vector3();
         this.isSqueezing = false;
         this.flashlightBattery = 100.0;
         this.baseRadius = 0.4;

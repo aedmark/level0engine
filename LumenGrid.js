@@ -1,6 +1,8 @@
 // LumenGrid.js
 // LEVEL 0 ILLUMINATION SUBSYSTEM
 
+import { PointLight } from './EngineScenegraph.js';
+
 export default class LumenGrid {
     constructor(scene, isMobile) {
         this.scene = scene;
@@ -10,7 +12,7 @@ export default class LumenGrid {
         this._activeFixtures = new Array(this.maxActiveLights).fill(null);
         for (let i = 0; i < this.maxActiveLights; i++) {
             const radius = i < this.maxShadowLights ? 20 : 30;
-            const light = new THREE.PointLight(0xffebd6, 0, radius, 2.0);
+            const light = new PointLight(0xffebd6, 0, radius, 2.0);
             if (i < this.maxShadowLights) {
                 light.castShadow = true;
                 light.shadow.mapSize.width = 512;

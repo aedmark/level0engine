@@ -6,7 +6,8 @@ import Anomaly from './Anomaly.js';
 import SpatialHashGrid from './SpatialHashGrid.js';
 import TheArchitect from './TheArchitect.js';
 import LumenGrid from './LumenGrid.js';
-import { Vector3, Box3 } from './EngineMath.js';
+import { Vector3, Box3, Raycaster, Matrix3, Matrix4, Color } from './EngineMath.js';
+import { Group, Mesh, InstancedMesh, BoxGeometry, MeshBasicMaterial, CanvasTexture, MeshStandardMaterial, SpotLight } from './EngineScenegraph.js';
 
 export default class Environment {
     constructor(engine, player) {
@@ -185,8 +186,8 @@ export default class Environment {
                 const distSq = playerPos.distanceToSquared(obs.position);
                 let beingLookedAt = false;
                 if (distSq < 625.0) {
-                    if (!this._sharedToObs) this._sharedToObs = new THREE.Vector3();
-                    if (!this._sharedLookDir) this._sharedLookDir = new THREE.Vector3();
+                    if (!this._sharedToObs) this._sharedToObs = new Vector3();
+                    if (!this._sharedLookDir) this._sharedLookDir = new Vector3();
                     this._sharedToObs.subVectors(obs.position, playerPos).normalize();
                     this._sharedLookDir.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
                     if (this._sharedLookDir.dot(this._sharedToObs) > 0.90) beingLookedAt = true;
@@ -202,9 +203,9 @@ export default class Environment {
                             detail: {distSq: distSq, isLaugh: isLaugh, intensity: isLaugh ? 2.0 : 0.6}
                         }));
                         if (Math.random() > 0.8 && this.interactables) {
-                            const almondGroup = new THREE.Group();
+                            const almondGroup = new Group();
                             almondGroup.add(this.almondPrefab.clone());
-                            const aGlow = new THREE.Mesh(this.glowGeo, this.glowMat);
+                            const aGlow = new Mesh(this.glowGeo, this.glowMat);
                             aGlow.scale.set(0.15, 0.15, 0.15);
                             aGlow.position.y = 0.01;
                             almondGroup.add(aGlow);
@@ -252,18 +253,66 @@ export default class Environment {
     }
 
     setup() {
-        const assets = ProceduralTextureFactory.generateAssets();
-        Object.assign(this, assets);
-        const {carpetTexture, ceilingTexture} = assets;
+        const rawAssets = ProceduralTextureFactory.generateAssets();
+
+        // --- TEXTURE WRAPPING ---
+        this.wallTexture = new CanvasTexture(rawAssets.wallCanvas);
+        this.wallTexture.wrapS = THREE.RepeatWrapping;
+        this.wallTexture.wrapT = THREE.ClampToEdgeWrapping;
+        this.wallTexture.repeat.set(4, 1);
+
+        const headerTexture = new CanvasTexture(rawAssets.headerCanvas);
+        headerTexture.wrapS = headerTexture.wrapT = THREE.RepeatWrapping;
+        headerTexture.repeat.set(4, 0.1);
+        headerTexture.offset.set(0, 0.9);
+        this.headerMat = new MeshStandardMaterial({
+            map: headerTexture,
+            roughness: 0.8,
+            bumpMap: headerTexture,
+            bumpScale: 0.01
+        });
+
+        const structTexture = new CanvasTexture(rawAssets.structCanvas);
+        structTexture.wrapS = structTexture.wrapT = THREE.RepeatWrapping;
+        structTexture.repeat.set(2, 2);
+        this.structMat = new MeshStandardMaterial({
+            map: structTexture,
+            roughness: 1.0,
+            bumpMap: structTexture,
+            bumpScale: 0.02
+        });
+
+        const woodTexture = new CanvasTexture(rawAssets.woodCanvas);
+        this.woodMat = new MeshStandardMaterial({
+            map: woodTexture,
+            roughness: 0.9,
+            bumpMap: woodTexture,
+            bumpScale: 0.015
+        });
+
+        const doorTexture = new CanvasTexture(rawAssets.doorCanvas);
+        const doorBackTexture = new CanvasTexture(rawAssets.doorBackCanvas);
+        const doorMatFront = new MeshStandardMaterial({map: doorTexture, roughness: 0.9});
+        const doorMatBack = new MeshStandardMaterial({map: doorBackTexture, roughness: 0.9});
+        const doorMatEdge = new MeshStandardMaterial({map: woodTexture, roughness: 0.9});
+        this.doorMat = [doorMatEdge, doorMatEdge, doorMatEdge, doorMatEdge, doorMatFront, doorMatBack];
+
+        const carpetTexture = new CanvasTexture(rawAssets.carpetCanvas);
+        carpetTexture.wrapS = carpetTexture.wrapT = THREE.RepeatWrapping;
+        carpetTexture.magFilter = THREE.NearestFilter;
+        carpetTexture.minFilter = THREE.NearestMipmapLinearFilter;
         carpetTexture.repeat.set(16, 16);
-        ceilingTexture.repeat.set(128, 128);
-        this.carpetMat = new THREE.MeshStandardMaterial({
+        this.carpetMat = new MeshStandardMaterial({
             map: carpetTexture,
             roughness: 1.0,
             bumpMap: carpetTexture,
             bumpScale: 0.015
         });
-        this.ceilMat = new THREE.MeshStandardMaterial({
+
+        const ceilingTexture = new CanvasTexture(rawAssets.ceilingCanvas);
+        ceilingTexture.wrapS = ceilingTexture.wrapT = THREE.RepeatWrapping;
+        ceilingTexture.repeat.set(128, 128);
+        this.ceilMat = new MeshStandardMaterial({
             map: ceilingTexture,
             color: 0xffffff,
             emissive: 0x444444,
@@ -271,21 +320,191 @@ export default class Environment {
             bumpMap: ceilingTexture,
             bumpScale: 0.005
         });
-        if (this.serverMat) {
-            this.serverMat.metalness = 0.3;
-            this.serverMat.roughness = 0.2;
-        }
-        if (this.ventMat) {
-            this.ventMat.metalness = 0.4;
-            this.ventMat.roughness = 0.3;
-        }
-        if (this.metalMat) {
-            this.metalMat.metalness = 0.4;
-            this.metalMat.roughness = 0.6;
-            this.metalMat.map = this.structMat.map;
-            this.metalMat.bumpMap = this.structMat.map;
-            this.metalMat.bumpScale = 0.02;
-        }
+
+        const tileTexture = new CanvasTexture(rawAssets.tileCanvas);
+        tileTexture.wrapS = tileTexture.wrapT = THREE.RepeatWrapping;
+        tileTexture.repeat.set(16, 16);
+        this.tileMat = new MeshStandardMaterial({map: tileTexture, roughness: 0.1, metalness: 0.6});
+
+        const clinicTex = new CanvasTexture(rawAssets.clinicCanvas);
+        clinicTex.wrapS = clinicTex.wrapT = THREE.RepeatWrapping;
+        clinicTex.repeat.set(32, 32);
+        const clinicBumpTex = new CanvasTexture(rawAssets.clinicBumpCanvas);
+        clinicBumpTex.wrapS = clinicBumpTex.wrapT = THREE.RepeatWrapping;
+        clinicBumpTex.repeat.set(32, 32);
+        this.clinicMat = new MeshStandardMaterial({
+            map: clinicTex,
+            bumpMap: clinicBumpTex,
+            bumpScale: 0.015,
+            roughness: 0.1,
+            metalness: 0.15
+        });
+
+        const moldTexture = new CanvasTexture(rawAssets.moldCanvas);
+        this.moldMat = new MeshStandardMaterial({
+            map: moldTexture,
+            transparent: true,
+            depthWrite: false,
+            opacity: 0.12,
+            roughness: 0.6,
+            polygonOffset: true,
+            polygonOffsetFactor: -1
+        });
+        this.moldGeo = new THREE.PlaneGeometry(3, 3);
+        this.moldGeo.rotateX(-Math.PI / 2);
+
+        const ceilStainTexture = new CanvasTexture(rawAssets.ceilStainCanvas);
+        this.ceilingStainMat = new MeshStandardMaterial({
+            map: ceilStainTexture,
+            transparent: true,
+            depthWrite: false,
+            opacity: 0.15,
+            roughness: 0.9,
+            polygonOffset: true,
+            polygonOffsetFactor: -1
+        });
+        this.ceilingStainGeo = new THREE.PlaneGeometry(3, 3);
+        this.ceilingStainGeo.rotateX(Math.PI / 2);
+
+        const fabricTexture = new CanvasTexture(rawAssets.fabricCanvas);
+        fabricTexture.wrapS = fabricTexture.wrapT = THREE.RepeatWrapping;
+        fabricTexture.repeat.set(4, 4);
+        this.fabricMat = new MeshStandardMaterial({
+            map: fabricTexture,
+            roughness: 0.98,
+            bumpMap: fabricTexture,
+            bumpScale: 0.05
+        });
+
+        const mossTexture = new CanvasTexture(rawAssets.mossCanvas);
+        mossTexture.wrapS = mossTexture.wrapT = THREE.RepeatWrapping;
+        mossTexture.repeat.set(32, 32);
+        this.mossMat = new MeshStandardMaterial({map: mossTexture, roughness: 1.0});
+
+        const ventTexture = new CanvasTexture(rawAssets.ventCanvas);
+        ventTexture.wrapS = ventTexture.wrapT = THREE.RepeatWrapping;
+        ventTexture.repeat.set(1, 1);
+        this.ventMat = new MeshStandardMaterial({
+            map: ventTexture,
+            roughness: 0.7,
+            metalness: 0.4,
+            bumpMap: ventTexture,
+            bumpScale: 0.02
+        });
+
+        const serverTexture = new CanvasTexture(rawAssets.serverCanvas);
+        serverTexture.wrapS = serverTexture.wrapT = THREE.RepeatWrapping;
+        serverTexture.repeat.set(4, 1);
+        this.serverMat = new MeshStandardMaterial({map: serverTexture, roughness: 0.2, metalness: 0.3});
+
+        const lightTexture = new CanvasTexture(rawAssets.lightCanvas);
+        this.baseLightMat = new MeshStandardMaterial({
+            map: lightTexture,
+            emissiveMap: lightTexture,
+            color: 0xffffe0,
+            emissive: 0xffffe0,
+            emissiveIntensity: 0.4,
+            roughness: 0.3,
+            metalness: 0.1
+        });
+        this.baseBrokenLightMat = new MeshStandardMaterial({
+            map: lightTexture,
+            emissiveMap: lightTexture,
+            color: 0x8c9296,
+            emissive: 0x1a1f24,
+            emissiveIntensity: 1.0,
+            roughness: 0.8
+        });
+        this.baseHousingMat = new MeshStandardMaterial({color: 0x1a1a1a, roughness: 0.9});
+
+        const fenceTex = new CanvasTexture(rawAssets.fenceCanvas);
+        fenceTex.wrapS = fenceTex.wrapT = THREE.RepeatWrapping;
+        fenceTex.repeat.set(12, 12);
+        this.waterMat = new MeshStandardMaterial({
+            map: fenceTex,
+            roughness: 0.4,
+            metalness: 0.9,
+            alphaTest: 0.5,
+            side: THREE.DoubleSide
+        });
+
+        const hazardTexture = new CanvasTexture(rawAssets.hazardCanvas);
+        hazardTexture.wrapS = hazardTexture.wrapT = THREE.RepeatWrapping;
+        hazardTexture.repeat.set(2, 2);
+        this.hazardMat = new MeshStandardMaterial({map: hazardTexture, roughness: 0.8});
+
+        const glowTexture = new CanvasTexture(rawAssets.glowCanvas);
+        this.glowMat = new MeshBasicMaterial({
+            map: glowTexture,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            polygonOffset: true,
+            polygonOffsetFactor: -2
+        });
+        this.glowGeo = new THREE.PlaneGeometry(3.8, 3.8);
+        this.glowGeo.rotateX(-Math.PI / 2);
+
+        const tagTexture = new CanvasTexture(rawAssets.tagCanvas);
+        this.tagMat = new MeshBasicMaterial({
+            map: tagTexture,
+            transparent: true,
+            depthWrite: false,
+            polygonOffset: true,
+            polygonOffsetFactor: -4
+        });
+        this.tagGeo = new THREE.PlaneGeometry(0.5, 0.5);
+
+        const voidTexture = new CanvasTexture(rawAssets.masterNoise);
+        voidTexture.wrapS = voidTexture.wrapT = THREE.RepeatWrapping;
+        this.voidMat = new MeshStandardMaterial({
+            color: 0x020202,
+            roughness: 0.15,
+            metalness: 0.8,
+            bumpMap: voidTexture,
+            bumpScale: 0.08
+        });
+
+        this.rustMat = new MeshStandardMaterial({color: 0x3a1c14, roughness: 1.0, metalness: 0.3});
+
+        this.metalMat = new MeshStandardMaterial({
+            color: 0x999999,
+            roughness: 0.6,
+            metalness: 0.4,
+            map: structTexture,
+            bumpMap: structTexture,
+            bumpScale: 0.02
+        });
+
+        const almondTexture = new CanvasTexture(rawAssets.almondCanvas);
+        this.almondMat = new MeshStandardMaterial({map: almondTexture, roughness: 0.8});
+
+        const applyOpt = (item) => {
+            if (item && item.isTexture) {
+                item.anisotropy = 16;
+                item.colorSpace = THREE.SRGBColorSpace;
+            }
+            if (item && item.map && item.map.isTexture) {
+                item.map.anisotropy = 16;
+                item.map.colorSpace = THREE.SRGBColorSpace;
+            }
+            if (item && item.emissiveMap && item.emissiveMap.isTexture) {
+                item.emissiveMap.anisotropy = 16;
+                item.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+            }
+        };
+
+        const matsToOpt = [
+            this.wallTexture, this.headerMat, this.structMat, this.woodMat, ...this.doorMat,
+            this.carpetMat, this.ceilMat, this.tileMat, this.clinicMat, this.moldMat,
+            this.ceilingStainMat, this.fabricMat, this.mossMat, this.ventMat, this.serverMat,
+            this.baseLightMat, this.baseBrokenLightMat, this.baseHousingMat, this.waterMat,
+            this.hazardMat, this.glowMat, this.tagMat, this.voidMat, this.rustMat, this.metalMat, this.almondMat
+        ];
+
+        matsToOpt.forEach(item => applyOpt(item));
+
+
         const dustGeo = new THREE.BufferGeometry();
         const dustCount = 600;
         const dustPos = new Float32Array(dustCount * 3);
@@ -323,16 +542,16 @@ export default class Environment {
         this.anomaly = new Anomaly(this.scene, this.camera, this.player, this);
         this.tagPool = [];
         this.tagIndex = 0;
-        this.tagGroup = new THREE.Group();
+        this.tagGroup = new Group();
         for (let i = 0; i < 50; i++) {
-            const tag = new THREE.Mesh(this.tagGeo, this.tagMat);
+            const tag = new Mesh(this.tagGeo, this.tagMat);
             tag.visible = false;
             this.tagGroup.add(tag);
             this.tagPool.push(tag);
         }
         this.scene.add(this.tagGroup);
         this.scene.add(this.camera);
-        this.flashlight = new THREE.SpotLight(0xffe8b3, 0.0, 45.0, Math.PI / 7, 0.5, 2.0);
+        this.flashlight = new SpotLight(0xffe8b3, 0.0, 45.0, Math.PI / 7, 0.5, 2.0);
         this.flashlight.position.set(0.3, -0.3, 0);
         this.flashlight.target.position.set(0.3, -0.3, -1);
         this.flashlight.castShadow = true;
@@ -400,23 +619,23 @@ export default class Environment {
         };
         document.getElementById('captureBtn').addEventListener('click', capture);
         document.addEventListener('capture-screenshot', capture);
-        this.tagRaycaster = new THREE.Raycaster();
+        this.tagRaycaster = new Raycaster();
         document.addEventListener('somatic-tag', () => {
-            this.tagRaycaster.set(this.camera.position, this.camera.getWorldDirection(new THREE.Vector3()));
+            this.tagRaycaster.set(this.camera.position, this.camera.getWorldDirection(new Vector3()));
             const intersects = this.tagRaycaster.intersectObjects(this.walls, false);
             if (intersects.length > 0 && intersects[0].distance < 3.0) {
                 const hit = intersects[0];
                 const tag = this.tagPool[this.tagIndex];
                 tag.visible = true;
                 tag.position.copy(hit.point);
-                let normal = hit.face ? hit.face.normal.clone() : new THREE.Vector3(0, 0, 1);
+                let normal = hit.face ? hit.face.normal.clone() : new Vector3(0, 0, 1);
                 if (hit.object && hit.object.isInstancedMesh && hit.instanceId !== undefined) {
-                    const instanceMatrix = new THREE.Matrix4();
+                    const instanceMatrix = new Matrix4();
                     hit.object.getMatrixAt(hit.instanceId, instanceMatrix);
-                    const normalMatrix = new THREE.Matrix3().getNormalMatrix(instanceMatrix);
+                    const normalMatrix = new Matrix3().getNormalMatrix(instanceMatrix);
                     normal.applyMatrix3(normalMatrix).normalize();
                 } else if (hit.object) {
-                    const normalMatrix = new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld);
+                    const normalMatrix = new Matrix3().getNormalMatrix(hit.object.matrixWorld);
                     normal.applyMatrix3(normalMatrix).normalize();
                 }
                 tag.lookAt(hit.point.clone().add(normal));
@@ -518,7 +737,7 @@ export default class Environment {
             } else if (hit && hit.userData.type === 'exit_switch') {
                 if (!hit.userData.active) {
                     hit.userData.active = true;
-                    hit.children[0].material = new THREE.MeshBasicMaterial({color: 0x55ff55});
+                    hit.children[0].material = new MeshBasicMaterial({color: 0x55ff55});
                     this.player.objectives.fixed++;
                     this.player.updateObjectives();
                     document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 0.1, intensity: 1.5}}));
@@ -622,23 +841,23 @@ export default class Environment {
         }
         this.cellSize = 4;
         if (!this.sharedWallGeo) {
-            this.sharedWallGeo = new THREE.BoxGeometry(this.cellSize + 0.02, 3, this.cellSize + 0.02);
-            this.sharedWallMat = new THREE.MeshStandardMaterial({
+            this.sharedWallGeo = new BoxGeometry(this.cellSize + 0.02, 3, this.cellSize + 0.02);
+            this.sharedWallMat = new MeshStandardMaterial({
                 map: this.wallTexture,
                 color: 0xffffff,
                 roughness: 0.6,
                 bumpMap: this.wallTexture,
                 bumpScale: 0.010
             });
-            this.sharedPanelGeo = new THREE.BoxGeometry(0.98, 0.05, 1.98);
+            this.sharedPanelGeo = new BoxGeometry(0.98, 0.05, 1.98);
             this.pipeGeo = new THREE.CylinderGeometry(0.08, 0.08, this.cellSize, 8);
             this.pipeGeo.rotateZ(Math.PI / 2);
             this.pipeJointGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.25, 8);
             this.pipeJointGeo.rotateZ(Math.PI / 2);
-            this.pipeJunctionGeo = new THREE.BoxGeometry(0.28, 0.28, 0.28);
+            this.pipeJunctionGeo = new BoxGeometry(0.28, 0.28, 0.28);
             this.pipeMountGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8);
             this.vPipeGeo = new THREE.CylinderGeometry(0.06, 0.06, 3.0, 8);
-            this.rustMat = new THREE.MeshStandardMaterial({
+            this.rustMat = new MeshStandardMaterial({
                 color: 0x6b6358,
                 emissive: 0x222222,
                 roughness: 0.4,
@@ -646,46 +865,46 @@ export default class Environment {
                 bumpMap: this.structMat.map,
                 bumpScale: 0.015
             });
-            this.cushionGeo = new THREE.BoxGeometry(0.8, 0.15, 0.8);
-            this.backrestGeo = new THREE.BoxGeometry(0.8, 0.8, 0.15);
-            this.legGeo = new THREE.BoxGeometry(0.1, 0.4, 0.1);
-            this.tableTopGeo = new THREE.BoxGeometry(1.2, 0.05, 1.2);
-            this.tableBaseGeo = new THREE.BoxGeometry(0.5, 0.8, 0.5);
+            this.cushionGeo = new BoxGeometry(0.8, 0.15, 0.8);
+            this.backrestGeo = new BoxGeometry(0.8, 0.8, 0.15);
+            this.legGeo = new BoxGeometry(0.1, 0.4, 0.1);
+            this.tableTopGeo = new BoxGeometry(1.2, 0.05, 1.2);
+            this.tableBaseGeo = new BoxGeometry(0.5, 0.8, 0.5);
             this.wallVentMat = this.ventMat.clone();
             this.wallVentMat.map = this.ventMat.map.clone();
             this.wallVentMat.map.repeat.set(1, 1);
             this.serverFloorMat = this.ventMat.clone();
             this.serverFloorMat.map = this.ventMat.map.clone();
             this.serverFloorMat.map.repeat.set(64, 32);
-            this.breakerBaseGeo = new THREE.BoxGeometry(0.6, 0.8, 0.20);
-            this.breakerDoorGeo = new THREE.BoxGeometry(0.6, 0.8, 0.05);
+            this.breakerBaseGeo = new BoxGeometry(0.6, 0.8, 0.20);
+            this.breakerDoorGeo = new BoxGeometry(0.6, 0.8, 0.05);
             this.breakerDoorGeo.translate(0.3, 0, 0);
             this.geoCache = new Map();
-            this.almondPrefab = new THREE.Group();
+            this.almondPrefab = new Group();
             const aBodyGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.12, 16);
             const aNeckGeo = new THREE.CylinderGeometry(0.012, 0.035, 0.05, 16);
             const aCapGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.015, 12);
-            const aBody = new THREE.Mesh(aBodyGeo, this.almondMat);
+            const aBody = new Mesh(aBodyGeo, this.almondMat);
             aBody.position.y = 0.06;
-            const aNeck = new THREE.Mesh(aNeckGeo, this.clinicMat);
+            const aNeck = new Mesh(aNeckGeo, this.clinicMat);
             aNeck.position.y = 0.12 + 0.025;
-            const aCap = new THREE.Mesh(aCapGeo, this.metalMat);
+            const aCap = new Mesh(aCapGeo, this.metalMat);
             aCap.position.y = 0.12 + 0.05 + 0.0075;
             this.almondPrefab.add(aBody, aNeck, aCap);
-            this.batteryPrefab = new THREE.Group();
+            this.batteryPrefab = new Group();
             const bBodyGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.16, 16);
             const bRimGeo = new THREE.CylinderGeometry(0.052, 0.052, 0.015, 16);
             const bTermGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.02, 12);
-            const bBody = new THREE.Mesh(bBodyGeo, this.hazardMat);
+            const bBody = new Mesh(bBodyGeo, this.hazardMat);
             bBody.position.y = 0.08;
-            const bTopRim = new THREE.Mesh(bRimGeo, this.metalMat);
+            const bTopRim = new Mesh(bRimGeo, this.metalMat);
             bTopRim.position.y = 0.16 - 0.0075;
-            const bBotRim = new THREE.Mesh(bRimGeo, this.metalMat);
+            const bBotRim = new Mesh(bRimGeo, this.metalMat);
             bBotRim.position.y = 0.0075;
-            const bTerm = new THREE.Mesh(bTermGeo, this.metalMat);
+            const bTerm = new Mesh(bTermGeo, this.metalMat);
             bTerm.position.y = 0.16 + 0.01;
             this.batteryPrefab.add(bBody, bTopRim, bBotRim, bTerm);
-            this.observerMat = new THREE.MeshBasicMaterial({color: 0x010101, transparent: true, opacity: 0.85});
+            this.observerMat = new MeshBasicMaterial({color: 0x010101, transparent: true, opacity: 0.85});
             this.observerGeo = new THREE.CylinderGeometry(0.15, 0.1, 1.9, 8);
             this.observers = [];
             this.sharedAssets = new Set();
@@ -719,7 +938,7 @@ export default class Environment {
                 const key = `${w}_${h}_${d}_${yOffset}`;
                 let geo = this.geoCache.get(key);
                 if (!geo) {
-                    geo = new THREE.BoxGeometry(w + 0.02, h, d + 0.02);
+                    geo = new BoxGeometry(w + 0.02, h, d + 0.02);
                     const uv = geo.attributes.uv;
                     for (let i = 0; i < 8; i++) uv.setX(i, uv.getX(i) * (d / this.cellSize));
                     for (let i = 16; i < 24; i++) uv.setX(i, uv.getX(i) * (w / this.cellSize));
@@ -735,7 +954,7 @@ export default class Environment {
                     this.geoCache.set(key, geo);
                     this.geoCache.set(geo.uuid, true);
                 }
-                return new THREE.Mesh(geo, mat);
+                return new Mesh(geo, mat);
             },
             addGeometry: (mesh, isWarp = false) => {
                 mesh.userData.chunkHash = hash;
@@ -752,7 +971,7 @@ export default class Environment {
                 if (Math.abs(group.position.x) < 4.0 && Math.abs(group.position.z) < 4.0) return;
                 group.userData.chunkHash = hash;
                 group.updateMatrixWorld(true);
-                const box = new THREE.Box3().setFromObject(group);
+                const box = new Box3().setFromObject(group);
                 const localBoxes = this.spatialGrid.getNearby(group.position.x, group.position.z, 2.0);
                 for (let i = 0; i < localBoxes.length; i++) {
                     if (localBoxes[i].intersectsBox(box)) return;
@@ -768,7 +987,7 @@ export default class Environment {
                 });
             },
             addObserver: (px, pz) => {
-                const obs = new THREE.Mesh(this.observerGeo, this.observerMat.clone());
+                const obs = new Mesh(this.observerGeo, this.observerMat.clone());
                 obs.position.set(px, 0.95, pz);
                 obs.userData = {chunkHash: hash, active: true, fade: 0.85};
                 chunkGroup.add(obs);
@@ -790,13 +1009,13 @@ export default class Environment {
                         }
                     }
                 }
-                const grateGeo = new THREE.BoxGeometry(blocksX ? 0.05 : 1.16, 0.65, blocksX ? 1.16 : 0.05);
-                const grate = new THREE.Mesh(grateGeo, this.wallVentMat);
+                const grateGeo = new BoxGeometry(blocksX ? 0.05 : 1.16, 0.65, blocksX ? 1.16 : 0.05);
+                const grate = new Mesh(grateGeo, this.wallVentMat);
                 grate.position.set(px, py, pz);
                 grate.userData = {type: 'grate', active: true, chunkHash: hash, blocksX: blocksX};
                 chunkGroup.add(grate);
                 this.interactables.push(grate);
-                const grateBox = new THREE.Box3().setFromObject(grate);
+                const grateBox = new Box3().setFromObject(grate);
                 grateBox.chunkHash = hash;
                 grateBox.isGrate = true;
                 grateBox.meshRef = grate;
@@ -804,23 +1023,23 @@ export default class Environment {
                 this.spatialGrid.insert(grateBox);
             },
             buildChair: (x, y, z, rotY) => {
-                const group = new THREE.Group();
-                const seat = new THREE.Mesh(this.cushionGeo, this.fabricMat);
+                const group = new Group();
+                const seat = new Mesh(this.cushionGeo, this.fabricMat);
                 seat.position.set(0, 0.4, 0);
                 group.add(seat);
-                const back = new THREE.Mesh(this.backrestGeo, this.fabricMat);
+                const back = new Mesh(this.backrestGeo, this.fabricMat);
                 back.position.set(0, 0.8, -0.3);
                 group.add(back);
-                const l1 = new THREE.Mesh(this.legGeo, this.structMat);
+                const l1 = new Mesh(this.legGeo, this.structMat);
                 l1.position.set(0.3, 0.2, 0.3);
                 group.add(l1);
-                const l2 = new THREE.Mesh(this.legGeo, this.structMat);
+                const l2 = new Mesh(this.legGeo, this.structMat);
                 l2.position.set(-0.3, 0.2, 0.3);
                 group.add(l2);
-                const l3 = new THREE.Mesh(this.legGeo, this.structMat);
+                const l3 = new Mesh(this.legGeo, this.structMat);
                 l3.position.set(0.3, 0.2, -0.3);
                 group.add(l3);
-                const l4 = new THREE.Mesh(this.legGeo, this.structMat);
+                const l4 = new Mesh(this.legGeo, this.structMat);
                 l4.position.set(-0.3, 0.2, -0.3);
                 group.add(l4);
                 group.position.set(x, y, z);
@@ -828,11 +1047,11 @@ export default class Environment {
                 return group;
             },
             buildTable: (x, y, z) => {
-                const group = new THREE.Group();
-                const top = new THREE.Mesh(this.tableTopGeo, this.woodMat);
+                const group = new Group();
+                const top = new Mesh(this.tableTopGeo, this.woodMat);
                 top.position.set(0, 0.8, 0);
                 group.add(top);
-                const base = new THREE.Mesh(this.tableBaseGeo, this.structMat);
+                const base = new Mesh(this.tableBaseGeo, this.structMat);
                 base.position.set(0, 0.4, 0);
                 group.add(base);
                 group.position.set(x, y, z);
@@ -848,11 +1067,11 @@ export default class Environment {
                     const key = `${this.cellSize}_3.0_${this.cellSize}_0`;
                     let geo = this.geoCache.get(key);
                     if (!geo) {
-                        geo = new THREE.BoxGeometry(this.cellSize + 0.02, 3.0, this.cellSize + 0.02);
+                        geo = new BoxGeometry(this.cellSize + 0.02, 3.0, this.cellSize + 0.02);
                         this.geoCache.set(key, geo);
                         this.geoCache.set(geo.uuid, true);
                     }
-                    const wall = new THREE.Mesh(geo, wallMat || this.sharedWallMat);
+                    const wall = new Mesh(geo, wallMat || this.sharedWallMat);
                     wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                     wall.userData.chunkHash = hash;
                     wall.updateMatrixWorld(true);
@@ -870,7 +1089,7 @@ export default class Environment {
     }
 
     async buildChunk(chunkX, chunkZ, hash) {
-        const chunkGroup = new THREE.Group();
+        const chunkGroup = new Group();
         this.scene.add(chunkGroup);
         this.activeChunks.set(hash, chunkGroup);
         let structuralShift = 0;
@@ -914,11 +1133,12 @@ export default class Environment {
             }
             if (activeSector.foundationMat) {
                 const foundationGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
-                const foundation = new THREE.Mesh(foundationGeo, activeSector.foundationMat);
+                const foundation = new Mesh(foundationGeo, activeSector.foundationMat);
                 foundation.rotation.x = -Math.PI / 2;
                 const centerOffset = (this.chunkSize * this.cellSize) / 2 - (this.cellSize / 2);
                 foundation.position.set(startX * this.cellSize + centerOffset, 0.02, startZ * this.cellSize + centerOffset);
                 foundation.receiveShadow = true;
+                foundation.updateMatrixWorld(true);
                 chunkGroup.add(foundation);
             }
         }
@@ -927,16 +1147,18 @@ export default class Environment {
         const floorGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
         const ceilGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
         if (!isMacroStructure && !isChasm) {
-            const floor = new THREE.Mesh(floorGeo, this.carpetMat);
+            const floor = new Mesh(floorGeo, this.carpetMat);
             floor.rotation.x = -Math.PI / 2;
             floor.position.set(startX * this.cellSize + centerOffset, 0, startZ * this.cellSize + centerOffset);
             floor.receiveShadow = true;
+            floor.updateMatrixWorld(true);
             chunkGroup.add(floor);
         }
         if (!isChasm && (!activeSector || activeSector.name !== "THE OVERGROWN ATRIUM")) {
-            const ceil = new THREE.Mesh(ceilGeo, this.ceilMat);
+            const ceil = new Mesh(ceilGeo, this.ceilMat);
             ceil.rotation.x = Math.PI / 2;
             ceil.position.set(startX * this.cellSize + centerOffset, 3, startZ * this.cellSize + centerOffset);
+            ceil.updateMatrixWorld(true);
             chunkGroup.add(ceil);
         }
         let chunkStartTime = performance.now();
@@ -980,13 +1202,13 @@ export default class Environment {
                         const offsetZ = (random() - 0.5) * 2.0;
                         const rotY = random() * Math.PI * 2;
                         const scale = 0.4 + (random() * 0.6);
-                        const stain = new THREE.Mesh(this.moldGeo, this.moldMat);
+                        const stain = new Mesh(this.moldGeo, this.moldMat);
                         stain.position.set(x * this.cellSize + offsetX, 0.01, z * this.cellSize + offsetZ);
                         stain.rotation.y = rotY;
                         stain.scale.set(scale, scale, scale);
                         ctx.addGeometry(stain);
                         if (offsetX > 0.8) {
-                            const ceilingStain = new THREE.Mesh(this.ceilingStainGeo, this.ceilingStainMat);
+                            const ceilingStain = new Mesh(this.ceilingStainGeo, this.ceilingStainMat);
                             ceilingStain.position.set(x * this.cellSize + offsetZ, 2.99, z * this.cellSize - offsetX);
                             ceilingStain.rotation.y = rotY + 1.5;
                             ceilingStain.scale.set(scale * 1.3, scale * 1.3, scale * 1.3);
@@ -1018,7 +1240,7 @@ export default class Environment {
                             this.baseHousingMat, this.baseHousingMat, this.baseHousingMat,
                             activeMat, this.baseHousingMat, this.baseHousingMat
                         ];
-                        const panel = new THREE.Mesh(this.sharedPanelGeo, matArray);
+                        const panel = new Mesh(this.sharedPanelGeo, matArray);
                         panel.position.set(posX, 2.98, posZ);
                         if (isRotated) panel.rotation.y = Math.PI / 2;
                         panel.userData.chunkHash = hash;
@@ -1038,7 +1260,7 @@ export default class Environment {
                                 isFake: !isTracked
                             });
                             if (!isTracked) {
-                                const glow = new THREE.Mesh(this.glowGeo, this.glowMat);
+                                const glow = new Mesh(this.glowGeo, this.glowMat);
                                 glow.position.set(posX, 0.03, posZ);
                                 glow.userData.chunkHash = hash;
                                 glow.updateMatrixWorld(true);
@@ -1067,21 +1289,21 @@ export default class Environment {
                         if (!isTooClose) {
                             chunkBreakerCount++;
                             breakerPositions.push({x: px, z: pz});
-                            const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.8, 3.0, 0.8), this.structMat);
+                            const pillar = new Mesh(new BoxGeometry(0.8, 3.0, 0.8), this.structMat);
                             pillar.position.set(px, 1.5, pz);
                             chunkGroup.add(pillar);
-                            const breakerGroup = new THREE.Group();
+                            const breakerGroup = new Group();
                             breakerGroup.position.set(px, 1.5, pz + 0.525);
-                            const breakerBase = new THREE.Mesh(this.breakerBaseGeo, this.rustMat);
+                            const breakerBase = new Mesh(this.breakerBaseGeo, this.rustMat);
                             breakerBase.position.set(0, 0, -0.025);
                             breakerGroup.add(breakerBase);
-                            const breakerDoor = new THREE.Mesh(this.breakerDoorGeo, this.hazardMat);
+                            const breakerDoor = new Mesh(this.breakerDoorGeo, this.hazardMat);
                             breakerDoor.position.set(-0.3, 0, 0.102);
                             breakerGroup.add(breakerDoor);
                             breakerGroup.userData = {type: 'breaker', chunkHash: hash, active: true, door: breakerDoor};
                             chunkGroup.add(breakerGroup);
                             this.interactables.push(breakerGroup);
-                            const pBox = new THREE.Box3().setFromObject(pillar);
+                            const pBox = new Box3().setFromObject(pillar);
                             pBox.chunkHash = hash;
                             this.spatialGrid.insert(pBox);
                         }
@@ -1141,11 +1363,11 @@ export default class Environment {
             }
             instancedGroups.get(sig).meshes.push(mesh);
         });
-        const dummyColor = new THREE.Color();
+        const dummyColor = new Color();
         instancedGroups.forEach(group => {
             const isDecal = group.material === this.moldMat || group.material === this.ceilingStainMat || group.material === this.glowMat;
             if (group.meshes.length > 1) {
-                const iMesh = new THREE.InstancedMesh(group.geometry, group.material, group.meshes.length);
+                const iMesh = new InstancedMesh(group.geometry, group.material, group.meshes.length);
                 if (!isDecal) {
                     iMesh.castShadow = true;
                     iMesh.receiveShadow = true;
@@ -1167,7 +1389,6 @@ export default class Environment {
                 if (!isDecal) this.walls.push(iMesh);
             } else {
                 const mesh = group.meshes[0];
-                mesh.matrixWorld.decompose(mesh.position, mesh.quaternion, mesh.scale);
                 if (!isDecal) {
                     mesh.castShadow = true;
                     mesh.receiveShadow = true;
@@ -1194,7 +1415,7 @@ export default class Environment {
     updateLights(time) {
         const cameraPos = this.camera.position;
         if (!this.audioRaycaster) {
-            this.audioRaycaster = new THREE.Raycaster();
+            this.audioRaycaster = new Raycaster();
             this.audioDirection = new Vector3();
         }
         const lumenData = this.lumenGrid.update(cameraPos, this.fixtureData, time);
@@ -1346,8 +1567,8 @@ export default class Environment {
                 const targetGlowOpacity = Math.max(0.0, 1.0 - (darknessPressure * 0.4));
                 this.glowMat.opacity += (targetGlowOpacity - this.glowMat.opacity) * 0.1;
             }
-            if (!this._baseEnvColor) this._baseEnvColor = new THREE.Color(0xa89f68);
-            if (!this._blackColor) this._blackColor = new THREE.Color(0x000000);
+            if (!this._baseEnvColor) this._baseEnvColor = new Color(0xa89f68);
+            if (!this._blackColor) this._blackColor = new Color(0x000000);
             const darknessRatio = Math.min(1.0, darknessPressure * 0.4);
             const targetColor = this._baseEnvColor.clone().lerp(this._blackColor, darknessRatio);
             this.scene.background.lerp(targetColor, 0.05);

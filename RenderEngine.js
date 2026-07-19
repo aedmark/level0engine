@@ -1,34 +1,47 @@
 // RenderEngine.js
 // LEVEL 0 CORE RENDER ENGINE
 
+import { Color } from './EngineMath.js';
+import {
+    Scene, PerspectiveCamera, OrthographicCamera, HemisphereLight,
+    WebGLRenderer, WebGLRenderTarget, ShaderMaterial, PlaneGeometry, Mesh,
+    FogExp2, PCFShadowMap, ACESFilmicToneMapping, SRGBColorSpace, NearestFilter
+} from './EngineScenegraph.js';
+
 export default class RenderEngine {
     constructor() {
         this.aspectRatio = 1.3333333333;
         this.resolutionScale = 1.0;
-        this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0xa89f68);
-        this.scene.fog = new THREE.FogExp2(0xa89f68, 0.05);
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+        this.scene = new Scene();
+        this.scene.background = new Color(0xa89f68);
+        this.scene.fog = new FogExp2(0xa89f68, 0.05);
+        this.camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
         this.camera.position.y = 1.6;
-        this.renderer = new THREE.WebGLRenderer({antialias: false, powerPreference: "high-performance"});
+
+        this.renderer = new WebGLRenderer({antialias: false, powerPreference: "high-performance"});
         this.renderer.setPixelRatio(1.0);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFShadowMap;
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.shadowMap.type = PCFShadowMap;
+        this.renderer.toneMapping = ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.2;
-        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+        this.renderer.outputColorSpace = SRGBColorSpace;
+
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
-        this.ambientLight = new THREE.HemisphereLight(0xfff5c2, 0x3d3520, 0.85);
+
+        this.ambientLight = new HemisphereLight(0xfff5c2, 0x3d3520, 0.85);
         this.scene.add(this.ambientLight);
-        this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
-            minFilter: THREE.NearestFilter,
-            magFilter: THREE.NearestFilter
+
+        this.target = new WebGLRenderTarget(window.innerWidth, window.innerHeight, {
+            minFilter: NearestFilter,
+            magFilter: NearestFilter
         });
-        this.postScene = new THREE.Scene();
-        this.postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+        this.postScene = new Scene();
+        this.postCamera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
         this.exhaustion = 0.0;
-        this.postMaterial = new THREE.ShaderMaterial({
+
+        this.postMaterial = new ShaderMaterial({
             uniforms: {
                 tDiffuse: {value: this.target.texture},
                 time: {value: 0.0},
@@ -123,9 +136,10 @@ export default class RenderEngine {
                     col = smoothstep(0.0, 1.0, col);
                     gl_FragColor = vec4(col, 1.0);
                 }
-                `
+            `
         });
-        const postPlane = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.postMaterial);
+
+        const postPlane = new Mesh(new PlaneGeometry(2, 2), this.postMaterial);
         this.postScene.add(postPlane);
         window.addEventListener('resize', () => this.resize(), false);
         setTimeout(() => this.resize(), 0);
@@ -177,8 +191,12 @@ export default class RenderEngine {
     }
 
     render() {
+        this.scene.updateMatrixWorld();
+        this.postCamera.updateMatrixWorld();
+
         this.renderer.setRenderTarget(this.target);
         this.renderer.render(this.scene, this.camera);
+
         this.postMaterial.uniforms.time.value = this.time;
         this.postMaterial.uniforms.exhaustion.value = this.exhaustion;
         this.postMaterial.uniforms.squeeze.value = this.squeeze || 0.0;
@@ -188,6 +206,7 @@ export default class RenderEngine {
         this.postMaterial.uniforms.globalSeed.value = Math.random();
         this.postMaterial.uniforms.adrenaline.value = this.adrenaline || 0.0;
         this.postMaterial.uniforms.eyesClosed.value = this.eyesClosed || 0.0;
+
         this.renderer.setRenderTarget(null);
         this.renderer.render(this.postScene, this.postCamera);
     }
