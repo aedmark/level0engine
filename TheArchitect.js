@@ -2007,102 +2007,102 @@ export default class TheArchitect {
                 id: "ATRIUM",
                 foundationMat: this.mossMat,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
-                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) {
-                        const edge = this.chunkSize - 1;
-                        const isDoorwayNS = localX === 7 && (localZ === 0 || localZ === edge);
-                        const isDoorwayEW = localZ === 7 && (localX === 0 || localX === edge);
-                        if (isDoorwayNS || isDoorwayEW) {
-                            const spansX = isDoorwayNS;
-                            const dcx = x * this.cellSize;
-                            const dcz = z * this.cellSize;
-    
-                            const jambA = buildWall(spansX ? 0.5 : 0.7, spansX ? 0.7 : 0.5, this.structMat, 3.0);
-                            jambA.position.set(dcx - (spansX ? 1.75 : 0), 1.5, dcz - (spansX ? 0 : 1.75));
-                            addGeometry(jambA);
-                            const jambB = buildWall(spansX ? 0.5 : 0.7, spansX ? 0.7 : 0.5, this.structMat, 3.0);
-                            jambB.position.set(dcx + (spansX ? 1.75 : 0), 1.5, dcz + (spansX ? 0 : 1.75));
-                            addGeometry(jambB);
-                            const header = buildWall(spansX ? 3.0 : 0.7, spansX ? 0.7 : 3.0, this.metalMat, 0.4);
-                            header.position.set(dcx, 2.8, dcz);
-                            addGeometry(header);
-    
-                            const inSign = (localZ === 0 || localX === 0) ? 1 : -1;
-                            for (let cs = -1; cs <= 1; cs += 2) {
-                                const clad = buildWall(spansX ? 0.4 : 1.7, spansX ? 1.7 : 0.4, this.structMat, 3.0);
-                                clad.position.set(
-                                    dcx + (spansX ? cs * 1.8 : inSign * 1.2),
-                                    1.5,
-                                    dcz + (spansX ? inSign * 1.2 : cs * 1.8)
-                                );
-                                addGeometry(clad);
-                            }
-    
-                            const doorGroup = new THREE.Group();
-                            doorGroup.position.set(dcx, 0, dcz);
-                            const panelGeo = spansX
-                                ? new THREE.BoxGeometry(1.58, 2.6, 0.24)
-                                : new THREE.BoxGeometry(0.24, 2.6, 1.58);
-                            const stripeGeo = spansX
-                                ? new THREE.BoxGeometry(0.14, 2.6, 0.26)
-                                : new THREE.BoxGeometry(0.26, 2.6, 0.14);
-                            const ribGeo = spansX
-                                ? new THREE.BoxGeometry(1.58, 0.08, 0.28)
-                                : new THREE.BoxGeometry(0.28, 0.08, 1.58);
-    
-                            const mkPanel = (side) => {
-                                const p = new THREE.Mesh(panelGeo, this.metalMat);
-                                if (spansX) p.position.set(side * 0.76, 1.3, 0);
-                                else p.position.set(0, 1.3, side * 0.76);
-                                const stripe = new THREE.Mesh(stripeGeo, this.hazardMat);
-                                if (spansX) stripe.position.set(-side * 0.72, 0, 0);
-                                else stripe.position.set(0, 0, -side * 0.72);
-                                p.add(stripe);
-                                for (let ry = -1; ry <= 1; ry += 2) {
-                                    const rib = new THREE.Mesh(ribGeo, this.structMat);
-                                    rib.position.set(0, ry * 0.75, 0);
-                                    p.add(rib);
-                                }
-                                p.castShadow = p.receiveShadow = true;
-                                p.userData.chunkHash = hash;
-                                doorGroup.add(p);
-                                return p;
-                            };
-                            const panelL = mkPanel(-1);
-                            const panelR = mkPanel(1);
-                            chunkGroup.add(doorGroup);
-                            doorGroup.updateMatrixWorld(true);
-                            this.walls.push(panelL, panelR);
-    
-                            const doorBox = new THREE.Box3();
-                            if (spansX) {
-                                doorBox.min.set(dcx - 1.55, 0.0, dcz - 0.25);
-                                doorBox.max.set(dcx + 1.55, 2.6, dcz + 0.25);
-                            } else {
-                                doorBox.min.set(dcx - 0.25, 0.0, dcz - 1.55);
-                                doorBox.max.set(dcx + 0.25, 2.6, dcz + 1.55);
-                            }
-                            doorBox.chunkHash = hash;
-                            this.spatialGrid.insert(doorBox);
-    
-                            const slideAxis = spansX ? 'x' : 'z';
-                            const outSign = (localZ === 0 || localX === 0) ? -1 : 1;
-                            doorGroup.userData = {
-                                chunkHash: hash,
-                                isSlider: true,
-                                spansX: spansX,
-                                panels: [panelL, panelR],
-                                baseOffsets: [panelL.position[slideAxis], panelR.position[slideAxis]],
-                                signs: [-1, 1],
-                                slideDist: 1.62,
-                                progress: 0,
-                                lastTarget: 0,
-                                box: doorBox,
-                                closedBox: doorBox.clone(),
-                                sectorId: "ATRIUM",
-                                outSign: outSign
-                            };
-                            this.interactiveDoors.push(doorGroup);
+                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
+                    
+                    const edge = this.chunkSize - 1;
+                    const isDoorwayNS = localX === 7 && (localZ === 0 || localZ === edge);
+                    const isDoorwayEW = localZ === 7 && (localX === 0 || localX === edge);
+                    if (isDoorwayNS || isDoorwayEW) {
+                        const spansX = isDoorwayNS;
+                        const dcx = x * this.cellSize;
+                        const dcz = z * this.cellSize;
+
+                        const jambA = buildWall(spansX ? 0.5 : 0.7, spansX ? 0.7 : 0.5, this.structMat, 3.0);
+                        jambA.position.set(dcx - (spansX ? 1.75 : 0), 1.5, dcz - (spansX ? 0 : 1.75));
+                        addGeometry(jambA);
+                        const jambB = buildWall(spansX ? 0.5 : 0.7, spansX ? 0.7 : 0.5, this.structMat, 3.0);
+                        jambB.position.set(dcx + (spansX ? 1.75 : 0), 1.5, dcz + (spansX ? 0 : 1.75));
+                        addGeometry(jambB);
+                        const header = buildWall(spansX ? 3.0 : 0.7, spansX ? 0.7 : 3.0, this.metalMat, 0.4);
+                        header.position.set(dcx, 2.8, dcz);
+                        addGeometry(header);
+
+                        const inSign = (localZ === 0 || localX === 0) ? 1 : -1;
+                        for (let cs = -1; cs <= 1; cs += 2) {
+                            const clad = buildWall(spansX ? 0.4 : 1.7, spansX ? 1.7 : 0.4, this.structMat, 3.0);
+                            clad.position.set(
+                                dcx + (spansX ? cs * 1.8 : inSign * 1.2),
+                                1.5,
+                                dcz + (spansX ? inSign * 1.2 : cs * 1.8)
+                            );
+                            addGeometry(clad);
                         }
+
+                        const doorGroup = new THREE.Group();
+                        doorGroup.position.set(dcx, 0, dcz);
+                        const panelGeo = spansX
+                            ? new THREE.BoxGeometry(1.58, 2.6, 0.24)
+                            : new THREE.BoxGeometry(0.24, 2.6, 1.58);
+                        const stripeGeo = spansX
+                            ? new THREE.BoxGeometry(0.14, 2.6, 0.26)
+                            : new THREE.BoxGeometry(0.26, 2.6, 0.14);
+                        const ribGeo = spansX
+                            ? new THREE.BoxGeometry(1.58, 0.08, 0.28)
+                            : new THREE.BoxGeometry(0.28, 0.08, 1.58);
+
+                        const mkPanel = (side) => {
+                            const p = new THREE.Mesh(panelGeo, this.metalMat);
+                            if (spansX) p.position.set(side * 0.76, 1.3, 0);
+                            else p.position.set(0, 1.3, side * 0.76);
+                            const stripe = new THREE.Mesh(stripeGeo, this.hazardMat);
+                            if (spansX) stripe.position.set(-side * 0.72, 0, 0);
+                            else stripe.position.set(0, 0, -side * 0.72);
+                            p.add(stripe);
+                            for (let ry = -1; ry <= 1; ry += 2) {
+                                const rib = new THREE.Mesh(ribGeo, this.structMat);
+                                rib.position.set(0, ry * 0.75, 0);
+                                p.add(rib);
+                            }
+                            p.castShadow = p.receiveShadow = true;
+                            p.userData.chunkHash = hash;
+                            doorGroup.add(p);
+                            return p;
+                        };
+                        const panelL = mkPanel(-1);
+                        const panelR = mkPanel(1);
+                        chunkGroup.add(doorGroup);
+                        doorGroup.updateMatrixWorld(true);
+                        this.walls.push(panelL, panelR);
+
+                        const doorBox = new THREE.Box3();
+                        if (spansX) {
+                            doorBox.min.set(dcx - 1.55, 0.0, dcz - 0.25);
+                            doorBox.max.set(dcx + 1.55, 2.6, dcz + 0.25);
+                        } else {
+                            doorBox.min.set(dcx - 0.25, 0.0, dcz - 1.55);
+                            doorBox.max.set(dcx + 0.25, 2.6, dcz + 1.55);
+                        }
+                        doorBox.chunkHash = hash;
+                        this.spatialGrid.insert(doorBox);
+
+                        const slideAxis = spansX ? 'x' : 'z';
+                        const outSign = (localZ === 0 || localX === 0) ? -1 : 1;
+                        doorGroup.userData = {
+                            chunkHash: hash,
+                            isSlider: true,
+                            spansX: spansX,
+                            panels: [panelL, panelR],
+                            baseOffsets: [panelL.position[slideAxis], panelR.position[slideAxis]],
+                            signs: [-1, 1],
+                            slideDist: 1.62,
+                            progress: 0,
+                            lastTarget: 0,
+                            box: doorBox,
+                            closedBox: doorBox.clone(),
+                            sectorId: "ATRIUM",
+                            outSign: outSign
+                        };
+                        this.interactiveDoors.push(doorGroup);
                         return;
                     }
                     const gx = x * this.cellSize, gz = z * this.cellSize;
