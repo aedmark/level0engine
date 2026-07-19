@@ -1,5 +1,28 @@
 # Level 0 Engine Changelog
 
+## [v0.4.5] - 2026-07-19
+
+_The Sealed Combustion Update_
+
+#### Added
+
+- **[GEOMETRY] Incinerator Blast Doors:** Sealed all four perimeter doorways of the Incinerator sector behind heavy split-panel sliding pocket doors — rusted jamb columns, a reinforced metal header beam, hazard-striped meeting edges, and horizontal reinforcement ribs. The panels retract laterally into the flanking wall mass, permanently killing the long exterior sightlines that previously exposed a fog-less, ember-less interior to distant observers.
+
+- **[SYSTEMS] Proximity Slider Circuit:** Extended the interactive door manifold with a dedicated slider door class. Panels grind open on player approach (~4m radius) with smoothstep-eased mechanical travel and automatically reseal behind the player, complete with pneumatic release cues and terminal clunks routed through the existing somatic-door acoustic channel. The Anomaly slams sliders open at 3.3x player speed, preserving its loud mechanical audio tell. Collision volumes unseal the instant panels part and re-arm only at full closure.
+
+- **[DYNAMIC ILLUMINATION] Exterior Warning Lamp:** Mounted a faulty red beacon fixture above each blast door's exterior face, wired into the sector fixture flicker pool with a live `PointLight`. The lamp is the sector's only atmospheric leak — a stuttering red stain on the yellow wallpaper that warns of the interior without revealing it.
+
+#### Changed
+
+- **[ATMOSPHERICS] Blast-Door Sector Hand-Off:** Zone doors now dictate the atmosphere swap directly instead of waiting on chunk-boundary math. A door opened from the exterior immediately forces its own sector — the red haze starts rolling out through the parting panels before the player crosses the threshold. A door opened from the interior forces the neighboring chunk's sector the moment the panels part, so the purge pre-arms on approach to the exit exactly as the soak does on entry. Boundary hysteresis also tightened from 2.5 to 1.5 units past the door plane as the fallback for door-less transitions, with deliberately asymmetric local bounds (1.5 to 58.5): the chunk's cell footprint spans local -2..62 while the chunk ID flips at 0/64, so the far-side band up to 64 is wall mass plus the exterior strip beyond it — symmetric bounds would let a player hugging the outside of a zone's far wall or corners false-trigger the full interior atmosphere.
+
+- **[ATMOSPHERICS] Approach-Intent Gating:** The hand-off is gated on world-space movement direction (dot > 0.45 toward the door at walking speed), so a player grazing the door's activation radius from outside — or lingering near the boundary after leaving — no longer re-ignites the interior atmosphere. The panels still cycle; the fog stays put.
+
+- **[GEOMETRY] Incinerator Double-Shell Boundary:** The sector's perimeter retains its yellow wallpaper camouflage on the exterior face, but every interior-facing perimeter wall is now lined with a 0.4-unit rusted iron shell. From inside, the furnace room reads as sealed industrial iron; from the surrounding halls, nothing has changed.
+
+- **[ATMOSPHERICS] Asymmetric Sector Transitions:** Rebuilt the fog density, fog color, and exhaust particle lerps around directional rates. Sector atmospheres now soak in at 3-4x the previous speed on entry (the incinerator's red haze hits as the blast doors part), while exit purge rates run 6-10x faster — fog snaps back to base yellow at double the entry rate and the ember cloud decays at 0.20/frame instead of 0.02, eliminating red residue trailing the player down adjacent corridors.
+
+
 ## [v0.4.4] - 2026-07-15
 
 _The Subconscious Friction & Mechanical Obstruction Update_

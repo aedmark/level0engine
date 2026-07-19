@@ -105,8 +105,96 @@ export default class Environment {
         }
     }
 
+    _updateSliderDoor(door, playerPos, delta) {
+        const ud = door.userData;
+        const pDistSq = playerPos.distanceToSquared(door.position);
+        const entityOpen = ud.entityOpen === true;
+        ud.entityOpen = false;
+        // Dormant when sealed and nobody is near
+        if (pDistSq > 900.0 && ud.progress === 0 && !entityOpen) return;
+
+        const shouldOpen = entityOpen || pDistSq < 20.0;
+        const target = shouldOpen ? 1.0 : 0.0;
+        const travelAxis = ud.spansX ? 'z' : 'x';
+        const playerOutside = ((playerPos[travelAxis] - door.position[travelAxis]) * ud.outSign) > 0;
+
+        if (target !== ud.lastTarget) {
+            ud.lastTarget = target;
+            // Remember which side triggered this open cycle
+            if (target === 1.0) ud.openedFromOutside = playerOutside;
+            // Pneumatic release / grind cue on state change
+            document.dispatchEvent(new CustomEvent('somatic-door', {
+                detail: {distSq: pDistSq, intensity: shouldOpen ? 0.7 : 0.45}
+            }));
+        }
+
+        // Atmosphere hand-off: while the door is open, it overrides the chunk-boundary
+        // hysteresis — gated on approach intent so a passerby (or someone who just left)
+        // grazing the activation radius doesn't re-ignite the interior atmosphere.
+        // Approach test uses world-space displacement (player.velocity is camera-local)
+        let approaching = false;
+        const mvx = this._playerMoveX || 0;
+        const mvz = this._playerMoveZ || 0;
+        const moveSq = mvx * mvx + mvz * mvz;
+        const minStep = 0.5 * delta; // ~0.5 units/sec floor to reject idle jitter
+        if (moveSq > minStep * minStep) {
+            const dx = door.position.x - playerPos.x;
+            const dz = door.position.z - playerPos.z;
+            const dLen = Math.sqrt(dx * dx + dz * dz) || 1.0;
+            approaching = ((mvx * dx + mvz * dz) / (Math.sqrt(moveSq) * dLen)) > 0.45;
+        }
+        if (ud.sectorId && pDistSq < 30.0 && (ud.lastTarget === 1 || ud.progress > 0)) {
+            if (ud.openedFromOutside) {
+                // Entry cycle: red rolls out through the gap only while actually heading in
+                if (playerOutside && approaching) this._doorSectorForce = ud.inChunk;
+            } else {
+                // Exit cycle: purge begins the moment the panels part on the way to the
+                // door, and stays pinned once the player has crossed out
+                if (playerOutside || approaching) this._doorSectorForce = ud.outChunk;
+            }
+        }
+
+        if (ud.progress === target) return;
+
+        // Heavy mechanical travel for the player; the Anomaly slams them
+        const speed = entityOpen ? 3.0 : 0.9;
+        const dir = target > ud.progress ? 1 : -1;
+        ud.progress = Math.max(0, Math.min(1, ud.progress + dir * speed * delta));
+
+        const t = ud.progress;
+        const eased = t * t * (3 - 2 * t);
+        const axis = ud.spansX ? 'x' : 'z';
+        for (let i = 0; i < 2; i++) {
+            const p = ud.panels[i];
+            p.position[axis] = ud.baseOffsets[i] + ud.signs[i] * eased * ud.slideDist;
+        }
+
+        // Unseal collision as soon as the panels part; reseal only when fully shut
+        if (ud.progress > 0.12) {
+            if (!ud.box.isEmpty()) ud.box.makeEmpty();
+        } else if (ud.progress === 0) {
+            if (ud.box.isEmpty()) ud.box.copy(ud.closedBox);
+        }
+
+        // Terminal clunk at either end of travel
+        if (ud.progress === 1 || ud.progress === 0) {
+            document.dispatchEvent(new CustomEvent('somatic-door', {
+                detail: {distSq: pDistSq, intensity: ud.progress === 0 ? 0.9 : 0.5}
+            }));
+        }
+    }
+
     updateInteractives(playerPos, delta) {
+        // World-space player displacement for slider approach-intent tests
+        if (!this._prevPlayerPos) this._prevPlayerPos = playerPos.clone();
+        this._playerMoveX = playerPos.x - this._prevPlayerPos.x;
+        this._playerMoveZ = playerPos.z - this._prevPlayerPos.z;
+        this._prevPlayerPos.copy(playerPos);
         this.interactiveDoors.forEach(door => {
+            if (door.userData.isSlider) {
+                this._updateSliderDoor(door, playerPos, delta);
+                return;
+            }
             const pDistSq = playerPos.distanceToSquared(door.position);
             if (pDistSq > 400.0 && !door.userData.isLatched && !door.userData.entityOpen) return;
             const playerOpen = door.userData.playerOpen === true;
@@ -431,6 +519,7 @@ export default class Environment {
             let hit = null;
             let closestDistSq = 9.0;
             const checkObj = (obj) => {
+                if (obj.userData.isSlider) return; // proximity-driven, not interactable
                 const distSq = obj.position.distanceToSquared(e.detail.position);
                 if (distSq < closestDistSq) {
                     this._interactDir.subVectors(obj.position, e.detail.position).normalize();
@@ -943,7 +1032,8 @@ export default class Environment {
                 sectorMaze = this._generateSectorMaze(random, inDir, outDir);
             }
             if (activeSector.foundationMat) {
-                const foundationGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
+                const innerSize = (this.chunkSize - 2) * this.cellSize;
+                const foundationGeo = new THREE.PlaneGeometry(innerSize, innerSize);
                 const foundation = new THREE.Mesh(foundationGeo, activeSector.foundationMat);
                 foundation.rotation.x = -Math.PI / 2;
                 const centerOffset = (this.chunkSize * this.cellSize) / 2 - (this.cellSize / 2);
@@ -956,7 +1046,7 @@ export default class Environment {
         const centerOffset = (this.chunkSize * this.cellSize) / 2 - (this.cellSize / 2);
         const floorGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
         const ceilGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
-        if (!isMacroStructure && !isChasm) {
+        if (!isChasm) {
             const floor = new THREE.Mesh(floorGeo, this.carpetMat);
             floor.rotation.x = -Math.PI / 2;
             floor.position.set(startX * this.cellSize + centerOffset, 0, startZ * this.cellSize + centerOffset);
@@ -1262,16 +1352,30 @@ export default class Environment {
         const pChunkZ = Math.floor(cameraPos.z / (this.chunkSize * this.cellSize));
 
         // Isolate local coordinates to determine exact room placement
-        const localX = (Math.floor(cameraPos.x / this.cellSize) % this.chunkSize + this.chunkSize) % this.chunkSize;
-        const localZ = (Math.floor(cameraPos.z / this.cellSize) % this.chunkSize + this.chunkSize) % this.chunkSize;
+        const chunkWidth = this.chunkSize * this.cellSize;
+        let localWorldX = cameraPos.x % chunkWidth;
+        if (localWorldX < 0) localWorldX += chunkWidth;
+        let localWorldZ = cameraPos.z % chunkWidth;
+        if (localWorldZ < 0) localWorldZ += chunkWidth;
 
         if (!this.lastInteriorSector) this.lastInteriorSector = { x: pChunkX, z: pChunkZ };
 
-        // Hysteresis Lock: Only swap the atmosphere when strictly inside the room bounds.
-        // This prevents the fog/audio from bleeding into adjacent spaces or doorways.
-        if (localX >= 1 && localX <= 14 && localZ >= 1 && localZ <= 14) {
+        // Hysteresis Lock: swap only when ~1.5 units past the door plane on every side.
+        // The bounds are deliberately asymmetric: the chunk's cell footprint spans local
+        // -2..62 while the chunk ID flips at 0/64, so local 58.5..64 is far-side wall mass
+        // plus the EXTERIOR strip beyond it — a player hugging the outside of a zone's far
+        // wall (or its corners) sits in that strip and must never update the sector lock.
+        if (localWorldX > 1.5 && localWorldX < 58.5 && localWorldZ > 1.5 && localWorldZ < 58.5) {
             this.lastInteriorSector.x = pChunkX;
             this.lastInteriorSector.z = pChunkZ;
+        }
+
+        // Blast-door hand-off: an open zone door dictates the sector directly,
+        // beating the boundary math in both directions (set by _updateSliderDoor).
+        if (this._doorSectorForce) {
+            this.lastInteriorSector.x = this._doorSectorForce.x;
+            this.lastInteriorSector.z = this._doorSectorForce.z;
+            this._doorSectorForce = null;
         }
 
         let structuralShift = 0;
@@ -1328,8 +1432,10 @@ export default class Environment {
             const userMultiplier = this.baseFogDensity / 0.05;
             const scaledTargetFog = targetFog * userMultiplier;
 
-            // Accelerate fog transition slightly to reduce bleed
-            this.currentFogDensity += (scaledTargetFog - this.currentFogDensity) * 0.05;
+            // Asymmetric transition: the atmosphere slams in as the doors part,
+            // but purges hard on exit so no residue bleeds down the yellow halls
+            const fogRate = scaledTargetFog > this.currentFogDensity ? 0.15 : 0.30;
+            this.currentFogDensity += (scaledTargetFog - this.currentFogDensity) * fogRate;
             const fogBreath = Math.sin(time * 0.05) * (this.currentFogDensity * 0.3);
             this.scene.fog.density = this.currentFogDensity + fogBreath;
         }
@@ -1360,9 +1466,11 @@ export default class Environment {
         const darknessRatio = Math.min(1.0, darknessPressure * 0.4);
         const finalTargetColor = this._targetFogColor.clone().lerp(this._blackColor, darknessRatio);
 
-        // Faster lerp for color to make the zone boundary feel distinct
-        this.scene.fog.color.lerp(finalTargetColor, 0.08);
-        this.scene.background.lerp(finalTargetColor, 0.08);
+        // Faster lerp for color to make the zone boundary feel distinct;
+        // snap back to base yellow at double speed when leaving a sector
+        const colorRate = this._targetFogColor.equals(this._baseFogColor) ? 0.25 : 0.15;
+        this.scene.fog.color.lerp(finalTargetColor, colorRate);
+        this.scene.background.lerp(finalTargetColor, colorRate);
         if (this.dustCloud) {
             this.dustCloud.position.copy(cameraPos);
             this.dustCloud.rotation.y = time * 0.05;
@@ -1377,7 +1485,8 @@ export default class Environment {
             this.exhaustCloud.rotation.y = time * -0.07;
             this.exhaustCloud.rotation.x = time * 0.04;
             const targetExhaustOpacity = (activeSector === "INCINERATOR") ? 0.85 : ((activeSector === "SERVER") ? 0.35 : 0.0);
-            this.exhaustMat.opacity += (targetExhaustOpacity - this.exhaustMat.opacity) * 0.02;
+            const exhaustRate = targetExhaustOpacity > this.exhaustMat.opacity ? 0.08 : 0.20;
+            this.exhaustMat.opacity += (targetExhaustOpacity - this.exhaustMat.opacity) * exhaustRate;
             if (this.exhaustMat.opacity > 0.01) {
                 this.exhaustMat.size = 0.08 + (Math.sin(time * 12.0) * 0.02);
             }

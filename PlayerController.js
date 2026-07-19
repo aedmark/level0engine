@@ -482,8 +482,8 @@ export default class PlayerController {
         this.camera.rotation.z += swayRoll;
         const leanLateral = Math.sin(this.currentLean) * 0.8;
         const leanDrop = (1.0 - Math.cos(this.currentLean)) * 0.8;
-        const cosY = Math.cos(this._euler.y);
-        const sinY = Math.sin(this._euler.y);
+        const cosY = Math.cos(this.camera.rotation.y);
+        const sinY = Math.sin(this.camera.rotation.y);
         this._leanOffset.set(leanLateral * cosY, 0, -leanLateral * sinY);
         this.camera.position.x += this._leanOffset.x;
         this.camera.position.z += this._leanOffset.z;

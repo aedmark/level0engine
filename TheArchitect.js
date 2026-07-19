@@ -1299,8 +1299,149 @@ export default class TheArchitect {
                 id: "INCINERATOR",
                 foundationMat: this.rustMat,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
-                    // Force the standard yellow wallpaper on the exterior boundaries
-                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) return;
+                    // Double-shell boundary: yellow wallpaper camouflage stays on the exterior
+                    // face, but the interior face is lined with rusted iron so the room never
+                    // reads as backrooms wallpaper from within.
+                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat)) {
+                        const lEdge = this.chunkSize - 1;
+                        const liners = [];
+                        if (localX === 0) liners.push([1, 0]);
+                        if (localX === lEdge) liners.push([-1, 0]);
+                        if (localZ === 0) liners.push([0, 1]);
+                        if (localZ === lEdge) liners.push([0, -1]);
+                        for (let li = 0; li < liners.length; li++) {
+                            const ldx = liners[li][0], ldz = liners[li][1];
+                            const liner = buildWall(ldx !== 0 ? 0.4 : this.cellSize, ldz !== 0 ? 0.4 : this.cellSize, this.rustMat, 3.0);
+                            liner.position.set(x * this.cellSize + ldx * 2.2, 1.5, z * this.cellSize + ldz * 2.2);
+                            addGeometry(liner);
+                        }
+                        return;
+                    }
+
+                    // --- BLAST DOORS ---
+                    // Seal the four perimeter doorways with sliding metal pocket doors so the
+                    // red fog / ash interior can never be seen from a distant sightline.
+                    const edge = this.chunkSize - 1;
+                    const isDoorwayNS = localX === 7 && (localZ === 0 || localZ === edge);
+                    const isDoorwayEW = localZ === 7 && (localX === 0 || localX === edge);
+                    if (isDoorwayNS || isDoorwayEW) {
+                        const spansX = isDoorwayNS; // door plane runs along X; travel axis is Z
+                        const dcx = x * this.cellSize;
+                        const dcz = z * this.cellSize;
+
+                        // Pocket jambs + header beam (static, mergeable)
+                        const jambA = buildWall(spansX ? 0.5 : 0.7, spansX ? 0.7 : 0.5, this.rustMat, 3.0);
+                        jambA.position.set(dcx - (spansX ? 1.75 : 0), 1.5, dcz - (spansX ? 0 : 1.75));
+                        addGeometry(jambA);
+                        const jambB = buildWall(spansX ? 0.5 : 0.7, spansX ? 0.7 : 0.5, this.rustMat, 3.0);
+                        jambB.position.set(dcx + (spansX ? 1.75 : 0), 1.5, dcz + (spansX ? 0 : 1.75));
+                        addGeometry(jambB);
+                        const header = buildWall(spansX ? 3.0 : 0.7, spansX ? 0.7 : 3.0, this.metalMat, 0.4);
+                        header.position.set(dcx, 2.8, dcz);
+                        addGeometry(header);
+
+                        // Split sliding panels (retract into the flanking wall mass)
+                        const doorGroup = new THREE.Group();
+                        doorGroup.position.set(dcx, 0, dcz);
+                        const panelGeo = spansX
+                            ? new THREE.BoxGeometry(1.58, 2.6, 0.24)
+                            : new THREE.BoxGeometry(0.24, 2.6, 1.58);
+                        const stripeGeo = spansX
+                            ? new THREE.BoxGeometry(0.14, 2.6, 0.26)
+                            : new THREE.BoxGeometry(0.26, 2.6, 0.14);
+                        const ribGeo = spansX
+                            ? new THREE.BoxGeometry(1.58, 0.08, 0.28)
+                            : new THREE.BoxGeometry(0.28, 0.08, 1.58);
+
+                        const mkPanel = (side) => {
+                            const p = new THREE.Mesh(panelGeo, this.metalMat);
+                            if (spansX) p.position.set(side * 0.76, 1.3, 0);
+                            else p.position.set(0, 1.3, side * 0.76);
+                            // Hazard chevrons on the meeting edges
+                            const stripe = new THREE.Mesh(stripeGeo, this.hazardMat);
+                            if (spansX) stripe.position.set(-side * 0.72, 0, 0);
+                            else stripe.position.set(0, 0, -side * 0.72);
+                            p.add(stripe);
+                            // Horizontal reinforcement ribs
+                            for (let ry = -1; ry <= 1; ry += 2) {
+                                const rib = new THREE.Mesh(ribGeo, this.rustMat);
+                                rib.position.set(0, ry * 0.75, 0);
+                                p.add(rib);
+                            }
+                            p.castShadow = p.receiveShadow = true;
+                            p.userData.chunkHash = hash;
+                            doorGroup.add(p);
+                            return p;
+                        };
+                        const panelL = mkPanel(-1);
+                        const panelR = mkPanel(1);
+                        chunkGroup.add(doorGroup);
+                        doorGroup.updateMatrixWorld(true);
+                        this.walls.push(panelL, panelR);
+
+                        // Collision seal across the opening
+                        const doorBox = new THREE.Box3();
+                        if (spansX) {
+                            doorBox.min.set(dcx - 1.55, 0.0, dcz - 0.25);
+                            doorBox.max.set(dcx + 1.55, 2.6, dcz + 0.25);
+                        } else {
+                            doorBox.min.set(dcx - 0.25, 0.0, dcz - 1.55);
+                            doorBox.max.set(dcx + 0.25, 2.6, dcz + 1.55);
+                        }
+                        doorBox.chunkHash = hash;
+                        this.spatialGrid.insert(doorBox);
+
+                        const slideAxis = spansX ? 'x' : 'z';
+                        const outSign = (localZ === 0 || localX === 0) ? -1 : 1;
+                        const dChunkX = Math.floor(x / this.chunkSize);
+                        const dChunkZ = Math.floor(z / this.chunkSize);
+                        doorGroup.userData = {
+                            chunkHash: hash,
+                            isSlider: true,
+                            spansX: spansX,
+                            panels: [panelL, panelR],
+                            baseOffsets: [panelL.position[slideAxis], panelR.position[slideAxis]],
+                            signs: [-1, 1],
+                            slideDist: 1.62,
+                            progress: 0,
+                            lastTarget: 0,
+                            box: doorBox,
+                            closedBox: doorBox.clone(),
+                            // Atmosphere hand-off: this door governs the sector swap
+                            sectorId: "INCINERATOR",
+                            outSign: outSign,
+                            inChunk: {x: dChunkX, z: dChunkZ},
+                            outChunk: {x: dChunkX + (spansX ? 0 : outSign), z: dChunkZ + (spansX ? outSign : 0)}
+                        };
+                        this.interactiveDoors.push(doorGroup);
+
+                        // Red warning lamp on the exterior face — the only atmospheric leak
+                        const lampMat = this.baseLightMat.clone();
+                        lampMat.color.setHex(0xff3300);
+                        lampMat.emissive.setHex(0xff1100);
+                        const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.12, 0.18), lampMat);
+                        if (spansX) lamp.position.set(dcx, 2.5, dcz + outSign * 0.5);
+                        else lamp.position.set(dcx + outSign * 0.5, 2.5, dcz);
+                        const lampLight = new THREE.PointLight(0xff2200, 1.2, 6.0, 2.0);
+                        lampLight.position.set(0, -0.2, 0);
+                        lamp.add(lampLight);
+                        lamp.userData.chunkHash = hash;
+                        chunkGroup.add(lamp);
+                        this.walls.push(lamp);
+                        this.fixtureData.push({
+                            chunkHash: hash,
+                            position: lamp.position.clone(),
+                            flickerOffset: random() * 500,
+                            material: lampMat,
+                            lightObj: lampLight,
+                            isFaulty: true,
+                            baseIntensity: 1.0,
+                            targetIntensity: 1.0,
+                            currentIntensity: 1.0
+                        });
+                        return;
+                    }
+
                     if (localX >= 4 && localX <= 11 && localZ >= 4 && localZ <= 11) {
                         const block = buildWall(this.cellSize, this.cellSize, this.rustMat, 3.0);
                         block.position.set(x * this.cellSize, 1.5, z * this.cellSize);
