@@ -1,6 +1,9 @@
 // TheArchitect.js
 // LEVEL 0 PROCEDURAL BLUEPRINT FACTORY
 
+import Vec3 from './Vec3.js';
+import AABB from './AABB.js';
+
 export default class TheArchitect {
     static getStructuralMatrix(ctx) {
         const {
@@ -287,9 +290,9 @@ export default class TheArchitect {
                             const lInnerZ = buildWall(innerW, liningH, this.ventMat, sideH);
                             lInnerZ.position.set(x * this.cellSize - (flipX * (this.cellSize / 2 - innerW / 2)), holeH / 2, z * this.cellSize + (flipZ * (holeW / 2 - liningH / 2)));
                             addGeometry(lInnerZ);
-                            const blockBox = new THREE.Box3(
-                                new THREE.Vector3(x * this.cellSize - this.cellSize / 2, 0, z * this.cellSize - this.cellSize / 2),
-                                new THREE.Vector3(x * this.cellSize + this.cellSize / 2, 3.0, z * this.cellSize + this.cellSize / 2)
+                            const blockBox = new AABB(
+                                new Vec3(x * this.cellSize - this.cellSize / 2, 0, z * this.cellSize - this.cellSize / 2),
+                                new Vec3(x * this.cellSize + this.cellSize / 2, 3.0, z * this.cellSize + this.cellSize / 2)
                             );
                             blockBox.isEntityBlocker = true;
                             blockBox.isInvisibleBlocker = true;
@@ -336,9 +339,9 @@ export default class TheArchitect {
                                 const liningRight = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
                                 liningRight.position.set(segX * this.cellSize + (tunnelOnZ ? sideOffsetLining : 0), holeH / 2, segZ * this.cellSize + (tunnelOnZ ? 0 : sideOffsetLining));
                                 addGeometry(liningRight);
-                                const blockBox = new THREE.Box3(
-                                    new THREE.Vector3(segX * this.cellSize - (tunnelOnZ ? holeW / 2 : this.cellSize / 2), 0, segZ * this.cellSize - (tunnelOnZ ? this.cellSize / 2 : holeW / 2)),
-                                    new THREE.Vector3(segX * this.cellSize + (tunnelOnZ ? holeW / 2 : this.cellSize / 2), 3.0, segZ * this.cellSize + (tunnelOnZ ? this.cellSize / 2 : holeW / 2))
+                                const blockBox = new AABB(
+                                    new Vec3(segX * this.cellSize - (tunnelOnZ ? holeW / 2 : this.cellSize / 2), 0, segZ * this.cellSize - (tunnelOnZ ? this.cellSize / 2 : holeW / 2)),
+                                    new Vec3(segX * this.cellSize + (tunnelOnZ ? holeW / 2 : this.cellSize / 2), 3.0, segZ * this.cellSize + (tunnelOnZ ? this.cellSize / 2 : holeW / 2))
                                 );
                                 blockBox.isEntityBlocker = true;
                                 blockBox.isInvisibleBlocker = true;
@@ -456,9 +459,9 @@ export default class TheArchitect {
                             const liningRight = buildWall(liningSideW, liningSideD, this.ventMat, sideH);
                             liningRight.position.set(segX * this.cellSize + (dirZ ? sideOffsetLining : 0), tunnelH / 2, segZ * this.cellSize + (dirZ ? 0 : sideOffsetLining));
                             addGeometry(liningRight);
-                            const blockBox = new THREE.Box3(
-                                new THREE.Vector3(segX * this.cellSize - (dirZ ? tunnelW / 2 : this.cellSize / 2), 0, segZ * this.cellSize - (dirZ ? this.cellSize / 2 : tunnelW / 2)),
-                                new THREE.Vector3(segX * this.cellSize + (dirZ ? tunnelW / 2 : this.cellSize / 2), 3.0, segZ * this.cellSize + (dirZ ? this.cellSize / 2 : tunnelW / 2))
+                            const blockBox = new AABB(
+                                new Vec3(segX * this.cellSize - (dirZ ? tunnelW / 2 : this.cellSize / 2), 0, segZ * this.cellSize - (dirZ ? this.cellSize / 2 : tunnelW / 2)),
+                                new Vec3(segX * this.cellSize + (dirZ ? tunnelW / 2 : this.cellSize / 2), 3.0, segZ * this.cellSize + (dirZ ? this.cellSize / 2 : tunnelW / 2))
                             );
                             blockBox.isEntityBlocker = true;
                             blockBox.isInvisibleBlocker = true;
@@ -508,9 +511,9 @@ export default class TheArchitect {
                             const roof = buildWall(dirZ ? roofW : this.cellSize, dirZ ? this.cellSize : roofW, this.sharedWallMat, roofH, 1.2);
                             roof.position.set(segX * this.cellSize, 1.2 + (roofH / 2), segZ * this.cellSize);
                             addGeometry(roof);
-                            const blockBox = new THREE.Box3(
-                                new THREE.Vector3(segX * this.cellSize - (dirZ ? roofW / 2 : this.cellSize / 2), 0, segZ * this.cellSize - (dirZ ? this.cellSize / 2 : roofW / 2)),
-                                new THREE.Vector3(segX * this.cellSize + (dirZ ? roofW / 2 : this.cellSize / 2), 3.0, segZ * this.cellSize + (dirZ ? this.cellSize / 2 : roofW / 2))
+                            const blockBox = new AABB(
+                                new Vec3(segX * this.cellSize - (dirZ ? roofW / 2 : this.cellSize / 2), 0, segZ * this.cellSize - (dirZ ? this.cellSize / 2 : roofW / 2)),
+                                new Vec3(segX * this.cellSize + (dirZ ? roofW / 2 : this.cellSize / 2), 3.0, segZ * this.cellSize + (dirZ ? this.cellSize / 2 : roofW / 2))
                             );
                             blockBox.isEntityBlocker = true;
                             blockBox.isInvisibleBlocker = true;
@@ -756,9 +759,9 @@ export default class TheArchitect {
                             addGeometry(w);
                         }
                     }
-                    const blockBox = new THREE.Box3(
-                        new THREE.Vector3(cx - this.cellSize / 2, 0, cz - this.cellSize / 2),
-                        new THREE.Vector3(cx + this.cellSize / 2, 3.0, cz + this.cellSize / 2)
+                    const blockBox = new AABB(
+                        new Vec3(cx - this.cellSize / 2, 0, cz - this.cellSize / 2),
+                        new Vec3(cx + this.cellSize / 2, 3.0, cz + this.cellSize / 2)
                     );
                     blockBox.isEntityBlocker = true;
                     blockBox.isInvisibleBlocker = true;
@@ -1640,7 +1643,7 @@ export default class TheArchitect {
                             });
                         }
                     } else {
-                        const voidBox = new THREE.Box3();
+                        const voidBox = new AABB();
                         voidBox.min.set(gx - 2, -100, gz - 2);
                         voidBox.max.set(gx + 2, 3, gz + 2);
                         voidBox.isVoid = true;
@@ -2313,9 +2316,9 @@ export default class TheArchitect {
                             const frameTop = new THREE.Mesh(new THREE.BoxGeometry(spansX ? gapW : wallThick + 0.02, 0.05, spansX ? wallThick + 0.02 : gapW), this.woodMat);
                             frameTop.position.set(x * this.cellSize, gapH + 0.025, z * this.cellSize);
                             addGeometry(frameTop);
-                            const blockBox = new THREE.Box3(
-                                new THREE.Vector3(x * this.cellSize - (spansX ? gapW / 2 : wallThick / 2), 0, z * this.cellSize - (spansX ? wallThick / 2 : gapW / 2)),
-                                new THREE.Vector3(x * this.cellSize + (spansX ? gapW / 2 : wallThick / 2), 3.0, z * this.cellSize + (spansX ? wallThick / 2 : gapW / 2))
+                            const blockBox = new AABB(
+                                new Vec3(x * this.cellSize - (spansX ? gapW / 2 : wallThick / 2), 0, z * this.cellSize - (spansX ? wallThick / 2 : gapW / 2)),
+                                new Vec3(x * this.cellSize + (spansX ? gapW / 2 : wallThick / 2), 3.0, z * this.cellSize + (spansX ? wallThick / 2 : gapW / 2))
                             );
                             blockBox.isEntityBlocker = true;
                             blockBox.isInvisibleBlocker = true;

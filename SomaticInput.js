@@ -1,6 +1,8 @@
 // SomaticInput.js
 // LEVEL 0 PERIPHERAL NERVOUS SYSTEM
 
+import Vec3 from './Vec3.js';
+
 const PREVENT_KEYS = new Set(['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyV', 'KeyQ', 'KeyF', 'KeyE', 'KeyG', 'KeyZ']);
 
 export default class SomaticInput {
@@ -121,7 +123,7 @@ export default class SomaticInput {
                 document.dispatchEvent(new Event('somatic-close-document'));
             } else {
                 document.dispatchEvent(new CustomEvent('somatic-interact', {
-                    detail: {position: this.camera.position, direction: this.camera.getWorldDirection(new THREE.Vector3())}
+                    detail: {position: this.camera.position, direction: this.camera.getWorldDirection(new Vec3())}
                 }));
             }
         }

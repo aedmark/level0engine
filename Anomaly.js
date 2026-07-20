@@ -1,6 +1,9 @@
 // Anomaly.js
 // LEVEL 0 PREDATORY HAZARD
 
+import Vec3 from './Vec3.js';
+import AABB from './AABB.js';
+
 export default class Anomaly {
     constructor(scene, camera, player, environment) {
         this.scene = scene;
@@ -9,22 +12,21 @@ export default class Anomaly {
         this.env = environment;
         this.isActive = false;
         this.group = new THREE.Group();
-        this.target = new THREE.Vector3();
+        this.target = new Vec3();
         this.breadcrumbs = [];
         this.backtrackTimer = 0;
         this.breadcrumbTimer = 0;
         this.graceTimer = 0;
-        this._dir = new THREE.Vector3();
-        this._toPlayer = new THREE.Vector3();
-        this._lookDir = new THREE.Vector3();
-        this._nextPos = new THREE.Vector3();
-        this._box = new THREE.Box3();
-        this._boxX = new THREE.Box3();
-        this._boxZ = new THREE.Box3();
-        this._min = new THREE.Vector3();
-        this._max = new THREE.Vector3();
-        this._sightRaycaster = new THREE.Raycaster();
-        this._rayTarget = new THREE.Vector3();
+        this._dir = new Vec3();
+        this._toPlayer = new Vec3();
+        this._lookDir = new Vec3();
+        this._nextPos = new Vec3();
+        this._box = new AABB();
+        this._boxX = new AABB();
+        this._boxZ = new AABB();
+        this._min = new Vec3();
+        this._max = new Vec3();
+        this._rayTarget = new Vec3();
         this._buildMesh();
         document.addEventListener('somatic-step', (e) => this._handleNoise(e, 9.0));
         document.addEventListener('somatic-door', (e) => this._handleNoise(e, 30.0));
@@ -152,7 +154,6 @@ export default class Anomaly {
         if (distToPlayerSq < Math.max(perceptionThresholdSq, 625.0)) {
             if (time - this._lastLOSTime > 0.1) {
                 const toPlayerDir = this._toPlayer.subVectors(playerPos, this.group.position).normalize();
-                this._sightRaycaster.set(this.group.position, toPlayerDir);
                 let isOccluded = false;
                 const searchDist = Math.sqrt(distToPlayerSq);
                 if (this.env && this.env.spatialGrid) {
@@ -160,7 +161,7 @@ export default class Anomaly {
                     for (let i = 0; i < localBoxes.length; i++) {
                         const box = localBoxes[i];
                         if (box.isEntityBlocker && !box.isInvisibleBlocker) {
-                            if (this._sightRaycaster.ray.intersectBox(box, this._rayTarget)) {
+                            if (AABB.rayIntersectsBox(this.group.position, toPlayerDir, box, this._rayTarget)) {
                                 if (this.group.position.distanceToSquared(this._rayTarget) < distToPlayerSq) {
                                     isOccluded = true;
                                     break;

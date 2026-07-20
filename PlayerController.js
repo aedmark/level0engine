@@ -2,14 +2,16 @@
 // LEVEL 0 PLAYER CONTROLLER
 
 import SomaticInput from './SomaticInput.js';
+import Vec3 from './Vec3.js';
+import AABB from './AABB.js';
 
 export default class PlayerController {
     constructor(camera, domElement) {
         this.camera = camera;
         this.domElement = domElement;
         this.input = new SomaticInput(camera);
-        this.velocity = new THREE.Vector3();
-        this.direction = new THREE.Vector3();
+        this.velocity = new Vec3();
+        this.direction = new Vec3();
         this.isSqueezing = false;
         this.flashlightBattery = 100.0;
         this.baseRadius = 0.4;
@@ -56,14 +58,12 @@ export default class PlayerController {
         this.baseFov = camera.fov;
         this.linguisticDarkMatter = 0.0;
         this.currentFov = camera.fov;
-        this._leanOffset = new THREE.Vector3();
-        this._boxX = new THREE.Box3();
-        this._boxZ = new THREE.Box3();
-        this._floorBox = new THREE.Box3();
-        this._vecMin = new THREE.Vector3();
-        this._vecMax = new THREE.Vector3();
-        this._euler = new THREE.Euler(0, 0, 0, 'YXZ');
-        this._moveDelta = new THREE.Vector3();
+        this._leanOffset = new Vec3();
+        this._boxX = new AABB();
+        this._boxZ = new AABB();
+        this._floorBox = new AABB();
+        this._vecMin = new Vec3();
+        this._vecMax = new Vec3();
         this._bindMetabolicListeners();
     }
 
