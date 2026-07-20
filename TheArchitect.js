@@ -2116,9 +2116,11 @@ export default class TheArchitect {
                             this.spatialGrid.insert(lBox);
                         } else if (spawnRoll < 0.75) {
                             const tapeGroup = new THREE.Group();
-                            const tGeo = new THREE.BoxGeometry(0.18, 0.04, 0.12);
-                            this.geoCache.set(tGeo.uuid, true);
-                            const tapeBody = new THREE.Mesh(tGeo, this.baseHousingMat);
+                            if (!this.tapeGeo) {
+                                this.tapeGeo = new THREE.BoxGeometry(0.18, 0.04, 0.12);
+                                this.geoCache.set(this.tapeGeo.uuid, true);
+                            }
+                            const tapeBody = new THREE.Mesh(this.tapeGeo, this.baseHousingMat);
                             tapeBody.position.set(0, 0.02, 0);
                             tapeGroup.add(tapeBody);
 

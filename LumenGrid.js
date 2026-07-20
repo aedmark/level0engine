@@ -4,8 +4,8 @@
 export default class LumenGrid {
     constructor(scene) {
         this.scene = scene;
-        this.maxActiveLights = 40;
-        this.maxShadowLights = 10;
+        this.maxActiveLights = 32;
+        this.maxShadowLights = 7;
         this.lightPool = [];
         this._activeFixtures = new Array(this.maxActiveLights).fill(null);
         for (let i = 0; i < this.maxActiveLights; i++) {
@@ -27,6 +27,18 @@ export default class LumenGrid {
 
     update(cameraPos, fixtureData, time) {
         let darknessPressure = 0;
+        // Rank is rebuilt from scratch every frame, which means a fixture
+        // sitting right at the cutoff can flip in and out of the active set
+        // from tiny distance jitter alone — no actual movement needed. That
+        // reads as a light (and whatever it's lighting up — a reflective
+        // floor, say) popping in and out. Capture who was active last frame
+        // before rebuilding, so the ranking below can give them a little
+        // stickiness and stop boundary fixtures from flapping.
+        if (!this._prevActive) this._prevActive = new Set();
+        this._prevActive.clear();
+        for (let i = 0; i < this.maxActiveLights; i++) {
+            if (this._activeFixtures[i]) this._prevActive.add(this._activeFixtures[i]);
+        }
         this._activeFixtures.fill(null);
         const cullingLimit = this.maxActiveLights > 12 ? 35.0 : 22.0;
         for (let i = 0, len = fixtureData.length; i < len; i++) {
@@ -48,6 +60,7 @@ export default class LumenGrid {
                 if (!fixture.isFake) {
                     fixture.distSq = distSq;
                     fixture._biasedDistSq = fixture.hasShadow ? distSq - 40.0 : distSq;
+                    if (this._prevActive.has(fixture)) fixture._biasedDistSq -= 30.0;
                     let insertPos = -1;
                     for (let j = 0; j < this.maxActiveLights; j++) {
                         if (!this._activeFixtures[j] || fixture._biasedDistSq < this._activeFixtures[j]._biasedDistSq) {
@@ -91,10 +104,29 @@ export default class LumenGrid {
                     light.intensity = 0.0;
                     if (fixture.material) fixture.material.emissiveIntensity = 0.0;
                 } else if (fixture.isFaulty) {
-                    const chaos = Math.sin(time * 15.0 + fixture.flickerOffset) *
-                        Math.sin(time * 22.0 - fixture.flickerOffset) *
-                        Math.cos(time * 7.0);
-                    fixture.currentIntensity = fixture.baseIntensity * (chaos > 0.3 ? 0.1 : 1.0 + chaos);
+                    // Event-driven flicker: each fixture keeps its own schedule for
+                    // when its next flicker starts and how long it lasts, drawn fresh
+                    // from Math.random() rather than a shared time-based waveform.
+                    // That's what makes fixtures desync from each other instead of
+                    // all pulsing to the same beat with just a phase offset.
+                    if (fixture._nextFlicker === undefined) {
+                        fixture._nextFlicker = time + 0.5 + Math.random() * 4.0;
+                        fixture._flickering = false;
+                    }
+                    if (!fixture._flickering && time >= fixture._nextFlicker) {
+                        fixture._flickering = true;
+                        fixture._flickerUntil = time + 0.04 + Math.random() * 0.12;
+                        fixture._flickerDepth = Math.random() < 0.3 ? 0.0 : 0.05 + Math.random() * 0.3;
+                    } else if (fixture._flickering && time >= fixture._flickerUntil) {
+                        fixture._flickering = false;
+                        // 40% chance of an immediate stutter (a quick follow-up flicker,
+                        // like a dying tube catching itself); otherwise a genuinely
+                        // random gap before the next event.
+                        fixture._nextFlicker = Math.random() < 0.4
+                            ? time + 0.03 + Math.random() * 0.1
+                            : time + 1.0 + Math.random() * 6.0;
+                    }
+                    fixture.currentIntensity = fixture.baseIntensity * (fixture._flickering ? fixture._flickerDepth : 1.0);
                     light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
                     if (fixture.material) fixture.material.emissiveIntensity = Math.max(0.05, fixture.currentIntensity * 0.6);
                 } else {

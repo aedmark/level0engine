@@ -815,7 +815,7 @@ export default class Environment {
             dpTex.wrapS = dpTex.wrapT = THREE.RepeatWrapping;
             dpTex.repeat.set(14, 14);
             this.diamondPlateMat = new THREE.MeshStandardMaterial({
-                map: dpTex, bumpMap: dpTex, bumpScale: 0.05, metalness: 0.55, roughness: 0.45
+                map: dpTex, bumpMap: dpTex, bumpScale: 0.05, metalness: 0.25, roughness: 0.75
             });
             const ccv = document.createElement('canvas');
             ccv.width = ccv.height = 256;
@@ -1384,8 +1384,17 @@ export default class Environment {
                         this.walls.push(mesh);
                     };
                     const bWall = (w, h, d, mat) => {
-                        const geo = new THREE.BoxGeometry(w, h, d);
-                        this.geoCache.set(geo.uuid, true);
+                        // Every sector doorway calls this with one of a small
+                        // fixed set of dimensions (keyed on spansX) — cache by
+                        // shape so repeat doorways share geometry instead of
+                        // each leaking a new one into geoCache forever.
+                        const key = `door_${w}_${h}_${d}`;
+                        let geo = this.geoCache.get(key);
+                        if (!geo) {
+                            geo = new THREE.BoxGeometry(w, h, d);
+                            this.geoCache.set(key, geo);
+                            this.geoCache.set(geo.uuid, true);
+                        }
                         return new THREE.Mesh(geo, mat);
                     };
                     const jambA = bWall(spansX ? 0.5 : 0.7, 3.0, spansX ? 0.7 : 0.5, this.structMat);
@@ -1417,18 +1426,25 @@ export default class Environment {
                     }
                     const doorGroup = new THREE.Group();
                     doorGroup.position.set(dcx, 0, dcz);
+                    const getDoorGeo = (name, w, h, d) => {
+                        const key = `${name}_${spansX}`;
+                        let geo = this.geoCache.get(key);
+                        if (!geo) {
+                            geo = new THREE.BoxGeometry(w, h, d);
+                            this.geoCache.set(key, geo);
+                            this.geoCache.set(geo.uuid, true);
+                        }
+                        return geo;
+                    };
                     const panelGeo = spansX
-                        ? new THREE.BoxGeometry(1.58, 2.6, 0.24)
-                        : new THREE.BoxGeometry(0.24, 2.6, 1.58);
-                    this.geoCache.set(panelGeo.uuid, true);
+                        ? getDoorGeo('doorPanel', 1.58, 2.6, 0.24)
+                        : getDoorGeo('doorPanel', 0.24, 2.6, 1.58);
                     const stripeGeo = spansX
-                        ? new THREE.BoxGeometry(0.14, 2.6, 0.26)
-                        : new THREE.BoxGeometry(0.26, 2.6, 0.14);
-                    this.geoCache.set(stripeGeo.uuid, true);
+                        ? getDoorGeo('doorStripe', 0.14, 2.6, 0.26)
+                        : getDoorGeo('doorStripe', 0.26, 2.6, 0.14);
                     const ribGeo = spansX
-                        ? new THREE.BoxGeometry(1.58, 0.08, 0.28)
-                        : new THREE.BoxGeometry(0.28, 0.08, 1.58);
-                    this.geoCache.set(ribGeo.uuid, true);
+                        ? getDoorGeo('doorRib', 1.58, 0.08, 0.28)
+                        : getDoorGeo('doorRib', 0.28, 0.08, 1.58);
                     const mkPanel = (side) => {
                         const p = new THREE.Mesh(panelGeo, this.metalMat);
                         if (spansX) p.position.set(side * 0.76, 1.3, 0);
@@ -1600,12 +1616,22 @@ export default class Environment {
             const cxw0 = startX * this.cellSize + centerOffset;
             const czw0 = startZ * this.cellSize + centerOffset;
             const half = span / 2;
+            // The perimeter wall at the chunk edge is centered on that same
+            // boundary line and is cellSize+0.02 (~4.02) units thick, so its
+            // outer face sits at half - ~2.01. Placing the skirt at exactly
+            // "half" buries it ~0.01 units inside that wall — coincident
+            // enough to z-fight, and since voidShroudMat is double-sided,
+            // visible from the exterior face too, fighting with the wall's
+            // wallpaper texture. Pull it in past the wall's inner face
+            // instead; it's a sightline curtain in open air, not something
+            // that needs to hug the boundary exactly.
+            const skirtInset = half - 4.5;
             for (let side = 0; side < 4; side++) {
                 const skirt = new THREE.Mesh(skirtGeo, this.voidShroudMat);
-                if (side === 0) skirt.position.set(cxw0, 6.0, czw0 - half);
-                else if (side === 1) skirt.position.set(cxw0, 6.0, czw0 + half);
-                else if (side === 2) { skirt.position.set(cxw0 - half, 6.0, czw0); skirt.rotation.y = Math.PI / 2; }
-                else { skirt.position.set(cxw0 + half, 6.0, czw0); skirt.rotation.y = Math.PI / 2; }
+                if (side === 0) skirt.position.set(cxw0, 6.0, czw0 - skirtInset);
+                else if (side === 1) skirt.position.set(cxw0, 6.0, czw0 + skirtInset);
+                else if (side === 2) { skirt.position.set(cxw0 - skirtInset, 6.0, czw0); skirt.rotation.y = Math.PI / 2; }
+                else { skirt.position.set(cxw0 + skirtInset, 6.0, czw0); skirt.rotation.y = Math.PI / 2; }
                 chunkGroup.add(skirt);
             }
         }

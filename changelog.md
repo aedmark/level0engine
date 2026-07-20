@@ -1,5 +1,30 @@
 # Level 0 Engine Changelog
 
+## [v0.4.8] - 2026-07-20
+
+_The Homegrown Math & Sticky Light Update_
+
+#### Added
+
+- **[ARCHITECTURE] Homegrown Vector Math:** Introduced `Vec3.js` and `AABB.js` — zero-dependency vector and axis-aligned bounding box classes that duck-type against `THREE.Vector3`/`THREE.Box3` rather than requiring them, so the two can sit side-by-side in the same expression without either one aware of the other. `AABB` also carries its own static ray-box slab intersection (`rayIntersectsBox`), replacing entity sight-checks that previously stood up a full `THREE.Raycaster` just to test a ray against spatial-grid boxes.
+
+#### Changed
+
+- **[ARCHITECTURE] The First Migration Off Three.js Math:** `PlayerController.js` and `SomaticInput.js` now run entirely on the homegrown math layer — velocity, collision boxes, lean offsets, and the world-direction query behind somatic interaction all resolve through `Vec3`/`AABB` with zero remaining `THREE` references. `Anomaly.js` and `TheArchitect.js` followed for their collision and pursuit math specifically (scratch vectors, pursuit boxes, seven static collision-box construction sites, and the entity's line-of-sight check) while leaving mesh, material, and geometry construction on `three` where it belongs — the spatial hash grid never cared what type built its boxes, so the split cost nothing. Two dead fields (`_euler`, `_moveDelta` in `PlayerController`) that were constructed but never read got removed rather than carried across the migration.
+- **[DYNAMIC ILLUMINATION] Desynchronized Flicker:** Faulty fixtures no longer share a single flicker rhythm. The old system ran every damaged light through the same three sine frequencies with only a phase offset, which reads as a synchronized strobe once you have more than one in view. Each fixture now keeps its own event schedule — a randomized wait, a 40-160ms dip to a randomized depth, and a 40% chance of an immediate stutter before the next randomized gap — so fixtures genuinely desync instead of pulsing to a shared beat.
+- **[MATERIALS] Duller Diamond Plate:** The chasm floor and incinerator foundation material (`diamondPlateMat`) dropped from `metalness: 0.55/roughness: 0.45` to `0.25/0.75`. Keeps the metal read from the texture while substantially softening and broadening specular highlights, so any light reassignment near the boundary of the active pool reads as a dim shift rather than a sharp pop.
+
+#### Optimized
+
+- **[PERFORMANCE] Shadow-Casting Light Budget:** Cut `LumenGrid`'s simultaneous shadow-casting point lights from 10 to 7. Point light shadows render as six-face cubemaps — ten of them near the player meant up to sixty extra depth passes a frame, the single heaviest cost in the render pipeline and the primary suspect behind a measured cross-browser frame rate gap on identical hardware.
+- **[PERFORMANCE] Active Light Pool:** `maxActiveLights` settled at 32, down from the original 40. Fewer simultaneously-lit fixtures means a shorter light loop in every `MeshStandardMaterial` fragment shader, at a size that still leaves comfortable headroom above the boundary-contention threshold that motivated the hysteresis fix below.
+
+#### Fixed
+
+- **[DYNAMIC ILLUMINATION] Active-Light Rank Flapping:** `LumenGrid` rebuilt its ranked list of the nearest lights from scratch every frame with no memory of the previous frame, so a fixture sitting near the cutoff could flip in and out of the active set from distance jitter alone — no player movement required. Visible as lights (and their floor reflections) popping in and out, worst in dense fixture clusters like the chasm's catwalk lamps. Fixtures that were active last frame now carry a small ranking bonus into this frame's sort, so a challenger has to be meaningfully closer, not marginally closer, to take the slot. Simulated against a cluster of ten near-equidistant fixtures: 760 on/off transitions across 300 frames dropped to 4.
+- **[GEOMETRY] Cache Leaks Behind the Instancing System:** `geoCache`'s contract is that a marked `uuid` is permanent and exempt from disposal — two places broke that promise by marking geometry that was never actually reused. `TheArchitect.js`'s tape-recorder prop built and permanently marked a fresh geometry on every spawn; `Environment.js`'s sector doorway block did the same across nine geometries (jambs, header, awning, cladding, door panel/stripe/rib) on every single doorway generated for the life of the session. Both now key into `geoCache` by shape and orientation instead, so repeats share geometry rather than leaking. As a side effect, previously-identical props that never matched on `geometry.uuid` can now actually batch into the existing `InstancedMesh` compiler instead of silently falling back to individual draw calls.
+- **[GEOMETRY] Chasm Void-Shroud Exterior Bleed:** The sightline-sealing skirt planes in open-top zones (chasm, atrium) were positioned using the same half-chunk-width offset as the canopy above them, which put them roughly 0.01 units inside the actual perimeter wall's outer face — close enough to z-fight, and since the shroud material is double-sided, visible from the exterior face too, fighting with the wall's yellow wallpaper from the neighboring sector. Inset the skirts 4.5 units toward the zone interior, clearing the wall's inner face by roughly half a unit on both sides of a chunk.
+
 ## [v0.4.7] - 2026-07-19
 
 _The Corn Maze & Paper Trail Update_
