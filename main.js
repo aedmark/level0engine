@@ -4,6 +4,7 @@ import RenderEngine from './RenderEngine.js';
 import PlayerController from './PlayerController.js';
 import Environment from './Environment.js';
 import AcousticEngine from './AcousticEngine.js';
+import StoryEngine from './StoryEngine.js';
 
 const engine = new RenderEngine();
 const acoustics = new AcousticEngine();
@@ -111,41 +112,179 @@ document.addEventListener('somatic-eyes', (e) => {
 document.addEventListener('somatic-breaker', (e) => acoustics.triggerSomaticEvent('breaker', e.detail.distSq, e.detail.intensity));
 document.addEventListener('somatic-item', (e) => acoustics.triggerSomaticEvent('item', e.detail.distSq, e.detail.intensity));
 
-// --- NARRATIVE ROUTER ---
-const ARCHIVE_LOGS = [
-    "ASYNC RESEARCH REPORT\n\nIt doesn't use the doors.\nIt doesn't need the doors.\nWhy did we build doors?",
-    "OBSERVATION 044\n\nThe architectural shift is directly proportional to the observer's heart rate. The walls aren't moving; the space between them is breathing.",
-    "INCIDENT LOG\n\nSubject exhibited extreme paranoia after 400 hours. Claimed the hum of the fluorescent lights was a linguistic sequence. We cut the power, but the humming didn't stop.",
-    "MAINTENANCE REQUEST\n\nPlease send someone to Level 0. The carpet is damp again. Also, stop leaving geometry in the negative coordinate space. The renderer is screaming.",
-    "MEMO\n\nIf you hear it scraping, stand still. If you hear it breathing, turn off the light. If you hear it laughing, close your eyes."
-];
+// --- NARRATIVE & SECURITY ROUTER ---
+function getStory() {
+    // Lazily evaluate and cache the story engine against the current physical seed
+    if (!getStory._cache || getStory._lastSeed !== environment.baseSeed) {
+        getStory._cache = new StoryEngine(environment.baseSeed);
+        getStory._lastSeed = environment.baseSeed;
+    }
+    return getStory._cache;
+}
+
+let typeWriterInterval = null;
 
 document.addEventListener('somatic-read', (e) => {
     if (player.input.state.isReading) return;
     player.input.state.isReading = true;
     player.input.state.isRunning = false;
 
+    // Release the mouse so the user can interact with UI elements or scroll
+    if (document.pointerLockElement) document.exitPointerLock();
+
     const docOverlay = document.getElementById('document-overlay');
     const docContent = document.getElementById('document-content');
 
     if (docContent) {
-        const logIndex = Math.floor(Math.random() * ARCHIVE_LOGS.length);
-        docContent.innerText = ARCHIVE_LOGS[logIndex];
-    }
-    if (docOverlay) docOverlay.style.display = 'block';
+        const docId = e.detail ? e.detail.docId : null;
+        const zone = e.detail ? e.detail.zone : null;
+        const fragment = getStory().getFragment(docId, zone);
 
-    acoustics.triggerSomaticEvent('item', 1.0, 0.4);
+        let fullText = fragment.text + `\n\n---\nDATA RECOVERED: [ ${fragment.progress.found} / ${fragment.progress.total} ]`;
+        if (docId && String(docId).startsWith('PC_')) {
+            fullText += `\n[ RE-ACCESS TERMINAL TO BROWSE RECOVERED FILES ]`;
+        }
+
+        if (docId && String(docId).startsWith('TAPE_')) {
+            // Audio transcript mode: Dark background, green text, typewriter effect
+            docOverlay.style.backgroundColor = '#111';
+            docOverlay.style.color = '#55ff55';
+            docOverlay.style.borderColor = '#55ff55';
+            docContent.innerText = '';
+
+            if (docOverlay) docOverlay.style.display = 'block';
+            acoustics.triggerSomaticEvent('tape_click', 1.0, 0.5);
+
+            let i = 0;
+            typeWriterInterval = setInterval(() => {
+                if (i < fullText.length) {
+                    docContent.innerText += fullText.charAt(i);
+                    // Only garble on actual characters to simulate synthetic speech cadence
+                    if (fullText.charAt(i) !== ' ' && fullText.charAt(i) !== '\n' && Math.random() > 0.6) {
+                        acoustics.triggerSomaticEvent('tape_garble', 1.0, 0.20);
+                    }
+                    i++;
+                } else {
+                    clearInterval(typeWriterInterval);
+                    typeWriterInterval = null;
+                    acoustics.triggerSomaticEvent('tape_click', 1.0, 0.4);
+                }
+            }, 35);
+        } else {
+            // Standard paper mode: Beige background, dark text, instant display
+            docOverlay.style.backgroundColor = '#f4f1e1';
+            docOverlay.style.color = '#1a1811';
+            docOverlay.style.borderColor = '#a89f68';
+            docContent.innerText = fullText;
+
+            if (docOverlay) docOverlay.style.display = 'block';
+            acoustics.triggerSomaticEvent('item', 1.0, 0.4);
+        }
+    }
 });
 
 document.addEventListener('somatic-close-document', () => {
     player.input.state.isReading = false;
     const docOverlay = document.getElementById('document-overlay');
-    if (docOverlay) docOverlay.style.display = 'none';
+    const keypadOverlay = document.getElementById('keypad-overlay');
 
-    // Metabolic Tax: Processing classified data leaves a scar.
-    player.coherence = Math.max(0.0, player.coherence - 0.15);
+    if (typeWriterInterval) {
+        clearInterval(typeWriterInterval);
+        typeWriterInterval = null;
+        acoustics.triggerSomaticEvent('tape_click', 1.0, 0.5); // Stop button click
+    }
 
-    acoustics.triggerSomaticEvent('item', 1.0, 0.2);
+    if (keypadOverlay && keypadOverlay.style.display !== 'none') {
+        keypadOverlay.style.display = 'none';
+        document.dispatchEvent(new Event('somatic-keypad-cancel'));
+        acoustics.triggerSomaticEvent('door', 1.0, 0.3);
+    } else if (docOverlay && docOverlay.style.display !== 'none') {
+        docOverlay.style.display = 'none';
+        // Metabolic Tax: Processing classified data leaves a scar.
+        player.coherence = Math.max(0.0, player.coherence - 0.15);
+        acoustics.triggerSomaticEvent('item', 1.0, 0.2);
+    }
+});
+
+let currentKeypadInput = "";
+
+document.addEventListener('somatic-keypad', (e) => {
+    if (player.input.state.isReading) return;
+    // Hijack the reading state to temporarily lock player movement/camera
+    player.input.state.isReading = true;
+    player.input.state.isRunning = false;
+
+    // Force the browser to release the mouse cursor for UI interaction
+    if (document.pointerLockElement) document.exitPointerLock();
+
+    currentKeypadInput = "";
+    const display = document.getElementById('keypad-display');
+    if (display) {
+        display.innerText = "_";
+        display.style.color = "#55ff55";
+    }
+
+    const keypadOverlay = document.getElementById('keypad-overlay');
+    if (keypadOverlay) keypadOverlay.style.display = 'block';
+
+    acoustics.triggerSomaticEvent('item', 1.0, 0.3);
+});
+
+// Expose keypad controller to global scope for HTML inline handlers
+window.handleKeypad = (char) => {
+    const display = document.getElementById('keypad-display');
+    if (!display) return;
+
+    acoustics.triggerSomaticEvent('step', 1.0, 0.1);
+
+    if (char === 'C') {
+        currentKeypadInput = "";
+        display.innerText = "_";
+        display.style.color = "#55ff55";
+    } else if (char === 'E') {
+        const targetCode = getStory().accessCode;
+        if (currentKeypadInput === targetCode) {
+            display.innerText = "ACCEPTED";
+            display.style.color = "#55ff55";
+            setTimeout(() => {
+                // Success must fire BEFORE the overlay closes: routing through
+                // somatic-close-document dispatches keypad-cancel, which nulls
+                // the pending door before success can unlock it.
+                document.dispatchEvent(new Event('somatic-keypad-success'));
+                const kp = document.getElementById('keypad-overlay');
+                if (kp) kp.style.display = 'none';
+                player.input.state.isReading = false;
+            }, 500);
+        } else {
+            display.innerText = "DENIED";
+            display.style.color = "#ff5555";
+            acoustics.triggerSomaticEvent('breaker', 1.0, 0.5);
+            setTimeout(() => {
+                currentKeypadInput = "";
+                display.innerText = "_";
+                display.style.color = "#55ff55";
+            }, 800);
+        }
+    } else {
+        if (currentKeypadInput.length < 4) {
+            currentKeypadInput += char;
+            display.innerText = currentKeypadInput.padEnd(4, '_');
+        }
+    }
+};
+
+// Hardware keyboard routing for the security keypad
+document.addEventListener('keydown', (e) => {
+    const keypadOverlay = document.getElementById('keypad-overlay');
+    if (keypadOverlay && keypadOverlay.style.display !== 'none') {
+        if (e.key >= '0' && e.key <= '9') {
+            window.handleKeypad(e.key);
+        } else if (e.key.toLowerCase() === 'c' || e.key === 'Backspace' || e.key === 'Delete') {
+            window.handleKeypad('C');
+        } else if (e.key === 'Enter') {
+            window.handleKeypad('E');
+        }
+    }
 });
 
 function idleSaveState() {
@@ -302,12 +441,6 @@ function animate() {
         acoustics.triggerSomaticEvent(Math.random() > 0.7 ? 'door' : 'step', fakeDistSq, 0.3 + Math.random() * 0.5);
     }
     UIManager.update(time, engine, player);
-    if (!player.input.state.isRunning) {
-        const runBtn = document.getElementById('mobile-run');
-        if (runBtn && runBtn.classList.contains('active')) {
-            runBtn.classList.remove('active');
-        }
-    }
     engine.render();
 }
 

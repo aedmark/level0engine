@@ -15,7 +15,6 @@ export default class Environment {
         this.player = player;
         this.walls = [];
         this.fixtureData = [];
-        this.isMobile = /Mobi|Android/i.test(navigator.userAgent);
         this.spatialGrid = new SpatialHashGrid(4);
         this.wallBoxes = [];
         this.chunkSize = 16;
@@ -32,10 +31,9 @@ export default class Environment {
         this.isSpawning = false;
         this._lightSortCache = (a, b) => a.distSq - b.distSq;
         this.blackoutChunks = new Set();
-        // Ground-truth registry of built macro-zone interior volumes (invisible shells)
         this.macroZones = new Map();
         this.sectorFog = {
-            POOLROOMS: 0.08, CLINIC: 0.03, BOARDROOM: 0.015, ARCHIVE: 0.12,
+            IMPOUND: 0.08, CLINIC: 0.03, BOARDROOM: 0.015, ARCHIVE: 0.12,
             SERVER: 0.08, MAINTENANCE: 0.10, CHASM: 0.015, INCINERATOR: 0.25,
             ANNEX: 0.02, ATRIUM: 0.02, EXIT: 0.05, CHECKPOINT: 0.05
         };
@@ -85,7 +83,10 @@ export default class Environment {
             }
         }
         if (deadHashes.size > 0) {
-            deadHashes.forEach(h => this.macroZones.delete(h));
+            deadHashes.forEach(h => {
+                this.macroZones.delete(h);
+                if (this._annexKeypadChunks) this._annexKeypadChunks.delete(h);
+            });
             this.walls = this.walls.filter(w => !deadHashes.has(w.userData.chunkHash));
             this.fixtureData = this.fixtureData.filter(f => !deadHashes.has(f.chunkHash));
             this.interactiveDoors = this.interactiveDoors.filter(d => !deadHashes.has(d.userData.chunkHash));
@@ -118,56 +119,38 @@ export default class Environment {
         const pDistSq = playerPos.distanceToSquared(door.position);
         const entityOpen = ud.entityOpen === true;
         ud.entityOpen = false;
-        // Dormant when sealed and nobody is near
         if (pDistSq > 900.0 && ud.progress === 0 && !entityOpen) return;
-
         const shouldOpen = entityOpen || pDistSq < 20.0;
         const target = shouldOpen ? 1.0 : 0.0;
         const travelAxis = ud.spansX ? 'z' : 'x';
         const playerOutside = ((playerPos[travelAxis] - door.position[travelAxis]) * ud.outSign) > 0;
-
         if (target !== ud.lastTarget) {
             ud.lastTarget = target;
-            // Remember which side triggered this open cycle
             if (target === 1.0) ud.openedFromOutside = playerOutside;
-            // Pneumatic release / grind cue on state change
             document.dispatchEvent(new CustomEvent('somatic-door', {
                 detail: {distSq: pDistSq, intensity: shouldOpen ? 0.7 : 0.45}
             }));
         }
-
-        // Atmosphere hand-off: while the door is open, it overrides the chunk-boundary
-        // hysteresis — gated on approach intent so a passerby (or someone who just left)
-        // grazing the activation radius doesn't re-ignite the interior atmosphere.
-        // Approach test uses world-space displacement (player.velocity is camera-local)
         let approaching = false;
         const mvx = this._playerMoveX || 0;
         const mvz = this._playerMoveZ || 0;
         const moveSq = mvx * mvx + mvz * mvz;
-        const minStep = 0.5 * delta; // ~0.5 units/sec floor to reject idle jitter
+        const minStep = 0.5 * delta;
         if (moveSq > minStep * minStep) {
             const dx = door.position.x - playerPos.x;
             const dz = door.position.z - playerPos.z;
             const dLen = Math.sqrt(dx * dx + dz * dz) || 1.0;
             approaching = ((mvx * dx + mvz * dz) / (Math.sqrt(moveSq) * dLen)) > 0.45;
         }
-        // Pre-arm applies to entry cycles only: the shell volume is ground truth for
-        // everything else, and its inset edge already starts the exit purge ~2 units
-        // before the door plane. The inside-the-plane clause bridges the short gap
-        // between crossing the door and reaching the shell edge on the way in.
         if (ud.sectorId && pDistSq < 30.0 && ud.openedFromOutside && (ud.lastTarget === 1 || ud.progress > 0)) {
             if ((playerOutside && approaching) || (!playerOutside && pDistSq < 20.0)) {
                 this._doorSectorForce = ud.sectorId;
             }
         }
-
         if (ud.progress === target) return;
-
-        // Heavy mechanical travel for the player; the Anomaly slams them
         const speed = entityOpen ? 3.0 : 0.9;
         const dir = target > ud.progress ? 1 : -1;
         ud.progress = Math.max(0, Math.min(1, ud.progress + dir * speed * delta));
-
         const t = ud.progress;
         const eased = t * t * (3 - 2 * t);
         const axis = ud.spansX ? 'x' : 'z';
@@ -175,15 +158,11 @@ export default class Environment {
             const p = ud.panels[i];
             p.position[axis] = ud.baseOffsets[i] + ud.signs[i] * eased * ud.slideDist;
         }
-
-        // Unseal collision as soon as the panels part; reseal only when fully shut
         if (ud.progress > 0.12) {
             if (!ud.box.isEmpty()) ud.box.makeEmpty();
         } else if (ud.progress === 0) {
             if (ud.box.isEmpty()) ud.box.copy(ud.closedBox);
         }
-
-        // Terminal clunk at either end of travel
         if (ud.progress === 1 || ud.progress === 0) {
             document.dispatchEvent(new CustomEvent('somatic-door', {
                 detail: {distSq: pDistSq, intensity: ud.progress === 0 ? 0.9 : 0.5}
@@ -192,7 +171,6 @@ export default class Environment {
     }
 
     updateInteractives(playerPos, delta) {
-        // World-space player displacement for slider approach-intent tests
         if (!this._prevPlayerPos) this._prevPlayerPos = playerPos.clone();
         this._playerMoveX = playerPos.x - this._prevPlayerPos.x;
         this._playerMoveZ = playerPos.z - this._prevPlayerPos.z;
@@ -202,14 +180,19 @@ export default class Environment {
                 this._updateSliderDoor(door, playerPos, delta);
                 return;
             }
+            // Code-locked doors cannot be forced, not even by the Anomaly.
+            // (It doesn't use the doors. It doesn't need the doors.)
+            if (door.userData.codeLocked) door.userData.entityOpen = false;
             const pDistSq = playerPos.distanceToSquared(door.position);
+
+            // If the door is idle and the player is far away, sleep the logic.
             if (pDistSq > 400.0 && !door.userData.isLatched && !door.userData.entityOpen) return;
+
             const playerOpen = door.userData.playerOpen === true;
             const entityOpen = door.userData.entityOpen === true;
             door.userData.entityOpen = false;
-            if (playerOpen && pDistSq > 100.0) {
-                door.userData.playerOpen = false;
-            }
+
+            // The tether has been severed. Toggled doors persist in their state.
             const isOpen = playerOpen || entityOpen;
             let targetRot = door.userData.closedRot;
             if (isOpen) {
@@ -217,7 +200,7 @@ export default class Environment {
                     const triggerPos = (entityOpen && !playerOpen) ? this.anomaly.group.position : playerPos;
                     const isZDoor = Math.abs(door.userData.closedRot) < 0.1 || Math.abs(door.userData.closedRot - Math.PI) < 0.1;
                     const swingAngle = Math.PI / 2.2;
-                    let desiredRot = door.userData.closedRot;
+                    let desiredRot;
                     if (isZDoor) {
                         const approachZ = triggerPos.z - door.position.z;
                         desiredRot = approachZ < 0 ? (door.userData.closedRot + swingAngle) : (door.userData.closedRot - swingAngle);
@@ -242,8 +225,29 @@ export default class Environment {
             if (Math.abs(rotDiff) > 0.001) {
                 door.userData.currentRot += rotDiff * door.userData.swingSpeed * delta;
                 door.rotation.y = door.userData.currentRot;
+
                 if (door.userData.box && isOpen) {
                     if (!door.userData.box.isEmpty()) door.userData.box.makeEmpty();
+                }
+
+                // The Artisan: Kinetic transfer. If the door is actively swinging and the
+                // player is inside its swing radius, we gracefully repel them.
+                if (pDistSq < 2.5) {
+                    const pushDist = Math.sqrt(pDistSq) || 0.1;
+                    const pushStrength = (2.5 - pDistSq) * 15.0; // Velocity scalar
+                    const pushX = ((playerPos.x - door.position.x) / pushDist) * pushStrength;
+                    const pushZ = ((playerPos.z - door.position.z) / pushDist) * pushStrength;
+
+                    const cosY = Math.cos(this.camera.rotation.y);
+                    const sinY = Math.sin(this.camera.rotation.y);
+
+                    // Transform world-space push to local camera space
+                    const localVx = pushX * cosY - pushZ * sinY;
+                    const localVz = pushX * sinY + pushZ * cosY;
+
+                    // Inject directly into the player's local velocity vector
+                    this.player.velocity.x -= localVx;
+                    this.player.velocity.z += localVz;
                 }
             } else if (door.userData.currentRot !== targetRot) {
                 door.userData.currentRot = targetRot;
@@ -416,7 +420,7 @@ export default class Environment {
         });
         this.exhaustCloud = new THREE.Points(exhaustGeo, this.exhaustMat);
         this.scene.add(this.exhaustCloud);
-        this.lumenGrid = new LumenGrid(this.scene, this.isMobile);
+        this.lumenGrid = new LumenGrid(this.scene);
         this.anomaly = new Anomaly(this.scene, this.camera, this.player, this);
         this.tagPool = [];
         this.tagIndex = 0;
@@ -502,9 +506,9 @@ export default class Environment {
             if (this.macroZones.size > 0) {
                 const zones = Array.from(this.macroZones.values());
                 const zone = zones[Math.floor(Math.random() * zones.length)];
-                const centerX = (zone.minX + zone.maxX) / 2;
-                const centerZ = (zone.minZ + zone.maxZ) / 2;
-                this.camera.position.set(centerX, 1.6, centerZ);
+                const tx = (zone.startX + 7) * this.cellSize;
+                const tz = (zone.startZ + 1) * this.cellSize;
+                this.camera.position.set(tx, 1.6, tz);
                 console.log(`Teleported to zone: ${zone.id}`);
             } else {
                 console.log("No macro zones available to teleport to.");
@@ -534,11 +538,22 @@ export default class Environment {
             }
         });
         this._interactDir = new THREE.Vector3();
+        document.addEventListener('somatic-keypad-success', () => {
+            if (this._keypadDoor) {
+                this._keypadDoor.userData.codeLocked = false;
+                this._keypadDoor.userData.playerOpen = true;
+                this._keypadDoor = null;
+                document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 1.0, intensity: 0.8}}));
+            }
+        });
+        document.addEventListener('somatic-keypad-cancel', () => {
+            this._keypadDoor = null;
+        });
         document.addEventListener('somatic-interact', (e) => {
             let hit = null;
             let closestDistSq = 9.0;
             const checkObj = (obj) => {
-                if (obj.userData.isSlider) return; // proximity-driven, not interactable
+                if (obj.userData.isSlider) return;
                 const distSq = obj.position.distanceToSquared(e.detail.position);
                 if (distSq < closestDistSq) {
                     this._interactDir.subVectors(obj.position, e.detail.position).normalize();
@@ -550,6 +565,12 @@ export default class Environment {
             };
             if (this.interactables) this.interactables.forEach(checkObj);
             if (this.interactiveDoors) this.interactiveDoors.forEach(checkObj);
+            if (hit && hit.userData.codeLocked) {
+                // Keypad door: hand off to the security panel UI
+                this._keypadDoor = hit;
+                document.dispatchEvent(new CustomEvent('somatic-keypad', {detail: {}}));
+                return;
+            }
             if (hit && hit.userData.closedRot !== undefined) {
                 hit.userData.playerOpen = !hit.userData.playerOpen;
                 document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 1.0, intensity: 0.5}}));
@@ -655,7 +676,7 @@ export default class Environment {
                 }
             } else if (hit && hit.userData.type === 'document' && hit.userData.active) {
                 document.dispatchEvent(new CustomEvent('somatic-read', {
-                    detail: { docId: hit.userData.docId }
+                    detail: {docId: hit.userData.docId, zone: hit.userData.zone || null}
                 }));
             } else if (hit && hit.userData.type === 'exit' && hit.userData.active) {
                 hit.userData.active = false;
@@ -756,15 +777,13 @@ export default class Environment {
             this.pipeMountGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8);
             this.vPipeGeo = new THREE.CylinderGeometry(0.06, 0.06, 3.0, 8);
             this.rustMat = new THREE.MeshStandardMaterial({
-                color: 0x4a433a, // Darkened base color for more contrast
+                color: 0x4a433a,
                 emissive: 0x111111,
-                roughness: 0.8, // Increased roughness for a more matte, oxidized look
-                metalness: 0.3, // Lowered metalness so it doesn't rely solely on reflections
+                roughness: 0.8,
+                metalness: 0.3,
                 bumpMap: this.structMat.map,
-                bumpScale: 0.03 // Deeper bump map
+                bumpScale: 0.03
             });
-            // --- INCINERATOR SURFACE TEXTURES ---
-            // Diamond tread plate: classic 3-bar clusters on a grid, alternating 45deg
             const dpCanvas = document.createElement('canvas');
             dpCanvas.width = dpCanvas.height = 256;
             const dpc = dpCanvas.getContext('2d');
@@ -798,8 +817,6 @@ export default class Environment {
             this.diamondPlateMat = new THREE.MeshStandardMaterial({
                 map: dpTex, bumpMap: dpTex, bumpScale: 0.05, metalness: 0.55, roughness: 0.45
             });
-
-            // Charred riveted ceiling plates: soot blooms and faint ember cracks
             const ccv = document.createElement('canvas');
             ccv.width = ccv.height = 256;
             const cpx = ccv.getContext('2d');
@@ -827,8 +844,14 @@ export default class Environment {
             cpx.strokeStyle = '#0a0908';
             cpx.lineWidth = 2;
             for (let i = 0; i <= 4; i++) {
-                cpx.beginPath(); cpx.moveTo(i * 64, 0); cpx.lineTo(i * 64, 256); cpx.stroke();
-                cpx.beginPath(); cpx.moveTo(0, i * 64); cpx.lineTo(256, i * 64); cpx.stroke();
+                cpx.beginPath();
+                cpx.moveTo(i * 64, 0);
+                cpx.lineTo(i * 64, 256);
+                cpx.stroke();
+                cpx.beginPath();
+                cpx.moveTo(0, i * 64);
+                cpx.lineTo(256, i * 64);
+                cpx.stroke();
             }
             for (let i = 0; i < 10; i++) {
                 const sx = Math.random() * 256, sy = Math.random() * 256, sr = 20 + Math.random() * 45;
@@ -857,9 +880,6 @@ export default class Environment {
             this.incinCeilingMat = new THREE.MeshStandardMaterial({
                 map: ceilTex, bumpMap: ceilTex, bumpScale: 0.03, metalness: 0.3, roughness: 0.9
             });
-
-            // --- BOARDROOM SURFACES ---
-            // Polished office tile: warm light grey, large format, faint grout lines
             const btc = document.createElement('canvas');
             btc.width = btc.height = 256;
             const btx = btc.getContext('2d');
@@ -879,21 +899,22 @@ export default class Environment {
             btx.strokeStyle = '#8d887e';
             btx.lineWidth = 3;
             btx.strokeRect(0, 0, 256, 256);
-            btx.beginPath(); btx.moveTo(128, 0); btx.lineTo(128, 256); btx.stroke();
-            btx.beginPath(); btx.moveTo(0, 128); btx.lineTo(256, 128); btx.stroke();
+            btx.beginPath();
+            btx.moveTo(128, 0);
+            btx.lineTo(128, 256);
+            btx.stroke();
+            btx.beginPath();
+            btx.moveTo(0, 128);
+            btx.lineTo(256, 128);
+            btx.stroke();
             const btTex = new THREE.CanvasTexture(btc);
             btTex.wrapS = btTex.wrapT = THREE.RepeatWrapping;
             btTex.repeat.set(14, 14);
             this.boardTileMat = new THREE.MeshStandardMaterial({map: btTex, roughness: 0.35, metalness: 0.1});
-
-            // Office partition glass for the boardroom fishbowl maze
             this.glassMat = new THREE.MeshStandardMaterial({
                 color: 0xbfe3ef, transparent: true, opacity: 0.22,
                 roughness: 0.08, metalness: 0.1, depthWrite: false
             });
-
-            // --- ARCHIVE SURFACES ---
-            // Book spines: packed rows of muted cloth bindings with gaps
             const bkc = document.createElement('canvas');
             bkc.width = 256;
             bkc.height = 128;
@@ -923,8 +944,6 @@ export default class Environment {
             bkTex.wrapS = bkTex.wrapT = THREE.RepeatWrapping;
             bkTex.repeat.set(3, 1);
             this.bookRowMat = new THREE.MeshStandardMaterial({map: bkTex, roughness: 0.9, metalness: 0.0});
-
-            // Manila file boxes with a fading label
             const fbc = document.createElement('canvas');
             fbc.width = fbc.height = 128;
             const fbx = fbc.getContext('2d');
@@ -942,8 +961,6 @@ export default class Environment {
             fbx.fillRect(44, 86, 28, 2);
             const fbTex = new THREE.CanvasTexture(fbc);
             this.fileBoxMat = new THREE.MeshStandardMaterial({map: fbTex, roughness: 0.85, metalness: 0.0});
-
-            // Moving box: brown cardboard, packing tape seam, marker scrawl
             const mvc = document.createElement('canvas');
             mvc.width = mvc.height = 128;
             const mvx = mvc.getContext('2d');
@@ -960,22 +977,27 @@ export default class Environment {
             mvx.strokeStyle = '#2a2118';
             mvx.lineWidth = 3;
             mvx.beginPath();
-            mvx.moveTo(24, 76); mvx.lineTo(52, 72); mvx.lineTo(78, 78); mvx.lineTo(102, 74);
+            mvx.moveTo(24, 76);
+            mvx.lineTo(52, 72);
+            mvx.lineTo(78, 78);
+            mvx.lineTo(102, 74);
             mvx.stroke();
             mvx.lineWidth = 2;
             mvx.beginPath();
-            mvx.moveTo(30, 92); mvx.lineTo(66, 90); mvx.lineTo(88, 94);
+            mvx.moveTo(30, 92);
+            mvx.lineTo(66, 90);
+            mvx.lineTo(88, 94);
             mvx.stroke();
             mvx.fillStyle = '#2a2118';
             mvx.beginPath();
-            mvx.moveTo(112, 52); mvx.lineTo(106, 62); mvx.lineTo(118, 62);
+            mvx.moveTo(112, 52);
+            mvx.lineTo(106, 62);
+            mvx.lineTo(118, 62);
             mvx.closePath();
             mvx.fill();
             mvx.fillRect(110, 62, 4, 10);
             const mvTex = new THREE.CanvasTexture(mvc);
             this.movingBoxMat = new THREE.MeshStandardMaterial({map: mvTex, roughness: 0.85, metalness: 0.0});
-
-            // Banana box: fruit-brand oval and a handle hole
             const bnc = document.createElement('canvas');
             bnc.width = bnc.height = 128;
             const bnx = bnc.getContext('2d');
@@ -1002,8 +1024,6 @@ export default class Environment {
             bnx.stroke();
             const bnTex = new THREE.CanvasTexture(bnc);
             this.bananaBoxMat = new THREE.MeshStandardMaterial({map: bnTex, roughness: 0.85, metalness: 0.0});
-
-            // Parcel: fresh cardboard, branded chevron tape, label with barcode
             const pcc = document.createElement('canvas');
             pcc.width = pcc.height = 128;
             const pcx2 = pcc.getContext('2d');
@@ -1032,7 +1052,6 @@ export default class Environment {
                 pcx2.fillRect(barX, 84, bw, 14);
                 barX += bw + 1 + Math.floor(Math.random() * 3);
             }
-            // The legally distinct smiling arrow
             pcx2.strokeStyle = '#c8771f';
             pcx2.lineWidth = 3;
             pcx2.beginPath();
@@ -1041,17 +1060,14 @@ export default class Environment {
             pcx2.stroke();
             pcx2.fillStyle = '#c8771f';
             pcx2.beginPath();
-            pcx2.moveTo(88, 38); pcx2.lineTo(94, 45); pcx2.lineTo(85, 48);
+            pcx2.moveTo(88, 38);
+            pcx2.lineTo(94, 45);
+            pcx2.lineTo(85, 48);
             pcx2.closePath();
             pcx2.fill();
             const pcTex = new THREE.CanvasTexture(pcc);
             this.parcelBoxMat = new THREE.MeshStandardMaterial({map: pcTex, roughness: 0.85, metalness: 0.0});
-
-            // The mixed pool every non-shelf carton spawn draws from
             this.cartonMats = [this.fileBoxMat, this.movingBoxMat, this.bananaBoxMat, this.parcelBoxMat];
-
-            // --- ATRIUM FOLIAGE ---
-            // Mottled overgrowth: layered leaf-blob shades with shadow streaks
             const flc = document.createElement('canvas');
             flc.width = flc.height = 128;
             const flx = flc.getContext('2d');
@@ -1071,6 +1087,40 @@ export default class Environment {
             const flTex = new THREE.CanvasTexture(flc);
             flTex.wrapS = flTex.wrapT = THREE.RepeatWrapping;
             this.foliageMat = new THREE.MeshStandardMaterial({map: flTex, roughness: 0.95, metalness: 0.0});
+            // --- ENDLESS FARMLAND SHELL (corn maze perimeter) ---
+            // Unlit silhouette gradient: crop rows receding into black. Rendered
+            // with MeshBasicMaterial so no lamp can ever reveal it as a wall.
+            const fvc = document.createElement('canvas');
+            fvc.width = 256;
+            fvc.height = 128;
+            const fvx = fvc.getContext('2d');
+            const fvGrad = fvx.createLinearGradient(0, 0, 0, 128);
+            fvGrad.addColorStop(0, '#000000');
+            fvGrad.addColorStop(0.55, '#020402');
+            fvGrad.addColorStop(1, '#060c05');
+            fvx.fillStyle = fvGrad;
+            fvx.fillRect(0, 0, 256, 128);
+            const fvRows = [
+                {c: '#0a120a', n: 90, hMin: 18, hMax: 34},
+                {c: '#0e1a0b', n: 55, hMin: 30, hMax: 52},
+                {c: '#132410', n: 32, hMin: 46, hMax: 74}
+            ];
+            for (let ri = 0; ri < fvRows.length; ri++) {
+                const row = fvRows[ri];
+                fvx.strokeStyle = row.c;
+                for (let i = 0; i < row.n; i++) {
+                    const sx0 = Math.random() * 256;
+                    const sh = row.hMin + Math.random() * (row.hMax - row.hMin);
+                    fvx.lineWidth = 1 + Math.random() * 2;
+                    fvx.beginPath();
+                    fvx.moveTo(sx0, 128);
+                    fvx.lineTo(sx0 + (Math.random() - 0.5) * 6, 128 - sh);
+                    fvx.stroke();
+                }
+            }
+            const fvTex = new THREE.CanvasTexture(fvc);
+            fvTex.wrapS = fvTex.wrapT = THREE.RepeatWrapping;
+            this.farVoidMat = new THREE.MeshBasicMaterial({map: fvTex});
 
             this.cushionGeo = new THREE.BoxGeometry(0.8, 0.15, 0.8);
             this.backrestGeo = new THREE.BoxGeometry(0.8, 0.8, 0.15);
@@ -1086,8 +1136,6 @@ export default class Environment {
             this.breakerBaseGeo = new THREE.BoxGeometry(0.6, 0.8, 0.20);
             this.breakerDoorGeo = new THREE.BoxGeometry(0.6, 0.8, 0.05);
             this.breakerDoorGeo.translate(0.3, 0, 0);
-
-            // THE ANNEX PRIMITIVES
             this.crtScreenMat = new THREE.MeshStandardMaterial({
                 color: 0xffb000,
                 emissive: 0xffb000,
@@ -1102,7 +1150,6 @@ export default class Environment {
             this.terminalBodyGeo = new THREE.BoxGeometry(0.5, 0.4, 0.5);
             this.documentGeo = new THREE.PlaneGeometry(0.2, 0.3);
             this.documentGeo.rotateX(-Math.PI / 2);
-
             this.geoCache = new Map();
             this.almondPrefab = new THREE.Group();
             const aBodyGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.12, 16);
@@ -1141,7 +1188,7 @@ export default class Environment {
 
     _createChunkHelpers(hash, chunkGroup, stagingMeshes, random) {
         let hasOasis = random() > 0.95;
-        return {
+        const helpers = {
             random,
             hash,
             chunkGroup,
@@ -1153,6 +1200,18 @@ export default class Environment {
                     return true;
                 }
                 return false;
+            },
+            getLightMaterial: (colorHex, emissiveHex, isBroken = false) => {
+                if (!this._lightMatPool) this._lightMatPool = new Map();
+                const key = `${colorHex}_${emissiveHex}_${isBroken}`;
+                if (!this._lightMatPool.has(key)) {
+                    const mat = (isBroken ? this.baseBrokenLightMat : this.baseLightMat).clone();
+                    mat.color.setHex(colorHex);
+                    mat.emissive.setHex(emissiveHex);
+                    this.sharedAssets.add(mat.uuid);
+                    this._lightMatPool.set(key, mat);
+                }
+                return this._lightMatPool.get(key);
             },
             buildWall: (w, d, mat, h = 3.0, yOffset = 0) => {
                 w = Math.round(w * 20) / 20;
@@ -1281,12 +1340,14 @@ export default class Environment {
                 group.position.set(x, y, z);
                 return group;
             },
-            buildPerimeter: (x, z, localX, localZ, inDir, outDir, wallMat) => {
+            buildPerimeter: (x, z, localX, localZ, inDir, outDir, wallMat, sectorId) => {
                 const isPerimeter = localX === 0 || localX === this.chunkSize - 1 || localZ === 0 || localZ === this.chunkSize - 1;
                 if (!isPerimeter) return false;
-                let isDoorway = false;
-                if (localX === 7 && (localZ === 0 || localZ === this.chunkSize - 1)) isDoorway = true;
-                if (localZ === 7 && (localX === 0 || localX === this.chunkSize - 1)) isDoorway = true;
+                if (sectorId && helpers.markOccupied) helpers.markOccupied(x, z);
+                const edge = this.chunkSize - 1;
+                const isDoorwayNS = localX === 7 && (localZ === 0 || localZ === edge);
+                const isDoorwayEW = localZ === 7 && (localX === 0 || localX === edge);
+                const isDoorway = isDoorwayNS || isDoorwayEW;
                 if (!isDoorway) {
                     const key = `${this.cellSize}_3.0_${this.cellSize}_0`;
                     let geo = this.geoCache.get(key);
@@ -1307,9 +1368,124 @@ export default class Environment {
                     stagingMeshes.push(wall);
                     return true;
                 }
+                if (sectorId) {
+                    const spansX = isDoorwayNS;
+                    const dcx = x * this.cellSize;
+                    const dcz = z * this.cellSize;
+                    const addGeometry = (mesh) => {
+                        mesh.userData.chunkHash = hash;
+                        mesh.updateMatrixWorld(true);
+                        if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+                        const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
+                        box.chunkHash = hash;
+                        box.isEntityBlocker = true;
+                        this.spatialGrid.insert(box);
+                        chunkGroup.add(mesh);
+                        this.walls.push(mesh);
+                    };
+                    const bWall = (w, h, d, mat) => {
+                        const geo = new THREE.BoxGeometry(w, h, d);
+                        this.geoCache.set(geo.uuid, true);
+                        return new THREE.Mesh(geo, mat);
+                    };
+                    const jambA = bWall(spansX ? 0.5 : 0.7, 3.0, spansX ? 0.7 : 0.5, this.structMat);
+                    jambA.position.set(dcx - (spansX ? 1.75 : 0), 1.5, dcz - (spansX ? 0 : 1.75));
+                    addGeometry(jambA);
+                    const jambB = bWall(spansX ? 0.5 : 0.7, 3.0, spansX ? 0.7 : 0.5, this.structMat);
+                    jambB.position.set(dcx + (spansX ? 1.75 : 0), 1.5, dcz + (spansX ? 0 : 1.75));
+                    addGeometry(jambB);
+                    const header = bWall(spansX ? 3.0 : 0.7, 0.4, spansX ? 0.7 : 3.0, this.metalMat);
+                    header.position.set(dcx, 2.8, dcz);
+                    addGeometry(header);
+                    const inSign = (localZ === 0 || localX === 0) ? 1 : -1;
+                    const awkL = 3.0;
+                    const awning = bWall(spansX ? this.cellSize : awkL, 0.05, spansX ? awkL : this.cellSize, this.metalMat);
+                    awning.position.set(
+                        dcx + (spansX ? 0 : inSign * 1.5),
+                        2.95,
+                        dcz + (spansX ? inSign * 1.5 : 0)
+                    );
+                    addGeometry(awning);
+                    for (let cs = -1; cs <= 1; cs += 2) {
+                        const clad = bWall(spansX ? 0.4 : 1.7, 3.0, spansX ? 1.7 : 0.4, this.structMat);
+                        clad.position.set(
+                            dcx + (spansX ? cs * 1.8 : inSign * 1.2),
+                            1.5,
+                            dcz + (spansX ? inSign * 1.2 : cs * 1.8)
+                        );
+                        addGeometry(clad);
+                    }
+                    const doorGroup = new THREE.Group();
+                    doorGroup.position.set(dcx, 0, dcz);
+                    const panelGeo = spansX
+                        ? new THREE.BoxGeometry(1.58, 2.6, 0.24)
+                        : new THREE.BoxGeometry(0.24, 2.6, 1.58);
+                    this.geoCache.set(panelGeo.uuid, true);
+                    const stripeGeo = spansX
+                        ? new THREE.BoxGeometry(0.14, 2.6, 0.26)
+                        : new THREE.BoxGeometry(0.26, 2.6, 0.14);
+                    this.geoCache.set(stripeGeo.uuid, true);
+                    const ribGeo = spansX
+                        ? new THREE.BoxGeometry(1.58, 0.08, 0.28)
+                        : new THREE.BoxGeometry(0.28, 0.08, 1.58);
+                    this.geoCache.set(ribGeo.uuid, true);
+                    const mkPanel = (side) => {
+                        const p = new THREE.Mesh(panelGeo, this.metalMat);
+                        if (spansX) p.position.set(side * 0.76, 1.3, 0);
+                        else p.position.set(0, 1.3, side * 0.76);
+                        const stripe = new THREE.Mesh(stripeGeo, this.hazardMat);
+                        if (spansX) stripe.position.set(-side * 0.72, 0, 0);
+                        else stripe.position.set(0, 0, -side * 0.72);
+                        p.add(stripe);
+                        for (let ry = -1; ry <= 1; ry += 2) {
+                            const rib = new THREE.Mesh(ribGeo, this.structMat);
+                            rib.position.set(0, ry * 0.75, 0);
+                            p.add(rib);
+                        }
+                        p.castShadow = p.receiveShadow = true;
+                        p.userData.chunkHash = hash;
+                        doorGroup.add(p);
+                        return p;
+                    };
+                    const panelL = mkPanel(-1);
+                    const panelR = mkPanel(1);
+                    chunkGroup.add(doorGroup);
+                    doorGroup.updateMatrixWorld(true);
+                    this.walls.push(panelL, panelR);
+                    const doorBox = new THREE.Box3();
+                    if (spansX) {
+                        doorBox.min.set(dcx - 1.55, 0.0, dcz - 0.25);
+                        doorBox.max.set(dcx + 1.55, 2.6, dcz + 0.25);
+                    } else {
+                        doorBox.min.set(dcx - 0.25, 0.0, dcz - 1.55);
+                        doorBox.max.set(dcx + 0.25, 2.6, dcz + 1.55);
+                    }
+                    doorBox.chunkHash = hash;
+                    this.spatialGrid.insert(doorBox);
+                    const slideAxis = spansX ? 'x' : 'z';
+                    const outSign = (localZ === 0 || localX === 0) ? -1 : 1;
+                    doorGroup.userData = {
+                        chunkHash: hash,
+                        isSlider: true,
+                        spansX: spansX,
+                        panels: [panelL, panelR],
+                        baseOffsets: [panelL.position[slideAxis], panelR.position[slideAxis]],
+                        signs: [-1, 1],
+                        slideDist: 1.62,
+                        progress: 0,
+                        lastTarget: 0,
+                        box: doorBox,
+                        closedBox: doorBox.clone(),
+                        sectorId: sectorId,
+                        outSign: outSign
+                    };
+                    this.interactiveDoors.push(doorGroup);
+                    return false;
+                }
                 return false;
             }
         };
+        return helpers;
     }
 
     async buildChunk(chunkX, chunkZ, hash) {
@@ -1330,10 +1506,15 @@ export default class Environment {
         const stagingMeshes = [];
         const ctx = this._createChunkHelpers(hash, chunkGroup, stagingMeshes, random);
         const structuralMatrix = TheArchitect.getStructuralMatrix.call(this, ctx);
+        // The selection cascade REQUIRES descending prob order: find(roll >= prob)
+        // gives each entry the band [its prob, previous prob). An entry inserted
+        // out of order shadows everything below it — this is exactly how the
+        // v0.4.4 bulkhead (0.028, listed above the 0.03 exit switch) silently
+        // made exit breakers unspawnable. Sorting makes the invariant structural.
+        structuralMatrix.sort((a, b) => b.prob - a.prob);
         const sectorMatrix = TheArchitect.getSectorMatrix.call(this, ctx);
         const startX = chunkX * this.chunkSize;
         const startZ = chunkZ * this.chunkSize;
-        // BUMP GLOBAL MACRO-STRUCTURE SPAWN RATE TO 70%
         const isMacroStructure = random() > 0.60 && (Math.abs(chunkX) > 0 || Math.abs(chunkZ) > 0);
         let activeSector = null;
         let sectorMaze = null;
@@ -1342,34 +1523,26 @@ export default class Environment {
         const hashVal = Math.abs((chunkX * 104729) + (chunkZ * 1299827));
         const inDir = hashVal % 4;
         const outDir = (hashVal + 1 + (hashVal % 3)) % 4;
-
         if (isMacroStructure) {
             const isExitPhase = this.player && this.player.objectives && this.player.objectives.fixed >= this.player.objectives.total && !this.player.objectives.escaped;
             const sectorRoll = random();
-
-            // Filter the matrix to ensure Exit and Checkpoint swap cleanly
             const validSectors = sectorMatrix.filter(s => {
                 if (isExitPhase) return s.id !== "CHECKPOINT";
                 return s.id !== "EXIT";
             });
-
-            // O(1) Array Indexing for perfect distribution
             const sectorIndex = Math.floor(sectorRoll * validSectors.length);
             activeSector = validSectors[sectorIndex];
-
-            // Register the interior volume (invisible shell) as ground truth for
-            // atmosphere containment tests — the interior spans local 2..58 inside
-            // the perimeter wall ring.
             this.macroZones.set(hash, {
                 id: activeSector.id,
                 fog: this.sectorFog[activeSector.id] !== undefined ? this.sectorFog[activeSector.id] : 0.05,
                 minX: startX * this.cellSize + 2,
                 maxX: startX * this.cellSize + 58,
                 minZ: startZ * this.cellSize + 2,
-                maxZ: startZ * this.cellSize + 58
+                maxZ: startZ * this.cellSize + 58,
+                startX: startX,
+                startZ: startZ
             });
-
-            if (["ARCHIVE", "SERVER", "MAINTENANCE", "POOLROOMS"].includes(activeSector.id)) {
+            if (["ARCHIVE", "SERVER", "MAINTENANCE", "IMPOUND", "ATRIUM", "CHASM"].includes(activeSector.id)) {
                 sectorMaze = this._generateSectorMaze(random, inDir, outDir);
             }
             if (activeSector.foundationMat) {
@@ -1383,7 +1556,6 @@ export default class Environment {
                 chunkGroup.add(foundation);
             }
             if (activeSector.ceilingMat) {
-                // Sector ceiling overlay hung just below the shared ceiling plane
                 const cInner = (this.chunkSize - 2) * this.cellSize;
                 const cGeo = new THREE.PlaneGeometry(cInner, cInner);
                 const cPlane = new THREE.Mesh(cGeo, activeSector.ceilingMat);
@@ -1410,6 +1582,32 @@ export default class Environment {
             ceil.rotation.x = Math.PI / 2;
             ceil.position.set(startX * this.cellSize + centerOffset, 3, startZ * this.cellSize + centerOffset);
             chunkGroup.add(ceil);
+        } else {
+            // Void shroud for open-top zones (ATRIUM, CHASM): an unlit black
+            // canopy high above plus skirt planes sealing the band between the
+            // 3.0 wall line and the canopy, so sightlines can never escape over
+            // the walls into neighboring sectors.
+            if (!this.voidShroudMat) {
+                this.voidShroudMat = new THREE.MeshBasicMaterial({color: 0x000000, side: THREE.DoubleSide});
+                this.sharedAssets.add(this.voidShroudMat.uuid);
+            }
+            const span = this.chunkSize * this.cellSize;
+            const canopy = new THREE.Mesh(new THREE.PlaneGeometry(span, span), this.voidShroudMat);
+            canopy.rotation.x = Math.PI / 2;
+            canopy.position.set(startX * this.cellSize + centerOffset, 9.0, startZ * this.cellSize + centerOffset);
+            chunkGroup.add(canopy);
+            const skirtGeo = new THREE.PlaneGeometry(span, 6.3);
+            const cxw0 = startX * this.cellSize + centerOffset;
+            const czw0 = startZ * this.cellSize + centerOffset;
+            const half = span / 2;
+            for (let side = 0; side < 4; side++) {
+                const skirt = new THREE.Mesh(skirtGeo, this.voidShroudMat);
+                if (side === 0) skirt.position.set(cxw0, 6.0, czw0 - half);
+                else if (side === 1) skirt.position.set(cxw0, 6.0, czw0 + half);
+                else if (side === 2) { skirt.position.set(cxw0 - half, 6.0, czw0); skirt.rotation.y = Math.PI / 2; }
+                else { skirt.position.set(cxw0 + half, 6.0, czw0); skirt.rotation.y = Math.PI / 2; }
+                chunkGroup.add(skirt);
+            }
         }
         let chunkStartTime = performance.now();
         const occupied = new Set();
@@ -1417,9 +1615,6 @@ export default class Environment {
         ctx.isOccupied = (ox, oz) => occupied.has(`${ox},${oz}`);
         for (let x = startX; x < startX + this.chunkSize; x++) {
             for (let z = startZ; z < startZ + this.chunkSize; z++) {
-                // Spawn clearing applies to loose backrooms fill only. Macro zones must
-                // build every cell — skipping origin-adjacent cells punched corner holes
-                // in the perimeter of zones in chunks (-1,0), (0,-1), and (-1,-1).
                 if (!isMacroStructure && Math.abs(x) < 2 && Math.abs(z) < 2) continue;
                 if (ctx.isOccupied(x, z)) continue;
                 ctx.markOccupied(x, z);
@@ -1703,13 +1898,6 @@ export default class Environment {
             this.currentOcclusionState = false;
         }
         let isOccluded = this.currentOcclusionState;
-
-        // --- GROUND-TRUTH SECTOR VOLUMES ---
-        // The atmosphere no longer re-derives chunk sectors from seeded rolls (which could
-        // diverge from built geometry at exterior strips, corners, coherence shifts, and
-        // objective-phase pool swaps). buildChunk registers each macro zone's interior AABB
-        // — the invisible shell — and we simply test containment. A position outside the
-        // walls is categorically outside every shell.
         let activeSector = "NORMAL";
         let targetFog = 0.05;
         for (const zone of this.macroZones.values()) {
@@ -1720,9 +1908,6 @@ export default class Environment {
                 break;
             }
         }
-
-        // Blast-door pre-arm: an entry-opened door rolls its atmosphere out through the
-        // gap before the player reaches the shell volume (set by _updateSliderDoor).
         if (this._doorSectorForce) {
             activeSector = this._doorSectorForce;
             targetFog = this.sectorFog[activeSector] !== undefined ? this.sectorFog[activeSector] : 0.05;
@@ -1732,49 +1917,50 @@ export default class Environment {
             if (this.currentFogDensity === undefined) this.currentFogDensity = targetFog;
             const userMultiplier = this.baseFogDensity / 0.05;
             const scaledTargetFog = targetFog * userMultiplier;
-
-            // Asymmetric transition: the atmosphere slams in as the doors part,
-            // but purges hard on exit so no residue bleeds down the yellow halls
             const fogRate = scaledTargetFog > this.currentFogDensity ? 0.15 : 0.30;
             this.currentFogDensity += (scaledTargetFog - this.currentFogDensity) * fogRate;
             const fogBreath = Math.sin(time * 0.05) * (this.currentFogDensity * 0.3);
             this.scene.fog.density = this.currentFogDensity + fogBreath;
         }
-
-        // --- DYNAMIC SECTOR COLOR SHIFT ---
-        if (!this._baseFogColor) this._baseFogColor = new THREE.Color(0xa89f68); // The Backrooms Yellow
+        if (!this._baseFogColor) this._baseFogColor = new THREE.Color(0xa89f68);
         if (!this._targetFogColor) this._targetFogColor = new THREE.Color();
-
-        switch(activeSector) {
+        switch (activeSector) {
             case "INCINERATOR":
-                this._targetFogColor.setHex(0x551100); // Deep rusty red
+                this._targetFogColor.setHex(0x551100);
                 break;
             case "ARCHIVE":
-                this._targetFogColor.setHex(0x6f695e); // Grey-brown smoke haze
+                this._targetFogColor.setHex(0x6f695e);
                 break;
             case "ATRIUM":
-                this._targetFogColor.setHex(0x51604b); // Humid overgrowth green
+                this._targetFogColor.setHex(0x51604b);
                 break;
             case "CLINIC":
-                this._targetFogColor.setHex(0x7799aa); // Cold sterile blue
+                this._targetFogColor.setHex(0x7799aa);
                 break;
-            case "POOLROOMS":
-                this._targetFogColor.setHex(0x66aaaa); // Humid teal
+            case "IMPOUND":
+                this._targetFogColor.setHex(0x7a6238);
                 break;
             case "CHASM":
-                this._targetFogColor.setHex(0x111111); // Void black
+                this._targetFogColor.setHex(0x111111);
+                break;
+            case "SERVER":
+                this._targetFogColor.setHex(0x3a4a52);
+                break;
+            case "MAINTENANCE":
+                this._targetFogColor.setHex(0x4a4436);
+                break;
+            case "BOARDROOM":
+                this._targetFogColor.setHex(0x878a8d);
+                break;
+            case "ANNEX":
+                this._targetFogColor.setHex(0x7d7568);
                 break;
             default:
                 this._targetFogColor.copy(this._baseFogColor);
         }
-
-        // Blend the fog color toward the target color, weighted by the darkness pressure
         if (!this._blackColor) this._blackColor = new THREE.Color(0x000000);
         const darknessRatio = Math.min(1.0, darknessPressure * 0.4);
         const finalTargetColor = this._targetFogColor.clone().lerp(this._blackColor, darknessRatio);
-
-        // Faster lerp for color to make the zone boundary feel distinct;
-        // snap back to base yellow at double speed when leaving a sector
         const colorRate = this._targetFogColor.equals(this._baseFogColor) ? 0.25 : 0.15;
         this.scene.fog.color.lerp(finalTargetColor, colorRate);
         this.scene.background.lerp(finalTargetColor, colorRate);
@@ -1782,7 +1968,6 @@ export default class Environment {
             this.dustCloud.position.copy(cameraPos);
             this.dustCloud.rotation.y = time * 0.05;
             this.dustCloud.rotation.z = time * 0.02;
-            // The archive hangs thick with paper dust
             const inArchive = activeSector === "ARCHIVE";
             const targetDustOpacity = this.player.isCrawling ? (inArchive ? 0.45 : 0.35) : (inArchive ? 0.30 : 0.10);
             const targetDustSize = this.player.isCrawling ? (inArchive ? 0.09 : 0.08) : (inArchive ? 0.07 : 0.05);
@@ -1841,8 +2026,6 @@ export default class Environment {
                 this.glowMat.opacity += (targetGlowOpacity - this.glowMat.opacity) * 0.1;
             }
         }
-
-        // Systemic Hook: Bind injected PointLights to their parent fixture's dynamic intensity state
         if (this.fixtureData) {
             for (let i = 0; i < this.fixtureData.length; i++) {
                 const fix = this.fixtureData[i];
@@ -1851,7 +2034,6 @@ export default class Environment {
                 }
             }
         }
-
         return {
             minLightDist,
             isOccluded,

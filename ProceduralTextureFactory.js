@@ -312,7 +312,96 @@ export default class ProceduralTextureFactory {
         mossTexture.wrapS = mossTexture.wrapT = THREE.RepeatWrapping;
         mossTexture.repeat.set(32, 32);
         const mossMat = new THREE.MeshStandardMaterial({map: mossTexture, roughness: 1.0});
-        return {moldMat, moldGeo, ceilingStainMat, ceilingStainGeo, fabricMat, mossMat};
+        const {canvas: cornCanvas, ctx: cornCtx} = this._createContext(256, 256);
+        cornCtx.fillStyle = '#11220a';
+        cornCtx.fillRect(0, 0, 256, 256);
+        // Vertical background stalks
+        for (let i = 0; i < 40; i++) {
+            cornCtx.strokeStyle = '#223311';
+            cornCtx.lineWidth = 3 + Math.random() * 4;
+            cornCtx.beginPath();
+            const cx = Math.random() * 256;
+            cornCtx.moveTo(cx, 0);
+            cornCtx.lineTo(cx, 256);
+            cornCtx.stroke();
+        }
+        // Drooping leaves
+        for (let i = 0; i < 200; i++) {
+            cornCtx.strokeStyle = Math.random() > 0.6 ? '#446622' : '#889933';
+            cornCtx.lineWidth = 1.5 + Math.random() * 2.5;
+            cornCtx.beginPath();
+            const sx = Math.random() * 256;
+            const sy = Math.random() * 256;
+            cornCtx.moveTo(sx, sy);
+            cornCtx.quadraticCurveTo(sx + (Math.random() - 0.5) * 40, sy - 30 - Math.random() * 40, sx + (Math.random() - 0.5) * 60, sy + 20 + Math.random() * 40);
+            cornCtx.stroke();
+            
+            if (Math.random() > 0.95) { // Dead stalks
+                cornCtx.strokeStyle = '#5c4b31';
+                cornCtx.lineWidth = 1 + Math.random() * 2;
+                cornCtx.beginPath();
+                const dx = Math.random() * 256;
+                cornCtx.moveTo(dx, 0);
+                cornCtx.lineTo(dx, 256);
+                cornCtx.stroke();
+            }
+        }
+        cornCtx.globalCompositeOperation = 'overlay';
+        cornCtx.globalAlpha = 0.5;
+        cornCtx.drawImage(masterNoise, 0, 0, 256, 256);
+        const cornTexture = new THREE.CanvasTexture(cornCanvas);
+        cornTexture.wrapS = cornTexture.wrapT = THREE.RepeatWrapping;
+        cornTexture.repeat.set(2, 1);
+        const cornMat = new THREE.MeshStandardMaterial({
+            map: cornTexture,
+            roughness: 1.0,
+            bumpMap: cornTexture,
+            bumpScale: 0.05
+        });
+        
+        const {canvas: dirtCanvas, ctx: dirtCtx} = this._createContext(256, 256);
+        dirtCtx.fillStyle = '#1c150c';
+        dirtCtx.fillRect(0, 0, 256, 256);
+        for(let i=0; i<400; i++) {
+            dirtCtx.fillStyle = Math.random() > 0.5 ? '#2c2214' : '#0c0804';
+            dirtCtx.beginPath();
+            dirtCtx.arc(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 2, 0, Math.PI * 2);
+            dirtCtx.fill();
+        }
+        dirtCtx.globalAlpha = 0.5;
+        dirtCtx.drawImage(masterNoise, 0, 0, 256, 256);
+        const dirtTexture = new THREE.CanvasTexture(dirtCanvas);
+        dirtTexture.wrapS = dirtTexture.wrapT = THREE.RepeatWrapping;
+        dirtTexture.repeat.set(16, 16);
+        const dirtMat = new THREE.MeshStandardMaterial({
+            map: dirtTexture,
+            roughness: 1.0,
+            bumpMap: dirtTexture,
+            bumpScale: 0.1
+        });
+        
+        const {canvas: skyCanvas, ctx: skyCtx} = this._createContext(512, 512);
+        skyCtx.fillStyle = '#020205';
+        skyCtx.fillRect(0, 0, 512, 512);
+        skyCtx.fillStyle = '#ffffff';
+        for (let i = 0; i < 600; i++) {
+            const r = Math.random();
+            skyCtx.globalAlpha = r > 0.9 ? 1.0 : (r > 0.5 ? 0.5 : 0.2);
+            skyCtx.beginPath();
+            skyCtx.arc(Math.random() * 512, Math.random() * 512, Math.random() * 1.5, 0, Math.PI * 2);
+            skyCtx.fill();
+        }
+        skyCtx.globalAlpha = 0.1;
+        skyCtx.drawImage(masterNoise, 0, 0, 512, 512);
+        const skyTexture = new THREE.CanvasTexture(skyCanvas);
+        skyTexture.wrapS = skyTexture.wrapT = THREE.RepeatWrapping;
+        skyTexture.repeat.set(4, 4);
+        const nightSkyMat = new THREE.MeshBasicMaterial({
+            map: skyTexture,
+            fog: false
+        });
+        
+        return {moldMat, moldGeo, ceilingStainMat, ceilingStainGeo, fabricMat, mossMat, cornMat, dirtMat, nightSkyMat};
     }
 
     static _buildTechAssets(masterNoise) {

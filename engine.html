@@ -139,17 +139,91 @@
             margin-top: 0.25rem;
         }
 
+        #keypad-overlay {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 320px;
+            background-color: #111;
+            border: 2px solid #d4c382;
+            z-index: 2000;
+            padding: 2rem;
+            box-shadow: 0 0 50px rgba(0,0,0,0.9);
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        .keypad-header {
+            color: #d4c382;
+            font-size: 1.2rem;
+            margin-bottom: 1.5rem;
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+
+        #keypad-display {
+            background: #222;
+            color: #55ff55;
+            font-size: 2.5rem;
+            padding: 0.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px inset #d4c382;
+            letter-spacing: 8px;
+            height: 3.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .keypad-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+        }
+
+        .kp-btn {
+            background: #2a2a20;
+            color: #d4c382;
+            border: 1px solid #d4c382;
+            padding: 1rem 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+
+        .kp-btn:hover {
+            background: #d4c382;
+            color: #111;
+        }
+
+        .kp-btn:active {
+            transform: scale(0.95);
+        }
+
+        .kp-clear { color: #ff5555; }
+        .kp-enter { color: #55ff55; }
+
+        .keypad-footer {
+            margin-top: 1.5rem;
+            color: #777;
+            font-size: 0.9rem;
+        }
+
         @keyframes phosphor-flicker {
             0%, 100% {
                 opacity: 0.9;
             }
             4% {
                 opacity: 0.5;
-                text-shadow: 4px 2px 0px rgba(0, 0, 0, 1), 0 0 4px rgba(255, 255, 255, 0.4);
+                text-shadow: 4px 2px 0 rgba(0, 0, 0, 1), 0 0 4px rgba(255, 255, 255, 0.4);
             }
             8% {
                 opacity: 0.95;
-                text-shadow: 1px 2px 0px rgba(0, 0, 0, 1), 0 0 12px rgba(255, 255, 255, 1), 0 0 20px rgba(255, 255, 255, 0.8);
+                text-shadow: 1px 2px 0 rgba(0, 0, 0, 1), 0 0 12px rgba(255, 255, 255, 1), 0 0 20px rgba(255, 255, 255, 0.8);
             }
             12% {
                 opacity: 0.8;
@@ -166,7 +240,7 @@
             font-size: 1.2rem;
             letter-spacing: 0.05em;
             opacity: 0.9;
-            text-shadow: 2px 2px 0px rgba(0, 0, 0, 1), 0 0 8px rgba(255, 255, 255, 0.8), 0 0 15px rgba(255, 255, 255, 0.4);
+            text-shadow: 2px 2px 0 rgba(0, 0, 0, 1), 0 0 8px rgba(255, 255, 255, 0.8), 0 0 15px rgba(255, 255, 255, 0.4);
             z-index: 10;
             pointer-events: none;
             animation: phosphor-flicker 120s infinite;
@@ -222,6 +296,56 @@
             height: 100%;
             background-color: #fff;
             transition: width 0.2s linear, background-color 0.2s;
+        }
+
+        #document-overlay {
+            display: none;
+            position: absolute;
+
+            /* Symmetrical tension against the viewport bounds */
+            top: 12%;
+            bottom: 12%;
+            left: 50%;
+            transform: translateX(-50%);
+
+            width: 70%;
+            max-width: 600px;
+
+            /* Base color + integrated scanline artifacting */
+            background-color: #f4f1e1;
+            background-image: linear-gradient(
+                    rgba(168, 159, 104, 0.15) 50%,
+                    transparent 50%
+            );
+            background-size: 100% 4px;
+
+            color: #1a1811;
+            z-index: 2000;
+            padding: 2.5rem;
+
+            /* Forces padding to respect the 12% bottom pin */
+            box-sizing: border-box;
+
+            font-family: 'Courier New', Courier, monospace;
+            overflow-y: auto;
+            border: 1px solid #a89f68;
+            box-shadow: 0 0 30px rgba(0,0,0,0.9);
+        }
+
+        #document-content {
+            font-size: 1.1rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            font-weight: bold;
+        }
+
+        .document-footer {
+            margin-top: 2rem;
+            border-top: 1px dashed #a89f68;
+            padding-top: 1rem;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #555;
         }
 
         #battery-tip {
@@ -382,24 +506,6 @@
             cursor: pointer;
         }
 
-        #mobile-ui {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 5;
-            display: flex;
-            pointer-events: none;
-        }
-
-        .touch-zone {
-            flex: 1;
-            height: 100%;
-            pointer-events: auto;
-            touch-action: none;
-        }
-
         #menuToggleBtn {
             position: absolute;
             top: 1.5rem;
@@ -407,113 +513,35 @@
             width: auto;
             pointer-events: auto;
             z-index: 20;
-            touch-action: manipulation;
-        }
-
-        #orientation-warning {
-            display: none;
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-color: #000;
-            color: #d4c382;
-            z-index: 99999;
-            text-align: center;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            padding: 2rem;
-            box-sizing: border-box;
-        }
-
-        #orientation-warning h2 {
-            margin-bottom: 0.5rem;
-            letter-spacing: 0.1em;
-        }
-
-        #orientation-warning p {
-            font-size: 0.9rem;
-            line-height: 1.5;
-            color: #a89f68;
-        }
-
-        @media (orientation: portrait) {
-            #orientation-warning {
-                display: flex;
-            }
-        }
-
-        .mobile-action-btn {
-            display: none;
-            position: absolute;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: rgba(20, 20, 15, 0.7);
-            border: 2px solid #d4c382;
-            color: #d4c382;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 12px;
-            font-weight: bold;
-            pointer-events: auto;
-            z-index: 30;
-            touch-action: manipulation;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        .mobile-action-btn.active {
-            background: #d4c382;
-            color: #000;
-        }
-
-        #mobile-run {
-            left: 2rem;
-            bottom: 8rem;
-        }
-
-        #mobile-crouch {
-            right: 2rem;
-            bottom: 8rem;
-        }
-
-        #mobile-flashlight {
-            right: 2rem;
-            bottom: 13rem;
-        }
-
-        @media (pointer: coarse) {
-            .mobile-action-btn {
-                display: block;
-            }
         }
     </style>
 </head>
 <body>
-<div id="orientation-warning">
-    <h2>SYSTEM ERROR</h2>
-    <p>PORTRAIT ORIENTATION NOT SUPPORTED.<br>PLEASE ROTATE YOUR DEVICE.</p>
-</div>
-<div id="mobile-ui">
-    <div id="touch-left" class="touch-zone"></div>
-    <div id="touch-right" class="touch-zone"></div>
-
-    <div id="joystick-base" style="display: none; position: absolute; width: 100px; height: 100px; border-radius: 50%; border: 2px solid rgba(212, 195, 130, 0.4); background: rgba(20, 20, 15, 0.3); pointer-events: none; z-index: 25; transform: translate(-50%, -50%);">
-        <div id="joystick-knob" style="position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; border-radius: 50%; background: rgba(212, 195, 130, 0.8); transform: translate(-50%, -50%);"></div>
-    </div>
-
-    <button id="mobile-run" class="mobile-action-btn">RUN</button>
-    <button id="mobile-crouch" class="mobile-action-btn">CROUCH</button>
-    <button id="mobile-flashlight" class="mobile-action-btn">LIGHT</button>
-</div>
 <div id="screen-wrapper">
     <div id="canvas-container"></div>
     <div id="flash-overlay"></div>
-    <div id="document-overlay" style="display: none; position: absolute; top: 15%; left: 50%; transform: translateX(-50%); width: 70%; max-width: 600px; height: 70%; background-color: #f4f1e1; color: #1a1811; z-index: 2000; padding: 2.5rem; font-family: 'Courier New', Courier, monospace; overflow-y: auto; border: 1px solid #a89f68; box-shadow: 0 0 30px rgba(0,0,0,0.9);">
-        <div id="document-content" style="font-size: 1.1rem; line-height: 1.5; white-space: pre-wrap; font-weight: bold;"></div>
-        <div style="margin-top: 2rem; border-top: 1px dashed #a89f68; padding-top: 1rem; text-align: center; font-size: 0.9rem; color: #555;">[ PRESS 'E' TO CLOSE ]</div>
+    <div id="document-overlay">
+        <div id="document-content"></div>
+        <div class="document-footer">[ PRESS 'E' TO CLOSE ]</div>
+    </div>
+    <div id="keypad-overlay">
+        <div class="keypad-header">SECURITY OVERRIDE</div>
+        <div id="keypad-display">_</div>
+        <div class="keypad-grid">
+            <button class="kp-btn" onclick="handleKeypad('1')">1</button>
+            <button class="kp-btn" onclick="handleKeypad('2')">2</button>
+            <button class="kp-btn" onclick="handleKeypad('3')">3</button>
+            <button class="kp-btn" onclick="handleKeypad('4')">4</button>
+            <button class="kp-btn" onclick="handleKeypad('5')">5</button>
+            <button class="kp-btn" onclick="handleKeypad('6')">6</button>
+            <button class="kp-btn" onclick="handleKeypad('7')">7</button>
+            <button class="kp-btn" onclick="handleKeypad('8')">8</button>
+            <button class="kp-btn" onclick="handleKeypad('9')">9</button>
+            <button class="kp-btn kp-clear" onclick="handleKeypad('C')">C</button>
+            <button class="kp-btn" onclick="handleKeypad('0')">0</button>
+            <button class="kp-btn kp-enter" onclick="handleKeypad('E')">E</button>
+        </div>
+        <div class="keypad-footer">[ PRESS 'E' TO ABORT ]</div>
     </div>
     <div id="crosshair"></div>
     <span id="vhs-time" class="osd-element">AM 12:00:00 &nbsp;&nbsp; JAN 01 1997</span>
@@ -539,7 +567,7 @@
 <div id="ui-layer">
     <button id="menuToggleBtn" class="btn">MENU</button>
     <div class="control-panel">
-        <h1>LEVEL 0 ENGINE v0.4.6</h1>
+        <h1>LEVEL 0 ENGINE v0.4.7</h1>
         <div class="instructions">
             <p align="center">WASD to Move | Shift to Run<br>'E' to Interact | 'C' to Crouch<br>'Q' to Squeeze | 'V' to Blink<br>'F' for
                 Flashlight | '1' Use Battery<br>'2' Use Water | LMB to Look<br>RMB to Lean</p><br>

@@ -232,7 +232,7 @@ export default class PlayerController {
             this.coherence = Math.max(0.0, this.coherence - (delta * 0.20));
         }
         let currentSpeed = baseSpeed * this.speedMultiplier * adrenalineMultiplier;
-        const isMoving = this.direction.lengthSq() > 0 || state.touchMoveActive;
+        const isMoving = this.direction.lengthSq() > 0;
         if (this.isWinded && this.stamina > 50.0) {
             this.isWinded = false;
         }
@@ -292,8 +292,6 @@ export default class PlayerController {
             this.flashlightBattery = Math.max(0, this.flashlightBattery - panicDrain * delta);
             if (this.flashlightBattery === 0) {
                 state.flashlightActive = false;
-                const flashBtn = document.getElementById('mobile-flashlight');
-                if (flashBtn) flashBtn.classList.remove('active');
             }
             this._lastRotY = this.camera.rotation.y;
             this._lastRotX = this.camera.rotation.x;
@@ -316,12 +314,6 @@ export default class PlayerController {
         this.exhaustion = fatigueRatio < 0.3 ? Math.pow(1.0 - (fatigueRatio / 0.3), 2.0) : 0.0;
         let intentX = this.direction.x;
         let intentZ = this.direction.z;
-        if (state.touchMoveActive) {
-            const deadzone = 10.0;
-            const mapAxis = (touchPx) => Math.abs(touchPx) > deadzone ? (touchPx - Math.sign(touchPx) * deadzone) / 110.0 : 0.0;
-            intentX = mapAxis(state.touchDeltaX);
-            intentZ = -mapAxis(state.touchDeltaY);
-        }
         const intentSq = (intentX * intentX) + (intentZ * intentZ);
         if (intentSq > 1.0) {
             const invMag = 1.0 / Math.sqrt(intentSq);

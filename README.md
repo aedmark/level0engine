@@ -1,4 +1,4 @@
-# Level 0 Engine: Procedural Liminal Space Simulator v0.4.6
+# Level 0 Engine: Procedural Liminal Space Simulator v0.4.7
 
 A minimal-dependency, mathematically pure, procedural 3D environment generator running natively in a browser via ES6 modules.
 
@@ -7,10 +7,11 @@ There are no external image assets. There are no imported audio files. There are
 ## Core Philosophy
 
 This engine is built on absolute architectural minimalism and efficiency:
-- **Procedural Geometry & The Sector Matrix:** The maze is generated via a Julia Set fractal algorithm. It is infinite, chaotic, and deterministic. The engine utilizes Geodesic Chunking to maintain a strict memory budget, routing the generation through a **Sector Matrix** to procedurally spawn distinct "Zones" (The Boardroom, The Archive, The Server Farm, The Overgrown Atrium, The Poolrooms, etc.), each with unique materials, density, and atmospheric physics.
+- **Procedural Geometry & The Sector Matrix:** The maze is generated via a Julia Set fractal algorithm. It is infinite, chaotic, and deterministic. The engine utilizes Geodesic Chunking to maintain a strict memory budget, routing the generation through a **Sector Matrix** to procedurally spawn distinct "Zones" — The Incinerator's combustion galleries, The Boardroom's glass fishbowl maze, The Archive stacks, The Server Farm, The Research Annex's corridors of locked doors, The Impound's chainlink pens, The Corn Maze under its false night sky, The Clinic, The Maintenance Shafts, and The Chasm's suspended catwalks — each with unique geometry, floor and ceiling materials, tinted fog, reverb profile, footstep foley, and scheduled room tone. Every zone is sealed behind sliding dual-shell blast doors, and its atmosphere is governed by a ground-truth **Shell Volume Registry**: the world registers what it actually built, and the fog obeys.
+- **The Paper Trail (Seeded Narrative):** Every seed generates a complete cold case — a named research staff, a project, an incident, a 4-digit access code, and one of three truths. Documents are zone-aware (research reports on annex laptops, personnel records in the archive stacks, property tags in the impound pens, audio logs on tape) and dealt from seeded, shuffled pools with sticky assignments. Laptops are **Networked Terminals**: re-reading any of them browses the full recovered archive in discovery order. Somewhere in the wing, one keypad-locked records room holds supplies and the sealed Finding of Fact — and the code is written down in exactly two places. Reading costs Coherence: the whole truth has a sanity price.
 - **Physics & Lighting:** Collision detection relies on a highly optimized O(1) `SpatialHashGrid`. Dynamic lighting is managed by a'Lumen Grid' that teleports a fixed set of hardware shadow-casters and continuous 'Fade Envelopes' to eliminate visual popping.
 - **Procedural Textures:** Every single texture is drawn pixel-by-pixel using the HTML5 Canvas API and injected directly into WebGL memory.
-- **Procedural Audio & Acoustic Routing:** The ambient soundscape is powered by a live, made-from-scratch digital signal processor (DSP). The engine shifts the acoustics natively based on spatial logic from the sterile hiss of corporate HVACs to 35Hz sub-bass server growls. The engine also casts volumetric audio raycasts to physically muffle sounds when occluded by walls. This is paired with **Surface-Aware Foley**, dynamically shifting the acoustic profile of your footsteps based on the zone.
+- **Procedural Audio & Acoustic Routing:** The ambient soundscape is powered by a live, made-from-scratch digital signal processor (DSP). The engine shifts the acoustics natively based on spatial logic — from the sterile hiss of corporate HVACs to the brown/pink/white fan-wash of the server halls to the gusting night wind of the corn maze. The engine also casts volumetric audio raycasts to physically muffle sounds when occluded by walls. This is paired with **Surface-Aware Foley** (carpet thud, metal-grate clank, concrete scuff, linoleum click) and per-zone **Room Tones**: unseen patrons whisper, cough, and turn pages in the archive; chainlink shivers in the impound; something that is almost an owl calls twice in the corn.
 - **Adrenaline & Lethargy Curves:** Sprinting during casual exploration is efficient, but active pursuit by the Anomaly spikes adrenaline, burning oxygen twice as fast. Reaching terminal exhaustion physically crushes the audio filter, blurs the WebGL pipeline, and triggers a seamless decay of your velocity into a heavy, dragging stumble. This heavy breathing dynamically expands the Anomaly's auditory perception radius, and its pursuit speed is inversely coupled to your exhaustion: it literally feeds on panic. Furthermore, the body rejects preemptive healing; drinking Almond Water while above 70% capacity locks stamina recovery until the player reaches absolute exhaustion.
 - **The Psychological Threshold:** The flashlight acts as a psychological shield, throttling the accumulation of paranoia but never reversing it. Hallucinations are strictly gated; visual FOV distortion, phantom auditory footsteps, and entity proximity hallucinations remain completely dormant until the player's psyche fractures past the 50% threshold.
 - **The Quantum Observer Effect & Decoys:** The Anomaly actively hunts via line-of-sight and utilizes short-term spatial memory. It is also attracted to dropped UV tags, allowing for intentional misdirection. Catching the entity within a 30-degree cone of your flashlight mathematically freezes it in place. This angers it. And if it catches you, the engine executes a void blackout, mutates your seed string, and procedurally rebuilds a new reality.
@@ -30,15 +31,14 @@ This engine is built on absolute architectural minimalism and efficiency:
 - `C`: Crouch (Lowers detection radius)
 - `Q`: Squeeze (Compress collision radius to slide through narrow cracks)
 - `F`: Toggle Flashlight (Consumes battery, expands detection radius)
-- `E`: Somatic Interact (Crack open Surge Breakers, consume items)
+- `E`: Somatic Interact (Doors, security keypads, documents, terminals, Surge Breakers, items)
 - `T`: Spray UV Decoy Breadcrumb (Mark your path and distract the Anomaly)
+- `Z`: Sector Warp (Debug: teleport to the first step inside the active macro-zone's northern blast door path)
 - `1`: Use Battery
 - `2`: Use Almond Water
 - `ESC`: Release Pointer Lock/rest
-5. **Mobile Controls (Landscape Only):**
-- `Left Screen Half`: Virtual joystick for movement.
-- `Right Screen Half`: Swipe to look around.
-- `On-Screen Buttons`: Smart-canceling toggles for Run, Crouch, and the Flashlight.
+
+_Level 0 is a desktop-only experience. Mobile/touch support was removed in v0.4.7 to focus the engine on a single input surface._
 
 ## The Environment
 
@@ -50,7 +50,8 @@ This engine is built on absolute architectural minimalism and efficiency:
 - **The Liminal Breach (Fast Travel):** Dead-end staircases have a 15% chance to spawn as open breaches. Walking up them uncaps the Y-axis constraints, allowing you to mathematically phase through the ceiling and warp thousands of units across the grid without mutating the quantum seed.
 - **Ultraviolet Breadcrumbs:** Spray a glowing, high-visibility UV paint decal on walls (via surface-normal raycasting) to map the labyrinth and prevent circling.
 - **Somatic Collisions:** High-speed kinematic impacts against structural geometry violently jolt the camera, bleed momentum, and trigger acoustic foley events. Kinematic vectors are decoupled, allowing you to seamlessly graze and slide along walls without losing perpendicular momentum.
-- **Interactive Doors:** Approach a wood-grain door to trigger a kinematic latch, swinging it open precisely 90 degrees away from your approach vector.
+- **Interactive Doors & Blast Thresholds:** Wood-grain doors swing open precisely 90 degrees away from your approach vector. Macro zones seal themselves behind proximity-triggered dual-shell sliding blast doors with pneumatic grind, hazard-striped panels, and a metal transition awning capping every threshold. In the Research Annex, most doors are permanently locked and visually identical to the ones that open — the only way to know is to try. One per wing carries a glowing keypad.
+- **The Case File:** Notes, laptops, tape recorders, property tags, and one sealed Finding of Fact — all dealt from the seed's own story. Progress is tracked as a DATA RECOVERED readout on every document, and any terminal can replay everything you've found. Each read permanently scars your Coherence.
 - **Claustrophobic Bottlenecks:** Corporate partitions have been excised in favor of absolute liminal emptiness and brutalist friction. The labyrinth dynamically generates blind L-shaped doglegs and tight 0.3-unit gaps. You must physically compress your body ('Q') to slide through them, restricting traversal speed.
 - **Claustrophobic Particulates:** The volumetric dust cloud dynamically spikes in opacity and particle size when the player physically crawls through vents, simulating a choking atmosphere.
 
@@ -67,3 +68,7 @@ The UI provides a structural control panel.
 ## Dependencies
 
 - `Three.js (r128)` - Loaded via local minified JS to preserve the zero-build-tool philosophy.
+
+## Architecture
+
+Nine zero-dependency ES6 modules: `Environment.js` (chunking, zones, interaction), `TheArchitect.js` (the procedural blueprint factory), `RenderEngine.js` (WebGL pipeline and post-processing), `AcousticEngine.js` (the DSP), `StoryEngine.js` (the seeded narrative generator), `PlayerController.js` (metabolics and kinematics), `Anomaly.js` (the entity), `LumenGrid.js` (dynamic light pooling), and `SpatialHashGrid.js` (O(1) collision).

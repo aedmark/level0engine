@@ -2,10 +2,10 @@
 // LEVEL 0 ILLUMINATION SUBSYSTEM
 
 export default class LumenGrid {
-    constructor(scene, isMobile) {
+    constructor(scene) {
         this.scene = scene;
-        this.maxActiveLights = isMobile ? 12 : 40;
-        this.maxShadowLights = isMobile ? 2 : 10;
+        this.maxActiveLights = 40;
+        this.maxShadowLights = 10;
         this.lightPool = [];
         this._activeFixtures = new Array(this.maxActiveLights).fill(null);
         for (let i = 0; i < this.maxActiveLights; i++) {
@@ -32,12 +32,14 @@ export default class LumenGrid {
         for (let i = 0, len = fixtureData.length; i < len; i++) {
             const fixture = fixtureData[i];
             const dx = cameraPos.x - fixture.position.x;
-            const dy = cameraPos.y - fixture.position.y;
+            if (dx > cullingLimit || dx < -cullingLimit) { fixture.hasShadow = false; continue; }
+
             const dz = cameraPos.z - fixture.position.z;
-            if (dx > cullingLimit || dx < -cullingLimit || dz > cullingLimit || dz < -cullingLimit || dy > cullingLimit || dy < -cullingLimit) {
-                fixture.hasShadow = false;
-                continue;
-            }
+            if (dz > cullingLimit || dz < -cullingLimit) { fixture.hasShadow = false; continue; }
+
+            const dy = cameraPos.y - fixture.position.y;
+            if (dy > cullingLimit || dy < -cullingLimit) { fixture.hasShadow = false; continue; }
+
             const distSq = (dx * dx) + (dy * dy) + (dz * dz);
             if (distSq < 900.0) {
                 if (fixture.isDead) {
