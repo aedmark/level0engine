@@ -139,6 +139,87 @@
             margin-top: 0.25rem;
         }
 
+        #inquest-overlay {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: min(640px, 92%);
+            background-color: #0d0d08;
+            border: 2px solid #d4c382;
+            z-index: 2000;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+            box-sizing: border-box;
+            font-family: 'Courier New', Courier, monospace;
+            color: #d4c382;
+        }
+
+        .inquest-header {
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        #inquest-case {
+            font-size: 0.7rem;
+            color: #7a7558;
+            margin-bottom: 1rem;
+            letter-spacing: 1px;
+        }
+
+        .inquest-body {
+            font-size: 0.75rem;
+            color: #a89f68;
+            margin-bottom: 1rem;
+            line-height: 1.4;
+        }
+
+        .inquest-opt {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: #1a1a12;
+            color: #d4c382;
+            border: 1px solid #4a452a;
+            padding: 0.7rem 0.9rem;
+            margin-bottom: 0.5rem;
+            font-family: inherit;
+            font-size: 0.72rem;
+            line-height: 1.35;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .inquest-opt:hover {
+            border-color: #d4c382;
+            background: #26261a;
+        }
+
+        #inquest-hint {
+            font-size: 0.65rem;
+            color: #7a7558;
+            font-style: italic;
+            margin-bottom: 0.5rem;
+        }
+
+        #inquest-result {
+            font-size: 0.85rem;
+            font-weight: bold;
+            min-height: 1.2rem;
+            letter-spacing: 1px;
+            margin-top: 0.5rem;
+        }
+
+        .inquest-footer {
+            font-size: 0.6rem;
+            color: #7a7558;
+            margin-top: 0.75rem;
+            text-align: center;
+        }
+
         #keypad-overlay {
             display: none;
             position: absolute;
@@ -543,6 +624,19 @@
         </div>
         <div class="keypad-footer">[ PRESS 'E' TO ABORT ]</div>
     </div>
+    <div id="inquest-overlay">
+        <div class="inquest-header">EXIT PROTOCOL — INQUEST TERMINAL</div>
+        <div id="inquest-case"></div>
+        <div class="inquest-body">The elevator will not descend while the case is open. Submit the Finding of Fact.
+            The facility checks every filing against what it knows. A false finding voids the investigator.
+        </div>
+        <button class="inquest-opt" id="inquest-opt-0" onclick="handleInquest(0)"></button>
+        <button class="inquest-opt" id="inquest-opt-1" onclick="handleInquest(1)"></button>
+        <button class="inquest-opt" id="inquest-opt-2" onclick="handleInquest(2)"></button>
+        <div id="inquest-hint"></div>
+        <div id="inquest-result"></div>
+        <div class="inquest-footer">[ 1 / 2 / 3 TO FILE — 'E' TO STEP BACK ]</div>
+    </div>
     <div id="crosshair"></div>
     <span id="vhs-time" class="osd-element">AM 12:00:00 &nbsp;&nbsp; JAN 01 1997</span>
     <div id="inventory-osd" class="osd-element">
@@ -567,13 +661,13 @@
 <div id="ui-layer">
     <button id="menuToggleBtn" class="btn">MENU</button>
     <div class="control-panel">
-        <h1>LEVEL 0 ENGINE v0.4.10</h1>
+        <h1>LEVEL 0 ENGINE v0.4.11</h1>
         <div class="instructions">
             <p align="center">WASD to Move | Shift to Run<br>'E' to Interact | 'C' to Crouch<br>'Q' to Squeeze | 'V' to Blink<br>'F' for
                 Flashlight | '1' Use Battery<br>'2' Use Water | LMB to Look<br>RMB to Lean</p><br>
         </div><br>
         <label>Architecture Seed (String)</label>
-        <input type="text" id="seedInput" value="LVL042">
+        <input type="text" id="seedInput" value="LVL0410">
         <label>Display Format</label>
         <select id="aspectSelect">
             <option value="auto">Dynamic (Full Window)</option>

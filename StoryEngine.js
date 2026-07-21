@@ -196,6 +196,20 @@ export default class StoryEngine {
         return {text: this.library[category][idx], progress: this.progress()};
     }
 
+    getVerdicts() {
+        const c = this.cast;
+        return {
+            options: [
+                'CONTAINMENT REVIEW: There was no breach. The specimen predates the site. It grew a laboratory around itself.',
+                'PERSONNEL FINDING: ' + c.lost + ' is alive. Every locked door was sealed by hand, from the inside. It is trapped in here with ' + c.lost + '.',
+                'TRANSMISSION AUDIT: The hum is a carrier wave. The building is broadcasting its own contents somewhere. The staff are the payload.'
+            ],
+            truth: this.truth,
+            finaleRead: this.readTemplates.has('FINALE'),
+            project: this.projectName
+        };
+    }
+
     getArchiveFile(k) {
         const n = this.collected.length;
         if (n === 0) return null;

@@ -104,8 +104,8 @@ export default class Environment {
     }
     _rollHuntHops() {
         const r = Math.random();
-        if (r < 0.40) return 0;
-        if (r < 0.75) return 1;
+        if (r < 0.10) return 0;
+        if (r < 0.60) return 1;
         return 2;
     }
     shatterFixture(fixture) {
@@ -671,27 +671,9 @@ export default class Environment {
                     detail: {docId: hit.userData.docId, zone: hit.userData.zone || null}
                 }));
             } else if (hit && hit.userData.type === 'exit' && hit.userData.active) {
-                hit.userData.active = false;
-                this.player.objectives.escaped = true;
-                this.player.objectiveUI.innerHTML = '> SECTOR BREACHED.<br>> DESCENDING TO DEEPER LAYER...';
-                this.player.objectiveUI.style.color = '#aa55ff';
-                document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 0.1, intensity: 3.0}}));
-                if (this.engine.ambientLight) this.engine.ambientLight.intensity = 5.0;
-                const flash = document.getElementById('flash-overlay');
-                if (flash) {
-                    flash.style.transition = 'opacity 3.0s ease-in';
-                    flash.style.backgroundColor = '#000';
-                    flash.style.opacity = '1';
-                    setTimeout(() => {
-                        this.player.objectives.fixed = 0;
-                        this.player.objectives.escaped = false;
-                        this.player.hasVisitedAnnex = false;
-                        this.player.depth++;
-                        if (this.player.depth > this.player.bestDepth) this.player.bestDepth = this.player.depth;
-                        this.player.updateObjectives();
-                        this.generate(true);
-                    }, 3500);
-                }
+                // The elevator no longer descends on touch. The case must be
+                // filed first — main.js runs the Inquest and adjudicates.
+                document.dispatchEvent(new CustomEvent('somatic-inquest', {detail: {exitRef: hit}}));
             }
         });
     }

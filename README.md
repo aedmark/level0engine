@@ -1,4 +1,4 @@
-# Level 0 Engine: Procedural Liminal Space Simulator v0.4.10
+# Level 0 Engine: Procedural Liminal Space Simulator v0.4.11
 
 A minimal-dependency, mathematically pure, procedural 3D environment generator running natively in a browser via ES6 modules.
 
@@ -43,8 +43,8 @@ _Level 0 is a desktop-only experience. Mobile/touch support was removed in v0.4.
 
 ## The Environment
 
-- **Sector Stabilization & Diegetic Radar:** Players must explore the labyrinth to locate and engage three highly rare Dimensional Switches to restore power and reveal the exit. The UI serves as a triangulation tool for these objectives, displaying distance to the nearest target, but scrambles (`ERR!_m`) under intense Anomaly electromagnetic pressure.
-- **The Exit Threshold:** A heavily fortified extraction bunker that only manifests in the generation matrix after all sector breakers are thrown, triggering a massive somatic thud and facilitating level descent.
+- **Sector Stabilization & Diegetic Radar:** Players must explore the labyrinth to locate and engage three highly rare Dimensional Switches to restore power and reveal the exit. The UI serves as a triangulation tool for these objectives, displaying distance to the nearest target, but scrambles (`ERR!_m`) under intense Anomaly electromagnetic pressure. The signal usually routes through anomalous points of interest first — a hole in the ceiling, a dinette bolted upside-down overhead, a working light panel sunk into the floor, a ring of chairs facing inward at nothing — before resolving to a breaker.
+- **The Exit Threshold & The Inquest:** A heavily fortified extraction bunker that only manifests in the generation matrix after all sector breakers are thrown. The elevator does not descend on touch: an Inquest terminal demands the Finding of Fact — three verdicts, keyed `1`/`2`/`3`. File the truth and the case closes for a clean descent with Coherence restored; file wrong and the seed mutates, rebuilding reality around a new cold case. Recovering the sealed Finding from the records room marks the correct verdict. Without it, you're guessing at one in three.
 - **Safe Rooms (The Outpost):** A rare chance for a fully enclosed, anomaly-shielded refuge featuring clean tile, a cot, guaranteed Almond Water, and an `isEntityBlocker` barrier that permits player entry while barring the entity.
 - **The Surge Breakers:** Interactive, articulated breaker boxes. Press 'E' to crack the panel open and trigger a chunk-wide blackout cascade. Blackouts automatically resolve and restore lighting via an autonomic 25-35 second timer to preserve dynamic equilibrium.
 - **Scavenged Resources:** Procedural battery cylinders restore 40% flashlight voltage, capped at 2 per chunk. Almond Water canisters grant 15 seconds of infinite stamina to aggressively outrun entities.

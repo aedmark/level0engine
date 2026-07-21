@@ -1,5 +1,25 @@
 # Level 0 Engine Changelog
 
+## [v0.4.11] - 2026-07-21
+
+_The Inquest & Dead Signal Update_
+
+#### Added
+
+- **[NARRATIVE] THE INQUEST:** The exit elevator no longer descends on touch. Interacting with it opens an inquest terminal: three findings on the form — the specimen that predates the site, the lost researcher sealing doors from the inside, the building transmitting its staff as payload — keyed `1`/`2`/`3` or clickable, with `E` to step back and the elevator still live for a return trip. The wording of each option is drawn from the seed's own sealed files. File the correct finding and the case closes: Coherence restores to full (certainty settles the mind) and the descent sequence runs as before. File wrong and the facility disagrees: a breaker-slam sting, the seed mutates, the world rebuilds, and a *different* cold case opens. If the sealed Finding of Fact was recovered from the records room, the terminal marks the matching option with `★ MATCHES SEALED FINDING` — reading is certainty. If it wasn't, the terminal says so plainly: filing without it is guesswork, one in three. The Paper Trail finally has a verdict at the end of it; every laptop is now a clue instead of a sanity tax, and the keypad room is the climax instead of a supply closet. Verified across fifty seeds: option themes align with finale indices, all three truths occur in the wild.
+- **[GEOMETRY] Three New Signal Anomalies:** The detour catalog doubles from three to six. **The Inverted Dinette:** a table and two chairs bolted to the ceiling, upside down, set for dinner. **The Sunken Fixture:** a functioning light panel embedded in the floor, glowing upward, wired into the real LumenGrid with a 40% chance of the faulty-flicker schedule — a working light where no light should work. **The Congregation:** five to seven chairs in a perfect ring, all facing inward at nothing. The Congregation's first draft faced outward — the chair prefab's backrest defines its facing and the ring rotation needed `-(ang + π/2)`, not `ang + π/2`; caught in review before the engine shipped a support group.
+
+#### Changed
+
+- **[MECHANICS] Signal Hunt Odds:** The hop roll that decides how many anomaly detours the radar inserts before each breaker went from 40% zero / 35% one / 25% two to **10% / 50% / 40%**. A full three-breaker run now averages ~3.9 detours. The radar is a tour guide now, not a delivery route.
+- **[MECHANICS] Type-Aware Signal Spacing:** The exclusion pool now tags entries as breaker or point-of-interest instead of treating everything as one species. Breakers repel each other at 60 units (was 50, addressing back-to-back objectives that felt like errands in the same hallway); POIs pack at 40 units from each other and only need 30 from a breaker — so the anomalies land *between* objectives, where a detour belongs.
+
+#### Fixed
+
+- **[MECHANICS] The Dead Detour Blueprint:** The point-of-interest anomaly blueprint (ceiling hole, felled dinette, violet panel) has been unreachable code since its prob was set to 0.028 — tied exactly with the dangle-tile entry. Cell assignment is `find()` over a descending sort, and with a tied threshold the stable sort guarantees the earlier entry intercepts every roll. Consequence: `pointsOfInterest` was always empty, the hunt-hop system had nothing to divert to, and 100% of radar signals resolved to breakers. Reported as "all three signals in a row were breakers — am I lucky?" No. Nobody was ever lucky. A two-million-roll harness confirmed zero POI hits on the old ladder and a 1.49:1 POI-to-breaker ratio on the new one (POI at 0.0235, stacked-tables re-laddered to 0.0215 to clear the window). A warning comment now sits on the entry so no future blueprint recreates the collision.
+- **[UI] Overlay Close Dispatch:** The close-document handler tested `style.display !== 'none'`, but an overlay that has never been opened has an inline display of `''` — so the first document close of any session silently tripped the *keypad* branch, hiding a keypad that was never open and dispatching a phantom cancel. Both keypad and inquest branches now require `=== 'block'`.
+- **[INPUT] Verdict Keys vs. Inventory:** `1` and `2` dispatched use-battery/use-almond-water unconditionally — including through open overlays, which mattered rather a lot once 1-2-3 became verdict keys. Item use is now gated on not reading. Filing a finding no longer chugs an almond water.
+
 ## [v0.4.10] - 2026-07-21
 
 _The Scheduled Shadows & Open Archive Update_

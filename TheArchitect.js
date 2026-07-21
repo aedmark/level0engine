@@ -649,10 +649,11 @@ export default class TheArchitect {
                     if (!this._globalSwitches) this._globalSwitches = [];
                     let tooClose = false;
                     for (let i = 0; i < this._globalSwitches.length; i++) {
-                        const sx = this._globalSwitches[i].x;
-                        const sz = this._globalSwitches[i].z;
-                        const distSq = (cx - sx) * (cx - sx) + (cz - sz) * (cz - sz);
-                        if (distSq > 0.1 && distSq < 2500.0) {
+                        const s = this._globalSwitches[i];
+                        const distSq = (cx - s.x) * (cx - s.x) + (cz - s.z) * (cz - s.z);
+                        // breakers repel breakers at 60u; POIs only need 30u clearance
+                        const limit = s.poi ? 900.0 : 3600.0;
+                        if (distSq > 0.1 && distSq < limit) {
                             tooClose = true;
                             break;
                         }
@@ -673,7 +674,7 @@ export default class TheArchitect {
                     }
                     const isHallucination = (this.player && this.player.paranoia > 0.8) && (random() > 0.5);
                     if (!isHallucination && !this._globalSwitches.some(s => Math.abs(s.x - cx) < 0.1 && Math.abs(s.z - cz) < 0.1)) {
-                        this._globalSwitches.push({x: cx, z: cz});
+                        this._globalSwitches.push({x: cx, z: cz, poi: false});
                     }
                     if (ctx.markOccupied) ctx.markOccupied(x, z);
                     const pillar = buildWall(1.5, 1.5, this.metalMat);
@@ -702,17 +703,22 @@ export default class TheArchitect {
                 }
             },
             {
-                prob: 0.028, build: (x, z) => {
+                // NOTE: this prob must never tie another entry's — the cell picker
+                // is find() over a descending sort, and a tied threshold makes the
+                // later entry unreachable. This blueprint was dead code at 0.028
+                // (tied with the dangle-tile entry) until v0.4.11.
+                prob: 0.0235, build: (x, z) => {
                     const cx = x * this.cellSize;
                     const cz = z * this.cellSize;
                     if (!this._globalSwitches) this._globalSwitches = [];
                     if (!this.pointsOfInterest) this.pointsOfInterest = [];
                     let tooClose = false;
                     for (let i = 0; i < this._globalSwitches.length; i++) {
-                        const sx = this._globalSwitches[i].x;
-                        const sz = this._globalSwitches[i].z;
-                        const distSq = (cx - sx) * (cx - sx) + (cz - sz) * (cz - sz);
-                        if (distSq > 0.1 && distSq < 2500.0) {
+                        const s = this._globalSwitches[i];
+                        const distSq = (cx - s.x) * (cx - s.x) + (cz - s.z) * (cz - s.z);
+                        // POIs pack denser than breakers: 40u from each other, 30u from switches
+                        const limit = s.poi ? 1600.0 : 900.0;
+                        if (distSq > 0.1 && distSq < limit) {
                             tooClose = true;
                             break;
                         }
@@ -720,7 +726,7 @@ export default class TheArchitect {
                     if (ctx.playerPos) {
                         const dxPlayer = cx - ctx.playerPos.x;
                         const dzPlayer = cz - ctx.playerPos.z;
-                        if (dxPlayer * dxPlayer + dzPlayer * dzPlayer < 1600.0) {
+                        if (dxPlayer * dxPlayer + dzPlayer * dzPlayer < 900.0) {
                             tooClose = true;
                         }
                     }
@@ -731,9 +737,9 @@ export default class TheArchitect {
                         addGeometry(wall);
                         return;
                     }
-                    this._globalSwitches.push({x: cx, z: cz});
+                    this._globalSwitches.push({x: cx, z: cz, poi: true});
                     if (ctx.markOccupied) ctx.markOccupied(x, z);
-                    const flavor = Math.floor(random() * 3);
+                    const flavor = Math.floor(random() * 6);
                     if (flavor === 0) {
                         if (!this.fallenTileGeo) {
                             this.fallenTileGeo = new THREE.BoxGeometry(0.9, 0.04, 0.9);
@@ -771,7 +777,7 @@ export default class TheArchitect {
                         table.rotation.x = Math.PI / 2;
                         table.position.y = 0.5;
                         addFurniture(table);
-                    } else {
+                    } else if (flavor === 2) {
                         if (!this.anomalyPanelMat) {
                             this.anomalyPanelMat = new THREE.MeshStandardMaterial({
                                 color: 0x2a1f33, emissive: 0x4422aa, emissiveIntensity: 0.35, roughness: 0.4
@@ -784,12 +790,56 @@ export default class TheArchitect {
                         panel.rotation.z = (random() - 0.5) * 0.15;
                         panel.scale.set(1.0, 1.0 + random() * 0.3, 1.0);
                         addGeometry(panel);
+                    } else if (flavor === 3) {
+                        // The Inverted Dinette: a table set for dinner, bolted to the ceiling.
+                        const table = buildTable(cx, 0, cz);
+                        table.rotation.x = Math.PI;
+                        table.position.y = 2.95;
+                        addFurniture(table);
+                        for (let s = -1; s <= 1; s += 2) {
+                            const chair = buildChair(cx + s * 0.95, 0, cz + (random() - 0.5) * 0.4, s > 0 ? -Math.PI / 2 : Math.PI / 2);
+                            chair.rotation.x = Math.PI;
+                            chair.position.y = 2.95;
+                            addFurniture(chair);
+                        }
+                    } else if (flavor === 4) {
+                        // The Sunken Fixture: a working light panel embedded in the floor,
+                        // glowing upward, wired into the LumenGrid like any honest ceiling light.
+                        const activeMat = ctx.getLightMaterial(0xfff2cc, 0xffe9b0, false);
+                        const panel = new THREE.Mesh(this.sharedPanelGeo,
+                            [this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat, this.baseHousingMat]);
+                        panel.position.set(cx, 0.055, cz);
+                        panel.rotation.y = random() > 0.5 ? Math.PI / 2 : 0;
+                        chunkGroup.add(panel);
+                        this.walls.push(panel);
+                        this.fixtureData.push({
+                            chunkHash: hash,
+                            position: new THREE.Vector3(cx, 0.4, cz),
+                            flickerOffset: random() * 10.0,
+                            material: activeMat,
+                            isFaulty: random() > 0.6,
+                            baseIntensity: 0.85,
+                            targetIntensity: 0.85,
+                            currentIntensity: 0.85
+                        });
+                    } else {
+                        // The Congregation: chairs in a perfect ring, all facing inward at nothing.
+                        const seats = 5 + Math.floor(random() * 3);
+                        const ringR = 1.25 + random() * 0.3;
+                        for (let s = 0; s < seats; s++) {
+                            const ang = (s / seats) * Math.PI * 2;
+                            const chair = buildChair(
+                                cx + Math.cos(ang) * ringR, 0, cz + Math.sin(ang) * ringR,
+                                -(ang + Math.PI / 2)
+                            );
+                            addFurniture(chair);
+                        }
                     }
                     this.pointsOfInterest.push({x: cx, z: cz, active: false, chunkHash: hash});
                 }
             },
             {
-                prob: 0.025, build: (x, z) => {
+                prob: 0.0215, build: (x, z) => {
                     const cx = x * this.cellSize;
                     const cz = z * this.cellSize;
                     for (let i = 0; i < 3; i++) {

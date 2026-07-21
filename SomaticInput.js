@@ -102,10 +102,10 @@ export default class SomaticInput {
         if (event.code === 'KeyF') {
             this.state.flashlightActive = !this.state.flashlightActive;
         }
-        if (event.code === 'Digit1') {
+        if (event.code === 'Digit1' && !this.state.isReading) {
             document.dispatchEvent(new Event('somatic-use-battery'));
         }
-        if (event.code === 'Digit2') {
+        if (event.code === 'Digit2' && !this.state.isReading) {
             document.dispatchEvent(new Event('somatic-use-almond'));
         }
         if (event.code === 'KeyT') {

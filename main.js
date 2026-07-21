@@ -211,6 +211,15 @@ document.addEventListener('somatic-read', (e) => {
 });
 
 document.addEventListener('somatic-close-document', () => {
+    const inquestOverlay = document.getElementById('inquest-overlay');
+    if (inquestOverlay && inquestOverlay.style.display === 'block') {
+        if (inquestLocked) return; // verdict filed — the sequence owns the exit now
+        inquestOverlay.style.display = 'none';
+        pendingExit = null;
+        player.input.state.isReading = false;
+        acoustics.triggerSomaticEvent('item', 1.0, 0.2);
+        return;
+    }
     player.input.state.isReading = false;
     terminalBrowseIndex = null;
     const docOverlay = document.getElementById('document-overlay');
@@ -222,7 +231,7 @@ document.addEventListener('somatic-close-document', () => {
         acoustics.triggerSomaticEvent('tape_click', 1.0, 0.5);
     }
 
-    if (keypadOverlay && keypadOverlay.style.display !== 'none') {
+    if (keypadOverlay && keypadOverlay.style.display === 'block') {
         keypadOverlay.style.display = 'none';
         document.dispatchEvent(new Event('somatic-keypad-cancel'));
         acoustics.triggerSomaticEvent('door', 1.0, 0.3);
@@ -231,6 +240,97 @@ document.addEventListener('somatic-close-document', () => {
         player.coherence = Math.max(0.0, player.coherence - 0.15);
         acoustics.triggerSomaticEvent('item', 1.0, 0.2);
     }
+});
+
+// ============ THE INQUEST ============
+// The exit elevator will not descend while the case is open. Environment
+// detects the interaction; this block adjudicates the filing.
+let pendingExit = null;
+let inquestLocked = false;
+
+document.addEventListener('somatic-inquest', (e) => {
+    if (player.input.state.isReading) return;
+    player.input.state.isReading = true;
+    player.input.state.isRunning = false;
+    if (document.pointerLockElement) document.exitPointerLock();
+    pendingExit = e.detail.exitRef;
+    inquestLocked = false;
+    const story = getStory();
+    const v = story.getVerdicts();
+    const progress = story.progress();
+    document.getElementById('inquest-case').innerText =
+        `CASE FILE: PROJECT ${v.project} — DATA RECOVERED [ ${progress.found} / ${progress.total} ]`;
+    document.getElementById('inquest-hint').innerText = v.finaleRead
+        ? 'THE SEALED FINDING OF FACT IS ON RECORD. FILE IT.'
+        : 'THE SEALED FINDING OF FACT WAS NEVER RECOVERED. FILING WITHOUT IT IS GUESSWORK.';
+    for (let i = 0; i < 3; i++) {
+        const btn = document.getElementById(`inquest-opt-${i}`);
+        btn.innerText = `[${i + 1}] ${v.options[i]}` + ((v.finaleRead && i === v.truth) ? '\n    ★ MATCHES SEALED FINDING' : '');
+    }
+    const result = document.getElementById('inquest-result');
+    result.innerText = '';
+    document.getElementById('inquest-overlay').style.display = 'block';
+    acoustics.triggerSomaticEvent('item', 1.0, 0.4);
+});
+
+window.handleInquest = (choice) => {
+    if (inquestLocked || !pendingExit) return;
+    inquestLocked = true;
+    const story = getStory();
+    const result = document.getElementById('inquest-result');
+    if (choice === story.truth) {
+        result.innerText = '> FINDING ACCEPTED. CASE CLOSED.';
+        result.style.color = '#55ff55';
+        player.coherence = 1.0; // certainty settles the mind
+        const exitRef = pendingExit;
+        pendingExit = null;
+        acoustics.triggerSomaticEvent('tape_click', 1.0, 0.6);
+        setTimeout(() => {
+            document.getElementById('inquest-overlay').style.display = 'none';
+            player.input.state.isReading = false;
+            exitRef.userData.active = false;
+            player.objectives.escaped = true;
+            player.objectiveUI.innerHTML = '> CASE CLOSED.<br>> DESCENDING TO DEEPER LAYER...';
+            player.objectiveUI.style.color = '#aa55ff';
+            document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 0.1, intensity: 3.0}}));
+            if (engine.ambientLight) engine.ambientLight.intensity = 5.0;
+            const flash = document.getElementById('flash-overlay');
+            if (flash) {
+                flash.style.transition = 'opacity 3.0s ease-in';
+                flash.style.backgroundColor = '#000';
+                flash.style.opacity = '1';
+                setTimeout(() => {
+                    player.objectives.fixed = 0;
+                    player.objectives.escaped = false;
+                    player.hasVisitedAnnex = false;
+                    player.depth++;
+                    if (player.depth > player.bestDepth) player.bestDepth = player.depth;
+                    player.updateObjectives();
+                    environment.generate(true);
+                }, 3500);
+            }
+        }, 1600);
+    } else {
+        result.innerText = '> FINDING REJECTED. THE FACILITY DISAGREES.';
+        result.style.color = '#ff5555';
+        pendingExit = null;
+        acoustics.triggerSomaticEvent('breaker', 1.0, 0.8);
+        setTimeout(() => {
+            document.getElementById('inquest-overlay').style.display = 'none';
+            player.input.state.isReading = false;
+            triggerBlackout();
+            player.resetMetabolism();
+            environment.generate();
+        }, 2000);
+    }
+};
+
+document.addEventListener('keydown', (e) => {
+    const ov = document.getElementById('inquest-overlay');
+    if (!ov || ov.style.display !== 'block') return;
+    if (e.code === 'Digit1') window.handleInquest(0);
+    else if (e.code === 'Digit2') window.handleInquest(1);
+    else if (e.code === 'Digit3') window.handleInquest(2);
 });
 
 let currentKeypadInput = "";

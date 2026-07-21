@@ -9,7 +9,6 @@
     <link href="https://fonts.googleapis.com/css2?family=VT323&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 
     <style>
-        /* CSS Variables config */
         :root {
             --liminal-900: #1a1811;
             --liminal-800: #332d1c;
@@ -20,7 +19,6 @@
             --font-vhs: 'VT323', monospace;
         }
 
-        /* Base CSS Reset */
         *, *::before, *::after {
             box-sizing: border-box;
         }
@@ -34,23 +32,19 @@
             background-color: #050505;
             color: var(--liminal-400);
             font-family: var(--font-mono);
-            font-size: 0.875rem; /* text-sm */
+            font-size: 0.875rem;
             -webkit-font-smoothing: antialiased;
-            overflow: hidden; /* overflow-hidden */
+            overflow: hidden;
             display: flex;
             flex-direction: column;
-            height: 100vh; /* h-screen */
-            width: 100vw; /* w-screen */
+            height: 100vh;
+            width: 100vw;
             position: relative;
 
-            /* Artisan Note: Prevent text selection to maintain terminal illusion */
             user-select: none;
             -webkit-user-select: none;
         }
 
-        /* ============================
-           ATMOSPHERIC EFFECTS
-           ============================ */
         @keyframes flicker {
             0% { opacity: 0.9; text-shadow: 0 0 4px rgba(212, 195, 130, 0.4); }
             5% { opacity: 0.5; text-shadow: none; }
@@ -78,16 +72,12 @@
             color: #050505;
         }
 
-        /* ============================
-           LAYOUT & COMPONENTS
-           ============================ */
-
         .main-wrapper {
             flex-grow: 1;
             display: flex;
             align-items: stretch;
             justify-content: center;
-            padding: 0.5rem; /* p-2 */
+            padding: 0.5rem;
             position: relative;
             z-index: 10;
             width: 100%;
@@ -96,9 +86,9 @@
         .terminal-box {
             width: 100%;
             flex-grow: 1;
-            background-color: rgba(0, 0, 0, 0.7); /* bg-black/70 */
+            background-color: rgba(0, 0, 0, 0.7);
             border: 1px solid var(--liminal-800);
-            padding: 1rem; /* p-4 */
+            padding: 1rem;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
             display: flex;
             flex-direction: column;
@@ -126,7 +116,7 @@
         }
 
         .terminal-title {
-            font-size: 1.875rem; /* text-3xl */
+            font-size: 1.875rem;
             font-weight: 700;
             font-family: var(--font-vhs);
             letter-spacing: 0.1em;
@@ -138,13 +128,13 @@
             color: var(--liminal-500);
             margin-top: 0.25rem;
             letter-spacing: 0.2em;
-            font-size: 10px; /* text-[10px] */
+            font-size: 10px;
             text-transform: uppercase;
         }
 
         .sys-info {
             text-align: right;
-            font-size: 10px; /* text-[10px] */
+            font-size: 10px;
             color: var(--liminal-800);
             font-weight: 700;
             letter-spacing: 0.1em;
@@ -154,7 +144,7 @@
         }
 
         .active-instance {
-            color: rgba(127, 29, 29, 0.8); /* text-red-900/80 */
+            color: rgba(127, 29, 29, 0.8);
         }
 
         .abort-link {
@@ -166,11 +156,10 @@
         }
 
         .abort-link:hover {
-            color: #ef4444; /* text-red-500 */
+            color: #ef4444;
             animation: flicker 5s infinite alternate;
         }
 
-        /* Iframe Styles */
         .iframe-wrapper {
             flex-grow: 1;
             relative: relative;
@@ -178,7 +167,7 @@
             background-color: #020202;
             overflow: hidden;
             box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
-            position: relative; /* ensure absolute child is contained */
+            position: relative;
         }
 
         iframe {
@@ -204,7 +193,7 @@
         }
 
         .somatic-status {
-            font-size: 10px; /* text-[10px] */
+            font-size: 10px;
             color: var(--liminal-800);
             font-family: var(--font-mono);
             letter-spacing: 0.1em;
@@ -219,14 +208,14 @@
 
         .footer-actions {
             display: flex;
-            gap: 1rem; /* gap-4 */
+            gap: 1rem;
         }
 
         .btn-reboot {
             background: transparent;
             border: none;
             color: var(--liminal-500);
-            font-size: 10px; /* text-[10px] */
+            font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.1em;
             transition: color 0.2s ease;
@@ -244,12 +233,12 @@
             background: transparent;
             border: 1px solid var(--liminal-400);
             color: var(--liminal-400);
-            padding: 0.5rem 1rem; /* py-2 px-4 */
+            padding: 0.5rem 1rem;
             text-align: center;
             text-transform: uppercase;
             letter-spacing: 0.2em;
             font-weight: 700;
-            font-size: 10px; /* text-[10px] */
+            font-size: 10px;
             text-decoration: none;
             transition: all 0.2s ease;
             position: relative;
@@ -276,15 +265,11 @@
             left: 100%;
         }
 
-        /* ============================
-           RESPONSIVE QUERIES
-           ============================ */
-
-        @media (min-width: 640px) { /* sm: */
+        @media (min-width: 640px) {
             .main-wrapper { padding: 1rem; }
         }
 
-        @media (min-width: 768px) { /* md: */
+        @media (min-width: 768px) {
             .main-wrapper { padding: 1.5rem; }
             .terminal-box { padding: 1.5rem; }
             .terminal-title { font-size: 2.25rem; }
@@ -295,7 +280,7 @@
             .btn-glitch { font-size: 0.75rem; padding-left: 2rem; padding-right: 2rem; }
         }
 
-        @media (min-width: 1024px) { /* lg: */
+        @media (min-width: 1024px) {
             .main-wrapper { padding: 2rem; }
             .terminal-title { font-size: 3rem; }
         }
@@ -351,9 +336,9 @@
         const iframe = document.getElementById('engine-frame');
         if (iframe.requestFullscreen) {
             iframe.requestFullscreen();
-        } else if (iframe.webkitRequestFullscreen) { /* Safari */
+        } else if (iframe.webkitRequestFullscreen) {
             iframe.webkitRequestFullscreen();
-        } else if (iframe.msRequestFullscreen) { /* IE11 */
+        } else if (iframe.msRequestFullscreen) {
             iframe.msRequestFullscreen();
         }
     }
