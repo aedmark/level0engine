@@ -778,20 +778,37 @@ export default class TheArchitect {
                         table.position.y = 0.5;
                         addFurniture(table);
                     } else if (flavor === 2) {
-                        if (!this.anomalyPanelMat) {
-                            this.anomalyPanelMat = new THREE.MeshStandardMaterial({
-                                color: 0x2a1f33, emissive: 0x4422aa, emissiveIntensity: 0.35, roughness: 0.4
-                            });
-                            this.sharedAssets.add(this.anomalyPanelMat.uuid);
+                        if (!this.anomalySeamMat) {
+                            this.anomalySeamMat = new THREE.MeshBasicMaterial({color: 0x7744ff});
+                            this.sharedAssets.add(this.anomalySeamMat.uuid);
                         }
-                        const panel = new THREE.Mesh(this._boxGeo(1.6, 2.6, 0.12), this.anomalyPanelMat);
-                        panel.position.set(cx, 1.4, cz);
-                        panel.rotation.y = (random() - 0.5) * 0.6;
-                        panel.rotation.z = (random() - 0.5) * 0.15;
-                        panel.scale.set(1.0, 1.0 + random() * 0.3, 1.0);
-                        addGeometry(panel);
+                        const theta = random() * Math.PI * 2;
+                        const cosT = Math.cos(theta), sinT = Math.sin(theta);
+                        const place = (mesh, lx, y, lz) => {
+                            mesh.position.set(cx + lx * cosT + lz * sinT, y, cz - lx * sinT + lz * cosT);
+                            mesh.rotation.y = theta;
+                        };
+                        for (let s = -1; s <= 1; s += 2) {
+                            const jamb = new THREE.Mesh(this._boxGeo(0.1, 2.72, 0.3), this.woodMat);
+                            place(jamb, s * 0.75, 1.36, 0);
+                            addGeometry(jamb);
+                        }
+                        const header = new THREE.Mesh(this._boxGeo(1.6, 0.1, 0.3), this.woodMat);
+                        place(header, 0, 2.77, 0);
+                        addGeometry(header);
+                        const door = new THREE.Mesh(this._boxGeo(1.32, 2.60, 0.1), this.doorMat);
+                        place(door, 0, 1.33, 0);
+                        addGeometry(door);
+                        const glow = new THREE.Mesh(this._boxGeo(1.44, 2.70, 0.03), this.anomalySeamMat);
+                        place(glow, 0, 1.35, 0);
+                        glow.userData.chunkHash = hash;
+                        glow.updateMatrixWorld(true);
+                        ctx.stagingMeshes.push(glow);
+                        const mold = new THREE.Mesh(this.moldGeo, this.moldMat);
+                        mold.position.set(cx, 0.015, cz);
+                        mold.rotation.y = random() * Math.PI * 2;
+                        addGeometry(mold);
                     } else if (flavor === 3) {
-                        // The Inverted Dinette: a table set for dinner, bolted to the ceiling.
                         const table = buildTable(cx, 0, cz);
                         table.rotation.x = Math.PI;
                         table.position.y = 2.95;
@@ -803,8 +820,6 @@ export default class TheArchitect {
                             addFurniture(chair);
                         }
                     } else if (flavor === 4) {
-                        // The Sunken Fixture: a working light panel embedded in the floor,
-                        // glowing upward, wired into the LumenGrid like any honest ceiling light.
                         const activeMat = ctx.getLightMaterial(0xfff2cc, 0xffe9b0, false);
                         const panel = new THREE.Mesh(this.sharedPanelGeo,
                             [this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat, this.baseHousingMat]);
@@ -823,7 +838,6 @@ export default class TheArchitect {
                             currentIntensity: 0.85
                         });
                     } else {
-                        // The Congregation: chairs in a perfect ring, all facing inward at nothing.
                         const seats = 5 + Math.floor(random() * 3);
                         const ringR = 1.25 + random() * 0.3;
                         for (let s = 0; s < seats; s++) {
@@ -1483,7 +1497,7 @@ export default class TheArchitect {
                             const sheets = 1 + Math.floor(random() * 2);
                             for (let i = 0; i < sheets; i++) {
                                 const sheet = new THREE.Mesh(this.documentGeo, this.documentMat);
-                                sheet.position.set(acx + (random() - 0.5) * 2.6, 0.015, acz + (random() - 0.5) * 2.6);
+                                sheet.position.set(acx + (random() - 0.5) * 2.6, 0.035, acz + (random() - 0.5) * 2.6);
                                 sheet.rotation.y = random() * Math.PI * 2;
                                 if (random() > 0.7) {
                                     sheet.userData = {
@@ -2167,7 +2181,7 @@ export default class TheArchitect {
                         chunkGroup.add(aGroup);
                         this.interactables.push(aGroup);
                         const fin = new THREE.Mesh(this.documentGeo, this.documentMat);
-                        fin.position.set(ox, 0.015, oz);
+                        fin.position.set(ox, 0.035, oz);
                         fin.rotation.y = random() * Math.PI;
                         fin.userData = {
                             type: 'document',
@@ -2254,7 +2268,7 @@ export default class TheArchitect {
                         }
                     } else if (contentRoll < 0.75) {
                         const doc = new THREE.Mesh(this.documentGeo, this.documentMat);
-                        doc.position.set(ox + (random() - 0.5) * 1.6, 0.015, oz + (random() - 0.5) * 1.6);
+                        doc.position.set(ox + (random() - 0.5) * 1.6, 0.035, oz + (random() - 0.5) * 1.6);
                         doc.rotation.y = random() * Math.PI;
                         doc.userData = {
                             type: 'document',
@@ -2317,9 +2331,6 @@ export default class TheArchitect {
                         const skyGeo = this._planeGeo(innerSpan, innerSpan);
                         const sky = new THREE.Mesh(skyGeo, this.nightSkyMat);
                         sky.rotation.x = Math.PI / 2;
-                        // Sit close over the corn (stalks top out at 4.0, the odd leaning
-                        // pole prop at ~4.3) instead of floating a full 2 units above it -
-                        // that gap was the visible seam under the "night sky".
                         sky.position.set(gx + 2, 4.6, gz + 2);
                         ctx.chunkGroup.add(sky);
                         const fullSpan = this.chunkSize * this.cellSize;

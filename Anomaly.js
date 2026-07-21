@@ -99,7 +99,7 @@ export default class Anomaly {
             this.breadcrumbs = [];
             return null;
         }
-        if (distToPlayerSq < 0.64) {
+        if (distToPlayerSq < 0.64 && !this.player.isGodMode) {
             this.player.stamina = this.player.maxStamina;
             this.player.exhaustion = 0.0;
             this.player.isChased = false;

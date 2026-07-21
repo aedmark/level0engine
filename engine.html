@@ -139,6 +139,24 @@
             margin-top: 0.25rem;
         }
 
+        #debug-hud {
+            display: none;
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            z-index: 1500;
+            pointer-events: none;
+            background: rgba(10, 10, 6, 0.78);
+            border: 1px solid #4a452a;
+            color: #7fd47f;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            line-height: 1.45;
+            padding: 0.5rem 0.7rem;
+            white-space: pre;
+            text-align: left;
+        }
+
         #inquest-overlay {
             display: none;
             position: absolute;
@@ -624,6 +642,7 @@
         </div>
         <div class="keypad-footer">[ PRESS 'E' TO ABORT ]</div>
     </div>
+    <div id="debug-hud"></div>
     <div id="inquest-overlay">
         <div class="inquest-header">EXIT PROTOCOL — INQUEST TERMINAL</div>
         <div id="inquest-case"></div>
@@ -661,7 +680,7 @@
 <div id="ui-layer">
     <button id="menuToggleBtn" class="btn">MENU</button>
     <div class="control-panel">
-        <h1>LEVEL 0 ENGINE v0.4.11</h1>
+        <h1>LEVEL 0 ENGINE v0.4.12</h1>
         <div class="instructions">
             <p align="center">WASD to Move | Shift to Run<br>'E' to Interact | 'C' to Crouch<br>'Q' to Squeeze | 'V' to Blink<br>'F' for
                 Flashlight | '1' Use Battery<br>'2' Use Water | LMB to Look<br>RMB to Lean</p><br>

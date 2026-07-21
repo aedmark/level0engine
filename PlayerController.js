@@ -151,6 +151,7 @@ export default class PlayerController {
         });
         document.addEventListener('somatic-toggle-godmode', () => {
             this.isGodMode = !this.isGodMode;
+            this.input.suppressCrouchToggle = this.isGodMode;
             if (this.isGodMode) {
                 this.stamina = this.maxStamina;
                 this.coherence = 1.0;
@@ -198,11 +199,11 @@ export default class PlayerController {
                 if (available < maxAvailableHeight) maxAvailableHeight = available;
             }
         }
-        if (maxAvailableHeight < 1.3) {
+        if (maxAvailableHeight < 1.3 && !this.isGodMode) {
             if (!state.isCrawling && !state.isCrouching) this._envForcedDown = true;
             state.isCrawling = true;
             state.isCrouching = false;
-        } else if (maxAvailableHeight < 2.5) {
+        } else if (maxAvailableHeight < 2.5 && !this.isGodMode) {
             if (!state.isCrawling && !state.isCrouching) this._envForcedDown = true;
             if (!state.isCrawling) state.isCrouching = true;
         } else if (this._envForcedDown) {
@@ -212,7 +213,7 @@ export default class PlayerController {
         }
         this.isSqueezing = state.squeezeIntent;
         let targetRadius = this.isSqueezing ? this.squeezeRadius : this.baseRadius;
-        if (!this.isSqueezing && this.playerRadius < this.baseRadius - 0.01) {
+        if (!this.isSqueezing && !this.isGodMode && this.playerRadius < this.baseRadius - 0.01) {
             this._vecMin.set(px - this.baseRadius, currentFeetY + 0.1, pz - this.baseRadius);
             this._vecMax.set(px + this.baseRadius, currentFeetY + (state.isCrawling ? 0.5 : 1.1), pz + this.baseRadius);
             this._floorBox.set(this._vecMin, this._vecMax);
@@ -258,6 +259,7 @@ export default class PlayerController {
             this.coherence = Math.max(0.0, this.coherence - (delta * 0.20));
         }
         let currentSpeed = baseSpeed * this.speedMultiplier * adrenalineMultiplier;
+        if (this.isGodMode) currentSpeed = (state.isRunning ? 200.0 : 110.0) * this.speedMultiplier;
         const isMoving = this.direction.lengthSq() > 0;
         if (this.isWinded && this.stamina > 50.0) {
             this.isWinded = false;
@@ -450,6 +452,10 @@ export default class PlayerController {
                 if ((moveZ > 0 && pz < cz) || (moveZ < 0 && pz > cz)) hitZ = true;
             }
         }
+        if (this.isGodMode) {
+            hitX = false;
+            hitZ = false;
+        }
         const isColliding = hitX || hitZ;
         if (isColliding) {
             const impactX = hitX ? Math.abs(this.velocity.x) : 0;
@@ -474,6 +480,13 @@ export default class PlayerController {
         if (!hitX) this.camera.position.x += moveX;
         if (!hitZ) this.camera.position.z += moveZ;
         const postIntentSpeed = Math.sqrt((this.velocity.x * this.velocity.x) + (this.velocity.z * this.velocity.z));
+        if (this.isGodMode) {
+            const fly = (state.flyUp ? 1 : 0) - (this.input._cKeyDown ? 1 : 0);
+            this.camera.position.y += fly * 8.0 * delta;
+            this.fallVelocity = 0;
+            this._leanOffset.set(0, 0, 0);
+            return;
+        }
         this._applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid);
     }
 

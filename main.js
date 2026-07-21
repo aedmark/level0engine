@@ -505,6 +505,50 @@ class UIManager {
     }
 }
 
+const DebugHUD = {
+    el: null,
+    visible: false,
+    _last: 0,
+    _fps: 60,
+    toggle() {
+        if (!this.el) this.el = document.getElementById('debug-hud');
+        if (!this.el) return;
+        this.visible = !this.visible;
+        this.el.style.display = this.visible ? 'block' : 'none';
+    },
+    update(time, delta, telemetry) {
+        if (!this.visible || !this.el) return;
+        if (delta > 0) this._fps = this._fps * 0.95 + (1.0 / delta) * 0.05;
+        if (time - this._last < 0.25) return;
+        this._last = time;
+        const cam = engine.camera.position;
+        const info = engine.renderer.info.render;
+        const anomaly = environment.anomaly;
+        const anomalyDist = anomaly && anomaly.isActive
+            ? Math.sqrt(anomaly.group.position.distanceToSquared(cam)).toFixed(1) + 'm'
+            : 'inactive';
+        const grace = anomaly && anomaly.graceTimer > 0 ? ` grace:${anomaly.graceTimer.toFixed(1)}s` : '';
+        const pois = environment.pointsOfInterest || [];
+        const unclaimed = pois.filter(p => !p.active).length;
+        const seedStr = document.getElementById('seedInput').value;
+        this.el.innerText =
+            `SEED  ${seedStr} (0x${(environment.baseSeed >>> 0).toString(16)})\n` +
+            `SECT  ${telemetry.activeSector}  CHUNK ${environment.currentChunkCoords.x},${environment.currentChunkCoords.z}\n` +
+            `POS   ${cam.x.toFixed(1)}, ${cam.y.toFixed(2)}, ${cam.z.toFixed(1)}${player.isGodMode ? '  [GOD]' : ''}\n` +
+            `FPS   ${this._fps.toFixed(0)}  CALLS ${info.calls}  TRIS ${(info.triangles / 1000).toFixed(0)}k\n` +
+            `ANOM  ${anomalyDist}${grace}${player.isChased ? ' CHASING' : ''}\n` +
+            `POI   ${unclaimed}/${pois.length} unclaimed  HOPS ${environment._breakerHuntHops ?? '-'}\n` +
+            `FIXT  ${environment.fixtureData.length}  CHUNKS ${environment.activeChunks.size}\n` +
+            `OBJ   ${player.objectives.fixed}/${player.objectives.total}  COH ${(player.coherence * 100).toFixed(0)}%`;
+    }
+};
+
+document.addEventListener('keydown', (e) => {
+    if (e.code !== 'Backquote') return;
+    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+    DebugHUD.toggle();
+});
+
 function animate() {
     requestAnimationFrame(animate);
     const delta = engine.delta;
@@ -515,6 +559,10 @@ function animate() {
     }
     environment.updateChunks(engine.camera.position);
     environment.updateInteractives(engine.camera.position, delta);
+    if (engine.camera.position.y < -15.0 && player.isGodMode) {
+        engine.camera.position.y = 3.0;
+        player.velocity.set(0, 0, 0);
+    }
     if (engine.camera.position.y < -15.0 && !player.isDead) {
         player.isDead = true;
         setTimeout(() => {
@@ -561,6 +609,7 @@ function animate() {
         acoustics.triggerSomaticEvent(Math.random() > 0.7 ? 'door' : 'step', fakeDistSq, 0.3 + Math.random() * 0.5);
     }
     UIManager.update(time, engine, player);
+    DebugHUD.update(time, delta, telemetry);
     engine.render();
 }
 

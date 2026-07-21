@@ -1981,6 +1981,18 @@ export default class Environment {
                 break;
             }
         }
+        if (activeSector === "NORMAL" && this._stickySectorId) {
+            for (const zone of this.macroZones.values()) {
+                if (zone.id === this._stickySectorId &&
+                    cameraPos.x > zone.minX - 10 && cameraPos.x < zone.maxX + 10 &&
+                    cameraPos.z > zone.minZ - 10 && cameraPos.z < zone.maxZ + 10) {
+                    activeSector = zone.id;
+                    targetFog = zone.fog;
+                    break;
+                }
+            }
+        }
+        this._stickySectorId = activeSector === "NORMAL" ? null : activeSector;
         if (activeSector === "ANNEX" && this.player && !this.player.hasVisitedAnnex) {
             this.player.hasVisitedAnnex = true;
             this.player.updateObjectives();

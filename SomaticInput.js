@@ -3,7 +3,7 @@
 
 import Vec3 from './Vec3.js';
 
-const PREVENT_KEYS = new Set(['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyV', 'KeyQ', 'KeyF', 'KeyE', 'KeyG', 'KeyZ']);
+const PREVENT_KEYS = new Set(['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyV', 'KeyQ', 'KeyF', 'KeyE', 'KeyG', 'KeyZ', 'Space']);
 
 export default class SomaticInput {
     constructor(camera) {
@@ -16,8 +16,10 @@ export default class SomaticInput {
             flashlightActive: false,
             isPeeking: false, targetLean: 0.0,
             isClosingEyes: false,
-            isReading: false
+            isReading: false,
+            flyUp: false
         };
+        this.suppressCrouchToggle = false;
         this.isLocked = false;
         this.lockFallback = false;
         this._dragLook = false;
@@ -73,7 +75,7 @@ export default class SomaticInput {
         document.addEventListener('contextmenu', (e) => e.preventDefault());
         document.addEventListener('mousemove', (e) => this._onMouseMove(e));
         window.addEventListener('blur', () => {
-            this.state.moveForward = this.state.moveBackward = this.state.moveLeft = this.state.moveRight = this.state.isRunning = this.state.isPeeking = false;
+            this.state.moveForward = this.state.moveBackward = this.state.moveLeft = this.state.moveRight = this.state.isRunning = this.state.isPeeking = this.state.flyUp = false;
             this.state.targetLean = 0.0;
         });
     }
@@ -123,6 +125,7 @@ export default class SomaticInput {
         if (event.code === 'KeyG') {
             document.dispatchEvent(new Event('somatic-toggle-godmode'));
         }
+        if (event.code === 'Space') this.state.flyUp = true;
         if (event.code === 'KeyZ') {
             document.dispatchEvent(new Event('somatic-teleport-zone'));
         }
@@ -159,9 +162,10 @@ export default class SomaticInput {
             this.state.isClosingEyes = false;
             document.dispatchEvent(new CustomEvent('somatic-eyes', {detail: {closed: false}}));
         }
+        if (event.code === 'Space') this.state.flyUp = false;
         if (event.code === 'KeyC') {
             this._cKeyDown = false;
-            if (!this._cKeyHandled) {
+            if (!this._cKeyHandled && !this.suppressCrouchToggle) {
                 if (this.state.isCrawling) {
                     this.state.isCrawling = false;
                     this.state.isCrouching = true;
