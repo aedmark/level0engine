@@ -1,36 +1,14 @@
 // AcousticEngine.js
 // LEVEL 0 DEDICATED ACOUSTIC TOPOLOGY
 
+import SECTORS, {DEFAULT_FOLEY} from './Sectors.js';
+
 export default class AcousticEngine {
     constructor() {
         this.initialized = false;
         this.ctx = null;
         this.masterVolume = 1.0;
         this._cache = new Map();
-        this.sectors = {
-            "NORMAL": {noise: 0.0, peace: 0.0, rumble: 60, freq: 250, freqOcc: 120, whine: 0.0005, whineOcc: 0.0001, dynamicWhine: true},
-            "IMPOUND": {noise: 0.09, peace: 0.0, rumble: 45, freq: 160, freqOcc: 90, whine: 0.0008, whineOcc: 0.0003, dynamicWhine: false},
-            "BOARDROOM": {noise: 0.4, peace: 0.0, rumble: 60, freq: 250, freqOcc: 120, whine: 0.0, whineOcc: 0.0, dynamicWhine: false},
-            "SERVER": {noise: 0.1, peace: 0.0, rumble: 35, freq: 250, freqOcc: 120, whine: 0.002, whineOcc: 0.0005, dynamicWhine: false},
-            "CLINIC": {noise: 0.1, peace: 0.0, rumble: 60, freq: 180, freqOcc: 180, whine: 0.003, whineOcc: 0.003, dynamicWhine: false},
-            "ARCHIVE": {noise: 0.06, peace: 0.0, rumble: 45, freq: 60, freqOcc: 60, whine: 0.0005, whineOcc: 0.0001, dynamicWhine: false},
-            "MAINTENANCE": {noise: 0.55, peace: 0.0, rumble: 110, freq: 90, freqOcc: 60, whine: 0.008, whineOcc: 0.003, dynamicWhine: true},
-            "INCINERATOR": {noise: 0.65, peace: 0.0, rumble: 180, freq: 60, freqOcc: 60, whine: 0.0, whineOcc: 0.0, dynamicWhine: false},
-            "CHASM": {noise: 0.25, peace: 0.0, rumble: 30, freq: 40, freqOcc: 40, whine: 0.0, whineOcc: 0.0, dynamicWhine: false},
-            "ATRIUM": {noise: 0.09, peace: 0.0, rumble: 35, freq: 130, freqOcc: 80, whine: 0.0, whineOcc: 0.0, dynamicWhine: false},
-            "ANNEX": {noise: 0.03, peace: 0.0, rumble: 50, freq: 200, freqOcc: 100, whine: 0.001, whineOcc: 0.0003, dynamicWhine: false}
-        };
-        this.foleyProfiles = {
-            "IMPOUND": {oscFreq: 120, filterType: 'lowpass', filterFreq: 900, gain: 0.11, attack: 0.02, decay: 0.12},
-            "CLINIC": {oscFreq: 800, filterType: 'highpass', filterFreq: 3000, gain: 0.15, attack: 0.01, decay: 0.06},
-            "ARCHIVE": {oscFreq: 90, filterType: 'lowpass', filterFreq: 900, gain: 0.12, attack: 0.03, decay: 0.10},
-            "ATRIUM": {oscFreq: 70, filterType: 'lowpass', filterFreq: 700, gain: 0.09, attack: 0.04, decay: 0.22},
-            "SERVER": {oscFreq: 620, filterType: 'bandpass', filterFreq: 1800, gain: 0.14, attack: 0.005, decay: 0.14},
-            "ANNEX": {oscFreq: 420, filterType: 'highpass', filterFreq: 2200, gain: 0.1, attack: 0.01, decay: 0.07},
-            "BOARDROOM": {oscFreq: 120, filterType: 'lowpass', filterFreq: 1400, gain: 0.18, attack: 0.02, decay: 0.12},
-            "MAINTENANCE": {oscFreq: 400, filterType: 'bandpass', filterFreq: 2500, gain: 0.12, attack: 0.01, decay: 0.15},
-            "DEFAULT": {oscFreq: 60, filterType: 'lowpass', filterFreq: 600, gain: 0.10, attack: 0.04, decay: 0.18}
-        };
     }
     init() {
         if (this.initialized) return;
@@ -216,7 +194,7 @@ export default class AcousticEngine {
             eyesClosed = 0.0
         } = telemetry;
         const proximity = Math.max(0, 1.0 - (minLightDist / 20.0));
-        const mix = this.sectors[activeSector] || this.sectors["NORMAL"];
+        const mix = (SECTORS[activeSector] && SECTORS[activeSector].ambience) || SECTORS.NORMAL.ambience;
         const structuralTension = Math.max(0.0, ((paranoia || 0.0) - 0.5) * 1.0);
         const setParam = (key, param, target, timeConstant) => {
             if (Math.abs((this._cache.get(key) || -999) - target) > 0.001) {
@@ -251,32 +229,9 @@ export default class AcousticEngine {
             setParam('paranoiaPitch', this.paranoiaOsc.frequency, Math.max(300, 650 - (structuralTension * 300.0)), 1.0);
         }
         if (this.spatialDelay) {
-            const delayTimes = {
-                "IMPOUND": 0.45,
-                "CHASM": 0.8,
-                "ATRIUM": 0.4,
-                "MAINTENANCE": 0.05,
-                "INCINERATOR": 0.02,
-                "ARCHIVE": 0.35,
-                "SERVER": 0.06,
-                "ANNEX": 0.1,
-                "BOARDROOM": 0.25,
-                "NORMAL": 0.15
-            };
-            const feedbackVals = {
-                "IMPOUND": 0.35,
-                "CHASM": 0.7,
-                "ATRIUM": 0.3,
-                "MAINTENANCE": 0.1,
-                "INCINERATOR": 0.05,
-                "ARCHIVE": 0.45,
-                "SERVER": 0.08,
-                "ANNEX": 0.12,
-                "BOARDROOM": 0.35,
-                "NORMAL": 0.2
-            };
-            const targetDelay = delayTimes[activeSector] || 0.15;
-            const targetFeedback = feedbackVals[activeSector] || 0.2;
+            const room = SECTORS[activeSector];
+            const targetDelay = (room && room.delay) || 0.15;
+            const targetFeedback = (room && room.feedback) || 0.2;
             setParam('delayTime', this.spatialDelay.delayTime, targetDelay, 1.0);
             setParam('feedback', this.feedbackGain.gain, targetFeedback, 1.0);
         }
@@ -405,7 +360,7 @@ export default class AcousticEngine {
                 }
             };
         };
-        const p = this.foleyProfiles[this.currentSector] || this.foleyProfiles["DEFAULT"];
+        const p = (SECTORS[this.currentSector] && SECTORS[this.currentSector].foley) || DEFAULT_FOLEY;
         const voices = {
             'step': [p.oscFreq > 200 ? 'triangle' : 'sine', p.oscFreq, 20, p.attack, p.gain, p.attack, p.decay, {
                 type: p.filterType,

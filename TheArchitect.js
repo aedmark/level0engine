@@ -49,7 +49,7 @@ export default class TheArchitect {
                     const p2 = buildWall(pW, this.cellSize, this.sharedWallMat);
                     p2.position.set(x * this.cellSize + offset, 1.5, z * this.cellSize);
                     addGeometry(p2);
-                    const top = new THREE.Mesh(new THREE.BoxGeometry(gap, 0.3, this.cellSize), this.headerMat);
+                    const top = new THREE.Mesh(this._boxGeo(gap, 0.3, this.cellSize), this.headerMat);
                     top.position.set(x * this.cellSize, 2.85, z * this.cellSize);
                     addGeometry(top);
                 }
@@ -79,21 +79,24 @@ export default class TheArchitect {
                     const p2 = buildWall(pW, this.cellSize, this.sharedWallMat);
                     p2.position.set(x * this.cellSize + offset, 1.5, z * this.cellSize);
                     addGeometry(p2);
-                    const top = new THREE.Mesh(new THREE.BoxGeometry(gap, 0.3, this.cellSize), this.headerMat);
+                    const top = new THREE.Mesh(this._boxGeo(gap, 0.3, this.cellSize), this.headerMat);
                     top.position.set(x * this.cellSize, 2.85, z * this.cellSize);
                     addGeometry(top);
                     const frameMat = this.woodMat;
-                    const jambL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.65, 0.32), frameMat);
+                    const jambL = new THREE.Mesh(this._boxGeo(0.1, 2.65, 0.32), frameMat);
                     jambL.position.set(x * this.cellSize - 0.75, 1.325, z * this.cellSize + 1.85);
                     addGeometry(jambL);
-                    const jambR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.65, 0.32), frameMat);
+                    const jambR = new THREE.Mesh(this._boxGeo(0.1, 2.65, 0.32), frameMat);
                     jambR.position.set(x * this.cellSize + 0.75, 1.325, z * this.cellSize + 1.85);
                     addGeometry(jambR);
-                    const jambT = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.1, 0.32), frameMat);
+                    const jambT = new THREE.Mesh(this._boxGeo(1.6, 0.1, 0.32), frameMat);
                     jambT.position.set(x * this.cellSize, 2.70, z * this.cellSize + 1.85);
                     addGeometry(jambT);
-                    const doorGeo = new THREE.BoxGeometry(1.4, 2.65, 0.1);
-                    doorGeo.translate(0.7, 0, 0.05);
+                    const doorGeo = this._cacheGeo('hingedDoor:X', () => {
+                        const g = new THREE.BoxGeometry(1.4, 2.65, 0.1);
+                        g.translate(0.7, 0, 0.05);
+                        return g;
+                    });
                     const door = new THREE.Mesh(doorGeo, this.doorMat);
                     door.position.set(x * this.cellSize - 0.7, 1.325, z * this.cellSize + 1.85);
                     door.castShadow = door.receiveShadow = true;
@@ -124,7 +127,7 @@ export default class TheArchitect {
                     const p2 = buildWall(w1, d1, this.sharedWallMat);
                     p2.position.set(x * this.cellSize + (dir === 0 ? offset : 0), 1.5, z * this.cellSize + (dir === 1 ? offset : 0));
                     addGeometry(p2);
-                    const top = new THREE.Mesh(new THREE.BoxGeometry(gapW, 0.3, gapD), this.headerMat);
+                    const top = new THREE.Mesh(this._boxGeo(gapW, 0.3, gapD), this.headerMat);
                     top.position.set(x * this.cellSize, 2.85, z * this.cellSize);
                     addGeometry(top);
                 }
@@ -219,7 +222,7 @@ export default class TheArchitect {
                             const h = (s + 1) * stepHeight;
                             const wX = isZ ? innerW : stepDepth;
                             const wZ = isZ ? stepDepth : innerW;
-                            const step = new THREE.Mesh(new THREE.BoxGeometry(wX, h, wZ), this.structMat);
+                            const step = new THREE.Mesh(this._boxGeo(wX, h, wZ), this.structMat);
                             let offset = (this.cellSize / 2) - (stepDepth / 2) - (s * stepDepth);
                             if (dir === 2 || dir === 3) offset = -offset;
                             const posX = x * this.cellSize + (isZ ? 0 : offset);
@@ -362,7 +365,7 @@ export default class TheArchitect {
                         const wall = new THREE.Mesh(this.sharedWallGeo, this.sharedWallMat);
                         wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                         addGeometry(wall);
-                        const ventGeo = new THREE.BoxGeometry(1.2, 0.6, 0.05);
+                        const ventGeo = this._boxGeo(1.2, 0.6, 0.05);
                         const vent = new THREE.Mesh(ventGeo, this.wallVentMat);
                         const finalOffset = (this.cellSize / 2) + 0.06;
                         if (face === 0) {
@@ -677,7 +680,7 @@ export default class TheArchitect {
                     pillar.position.set(cx, 1.5, cz);
                     pillar.userData.isEntityBlocker = !isHallucination;
                     addGeometry(pillar);
-                    const bBox = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.2), this.rustMat);
+                    const bBox = new THREE.Mesh(this._boxGeo(0.8, 1.2, 0.2), this.rustMat);
                     const isZ = random() > 0.5;
                     const sign = random() > 0.5 ? 1 : -1;
                     if (isZ) {
@@ -690,7 +693,7 @@ export default class TheArchitect {
                     chunkGroup.add(bBox);
                     if (!this.interactables) this.interactables = [];
                     this.interactables.push(bBox);
-                    const lightMesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.25), this.hazardMat);
+                    const lightMesh = new THREE.Mesh(this._boxGeo(0.2, 0.2, 0.25), this.hazardMat);
                     lightMesh.position.set(0, 0.3, 0);
                     if (isHallucination) {
                         lightMesh.material = new THREE.MeshBasicMaterial({color: 0xffaa00});
@@ -775,7 +778,7 @@ export default class TheArchitect {
                             });
                             this.sharedAssets.add(this.anomalyPanelMat.uuid);
                         }
-                        const panel = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.6, 0.12), this.anomalyPanelMat);
+                        const panel = new THREE.Mesh(this._boxGeo(1.6, 2.6, 0.12), this.anomalyPanelMat);
                         panel.position.set(cx, 1.4, cz);
                         panel.rotation.y = (random() - 0.5) * 0.6;
                         panel.rotation.z = (random() - 0.5) * 0.15;
@@ -852,7 +855,7 @@ export default class TheArchitect {
                     blockBox.isInvisibleBlocker = true;
                     blockBox.chunkHash = hash;
                     this.spatialGrid.insert(blockBox);
-                    const floor = new THREE.Mesh(new THREE.PlaneGeometry(this.cellSize - thick, this.cellSize - thick), this.tileMat);
+                    const floor = new THREE.Mesh(this._planeGeo(this.cellSize - thick, this.cellSize - thick), this.tileMat);
                     floor.rotation.x = -Math.PI / 2;
                     floor.position.set(cx, 0.02, cz);
                     addGeometry(floor);
@@ -862,7 +865,7 @@ export default class TheArchitect {
                     const cotX = (dir === 1) ? -0.8 : (dir === 3 ? 0.8 : 0);
                     const cotZ = (dir === 0) ? 0.8 : (dir === 2 ? -0.8 : 0);
                     const cotRot = (dir === 0 || dir === 2) ? Math.PI / 2 : 0;
-                    const cotFrame = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 2.0), this.structMat);
+                    const cotFrame = new THREE.Mesh(this._boxGeo(1.0, 0.5, 2.0), this.structMat);
                     cotFrame.position.set(cx + cotX, 0.25, cz + cotZ);
                     cotFrame.rotation.y = cotRot;
                     addGeometry(cotFrame);
@@ -902,7 +905,7 @@ export default class TheArchitect {
                         const cx = x * this.cellSize;
                         const cz = z * this.cellSize;
                         const half = this.cellSize / 2;
-                        const floorGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize);
+                        const floorGeo = this._planeGeo(this.cellSize, this.cellSize);
                         const floor = new THREE.Mesh(floorGeo, this.tileMat);
                         floor.rotation.x = -Math.PI / 2;
                         floor.position.set(cx, 0.01, cz);
@@ -1014,16 +1017,16 @@ export default class TheArchitect {
                                 addGeometry(wall);
                             }
                         } else if (localX === 7 && localZ === 7) {
-                            const elevator = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize * 0.8, 3.0, this.cellSize * 0.8), this.rustMat);
+                            const elevator = new THREE.Mesh(this._boxGeo(this.cellSize * 0.8, 3.0, this.cellSize * 0.8), this.rustMat);
                             elevator.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                             elevator.userData = {type: 'exit', chunkHash: hash, active: true};
                             chunkGroup.add(elevator);
                             if (!this.interactables) this.interactables = [];
                             this.interactables.push(elevator);
-                            const pad = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize * 0.85, 0.8, this.cellSize * 0.85), this.metalMat);
+                            const pad = new THREE.Mesh(this._boxGeo(this.cellSize * 0.85, 0.8, this.cellSize * 0.85), this.metalMat);
                             pad.position.set(0, -0.2, 0);
                             elevator.add(pad);
-                            const light = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize * 0.9, 0.4, this.cellSize * 0.9), this.hazardMat);
+                            const light = new THREE.Mesh(this._boxGeo(this.cellSize * 0.9, 0.4, this.cellSize * 0.9), this.hazardMat);
                             light.material = new THREE.MeshBasicMaterial({color: 0x55ff55});
                             pad.add(light);
                             const eBox = new THREE.Box3().setFromObject(elevator);
@@ -1063,7 +1066,7 @@ export default class TheArchitect {
                             const fz = pz + (alongX ? this.cellSize / 2 : 0);
                             if (random() > 0.85) {
                                 for (let s = -1; s <= 1; s += 2) {
-                                    const stub = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 1.3 : 0.05, 3.0, alongX ? 0.05 : 1.3), this.waterMat);
+                                    const stub = new THREE.Mesh(this._boxGeo(alongX ? 1.3 : 0.05, 3.0, alongX ? 0.05 : 1.3), this.waterMat);
                                     stub.position.set(fx + (alongX ? s * 1.35 : 0), 1.5, fz + (alongX ? 0 : s * 1.35));
                                     addGeometry(stub);
                                     const gatePost = new THREE.Mesh(this.vPipeGeo, this.metalMat);
@@ -1071,8 +1074,11 @@ export default class TheArchitect {
                                     gatePost.position.set(fx + (alongX ? s * 0.7 : 0), 1.12, fz + (alongX ? 0 : s * 0.7));
                                     addGeometry(gatePost);
                                 }
-                                const gateGeo = new THREE.BoxGeometry(alongX ? 1.4 : 0.05, 2.2, alongX ? 0.05 : 1.4);
-                                gateGeo.translate(alongX ? 0.7 : 0, 0, alongX ? 0 : 0.7);
+                                const gateGeo = this._cacheGeo(`impGate:${alongX ? 'X' : 'Z'}`, () => {
+                                    const g = new THREE.BoxGeometry(alongX ? 1.4 : 0.05, 2.2, alongX ? 0.05 : 1.4);
+                                    g.translate(alongX ? 0.7 : 0, 0, alongX ? 0 : 0.7);
+                                    return g;
+                                });
                                 const gate = new THREE.Mesh(gateGeo, this.waterMat);
                                 gate.position.set(fx - (alongX ? 0.7 : 0), 1.15, fz - (alongX ? 0 : 0.7));
                                 gate.rotation.y = (random() > 0.5 ? 1 : -1) * (0.3 + random() * 1.0);
@@ -1084,7 +1090,7 @@ export default class TheArchitect {
                                 fence.position.set(fx, 1.5, fz);
                                 if (random() > (alongX ? 0.1 : 0.2)) fence.userData.isEntityBlocker = true;
                                 addGeometry(fence);
-                                const rail = new THREE.Mesh(new THREE.BoxGeometry(alongX ? this.cellSize : 0.07, 0.07, alongX ? 0.07 : this.cellSize), this.rustMat);
+                                const rail = new THREE.Mesh(this._boxGeo(alongX ? this.cellSize : 0.07, 0.07, alongX ? 0.07 : this.cellSize), this.rustMat);
                                 rail.position.set(fx, 2.96, fz);
                                 addGeometry(rail);
                             }
@@ -1166,16 +1172,16 @@ export default class TheArchitect {
                     const isMainPath = localX === 7 || localZ === 7;
                     if (localX % 2 === 1 && localZ % 2 === 1) {
                         if (!isMainPath) {
-                            const curtain = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize * 0.9, 2.2, 0.05), this.fabricMat);
+                            const curtain = new THREE.Mesh(this._boxGeo(this.cellSize * 0.9, 2.2, 0.05), this.fabricMat);
                             curtain.position.set(x * this.cellSize, 1.1, z * this.cellSize - 1.8);
                             addGeometry(curtain);
-                            const cotFrame = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 2.0), this.structMat);
+                            const cotFrame = new THREE.Mesh(this._boxGeo(1.0, 0.5, 2.0), this.structMat);
                             cotFrame.position.set(x * this.cellSize, 0.25, z * this.cellSize);
                             addGeometry(cotFrame);
-                            const mattress = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.15, 1.9), this.fabricMat);
+                            const mattress = new THREE.Mesh(this._boxGeo(0.9, 0.15, 1.9), this.fabricMat);
                             mattress.position.set(x * this.cellSize, 0.575, z * this.cellSize);
                             addGeometry(mattress);
-                            const pole = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.0, 0.08), this.rustMat);
+                            const pole = new THREE.Mesh(this._boxGeo(0.08, 2.0, 0.08), this.rustMat);
                             pole.position.set(x * this.cellSize + 0.8, 1.0, z * this.cellSize + 0.8);
                             addGeometry(pole);
                             if (random() > 0.3) {
@@ -1204,7 +1210,7 @@ export default class TheArchitect {
                             const isRotated = random() > 0.5;
                             const screenW = isRotated ? 0.1 : this.cellSize * 0.8;
                             const screenD = isRotated ? this.cellSize * 0.8 : 0.1;
-                            const screen = new THREE.Mesh(new THREE.BoxGeometry(screenW, 2.4, screenD), this.fabricMat);
+                            const screen = new THREE.Mesh(this._boxGeo(screenW, 2.4, screenD), this.fabricMat);
                             screen.position.set(x * this.cellSize, 1.2, z * this.cellSize);
                             addGeometry(screen);
                         } else if (clutterRoll > 0.50) {
@@ -1290,7 +1296,7 @@ export default class TheArchitect {
                         if (random() > 0.30) {
                             const longX = random() > 0.5;
                             const confTable = new THREE.Group();
-                            const top = new THREE.Mesh(new THREE.BoxGeometry(longX ? 3.2 : 1.4, 0.08, longX ? 1.4 : 3.2), this.woodMat);
+                            const top = new THREE.Mesh(this._boxGeo(longX ? 3.2 : 1.4, 0.08, longX ? 1.4 : 3.2), this.woodMat);
                             top.position.y = 0.82;
                             confTable.add(top);
                             for (let e = -1; e <= 1; e += 2) {
@@ -1322,7 +1328,7 @@ export default class TheArchitect {
                                 const crtGroup = new THREE.Group();
                                 const body = new THREE.Mesh(this.terminalBodyGeo, this.baseHousingMat);
                                 body.position.set(0, 0.2, 0);
-                                const screen = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.35, 0.05), this.crtScreenMat);
+                                const screen = new THREE.Mesh(this._boxGeo(0.45, 0.35, 0.05), this.crtScreenMat);
                                 screen.position.set(0, 0.2, 0.26);
                                 crtGroup.add(body, screen);
                                 crtGroup.position.set(pcx, 0.825, pcz);
@@ -1572,7 +1578,7 @@ export default class TheArchitect {
                             const extE = !isW(localX + 1, localZ - 1);
                             const len = this.cellSize + (extW ? 0.4 : 0) + (extE ? 0.4 : 0);
                             const cx = (extE ? 0.2 : 0) - (extW ? 0.2 : 0);
-                            const trim = new THREE.Mesh(new THREE.BoxGeometry(len, 0.1, 0.4), this.hazardMat);
+                            const trim = new THREE.Mesh(this._boxGeo(len, 0.1, 0.4), this.hazardMat);
                             trim.position.set(x * this.cellSize + cx, 0.050, z * this.cellSize - tOff);
                             addGeometry(trim);
                         }
@@ -1581,7 +1587,7 @@ export default class TheArchitect {
                             const extE = !isW(localX + 1, localZ + 1);
                             const len = this.cellSize + (extW ? 0.4 : 0) + (extE ? 0.4 : 0);
                             const cx = (extE ? 0.2 : 0) - (extW ? 0.2 : 0);
-                            const trim = new THREE.Mesh(new THREE.BoxGeometry(len, 0.1, 0.4), this.hazardMat);
+                            const trim = new THREE.Mesh(this._boxGeo(len, 0.1, 0.4), this.hazardMat);
                             trim.position.set(x * this.cellSize + cx, 0.050, z * this.cellSize + tOff);
                             addGeometry(trim);
                         }
@@ -1590,7 +1596,7 @@ export default class TheArchitect {
                             const extS = !isW(localX + 1, localZ + 1);
                             const len = this.cellSize + (extN ? 0.4 : 0) + (extS ? 0.4 : 0);
                             const cz = (extS ? 0.2 : 0) - (extN ? 0.2 : 0);
-                            const trim = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, len), this.hazardMat);
+                            const trim = new THREE.Mesh(this._boxGeo(0.4, 0.1, len), this.hazardMat);
                             trim.position.set(x * this.cellSize + tOff, 0.051, z * this.cellSize + cz);
                             addGeometry(trim);
                         }
@@ -1599,7 +1605,7 @@ export default class TheArchitect {
                             const extS = !isW(localX - 1, localZ + 1);
                             const len = this.cellSize + (extN ? 0.4 : 0) + (extS ? 0.4 : 0);
                             const cz = (extS ? 0.2 : 0) - (extN ? 0.2 : 0);
-                            const trim = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, len), this.hazardMat);
+                            const trim = new THREE.Mesh(this._boxGeo(0.4, 0.1, len), this.hazardMat);
                             trim.position.set(x * this.cellSize - tOff, 0.051, z * this.cellSize + cz);
                             addGeometry(trim);
                         }
@@ -1766,7 +1772,7 @@ export default class TheArchitect {
                             const lampMat = this.baseLightMat.clone();
                             lampMat.color.setHex(0xff3300);
                             lampMat.emissive.setHex(0xff1100);
-                            const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.12, 0.18), lampMat);
+                            const lamp = new THREE.Mesh(this._boxGeo(0.3, 0.12, 0.18), lampMat);
                             if (spansX) lamp.position.set(dcx, 2.5, dcz + outSign * 0.5);
                             else lamp.position.set(dcx + outSign * 0.5, 2.5, dcz);
                             const lampLight = new THREE.PointLight(0xff2200, 1.2, 6.0, 2.0);
@@ -2036,7 +2042,7 @@ export default class TheArchitect {
                     header.position.set(wx, 2.825, wz);
                     addGeometry(header);
                     for (let s = -1; s <= 1; s += 2) {
-                        const jamb = new THREE.Mesh(new THREE.BoxGeometry(spansX ? 0.1 : 0.3, 2.65, spansX ? 0.3 : 0.1), this.annexFrameMat || this.metalMat);
+                        const jamb = new THREE.Mesh(this._boxGeo(spansX ? 0.1 : 0.3, 2.65, spansX ? 0.3 : 0.1), this.annexFrameMat || this.metalMat);
                         jamb.position.set(wx + (spansX ? s * 0.75 : 0), 1.325, wz + (spansX ? 0 : s * 0.75));
                         addGeometry(jamb);
                     }
@@ -2044,14 +2050,20 @@ export default class TheArchitect {
                     let doorGeo, doorMesh;
                     const annexDoorMat = this.annexDoorMat || this.doorMat;
                     if (spansX) {
-                        doorGeo = new THREE.BoxGeometry(doorW, 2.65, doorT);
-                        doorGeo.translate(doorW / 2, 0, doorT / 2);
+                        doorGeo = this._cacheGeo('hingedDoor:X', () => {
+                            const g = new THREE.BoxGeometry(doorW, 2.65, doorT);
+                            g.translate(doorW / 2, 0, doorT / 2);
+                            return g;
+                        });
                         doorMesh = new THREE.Mesh(doorGeo, annexDoorMat);
                         doorMesh.position.set(wx - doorW / 2, 1.325, wz);
                         doorMesh.userData = (isOpenable || isKeypad) ? {chunkHash: hash, closedRot: 0, currentRot: 0} : {chunkHash: hash};
                     } else {
-                        doorGeo = new THREE.BoxGeometry(doorT, 2.65, doorW);
-                        doorGeo.translate(doorT / 2, 0, doorW / 2);
+                        doorGeo = this._cacheGeo('hingedDoor:Z', () => {
+                            const g = new THREE.BoxGeometry(doorT, 2.65, doorW);
+                            g.translate(doorT / 2, 0, doorW / 2);
+                            return g;
+                        });
                         doorMesh = new THREE.Mesh(doorGeo, annexDoorMat);
                         doorMesh.position.set(wx, 1.325, wz - doorW / 2);
                         doorMesh.userData = (isOpenable || isKeypad) ? {chunkHash: hash, closedRot: -Math.PI / 2, currentRot: -Math.PI / 2} : {chunkHash: hash};
@@ -2068,9 +2080,9 @@ export default class TheArchitect {
                     this.spatialGrid.insert(dBox);
                     if (isKeypad) {
                         const pad = new THREE.Group();
-                        const padBody = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.22, 0.05), this.baseHousingMat);
+                        const padBody = new THREE.Mesh(this._boxGeo(0.16, 0.22, 0.05), this.baseHousingMat);
                         pad.add(padBody);
-                        const padGlow = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.14), this.laptopScreenMat);
+                        const padGlow = new THREE.Mesh(this._planeGeo(0.1, 0.14), this.laptopScreenMat);
                         padGlow.position.z = 0.026;
                         pad.add(padGlow);
                         pad.position.set(
@@ -2130,13 +2142,16 @@ export default class TheArchitect {
                         const spawnRoll = random();
                         if (spawnRoll < 0.5) {
                             const lap = new THREE.Group();
-                            const lapBase = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.025, 0.26), this.baseHousingMat);
+                            const lapBase = new THREE.Mesh(this._boxGeo(0.36, 0.025, 0.26), this.baseHousingMat);
                             lap.add(lapBase);
-                            const lapScreen = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.24, 0.02), this.baseHousingMat);
-                            lapScreen.geometry.translate(0, 0.12, 0);
+                            const lapScreen = new THREE.Mesh(this._cacheGeo('lapScreen', () => {
+                                const g = new THREE.BoxGeometry(0.36, 0.24, 0.02);
+                                g.translate(0, 0.12, 0);
+                                return g;
+                            }), this.baseHousingMat);
                             lapScreen.position.set(0, 0.01, -0.12);
                             lapScreen.rotation.x = -0.35;
-                            const glow = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.18), this.laptopScreenMat);
+                            const glow = new THREE.Mesh(this._planeGeo(0.3, 0.18), this.laptopScreenMat);
                             glow.position.set(0, 0.13, 0.012);
                             lapScreen.add(glow);
                             lap.add(lapScreen);
@@ -2166,7 +2181,7 @@ export default class TheArchitect {
                             const tapeBody = new THREE.Mesh(this.tapeGeo, this.baseHousingMat);
                             tapeBody.position.set(0, 0.02, 0);
                             tapeGroup.add(tapeBody);
-                            const recLight = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.02), this.hazardMat);
+                            const recLight = new THREE.Mesh(this._boxGeo(0.02, 0.02, 0.02), this.hazardMat);
                             recLight.material = new THREE.MeshBasicMaterial({color: 0xff0000});
                             recLight.position.set(0.06, 0.04, -0.04);
                             tapeGroup.add(recLight);
@@ -2249,7 +2264,7 @@ export default class TheArchitect {
                     const gx = x * this.cellSize, gz = z * this.cellSize;
                     if (localX === 7 && localZ === 7) {
                         const innerSpan = (this.chunkSize - 2) * this.cellSize;
-                        const skyGeo = new THREE.PlaneGeometry(innerSpan, innerSpan);
+                        const skyGeo = this._planeGeo(innerSpan, innerSpan);
                         const sky = new THREE.Mesh(skyGeo, this.nightSkyMat);
                         sky.rotation.x = Math.PI / 2;
                         // Sit close over the corn (stalks top out at 4.0, the odd leaning
@@ -2258,8 +2273,8 @@ export default class TheArchitect {
                         sky.position.set(gx + 2, 4.6, gz + 2);
                         ctx.chunkGroup.add(sky);
                         const fullSpan = this.chunkSize * this.cellSize;
-                        const capNS = new THREE.BoxGeometry(fullSpan, 0.06, this.cellSize);
-                        const capEW = new THREE.BoxGeometry(this.cellSize, 0.06, innerSpan);
+                        const capNS = this._boxGeo(fullSpan, 0.06, this.cellSize);
+                        const capEW = this._boxGeo(this.cellSize, 0.06, innerSpan);
                         for (let s = -1; s <= 1; s += 2) {
                             const capA = new THREE.Mesh(capNS, this.metalMat);
                             capA.position.set(gx + 2, 2.99, gz + 2 + s * (fullSpan / 2 - this.cellSize / 2));
@@ -2326,10 +2341,10 @@ export default class TheArchitect {
                             const top = buildWall(spansX ? gapW : wallThick, spansX ? wallThick : gapW, this.structMat, 0.5);
                             top.position.set(x * this.cellSize, 2.75, z * this.cellSize);
                             addGeometry(top);
-                            const frame1 = new THREE.Mesh(new THREE.BoxGeometry(spansX ? 0.05 : wallThick + 0.02, 3.0, spansX ? wallThick + 0.02 : 0.05), this.woodMat);
+                            const frame1 = new THREE.Mesh(this._boxGeo(spansX ? 0.05 : wallThick + 0.02, 3.0, spansX ? wallThick + 0.02 : 0.05), this.woodMat);
                             frame1.position.set(x * this.cellSize + (spansX ? -gapW / 2 - 0.025 : 0), 1.5, z * this.cellSize + (spansX ? 0 : -gapW / 2 - 0.025));
                             addGeometry(frame1);
-                            const frame2 = new THREE.Mesh(new THREE.BoxGeometry(spansX ? 0.05 : wallThick + 0.02, 3.0, spansX ? wallThick + 0.02 : 0.05), this.woodMat);
+                            const frame2 = new THREE.Mesh(this._boxGeo(spansX ? 0.05 : wallThick + 0.02, 3.0, spansX ? wallThick + 0.02 : 0.05), this.woodMat);
                             frame2.position.set(x * this.cellSize + (spansX ? gapW / 2 + 0.025 : 0), 1.5, z * this.cellSize + (spansX ? 0 : gapW / 2 + 0.025));
                             addGeometry(frame2);
                         } else if (chokeType === 1 || chokeType === 2) {
@@ -2339,7 +2354,7 @@ export default class TheArchitect {
                             top.position.set(x * this.cellSize, gapH + (topH / 2), z * this.cellSize);
                             top.userData.isEntityBlocker = true;
                             addGeometry(top);
-                            const frameTop = new THREE.Mesh(new THREE.BoxGeometry(spansX ? gapW : wallThick + 0.02, 0.05, spansX ? wallThick + 0.02 : gapW), this.woodMat);
+                            const frameTop = new THREE.Mesh(this._boxGeo(spansX ? gapW : wallThick + 0.02, 0.05, spansX ? wallThick + 0.02 : gapW), this.woodMat);
                             frameTop.position.set(x * this.cellSize, gapH + 0.025, z * this.cellSize);
                             addGeometry(frameTop);
                             const blockBox = new AABB(
@@ -2354,13 +2369,13 @@ export default class TheArchitect {
                             const top = buildWall(spansX ? gapW : wallThick, spansX ? wallThick : gapW, this.structMat, 0.35, 2.65);
                             top.position.set(x * this.cellSize, 2.825, z * this.cellSize);
                             addGeometry(top);
-                            const jambL = new THREE.Mesh(new THREE.BoxGeometry(spansX ? 0.1 : wallThick + 0.05, 2.65, spansX ? wallThick + 0.05 : 0.1), this.woodMat);
+                            const jambL = new THREE.Mesh(this._boxGeo(spansX ? 0.1 : wallThick + 0.05, 2.65, spansX ? wallThick + 0.05 : 0.1), this.woodMat);
                             jambL.position.set(x * this.cellSize + (spansX ? -0.75 : 0), 1.325, z * this.cellSize + (spansX ? 0 : -0.75));
                             addGeometry(jambL);
-                            const jambR = new THREE.Mesh(new THREE.BoxGeometry(spansX ? 0.1 : wallThick + 0.05, 2.65, spansX ? wallThick + 0.05 : 0.1), this.woodMat);
+                            const jambR = new THREE.Mesh(this._boxGeo(spansX ? 0.1 : wallThick + 0.05, 2.65, spansX ? wallThick + 0.05 : 0.1), this.woodMat);
                             jambR.position.set(x * this.cellSize + (spansX ? 0.75 : 0), 1.325, z * this.cellSize + (spansX ? 0 : 0.75));
                             addGeometry(jambR);
-                            const jambT = new THREE.Mesh(new THREE.BoxGeometry(spansX ? 1.6 : wallThick + 0.05, 0.1, spansX ? wallThick + 0.05 : 1.6), this.woodMat);
+                            const jambT = new THREE.Mesh(this._boxGeo(spansX ? 1.6 : wallThick + 0.05, 0.1, spansX ? wallThick + 0.05 : 1.6), this.woodMat);
                             jambT.position.set(x * this.cellSize, 2.70, z * this.cellSize);
                             addGeometry(jambT);
                             const doorW = 1.4;
@@ -2368,14 +2383,20 @@ export default class TheArchitect {
                             let doorGeo;
                             let doorMesh;
                             if (spansX) {
-                                doorGeo = new THREE.BoxGeometry(doorW, 2.65, doorT);
-                                doorGeo.translate(doorW / 2, 0, doorT / 2);
+                                doorGeo = this._cacheGeo('hingedDoor:X', () => {
+                                    const g = new THREE.BoxGeometry(doorW, 2.65, doorT);
+                                    g.translate(doorW / 2, 0, doorT / 2);
+                                    return g;
+                                });
                                 doorMesh = new THREE.Mesh(doorGeo, this.doorMat);
                                 doorMesh.position.set(x * this.cellSize - doorW / 2, 1.325, z * this.cellSize);
                                 doorMesh.userData = {chunkHash: hash, closedRot: 0, currentRot: 0};
                             } else {
-                                doorGeo = new THREE.BoxGeometry(doorT, 2.65, doorW);
-                                doorGeo.translate(doorT / 2, 0, doorW / 2);
+                                doorGeo = this._cacheGeo('hingedDoor:Z', () => {
+                                    const g = new THREE.BoxGeometry(doorT, 2.65, doorW);
+                                    g.translate(doorT / 2, 0, doorW / 2);
+                                    return g;
+                                });
                                 doorMesh = new THREE.Mesh(doorGeo, this.doorMat);
                                 doorMesh.position.set(x * this.cellSize, 1.325, z * this.cellSize - doorW / 2);
                                 doorMesh.userData = {

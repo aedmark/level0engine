@@ -165,10 +165,9 @@ export default class StoryEngine {
                 const n = (this.cycleIndex.get(assignKey) || 0) + 1;
                 this.cycleIndex.set(assignKey, n);
                 const k = (n - 1) % this.collected.length;
-                return {
-                    text: 'TERMINAL ARCHIVE — FILE ' + (k + 1) + ' OF ' + this.collected.length + '\n\n' + this.collected[k],
-                    progress: this.progress()
-                };
+                const file = this.getArchiveFile(k);
+                file.archiveIndex = k;
+                return file;
             }
             return {text: this.assignments.get(assignKey), progress: this.progress()};
         }
@@ -195,6 +194,17 @@ export default class StoryEngine {
         this.assignments.set(assignKey, this.library[category][idx]);
         this.collected.push(this.library[category][idx]);
         return {text: this.library[category][idx], progress: this.progress()};
+    }
+
+    getArchiveFile(k) {
+        const n = this.collected.length;
+        if (n === 0) return null;
+        const idx = ((k % n) + n) % n;
+        return {
+            text: 'TERMINAL ARCHIVE — FILE ' + (idx + 1) + ' OF ' + n + '\n\n' + this.collected[idx],
+            archiveIndex: idx,
+            progress: this.progress()
+        };
     }
 
     progress() {

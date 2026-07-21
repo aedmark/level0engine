@@ -8,6 +8,9 @@ export default class LumenGrid {
         this.maxShadowLights = 7;
         this.lightPool = [];
         this._activeFixtures = new Array(this.maxActiveLights).fill(null);
+        this._shadowSlotFixtures = new Array(this.maxShadowLights).fill(null);
+        this._shadowRR = 0;
+        this.shadowsDirty = false;
         for (let i = 0; i < this.maxActiveLights; i++) {
             const radius = i < this.maxShadowLights ? 20 : 30;
             const light = new THREE.PointLight(0xffebd6, 0, radius, 2.0);
@@ -19,6 +22,7 @@ export default class LumenGrid {
                 light.shadow.camera.far = 20;
                 light.shadow.bias = -0.0001;
                 light.shadow.normalBias = 0.05;
+                light.shadow.autoUpdate = false;
             }
             this.scene.add(light);
             this.lightPool.push(light);
@@ -80,6 +84,10 @@ export default class LumenGrid {
             if (fixture) {
                 const isShadowCaster = i < this.maxShadowLights;
                 fixture.hasShadow = isShadowCaster;
+                if (isShadowCaster && (this._shadowSlotFixtures[i] !== fixture || this.shadowsDirty)) {
+                    this._shadowSlotFixtures[i] = fixture;
+                    light.shadow.needsUpdate = true;
+                }
                 if (fixture.distSq < minLightDistSq) {
                     minLightDistSq = fixture.distSq;
                     nearestFixture = fixture;
@@ -120,8 +128,14 @@ export default class LumenGrid {
                 }
             } else {
                 light.intensity = 0;
+                if (i < this.maxShadowLights) this._shadowSlotFixtures[i] = null;
             }
         }
+        if (this._activeFixtures[this._shadowRR]) {
+            this.lightPool[this._shadowRR].shadow.needsUpdate = true;
+        }
+        this._shadowRR = (this._shadowRR + 1) % this.maxShadowLights;
+        this.shadowsDirty = false;
         return {darknessPressure, nearestFixture, minLightDistSq};
     }
 }

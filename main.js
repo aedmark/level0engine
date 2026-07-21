@@ -127,6 +127,27 @@ function getStory() {
 }
 
 let typeWriterInterval = null;
+let terminalBrowseIndex = null;
+
+function terminalFooter(fragment) {
+    let footer = `\n\n---\nDATA RECOVERED: [ ${fragment.progress.found} / ${fragment.progress.total} ]`;
+    footer += getStory().collected.length > 1
+        ? `\n[ ◄ ► BROWSE RECOVERED FILES ]`
+        : `\n[ RE-ACCESS TERMINAL TO BROWSE RECOVERED FILES ]`;
+    return footer;
+}
+
+document.addEventListener('somatic-doc-nav', (e) => {
+    if (terminalBrowseIndex === null) return;
+    const story = getStory();
+    if (story.collected.length < 2) return;
+    terminalBrowseIndex += e.detail.dir;
+    const file = story.getArchiveFile(terminalBrowseIndex);
+    terminalBrowseIndex = file.archiveIndex;
+    const docContent = document.getElementById('document-content');
+    if (docContent) docContent.innerText = file.text + terminalFooter(file);
+    acoustics.triggerSomaticEvent('item', 1.0, 0.15);
+});
 
 document.addEventListener('somatic-read', (e) => {
     if (player.input.state.isReading) return;
@@ -143,9 +164,15 @@ document.addEventListener('somatic-read', (e) => {
         const zone = e.detail ? e.detail.zone : null;
         const fragment = getStory().getFragment(docId, zone);
 
-        let fullText = fragment.text + `\n\n---\nDATA RECOVERED: [ ${fragment.progress.found} / ${fragment.progress.total} ]`;
-        if (docId && String(docId).startsWith('PC_')) {
-            fullText += `\n[ RE-ACCESS TERMINAL TO BROWSE RECOVERED FILES ]`;
+        const isTerminal = docId && String(docId).startsWith('PC_');
+        let fullText = fragment.text + (isTerminal
+            ? terminalFooter(fragment)
+            : `\n\n---\nDATA RECOVERED: [ ${fragment.progress.found} / ${fragment.progress.total} ]`);
+        terminalBrowseIndex = null;
+        if (isTerminal) {
+            terminalBrowseIndex = fragment.archiveIndex !== undefined
+                ? fragment.archiveIndex
+                : getStory().collected.length - 1;
         }
 
         if (docId && String(docId).startsWith('TAPE_')) {
@@ -185,6 +212,7 @@ document.addEventListener('somatic-read', (e) => {
 
 document.addEventListener('somatic-close-document', () => {
     player.input.state.isReading = false;
+    terminalBrowseIndex = null;
     const docOverlay = document.getElementById('document-overlay');
     const keypadOverlay = document.getElementById('keypad-overlay');
 

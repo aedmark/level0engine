@@ -1,4 +1,4 @@
-# Level 0 Engine: Procedural Liminal Space Simulator v0.4.9
+# Level 0 Engine: Procedural Liminal Space Simulator v0.4.10
 
 A minimal-dependency, mathematically pure, procedural 3D environment generator running natively in a browser via ES6 modules.
 
@@ -32,6 +32,7 @@ This engine is built on absolute architectural minimalism and efficiency:
 - `Q`: Squeeze (Compress collision radius to slide through narrow cracks)
 - `F`: Toggle Flashlight (Consumes battery, expands detection radius)
 - `E`: Somatic Interact (Doors, security keypads, documents, terminals, Surge Breakers, items)
+- `Arrow Keys`: Browse the recovered archive while a terminal is open (`◄`/`▲` previous file, `►`/`▼` next file)
 - `T`: Spray UV Decoy Breadcrumb (Mark your path and distract the Anomaly)
 - `Z`: Sector Warp (Debug: teleport to the first step inside the active macro-zone's northern blast door path)
 - `1`: Use Battery
@@ -71,4 +72,4 @@ The UI provides a structural control panel.
 
 ## Architecture
 
-Eleven zero-dependency ES6 modules: `Environment.js` (chunking, zones, interaction), `TheArchitect.js` (the procedural blueprint factory), `RenderEngine.js` (WebGL pipeline and post-processing), `AcousticEngine.js` (the DSP), `StoryEngine.js` (the seeded narrative generator), `PlayerController.js` (metabolics and kinematics), `Anomaly.js` (the entity), `LumenGrid.js` (dynamic light pooling), `SpatialHashGrid.js` (O(1) collision), and `Vec3.js`/`AABB.js` (the homegrown vector and axis-aligned bounding box math replacing `THREE.Vector3`/`THREE.Box3` on the physics side, duck-typed so they interoperate with `three`'s own types without depending on them).
+Twelve zero-dependency ES6 modules: `Environment.js` (chunking, zones, interaction), `TheArchitect.js` (the procedural blueprint factory), `Sectors.js` (the sector registry: per-zone fog, tint, ambience, foley, and reverb in one table), `RenderEngine.js` (WebGL pipeline and post-processing), `AcousticEngine.js` (the DSP), `StoryEngine.js` (the seeded narrative generator), `PlayerController.js` (metabolics and kinematics), `Anomaly.js` (the entity), `LumenGrid.js` (dynamic light pooling), `SpatialHashGrid.js` (O(1) collision), and `Vec3.js`/`AABB.js` (the homegrown vector and axis-aligned bounding box math replacing `THREE.Vector3`/`THREE.Box3` on the physics side, duck-typed so they interoperate with `three`'s own types without depending on them).

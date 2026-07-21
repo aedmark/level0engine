@@ -126,6 +126,11 @@ export default class SomaticInput {
         if (event.code === 'KeyZ') {
             document.dispatchEvent(new Event('somatic-teleport-zone'));
         }
+        if (this.state.isReading && key.startsWith('Arrow')) {
+            const dir = (key === 'ArrowLeft' || key === 'ArrowUp') ? -1 : 1;
+            document.dispatchEvent(new CustomEvent('somatic-doc-nav', {detail: {dir: dir}}));
+            return;
+        }
         switch (key) {
             case 'ArrowUp':
             case 'KeyW':

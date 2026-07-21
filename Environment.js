@@ -6,6 +6,7 @@ import Anomaly from './Anomaly.js';
 import SpatialHashGrid from './SpatialHashGrid.js';
 import TheArchitect from './TheArchitect.js';
 import LumenGrid from './LumenGrid.js';
+import SECTORS from './Sectors.js';
 export default class Environment {
     constructor(engine, player) {
         this.engine = engine;
@@ -34,11 +35,10 @@ export default class Environment {
         this.pointsOfInterest = [];
         this._breakerHuntHops = undefined;
         this._macroChunkHashes = new Set();
-        this.sectorFog = {
-            IMPOUND: 0.08, CLINIC: 0.06, BOARDROOM: 0.05, ARCHIVE: 0.10,
-            SERVER: 0.08, MAINTENANCE: 0.10, CHASM: 0.15, INCINERATOR: 0.20,
-            ANNEX: 0.02, ATRIUM: 0.09, EXIT: 0.05, CHECKPOINT: 0.05
-        };
+    }
+    _sectorFog(id) {
+        const s = SECTORS[id];
+        return (s && s.fog !== undefined) ? s.fog : 0.05;
     }
     updateChunks(playerPos) {
         const activeCellSize = this.cellSize || 4;
@@ -166,6 +166,7 @@ export default class Environment {
             const p = ud.panels[i];
             p.position[axis] = ud.baseOffsets[i] + ud.signs[i] * eased * ud.slideDist;
         }
+        this.lumenGrid.shadowsDirty = true;
         if (ud.progress > 0.12) {
             if (!ud.box.isEmpty()) ud.box.makeEmpty();
         } else if (ud.progress === 0) {
@@ -225,6 +226,7 @@ export default class Environment {
             if (Math.abs(rotDiff) > 0.001) {
                 door.userData.currentRot += rotDiff * door.userData.swingSpeed * delta;
                 door.rotation.y = door.userData.currentRot;
+                this.lumenGrid.shadowsDirty = true;
                 if (door.userData.box && isOpen) {
                     if (!door.userData.box.isEmpty()) door.userData.box.makeEmpty();
                 }
@@ -262,6 +264,7 @@ export default class Environment {
                         if (obj.userData.blocksX) obj.rotation.z += diff * 15.0 * delta;
                         else obj.rotation.x += diff * 15.0 * delta;
                         obj.position.y += (0.05 - obj.position.y) * 15.0 * delta;
+                        this.lumenGrid.shadowsDirty = true;
                         if (obj.userData.box && !obj.userData.box.isEmpty()) {
                             obj.userData.box.makeEmpty();
                         }
@@ -1175,6 +1178,24 @@ export default class Environment {
             });
         }
     }
+    // Zone-builder geometry cache: identical shapes share one geometry so
+    // _compileInstances can batch them by uuid instead of drawing solos.
+    // Keys are exact dims (all deterministic), so the cache stays bounded.
+    _cacheGeo(key, make) {
+        let geo = this.geoCache.get(key);
+        if (!geo) {
+            geo = make();
+            this.geoCache.set(key, geo);
+            this.geoCache.set(geo.uuid, true);
+        }
+        return geo;
+    }
+    _boxGeo(w, h, d) {
+        return this._cacheGeo(`B:${w}:${h}:${d}`, () => new THREE.BoxGeometry(w, h, d));
+    }
+    _planeGeo(w, h) {
+        return this._cacheGeo(`P:${w}:${h}`, () => new THREE.PlaneGeometry(w, h));
+    }
     _createChunkHelpers(hash, chunkGroup, stagingMeshes, random) {
         let hasOasis = random() > 0.95;
         const helpers = {
@@ -1281,7 +1302,7 @@ export default class Environment {
                         }
                     }
                 }
-                const grateGeo = new THREE.BoxGeometry(blocksX ? 0.05 : 1.16, 0.65, blocksX ? 1.16 : 0.05);
+                const grateGeo = this._boxGeo(blocksX ? 0.05 : 1.16, 0.65, blocksX ? 1.16 : 0.05);
                 const grate = new THREE.Mesh(grateGeo, this.wallVentMat);
                 grate.position.set(px, py, pz);
                 grate.userData = {type: 'grate', active: true, chunkHash: hash, blocksX: blocksX};
@@ -1415,7 +1436,7 @@ export default class Environment {
             activeSector = validSectors[sectorIndex];
             this.macroZones.set(hash, {
                 id: activeSector.id,
-                fog: this.sectorFog[activeSector.id] !== undefined ? this.sectorFog[activeSector.id] : 0.05,
+                fog: this._sectorFog(activeSector.id),
                 minX: startX * this.cellSize + 2,
                 maxX: startX * this.cellSize + 58,
                 minZ: startZ * this.cellSize + 2,
@@ -1428,7 +1449,7 @@ export default class Environment {
             }
             if (activeSector.foundationMat) {
                 const innerSize = (this.chunkSize - 2) * this.cellSize;
-                const foundationGeo = new THREE.PlaneGeometry(innerSize, innerSize);
+                const foundationGeo = this._planeGeo(innerSize, innerSize);
                 const foundation = new THREE.Mesh(foundationGeo, activeSector.foundationMat);
                 foundation.rotation.x = -Math.PI / 2;
                 const centerOffset = (this.chunkSize * this.cellSize) / 2 - (this.cellSize / 2);
@@ -1438,7 +1459,7 @@ export default class Environment {
             }
             if (activeSector.ceilingMat) {
                 const cInner = (this.chunkSize - 2) * this.cellSize;
-                const cGeo = new THREE.PlaneGeometry(cInner, cInner);
+                const cGeo = this._planeGeo(cInner, cInner);
                 const cPlane = new THREE.Mesh(cGeo, activeSector.ceilingMat);
                 cPlane.rotation.x = Math.PI / 2;
                 const cOffset = (this.chunkSize * this.cellSize) / 2 - (this.cellSize / 2);
@@ -1449,8 +1470,8 @@ export default class Environment {
         }
         const isChasm = activeSector && activeSector.id === "CHASM";
         const centerOffset = (this.chunkSize * this.cellSize) / 2 - (this.cellSize / 2);
-        const floorGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
-        const ceilGeo = new THREE.PlaneGeometry(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
+        const floorGeo = this._planeGeo(this.chunkSize * this.cellSize, this.chunkSize * this.cellSize);
+        const ceilGeo = floorGeo;
         if (!isChasm) {
             const floor = new THREE.Mesh(floorGeo, this.carpetMat);
             floor.rotation.x = -Math.PI / 2;
@@ -1469,16 +1490,13 @@ export default class Environment {
                 this.sharedAssets.add(this.voidShroudMat.uuid);
             }
             const span = this.chunkSize * this.cellSize;
-            const canopy = new THREE.Mesh(new THREE.PlaneGeometry(span, span), this.voidShroudMat);
+            const canopy = new THREE.Mesh(this._planeGeo(span, span), this.voidShroudMat);
             canopy.rotation.x = Math.PI / 2;
             canopy.position.set(startX * this.cellSize + centerOffset, 9.0, startZ * this.cellSize + centerOffset);
             chunkGroup.add(canopy);
-            const skirtGeo = new THREE.PlaneGeometry(span, 6.3);
+            const skirtGeo = this._planeGeo(span, 6.3);
             const cxw0 = startX * this.cellSize + centerOffset;
             const czw0 = startZ * this.cellSize + centerOffset;
-            // Hug the true perimeter wall's inner face (half the wall's own width,
-            // plus a hair of overlap) instead of floating well inside it - the old
-            // fixed 4.5 inset left a gap you could peek through right at the wall.
             const skirtInset = centerOffset - (this.cellSize / 2) - 0.05;
             for (let side = 0; side < 4; side++) {
                 const skirt = new THREE.Mesh(skirtGeo, this.voidShroudMat);
@@ -1622,7 +1640,7 @@ export default class Environment {
                         if (!isTooClose) {
                             chunkBreakerCount++;
                             breakerPositions.push({x: px, z: pz});
-                            const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.8, 3.0, 0.8), this.structMat);
+                            const pillar = new THREE.Mesh(this._boxGeo(0.8, 3.0, 0.8), this.structMat);
                             pillar.position.set(px, 1.5, pz);
                             chunkGroup.add(pillar);
                             const breakerGroup = new THREE.Group();
@@ -1987,7 +2005,7 @@ export default class Environment {
         }
         if (this._doorSectorForce) {
             activeSector = this._doorSectorForce;
-            targetFog = this.sectorFog[activeSector] !== undefined ? this.sectorFog[activeSector] : 0.05;
+            targetFog = this._sectorFog(activeSector);
             this._doorSectorForce = null;
         }
         if (this.baseFogDensity !== undefined) {
@@ -2001,39 +2019,11 @@ export default class Environment {
         }
         if (!this._baseFogColor) this._baseFogColor = new THREE.Color(0xa89f68);
         if (!this._targetFogColor) this._targetFogColor = new THREE.Color();
-        switch (activeSector) {
-            case "INCINERATOR":
-                this._targetFogColor.setHex(0x551100);
-                break;
-            case "ARCHIVE":
-                this._targetFogColor.setHex(0x6f695e);
-                break;
-            case "ATRIUM":
-                this._targetFogColor.setHex(0x51604b);
-                break;
-            case "CLINIC":
-                this._targetFogColor.setHex(0x7799aa);
-                break;
-            case "IMPOUND":
-                this._targetFogColor.setHex(0x7a6238);
-                break;
-            case "CHASM":
-                this._targetFogColor.setHex(0x000000);
-                break;
-            case "SERVER":
-                this._targetFogColor.setHex(0x3a4a52);
-                break;
-            case "MAINTENANCE":
-                this._targetFogColor.setHex(0x4a4436);
-                break;
-            case "BOARDROOM":
-                this._targetFogColor.setHex(0x878a8d);
-                break;
-            case "ANNEX":
-                this._targetFogColor.setHex(0x7d7568);
-                break;
-            default:
-                this._targetFogColor.copy(this._baseFogColor);
+        const sectorRow = SECTORS[activeSector];
+        if (sectorRow && sectorRow.fogColor !== undefined) {
+            this._targetFogColor.setHex(sectorRow.fogColor);
+        } else {
+            this._targetFogColor.copy(this._baseFogColor);
         }
         if (!this._blackColor) this._blackColor = new THREE.Color(0x000000);
         const darknessRatio = Math.min(1.0, darknessPressure * 0.4);
