@@ -6,7 +6,6 @@ import Anomaly from './Anomaly.js';
 import SpatialHashGrid from './SpatialHashGrid.js';
 import TheArchitect from './TheArchitect.js';
 import LumenGrid from './LumenGrid.js';
-
 export default class Environment {
     constructor(engine, player) {
         this.engine = engine;
@@ -32,13 +31,15 @@ export default class Environment {
         this._lightSortCache = (a, b) => a.distSq - b.distSq;
         this.blackoutChunks = new Set();
         this.macroZones = new Map();
+        this.pointsOfInterest = [];
+        this._breakerHuntHops = undefined;
+        this._macroChunkHashes = new Set();
         this.sectorFog = {
-            IMPOUND: 0.08, CLINIC: 0.03, BOARDROOM: 0.015, ARCHIVE: 0.12,
-            SERVER: 0.08, MAINTENANCE: 0.10, CHASM: 0.015, INCINERATOR: 0.25,
-            ANNEX: 0.02, ATRIUM: 0.02, EXIT: 0.05, CHECKPOINT: 0.05
+            IMPOUND: 0.08, CLINIC: 0.06, BOARDROOM: 0.05, ARCHIVE: 0.10,
+            SERVER: 0.08, MAINTENANCE: 0.10, CHASM: 0.15, INCINERATOR: 0.20,
+            ANNEX: 0.02, ATRIUM: 0.09, EXIT: 0.05, CHECKPOINT: 0.05
         };
     }
-
     updateChunks(playerPos) {
         const activeCellSize = this.cellSize || 4;
         const chunkX = Math.floor(playerPos.x / (this.chunkSize * activeCellSize));
@@ -96,9 +97,17 @@ export default class Environment {
             if (this.observers) {
                 this.observers = this.observers.filter(o => !deadHashes.has(o.userData.chunkHash));
             }
+            if (this.pointsOfInterest) {
+                this.pointsOfInterest = this.pointsOfInterest.filter(p => !deadHashes.has(p.chunkHash));
+            }
         }
     }
-
+    _rollHuntHops() {
+        const r = Math.random();
+        if (r < 0.40) return 0;
+        if (r < 0.75) return 1;
+        return 2;
+    }
     shatterFixture(fixture) {
         fixture.isDead = true;
         fixture.baseIntensity = 0.0;
@@ -113,7 +122,6 @@ export default class Environment {
             document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: pDistSq, intensity: 1.2}}));
         }
     }
-
     _updateSliderDoor(door, playerPos, delta) {
         const ud = door.userData;
         const pDistSq = playerPos.distanceToSquared(door.position);
@@ -169,7 +177,6 @@ export default class Environment {
             }));
         }
     }
-
     updateInteractives(playerPos, delta) {
         if (!this._prevPlayerPos) this._prevPlayerPos = playerPos.clone();
         this._playerMoveX = playerPos.x - this._prevPlayerPos.x;
@@ -180,19 +187,12 @@ export default class Environment {
                 this._updateSliderDoor(door, playerPos, delta);
                 return;
             }
-            // Code-locked doors cannot be forced, not even by the Anomaly.
-            // (It doesn't use the doors. It doesn't need the doors.)
             if (door.userData.codeLocked) door.userData.entityOpen = false;
             const pDistSq = playerPos.distanceToSquared(door.position);
-
-            // If the door is idle and the player is far away, sleep the logic.
             if (pDistSq > 400.0 && !door.userData.isLatched && !door.userData.entityOpen) return;
-
             const playerOpen = door.userData.playerOpen === true;
             const entityOpen = door.userData.entityOpen === true;
             door.userData.entityOpen = false;
-
-            // The tether has been severed. Toggled doors persist in their state.
             const isOpen = playerOpen || entityOpen;
             let targetRot = door.userData.closedRot;
             if (isOpen) {
@@ -225,27 +225,18 @@ export default class Environment {
             if (Math.abs(rotDiff) > 0.001) {
                 door.userData.currentRot += rotDiff * door.userData.swingSpeed * delta;
                 door.rotation.y = door.userData.currentRot;
-
                 if (door.userData.box && isOpen) {
                     if (!door.userData.box.isEmpty()) door.userData.box.makeEmpty();
                 }
-
-                // The Artisan: Kinetic transfer. If the door is actively swinging and the
-                // player is inside its swing radius, we gracefully repel them.
                 if (pDistSq < 2.5) {
                     const pushDist = Math.sqrt(pDistSq) || 0.1;
-                    const pushStrength = (2.5 - pDistSq) * 15.0; // Velocity scalar
+                    const pushStrength = (2.5 - pDistSq) * 15.0;
                     const pushX = ((playerPos.x - door.position.x) / pushDist) * pushStrength;
                     const pushZ = ((playerPos.z - door.position.z) / pushDist) * pushStrength;
-
                     const cosY = Math.cos(this.camera.rotation.y);
                     const sinY = Math.sin(this.camera.rotation.y);
-
-                    // Transform world-space push to local camera space
                     const localVx = pushX * cosY - pushZ * sinY;
                     const localVz = pushX * sinY + pushZ * cosY;
-
-                    // Inject directly into the player's local velocity vector
                     this.player.velocity.x -= localVx;
                     this.player.velocity.z += localVz;
                 }
@@ -325,7 +316,6 @@ export default class Environment {
             }
         }
     }
-
     async processChunkQueue() {
         if (this.isBuildingChunk) return;
         this.isBuildingChunk = true;
@@ -351,7 +341,6 @@ export default class Environment {
             }
         }
     }
-
     setup() {
         const assets = ProceduralTextureFactory.generateAssets();
         Object.assign(this, assets);
@@ -566,7 +555,6 @@ export default class Environment {
             if (this.interactables) this.interactables.forEach(checkObj);
             if (this.interactiveDoors) this.interactiveDoors.forEach(checkObj);
             if (hit && hit.userData.codeLocked) {
-                // Keypad door: hand off to the security panel UI
                 this._keypadDoor = hit;
                 document.dispatchEvent(new CustomEvent('somatic-keypad', {detail: {}}));
                 return;
@@ -654,6 +642,7 @@ export default class Environment {
                     hit.children[0].material = new THREE.MeshBasicMaterial({color: 0x55ff55});
                     this.player.objectives.fixed++;
                     this.player.updateObjectives();
+                    this._breakerHuntHops = this._rollHuntHops();
                     document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 0.1, intensity: 1.5}}));
                     if (this.engine.ambientLight) {
                         this.engine.ambientLight.intensity = 2.0;
@@ -693,6 +682,9 @@ export default class Environment {
                     setTimeout(() => {
                         this.player.objectives.fixed = 0;
                         this.player.objectives.escaped = false;
+                        this.player.hasVisitedAnnex = false;
+                        this.player.depth++;
+                        if (this.player.depth > this.player.bestDepth) this.player.bestDepth = this.player.depth;
                         this.player.updateObjectives();
                         this.generate(true);
                     }, 3500);
@@ -700,7 +692,6 @@ export default class Environment {
             }
         });
     }
-
     generate(isWarp = false) {
         const flash = document.getElementById('flash-overlay');
         if (flash) {
@@ -734,6 +725,9 @@ export default class Environment {
         this.blackoutChunks.clear();
         this.observers = [];
         this._globalSwitches = [];
+        this.pointsOfInterest = [];
+        this._breakerHuntHops = this._rollHuntHops();
+        this._macroChunkHashes = new Set();
         if (this.tagPool) {
             this.tagPool.forEach(tag => tag.visible = false);
             this.tagIndex = 0;
@@ -1087,9 +1081,6 @@ export default class Environment {
             const flTex = new THREE.CanvasTexture(flc);
             flTex.wrapS = flTex.wrapT = THREE.RepeatWrapping;
             this.foliageMat = new THREE.MeshStandardMaterial({map: flTex, roughness: 0.95, metalness: 0.0});
-            // --- ENDLESS FARMLAND SHELL (corn maze perimeter) ---
-            // Unlit silhouette gradient: crop rows receding into black. Rendered
-            // with MeshBasicMaterial so no lamp can ever reveal it as a wall.
             const fvc = document.createElement('canvas');
             fvc.width = 256;
             fvc.height = 128;
@@ -1121,7 +1112,6 @@ export default class Environment {
             const fvTex = new THREE.CanvasTexture(fvc);
             fvTex.wrapS = fvTex.wrapT = THREE.RepeatWrapping;
             this.farVoidMat = new THREE.MeshBasicMaterial({map: fvTex});
-
             this.cushionGeo = new THREE.BoxGeometry(0.8, 0.15, 0.8);
             this.backrestGeo = new THREE.BoxGeometry(0.8, 0.8, 0.15);
             this.legGeo = new THREE.BoxGeometry(0.1, 0.4, 0.1);
@@ -1185,7 +1175,6 @@ export default class Environment {
             });
         }
     }
-
     _createChunkHelpers(hash, chunkGroup, stagingMeshes, random) {
         let hasOasis = random() > 0.95;
         const helpers = {
@@ -1368,142 +1357,11 @@ export default class Environment {
                     stagingMeshes.push(wall);
                     return true;
                 }
-                if (sectorId) {
-                    const spansX = isDoorwayNS;
-                    const dcx = x * this.cellSize;
-                    const dcz = z * this.cellSize;
-                    const addGeometry = (mesh) => {
-                        mesh.userData.chunkHash = hash;
-                        mesh.updateMatrixWorld(true);
-                        if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
-                        const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
-                        box.chunkHash = hash;
-                        box.isEntityBlocker = true;
-                        this.spatialGrid.insert(box);
-                        chunkGroup.add(mesh);
-                        this.walls.push(mesh);
-                    };
-                    const bWall = (w, h, d, mat) => {
-                        // Every sector doorway calls this with one of a small
-                        // fixed set of dimensions (keyed on spansX) — cache by
-                        // shape so repeat doorways share geometry instead of
-                        // each leaking a new one into geoCache forever.
-                        const key = `door_${w}_${h}_${d}`;
-                        let geo = this.geoCache.get(key);
-                        if (!geo) {
-                            geo = new THREE.BoxGeometry(w, h, d);
-                            this.geoCache.set(key, geo);
-                            this.geoCache.set(geo.uuid, true);
-                        }
-                        return new THREE.Mesh(geo, mat);
-                    };
-                    const jambA = bWall(spansX ? 0.5 : 0.7, 3.0, spansX ? 0.7 : 0.5, this.structMat);
-                    jambA.position.set(dcx - (spansX ? 1.75 : 0), 1.5, dcz - (spansX ? 0 : 1.75));
-                    addGeometry(jambA);
-                    const jambB = bWall(spansX ? 0.5 : 0.7, 3.0, spansX ? 0.7 : 0.5, this.structMat);
-                    jambB.position.set(dcx + (spansX ? 1.75 : 0), 1.5, dcz + (spansX ? 0 : 1.75));
-                    addGeometry(jambB);
-                    const header = bWall(spansX ? 3.0 : 0.7, 0.4, spansX ? 0.7 : 3.0, this.metalMat);
-                    header.position.set(dcx, 2.8, dcz);
-                    addGeometry(header);
-                    const inSign = (localZ === 0 || localX === 0) ? 1 : -1;
-                    const awkL = 3.0;
-                    const awning = bWall(spansX ? this.cellSize : awkL, 0.05, spansX ? awkL : this.cellSize, this.metalMat);
-                    awning.position.set(
-                        dcx + (spansX ? 0 : inSign * 1.5),
-                        2.95,
-                        dcz + (spansX ? inSign * 1.5 : 0)
-                    );
-                    addGeometry(awning);
-                    for (let cs = -1; cs <= 1; cs += 2) {
-                        const clad = bWall(spansX ? 0.4 : 1.7, 3.0, spansX ? 1.7 : 0.4, this.structMat);
-                        clad.position.set(
-                            dcx + (spansX ? cs * 1.8 : inSign * 1.2),
-                            1.5,
-                            dcz + (spansX ? inSign * 1.2 : cs * 1.8)
-                        );
-                        addGeometry(clad);
-                    }
-                    const doorGroup = new THREE.Group();
-                    doorGroup.position.set(dcx, 0, dcz);
-                    const getDoorGeo = (name, w, h, d) => {
-                        const key = `${name}_${spansX}`;
-                        let geo = this.geoCache.get(key);
-                        if (!geo) {
-                            geo = new THREE.BoxGeometry(w, h, d);
-                            this.geoCache.set(key, geo);
-                            this.geoCache.set(geo.uuid, true);
-                        }
-                        return geo;
-                    };
-                    const panelGeo = spansX
-                        ? getDoorGeo('doorPanel', 1.58, 2.6, 0.24)
-                        : getDoorGeo('doorPanel', 0.24, 2.6, 1.58);
-                    const stripeGeo = spansX
-                        ? getDoorGeo('doorStripe', 0.14, 2.6, 0.26)
-                        : getDoorGeo('doorStripe', 0.26, 2.6, 0.14);
-                    const ribGeo = spansX
-                        ? getDoorGeo('doorRib', 1.58, 0.08, 0.28)
-                        : getDoorGeo('doorRib', 0.28, 0.08, 1.58);
-                    const mkPanel = (side) => {
-                        const p = new THREE.Mesh(panelGeo, this.metalMat);
-                        if (spansX) p.position.set(side * 0.76, 1.3, 0);
-                        else p.position.set(0, 1.3, side * 0.76);
-                        const stripe = new THREE.Mesh(stripeGeo, this.hazardMat);
-                        if (spansX) stripe.position.set(-side * 0.72, 0, 0);
-                        else stripe.position.set(0, 0, -side * 0.72);
-                        p.add(stripe);
-                        for (let ry = -1; ry <= 1; ry += 2) {
-                            const rib = new THREE.Mesh(ribGeo, this.structMat);
-                            rib.position.set(0, ry * 0.75, 0);
-                            p.add(rib);
-                        }
-                        p.castShadow = p.receiveShadow = true;
-                        p.userData.chunkHash = hash;
-                        doorGroup.add(p);
-                        return p;
-                    };
-                    const panelL = mkPanel(-1);
-                    const panelR = mkPanel(1);
-                    chunkGroup.add(doorGroup);
-                    doorGroup.updateMatrixWorld(true);
-                    this.walls.push(panelL, panelR);
-                    const doorBox = new THREE.Box3();
-                    if (spansX) {
-                        doorBox.min.set(dcx - 1.55, 0.0, dcz - 0.25);
-                        doorBox.max.set(dcx + 1.55, 2.6, dcz + 0.25);
-                    } else {
-                        doorBox.min.set(dcx - 0.25, 0.0, dcz - 1.55);
-                        doorBox.max.set(dcx + 0.25, 2.6, dcz + 1.55);
-                    }
-                    doorBox.chunkHash = hash;
-                    this.spatialGrid.insert(doorBox);
-                    const slideAxis = spansX ? 'x' : 'z';
-                    const outSign = (localZ === 0 || localX === 0) ? -1 : 1;
-                    doorGroup.userData = {
-                        chunkHash: hash,
-                        isSlider: true,
-                        spansX: spansX,
-                        panels: [panelL, panelR],
-                        baseOffsets: [panelL.position[slideAxis], panelR.position[slideAxis]],
-                        signs: [-1, 1],
-                        slideDist: 1.62,
-                        progress: 0,
-                        lastTarget: 0,
-                        box: doorBox,
-                        closedBox: doorBox.clone(),
-                        sectorId: sectorId,
-                        outSign: outSign
-                    };
-                    this.interactiveDoors.push(doorGroup);
-                    return false;
-                }
                 return false;
             }
         };
         return helpers;
     }
-
     async buildChunk(chunkX, chunkZ, hash) {
         const chunkGroup = new THREE.Group();
         this.scene.add(chunkGroup);
@@ -1522,16 +1380,22 @@ export default class Environment {
         const stagingMeshes = [];
         const ctx = this._createChunkHelpers(hash, chunkGroup, stagingMeshes, random);
         const structuralMatrix = TheArchitect.getStructuralMatrix.call(this, ctx);
-        // The selection cascade REQUIRES descending prob order: find(roll >= prob)
-        // gives each entry the band [its prob, previous prob). An entry inserted
-        // out of order shadows everything below it — this is exactly how the
-        // v0.4.4 bulkhead (0.028, listed above the 0.03 exit switch) silently
-        // made exit breakers unspawnable. Sorting makes the invariant structural.
         structuralMatrix.sort((a, b) => b.prob - a.prob);
         const sectorMatrix = TheArchitect.getSectorMatrix.call(this, ctx);
         const startX = chunkX * this.chunkSize;
         const startZ = chunkZ * this.chunkSize;
-        const isMacroStructure = random() > 0.60 && (Math.abs(chunkX) > 0 || Math.abs(chunkZ) > 0);
+        let isMacroStructure = random() > 0.60 && (Math.abs(chunkX) > 0 || Math.abs(chunkZ) > 0);
+        if (isMacroStructure) {
+            const neighborHashes = [
+                `${chunkX - 1},${chunkZ}`, `${chunkX + 1},${chunkZ}`,
+                `${chunkX},${chunkZ - 1}`, `${chunkX},${chunkZ + 1}`
+            ];
+            if (neighborHashes.some(h => this._macroChunkHashes.has(h))) {
+                isMacroStructure = false;
+            } else {
+                this._macroChunkHashes.add(hash);
+            }
+        }
         let activeSector = null;
         let sectorMaze = null;
         let chunkBreakerCount = 0;
@@ -1540,7 +1404,8 @@ export default class Environment {
         const inDir = hashVal % 4;
         const outDir = (hashVal + 1 + (hashVal % 3)) % 4;
         if (isMacroStructure) {
-            const isExitPhase = this.player && this.player.objectives && this.player.objectives.fixed >= this.player.objectives.total && !this.player.objectives.escaped;
+            const isExitPhase = this.player && this.player.objectives && this.player.objectives.fixed >= this.player.objectives.total &&
+                this.player.hasVisitedAnnex && !this.player.objectives.escaped;
             const sectorRoll = random();
             const validSectors = sectorMatrix.filter(s => {
                 if (isExitPhase) return s.id !== "CHECKPOINT";
@@ -1599,10 +1464,6 @@ export default class Environment {
             ceil.position.set(startX * this.cellSize + centerOffset, 3, startZ * this.cellSize + centerOffset);
             chunkGroup.add(ceil);
         } else {
-            // Void shroud for open-top zones (ATRIUM, CHASM): an unlit black
-            // canopy high above plus skirt planes sealing the band between the
-            // 3.0 wall line and the canopy, so sightlines can never escape over
-            // the walls into neighboring sectors.
             if (!this.voidShroudMat) {
                 this.voidShroudMat = new THREE.MeshBasicMaterial({color: 0x000000, side: THREE.DoubleSide});
                 this.sharedAssets.add(this.voidShroudMat.uuid);
@@ -1616,15 +1477,6 @@ export default class Environment {
             const cxw0 = startX * this.cellSize + centerOffset;
             const czw0 = startZ * this.cellSize + centerOffset;
             const half = span / 2;
-            // The perimeter wall at the chunk edge is centered on that same
-            // boundary line and is cellSize+0.02 (~4.02) units thick, so its
-            // outer face sits at half - ~2.01. Placing the skirt at exactly
-            // "half" buries it ~0.01 units inside that wall — coincident
-            // enough to z-fight, and since voidShroudMat is double-sided,
-            // visible from the exterior face too, fighting with the wall's
-            // wallpaper texture. Pull it in past the wall's inner face
-            // instead; it's a sightline curtain in open air, not something
-            // that needs to hug the boundary exactly.
             const skirtInset = half - 4.5;
             for (let side = 0; side < 4; side++) {
                 const skirt = new THREE.Mesh(skirtGeo, this.voidShroudMat);
@@ -1639,6 +1491,11 @@ export default class Environment {
         const occupied = new Set();
         ctx.markOccupied = (ox, oz) => occupied.add(`${ox},${oz}`);
         ctx.isOccupied = (ox, oz) => occupied.has(`${ox},${oz}`);
+        if (isMacroStructure) {
+            const hallwayNeedsFloor = activeSector.id === "CHASM";
+            const hallwayNeedsCeiling = activeSector.id === "CHASM" || activeSector.id === "ATRIUM";
+            this._buildEntranceHallways(chunkGroup, hash, startX, startZ, activeSector.id, ctx, hallwayNeedsFloor, hallwayNeedsCeiling);
+        }
         for (let x = startX; x < startX + this.chunkSize; x++) {
             for (let z = startZ; z < startZ + this.chunkSize; z++) {
                 if (!isMacroStructure && Math.abs(x) < 2 && Math.abs(z) < 2) continue;
@@ -1791,7 +1648,203 @@ export default class Environment {
         }
         this._compileInstances(hash, chunkGroup, stagingMeshes, random);
     }
-
+    _buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling) {
+        const HALLWAY_DEPTH = 3;
+        const edge = this.chunkSize - 1;
+        const sides = [
+            {spansX: true, boundary: 0, dir: 1},
+            {spansX: true, boundary: edge, dir: -1},
+            {spansX: false, boundary: 0, dir: 1},
+            {spansX: false, boundary: edge, dir: -1}
+        ];
+        for (const side of sides) {
+            const spansX = side.spansX;
+            const outSign = side.dir === 1 ? -1 : 1;
+            const cellAt = (local) => ({
+                x: startX + (spansX ? 7 : local),
+                z: startZ + (spansX ? local : 7)
+            });
+            const outer = cellAt(side.boundary);
+            ctx.markOccupied(outer.x, outer.z);
+            this._buildBlastDoor(chunkGroup, hash, outer.x * this.cellSize, outer.z * this.cellSize, spansX, sectorId, outSign);
+            for (let d = 1; d <= HALLWAY_DEPTH; d++) {
+                const seg = cellAt(side.boundary + side.dir * d);
+                ctx.markOccupied(seg.x, seg.z);
+                this._buildHallwaySegment(chunkGroup, hash, seg.x * this.cellSize, seg.z * this.cellSize, spansX, needsFloor, needsCeiling);
+            }
+            const inner = cellAt(side.boundary + side.dir * (HALLWAY_DEPTH + 1));
+            ctx.markOccupied(inner.x, inner.z);
+            this._buildBlastDoor(chunkGroup, hash, inner.x * this.cellSize, inner.z * this.cellSize, spansX, sectorId, -outSign);
+        }
+    }
+    _buildBlastDoor(chunkGroup, hash, dcx, dcz, spansX, sectorId, outSign) {
+        const addGeometry = (mesh) => {
+            mesh.userData.chunkHash = hash;
+            mesh.updateMatrixWorld(true);
+            if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+            const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
+            box.chunkHash = hash;
+            box.isEntityBlocker = true;
+            this.spatialGrid.insert(box);
+            chunkGroup.add(mesh);
+            this.walls.push(mesh);
+        };
+        const bWall = (w, h, d, mat) => {
+            const key = `door_${w}_${h}_${d}`;
+            let geo = this.geoCache.get(key);
+            if (!geo) {
+                geo = new THREE.BoxGeometry(w, h, d);
+                this.geoCache.set(key, geo);
+                this.geoCache.set(geo.uuid, true);
+            }
+            return new THREE.Mesh(geo, mat);
+        };
+        const jambA = bWall(spansX ? 0.5 : 0.7, 3.0, spansX ? 0.7 : 0.5, this.structMat);
+        jambA.position.set(dcx - (spansX ? 1.75 : 0), 1.5, dcz - (spansX ? 0 : 1.75));
+        addGeometry(jambA);
+        const jambB = bWall(spansX ? 0.5 : 0.7, 3.0, spansX ? 0.7 : 0.5, this.structMat);
+        jambB.position.set(dcx + (spansX ? 1.75 : 0), 1.5, dcz + (spansX ? 0 : 1.75));
+        addGeometry(jambB);
+        const header = bWall(spansX ? 3.0 : 0.7, 0.4, spansX ? 0.7 : 3.0, this.metalMat);
+        header.position.set(dcx, 2.8, dcz);
+        addGeometry(header);
+        const inSign = outSign * -1;
+        const awkL = 3.0;
+        const awning = bWall(spansX ? this.cellSize : awkL, 0.05, spansX ? awkL : this.cellSize, this.metalMat);
+        awning.position.set(
+            dcx + (spansX ? 0 : inSign * 1.5),
+            2.95,
+            dcz + (spansX ? inSign * 1.5 : 0)
+        );
+        addGeometry(awning);
+        for (let cs = -1; cs <= 1; cs += 2) {
+            const clad = bWall(spansX ? 0.4 : 1.7, 3.0, spansX ? 1.7 : 0.4, this.structMat);
+            clad.position.set(
+                dcx + (spansX ? cs * 1.8 : inSign * 1.2),
+                1.5,
+                dcz + (spansX ? inSign * 1.2 : cs * 1.8)
+            );
+            addGeometry(clad);
+        }
+        const doorGroup = new THREE.Group();
+        doorGroup.position.set(dcx, 0, dcz);
+        const getDoorGeo = (name, w, h, d) => {
+            const key = `${name}_${spansX}`;
+            let geo = this.geoCache.get(key);
+            if (!geo) {
+                geo = new THREE.BoxGeometry(w, h, d);
+                this.geoCache.set(key, geo);
+                this.geoCache.set(geo.uuid, true);
+            }
+            return geo;
+        };
+        const panelGeo = spansX
+            ? getDoorGeo('doorPanel', 1.58, 2.6, 0.24)
+            : getDoorGeo('doorPanel', 0.24, 2.6, 1.58);
+        const stripeGeo = spansX
+            ? getDoorGeo('doorStripe', 0.14, 2.6, 0.26)
+            : getDoorGeo('doorStripe', 0.26, 2.6, 0.14);
+        const ribGeo = spansX
+            ? getDoorGeo('doorRib', 1.58, 0.08, 0.28)
+            : getDoorGeo('doorRib', 0.28, 0.08, 1.58);
+        const mkPanel = (side) => {
+            const p = new THREE.Mesh(panelGeo, this.metalMat);
+            if (spansX) p.position.set(side * 0.76, 1.3, 0);
+            else p.position.set(0, 1.3, side * 0.76);
+            const stripe = new THREE.Mesh(stripeGeo, this.hazardMat);
+            if (spansX) stripe.position.set(-side * 0.72, 0, 0);
+            else stripe.position.set(0, 0, -side * 0.72);
+            p.add(stripe);
+            for (let ry = -1; ry <= 1; ry += 2) {
+                const rib = new THREE.Mesh(ribGeo, this.structMat);
+                rib.position.set(0, ry * 0.75, 0);
+                p.add(rib);
+            }
+            p.castShadow = p.receiveShadow = true;
+            p.userData.chunkHash = hash;
+            doorGroup.add(p);
+            return p;
+        };
+        const panelL = mkPanel(-1);
+        const panelR = mkPanel(1);
+        chunkGroup.add(doorGroup);
+        doorGroup.updateMatrixWorld(true);
+        this.walls.push(panelL, panelR);
+        const doorBox = new THREE.Box3();
+        if (spansX) {
+            doorBox.min.set(dcx - 1.55, 0.0, dcz - 0.25);
+            doorBox.max.set(dcx + 1.55, 2.6, dcz + 0.25);
+        } else {
+            doorBox.min.set(dcx - 0.25, 0.0, dcz - 1.55);
+            doorBox.max.set(dcx + 0.25, 2.6, dcz + 1.55);
+        }
+        doorBox.chunkHash = hash;
+        this.spatialGrid.insert(doorBox);
+        const slideAxis = spansX ? 'x' : 'z';
+        doorGroup.userData = {
+            chunkHash: hash,
+            isSlider: true,
+            spansX: spansX,
+            panels: [panelL, panelR],
+            baseOffsets: [panelL.position[slideAxis], panelR.position[slideAxis]],
+            signs: [-1, 1],
+            slideDist: 1.62,
+            progress: 0,
+            lastTarget: 0,
+            box: doorBox,
+            closedBox: doorBox.clone(),
+            sectorId: sectorId,
+            outSign: outSign
+        };
+        this.interactiveDoors.push(doorGroup);
+    }
+    _buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling) {
+        const addGeometry = (mesh) => {
+            mesh.userData.chunkHash = hash;
+            mesh.updateMatrixWorld(true);
+            if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+            const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
+            box.chunkHash = hash;
+            box.isEntityBlocker = true;
+            this.spatialGrid.insert(box);
+            chunkGroup.add(mesh);
+            this.walls.push(mesh);
+        };
+        const wallKey = `hallwayWall_${spansX}`;
+        let wallGeo = this.geoCache.get(wallKey);
+        if (!wallGeo) {
+            wallGeo = new THREE.BoxGeometry(spansX ? 0.4 : this.cellSize, 3.0, spansX ? this.cellSize : 0.4);
+            this.geoCache.set(wallKey, wallGeo);
+            this.geoCache.set(wallGeo.uuid, true);
+        }
+        for (const side of [-1, 1]) {
+            const wall = new THREE.Mesh(wallGeo, this.structMat);
+            if (spansX) wall.position.set(cx + side * 1.75, 1.5, cz);
+            else wall.position.set(cx, 1.5, cz + side * 1.75);
+            addGeometry(wall);
+        }
+        if (needsFloor || needsCeiling) {
+            const floorKey = 'hallwayFloorCeil';
+            let floorGeo = this.geoCache.get(floorKey);
+            if (!floorGeo) {
+                floorGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize);
+                this.geoCache.set(floorKey, floorGeo);
+                this.geoCache.set(floorGeo.uuid, true);
+            }
+            if (needsFloor) {
+                const floor = new THREE.Mesh(floorGeo, this.tileMat);
+                floor.rotation.x = -Math.PI / 2;
+                floor.position.set(cx, 0.01, cz);
+                addGeometry(floor);
+            }
+            if (needsCeiling) {
+                const ceil = new THREE.Mesh(floorGeo, this.ceilMat);
+                ceil.rotation.x = Math.PI / 2;
+                ceil.position.set(cx, 2.99, cz);
+                addGeometry(ceil);
+            }
+        }
+    }
     _generateSectorMaze(randomFn, inDir, outDir) {
         const maze = Array(this.chunkSize).fill().map(() => Array(this.chunkSize).fill(true));
         const carve = (cx, cz) => {
@@ -1822,7 +1875,6 @@ export default class Environment {
         maze[1][7] = false;
         return maze;
     }
-
     _compileInstances(hash, chunkGroup, stagingMeshes, randomFn) {
         const instancedGroups = new Map();
         stagingMeshes.forEach(mesh => {
@@ -1873,7 +1925,6 @@ export default class Environment {
             }
         });
     }
-
     captureAsset() {
         this.engine.render();
         const dataURL = this.engine.renderer.domElement.toDataURL('image/png');
@@ -1882,11 +1933,9 @@ export default class Environment {
         link.href = dataURL;
         link.click();
     }
-
     updateEntity(playerPos, delta, time) {
         return this.anomaly.update(delta, time);
     }
-
     updateLights(time) {
         const cameraPos = this.camera.position;
         if (!this.audioRaycaster) {
@@ -1934,6 +1983,10 @@ export default class Environment {
                 break;
             }
         }
+        if (activeSector === "ANNEX" && this.player && !this.player.hasVisitedAnnex) {
+            this.player.hasVisitedAnnex = true;
+            this.player.updateObjectives();
+        }
         if (this._doorSectorForce) {
             activeSector = this._doorSectorForce;
             targetFog = this.sectorFog[activeSector] !== undefined ? this.sectorFog[activeSector] : 0.05;
@@ -1967,7 +2020,7 @@ export default class Environment {
                 this._targetFogColor.setHex(0x7a6238);
                 break;
             case "CHASM":
-                this._targetFogColor.setHex(0x111111);
+                this._targetFogColor.setHex(0x000000);
                 break;
             case "SERVER":
                 this._targetFogColor.setHex(0x3a4a52);
@@ -2015,13 +2068,56 @@ export default class Environment {
         if (this.interactables && this.player && this.player.updateObjectives) {
             let nearestDist = Infinity;
             const isExitPhase = this.player.objectives.fixed >= this.player.objectives.total;
-            const targetType = isExitPhase ? 'exit' : 'exit_switch';
-            for (let i = 0; i < this.interactables.length; i++) {
-                const item = this.interactables[i];
-                const isValidTarget = isExitPhase ? item.userData.active === true : item.userData.active === false;
-                if (item.userData.type === targetType && isValidTarget) {
-                    const dist = cameraPos.distanceTo(item.position);
+            if (isExitPhase && !this.player.hasVisitedAnnex) {
+                for (const zone of this.macroZones.values()) {
+                    if (zone.id !== "ANNEX") continue;
+                    const nx = Math.max(zone.minX, Math.min(cameraPos.x, zone.maxX));
+                    const nz = Math.max(zone.minZ, Math.min(cameraPos.z, zone.maxZ));
+                    const dx = cameraPos.x - nx;
+                    const dz = cameraPos.z - nz;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
                     if (dist < nearestDist) nearestDist = dist;
+                }
+            } else if (isExitPhase) {
+                for (let i = 0; i < this.interactables.length; i++) {
+                    const item = this.interactables[i];
+                    if (item.userData.type === 'exit' && item.userData.active === true) {
+                        const dist = cameraPos.distanceTo(item.position);
+                        if (dist < nearestDist) nearestDist = dist;
+                    }
+                }
+            } else {
+                if (this._breakerHuntHops === undefined) this._breakerHuntHops = this._rollHuntHops();
+                let targetIsPoi = false;
+                if (this._breakerHuntHops > 0 && this.pointsOfInterest && this.pointsOfInterest.length > 0) {
+                    let nearestPoi = null;
+                    let nearestPoiDist = Infinity;
+                    for (let i = 0; i < this.pointsOfInterest.length; i++) {
+                        const poi = this.pointsOfInterest[i];
+                        if (poi.active) continue;
+                        const dx = cameraPos.x - poi.x;
+                        const dz = cameraPos.z - poi.z;
+                        const d = Math.sqrt(dx * dx + dz * dz);
+                        if (d < nearestPoiDist) { nearestPoiDist = d; nearestPoi = poi; }
+                    }
+                    if (nearestPoi) {
+                        if (nearestPoiDist < 3.0) {
+                            nearestPoi.active = true;
+                            this._breakerHuntHops--;
+                        } else {
+                            nearestDist = nearestPoiDist;
+                            targetIsPoi = true;
+                        }
+                    }
+                }
+                if (!targetIsPoi) {
+                    for (let i = 0; i < this.interactables.length; i++) {
+                        const item = this.interactables[i];
+                        if (item.userData.type === 'exit_switch' && item.userData.active === false) {
+                            const dist = cameraPos.distanceTo(item.position);
+                            if (dist < nearestDist) nearestDist = dist;
+                        }
+                    }
                 }
             }
             let signalText = nearestDist < 1000 ? `${nearestDist.toFixed(1)}m` : 'WEAK - RELOCATE';

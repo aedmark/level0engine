@@ -1,14 +1,5 @@
 // AABB.js
 // LEVEL 0 HOMEGROWN MATH
-//
-// Axis-aligned bounding box — the collision half of what THREE.Box3 was
-// doing for PlayerController.js and Anomaly.js. Deliberately does not
-// implement setFromObject(): that needs geometry + matrixWorld reads,
-// which still live on the three.js side of the boundary (Environment.js,
-// TheArchitect.js). Those files build boxes with setFromObject and hand
-// them to the spatial grid as plain THREE.Box3 instances — this class
-// only ever reads .min/.max off them, so the two live side by side without
-// coupling.
 
 import Vec3 from './Vec3.js';
 
@@ -46,11 +37,6 @@ export default class AABB {
             box.max.z >= this.min.z && box.min.z <= this.max.z;
     }
 
-    // Ray-box intersection via the slab method. origin/direction are any
-    // {x,y,z}; box is any {min,max} — homegrown AABB or THREE.Box3, doesn't
-    // matter, only properties are read. Mirrors THREE.Ray.intersectBox:
-    // returns false (and leaves target untouched) on a miss or when the
-    // box is entirely behind the ray's origin.
     static rayIntersectsBox(origin, direction, box, target) {
         let tmin = -Infinity;
         let tmax = Infinity;

@@ -13,6 +13,7 @@ export default class PlayerController {
         this.velocity = new Vec3();
         this.direction = new Vec3();
         this.isSqueezing = false;
+        this._envForcedDown = false;
         this.flashlightBattery = 100.0;
         this.baseRadius = 0.4;
         this.squeezeRadius = 0.12;
@@ -23,6 +24,9 @@ export default class PlayerController {
         this.stamina = 100.0;
         this.inventory = {batteries: 0, almondWater: 0};
         this.objectives = {fixed: 0, total: 3, escaped: false};
+        this.depth = 1;
+        this.bestDepth = 1;
+        this.hasVisitedAnnex = false;
         this.objectiveUI = document.createElement('div');
         this.objectiveUI.className = 'osd-element';
         this.objectiveUI.style.cssText = 'bottom: 3rem; right: 3rem; text-align: right; z-index: 100; pointer-events: none; line-height: 1.2; text-transform: uppercase;';
@@ -30,15 +34,25 @@ export default class PlayerController {
         renderArea.appendChild(this.objectiveUI);
         this.updateObjectives = (signalText = 'SCANNING...') => {
             if (this.objectives.escaped) return;
-            if (this._lastSignalText === signalText && this._lastFixed === this.objectives.fixed) return;
+            if (this._lastSignalText === signalText && this._lastFixed === this.objectives.fixed &&
+                this._lastDepth === this.depth && this._lastBestDepth === this.bestDepth &&
+                this._lastAnnexVisited === this.hasVisitedAnnex) return;
             this._lastSignalText = signalText;
             this._lastFixed = this.objectives.fixed;
-            let uiHTML = '';
+            this._lastDepth = this.depth;
+            this._lastBestDepth = this.bestDepth;
+            this._lastAnnexVisited = this.hasVisitedAnnex;
+            let uiHTML = `> LAYER ${this.depth} — DEEPEST REACHED: ${this.bestDepth}<br>`;
             if (this.objectives.fixed >= this.objectives.total) {
-                uiHTML = `> SECTOR STABILIZED.<br>> LOCATE EXIT THRESHOLD.<br>> SIGNAL: ${signalText}`;
-                this.objectiveUI.style.color = '#88cc88';
+                if (this.hasVisitedAnnex) {
+                    uiHTML += `> SECTOR STABILIZED.<br>> LOCATE EXIT THRESHOLD.<br>> SIGNAL: ${signalText}`;
+                    this.objectiveUI.style.color = '#88cc88';
+                } else {
+                    uiHTML += `> SECTOR STABILIZED.<br>> UNREVIEWED RECORDS FLAGGED — ANNEX.<br>> EXIT WILL NOT MANIFEST UNTIL REVIEWED.<br>> SIGNAL: ${signalText}`;
+                    this.objectiveUI.style.color = '#ffaa55';
+                }
             } else {
-                uiHTML = `> PRIMARY DIRECTIVE: RESTORE POWER<br>> BREAKERS RESET: [ ${this.objectives.fixed} / ${this.objectives.total} ]<br>> SIGNAL: ${signalText}`;
+                uiHTML += `> PRIMARY DIRECTIVE: RESTORE POWER<br>> BREAKERS RESET: [ ${this.objectives.fixed} / ${this.objectives.total} ]<br>> SIGNAL: ${signalText}`;
                 this.objectiveUI.style.color = '#ffffff';
             }
             if (this.objectiveUI.innerHTML !== uiHTML) {
@@ -97,6 +111,12 @@ export default class PlayerController {
         this.flashlightBattery = 100.0;
         this.linguisticDarkMatter = 0.0;
         this.velocity.set(0, 0, 0);
+        this.objectives.fixed = 0;
+        this.objectives.escaped = false;
+        this.hasVisitedAnnex = false;
+        if (this.depth > this.bestDepth) this.bestDepth = this.depth;
+        this.depth = 1;
+        this.updateObjectives();
     }
 
     _bindMetabolicListeners() {
@@ -179,10 +199,16 @@ export default class PlayerController {
             }
         }
         if (maxAvailableHeight < 1.3) {
+            if (!state.isCrawling && !state.isCrouching) this._envForcedDown = true;
             state.isCrawling = true;
             state.isCrouching = false;
         } else if (maxAvailableHeight < 2.5) {
+            if (!state.isCrawling && !state.isCrouching) this._envForcedDown = true;
             if (!state.isCrawling) state.isCrouching = true;
+        } else if (this._envForcedDown) {
+            state.isCrouching = false;
+            state.isCrawling = false;
+            this._envForcedDown = false;
         }
         this.isSqueezing = state.squeezeIntent;
         let targetRadius = this.isSqueezing ? this.squeezeRadius : this.baseRadius;

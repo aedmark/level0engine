@@ -1,15 +1,5 @@
 // Vec3.js
 // LEVEL 0 HOMEGROWN MATH
-//
-// A minimal 3D vector, built to match the exact method surface
-// PlayerController.js and Anomaly.js use — nothing speculative bolted on.
-//
-// It duck-types freely against THREE.Vector3 (and anything else exposing
-// x/y/z): every method reads plain properties off its argument rather than
-// checking instanceof. That's the same contract three.js's own Vector3
-// uses internally, which is what makes a partial migration possible —
-// a Vec3 can sit next to THREE.Vector3 in the same expression without
-// either one knowing the other exists.
 
 export default class Vec3 {
     constructor(x = 0, y = 0, z = 0) {
@@ -89,9 +79,6 @@ export default class Vec3 {
         return this;
     }
 
-    // Rotates this vector by a quaternion-like {x,y,z,w}. Reads properties
-    // only, so camera.quaternion (a live THREE.Quaternion) works unmodified —
-    // no homegrown Quaternion class needed just to support this one call.
     applyQuaternion(q) {
         const {x, y, z} = this;
         const qx = q.x, qy = q.y, qz = q.z, qw = q.w;

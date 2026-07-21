@@ -27,13 +27,6 @@ export default class LumenGrid {
 
     update(cameraPos, fixtureData, time) {
         let darknessPressure = 0;
-        // Rank is rebuilt from scratch every frame, which means a fixture
-        // sitting right at the cutoff can flip in and out of the active set
-        // from tiny distance jitter alone — no actual movement needed. That
-        // reads as a light (and whatever it's lighting up — a reflective
-        // floor, say) popping in and out. Capture who was active last frame
-        // before rebuilding, so the ranking below can give them a little
-        // stickiness and stop boundary fixtures from flapping.
         if (!this._prevActive) this._prevActive = new Set();
         this._prevActive.clear();
         for (let i = 0; i < this.maxActiveLights; i++) {
@@ -104,11 +97,6 @@ export default class LumenGrid {
                     light.intensity = 0.0;
                     if (fixture.material) fixture.material.emissiveIntensity = 0.0;
                 } else if (fixture.isFaulty) {
-                    // Event-driven flicker: each fixture keeps its own schedule for
-                    // when its next flicker starts and how long it lasts, drawn fresh
-                    // from Math.random() rather than a shared time-based waveform.
-                    // That's what makes fixtures desync from each other instead of
-                    // all pulsing to the same beat with just a phase offset.
                     if (fixture._nextFlicker === undefined) {
                         fixture._nextFlicker = time + 0.5 + Math.random() * 4.0;
                         fixture._flickering = false;
@@ -119,9 +107,6 @@ export default class LumenGrid {
                         fixture._flickerDepth = Math.random() < 0.3 ? 0.0 : 0.05 + Math.random() * 0.3;
                     } else if (fixture._flickering && time >= fixture._flickerUntil) {
                         fixture._flickering = false;
-                        // 40% chance of an immediate stutter (a quick follow-up flicker,
-                        // like a dying tube catching itself); otherwise a genuinely
-                        // random gap before the next event.
                         fixture._nextFlicker = Math.random() < 0.4
                             ? time + 0.03 + Math.random() * 0.1
                             : time + 1.0 + Math.random() * 6.0;

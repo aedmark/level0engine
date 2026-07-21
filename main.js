@@ -1,5 +1,6 @@
 // main.js
 // LEVEL 0 SYSTEM BOOTSTRAP
+
 import RenderEngine from './RenderEngine.js';
 import PlayerController from './PlayerController.js';
 import Environment from './Environment.js';
@@ -52,6 +53,8 @@ function saveState() {
         battery: player.flashlightBattery,
         invBat: player.inventory.batteries,
         invH2o: player.inventory.almondWater,
+        depth: player.depth,
+        bestDepth: player.bestDepth,
         seed: document.getElementById('seedInput').value,
         aspect: document.getElementById('aspectSelect').value,
         fog: document.getElementById('fogSlider').value,
@@ -74,6 +77,9 @@ if (savedState) {
     if (savedState.battery !== undefined) player.flashlightBattery = savedState.battery;
     if (savedState.invBat !== undefined) player.inventory.batteries = savedState.invBat;
     if (savedState.invH2o !== undefined) player.inventory.almondWater = savedState.invH2o;
+    if (savedState.depth !== undefined) player.depth = savedState.depth;
+    if (savedState.bestDepth !== undefined) player.bestDepth = savedState.bestDepth;
+    player.updateObjectives();
     environment.baseFogDensity = (Number(savedState.fog) || 5) / 100;
 }
 const bootAudio = () => acoustics.init();
@@ -112,9 +118,7 @@ document.addEventListener('somatic-eyes', (e) => {
 document.addEventListener('somatic-breaker', (e) => acoustics.triggerSomaticEvent('breaker', e.detail.distSq, e.detail.intensity));
 document.addEventListener('somatic-item', (e) => acoustics.triggerSomaticEvent('item', e.detail.distSq, e.detail.intensity));
 
-// --- NARRATIVE & SECURITY ROUTER ---
 function getStory() {
-    // Lazily evaluate and cache the story engine against the current physical seed
     if (!getStory._cache || getStory._lastSeed !== environment.baseSeed) {
         getStory._cache = new StoryEngine(environment.baseSeed);
         getStory._lastSeed = environment.baseSeed;
@@ -129,7 +133,6 @@ document.addEventListener('somatic-read', (e) => {
     player.input.state.isReading = true;
     player.input.state.isRunning = false;
 
-    // Release the mouse so the user can interact with UI elements or scroll
     if (document.pointerLockElement) document.exitPointerLock();
 
     const docOverlay = document.getElementById('document-overlay');
@@ -146,7 +149,6 @@ document.addEventListener('somatic-read', (e) => {
         }
 
         if (docId && String(docId).startsWith('TAPE_')) {
-            // Audio transcript mode: Dark background, green text, typewriter effect
             docOverlay.style.backgroundColor = '#111';
             docOverlay.style.color = '#55ff55';
             docOverlay.style.borderColor = '#55ff55';
@@ -159,7 +161,6 @@ document.addEventListener('somatic-read', (e) => {
             typeWriterInterval = setInterval(() => {
                 if (i < fullText.length) {
                     docContent.innerText += fullText.charAt(i);
-                    // Only garble on actual characters to simulate synthetic speech cadence
                     if (fullText.charAt(i) !== ' ' && fullText.charAt(i) !== '\n' && Math.random() > 0.6) {
                         acoustics.triggerSomaticEvent('tape_garble', 1.0, 0.20);
                     }
@@ -171,7 +172,6 @@ document.addEventListener('somatic-read', (e) => {
                 }
             }, 35);
         } else {
-            // Standard paper mode: Beige background, dark text, instant display
             docOverlay.style.backgroundColor = '#f4f1e1';
             docOverlay.style.color = '#1a1811';
             docOverlay.style.borderColor = '#a89f68';
@@ -191,7 +191,7 @@ document.addEventListener('somatic-close-document', () => {
     if (typeWriterInterval) {
         clearInterval(typeWriterInterval);
         typeWriterInterval = null;
-        acoustics.triggerSomaticEvent('tape_click', 1.0, 0.5); // Stop button click
+        acoustics.triggerSomaticEvent('tape_click', 1.0, 0.5);
     }
 
     if (keypadOverlay && keypadOverlay.style.display !== 'none') {
@@ -200,7 +200,6 @@ document.addEventListener('somatic-close-document', () => {
         acoustics.triggerSomaticEvent('door', 1.0, 0.3);
     } else if (docOverlay && docOverlay.style.display !== 'none') {
         docOverlay.style.display = 'none';
-        // Metabolic Tax: Processing classified data leaves a scar.
         player.coherence = Math.max(0.0, player.coherence - 0.15);
         acoustics.triggerSomaticEvent('item', 1.0, 0.2);
     }
@@ -210,11 +209,9 @@ let currentKeypadInput = "";
 
 document.addEventListener('somatic-keypad', (e) => {
     if (player.input.state.isReading) return;
-    // Hijack the reading state to temporarily lock player movement/camera
     player.input.state.isReading = true;
     player.input.state.isRunning = false;
 
-    // Force the browser to release the mouse cursor for UI interaction
     if (document.pointerLockElement) document.exitPointerLock();
 
     currentKeypadInput = "";
@@ -230,7 +227,6 @@ document.addEventListener('somatic-keypad', (e) => {
     acoustics.triggerSomaticEvent('item', 1.0, 0.3);
 });
 
-// Expose keypad controller to global scope for HTML inline handlers
 window.handleKeypad = (char) => {
     const display = document.getElementById('keypad-display');
     if (!display) return;
@@ -247,9 +243,6 @@ window.handleKeypad = (char) => {
             display.innerText = "ACCEPTED";
             display.style.color = "#55ff55";
             setTimeout(() => {
-                // Success must fire BEFORE the overlay closes: routing through
-                // somatic-close-document dispatches keypad-cancel, which nulls
-                // the pending door before success can unlock it.
                 document.dispatchEvent(new Event('somatic-keypad-success'));
                 const kp = document.getElementById('keypad-overlay');
                 if (kp) kp.style.display = 'none';
@@ -273,7 +266,6 @@ window.handleKeypad = (char) => {
     }
 };
 
-// Hardware keyboard routing for the security keypad
 document.addEventListener('keydown', (e) => {
     const keypadOverlay = document.getElementById('keypad-overlay');
     if (keypadOverlay && keypadOverlay.style.display !== 'none') {

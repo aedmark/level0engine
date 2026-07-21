@@ -8,144 +8,30 @@ export default class AcousticEngine {
         this.masterVolume = 1.0;
         this._cache = new Map();
         this.sectors = {
-            "NORMAL": {
-                noise: 0.0,
-                peace: 0.0,
-                rumble: 60,
-                freq: 250,
-                freqOcc: 120,
-                whine: 0.0005,
-                whineOcc: 0.0001,
-                dynamicWhine: true
-            },
-            "IMPOUND": {
-                noise: 0.09,
-                peace: 0.0,
-                rumble: 45,
-                freq: 160,
-                freqOcc: 90,
-                whine: 0.0008,
-                whineOcc: 0.0003,
-                dynamicWhine: false
-            },
-            "BOARDROOM": {
-                noise: 0.4,
-                peace: 0.0,
-                rumble: 60,
-                freq: 250,
-                freqOcc: 120,
-                whine: 0.0,
-                whineOcc: 0.0,
-                dynamicWhine: false
-            },
-            "SERVER": {
-                noise: 0.1,
-                peace: 0.0,
-                rumble: 35,
-                freq: 250,
-                freqOcc: 120,
-                whine: 0.002,
-                whineOcc: 0.0005,
-                dynamicWhine: false
-            },
-            "CLINIC": {
-                noise: 0.1,
-                peace: 0.0,
-                rumble: 60,
-                freq: 180,
-                freqOcc: 180,
-                whine: 0.003,
-                whineOcc: 0.003,
-                dynamicWhine: false
-            },
-            "ARCHIVE": {
-                noise: 0.06,
-                peace: 0.0,
-                rumble: 45,
-                freq: 60,
-                freqOcc: 60,
-                whine: 0.0005,
-                whineOcc: 0.0001,
-                dynamicWhine: false
-            },
-            "MAINTENANCE": {
-                noise: 0.55,
-                peace: 0.0,
-                rumble: 110,
-                freq: 90,
-                freqOcc: 60,
-                whine: 0.008,
-                whineOcc: 0.003,
-                dynamicWhine: true
-            },
-            "INCINERATOR": {
-                noise: 0.65,
-                peace: 0.0,
-                rumble: 180,
-                freq: 60,
-                freqOcc: 60,
-                whine: 0.0,
-                whineOcc: 0.0,
-                dynamicWhine: false
-            },
-            "CHASM": {
-                noise: 0.25,
-                peace: 0.0,
-                rumble: 30,
-                freq: 40,
-                freqOcc: 40,
-                whine: 0.0,
-                whineOcc: 0.0,
-                dynamicWhine: false
-            },
-            "ATRIUM": {
-                noise: 0.09,
-                peace: 0.0,
-                rumble: 35,
-                freq: 130,
-                freqOcc: 80,
-                whine: 0.0,
-                whineOcc: 0.0,
-                dynamicWhine: false
-            },
-            "ANNEX": {
-                noise: 0.03,
-                peace: 0.0,
-                rumble: 50,
-                freq: 200,
-                freqOcc: 100,
-                whine: 0.001,
-                whineOcc: 0.0003,
-                dynamicWhine: false
-            }
+            "NORMAL": {noise: 0.0, peace: 0.0, rumble: 60, freq: 250, freqOcc: 120, whine: 0.0005, whineOcc: 0.0001, dynamicWhine: true},
+            "IMPOUND": {noise: 0.09, peace: 0.0, rumble: 45, freq: 160, freqOcc: 90, whine: 0.0008, whineOcc: 0.0003, dynamicWhine: false},
+            "BOARDROOM": {noise: 0.4, peace: 0.0, rumble: 60, freq: 250, freqOcc: 120, whine: 0.0, whineOcc: 0.0, dynamicWhine: false},
+            "SERVER": {noise: 0.1, peace: 0.0, rumble: 35, freq: 250, freqOcc: 120, whine: 0.002, whineOcc: 0.0005, dynamicWhine: false},
+            "CLINIC": {noise: 0.1, peace: 0.0, rumble: 60, freq: 180, freqOcc: 180, whine: 0.003, whineOcc: 0.003, dynamicWhine: false},
+            "ARCHIVE": {noise: 0.06, peace: 0.0, rumble: 45, freq: 60, freqOcc: 60, whine: 0.0005, whineOcc: 0.0001, dynamicWhine: false},
+            "MAINTENANCE": {noise: 0.55, peace: 0.0, rumble: 110, freq: 90, freqOcc: 60, whine: 0.008, whineOcc: 0.003, dynamicWhine: true},
+            "INCINERATOR": {noise: 0.65, peace: 0.0, rumble: 180, freq: 60, freqOcc: 60, whine: 0.0, whineOcc: 0.0, dynamicWhine: false},
+            "CHASM": {noise: 0.25, peace: 0.0, rumble: 30, freq: 40, freqOcc: 40, whine: 0.0, whineOcc: 0.0, dynamicWhine: false},
+            "ATRIUM": {noise: 0.09, peace: 0.0, rumble: 35, freq: 130, freqOcc: 80, whine: 0.0, whineOcc: 0.0, dynamicWhine: false},
+            "ANNEX": {noise: 0.03, peace: 0.0, rumble: 50, freq: 200, freqOcc: 100, whine: 0.001, whineOcc: 0.0003, dynamicWhine: false}
         };
         this.foleyProfiles = {
-            "IMPOUND": {
-                oscFreq: 120,
-                filterType: 'lowpass',
-                filterFreq: 900,
-                gain: 0.11,
-                attack: 0.02,
-                decay: 0.12
-            },
+            "IMPOUND": {oscFreq: 120, filterType: 'lowpass', filterFreq: 900, gain: 0.11, attack: 0.02, decay: 0.12},
             "CLINIC": {oscFreq: 800, filterType: 'highpass', filterFreq: 3000, gain: 0.15, attack: 0.01, decay: 0.06},
             "ARCHIVE": {oscFreq: 90, filterType: 'lowpass', filterFreq: 900, gain: 0.12, attack: 0.03, decay: 0.10},
             "ATRIUM": {oscFreq: 70, filterType: 'lowpass', filterFreq: 700, gain: 0.09, attack: 0.04, decay: 0.22},
             "SERVER": {oscFreq: 620, filterType: 'bandpass', filterFreq: 1800, gain: 0.14, attack: 0.005, decay: 0.14},
             "ANNEX": {oscFreq: 420, filterType: 'highpass', filterFreq: 2200, gain: 0.1, attack: 0.01, decay: 0.07},
             "BOARDROOM": {oscFreq: 120, filterType: 'lowpass', filterFreq: 1400, gain: 0.18, attack: 0.02, decay: 0.12},
-            "MAINTENANCE": {
-                oscFreq: 400,
-                filterType: 'bandpass',
-                filterFreq: 2500,
-                gain: 0.12,
-                attack: 0.01,
-                decay: 0.15
-            },
+            "MAINTENANCE": {oscFreq: 400, filterType: 'bandpass', filterFreq: 2500, gain: 0.12, attack: 0.01, decay: 0.15},
             "DEFAULT": {oscFreq: 60, filterType: 'lowpass', filterFreq: 600, gain: 0.10, attack: 0.04, decay: 0.18}
         };
     }
-
     init() {
         if (this.initialized) return;
         this.initialized = true;
@@ -201,9 +87,6 @@ export default class AcousticEngine {
         this.noiseSrc.connect(this.noiseFilter);
         this.noiseFilter.connect(this.atriumGain);
         this.atriumGain.connect(this.masterGain);
-        // Dedicated brown layer: the same white buffer through a deep lowpass.
-        // Stacked under the shared bed (opened wide) it builds the brown/pink/white
-        // spectrum of a running server hall.
         this.brownNoiseSrc = this.ctx.createBufferSource();
         this.brownNoiseSrc.buffer = noiseBuffer;
         this.brownNoiseSrc.loop = true;
@@ -237,33 +120,26 @@ export default class AcousticEngine {
         this.entityGain.gain.value = 0.0;
         this.entityOsc.connect(this.entityGain);
         this.entityGain.connect(this.masterGain);
-
         this.paranoiaOsc = this.ctx.createOscillator();
         this.paranoiaOsc.type = 'triangle';
         this.paranoiaOsc.frequency.value = 650;
-
         this.paranoiaLFO = this.ctx.createOscillator();
         this.paranoiaLFO.type = 'sine';
         this.paranoiaLFO.frequency.value = 2.0;
-
         this.paranoiaLFOGain = this.ctx.createGain();
         this.paranoiaLFOGain.gain.value = 10;
         this.paranoiaLFO.connect(this.paranoiaLFOGain);
         this.paranoiaLFOGain.connect(this.paranoiaOsc.frequency);
-
         this.paranoiaFilter = this.ctx.createBiquadFilter();
         this.paranoiaFilter.type = 'lowpass';
         this.paranoiaFilter.frequency.value = 1200;
-
         this.paranoiaGain = this.ctx.createGain();
         this.paranoiaGain.gain.value = 0.0;
         this.paranoiaOsc.connect(this.paranoiaFilter);
         this.paranoiaFilter.connect(this.paranoiaGain);
         this.paranoiaGain.connect(this.masterGain);
-
         this.paranoiaOsc.start();
         this.paranoiaLFO.start();
-
         this.stepFilter = this.ctx.createBiquadFilter();
         this.stepGain = this.ctx.createGain();
         this.stepFilter.connect(this.stepGain);
@@ -293,8 +169,6 @@ export default class AcousticEngine {
         this.tinnitusOsc.connect(this.tinnitusGain);
         this.tinnitusGain.connect(this.masterGain);
         this.tinnitusOsc.start();
-
-        // Specialized industrial warning relay for high-danger sectors
         this.hazardBell = this.ctx.createOscillator();
         this.hazardBell.type = 'triangle';
         this.hazardBell.frequency.value = 180;
@@ -303,7 +177,6 @@ export default class AcousticEngine {
         this.hazardBell.connect(this.hazardBellGain);
         this.hazardBellGain.connect(this.masterGain);
         this.hazardBell.start();
-
         const t = this.ctx.currentTime;
         this.mainGain.gain.setValueAtTime(0, t);
         this.whineGain.gain.setValueAtTime(0, t);
@@ -326,7 +199,6 @@ export default class AcousticEngine {
             this.ctx.resume();
         }
     }
-
     update(telemetry) {
         if (!this.initialized || !this.mainGain || this.ctx.state === 'suspended') return;
         const time = this.ctx.currentTime;
@@ -360,33 +232,24 @@ export default class AcousticEngine {
         if (this.atriumGain) {
             let noiseTarget = (isBlackout ? mix.noise * 0.1 : mix.noise) + structuralTension;
             if (activeSector === "ATRIUM" && !isBlackout) {
-                // Outdoor wind gusts irregularly instead of holding a steady
-                // machine-room hiss: two incommensurate slow sines swell and die
                 noiseTarget = mix.noise * (0.35 + 1.3 * Math.abs(Math.sin(time * 0.11) * Math.sin(time * 0.053))) + structuralTension;
             }
             setParam('atrium', this.atriumGain.gain, noiseTarget, 1.0);
         }
-
         const targetNoiseFreq = activeSector === "MAINTENANCE" ? 110.0 : (activeSector === "INCINERATOR" ? 400.0 : (activeSector === "SERVER" ? 2400.0 : (activeSector === "ATRIUM" ? 150.0 : 300.0)));
         setParam('noiseFreq', this.noiseFilter.frequency, targetNoiseFreq, 0.4);
-
-        // Server halls: the brown layer swells in under the wide-open white bed
         if (this.brownGain) {
             setParam('srvBrown', this.brownGain.gain, (activeSector === "SERVER" && !isBlackout) ? 0.05 : 0.0, 1.2);
         }
-
         const bellPulse = activeSector === "MAINTENANCE" && !isBlackout ? (Math.max(0, Math.sin(time * 2.5)) ** 6.0) * 0.07 : 0.0;
         if (this.hazardBellGain) setParam('hazardBell', this.hazardBellGain.gain, bellPulse, 0.05);
-
         if (this.peaceGain) setParam('peace', this.peaceGain.gain, Math.max(0, mix.peace - structuralTension), 2.0);
-
         if (this.entityGain) setParam('entity', this.entityGain.gain, anomalyPressure > 0.0 ? anomalyPressure * 0.4 : 0.0, 0.2);
         if (this.paranoiaGain) {
             setParam('paranoiaVol', this.paranoiaGain.gain, structuralTension > 0.0 ? structuralTension * 0.2 : 0.0, 1.0);
             setParam('paranoiaLFO', this.paranoiaLFO.frequency, Math.max(0.5, 4.0 - (structuralTension * 4.0)), 1.0);
             setParam('paranoiaPitch', this.paranoiaOsc.frequency, Math.max(300, 650 - (structuralTension * 300.0)), 1.0);
         }
-
         if (this.spatialDelay) {
             const delayTimes = {
                 "IMPOUND": 0.45,
@@ -417,13 +280,8 @@ export default class AcousticEngine {
             setParam('delayTime', this.spatialDelay.delayTime, targetDelay, 1.0);
             setParam('feedback', this.feedbackGain.gain, targetFeedback, 1.0);
         }
-
-        // ARCHIVE room tone: a quiet library that isn't actually quiet. Unseen
-        // patrons whisper, cough, and turn pages somewhere in the stacks, washed
-        // through the sector's long soft reverb.
         if (activeSector === "ARCHIVE" && !isBlackout) {
             if (!this._archiveNextEvent) this._archiveNextEvent = time + 2.0;
-            // Second burst of a double cough ("k-khh")
             if (this._archiveCoughAt && time >= this._archiveCoughAt) {
                 this.triggerSomaticEvent('cough', this._archiveCoughDistSq, 0.7 + Math.random() * 0.4);
                 this._archiveCoughAt = 0;
@@ -445,9 +303,6 @@ export default class AcousticEngine {
             this._archiveNextEvent = 0;
             this._archiveCoughAt = 0;
         }
-
-        // ATRIUM room tone: stalks rustle somewhere in the rows; something
-        // that sounds almost like an owl calls twice from the dark.
         if (activeSector === "ATRIUM" && !isBlackout) {
             if (!this._atriumNextEvent) this._atriumNextEvent = time + 3.0;
             if (this._atriumHootAt && time >= this._atriumHootAt) {
@@ -470,9 +325,6 @@ export default class AcousticEngine {
             this._atriumNextEvent = 0;
             this._atriumHootAt = 0;
         }
-
-        // IMPOUND room tone: somewhere in the pens, chainlink shivers against
-        // its posts; a gate creaks on a hinge nobody oiled.
         if (activeSector === "IMPOUND" && !isBlackout) {
             if (!this._impoundNextEvent) this._impoundNextEvent = time + 3.0;
             if (time >= this._impoundNextEvent) {
@@ -512,7 +364,6 @@ export default class AcousticEngine {
             this.currentSector = activeSector;
         }
     }
-
     triggerSomaticEvent(type, distanceSq, intensity) {
         if (!this.initialized || this.ctx.state === 'suspended') return;
         if (distanceSq > 1600.0) return;
@@ -580,7 +431,6 @@ export default class AcousticEngine {
         };
         if (voices[type]) spawnVoice(...voices[type]);
     }
-
     setVolume(val) {
         this.masterVolume = val;
         if (this.masterGain) {

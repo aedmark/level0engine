@@ -19,8 +19,6 @@ export default class SomaticInput {
             isReading: false
         };
         this.isLocked = false;
-        // Drag-look fallback for environments that deny the Pointer Lock API
-        // (e.g. IDE-embedded previews like WebStorm's JCEF browser)
         this.lockFallback = false;
         this._dragLook = false;
         this._cKeyDown = false;
@@ -40,16 +38,11 @@ export default class SomaticInput {
     _bindEvents() {
         document.addEventListener('keydown', (e) => this._onKeyDown(e));
         document.addEventListener('keyup', (e) => this._onKeyUp(e));
-        // Desktop pointer lock: click the game view to capture the mouse.
-        // (UI overlays sit above the canvas, so their clicks never land here.)
         const lockSurface = document.getElementById('canvas-container');
         if (lockSurface) {
             lockSurface.addEventListener('click', () => {
                 if (this.state.isReading || this.isLocked || this.lockFallback) return;
                 document.body.requestPointerLock();
-                // Some embedded browsers neither grant the lock nor fire
-                // pointerlockerror — if the lock hasn't arrived shortly,
-                // degrade to drag-look
                 setTimeout(() => {
                     if (!this.isLocked) this.lockFallback = true;
                 }, 400);

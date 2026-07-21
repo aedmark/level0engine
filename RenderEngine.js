@@ -3,6 +3,13 @@
 
 export default class RenderEngine {
     constructor() {
+        if (!THREE.__radialFogPatched) {
+            THREE.ShaderChunk.fog_vertex = THREE.ShaderChunk.fog_vertex.replace(
+                /vFogDepth\s*=\s*-\s*mvPosition\.z\s*;/,
+                'vFogDepth = length( mvPosition.xyz );'
+            );
+            THREE.__radialFogPatched = true;
+        }
         this.aspectRatio = 1.3333333333;
         this.resolutionScale = 1.0;
         this.scene = new THREE.Scene();
@@ -10,7 +17,7 @@ export default class RenderEngine {
         this.scene.fog = new THREE.FogExp2(0xa89f68, 0.05);
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
         this.camera.position.y = 1.6;
-        this.renderer = new THREE.WebGLRenderer({antialias: false, powerPreference: "high-performance"});
+        this.renderer = new THREE.WebGLRenderer({antialias: false, powerPreference: "high-performance", logarithmicDepthBuffer: true});
         this.renderer.setPixelRatio(1.0);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = true;
@@ -80,9 +87,15 @@ export default class RenderEngine {
                         gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
                         return;
                     }
-                    float phasePos = fract(time * 0.05); 
+                    float phasePos = fract(time * 0.05);
                     float phaseBand = 1.0 - smoothstep(0.0, 0.02, abs(uv.y - phasePos));
                     float pCurve = pow(panic, 3.0);
+                    // Baseline CA + tracking jitter should only exist once the player is
+                    // actually stressed; at full rest this must read as 0 or thin, distant,
+                    // high-contrast geometry (chasm pillars against open sky) will visibly
+                    // vibrate/ghost from a permanent sub-pixel RGB split and tracking wobble.
+                    float stressLevel = max(squeeze, max(anomaly, max(exhaustion, max(panic, adrenaline))));
+                    float stressGate = smoothstep(0.0, 0.2, stressLevel);
                     if (anomaly > 0.01 || panic > 0.01) {
                         float gpuSeed = random(uv + time);
                         float intensity = max(anomaly, pCurve * 1.5);
@@ -91,10 +104,10 @@ export default class RenderEngine {
                         uv.x += tear * (gpuSeed - 0.5) * intensity * 0.3;
                         uv.y += tear * (gpuSeed - 0.5) * intensity * 0.05;
                     }
-                    uv.x += phaseBand * 0.0002 * sin(time * 50.0);
+                    uv.x += phaseBand * 0.0002 * sin(time * 50.0) * stressGate;
                     float heartbeatCA = exhaustion > 0.3 ? sin(time * (10.0 + exhaustion * 5.0)) * 0.004 * exhaustion : 0.0;
                     float panicTear = panic > 0.3 ? (sin(time * 25.0) * 0.02 * pCurve) : 0.0;
-                    float caShift = 0.0005 + (distSq * 0.0015) + (squeeze * 0.003) + pow(anomaly, 1.5) * 0.05 + pow(exhaustion, 2.0) * 0.01 + heartbeatCA + panicTear;
+                    float caShift = (0.0005 + (distSq * 0.0015)) * stressGate + (squeeze * 0.003) + pow(anomaly, 1.5) * 0.05 + pow(exhaustion, 2.0) * 0.01 + heartbeatCA + panicTear;
                     vec2 offset = vec2(caShift, 0.0); 
                     vec4 texR = texture2D(tDiffuse, uv + offset);
                     vec4 texG = texture2D(tDiffuse, uv);

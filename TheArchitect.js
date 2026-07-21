@@ -640,8 +640,6 @@ export default class TheArchitect {
                 }
             },
             {
-                // THE EXIT SWITCH — the objective takes the widest band in the
-                // cascade tail (0.032..0.035); decorations yield to completability
                 prob: 0.032, build: (x, z) => {
                     const cx = x * this.cellSize;
                     const cz = z * this.cellSize;
@@ -701,6 +699,93 @@ export default class TheArchitect {
                 }
             },
             {
+                prob: 0.028, build: (x, z) => {
+                    const cx = x * this.cellSize;
+                    const cz = z * this.cellSize;
+                    if (!this._globalSwitches) this._globalSwitches = [];
+                    if (!this.pointsOfInterest) this.pointsOfInterest = [];
+                    let tooClose = false;
+                    for (let i = 0; i < this._globalSwitches.length; i++) {
+                        const sx = this._globalSwitches[i].x;
+                        const sz = this._globalSwitches[i].z;
+                        const distSq = (cx - sx) * (cx - sx) + (cz - sz) * (cz - sz);
+                        if (distSq > 0.1 && distSq < 2500.0) {
+                            tooClose = true;
+                            break;
+                        }
+                    }
+                    if (ctx.playerPos) {
+                        const dxPlayer = cx - ctx.playerPos.x;
+                        const dzPlayer = cz - ctx.playerPos.z;
+                        if (dxPlayer * dxPlayer + dzPlayer * dzPlayer < 1600.0) {
+                            tooClose = true;
+                        }
+                    }
+                    if (tooClose) {
+                        const wall = buildWall(this.cellSize, this.cellSize, this.sharedWallMat);
+                        wall.position.set(cx, 1.5, cz);
+                        wall.userData.isEntityBlocker = true;
+                        addGeometry(wall);
+                        return;
+                    }
+                    this._globalSwitches.push({x: cx, z: cz});
+                    if (ctx.markOccupied) ctx.markOccupied(x, z);
+                    const flavor = Math.floor(random() * 3);
+                    if (flavor === 0) {
+                        if (!this.fallenTileGeo) {
+                            this.fallenTileGeo = new THREE.BoxGeometry(0.9, 0.04, 0.9);
+                            this.geoCache.set(this.fallenTileGeo.uuid, true);
+                        }
+                        if (!this.rottedTileMat) {
+                            this.rottedTileMat = this.ceilMat.clone();
+                            this.rottedTileMat.color.setHex(0x93856b);
+                            this.rottedTileMat.roughness = 0.95;
+                            this.sharedAssets.add(this.rottedTileMat.uuid);
+                        }
+                        if (!this.ceilingHoleMat) {
+                            this.ceilingHoleMat = new THREE.MeshBasicMaterial({color: 0x060504});
+                            this.sharedAssets.add(this.ceilingHoleMat.uuid);
+                        }
+                        const tileCount = 4 + Math.floor(random() * 4);
+                        for (let i = 0; i < tileCount; i++) {
+                            const tile = new THREE.Mesh(this.fallenTileGeo, this.rottedTileMat);
+                            tile.position.set(cx + (random() - 0.5) * 2.6, 0.03 + random() * 0.09, cz + (random() - 0.5) * 2.6);
+                            tile.rotation.set((random() - 0.5) * 0.3, random() * Math.PI, (random() - 0.5) * 0.3);
+                            addGeometry(tile);
+                        }
+                        const hole = buildWall(2.2, 2.2, this.ceilingHoleMat, 0.02);
+                        hole.position.set(cx, 2.975, cz);
+                        addGeometry(hole);
+                    } else if (flavor === 1) {
+                        const pieces = 2 + Math.floor(random() * 2);
+                        for (let i = 0; i < pieces; i++) {
+                            const felled = buildChair(cx + (random() - 0.5) * 1.8, 0, cz + (random() - 0.5) * 1.8, random() * Math.PI * 2);
+                            felled.rotation.z = (random() > 0.5 ? 1 : -1) * Math.PI / 2;
+                            felled.position.y = 0.38;
+                            addFurniture(felled);
+                        }
+                        const table = buildTable(cx, 0, cz);
+                        table.rotation.x = Math.PI / 2;
+                        table.position.y = 0.5;
+                        addFurniture(table);
+                    } else {
+                        if (!this.anomalyPanelMat) {
+                            this.anomalyPanelMat = new THREE.MeshStandardMaterial({
+                                color: 0x2a1f33, emissive: 0x4422aa, emissiveIntensity: 0.35, roughness: 0.4
+                            });
+                            this.sharedAssets.add(this.anomalyPanelMat.uuid);
+                        }
+                        const panel = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.6, 0.12), this.anomalyPanelMat);
+                        panel.position.set(cx, 1.4, cz);
+                        panel.rotation.y = (random() - 0.5) * 0.6;
+                        panel.rotation.z = (random() - 0.5) * 0.15;
+                        panel.scale.set(1.0, 1.0 + random() * 0.3, 1.0);
+                        addGeometry(panel);
+                    }
+                    this.pointsOfInterest.push({x: cx, z: cz, active: false, chunkHash: hash});
+                }
+            },
+            {
                 prob: 0.025, build: (x, z) => {
                     const cx = x * this.cellSize;
                     const cz = z * this.cellSize;
@@ -750,8 +835,8 @@ export default class TheArchitect {
                             const p2 = buildWall(isZ ? pW : thick, isZ ? thick : pW, this.sharedWallMat);
                             p2.position.set(cx + (isZ ? pOff : sign * off), 1.5, cz + (isZ ? sign * off : pOff));
                             addGeometry(p2);
-                            const head = buildWall(isZ ? gap : thick, isZ ? thick : gap, this.sharedWallMat, 0.8, 2.2);
-                            head.position.set(cx + (isZ ? 0 : sign * off), 2.6, cz + (isZ ? sign * off : 0));
+                            const head = buildWall(isZ ? gap : thick, isZ ? thick : gap, this.sharedWallMat, 0.4, 2.6);
+                            head.position.set(cx + (isZ ? 0 : sign * off), 2.8, cz + (isZ ? sign * off : 0));
                             addGeometry(head);
                         } else {
                             const w = buildWall(isZ ? this.cellSize : thick, isZ ? thick : this.cellSize, this.sharedWallMat);
@@ -977,8 +1062,6 @@ export default class TheArchitect {
                             const fx = px + (alongX ? 0 : this.cellSize / 2);
                             const fz = pz + (alongX ? this.cellSize / 2 : 0);
                             if (random() > 0.85) {
-                                // A pen gate someone left ajar and never came back for.
-                                // Collisionless: thin wire on a visible swing.
                                 for (let s = -1; s <= 1; s += 2) {
                                     const stub = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 1.3 : 0.05, 3.0, alongX ? 0.05 : 1.3), this.waterMat);
                                     stub.position.set(fx + (alongX ? s * 1.35 : 0), 1.5, fz + (alongX ? 0 : s * 1.35));
@@ -1009,8 +1092,6 @@ export default class TheArchitect {
                         buildFenceRun(true);
                         buildFenceRun(false);
                     } else {
-                        // Impounded belongings hoarded in the wire pens, visible
-                        // through the mesh but fenced out of reach
                         const mw = (dx, dz) => {
                             const nx = localX + dx, nz = localZ + dz;
                             return nx >= 0 && nx < this.chunkSize && nz >= 0 && nz < this.chunkSize && maze && maze[nx][nz];
@@ -1031,7 +1112,6 @@ export default class TheArchitect {
                                     addGeometry(fb);
                                 }
                                 if (random() > 0.5) {
-                                    // A property tag resting on top of the hoard
                                     const tag = new THREE.Mesh(this.documentGeo, this.documentMat);
                                     tag.position.set(hbx, hN * 0.5 + 0.01, hbz);
                                     tag.rotation.y = random() * Math.PI;
@@ -1132,10 +1212,6 @@ export default class TheArchitect {
                                 this.cartonGeo = new THREE.BoxGeometry(0.6, 0.5, 0.6);
                                 this.geoCache.set(this.cartonGeo.uuid, true);
                             }
-                            // Gravity-respecting stack: one shared base, each box drifts
-                            // only slightly relative to the one beneath it, yaws stay
-                            // roughly aligned, and only the TOP box may be tipped over
-                            // (nothing can rest on a sideways box)
                             const boxCount = Math.floor(random() * 3) + 1;
                             const cartonPool = this.cartonMats || [this.fileBoxMat];
                             const baseX = x * this.cellSize + (random() * 0.4 - 0.2);
@@ -1147,18 +1223,12 @@ export default class TheArchitect {
                                 const isTop = i === boxCount - 1;
                                 const tipped = isTop && random() > 0.8;
                                 const mBox = new THREE.Mesh(this.cartonGeo, cartonPool[Math.floor(random() * cartonPool.length)]);
-                                // Per-level drift, clamped in total so the top box's
-                                // center of mass never leaves the base box's footprint
                                 driftX = Math.max(-0.09, Math.min(0.09, driftX + (random() - 0.5) * 0.1));
                                 driftZ = Math.max(-0.09, Math.min(0.09, driftZ + (random() - 0.5) * 0.1));
                                 if (tipped) {
-                                    // Tip first, THEN spin about the world vertical —
-                                    // yawing in default order swings the corners through
-                                    // the floor plane
                                     mBox.rotation.order = 'YXZ';
                                     mBox.rotation.x = Math.PI / 2;
                                     mBox.rotation.y = random() * Math.PI;
-                                    // A 0.6-deep carton on its side stands 0.6 tall
                                     mBox.position.set(baseX + driftX, stackTop + 0.3, baseZ + driftZ);
                                 } else {
                                     mBox.rotation.y = baseYaw + (random() - 0.5) * 0.3;
@@ -1360,7 +1430,6 @@ export default class TheArchitect {
                                 sheet.position.set(acx + (random() - 0.5) * 2.6, 0.015, acz + (random() - 0.5) * 2.6);
                                 sheet.rotation.y = random() * Math.PI * 2;
                                 if (random() > 0.7) {
-                                    // Some dropped records are still legible
                                     sheet.userData = {
                                         type: 'document',
                                         chunkHash: hash,
@@ -1720,7 +1789,8 @@ export default class TheArchitect {
                         }
                         return;
                     }
-                    if (localX >= 4 && localX <= 11 && localZ >= 4 && localZ <= 11) {
+                    const isMainPath = localX === 7 || localZ === 7;
+                    if (localX >= 4 && localX <= 11 && localZ >= 4 && localZ <= 11 && !isMainPath) {
                         const block = buildWall(this.cellSize, this.cellSize, this.rustMat, 3.0);
                         block.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                         block.userData.isEntityBlocker = true;
@@ -1770,8 +1840,8 @@ export default class TheArchitect {
                             this.geoCache.set(this.valveGeo.uuid, true);
                         }
                         const cxw = x * this.cellSize, czw = z * this.cellSize;
-                        const isCorridorNS = localX === 7 && (localZ <= 3 || localZ >= 12);
-                        const isCorridorEW = localZ === 7 && (localX <= 3 || localX >= 12);
+                        const isCorridorNS = localX === 7;
+                        const isCorridorEW = localZ === 7;
                         if (isCorridorNS || isCorridorEW) {
                             const spine = buildWall(isCorridorNS ? 1.1 : this.cellSize, isCorridorNS ? this.cellSize : 1.1, ductMat, 0.4);
                             spine.position.set(cxw, 2.78, czw);
@@ -1893,13 +1963,8 @@ export default class TheArchitect {
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat, "ANNEX")) return;
                     const ox = x * this.cellSize, oz = z * this.cellSize;
-
-                    // The Async Research wing: three cross corridors lined with
-                    // door after door. Most are locked. Some open into small dark
-                    // offices that may hold a note or a running laptop.
                     const isCorr = (lx, lz) => lx > 0 && lx < this.chunkSize - 1 && lz > 0 && lz < this.chunkSize - 1 &&
                         (lx === 7 || lz === 3 || lz === 7 || lz === 11);
-
                     if (isCorr(localX, localZ)) {
                         if ((localX + localZ) % 2 === 0 && random() > 0.45) {
                             const activeMat = ctx.getLightMaterial(0xffaa55, 0xffaa55, false);
@@ -1920,24 +1985,18 @@ export default class TheArchitect {
                         }
                         return;
                     }
-
-                    // Which edges touch a corridor?
                     const corrEdges = [];
                     if (isCorr(localX, localZ - 1)) corrEdges.push([0, -1]);
                     if (isCorr(localX, localZ + 1)) corrEdges.push([0, 1]);
                     if (isCorr(localX - 1, localZ)) corrEdges.push([-1, 0]);
                     if (isCorr(localX + 1, localZ)) corrEdges.push([1, 0]);
-
                     if (corrEdges.length === 0) {
-                        // Solid mass between the office pods
                         const block = buildWall(this.cellSize, this.cellSize, this.sharedWallMat);
                         block.position.set(ox, 1.5, oz);
                         block.userData.isEntityBlocker = true;
                         addGeometry(block);
                         return;
                     }
-
-                    // Office pod: a door on one corridor edge, walls elsewhere
                     const dd = corrEdges[Math.floor(random() * corrEdges.length)];
                     const isOffice = (lx, lz) => !isCorr(lx, lz) && lx > 0 && lx < this.chunkSize - 1 && lz > 0 && lz < this.chunkSize - 1 &&
                         (isCorr(lx, lz - 1) || isCorr(lx, lz + 1) || isCorr(lx - 1, lz) || isCorr(lx + 1, lz));
@@ -1947,9 +2006,9 @@ export default class TheArchitect {
                         if (ex === dd[0] && ez === dd[1]) continue;
                         const nx = localX + ex, nz = localZ + ez;
                         let buildIt;
-                        if (isCorr(nx, nz)) buildIt = true;                       // blank wall to corridor
-                        else if (isOffice(nx, nz)) buildIt = (ez === -1 || ex === -1); // shared wall, deduped
-                        else buildIt = false;                                     // perimeter or filler mass covers it
+                        if (isCorr(nx, nz)) buildIt = true;
+                        else if (isOffice(nx, nz)) buildIt = (ez === -1 || ex === -1);
+                        else buildIt = false;
                         if (buildIt) {
                             const wallSeg = buildWall(ex === 0 ? this.cellSize : 0.25, ex === 0 ? 0.25 : this.cellSize, this.sharedWallMat);
                             wallSeg.position.set(ox + ex * 2, 1.5, oz + ez * 2);
@@ -1957,14 +2016,9 @@ export default class TheArchitect {
                             addGeometry(wallSeg);
                         }
                     }
-
-                    // Door assembly on the corridor edge. ~1 in 3 actually opens.
                     const spansX = dd[1] !== 0;
                     const wx = ox + dd[0] * 2, wz = oz + dd[1] * 2;
                     const isOpenable = random() < 0.35;
-                    // Exactly ONE records room per annex chunk: the first locked door
-                    // to win the roll takes the keypad, everyone else stays a blank
-                    // locked door. The code is written down somewhere in the paper trail.
                     if (!this._annexKeypadChunks) this._annexKeypadChunks = new Set();
                     const isKeypad = !isOpenable && !this._annexKeypadChunks.has(hash) && random() < 0.35;
                     if (isKeypad) this._annexKeypadChunks.add(hash);
@@ -2011,9 +2065,7 @@ export default class TheArchitect {
                     dBox.chunkHash = hash;
                     if (isOpenable || isKeypad) doorMesh.userData.box = dBox;
                     this.spatialGrid.insert(dBox);
-
                     if (isKeypad) {
-                        // Glowing security panel mounted on the corridor-side stub wall
                         const pad = new THREE.Group();
                         const padBody = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.22, 0.05), this.baseHousingMat);
                         pad.add(padBody);
@@ -2029,8 +2081,6 @@ export default class TheArchitect {
                         pad.traverse((ch) => { ch.userData.chunkHash = hash; });
                         chunkGroup.add(pad);
                         pad.updateMatrixWorld(true);
-
-                        // The stash: what a locked room is FOR
                         const sX = ox - dd[0] * 0.9, sZ = oz - dd[1] * 0.9;
                         if (!this.interactables) this.interactables = [];
                         const batGroup = new THREE.Group();
@@ -2053,7 +2103,6 @@ export default class TheArchitect {
                         aGroup.userData = {type: 'almond', chunkHash: hash, active: true};
                         chunkGroup.add(aGroup);
                         this.interactables.push(aGroup);
-                        // ...and the sealed file: the story's finding of fact
                         const fin = new THREE.Mesh(this.documentGeo, this.documentMat);
                         fin.position.set(ox, 0.015, oz);
                         fin.rotation.y = random() * Math.PI;
@@ -2072,15 +2121,11 @@ export default class TheArchitect {
                         this.spatialGrid.insert(finBox);
                         return;
                     }
-
-                    // Only rooms the player can actually enter get contents
                     if (!isOpenable) return;
                     const contentRoll = random();
                     if (contentRoll < 0.5) {
-                        // Desk pushed to the back wall
                         const deskX = ox - dd[0] * 1.0, deskZ = oz - dd[1] * 1.0;
                         addFurniture(buildTable(deskX, 0, deskZ));
-
                         const spawnRoll = random();
                         if (spawnRoll < 0.5) {
                             const lap = new THREE.Group();
@@ -2095,15 +2140,12 @@ export default class TheArchitect {
                             lapScreen.add(glow);
                             lap.add(lapScreen);
                             lap.position.set(deskX, 0.845, deskZ);
-                            // Face the door
                             lap.rotation.y = Math.atan2(dd[0], dd[1]);
                             lap.userData = {
                                 type: 'document',
                                 chunkHash: hash,
                                 active: true,
                                 zone: 'ANNEX',
-                                // PC_ prefix marks a networked terminal: re-reading
-                                // browses the full recovered archive
                                 docId: 'PC_' + Math.floor(random() * 9999)
                             };
                             chunkGroup.add(lap);
@@ -2123,13 +2165,10 @@ export default class TheArchitect {
                             const tapeBody = new THREE.Mesh(this.tapeGeo, this.baseHousingMat);
                             tapeBody.position.set(0, 0.02, 0);
                             tapeGroup.add(tapeBody);
-
-                            // Red recording/playback LED indicator
                             const recLight = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.02), this.hazardMat);
                             recLight.material = new THREE.MeshBasicMaterial({color: 0xff0000});
                             recLight.position.set(0.06, 0.04, -0.04);
                             tapeGroup.add(recLight);
-
                             tapeGroup.position.set(deskX, 0.82, deskZ);
                             tapeGroup.rotation.y = random() * Math.PI;
                             tapeGroup.userData = {
@@ -2148,7 +2187,6 @@ export default class TheArchitect {
                             this.spatialGrid.insert(tBox);
                         }
                     } else if (contentRoll < 0.75) {
-                        // A note left on the floor
                         const doc = new THREE.Mesh(this.documentGeo, this.documentMat);
                         doc.position.set(ox + (random() - 0.5) * 1.6, 0.015, oz + (random() - 0.5) * 1.6);
                         doc.rotation.y = random() * Math.PI;
@@ -2167,7 +2205,6 @@ export default class TheArchitect {
                         doc.userData.box = nBox;
                         this.spatialGrid.insert(nBox);
                     } else if (contentRoll < 0.9 && this.cartonGeo) {
-                        // Abandoned cartons
                         const cartonPool = this.cartonMats || [this.fileBoxMat];
                         const cbx = ox + (random() - 0.5) * 1.4;
                         const cbz = oz + (random() - 0.5) * 1.4;
@@ -2179,8 +2216,6 @@ export default class TheArchitect {
                             addGeometry(fb);
                         }
                     }
-                    // The rest stay bare: an empty room behind an unlocked door
-                    // is its own kind of wrong
                 }
             },
             {
@@ -2188,9 +2223,6 @@ export default class TheArchitect {
                 foundationMat: this.dirtMat,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat, "ATRIUM")) {
-                        // Shell coating: the interior face dissolves into endless dark
-                        // farmland — unlit crop silhouettes receding into black, so
-                        // whatever is "out there" always looks worse than the maze.
                         if (this.farVoidMat) {
                             if (!this.fieldPlaneGeo) {
                                 this.fieldPlaneGeo = new THREE.PlaneGeometry(this.cellSize + 0.02, 3.0);
@@ -2215,17 +2247,12 @@ export default class TheArchitect {
                     }
                     const gx = x * this.cellSize, gz = z * this.cellSize;
                     if (localX === 7 && localZ === 7) {
-                        // Sky covers ONLY the maze interior (local 2..58). The perimeter
-                        // band — including every threshold alcove — is capped by a metal
-                        // plate ring at ceiling height, so you pass under steel and the
-                        // sky only opens once you are truly inside.
                         const innerSpan = (this.chunkSize - 2) * this.cellSize;
                         const skyGeo = new THREE.PlaneGeometry(innerSpan, innerSpan);
                         const sky = new THREE.Mesh(skyGeo, this.nightSkyMat);
                         sky.rotation.x = Math.PI / 2;
                         sky.position.set(gx + 2, 6.0, gz + 2);
                         ctx.chunkGroup.add(sky);
-
                         const fullSpan = this.chunkSize * this.cellSize;
                         const capNS = new THREE.BoxGeometry(fullSpan, 0.06, this.cellSize);
                         const capEW = new THREE.BoxGeometry(this.cellSize, 0.06, innerSpan);

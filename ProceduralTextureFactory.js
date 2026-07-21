@@ -8,7 +8,6 @@ export default class ProceduralTextureFactory {
         canvas.height = height;
         return {canvas, ctx: canvas.getContext('2d')};
     }
-
     static _generateMasterNoise() {
         const {canvas, ctx} = this._createContext(512, 512);
         const img = ctx.createImageData(512, 512);
@@ -25,7 +24,6 @@ export default class ProceduralTextureFactory {
         ctx.putImageData(img, 0, 0);
         return canvas;
     }
-
     static _buildStructuralAssets(masterNoise) {
         const {canvas: wallCanvas, ctx: wallCtx} = this._createContext(512, 512);
         wallCtx.fillStyle = '#d4c382';
@@ -147,7 +145,6 @@ export default class ProceduralTextureFactory {
         const doorMat = [doorMatEdge, doorMatEdge, doorMatEdge, doorMatEdge, doorMatFront, doorMatBack];
         return {headerMat, wallTexture, structMat, woodMat, doorMat};
     }
-
     static _buildSurfaceAssets(masterNoise) {
         const {canvas: carpetCanvas, ctx: carpetCtx} = this._createContext(512, 512);
         const {canvas: noiseCanvas, ctx: noiseCtx} = this._createContext(256, 256);
@@ -229,7 +226,6 @@ export default class ProceduralTextureFactory {
         });
         return {carpetTexture, ceilingTexture, tileMat, clinicMat};
     }
-
     static _buildOrganicAssets(masterNoise) {
         const {canvas: moldCanvas, ctx: moldCtx} = this._createContext(256, 256);
         for (let i = 0; i < 12; i++) {
@@ -315,7 +311,6 @@ export default class ProceduralTextureFactory {
         const {canvas: cornCanvas, ctx: cornCtx} = this._createContext(256, 256);
         cornCtx.fillStyle = '#11220a';
         cornCtx.fillRect(0, 0, 256, 256);
-        // Vertical background stalks
         for (let i = 0; i < 40; i++) {
             cornCtx.strokeStyle = '#223311';
             cornCtx.lineWidth = 3 + Math.random() * 4;
@@ -325,7 +320,6 @@ export default class ProceduralTextureFactory {
             cornCtx.lineTo(cx, 256);
             cornCtx.stroke();
         }
-        // Drooping leaves
         for (let i = 0; i < 200; i++) {
             cornCtx.strokeStyle = Math.random() > 0.6 ? '#446622' : '#889933';
             cornCtx.lineWidth = 1.5 + Math.random() * 2.5;
@@ -335,8 +329,7 @@ export default class ProceduralTextureFactory {
             cornCtx.moveTo(sx, sy);
             cornCtx.quadraticCurveTo(sx + (Math.random() - 0.5) * 40, sy - 30 - Math.random() * 40, sx + (Math.random() - 0.5) * 60, sy + 20 + Math.random() * 40);
             cornCtx.stroke();
-            
-            if (Math.random() > 0.95) { // Dead stalks
+            if (Math.random() > 0.95) {
                 cornCtx.strokeStyle = '#5c4b31';
                 cornCtx.lineWidth = 1 + Math.random() * 2;
                 cornCtx.beginPath();
@@ -358,7 +351,6 @@ export default class ProceduralTextureFactory {
             bumpMap: cornTexture,
             bumpScale: 0.05
         });
-        
         const {canvas: dirtCanvas, ctx: dirtCtx} = this._createContext(256, 256);
         dirtCtx.fillStyle = '#1c150c';
         dirtCtx.fillRect(0, 0, 256, 256);
@@ -379,7 +371,6 @@ export default class ProceduralTextureFactory {
             bumpMap: dirtTexture,
             bumpScale: 0.1
         });
-        
         const {canvas: skyCanvas, ctx: skyCtx} = this._createContext(512, 512);
         skyCtx.fillStyle = '#020205';
         skyCtx.fillRect(0, 0, 512, 512);
@@ -400,10 +391,8 @@ export default class ProceduralTextureFactory {
             map: skyTexture,
             fog: false
         });
-        
         return {moldMat, moldGeo, ceilingStainMat, ceilingStainGeo, fabricMat, mossMat, cornMat, dirtMat, nightSkyMat};
     }
-
     static _buildTechAssets(masterNoise) {
         const {canvas: ventCanvas, ctx: ventCtx} = this._createContext(512, 256);
         ventCtx.fillStyle = '#808080';
@@ -509,7 +498,6 @@ export default class ProceduralTextureFactory {
         const baseHousingMat = new THREE.MeshStandardMaterial({color: 0x1a1a1a, roughness: 0.9});
         return {ventMat, serverMat, baseLightMat, baseBrokenLightMat, baseHousingMat};
     }
-
     static _buildHazardAndMiscAssets(masterNoise) {
         const {canvas: fenceCanvas, ctx: fenceCtx} = this._createContext(64, 64);
         fenceCtx.strokeStyle = '#99aab5';
@@ -630,7 +618,6 @@ export default class ProceduralTextureFactory {
         const almondMat = new THREE.MeshStandardMaterial({map: almondTexture, roughness: 0.8});
         return {waterMat, hazardMat, glowMat, glowGeo, tagMat, tagGeo, voidMat, rustMat, metalMat, almondMat};
     }
-
     static generateAssets() {
         const masterNoise = this._generateMasterNoise();
         const structAssets = this._buildStructuralAssets(masterNoise);
