@@ -360,6 +360,31 @@ export default class ProceduralTextureFactory {
             dirtCtx.arc(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 2, 0, Math.PI * 2);
             dirtCtx.fill();
         }
+        // Husks baked straight into the dirt texture instead of scattered as
+        // separate objects: dried, papery leaf-litter smears with a fiber midline.
+        for (let i = 0; i < 16; i++) {
+            const cx = Math.random() * 256, cy = Math.random() * 256;
+            const len = 16 + Math.random() * 28;
+            const wid = 5 + Math.random() * 6;
+            dirtCtx.save();
+            dirtCtx.translate(cx, cy);
+            dirtCtx.rotate(Math.random() * Math.PI);
+            const huskGrad = dirtCtx.createLinearGradient(-len / 2, 0, len / 2, 0);
+            huskGrad.addColorStop(0, 'rgba(110, 90, 40, 0.85)');
+            huskGrad.addColorStop(0.5, 'rgba(165, 140, 68, 0.9)');
+            huskGrad.addColorStop(1, 'rgba(100, 82, 36, 0.85)');
+            dirtCtx.fillStyle = huskGrad;
+            dirtCtx.beginPath();
+            dirtCtx.ellipse(0, 0, len / 2, wid / 2, 0, 0, Math.PI * 2);
+            dirtCtx.fill();
+            dirtCtx.strokeStyle = 'rgba(70, 55, 22, 0.45)';
+            dirtCtx.lineWidth = 1;
+            dirtCtx.beginPath();
+            dirtCtx.moveTo(-len / 2 + 2, 0);
+            dirtCtx.lineTo(len / 2 - 2, 0);
+            dirtCtx.stroke();
+            dirtCtx.restore();
+        }
         dirtCtx.globalAlpha = 0.5;
         dirtCtx.drawImage(masterNoise, 0, 0, 256, 256);
         const dirtTexture = new THREE.CanvasTexture(dirtCanvas);
@@ -618,6 +643,195 @@ export default class ProceduralTextureFactory {
         const almondMat = new THREE.MeshStandardMaterial({map: almondTexture, roughness: 0.8});
         return {waterMat, hazardMat, glowMat, glowGeo, tagMat, tagGeo, voidMat, rustMat, metalMat, almondMat};
     }
+    static _buildAnnexAssets(masterNoise) {
+        // Base brushed-steel plate: also used for the door's thin edge faces.
+        const {canvas: steelCanvas, ctx: steelCtx} = this._createContext(256, 512);
+        const steelGrad = steelCtx.createLinearGradient(0, 0, 0, 512);
+        steelGrad.addColorStop(0, '#787f85');
+        steelGrad.addColorStop(1, '#484d52');
+        steelCtx.fillStyle = steelGrad;
+        steelCtx.fillRect(0, 0, 256, 512);
+        steelCtx.lineWidth = 1;
+        for (let y = 0; y < 512; y += 3 + Math.floor(Math.random() * 3)) {
+            steelCtx.strokeStyle = `rgba(255,255,255,${0.02 + Math.random() * 0.03})`;
+            steelCtx.beginPath();
+            steelCtx.moveTo(0, y);
+            steelCtx.lineTo(256, y);
+            steelCtx.stroke();
+        }
+        steelCtx.globalAlpha = 0.22;
+        steelCtx.drawImage(masterNoise, 0, 0, 256, 512);
+        steelCtx.globalAlpha = 1.0;
+        const steelTexture = new THREE.CanvasTexture(steelCanvas);
+        const annexEdgeMat = new THREE.MeshStandardMaterial({map: steelTexture, roughness: 0.5, metalness: 0.7});
+        // Front face: welded frame seam, wired-glass observation window, mid-rail,
+        // hazard stripe and a scuffed kick plate - a basement fire-door, not a
+        // household slab.
+        const {canvas: doorCanvas, ctx: doorCtx} = this._createContext(256, 512);
+        doorCtx.drawImage(steelCanvas, 0, 0);
+        doorCtx.strokeStyle = 'rgba(0,0,0,0.35)';
+        doorCtx.lineWidth = 5;
+        doorCtx.strokeRect(14, 14, 228, 484);
+        doorCtx.strokeStyle = 'rgba(255,255,255,0.06)';
+        doorCtx.lineWidth = 1;
+        doorCtx.strokeRect(17, 17, 222, 478);
+        doorCtx.fillStyle = '#182a2e';
+        doorCtx.fillRect(78, 70, 100, 110);
+        doorCtx.strokeStyle = '#9aa0a4';
+        doorCtx.lineWidth = 6;
+        doorCtx.strokeRect(78, 70, 100, 110);
+        doorCtx.strokeStyle = 'rgba(160,170,175,0.35)';
+        doorCtx.lineWidth = 1;
+        for (let wx = 91; wx < 178; wx += 13) {
+            doorCtx.beginPath();
+            doorCtx.moveTo(wx, 70);
+            doorCtx.lineTo(wx, 180);
+            doorCtx.stroke();
+        }
+        for (let wy = 83; wy < 180; wy += 13) {
+            doorCtx.beginPath();
+            doorCtx.moveTo(78, wy);
+            doorCtx.lineTo(178, wy);
+            doorCtx.stroke();
+        }
+        doorCtx.fillStyle = 'rgba(20,20,20,0.6)';
+        [[22, 22], [234, 22], [22, 490], [234, 490]].forEach(([rx, ry]) => {
+            doorCtx.beginPath();
+            doorCtx.arc(rx, ry, 4, 0, Math.PI * 2);
+            doorCtx.fill();
+        });
+        doorCtx.fillStyle = 'rgba(0,0,0,0.25)';
+        doorCtx.fillRect(14, 330, 228, 8);
+        doorCtx.fillStyle = 'rgba(30,30,30,0.55)';
+        doorCtx.font = 'bold 24px monospace';
+        doorCtx.textAlign = 'center';
+        doorCtx.fillText('STAFF ONLY', 128, 385);
+        doorCtx.font = 'bold 13px monospace';
+        doorCtx.fillStyle = 'rgba(0,0,0,0.3)';
+        doorCtx.fillText('SUB-LEVEL B', 128, 405);
+        doorCtx.save();
+        doorCtx.beginPath();
+        doorCtx.rect(14, 420, 228, 14);
+        doorCtx.clip();
+        for (let sx = -20; sx < 256; sx += 20) {
+            doorCtx.fillStyle = (Math.floor(sx / 20) % 2 === 0) ? '#e8b613' : '#1a1a1a';
+            doorCtx.beginPath();
+            doorCtx.moveTo(sx, 420);
+            doorCtx.lineTo(sx + 20, 420);
+            doorCtx.lineTo(sx + 10, 434);
+            doorCtx.lineTo(sx - 10, 434);
+            doorCtx.fill();
+        }
+        doorCtx.restore();
+        const kickGrad = doorCtx.createLinearGradient(0, 436, 0, 496);
+        kickGrad.addColorStop(0, '#3c4044');
+        kickGrad.addColorStop(1, '#2a2d30');
+        doorCtx.fillStyle = kickGrad;
+        doorCtx.fillRect(14, 436, 228, 60);
+        doorCtx.strokeStyle = 'rgba(255,255,255,0.08)';
+        doorCtx.lineWidth = 1;
+        for (let i = 0; i < 14; i++) {
+            const sy = 440 + Math.random() * 50;
+            doorCtx.beginPath();
+            doorCtx.moveTo(20 + Math.random() * 210, sy);
+            doorCtx.lineTo(20 + Math.random() * 210, sy + Math.random() * 4 - 2);
+            doorCtx.stroke();
+        }
+        const doorTexture = new THREE.CanvasTexture(doorCanvas);
+        const {canvas: doorBackCanvas, ctx: doorBackCtx} = this._createContext(256, 512);
+        doorBackCtx.translate(256, 0);
+        doorBackCtx.scale(-1, 1);
+        doorBackCtx.drawImage(doorCanvas, 0, 0);
+        const doorBackTexture = new THREE.CanvasTexture(doorBackCanvas);
+        const annexDoorMatFront = new THREE.MeshStandardMaterial({map: doorTexture, roughness: 0.45, metalness: 0.65});
+        const annexDoorMatBack = new THREE.MeshStandardMaterial({map: doorBackTexture, roughness: 0.45, metalness: 0.65});
+        const annexDoorMat = [annexEdgeMat, annexEdgeMat, annexEdgeMat, annexEdgeMat, annexDoorMatFront, annexDoorMatBack];
+        const annexFrameMat = new THREE.MeshStandardMaterial({color: 0x53585c, roughness: 0.4, metalness: 0.8});
+        return {annexDoorMat, annexFrameMat};
+    }
+    static _buildImpoundAssets(masterNoise) {
+        const ribWidth = 28;
+        const drawCorrugation = (ctx, w, h, base, hi, lo) => {
+            ctx.fillStyle = base;
+            ctx.fillRect(0, 0, w, h);
+            for (let x = 0; x < w; x += ribWidth) {
+                const grad = ctx.createLinearGradient(x, 0, x + ribWidth, 0);
+                grad.addColorStop(0, lo);
+                grad.addColorStop(0.5, hi);
+                grad.addColorStop(1, lo);
+                ctx.fillStyle = grad;
+                ctx.fillRect(x, 0, ribWidth, h);
+            }
+        };
+        // Perimeter wall: rusted, riveted corrugated siding - a wire-pen storage
+        // lockup, not another stretch of the overworld's yellow wallpaper.
+        const {canvas: wallCanvas, ctx: wallCtx} = this._createContext(512, 512);
+        drawCorrugation(wallCtx, 512, 512, '#7d848a', '#9aa1a6', '#5b6166');
+        wallCtx.fillStyle = 'rgba(20,20,20,0.3)';
+        for (let y = 0; y < 512; y += 170) wallCtx.fillRect(0, y, 512, 6);
+        wallCtx.fillStyle = 'rgba(15,10,5,0.55)';
+        for (let y = 3; y < 512; y += 170) {
+            for (let x = 12; x < 512; x += ribWidth) {
+                wallCtx.beginPath();
+                wallCtx.arc(x, y, 2.2, 0, Math.PI * 2);
+                wallCtx.fill();
+            }
+        }
+        for (let i = 0; i < 24; i++) {
+            const grad = wallCtx.createLinearGradient(0, 0, 0, 512);
+            grad.addColorStop(0, `rgba(130, 60, 20, ${0.12 + Math.random() * 0.22})`);
+            grad.addColorStop(1, 'rgba(130, 60, 20, 0)');
+            wallCtx.fillStyle = grad;
+            const sx = Math.random() * 512;
+            const sw = Math.random() * 22 + 6;
+            wallCtx.fillRect(sx, 0, sw, 512 * (0.35 + Math.random() * 0.65));
+        }
+        wallCtx.fillStyle = 'rgba(40, 30, 20, 0.4)';
+        wallCtx.fillRect(0, 460, 512, 52);
+        wallCtx.globalAlpha = 0.3;
+        wallCtx.drawImage(masterNoise, 0, 0);
+        wallCtx.globalAlpha = 1.0;
+        const impoundWallTexture = new THREE.CanvasTexture(wallCanvas);
+        impoundWallTexture.wrapS = THREE.RepeatWrapping;
+        impoundWallTexture.wrapT = THREE.ClampToEdgeWrapping;
+        impoundWallTexture.repeat.set(4, 1);
+        const impoundWallMat = new THREE.MeshStandardMaterial({
+            map: impoundWallTexture,
+            roughness: 0.85,
+            metalness: 0.35,
+            bumpMap: impoundWallTexture,
+            bumpScale: 0.02
+        });
+        // Ceiling: corrugated tin roof underside, rust bleeding from the panel seams.
+        const {canvas: ceilCanvas, ctx: ceilCtx} = this._createContext(512, 512);
+        drawCorrugation(ceilCtx, 512, 512, '#6b7075', '#84898e', '#484d51');
+        ceilCtx.fillStyle = 'rgba(10,10,10,0.35)';
+        for (let y = 0; y < 512; y += 128) ceilCtx.fillRect(0, y, 512, 5);
+        for (let i = 0; i < 18; i++) {
+            const grad = ceilCtx.createLinearGradient(0, 0, 0, 512);
+            grad.addColorStop(0, `rgba(110, 70, 30, ${0.1 + Math.random() * 0.2})`);
+            grad.addColorStop(1, 'rgba(110, 70, 30, 0)');
+            ceilCtx.fillStyle = grad;
+            const sx = Math.random() * 512;
+            const sw = Math.random() * 16 + 5;
+            ceilCtx.fillRect(sx, 0, sw, 512 * (0.3 + Math.random() * 0.5));
+        }
+        ceilCtx.globalAlpha = 0.25;
+        ceilCtx.drawImage(masterNoise, 0, 0);
+        ceilCtx.globalAlpha = 1.0;
+        const impoundCeilingTexture = new THREE.CanvasTexture(ceilCanvas);
+        impoundCeilingTexture.wrapS = impoundCeilingTexture.wrapT = THREE.RepeatWrapping;
+        impoundCeilingTexture.repeat.set(8, 8);
+        const impoundCeilingMat = new THREE.MeshStandardMaterial({
+            map: impoundCeilingTexture,
+            color: 0xffffff,
+            roughness: 0.7,
+            metalness: 0.4,
+            bumpMap: impoundCeilingTexture,
+            bumpScale: 0.015
+        });
+        return {impoundWallMat, impoundCeilingMat};
+    }
     static generateAssets() {
         const masterNoise = this._generateMasterNoise();
         const structAssets = this._buildStructuralAssets(masterNoise);
@@ -625,12 +839,16 @@ export default class ProceduralTextureFactory {
         const organicAssets = this._buildOrganicAssets(masterNoise);
         const techAssets = this._buildTechAssets(masterNoise);
         const hazardAssets = this._buildHazardAndMiscAssets(masterNoise);
+        const annexAssets = this._buildAnnexAssets(masterNoise);
+        const impoundAssets = this._buildImpoundAssets(masterNoise);
         const assets = {
             ...structAssets,
             ...surfaceAssets,
             ...organicAssets,
             ...techAssets,
-            ...hazardAssets
+            ...hazardAssets,
+            ...annexAssets,
+            ...impoundAssets
         };
         const applyOpt = (item) => {
             if (item && item.isTexture) {

@@ -136,7 +136,7 @@ export default class Environment {
             ud.lastTarget = target;
             if (target === 1.0) ud.openedFromOutside = playerOutside;
             document.dispatchEvent(new CustomEvent('somatic-door', {
-                detail: {distSq: pDistSq, intensity: shouldOpen ? 0.7 : 0.45}
+                detail: {distSq: pDistSq, intensity: shouldOpen ? 0.7 : 0.45, variant: 'blast'}
             }));
         }
         let approaching = false;
@@ -173,7 +173,7 @@ export default class Environment {
         }
         if (ud.progress === 1 || ud.progress === 0) {
             document.dispatchEvent(new CustomEvent('somatic-door', {
-                detail: {distSq: pDistSq, intensity: ud.progress === 0 ? 0.9 : 0.5}
+                detail: {distSq: pDistSq, intensity: ud.progress === 0 ? 0.9 : 0.5, variant: 'blast'}
             }));
         }
     }
@@ -1476,8 +1476,10 @@ export default class Environment {
             const skirtGeo = new THREE.PlaneGeometry(span, 6.3);
             const cxw0 = startX * this.cellSize + centerOffset;
             const czw0 = startZ * this.cellSize + centerOffset;
-            const half = span / 2;
-            const skirtInset = half - 4.5;
+            // Hug the true perimeter wall's inner face (half the wall's own width,
+            // plus a hair of overlap) instead of floating well inside it - the old
+            // fixed 4.5 inset left a gap you could peek through right at the wall.
+            const skirtInset = centerOffset - (this.cellSize / 2) - 0.05;
             for (let side = 0; side < 4; side++) {
                 const skirt = new THREE.Mesh(skirtGeo, this.voidShroudMat);
                 if (side === 0) skirt.position.set(cxw0, 6.0, czw0 - skirtInset);
@@ -1649,7 +1651,11 @@ export default class Environment {
         this._compileInstances(hash, chunkGroup, stagingMeshes, random);
     }
     _buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling) {
-        const HALLWAY_DEPTH = 3;
+        // Hermetic threshold model: a single sliding blast door sits exactly on the
+        // zone's chunk boundary. No concrete corridor is carved into the zone's own
+        // interior anymore - whatever is immediately behind the door belongs entirely
+        // to that sector's own build() logic, same as it was before entrance hallways
+        // existed. This avoids generic "hallway" geometry bleeding into every zone.
         const edge = this.chunkSize - 1;
         const sides = [
             {spansX: true, boundary: 0, dir: 1},
@@ -1667,14 +1673,6 @@ export default class Environment {
             const outer = cellAt(side.boundary);
             ctx.markOccupied(outer.x, outer.z);
             this._buildBlastDoor(chunkGroup, hash, outer.x * this.cellSize, outer.z * this.cellSize, spansX, sectorId, outSign);
-            for (let d = 1; d <= HALLWAY_DEPTH; d++) {
-                const seg = cellAt(side.boundary + side.dir * d);
-                ctx.markOccupied(seg.x, seg.z);
-                this._buildHallwaySegment(chunkGroup, hash, seg.x * this.cellSize, seg.z * this.cellSize, spansX, needsFloor, needsCeiling);
-            }
-            const inner = cellAt(side.boundary + side.dir * (HALLWAY_DEPTH + 1));
-            ctx.markOccupied(inner.x, inner.z);
-            this._buildBlastDoor(chunkGroup, hash, inner.x * this.cellSize, inner.z * this.cellSize, spansX, sectorId, -outSign);
         }
     }
     _buildBlastDoor(chunkGroup, hash, dcx, dcz, spansX, sectorId, outSign) {

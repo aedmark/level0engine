@@ -1043,9 +1043,9 @@ export default class TheArchitect {
             {
                 id: "IMPOUND",
                 foundationMat: this.structMat,
-                ceilingMat: this.clinicMat,
+                ceilingMat: this.impoundCeilingMat || this.clinicMat,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
-                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat, "IMPOUND")) return;
+                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.impoundWallMat || this.sharedWallMat, "IMPOUND")) return;
                     const px = x * this.cellSize, pz = z * this.cellSize;
                     const isWall = maze && maze[localX][localZ];
                     if (isWall) {
@@ -1840,8 +1840,8 @@ export default class TheArchitect {
                             this.geoCache.set(this.valveGeo.uuid, true);
                         }
                         const cxw = x * this.cellSize, czw = z * this.cellSize;
-                        const isCorridorNS = localX === 7;
-                        const isCorridorEW = localZ === 7;
+                        const isCorridorNS = localX === 7 && (localZ <= 3 || localZ >= 12);
+                        const isCorridorEW = localZ === 7 && (localX <= 3 || localX >= 12);
                         if (isCorridorNS || isCorridorEW) {
                             const spine = buildWall(isCorridorNS ? 1.1 : this.cellSize, isCorridorNS ? this.cellSize : 1.1, ductMat, 0.4);
                             spine.position.set(cxw, 2.78, czw);
@@ -2032,26 +2032,27 @@ export default class TheArchitect {
                         stub.userData.isEntityBlocker = true;
                         addGeometry(stub);
                     }
-                    const header = buildWall(spansX ? 1.6 : 0.25, spansX ? 0.25 : 1.6, this.sharedWallMat, 0.35);
+                    const header = buildWall(spansX ? 1.6 : 0.25, spansX ? 0.25 : 1.6, this.annexFrameMat || this.metalMat, 0.35);
                     header.position.set(wx, 2.825, wz);
                     addGeometry(header);
                     for (let s = -1; s <= 1; s += 2) {
-                        const jamb = new THREE.Mesh(new THREE.BoxGeometry(spansX ? 0.1 : 0.3, 2.65, spansX ? 0.3 : 0.1), this.woodMat);
+                        const jamb = new THREE.Mesh(new THREE.BoxGeometry(spansX ? 0.1 : 0.3, 2.65, spansX ? 0.3 : 0.1), this.annexFrameMat || this.metalMat);
                         jamb.position.set(wx + (spansX ? s * 0.75 : 0), 1.325, wz + (spansX ? 0 : s * 0.75));
                         addGeometry(jamb);
                     }
                     const doorW = 1.4, doorT = 0.1;
                     let doorGeo, doorMesh;
+                    const annexDoorMat = this.annexDoorMat || this.doorMat;
                     if (spansX) {
                         doorGeo = new THREE.BoxGeometry(doorW, 2.65, doorT);
                         doorGeo.translate(doorW / 2, 0, doorT / 2);
-                        doorMesh = new THREE.Mesh(doorGeo, this.doorMat);
+                        doorMesh = new THREE.Mesh(doorGeo, annexDoorMat);
                         doorMesh.position.set(wx - doorW / 2, 1.325, wz);
                         doorMesh.userData = (isOpenable || isKeypad) ? {chunkHash: hash, closedRot: 0, currentRot: 0} : {chunkHash: hash};
                     } else {
                         doorGeo = new THREE.BoxGeometry(doorT, 2.65, doorW);
                         doorGeo.translate(doorT / 2, 0, doorW / 2);
-                        doorMesh = new THREE.Mesh(doorGeo, this.doorMat);
+                        doorMesh = new THREE.Mesh(doorGeo, annexDoorMat);
                         doorMesh.position.set(wx, 1.325, wz - doorW / 2);
                         doorMesh.userData = (isOpenable || isKeypad) ? {chunkHash: hash, closedRot: -Math.PI / 2, currentRot: -Math.PI / 2} : {chunkHash: hash};
                     }
@@ -2251,7 +2252,10 @@ export default class TheArchitect {
                         const skyGeo = new THREE.PlaneGeometry(innerSpan, innerSpan);
                         const sky = new THREE.Mesh(skyGeo, this.nightSkyMat);
                         sky.rotation.x = Math.PI / 2;
-                        sky.position.set(gx + 2, 6.0, gz + 2);
+                        // Sit close over the corn (stalks top out at 4.0, the odd leaning
+                        // pole prop at ~4.3) instead of floating a full 2 units above it -
+                        // that gap was the visible seam under the "night sky".
+                        sky.position.set(gx + 2, 4.6, gz + 2);
                         ctx.chunkGroup.add(sky);
                         const fullSpan = this.chunkSize * this.cellSize;
                         const capNS = new THREE.BoxGeometry(fullSpan, 0.06, this.cellSize);
@@ -2282,13 +2286,6 @@ export default class TheArchitect {
                             addGeometry(pole);
                         }
                         return;
-                    }
-                    if (random() > 0.9) {
-                        const huskGeo = this.vineGeo || new THREE.BoxGeometry(0.06, 1.0, 0.06);
-                        const husk = new THREE.Mesh(huskGeo, this.cornMat);
-                        husk.rotation.set(Math.PI / 2, random() * Math.PI, 0);
-                        husk.position.set(gx + (random() - 0.5) * 2.5, 0.03, gz + (random() - 0.5) * 2.5);
-                        addGeometry(husk);
                     }
                 }
             },

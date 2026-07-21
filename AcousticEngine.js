@@ -415,6 +415,7 @@ export default class AcousticEngine {
             }],
             'shuffle': ['sine', 10, 10, 0.1, 0.15, 0.15, 0.45, {type: 'bandpass', start: 1500, end: 400, ramp: 0.4}],
             'door': ['square', 120, 30, 0.3, 0.08, 0.03, 0.5, {type: 'lowpass', start: 1000, end: 100, ramp: 0.4}],
+            'blastdoor': ['sawtooth', 65, 28, 0.7, 0.18, 0.06, 1.0, {type: 'bandpass', start: 2600, end: 200, ramp: 0.9}],
             'vent': ['sawtooth', 400, 80, 0.4, 0.1, 0.03, 0.5, {type: 'bandpass', start: 1500, end: 300, ramp: 0.4}],
             'breaker': ['square', 900, 100, 0.15, 0.12, 0.01, 0.15, null],
             'item': ['sine', 1200, 600, 0.3, 0.08, 0.02, 0.4, null],
