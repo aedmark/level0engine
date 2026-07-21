@@ -328,7 +328,18 @@ export default class Environment {
             const currentX = Math.floor(this.camera.position.x / (this.chunkSize * 4));
             const currentZ = Math.floor(this.camera.position.z / (this.chunkSize * 4));
             if (Math.abs(chunk.x - currentX) <= this.renderDistance && Math.abs(chunk.z - currentZ) <= this.renderDistance) {
+                // Instrumentation: wall-clock per chunk build. Builds yield to
+                // rAF internally, so this is elapsed time, not blocked time —
+                // read it alongside the HITCH line in the debug HUD, which
+                // catches the actual dropped frames.
+                const genT0 = performance.now();
                 await this.buildChunk(chunk.x, chunk.z, chunk.hash);
+                const genMs = performance.now() - genT0;
+                if (!this.genStats) this.genStats = {count: 0, totalMs: 0, worstMs: 0, lastMs: 0};
+                this.genStats.count++;
+                this.genStats.totalMs += genMs;
+                this.genStats.lastMs = genMs;
+                if (genMs > this.genStats.worstMs) this.genStats.worstMs = genMs;
             }
         }
         this.isBuildingChunk = false;
@@ -712,6 +723,10 @@ export default class Environment {
         this._globalSwitches = [];
         this.pointsOfInterest = [];
         this._breakerHuntHops = this._rollHuntHops();
+        // Run salt: re-rolled every generation, deliberately unseeded. POIs
+        // fold this into their own local stream, so a replayed seed keeps its
+        // maze but deals different anomalies. Nothing else may consume it.
+        this._runSalt32 = (Math.random() * 4294967296) >>> 0;
         this._macroChunkHashes = new Set();
         if (this.tagPool) {
             this.tagPool.forEach(tag => tag.visible = false);
@@ -1182,6 +1197,7 @@ export default class Environment {
         let hasOasis = random() > 0.95;
         const helpers = {
             random,
+            runSalt32: this._runSalt32 || 0,
             hash,
             chunkGroup,
             stagingMeshes,
@@ -1365,6 +1381,396 @@ export default class Environment {
         };
         return helpers;
     }
+
+    // ── THE MAN DOOR + CHECKPOINT SIDE ROOMS ─────────────────────────
+    // Carves a storage/surprise pocket into the checkpoint's solid fill.
+    // The pocket's three non-door faces back onto neighbouring solid
+    // blocks (the caller guarantees this), so we only build the fourth
+    // wall — the one facing the corridor arm — with a gray steel fire
+    // door (the "man door") set into it. All randomness is a pure hash
+    // of the cell (ckHash) so the PRNG stream for the rest of the chunk
+    // is untouched: every non-room cell renders exactly as before.
+    _buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, ctx) {
+        const {buildWall, addGeometry, chunkGroup, hash} = ctx;
+        const cs = this.cellSize;
+        const cx0 = x * cs, cz0 = z * cs;
+        // direction from the room toward the corridor arm (door faces this way)
+        const dir = flankV ? (localX === 6 ? 1 : -1) : (localZ === 6 ? 1 : -1);
+        const bx = cx0 + (flankV ? dir * (cs / 2) : 0);   // door-wall boundary
+        const bz = cz0 + (flankV ? 0 : dir * (cs / 2));
+        const doorW = 1.4, doorT = 0.1;
+        const frameMat = this.annexFrameMat || this.metalMat;
+        const leafMat = this.annexDoorMat || this.doorMat;
+
+        // ── the door wall: two solid stubs, a steel frame, a hazard lintel ──
+        if (flankV) {
+            for (let s = -1; s <= 1; s += 2) {
+                const stub = buildWall(0.25, 1.2, this.structMat);
+                stub.position.set(bx, 1.5, cz0 + s * 1.4);
+                stub.userData.isEntityBlocker = true;
+                addGeometry(stub);
+            }
+            const header = buildWall(0.25, 1.6, frameMat, 0.35);
+            header.position.set(bx, 2.825, cz0);
+            addGeometry(header);
+            for (let s = -1; s <= 1; s += 2) {
+                const jamb = new THREE.Mesh(this._boxGeo(0.3, 2.65, 0.1), frameMat);
+                jamb.position.set(bx, 1.325, cz0 + s * 0.75);
+                addGeometry(jamb);
+            }
+            const mark = new THREE.Mesh(this._boxGeo(0.04, 0.14, 1.5), this.hazardMat);
+            mark.position.set(bx + dir * 0.15, 2.5, cz0);
+            addGeometry(mark);
+        } else {
+            for (let s = -1; s <= 1; s += 2) {
+                const stub = buildWall(1.2, 0.25, this.structMat);
+                stub.position.set(cx0 + s * 1.4, 1.5, bz);
+                stub.userData.isEntityBlocker = true;
+                addGeometry(stub);
+            }
+            const header = buildWall(1.6, 0.25, frameMat, 0.35);
+            header.position.set(cx0, 2.825, bz);
+            addGeometry(header);
+            for (let s = -1; s <= 1; s += 2) {
+                const jamb = new THREE.Mesh(this._boxGeo(0.1, 2.65, 0.3), frameMat);
+                jamb.position.set(cx0 + s * 0.75, 1.325, bz);
+                addGeometry(jamb);
+            }
+            const mark = new THREE.Mesh(this._boxGeo(1.5, 0.14, 0.04), this.hazardMat);
+            mark.position.set(cx0, 2.5, bz + dir * 0.15);
+            addGeometry(mark);
+        }
+
+        // ── the man door leaf (gray steel, hinged, interactive) ──
+        let doorMesh;
+        if (flankV) {
+            const g = this._cacheGeo('hingedDoor:Z', () => {
+                const gg = new THREE.BoxGeometry(doorT, 2.65, doorW);
+                gg.translate(doorT / 2, 0, doorW / 2);
+                return gg;
+            });
+            doorMesh = new THREE.Mesh(g, leafMat);
+            doorMesh.position.set(bx, 1.325, cz0 - doorW / 2);
+            doorMesh.userData = {chunkHash: hash, closedRot: -Math.PI / 2, currentRot: -Math.PI / 2};
+        } else {
+            const g = this._cacheGeo('hingedDoor:X', () => {
+                const gg = new THREE.BoxGeometry(doorW, 2.65, doorT);
+                gg.translate(doorW / 2, 0, doorT / 2);
+                return gg;
+            });
+            doorMesh = new THREE.Mesh(g, leafMat);
+            doorMesh.position.set(cx0 - doorW / 2, 1.325, bz);
+            doorMesh.userData = {chunkHash: hash, closedRot: 0, currentRot: 0};
+        }
+        doorMesh.castShadow = doorMesh.receiveShadow = true;
+        chunkGroup.add(doorMesh);
+        this.interactiveDoors.push(doorMesh);
+        this.walls.push(doorMesh);
+        doorMesh.updateMatrixWorld();
+        const dBox = new THREE.Box3().setFromObject(doorMesh);
+        dBox.chunkHash = hash;
+        doorMesh.userData.box = dBox;
+        this.spatialGrid.insert(dBox);
+
+        // ── interior anchor frame (nx/nz points at the back wall) ──
+        const nx = flankV ? -dir : 0, nz = flankV ? 0 : -dir;   // toward back wall
+        const tx = flankV ? 0 : 1, tz = flankV ? 1 : 0;         // lateral axis
+        const at = (fwd, lat) => [cx0 + nx * fwd + tx * lat, cz0 + nz * fwd + tz * lat];
+        const place = (mesh, px, py, pz) => { mesh.position.set(px, py, pz); addGeometry(mesh); };
+        const cartonGeo = this._cacheGeo('ckRoomCarton', () => new THREE.BoxGeometry(0.5, 0.42, 0.5));
+        const cartons = this.cartonMats || [this.fileBoxMat];
+        const carton = (fwd, lat, y) => {
+            const [px, pz] = at(fwd, lat);
+            const m = new THREE.Mesh(cartonGeo, cartons[Math.floor(ckHash(localX + fwd, localZ + lat, 9) * cartons.length)]);
+            place(m, px, y, pz);
+        };
+
+        const roll = ckHash(localX, localZ, 7);
+        let lit = true;
+        if (roll < 0.45) {
+            // ── STORAGE: a steel shelf unit against the back wall ──
+            for (const sy of [0.45, 1.15, 1.85, 2.5]) {
+                const shelf = new THREE.Mesh(this._boxGeo(flankV ? 0.5 : 2.6, 0.05, flankV ? 2.6 : 0.5), this.metalMat);
+                const [px, pz] = at(1.55, 0);
+                place(shelf, px, sy, pz);
+            }
+            for (let p = -1; p <= 1; p += 2) {
+                const post = new THREE.Mesh(this._boxGeo(0.06, 2.6, 0.06), this.metalMat);
+                const [px, pz] = at(1.55, p * 1.1);
+                place(post, px, 1.3, pz);
+            }
+            const spots = [[1.55, -0.9, 0.7], [1.55, 0.0, 0.7], [1.55, 0.9, 0.7], [1.55, -0.5, 1.4], [1.55, 0.6, 1.4], [1.0, 1.0, 0.37]];
+            for (const [f, l, y] of spots) if (ckHash(localX + l * 3, localZ + f * 3, 4) > 0.25) carton(f, l, y);
+        } else if (roll < 0.70) {
+            // ── OVERFLOW: pallet, stacked cartons, a lone drum ──
+            const [px, pz] = at(1.3, -0.6);
+            const pallet = new THREE.Mesh(this._boxGeo(1.2, 0.12, 1.2), this.woodMat);
+            place(pallet, px, 0.06, pz);
+            for (let c = 0; c < 3; c++) for (let s = 0; s < 1 + Math.floor(ckHash(localX + c, localZ, c + 1) * 3); s++)
+                carton(1.3 + (c - 1) * 0.0, -0.6 + (c - 1) * 0.45, 0.3 + s * 0.44);
+            const drumGeo = this._cacheGeo('ckRoomDrum', () => new THREE.CylinderGeometry(0.29, 0.29, 0.92, 10));
+            const drum = new THREE.Mesh(drumGeo, this.rustMat);
+            const [dx, dz] = at(1.4, 1.1);
+            place(drum, dx, 0.46, dz);
+        } else if (roll < 0.87) {
+            // ── SUPPLY CACHE: a genuine reward — battery + almond water ──
+            const [tx0, tz0] = at(1.4, 0);
+            const tableTop = new THREE.Mesh(this._boxGeo(flankV ? 0.7 : 1.4, 0.06, flankV ? 1.4 : 0.7), this.metalMat);
+            place(tableTop, tx0, 0.78, tz0);
+            for (let lxs = -1; lxs <= 1; lxs += 2) for (let lzs = -1; lzs <= 1; lzs += 2) {
+                const leg = new THREE.Mesh(this._boxGeo(0.05, 0.78, 0.05), this.metalMat);
+                place(leg, tx0 + lxs * (flankV ? 0.28 : 0.6), 0.39, tz0 + lzs * (flankV ? 0.6 : 0.28));
+            }
+            if (!this.interactables) this.interactables = [];
+            const drop = (prefab, type, fwd, lat) => {
+                const [px, pz] = at(fwd, lat);
+                const grp = new THREE.Group();
+                grp.add(prefab.clone());
+                const glow = new THREE.Mesh(this.glowGeo, this.glowMat);
+                glow.scale.set(0.15, 0.15, 0.15);
+                glow.position.y = 0.01;
+                grp.add(glow);
+                grp.position.set(px, 0.85, pz);
+                grp.userData = {type, chunkHash: hash, active: true};
+                grp.traverse(ch => { ch.userData.chunkHash = hash; });
+                chunkGroup.add(grp);
+                this.interactables.push(grp);
+            };
+            drop(this.batteryPrefab, 'battery', 1.4, -0.3);
+            if (ckHash(localX, localZ, 2) > 0.4) drop(this.almondPrefab, 'almond', 1.4, 0.3);
+        } else {
+            // ── SURPRISE: a lone chair facing the dark back wall, no light ──
+            lit = false;
+            const [sx, sz] = at(1.3, (ckHash(localX, localZ, 6) - 0.5) * 1.2);
+            const seat = new THREE.Mesh(this._boxGeo(0.45, 0.06, 0.45), this.structMat);
+            place(seat, sx, 0.45, sz);
+            const back = new THREE.Mesh(this._boxGeo(flankV ? 0.06 : 0.45, 0.5, flankV ? 0.45 : 0.06), this.structMat);
+            place(back, sx + nx * 0.2, 0.72, sz + nz * 0.2);
+            for (let lxs = -1; lxs <= 1; lxs += 2) for (let lzs = -1; lzs <= 1; lzs += 2) {
+                const leg = new THREE.Mesh(this._boxGeo(0.05, 0.45, 0.05), this.metalMat);
+                place(leg, sx + lxs * 0.18, 0.22, sz + lzs * 0.18);
+            }
+        }
+
+        // ── ceiling light (dark rooms stay dark) ──
+        if (lit) {
+            const activeMat = this.baseLightMat.clone();
+            const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+            panel.position.set(cx0, 2.98, cz0);
+            chunkGroup.add(panel);
+            this.walls.push(panel);
+            this.fixtureData.push({
+                chunkHash: hash,
+                position: new THREE.Vector3(cx0, 2.8, cz0),
+                flickerOffset: ckHash(localX, localZ, 5) * 500,
+                material: activeMat,
+                isFaulty: ckHash(localX, localZ, 8) > 0.75,
+                baseIntensity: 0.6,
+                targetIntensity: 0.6,
+                currentIntensity: 0.6
+            });
+        }
+    }
+
+    // ── THE CHECKPOINT CORE: a giant column of monitors + cables ─────
+    // Replaces the old squeeze-partition at the arms' crossing with a
+    // floor-to-ceiling equipment stack: a monitor wall on all four faces,
+    // a cable trunk feeding the ceiling, and coils pooled at the base.
+    // The 1.3u core carries collision (entity blocker); ~1.35u of walkable
+    // margin stays open on every side, so it still reads as the bottleneck.
+    // Deterministic (pure hash of the chunk) — no PRNG draws.
+    _buildCheckpointColumn(x, z, hash, ctx) {
+        const {addGeometry, stagingMeshes} = ctx;
+        const cs = this.cellSize;
+        const cx = x * cs, cz = z * cs;
+        const decor = (m) => { m.userData.chunkHash = hash; m.updateMatrixWorld(true); stagingMeshes.push(m); };
+        const sHash = (i) => {
+            let h = (hash ^ Math.imul(i + 1, 2654435761)) >>> 0;
+            h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;
+            return ((h ^ (h >>> 13)) >>> 0) / 4294967296;
+        };
+        if (!this.laptopScreenMat) {
+            this.laptopScreenMat = new THREE.MeshBasicMaterial({color: 0xa8ffd0});
+            this.sharedAssets.add(this.laptopScreenMat.uuid);
+        }
+
+        // core equipment column — collision + entity blocker, floor to ceiling
+        const coreW = 1.3;
+        const core = new THREE.Mesh(this._boxGeo(coreW, 3.0, coreW), this.baseHousingMat);
+        core.position.set(cx, 1.5, cz);
+        core.userData.isEntityBlocker = true;
+        addGeometry(core);
+        const plinth = new THREE.Mesh(this._boxGeo(1.5, 0.3, 1.5), this.metalMat);
+        plinth.position.set(cx, 0.15, cz);
+        decor(plinth);
+        const cap = new THREE.Mesh(this._boxGeo(1.5, 0.2, 1.5), this.metalMat);
+        cap.position.set(cx, 2.9, cz);
+        decor(cap);
+
+        // monitor wall — a grid of screens (some live, most dead) on 4 faces
+        const faces = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+        const rows = [0.8, 1.4, 2.0, 2.55];
+        const colsOff = [-0.32, 0.32];
+        let idx = 0;
+        for (const [nx, nz] of faces) {
+            const onZ = nz !== 0;
+            for (const ry of rows) {
+                for (const co of colsOff) {
+                    idx++;
+                    const live = sHash(idx) > 0.55;
+                    const px = cx + (onZ ? co : nx * (coreW / 2 + 0.05));
+                    const pz = cz + (onZ ? nz * (coreW / 2 + 0.05) : co);
+                    const bezel = new THREE.Mesh(
+                        onZ ? this._boxGeo(0.58, 0.5, 0.04) : this._boxGeo(0.04, 0.5, 0.58),
+                        this.baseHousingMat);
+                    bezel.position.set(
+                        cx + (onZ ? co : nx * (coreW / 2 + 0.02)),
+                        ry,
+                        cz + (onZ ? nz * (coreW / 2 + 0.02) : co));
+                    decor(bezel);
+                    const screen = new THREE.Mesh(
+                        onZ ? this._boxGeo(0.5, 0.42, 0.03) : this._boxGeo(0.03, 0.42, 0.5),
+                        live ? this.laptopScreenMat : this.crtScreenMat);
+                    screen.position.set(px, ry, pz);
+                    decor(screen);
+                }
+            }
+        }
+
+        // cable trunk climbing one corner into the ceiling
+        const trunk = new THREE.Mesh(this._boxGeo(0.22, 3.2, 0.22), this.metalMat);
+        trunk.position.set(cx + 0.55, 1.6, cz + 0.55);
+        decor(trunk);
+
+        // loose cables draping from the ceiling down the column
+        const cableGeo = this._cacheGeo('ckColCable', () => new THREE.CylinderGeometry(0.035, 0.035, 1.0, 6));
+        for (let i = 0; i < 6; i++) {
+            const len = 1.2 + sHash(100 + i) * 1.6;
+            const ang = (i / 6) * Math.PI * 2;
+            const r = coreW / 2 + 0.14 + sHash(200 + i) * 0.1;
+            const cable = new THREE.Mesh(cableGeo, i % 2 ? this.rustMat : this.metalMat);
+            cable.position.set(cx + Math.cos(ang) * r, 3.0 - len / 2, cz + Math.sin(ang) * r);
+            cable.scale.y = len;
+            decor(cable);
+        }
+
+        // cable coils pooled at the base
+        const loopGeo = this._cacheGeo('ckColLoop', () => new THREE.TorusGeometry(0.4, 0.04, 6, 12));
+        for (let i = 0; i < 3; i++) {
+            const loop = new THREE.Mesh(loopGeo, this.rustMat);
+            loop.position.set(cx + (sHash(300 + i) - 0.5) * 0.7, 0.34 + i * 0.05, cz + (sHash(310 + i) - 0.5) * 0.7);
+            loop.rotation.x = Math.PI / 2;
+            decor(loop);
+        }
+    }
+
+    // ── IMPOUND YARD ITEMS: the big stuff in the pens ────────────────
+    // Procedural impounded property — cars (some up on blocks), skid-
+    // mounted machinery, and stacked tires — assembled from boxes and
+    // cylinders on shared materials. Placed as a group via addFurniture
+    // so it gets one collision box and skips if it would foul a fence.
+    // Returns true once an attempt is made (placement may still be
+    // culled by the overlap guard, which is fine — it just leaves a gap).
+    _buildImpoundItem(px, pz, kind, ctx) {
+        const {addFurniture, chunkGroup, hash, random} = ctx;
+        if (!this._impPaintMats) {
+            const mk = (c) => {
+                const m = new THREE.MeshStandardMaterial({color: c, roughness: 0.72, metalness: 0.25});
+                this.sharedAssets.add(m.uuid);
+                return m;
+            };
+            this._impPaintMats = [mk(0x7a2f28), mk(0x2f4a63), mk(0x8f9295), mk(0x3d523c), mk(0x9a8352), mk(0x6a3d2a)];
+        }
+        if (!this._impTireMat) {
+            this._impTireMat = new THREE.MeshStandardMaterial({color: 0x161618, roughness: 0.95, metalness: 0.0});
+            this.sharedAssets.add(this._impTireMat.uuid);
+        }
+        const glass = this.glassMat || this.crtScreenMat;
+        const wheelGeo = this._cacheGeo('impWheel', () => new THREE.CylinderGeometry(0.36, 0.36, 0.26, 14));
+        const g = new THREE.Group();
+
+        if (kind === 'car') {
+            const paint = this._impPaintMats[Math.floor(random() * this._impPaintMats.length)];
+            const along = random() > 0.5;
+            const L = 3.4, W = 1.7;
+            const lx = along ? L : W, lz = along ? W : L;
+            const body = new THREE.Mesh(this._boxGeo(lx, 0.62, lz), paint);
+            body.position.y = 0.6;
+            const cabin = new THREE.Mesh(this._boxGeo(along ? L * 0.52 : W * 0.86, 0.56, along ? W * 0.86 : L * 0.52), paint);
+            cabin.position.y = 1.12;
+            const win = new THREE.Mesh(this._boxGeo(along ? L * 0.5 : W * 0.9, 0.42, along ? W * 0.9 : L * 0.5), glass);
+            win.position.y = 1.13;
+            g.add(body, win, cabin);
+            const onBlocks = random() > 0.7;
+            const halfL = (along ? L : W) / 2 - 0.5, halfW = (along ? W : L) / 2;
+            for (const sl of [-1, 1]) for (const sw of [-1, 1]) {
+                const wx = along ? sl * halfL : sw * halfW;
+                const wz = along ? sw * halfW : sl * halfL;
+                if (onBlocks && sl < 0) {
+                    const blk = new THREE.Mesh(this._boxGeo(0.42, 0.3, 0.42), this.structMat);
+                    blk.position.set(wx, 0.15, wz);
+                    g.add(blk);
+                } else {
+                    const wheel = new THREE.Mesh(wheelGeo, this._impTireMat);
+                    wheel.position.set(wx, 0.36, wz);
+                    if (along) wheel.rotation.x = Math.PI / 2; else wheel.rotation.z = Math.PI / 2;
+                    g.add(wheel);
+                }
+            }
+            g.position.set(px + (random() - 0.5) * 0.4, 0, pz + (random() - 0.5) * 0.4);
+            g.rotation.y = (random() - 0.5) * 0.3;
+            addFurniture(g);
+            // impound tag on the hood — keeps the case-file document flowing
+            if (random() > 0.4) {
+                const tag = new THREE.Mesh(this.documentGeo, this.documentMat);
+                tag.position.set(g.position.x, 1.02, g.position.z);
+                tag.rotation.y = random() * Math.PI;
+                tag.userData = {type: 'document', chunkHash: hash, active: true, zone: 'IMPOUND', docId: 'TAG_' + Math.floor(random() * 9999)};
+                chunkGroup.add(tag);
+                if (!this.interactables) this.interactables = [];
+                this.interactables.push(tag);
+                const tBox = new THREE.Box3().setFromObject(tag);
+                tBox.chunkHash = hash;
+                tag.userData.box = tBox;
+                this.spatialGrid.insert(tBox);
+            }
+            return true;
+        }
+
+        if (kind === 'machine') {
+            const skid = new THREE.Mesh(this._boxGeo(1.7, 0.16, 1.1), this.rustMat);
+            skid.position.y = 0.08;
+            const bodyM = new THREE.Mesh(this._boxGeo(1.4, 0.85, 0.9), this.metalMat);
+            bodyM.position.y = 0.6;
+            const tank = new THREE.Mesh(this._cacheGeo('impTank', () => new THREE.CylinderGeometry(0.34, 0.34, 1.3, 14)), this.metalMat);
+            tank.rotation.z = Math.PI / 2;
+            tank.position.set(0.05, 1.15, 0);
+            const pipe = new THREE.Mesh(this._cacheGeo('impExhaust', () => new THREE.CylinderGeometry(0.06, 0.06, 0.8, 8)), this.rustMat);
+            pipe.position.set(-0.6, 1.25, 0.32);
+            const ctrl = new THREE.Mesh(this._boxGeo(0.5, 0.45, 0.07), this.hazardMat);
+            ctrl.position.set(0, 0.72, 0.5);
+            g.add(skid, bodyM, tank, pipe, ctrl);
+            g.position.set(px + (random() - 0.5) * 0.5, 0, pz + (random() - 0.5) * 0.5);
+            g.rotation.y = random() * Math.PI * 2;
+            addFurniture(g);
+            return true;
+        }
+
+        // kind === 'tires'
+        const tGeo = this._cacheGeo('impTireStack', () => new THREE.CylinderGeometry(0.42, 0.42, 0.24, 16));
+        const n = 3 + Math.floor(random() * 4);
+        const bx = (random() - 0.5) * 1.2, bz = (random() - 0.5) * 1.2;
+        for (let i = 0; i < n; i++) {
+            const t = new THREE.Mesh(tGeo, this._impTireMat);
+            t.position.set(bx + (random() - 0.5) * 0.06, 0.13 + i * 0.24, bz + (random() - 0.5) * 0.06);
+            t.rotation.y = random() * Math.PI;
+            g.add(t);
+        }
+        g.position.set(px, 0, pz);
+        addFurniture(g);
+        return true;
+    }
+
     async buildChunk(chunkX, chunkZ, hash) {
         const chunkGroup = new THREE.Group();
         this.scene.add(chunkGroup);
@@ -1426,7 +1832,7 @@ export default class Environment {
                 startX: startX,
                 startZ: startZ
             });
-            if (["ARCHIVE", "SERVER", "MAINTENANCE", "IMPOUND", "ATRIUM", "CHASM"].includes(activeSector.id)) {
+            if (["ARCHIVE", "SERVER", "MAINTENANCE", "IMPOUND", "ATRIUM", "CHASM", "CLINIC"].includes(activeSector.id)) {
                 sectorMaze = this._generateSectorMaze(random, inDir, outDir);
             }
             if (activeSector.foundationMat) {
@@ -2021,7 +2427,8 @@ export default class Environment {
         }
         if (!this._blackColor) this._blackColor = new THREE.Color(0x000000);
         const darknessRatio = Math.min(1.0, darknessPressure * 0.4);
-        const finalTargetColor = this._targetFogColor.clone().lerp(this._blackColor, darknessRatio);
+        if (!this._finalFogColor) this._finalFogColor = new THREE.Color();
+        const finalTargetColor = this._finalFogColor.copy(this._targetFogColor).lerp(this._blackColor, darknessRatio);
         const colorRate = this._targetFogColor.equals(this._baseFogColor) ? 0.25 : 0.15;
         this.scene.fog.color.lerp(finalTargetColor, colorRate);
         this.scene.background.lerp(finalTargetColor, colorRate);
@@ -2048,7 +2455,9 @@ export default class Environment {
         }
         const anomalyPressure = this.player.anomalyPressure || 0;
         if (this.interactables && this.player && this.player.updateObjectives) {
-            let nearestDist = Infinity;
+            // Min-search runs on squared distances; sqrt fires exactly once at
+            // the display boundary. The radar reads the same, the loop pays less.
+            let nearestDistSq = Infinity;
             const isExitPhase = this.player.objectives.fixed >= this.player.objectives.total;
             if (isExitPhase && !this.player.hasVisitedAnnex) {
                 for (const zone of this.macroZones.values()) {
@@ -2057,15 +2466,15 @@ export default class Environment {
                     const nz = Math.max(zone.minZ, Math.min(cameraPos.z, zone.maxZ));
                     const dx = cameraPos.x - nx;
                     const dz = cameraPos.z - nz;
-                    const dist = Math.sqrt(dx * dx + dz * dz);
-                    if (dist < nearestDist) nearestDist = dist;
+                    const dSq = dx * dx + dz * dz;
+                    if (dSq < nearestDistSq) nearestDistSq = dSq;
                 }
             } else if (isExitPhase) {
                 for (let i = 0; i < this.interactables.length; i++) {
                     const item = this.interactables[i];
                     if (item.userData.type === 'exit' && item.userData.active === true) {
-                        const dist = cameraPos.distanceTo(item.position);
-                        if (dist < nearestDist) nearestDist = dist;
+                        const dSq = cameraPos.distanceToSquared(item.position);
+                        if (dSq < nearestDistSq) nearestDistSq = dSq;
                     }
                 }
             } else {
@@ -2073,21 +2482,21 @@ export default class Environment {
                 let targetIsPoi = false;
                 if (this._breakerHuntHops > 0 && this.pointsOfInterest && this.pointsOfInterest.length > 0) {
                     let nearestPoi = null;
-                    let nearestPoiDist = Infinity;
+                    let nearestPoiDistSq = Infinity;
                     for (let i = 0; i < this.pointsOfInterest.length; i++) {
                         const poi = this.pointsOfInterest[i];
                         if (poi.active) continue;
                         const dx = cameraPos.x - poi.x;
                         const dz = cameraPos.z - poi.z;
-                        const d = Math.sqrt(dx * dx + dz * dz);
-                        if (d < nearestPoiDist) { nearestPoiDist = d; nearestPoi = poi; }
+                        const dSq = dx * dx + dz * dz;
+                        if (dSq < nearestPoiDistSq) { nearestPoiDistSq = dSq; nearestPoi = poi; }
                     }
                     if (nearestPoi) {
-                        if (nearestPoiDist < 3.0) {
+                        if (nearestPoiDistSq < 9.0) {
                             nearestPoi.active = true;
                             this._breakerHuntHops--;
                         } else {
-                            nearestDist = nearestPoiDist;
+                            nearestDistSq = nearestPoiDistSq;
                             targetIsPoi = true;
                         }
                     }
@@ -2096,12 +2505,13 @@ export default class Environment {
                     for (let i = 0; i < this.interactables.length; i++) {
                         const item = this.interactables[i];
                         if (item.userData.type === 'exit_switch' && item.userData.active === false) {
-                            const dist = cameraPos.distanceTo(item.position);
-                            if (dist < nearestDist) nearestDist = dist;
+                            const dSq = cameraPos.distanceToSquared(item.position);
+                            if (dSq < nearestDistSq) nearestDistSq = dSq;
                         }
                     }
                 }
             }
+            const nearestDist = Math.sqrt(nearestDistSq);
             let signalText = nearestDist < 1000 ? `${nearestDist.toFixed(1)}m` : 'WEAK - RELOCATE';
             if (anomalyPressure > 0.05 && nearestDist < 1000) {
                 signalText = Math.random() < (anomalyPressure * 1.5) ? 'ERR!_m' : signalText;

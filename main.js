@@ -306,7 +306,12 @@ window.handleInquest = (choice) => {
                     player.depth++;
                     if (player.depth > player.bestDepth) player.bestDepth = player.depth;
                     player.updateObjectives();
-                    environment.generate(true);
+                    // True descent: the verdict closes THIS case. FL-N mutates
+                    // the seed, so the non-warp generate() below re-derives
+                    // baseSeed and StoryEngine deals a fresh cold case for the
+                    // new floor. The old warp-in-place is gone — depth is real.
+                    triggerAscension();
+                    environment.generate();
                 }, 3500);
             }
         }, 1600);
@@ -510,6 +515,17 @@ const DebugHUD = {
     visible: false,
     _last: 0,
     _fps: 60,
+    _hitches: 0,
+    _genHitches: 0,
+    _worstHitch: 0,
+    // Called every frame regardless of visibility: a hitch you weren't
+    // watching for is still a hitch.
+    recordFrame(delta) {
+        if (delta <= 0.05) return;
+        this._hitches++;
+        if (environment.isBuildingChunk) this._genHitches++;
+        if (delta > this._worstHitch) this._worstHitch = delta;
+    },
     toggle() {
         if (!this.el) this.el = document.getElementById('debug-hud');
         if (!this.el) return;
@@ -539,7 +555,9 @@ const DebugHUD = {
             `ANOM  ${anomalyDist}${grace}${player.isChased ? ' CHASING' : ''}\n` +
             `POI   ${unclaimed}/${pois.length} unclaimed  HOPS ${environment._breakerHuntHops ?? '-'}\n` +
             `FIXT  ${environment.fixtureData.length}  CHUNKS ${environment.activeChunks.size}\n` +
-            `OBJ   ${player.objectives.fixed}/${player.objectives.total}  COH ${(player.coherence * 100).toFixed(0)}%`;
+            `OBJ   ${player.objectives.fixed}/${player.objectives.total}  COH ${(player.coherence * 100).toFixed(0)}%\n` +
+            `PERF  hitch ${this._hitches} (${this._genHitches} gen) worst ${(this._worstHitch * 1000).toFixed(0)}ms` +
+            (environment.genStats ? `  chunk avg ${(environment.genStats.totalMs / environment.genStats.count).toFixed(1)}ms worst ${environment.genStats.worstMs.toFixed(1)}ms` : '');
     }
 };
 
@@ -553,6 +571,7 @@ function animate() {
     requestAnimationFrame(animate);
     const delta = engine.delta;
     const time = engine.time;
+    DebugHUD.recordFrame(delta);
     if (player.isDead) {
         engine.render();
         return;

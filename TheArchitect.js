@@ -737,9 +737,30 @@ export default class TheArchitect {
                         addGeometry(wall);
                         return;
                     }
+                    // ── POI fork ────────────────────────────────────────────
+                    // Every draw below comes from a local stream keyed on cell
+                    // position + the run salt. The shared chunk stream is never
+                    // touched past this point, so acceptance and flavor can
+                    // vary per run while the maze around this cell stays
+                    // seed-deterministic. (The reject path draws nothing from
+                    // the shared stream either — parity holds both ways.)
+                    let poiSeed = (Math.imul(cx | 0, 73856093) ^ Math.imul(cz | 0, 19349663) ^ ctx.runSalt32) >>> 0;
+                    const poiRandom = () => {
+                        poiSeed = (poiSeed * 1664525 + 1013904223) >>> 0;
+                        return poiSeed / 4294967296.0;
+                    };
+                    if (poiRandom() > 0.7) {
+                        // This run, the anomaly simply isn't here. Same fallback
+                        // as a crowded cell: sealed mass of building.
+                        const wall = buildWall(this.cellSize, this.cellSize, this.sharedWallMat);
+                        wall.position.set(cx, 1.5, cz);
+                        wall.userData.isEntityBlocker = true;
+                        addGeometry(wall);
+                        return;
+                    }
                     this._globalSwitches.push({x: cx, z: cz, poi: true});
                     if (ctx.markOccupied) ctx.markOccupied(x, z);
-                    const flavor = Math.floor(random() * 6);
+                    const flavor = Math.floor(poiRandom() * 6);
                     if (flavor === 0) {
                         if (!this.fallenTileGeo) {
                             this.fallenTileGeo = new THREE.BoxGeometry(0.9, 0.04, 0.9);
@@ -755,21 +776,21 @@ export default class TheArchitect {
                             this.ceilingHoleMat = new THREE.MeshBasicMaterial({color: 0x060504});
                             this.sharedAssets.add(this.ceilingHoleMat.uuid);
                         }
-                        const tileCount = 4 + Math.floor(random() * 4);
+                        const tileCount = 4 + Math.floor(poiRandom() * 4);
                         for (let i = 0; i < tileCount; i++) {
                             const tile = new THREE.Mesh(this.fallenTileGeo, this.rottedTileMat);
-                            tile.position.set(cx + (random() - 0.5) * 2.6, 0.03 + random() * 0.09, cz + (random() - 0.5) * 2.6);
-                            tile.rotation.set((random() - 0.5) * 0.3, random() * Math.PI, (random() - 0.5) * 0.3);
+                            tile.position.set(cx + (poiRandom() - 0.5) * 2.6, 0.03 + poiRandom() * 0.09, cz + (poiRandom() - 0.5) * 2.6);
+                            tile.rotation.set((poiRandom() - 0.5) * 0.3, poiRandom() * Math.PI, (poiRandom() - 0.5) * 0.3);
                             addGeometry(tile);
                         }
                         const hole = buildWall(2.2, 2.2, this.ceilingHoleMat, 0.02);
                         hole.position.set(cx, 2.975, cz);
                         addGeometry(hole);
                     } else if (flavor === 1) {
-                        const pieces = 2 + Math.floor(random() * 2);
+                        const pieces = 2 + Math.floor(poiRandom() * 2);
                         for (let i = 0; i < pieces; i++) {
-                            const felled = buildChair(cx + (random() - 0.5) * 1.8, 0, cz + (random() - 0.5) * 1.8, random() * Math.PI * 2);
-                            felled.rotation.z = (random() > 0.5 ? 1 : -1) * Math.PI / 2;
+                            const felled = buildChair(cx + (poiRandom() - 0.5) * 1.8, 0, cz + (poiRandom() - 0.5) * 1.8, poiRandom() * Math.PI * 2);
+                            felled.rotation.z = (poiRandom() > 0.5 ? 1 : -1) * Math.PI / 2;
                             felled.position.y = 0.38;
                             addFurniture(felled);
                         }
@@ -782,7 +803,7 @@ export default class TheArchitect {
                             this.anomalySeamMat = new THREE.MeshBasicMaterial({color: 0x7744ff});
                             this.sharedAssets.add(this.anomalySeamMat.uuid);
                         }
-                        const theta = random() * Math.PI * 2;
+                        const theta = poiRandom() * Math.PI * 2;
                         const cosT = Math.cos(theta), sinT = Math.sin(theta);
                         const place = (mesh, lx, y, lz) => {
                             mesh.position.set(cx + lx * cosT + lz * sinT, y, cz - lx * sinT + lz * cosT);
@@ -806,7 +827,7 @@ export default class TheArchitect {
                         ctx.stagingMeshes.push(glow);
                         const mold = new THREE.Mesh(this.moldGeo, this.moldMat);
                         mold.position.set(cx, 0.015, cz);
-                        mold.rotation.y = random() * Math.PI * 2;
+                        mold.rotation.y = poiRandom() * Math.PI * 2;
                         addGeometry(mold);
                     } else if (flavor === 3) {
                         const table = buildTable(cx, 0, cz);
@@ -814,7 +835,7 @@ export default class TheArchitect {
                         table.position.y = 2.95;
                         addFurniture(table);
                         for (let s = -1; s <= 1; s += 2) {
-                            const chair = buildChair(cx + s * 0.95, 0, cz + (random() - 0.5) * 0.4, s > 0 ? -Math.PI / 2 : Math.PI / 2);
+                            const chair = buildChair(cx + s * 0.95, 0, cz + (poiRandom() - 0.5) * 0.4, s > 0 ? -Math.PI / 2 : Math.PI / 2);
                             chair.rotation.x = Math.PI;
                             chair.position.y = 2.95;
                             addFurniture(chair);
@@ -824,22 +845,22 @@ export default class TheArchitect {
                         const panel = new THREE.Mesh(this.sharedPanelGeo,
                             [this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat, this.baseHousingMat]);
                         panel.position.set(cx, 0.055, cz);
-                        panel.rotation.y = random() > 0.5 ? Math.PI / 2 : 0;
+                        panel.rotation.y = poiRandom() > 0.5 ? Math.PI / 2 : 0;
                         chunkGroup.add(panel);
                         this.walls.push(panel);
                         this.fixtureData.push({
                             chunkHash: hash,
                             position: new THREE.Vector3(cx, 0.4, cz),
-                            flickerOffset: random() * 10.0,
+                            flickerOffset: poiRandom() * 10.0,
                             material: activeMat,
-                            isFaulty: random() > 0.6,
+                            isFaulty: poiRandom() > 0.6,
                             baseIntensity: 0.85,
                             targetIntensity: 0.85,
                             currentIntensity: 0.85
                         });
                     } else {
-                        const seats = 5 + Math.floor(random() * 3);
-                        const ringR = 1.25 + random() * 0.3;
+                        const seats = 5 + Math.floor(poiRandom() * 3);
+                        const ringR = 1.25 + poiRandom() * 0.3;
                         for (let s = 0; s < seats; s++) {
                             const ang = (s / seats) * Math.PI * 2;
                             const chair = buildChair(
@@ -1167,7 +1188,14 @@ export default class TheArchitect {
                             return nx >= 0 && nx < this.chunkSize && nz >= 0 && nz < this.chunkSize && maze && maze[nx][nz];
                         };
                         const pocketWalls = (mw(1, 0) ? 1 : 0) + (mw(-1, 0) ? 1 : 0) + (mw(0, 1) ? 1 : 0) + (mw(0, -1) ? 1 : 0);
-                        if (pocketWalls >= 2 && random() > 0.7) {
+                        // ── the impound yard itself: cars, machinery, tires ──
+                        let placedBig = false;
+                        if (pocketWalls >= 1 && random() > 0.58) {
+                            const pick = random();
+                            const kind = pick < 0.46 ? 'car' : (pick < 0.74 ? 'machine' : 'tires');
+                            placedBig = this._buildImpoundItem(px, pz, kind, {addFurniture, chunkGroup, hash, random});
+                        }
+                        if (!placedBig && pocketWalls >= 2 && random() > 0.7) {
                             const hoard = random();
                             if (hoard < 0.5 && this.cartonGeo) {
                                 const cartonPool = this.cartonMats || [this.fileBoxMat];
@@ -1233,34 +1261,110 @@ export default class TheArchitect {
                 ceilingMat: this.clinicMat,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat, "CLINIC")) return;
-                    const isMainPath = localX === 7 || localZ === 7;
-                    if (localX % 2 === 1 && localZ % 2 === 1) {
-                        if (!isMainPath) {
-                            const curtain = new THREE.Mesh(this._boxGeo(this.cellSize * 0.9, 2.2, 0.05), this.fabricMat);
-                            curtain.position.set(x * this.cellSize, 1.1, z * this.cellSize - 1.8);
-                            addGeometry(curtain);
+                    // ── THE WARD ───────────────────────────────────────────
+                    // The clinic runs on the sector maze now. Walls become
+                    // ward architecture with four personalities: solid wall
+                    // with bumper rails, a curtain hung where architecture
+                    // should be (visually solid, physically passable — feet
+                    // visible in the hem gap), a squeeze slot for 'Q', or a
+                    // curtained cot alcove. Corridors fight back with gurney
+                    // blockades, crouch-under ceiling collapses, and screen
+                    // slaloms. The gate approaches stay clear.
+                    const cx0 = x * this.cellSize, cz0 = z * this.cellSize;
+                    const wallAt = (lx, lz) => (lx < 0 || lx > 15 || lz < 0 || lz > 15) ? true : (maze ? maze[lx][lz] === true : false);
+                    const decal = (mesh) => {
+                        mesh.userData.chunkHash = hash;
+                        mesh.updateMatrixWorld(true);
+                        stagingMeshes.push(mesh);
+                    };
+                    const hangCurtain = (alongZ, px, pz, width) => {
+                        // No collision box: the curtain is a lie you walk through.
+                        const track = new THREE.Mesh(this._boxGeo(alongZ ? 0.06 : width, 0.08, alongZ ? width : 0.06), this.metalMat);
+                        track.position.set(px, 2.52, pz);
+                        decal(track);
+                        const curtain = new THREE.Mesh(this._boxGeo(alongZ ? 0.05 : width - 0.2, 2.2, alongZ ? width - 0.2 : 0.05), this.fabricMat);
+                        curtain.position.set(px, 1.36, pz);
+                        curtain.rotation.y = (random() - 0.5) * 0.06;
+                        decal(curtain);
+                    };
+                    const ivPole = (px, pz) => {
+                        const pole = new THREE.Mesh(this._boxGeo(0.08, 2.0, 0.08), this.rustMat);
+                        pole.position.set(px, 1.0, pz);
+                        addGeometry(pole);
+                    };
+                    if (maze && maze[localX][localZ]) {
+                        // ── Ward wall cell ──
+                        const zRun = wallAt(localX, localZ - 1) || wallAt(localX, localZ + 1);
+                        const xRun = wallAt(localX - 1, localZ) || wallAt(localX + 1, localZ);
+                        const alongZ = zRun && !xRun ? true : (xRun && !zRun ? false : ((localX + localZ) % 2 === 0));
+                        const openDirs = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx2, dz2]) => !wallAt(localX + dx2, localZ + dz2));
+                        const roll = random();
+                        if (roll < 0.14 && openDirs.length > 0) {
+                            // ── Cot alcove: three walls, a cot, a curtain ──
+                            const [odx, odz] = openDirs[Math.floor(random() * openDirs.length)];
+                            const back = buildWall(odx !== 0 ? 0.3 : this.cellSize, odx !== 0 ? this.cellSize : 0.3, this.sharedWallMat, 3.0);
+                            back.position.set(cx0 - odx * 1.85, 1.5, cz0 - odz * 1.85);
+                            addGeometry(back);
+                            for (let s = -1; s <= 1; s += 2) {
+                                // side walls stop 0.3 short of the opening:
+                                // the front corners are canonical squeeze gaps
+                                const sw = buildWall(odx !== 0 ? 3.7 : 0.3, odx !== 0 ? 0.3 : 3.7, this.sharedWallMat, 3.0);
+                                sw.position.set(cx0 + (odx !== 0 ? -odx * 0.15 : s * 1.85), 1.5, cz0 + (odx !== 0 ? s * 1.85 : -odz * 0.15));
+                                addGeometry(sw);
+                            }
+                            const cot = new THREE.Group();
                             const cotFrame = new THREE.Mesh(this._boxGeo(1.0, 0.5, 2.0), this.structMat);
-                            cotFrame.position.set(x * this.cellSize, 0.25, z * this.cellSize);
-                            addGeometry(cotFrame);
+                            cotFrame.position.y = 0.25;
                             const mattress = new THREE.Mesh(this._boxGeo(0.9, 0.15, 1.9), this.fabricMat);
-                            mattress.position.set(x * this.cellSize, 0.575, z * this.cellSize);
-                            addGeometry(mattress);
-                            const pole = new THREE.Mesh(this._boxGeo(0.08, 2.0, 0.08), this.rustMat);
-                            pole.position.set(x * this.cellSize + 0.8, 1.0, z * this.cellSize + 0.8);
-                            addGeometry(pole);
-                            if (random() > 0.3) {
-                                const chair = buildChair(x * this.cellSize - 0.8, 0, z * this.cellSize + 0.5, random() * Math.PI);
-                                addFurniture(chair);
+                            mattress.position.y = 0.575;
+                            cot.add(cotFrame, mattress);
+                            if (odx !== 0) cot.rotation.y = Math.PI / 2;
+                            cot.position.set(cx0 - odx * 0.55, 0, cz0 - odz * 0.55);
+                            addFurniture(cot);
+                            ivPole(cx0 + (odz !== 0 ? 1.3 : -odx * 0.2), cz0 + (odx !== 0 ? 1.3 : -odz * 0.2));
+                            hangCurtain(odx !== 0, cx0 + odx * 1.6, cz0 + odz * 1.6, 3.6);
+                        } else if (roll < 0.27) {
+                            // ── Curtain wall: pass through blind ──
+                            hangCurtain(alongZ, cx0, cz0, this.cellSize);
+                            if (random() > 0.6) {
+                                // double layer, offset — two veils deep
+                                hangCurtain(alongZ, cx0 + (alongZ ? 0.7 : 0), cz0 + (alongZ ? 0 : 0.7), this.cellSize);
+                            }
+                        } else if (roll < 0.38) {
+                            // ── Squeeze slot: 0.4u of daylight, 'Q' to earn it ──
+                            const segLen = 1.8;
+                            for (let s = -1; s <= 1; s += 2) {
+                                const seg = buildWall(alongZ ? 1.2 : segLen, alongZ ? segLen : 1.2, this.sharedWallMat, 3.0);
+                                seg.position.set(cx0 + (alongZ ? 0 : s * 1.1), 1.5, cz0 + (alongZ ? s * 1.1 : 0));
+                                addGeometry(seg);
+                            }
+                        } else {
+                            // ── Solid ward wall, bumper rails on exposed faces ──
+                            const wall = buildWall(this.cellSize, this.cellSize, this.sharedWallMat, 3.0);
+                            wall.position.set(cx0, 1.5, cz0);
+                            addGeometry(wall);
+                            for (const [dx2, dz2] of openDirs) {
+                                const rail = new THREE.Mesh(this._boxGeo(dz2 !== 0 ? 3.9 : 0.07, 0.14, dz2 !== 0 ? 0.07 : 3.9), this.rustMat);
+                                rail.position.set(cx0 + dx2 * 2.06, 0.95, cz0 + dz2 * 2.06);
+                                decal(rail);
                             }
                         }
+                        return;
+                    }
+                    // ── Corridor cell ──
+                    const gateApproach = (localX === 7 && (localZ <= 2 || localZ >= 13)) || (localZ === 7 && (localX <= 2 || localX >= 13));
+                    const corrX = !wallAt(localX - 1, localZ) || !wallAt(localX + 1, localZ);
+                    const obRoll = gateApproach ? 1.0 : random();
+                    const isCollapse = obRoll >= 0.12 && obRoll < 0.20;
+                    if (!isCollapse && (localX + localZ) % 2 === 0 && random() > 0.5) {
                         const activeMat = ctx.getLightMaterial(0xd0e8ff, 0xa0d0ff, false);
                         const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
-                        panel.position.set(x * this.cellSize, 2.98, z * this.cellSize);
+                        panel.position.set(cx0, 2.98, cz0);
                         chunkGroup.add(panel);
                         this.walls.push(panel);
                         this.fixtureData.push({
                             chunkHash: hash,
-                            position: new THREE.Vector3(x * this.cellSize, 2.8, z * this.cellSize),
+                            position: new THREE.Vector3(cx0, 2.8, cz0),
                             flickerOffset: random() * 500,
                             material: activeMat,
                             isFaulty: random() > 0.6,
@@ -1268,49 +1372,122 @@ export default class TheArchitect {
                             targetIntensity: 0.5,
                             currentIntensity: 0.5
                         });
-                    } else if (!isMainPath) {
-                        const clutterRoll = random();
-                        if (clutterRoll > 0.65) {
-                            const isRotated = random() > 0.5;
-                            const screenW = isRotated ? 0.1 : this.cellSize * 0.8;
-                            const screenD = isRotated ? this.cellSize * 0.8 : 0.1;
-                            const screen = new THREE.Mesh(this._boxGeo(screenW, 2.4, screenD), this.fabricMat);
-                            screen.position.set(x * this.cellSize, 1.2, z * this.cellSize);
+                    }
+                    if (gateApproach) return;
+                    if (obRoll < 0.12) {
+                        // ── Gurney blockade: abandoned mid-transfer ──
+                        const gurney = new THREE.Group();
+                        const bed = new THREE.Mesh(this._boxGeo(1.0, 0.12, 2.0), this.structMat);
+                        bed.position.y = 0.75;
+                        const gMat = new THREE.Mesh(this._boxGeo(0.95, 0.12, 1.9), this.fabricMat);
+                        gMat.position.y = 0.87;
+                        gurney.add(bed, gMat);
+                        for (let e = -1; e <= 1; e += 2) {
+                            const legs = new THREE.Mesh(this._boxGeo(0.9, 0.75, 0.06), this.metalMat);
+                            legs.position.set(0, 0.375, e * 0.85);
+                            gurney.add(legs);
+                        }
+                        // long axis lies ACROSS the travel direction
+                        gurney.rotation.y = (corrX ? 0 : Math.PI / 2) + (random() - 0.5) * 0.9;
+                        gurney.position.set(cx0 + (random() - 0.5) * 1.2, 0, cz0 + (random() - 0.5) * 1.2);
+                        addFurniture(gurney);
+                        if (random() > 0.5) ivPole(cx0 + (random() - 0.5) * 2.5, cz0 + (random() - 0.5) * 2.5);
+                    } else if (isCollapse) {
+                        // ── Ceiling collapse: a slab of the ward roof has caved
+                        // in. It spans the corridor WIDTH (no sidestep) but stays
+                        // shallow along travel so it no longer fouls the screens
+                        // and cots in neighbouring cells. Belly at 1.22: crouch
+                        // (top 1.2) clears, standing doesn't. Collision is the
+                        // concrete mass itself; every hanging piece stays at or
+                        // above the belly so nothing dangles into the crawl space.
+                        const travelX = corrX;               // corridor runs along X
+                        const depth = 2.6;                   // shallow along travel
+                        const massW = travelX ? depth : this.cellSize; // X size
+                        const massD = travelX ? this.cellSize : depth; // Z size
+                        const belly = 1.22;
+                        const massH = 3.0 - belly;
+                        // structural concrete mass — carries the collision
+                        const body = buildWall(massW, massD, this.structMat, massH);
+                        body.position.set(cx0, belly + massH / 2, cz0);
+                        addGeometry(body);
+                        // ceiling-tile skin on the underside — still reads as roof
+                        const skin = new THREE.Mesh(this._boxGeo(massW - 0.1, 0.06, massD - 0.1), this.ceilMat);
+                        skin.position.set(cx0, belly + 0.04, cz0);
+                        decal(skin);
+                        // a tilted broken chunk sagging at the torn edge
+                        const side = random() > 0.5 ? 1 : -1;
+                        const chunk = new THREE.Mesh(this._boxGeo(travelX ? depth * 0.5 : 1.5, 0.5, travelX ? 1.5 : depth * 0.5), this.structMat);
+                        chunk.position.set(cx0 + (travelX ? 0 : side * 1.0), belly + 0.5, cz0 + (travelX ? side * 1.0 : 0));
+                        chunk.rotation.set(travelX ? 0 : side * 0.24, 0, travelX ? -side * 0.24 : 0);
+                        decal(chunk);
+                        // exposed rebar raking out of the break (stays above belly)
+                        if (!this.collapseRebarGeo) {
+                            this.collapseRebarGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.8, 5);
+                            this.geoCache.set(this.collapseRebarGeo.uuid, true);
+                        }
+                        for (let i = 0; i < 4; i++) {
+                            const bar = new THREE.Mesh(this.collapseRebarGeo, this.rustMat);
+                            const t = (i / 3 - 0.5) * (this.cellSize - 1.4);
+                            bar.position.set(cx0 + (travelX ? depth * 0.42 : t), belly + 0.42, cz0 + (travelX ? t : depth * 0.42));
+                            bar.rotation.set((random() - 0.5) * 0.3, random() * Math.PI, Math.PI / 2 + (random() - 0.5) * 0.3);
+                            decal(bar);
+                        }
+                        // a severed duct end poking from the cavity (bottom ~1.4)
+                        const duct = new THREE.Mesh(this._boxGeo(0.5, 0.85, 0.5), this.metalMat);
+                        duct.position.set(cx0 + (random() - 0.5) * 1.2, belly + 0.6, cz0 + (random() - 0.5) * 1.2);
+                        duct.rotation.set((random() - 0.5) * 0.3, random() * Math.PI, (random() - 0.5) * 0.3);
+                        decal(duct);
+                        // fallen tiles + a leaning strut on the floor
+                        if (!this.fallenTileGeo) {
+                            this.fallenTileGeo = new THREE.BoxGeometry(0.9, 0.04, 0.9);
+                            this.geoCache.set(this.fallenTileGeo.uuid, true);
+                        }
+                        const tileCount = 2 + Math.floor(random() * 3);
+                        for (let i = 0; i < tileCount; i++) {
+                            const tile = new THREE.Mesh(this.fallenTileGeo, this.ceilMat);
+                            tile.position.set(cx0 + (random() - 0.5) * 2.8, 0.03 + random() * 0.06, cz0 + (random() - 0.5) * 2.8);
+                            tile.rotation.set((random() - 0.5) * 0.25, random() * Math.PI, (random() - 0.5) * 0.25);
+                            decal(tile);
+                        }
+                        const strut = new THREE.Mesh(this._boxGeo(0.08, 0.85, 0.08), this.rustMat);
+                        strut.position.set(cx0 + (random() - 0.5) * 2.0, 1.65, cz0 + (random() - 0.5) * 2.0);
+                        strut.rotation.z = (random() - 0.5) * 0.5;
+                        decal(strut);
+                    } else if (obRoll < 0.32) {
+                        // ── Privacy screen slalom ──
+                        for (let s = -1; s <= 1; s += 2) {
+                            const screen = new THREE.Mesh(this._boxGeo(corrX ? 0.1 : 2.6, 2.4, corrX ? 2.6 : 0.1), this.fabricMat);
+                            screen.position.set(
+                                cx0 + (corrX ? s * 0.9 : s * 1.0),
+                                1.2,
+                                cz0 + (corrX ? s * 1.0 : s * 0.9)
+                            );
+                            screen.rotation.y = (random() - 0.5) * 0.5;
                             addGeometry(screen);
-                        } else if (clutterRoll > 0.50) {
+                        }
+                    } else if (obRoll < 0.42) {
+                        // ── Waiting area detritus ──
+                        const chairCount = 1 + Math.floor(random() * 2);
+                        for (let i = 0; i < chairCount; i++) {
+                            addFurniture(buildChair(cx0 + (random() - 0.5) * 2.2, 0, cz0 + (random() - 0.5) * 2.2, random() * Math.PI * 2));
+                        }
+                        if (random() > 0.5) {
                             if (!this.cartonGeo) {
                                 this.cartonGeo = new THREE.BoxGeometry(0.6, 0.5, 0.6);
                                 this.geoCache.set(this.cartonGeo.uuid, true);
                             }
-                            const boxCount = Math.floor(random() * 3) + 1;
                             const cartonPool = this.cartonMats || [this.fileBoxMat];
-                            const baseX = x * this.cellSize + (random() * 0.4 - 0.2);
-                            const baseZ = z * this.cellSize + (random() * 0.4 - 0.2);
-                            const baseYaw = random() * Math.PI;
-                            let stackTop = 0;
-                            let driftX = 0, driftZ = 0;
-                            for (let i = 0; i < boxCount; i++) {
-                                const isTop = i === boxCount - 1;
-                                const tipped = isTop && random() > 0.8;
-                                const mBox = new THREE.Mesh(this.cartonGeo, cartonPool[Math.floor(random() * cartonPool.length)]);
-                                driftX = Math.max(-0.09, Math.min(0.09, driftX + (random() - 0.5) * 0.1));
-                                driftZ = Math.max(-0.09, Math.min(0.09, driftZ + (random() - 0.5) * 0.1));
-                                if (tipped) {
-                                    mBox.rotation.order = 'YXZ';
-                                    mBox.rotation.x = Math.PI / 2;
-                                    mBox.rotation.y = random() * Math.PI;
-                                    mBox.position.set(baseX + driftX, stackTop + 0.3, baseZ + driftZ);
-                                } else {
-                                    mBox.rotation.y = baseYaw + (random() - 0.5) * 0.3;
-                                    mBox.position.set(baseX + driftX, stackTop + 0.25, baseZ + driftZ);
-                                    stackTop += 0.5;
-                                }
-                                addGeometry(mBox);
-                            }
-                        } else if (clutterRoll > 0.40) {
-                            const chair = buildChair(x * this.cellSize, 0, z * this.cellSize, random() * Math.PI * 2);
-                            addFurniture(chair);
+                            const mBox = new THREE.Mesh(this.cartonGeo, cartonPool[Math.floor(random() * cartonPool.length)]);
+                            mBox.rotation.y = random() * Math.PI;
+                            mBox.position.set(cx0 + (random() - 0.5) * 2.0, 0.25, cz0 + (random() - 0.5) * 2.0);
+                            addGeometry(mBox);
                         }
+                    } else if (obRoll < 0.50) {
+                        // ── Floor rot ──
+                        const mold = new THREE.Mesh(this.moldGeo, this.moldMat);
+                        mold.position.set(cx0 + (random() - 0.5) * 1.5, 0.015, cz0 + (random() - 0.5) * 1.5);
+                        mold.rotation.y = random() * Math.PI * 2;
+                        decal(mold);
                     }
                 }
             },
@@ -1320,100 +1497,36 @@ export default class TheArchitect {
                 ceilingMat: this.clinicMat,
                 build: (x, z, localX, localZ, maze, inDir, outDir) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat, "BOARDROOM")) return;
+                    // ── OFFICE HIGHRISE NIGHTMARE ──────────────────────────
+                    // Corridor spines run the gate lines (7) plus secondary
+                    // halls at 3 and 11. The blocks between are office suites.
+                    // Suite faces push 0.8u into the corridors (≈2.2u clear),
+                    // fronted by solid partition or a fully framed glass
+                    // vestibule with a working door. A few suites are sealed
+                    // fishbowls: glass on every side, no door, one occupant.
                     const bx = x * this.cellSize, bz = z * this.cellSize;
                     const glass = this.glassMat || this.fabricMat;
-                    const onLineX = (localX === 3 || localX === 6 || localX === 9 || localX === 12);
-                    const onLineZ = (localZ === 3 || localZ === 6 || localZ === 9 || localZ === 12);
-                    const buildPane = (alongZ) => {
-                        const rail = buildWall(alongZ ? 0.12 : this.cellSize, alongZ ? this.cellSize : 0.12, this.metalMat, 0.1);
-                        rail.position.set(bx, 0.05, bz);
-                        addGeometry(rail);
-                        const head = buildWall(alongZ ? 0.12 : this.cellSize, alongZ ? this.cellSize : 0.12, this.metalMat, 0.1);
-                        head.position.set(bx, 2.95, bz);
-                        addGeometry(head);
-                        const post = buildWall(0.12, 0.12, this.metalMat, 3.0);
-                        post.position.set(bx + (alongZ ? 0 : -2), 1.5, bz + (alongZ ? -2 : 0));
-                        addGeometry(post);
-                        const pane = buildWall(alongZ ? 0.06 : this.cellSize, alongZ ? this.cellSize : 0.06, glass, 2.8);
-                        pane.position.set(bx, 1.5, bz);
-                        addGeometry(pane);
+                    const isC = (v) => v === 3 || v === 7 || v === 11;
+                    const last = this.chunkSize - 2;
+                    // Fishbowl seals need cross-cell agreement, and the build
+                    // stream can't provide it (draw order varies). World cell
+                    // coords + seed hash gives every cell the same answer.
+                    const cellHash = (gx, gz) => {
+                        const h = Math.sin(gx * 127.1 + gz * 311.7 + (this.baseSeed % 4096) * 0.618) * 43758.5453;
+                        return h - Math.floor(h);
                     };
-                    if (onLineX && onLineZ) {
-                        buildPane(true);
-                        buildPane(false);
-                        const post = buildWall(0.16, 0.16, this.metalMat, 3.0);
-                        post.position.set(bx, 1.5, bz);
-                        addGeometry(post);
-                        return;
-                    }
-                    if (onLineX) {
-                        if (localZ % 3 !== 1) buildPane(true);
-                        return;
-                    }
-                    if (onLineZ) {
-                        if (localX % 3 !== 1) buildPane(false);
-                        return;
-                    }
-                    const isAnchor = (v) => (v === 1 || v === 4 || v === 10 || v === 13);
-                    if (isAnchor(localX) && isAnchor(localZ)) {
-                        const pcx = bx + 2, pcz = bz + 2;
-                        if (random() > 0.30) {
-                            const longX = random() > 0.5;
-                            const confTable = new THREE.Group();
-                            const top = new THREE.Mesh(this._boxGeo(longX ? 3.2 : 1.4, 0.08, longX ? 1.4 : 3.2), this.woodMat);
-                            top.position.y = 0.82;
-                            confTable.add(top);
-                            for (let e = -1; e <= 1; e += 2) {
-                                const ped = new THREE.Mesh(this.tableBaseGeo, this.structMat);
-                                ped.position.set(longX ? e * 1.1 : 0, 0.4, longX ? 0 : e * 1.1);
-                                confTable.add(ped);
-                            }
-                            confTable.position.set(pcx, 0, pcz);
-                            addFurniture(confTable);
-                            const sideOff = 1.15, endOff = 2.05;
-                            for (let sc = -1; sc <= 1; sc += 2) {
-                                for (let sp = -1; sp <= 1; sp += 2) {
-                                    if (random() > 0.25) {
-                                        const cxp = pcx + (longX ? sp * 0.9 : sc * sideOff);
-                                        const czp = pcz + (longX ? sc * sideOff : sp * 0.9);
-                                        const face = longX
-                                            ? (sc > 0 ? Math.PI : 0)
-                                            : (sc > 0 ? -Math.PI / 2 : Math.PI / 2);
-                                        addFurniture(buildChair(cxp, 0, czp, face));
-                                    }
-                                }
-                            }
-                            if (random() > 0.5) {
-                                const hx = pcx + (longX ? endOff : 0);
-                                const hz = pcz + (longX ? 0 : endOff);
-                                addFurniture(buildChair(hx, 0, hz, longX ? -Math.PI / 2 : Math.PI));
-                            }
-                            if (random() > 0.55) {
-                                const crtGroup = new THREE.Group();
-                                const body = new THREE.Mesh(this.terminalBodyGeo, this.baseHousingMat);
-                                body.position.set(0, 0.2, 0);
-                                const screen = new THREE.Mesh(this._boxGeo(0.45, 0.35, 0.05), this.crtScreenMat);
-                                screen.position.set(0, 0.2, 0.26);
-                                crtGroup.add(body, screen);
-                                crtGroup.position.set(pcx, 0.825, pcz);
-                                crtGroup.rotation.y = random() * Math.PI * 2;
-                                chunkGroup.add(crtGroup);
-                                crtGroup.updateMatrixWorld(true);
-                                body.userData.chunkHash = hash;
-                                screen.userData.chunkHash = hash;
-                                stagingMeshes.push(body, screen);
-                            }
-                        }
-                    }
-                    if ((localX + localZ) % 3 === 0 && random() > 0.4) {
+                    const isBowl = (gx, gz, lx, lz) =>
+                        lx >= 1 && lx <= last && lz >= 1 && lz <= last &&
+                        !isC(lx) && !isC(lz) && cellHash(gx, gz) < 0.10;
+                    const ceilingPanel = (px, pz) => {
                         const activeMat = ctx.getLightMaterial(0xe8f2ff, 0xd8e8ff, false);
                         const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
-                        panel.position.set(bx, 2.98, bz);
+                        panel.position.set(px, 2.98, pz);
                         chunkGroup.add(panel);
                         this.walls.push(panel);
                         this.fixtureData.push({
                             chunkHash: hash,
-                            position: new THREE.Vector3(bx, 2.8, bz),
+                            position: new THREE.Vector3(px, 2.8, pz),
                             flickerOffset: random() * 500,
                             material: activeMat,
                             isFaulty: random() > 0.9,
@@ -1421,7 +1534,278 @@ export default class TheArchitect {
                             targetIntensity: 0.65,
                             currentIntensity: 0.65
                         });
+                    };
+                    // ── Corridor cells: empty throat, humming ceiling ──
+                    if (isC(localX) || isC(localZ)) {
+                        const junction = isC(localX) && isC(localZ);
+                        if (!junction && (localX + localZ) % 2 === 0 && random() > 0.30) {
+                            ceilingPanel(bx, bz);
+                        } else if (junction && random() > 0.5) {
+                            ceilingPanel(bx, bz);
+                        }
+                        return;
                     }
+                    // ── Suite cell: build its faces, then dress it ──
+                    const bowlHere = isBowl(x, z, localX, localZ);
+                    const post = (px, pz, thick = 0.15) => {
+                        const p = buildWall(thick, thick, this.metalMat, 3.0);
+                        p.position.set(px, 1.5, pz);
+                        addGeometry(p);
+                    };
+                    const pane = (alongX, px, pz, len) => {
+                        if (len < 0.2) return;
+                        const g = buildWall(alongX ? len : 0.06, alongX ? 0.06 : len, glass, 2.6);
+                        g.position.set(px, 1.42, pz);
+                        addGeometry(g);
+                    };
+                    const rails = (alongX, px, pz, len) => {
+                        const sill = buildWall(alongX ? len : 0.15, alongX ? 0.15 : len, this.metalMat, 0.12);
+                        sill.position.set(px, 0.06, pz);
+                        addGeometry(sill);
+                        const head = buildWall(alongX ? len : 0.15, alongX ? 0.15 : len, this.metalMat, 0.3);
+                        head.position.set(px, 2.83, pz);
+                        addGeometry(head);
+                    };
+                    const hangDoor = (alongX, hx, hz, closedRot) => {
+                        const doorGeo = this._cacheGeo('vestibuleDoor', () => {
+                            const g = new THREE.BoxGeometry(1.0, 2.55, 0.07);
+                            g.translate(0.5, 0, 0);
+                            return g;
+                        });
+                        const door = new THREE.Mesh(doorGeo, glass);
+                        door.position.set(hx, 1.315, hz);
+                        door.rotation.y = closedRot;
+                        door.castShadow = door.receiveShadow = true;
+                        door.userData = {chunkHash: hash, closedRot: closedRot, currentRot: closedRot};
+                        chunkGroup.add(door);
+                        this.interactiveDoors.push(door);
+                        this.walls.push(door);
+                        door.updateMatrixWorld();
+                        const dBox = new THREE.Box3().setFromObject(door);
+                        dBox.chunkHash = hash;
+                        door.userData.box = dBox;
+                        this.spatialGrid.insert(dBox);
+                    };
+                    // A framed glass face: sill + head rails, posts at BOTH
+                    // ends, and either a doored aperture or a center mullion.
+                    // No pane ever floats without a boundary again.
+                    const glassFace = (alongX, faceC, latC, len, withDoor) => {
+                        const half = len / 2;
+                        if (alongX) {
+                            rails(true, latC, faceC, len);
+                            post(latC - half + 0.075, faceC);
+                            post(latC + half - 0.075, faceC);
+                            if (withDoor) {
+                                const dl = bx - 0.55, dr = bx + 0.55;
+                                const lStart = latC - half + 0.15;
+                                const rEnd = latC + half - 0.15;
+                                pane(true, (lStart + dl) / 2, faceC, dl - lStart);
+                                pane(true, (dr + rEnd) / 2, faceC, rEnd - dr);
+                                post(dl, faceC, 0.1);
+                                post(dr, faceC, 0.1);
+                                hangDoor(true, bx - 0.5, faceC, 0);
+                            } else {
+                                pane(true, latC, faceC, len - 0.3);
+                                post(latC, faceC, 0.1);
+                            }
+                        } else {
+                            rails(false, faceC, latC, len);
+                            post(faceC, latC - half + 0.075);
+                            post(faceC, latC + half - 0.075);
+                            if (withDoor) {
+                                const dl = bz - 0.55, dr = bz + 0.55;
+                                const lStart = latC - half + 0.15;
+                                const rEnd = latC + half - 0.15;
+                                pane(false, faceC, (lStart + dl) / 2, dl - lStart);
+                                pane(false, faceC, (dr + rEnd) / 2, rEnd - dr);
+                                post(faceC, dl, 0.1);
+                                post(faceC, dr, 0.1);
+                                hangDoor(false, faceC, bz + 0.5, Math.PI / 2);
+                            } else {
+                                pane(false, faceC, latC, len - 0.3);
+                                post(faceC, latC, 0.1);
+                            }
+                        }
+                    };
+                    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+                    // Guaranteed egress, decided by hash so both sides of any
+                    // wall agree without touching the stream: a suite with a
+                    // corridor face gets exactly one door on a chosen face; a
+                    // landlocked suite gets one forced-open partition toward a
+                    // corridor-adjacent neighbor. No accidental fishbowls.
+                    const inSuite = (lx, lz) => lx >= 1 && lx <= last && lz >= 1 && lz <= last && !isC(lx) && !isC(lz);
+                    const corridorFaces = (lx, lz) => dirs.filter(([ddx, ddz]) => {
+                        const nx = lx + ddx, nz = lz + ddz;
+                        return nx >= 1 && nx <= last && nz >= 1 && nz <= last && (isC(nx) || isC(nz));
+                    });
+                    // Not every suite gets its own door — that's a mesh-budget
+                    // and atmosphere decision. ~35% are doored; the rest open
+                    // into a doored neighbor. Chains always terminate: doorless
+                    // cells with no doored neighbor fall back to a self-door.
+                    const hasOwnDoor = (gx, gz, lx, lz) =>
+                        corridorFaces(lx, lz).length > 0 && !isBowl(gx, gz, lx, lz) && cellHash(gx + 31, gz + 17) < 0.35;
+                    const egress = (gx, gz, lx, lz) => {
+                        const cf = corridorFaces(lx, lz);
+                        if (cf.length) {
+                            if (cellHash(gx + 31, gz + 17) < 0.35) {
+                                return {door: cf[Math.floor(cellHash(gx + 7, gz + 13) * cf.length)]};
+                            }
+                            const dn = dirs.filter(([ddx, ddz]) => {
+                                const nx = lx + ddx, nz = lz + ddz;
+                                return inSuite(nx, nz) && hasOwnDoor(gx + ddx, gz + ddz, nx, nz);
+                            });
+                            if (dn.length) return {open: dn[Math.floor(cellHash(gx + 7, gz + 13) * dn.length)]};
+                            return {door: cf[Math.floor(cellHash(gx + 7, gz + 13) * cf.length)]};
+                        }
+                        const bf = dirs.filter(([ddx, ddz]) => {
+                            const nx = lx + ddx, nz = lz + ddz;
+                            return inSuite(nx, nz) && corridorFaces(nx, nz).length > 0 && !isBowl(gx + ddx, gz + ddz, nx, nz);
+                        });
+                        if (!bf.length) return {};
+                        return {open: bf[Math.floor(cellHash(gx + 7, gz + 13) * bf.length)]};
+                    };
+                    const myEgress = bowlHere ? {} : egress(x, z, localX, localZ);
+                    for (let d = 0; d < 4; d++) {
+                        const dx = dirs[d][0], dz = dirs[d][1];
+                        const nlx = localX + dx, nlz = localZ + dz;
+                        if (nlx < 1 || nlx > last || nlz < 1 || nlz > last) continue; // perimeter seals that side
+                        const alongX = dz !== 0;
+                        // Ends that meet a corridor junction extend 0.8u so the
+                        // corner closes against the perpendicular face.
+                        const negLat = alongX ? localX - 1 : localZ - 1;
+                        const posLat = alongX ? localX + 1 : localZ + 1;
+                        const extNeg = (negLat >= 1 && isC(negLat)) ? 0.8 : 0;
+                        const extPos = (posLat <= last && isC(posLat)) ? 0.8 : 0;
+                        if (isC(nlx) || isC(nlz)) {
+                            // Corridor-facing front, pushed into the hall.
+                            const faceC = alongX ? bz + dz * 2.8 : bx + dx * 2.8;
+                            const len = this.cellSize + extNeg + extPos;
+                            const latC = (alongX ? bx : bz) + (extPos - extNeg) / 2;
+                            // A lateral end on the chunk perimeter leaves the
+                            // 0.8u strip behind the pushed front open toward
+                            // the corridor gate. Cap it with a return wall.
+                            for (let e = -1; e <= 1; e += 2) {
+                                const latEdge = (e < 0 ? negLat : posLat);
+                                if (latEdge >= 1 && latEdge <= last) continue;
+                                const retLat = (alongX ? bx : bz) + e * 2;
+                                const retFace = (alongX ? bz : bx) + (alongX ? dz : dx) * 2.4;
+                                const ret = buildWall(alongX ? 0.2 : 0.8, alongX ? 0.8 : 0.2, this.sharedWallMat, 3.0);
+                                ret.position.set(alongX ? retLat : retFace, 1.5, alongX ? retFace : retLat);
+                                addGeometry(ret);
+                            }
+                            const isDoorFace = myEgress.door && myEgress.door[0] === dx && myEgress.door[1] === dz;
+                            if (bowlHere) {
+                                glassFace(alongX, faceC, latC, len, false);
+                            } else if (isDoorFace) {
+                                glassFace(alongX, faceC, latC, len, true);
+                            } else if (random() < 0.18) {
+                                glassFace(alongX, faceC, latC, len, false); // display window, no door
+                            } else {
+                                const wall = buildWall(alongX ? len : 0.2, alongX ? 0.2 : len, this.sharedWallMat, 3.0);
+                                wall.position.set(alongX ? latC : faceC, 1.5, alongX ? faceC : latC);
+                                addGeometry(wall);
+                            }
+                        } else if (dx === 1 || dz === 1) {
+                            // Interior partition, owned by the lower cell. The
+                            // same junction extension seals the strip behind
+                            // pushed-in fronts so suites don't leak sideways.
+                            const faceC = alongX ? bz + 2 : bx + 2;
+                            const len = this.cellSize + extNeg + extPos;
+                            const latC = (alongX ? bx : bz) + (extPos - extNeg) / 2;
+                            const neighborBowl = isBowl(x + dx, z + dz, nlx, nlz);
+                            if (bowlHere || neighborBowl) {
+                                glassFace(alongX, faceC, latC, len, false);
+                            } else {
+                                const nbEgress = egress(x + dx, z + dz, nlx, nlz);
+                                const forcedOpen =
+                                    (myEgress.open && myEgress.open[0] === dx && myEgress.open[1] === dz) ||
+                                    (nbEgress.open && nbEgress.open[0] === -dx && nbEgress.open[1] === -dz);
+                                const roll = random();
+                                if (forcedOpen || roll < 0.35) {
+                                    // open plan: suites merge into a warren
+                                } else if (roll < 0.78) {
+                                    glassFace(alongX, faceC, latC, len, false);
+                                } else {
+                                    const wall = buildWall(alongX ? len : 0.15, alongX ? 0.15 : len, this.sharedWallMat, 3.0);
+                                    wall.position.set(alongX ? latC : faceC, 1.5, alongX ? faceC : latC);
+                                    addGeometry(wall);
+                                }
+                            }
+                        }
+                    }
+                    // Corner column at every interior four-corner: partitions
+                    // terminate into it instead of leaving a pinhole where two
+                    // perpendicular panes almost meet. This is the fix for
+                    // "the glass walls do not connect."
+                    if (inSuite(localX + 1, localZ) && inSuite(localX, localZ + 1) && inSuite(localX + 1, localZ + 1)) {
+                        post(bx + 2, bz + 2, 0.24);
+                    }
+                    // ── Dressing ──
+                    if (bowlHere) {
+                        if (random() > 0.45) {
+                            addFurniture(buildChair(bx + (random() - 0.5) * 1.2, 0, bz + (random() - 0.5) * 1.2, random() * Math.PI * 2));
+                        } else {
+                            const crtGroup = new THREE.Group();
+                            const body = new THREE.Mesh(this.terminalBodyGeo, this.baseHousingMat);
+                            const screen = new THREE.Mesh(this._boxGeo(0.45, 0.35, 0.05), this.baseHousingMat);
+                            screen.position.set(0, 0, 0.26);
+                            crtGroup.add(body, screen);
+                            crtGroup.position.set(bx, 0.28, bz);
+                            crtGroup.rotation.y = random() * Math.PI * 2;
+                            addFurniture(crtGroup);
+                        }
+                        if (random() > 0.6) ceilingPanel(bx, bz);
+                        return;
+                    }
+                    const dress = random();
+                    if (dress < 0.45) {
+                        const longX = random() > 0.5;
+                        const confTable = new THREE.Group();
+                        const top = new THREE.Mesh(this._boxGeo(longX ? 3.2 : 1.4, 0.08, longX ? 1.4 : 3.2), this.woodMat);
+                        top.position.y = 0.82;
+                        confTable.add(top);
+                        for (let e = -1; e <= 1; e += 2) {
+                            const ped = new THREE.Mesh(this.tableBaseGeo, this.structMat);
+                            ped.position.set(longX ? e * 1.1 : 0, 0.4, longX ? 0 : e * 1.1);
+                            confTable.add(ped);
+                        }
+                        confTable.position.set(bx, 0, bz);
+                        addFurniture(confTable);
+                        const sideOff = 1.15;
+                        for (let sc = -1; sc <= 1; sc += 2) {
+                            for (let sp = -1; sp <= 1; sp += 2) {
+                                if (random() > 0.25) {
+                                    const cxp = bx + (longX ? sp * 0.9 : sc * sideOff);
+                                    const czp = bz + (longX ? sc * sideOff : sp * 0.9);
+                                    const face = longX
+                                        ? (sc > 0 ? Math.PI : 0)
+                                        : (sc > 0 ? -Math.PI / 2 : Math.PI / 2);
+                                    addFurniture(buildChair(cxp, 0, czp, face));
+                                }
+                            }
+                        }
+                        if (random() > 0.55) {
+                            const crtGroup = new THREE.Group();
+                            const body = new THREE.Mesh(this.terminalBodyGeo, this.baseHousingMat);
+                            body.position.set(0, 0.2, 0);
+                            const screen = new THREE.Mesh(this._boxGeo(0.45, 0.35, 0.05), this.crtScreenMat);
+                            screen.position.set(0, 0.2, 0.26);
+                            crtGroup.add(body, screen);
+                            crtGroup.position.set(bx, 0.825, bz);
+                            crtGroup.rotation.y = random() * Math.PI * 2;
+                            chunkGroup.add(crtGroup);
+                            crtGroup.updateMatrixWorld(true);
+                            body.userData.chunkHash = hash;
+                            screen.userData.chunkHash = hash;
+                            stagingMeshes.push(body, screen);
+                        }
+                    } else if (dress < 0.57) {
+                        const felled = buildChair(bx + (random() - 0.5) * 2.0, 0, bz + (random() - 0.5) * 2.0, random() * Math.PI * 2);
+                        felled.rotation.z = (random() > 0.5 ? 1 : -1) * Math.PI / 2;
+                        felled.position.y = 0.38;
+                        addFurniture(felled);
+                    }
+                    if (random() > 0.62) ceilingPanel(bx, bz);
                 }
             },
             {
@@ -1757,28 +2141,36 @@ export default class TheArchitect {
                             railing.position.set(gx, 0.6, gz + 1.8);
                             addGeometry(railing);
                         }
-                        if (random() > 0.85) {
+                        if (random() > 0.78) {
+                            // Deck-level red markers: dropped into the fog layer
+                            // and cranked up so they burn through the black. They
+                            // hug a walkway edge overlooking the drop, on a short
+                            // stanchion instead of a ceiling wire.
                             const lampMat = this.baseLightMat.clone();
                             lampMat.color.setHex(0xff2200);
                             lampMat.emissive.setHex(0xff0000);
-                            const lamp = buildWall(0.3, 0.3, lampMat, 0.4);
-                            lamp.position.set(gx, 4.0, gz);
+                            const edge = 1.7;
+                            let ex = checkVoid(localX - 1, localZ) ? -edge : (checkVoid(localX + 1, localZ) ? edge : 0);
+                            let ez = 0;
+                            if (ex === 0) ez = checkVoid(localX, localZ - 1) ? -edge : (checkVoid(localX, localZ + 1) ? edge : 0);
+                            const post = buildWall(0.12, 0.12, this.rustMat, 0.5);
+                            post.position.set(gx + ex, 0.25, gz + ez);
+                            addGeometry(post);
+                            const lamp = buildWall(0.28, 0.28, lampMat, 0.3);
+                            lamp.position.set(gx + ex, 0.6, gz + ez);
                             lamp.userData.chunkHash = hash;
                             chunkGroup.add(lamp);
                             lamp.updateMatrixWorld(true);
                             this.walls.push(lamp);
-                            const wire = buildWall(0.04, 0.04, this.metalMat, 10.0);
-                            wire.position.set(gx, 9.0, gz);
-                            addGeometry(wire);
                             this.fixtureData.push({
                                 chunkHash: hash,
-                                position: new THREE.Vector3(gx, 3.8, gz),
+                                position: new THREE.Vector3(gx + ex, 0.55, gz + ez),
                                 flickerOffset: random() * 500,
                                 material: lampMat,
-                                isFaulty: random() > 0.5,
-                                baseIntensity: 0.8,
-                                targetIntensity: 0.8,
-                                currentIntensity: 0.8
+                                isFaulty: random() > 0.75,
+                                baseIntensity: 2.4,
+                                targetIntensity: 2.4,
+                                currentIntensity: 2.4
                             });
                         }
                     } else {
@@ -1788,10 +2180,71 @@ export default class TheArchitect {
                         voidBox.isVoid = true;
                         voidBox.chunkHash = hash;
                         this.spatialGrid.insert(voidBox);
-                        if (random() > 0.95 && localX > 2 && localX < 12 && localZ > 2 && localZ < 12) {
-                            const pillar = buildWall(1.8 + random() * 1.5, 1.8 + random() * 1.5, this.rustMat, 80.0);
+                        // ── PILLARS: guarantee a few per chasm, then scatter more ──
+                        // No pillar shortage: 3–5 are seeded onto known void cells
+                        // up front (so a chasm is never empty), plus a random
+                        // scatter on top. The seeded picks use a local RNG so the
+                        // chunk's main PRNG stream is untouched.
+                        if (this._chasmPillarHash !== hash) {
+                            this._chasmPillarHash = hash;
+                            const band = [];
+                            for (let ix = 3; ix <= 11; ix++) for (let iz = 3; iz <= 11; iz++) {
+                                if (!maze || maze[ix][iz]) band.push(ix * this.chunkSize + iz);
+                            }
+                            const set = new Set();
+                            if (band.length) {
+                                let s = (hash ^ 0x00C0FFEE) >>> 0;
+                                const rng = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+                                for (let i = band.length - 1; i > 0; i--) {
+                                    const j = Math.floor(rng() * (i + 1));
+                                    const t = band[i]; band[i] = band[j]; band[j] = t;
+                                }
+                                const want = Math.min(band.length, 3 + ((hash >>> 3) % 3)); // 3–5
+                                for (let k = 0; k < want; k++) set.add(band[k]);
+                            }
+                            this._chasmPillarSet = set;
+                        }
+                        const guaranteed = this._chasmPillarSet.has(localX * this.chunkSize + localZ);
+                        const scatter = random() > 0.90;
+                        const inBand = localX > 2 && localX < 12 && localZ > 2 && localZ < 12;
+                        if (guaranteed || (scatter && inBand)) {
+                            const pw = 1.8 + random() * 1.5;
+                            const pillar = buildWall(pw, pw, this.rustMat, 80.0);
                             pillar.position.set(gx, -30.0, gz);
                             addGeometry(pillar);
+                            // ── uplighting: a base flood that rakes up the shaft so
+                            // the pillar looms out of the black fog. Aimed at the
+                            // nearest walkway so its lit face greets the player.
+                            const isVoidCell = (nx, nz) =>
+                                (nx < 0 || nx >= this.chunkSize || nz < 0 || nz >= this.chunkSize)
+                                    ? true : (!maze || maze[nx][nz]);
+                            let ox = 0, oz = 0;
+                            const nb = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                            for (let n = 0; n < nb.length; n++) {
+                                if (!isVoidCell(localX + nb[n][0], localZ + nb[n][1])) { ox = nb[n][0]; oz = nb[n][1]; break; }
+                            }
+                            if (ox === 0 && oz === 0) ox = localX < 7 ? 1 : -1;
+                            const off = pw / 2 + 0.5;
+                            const canX = gx + ox * off, canZ = gz + oz * off;
+                            const upMat = this.baseLightMat.clone();
+                            upMat.color.setHex(0xff3a00);
+                            upMat.emissive.setHex(0xff2200);
+                            const can = new THREE.Mesh(this._boxGeo(0.4, 0.25, 0.4), upMat);
+                            can.position.set(canX, 0.35, canZ);
+                            can.userData.chunkHash = hash;
+                            chunkGroup.add(can);
+                            can.updateMatrixWorld(true);
+                            this.walls.push(can);
+                            this.fixtureData.push({
+                                chunkHash: hash,
+                                position: new THREE.Vector3(canX, 1.2, canZ),
+                                flickerOffset: random() * 500,
+                                material: upMat,
+                                isFaulty: false,
+                                baseIntensity: 3.0,
+                                targetIntensity: 3.0,
+                                currentIntensity: 3.0
+                            });
                         }
                     }
                 }
@@ -2376,7 +2829,39 @@ export default class TheArchitect {
                     const isPathW = localZ === 7 && localX <= 7;
                     const isPathE = localZ === 7 && localX >= 7;
                     const isPath = isPathN || isPathS || isPathW || isPathE;
+                    // ── room selection, shared by the fill branch and the dress ──
+                    // Pure hash of the cell so the chunk PRNG stream is untouched.
+                    const ckHash = (a, b, salt) => {
+                        let h = (hash ^ Math.imul(a + 64, 73856093) ^ Math.imul(b + 64, 19349663) ^ Math.imul(salt + 1, 83492791)) >>> 0;
+                        h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;
+                        h = Math.imul(h ^ (h >>> 13), 3266489917) >>> 0;
+                        return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+                    };
+                    const roomCandidate = (lx, lz) => {
+                        if (lx === 7 || lz === 7) return false;
+                        const fV = (lx === 6 || lx === 8) && lz !== 6 && lz !== 8;
+                        const fH = (lz === 6 || lz === 8) && lx !== 6 && lx !== 8;
+                        if (!fV && !fH) return false;
+                        const t = fV ? lz : lx;               // travel coord along the arm
+                        if (t < 3 || t > 12) return false;    // clear of the gate mouths
+                        if (Math.abs(t - 7) < 2) return false; // clear of the center core
+                        return ckHash(lx, lz, 11) < 0.14;
+                    };
+                    // A room is BUILT only at the start of a run of candidates, so
+                    // its three non-door faces always back onto solid fill.
+                    const isBuiltRoom = (lx, lz) => {
+                        if (!roomCandidate(lx, lz)) return false;
+                        const fV = (lx === 6 || lx === 8) && lz !== 6 && lz !== 8;
+                        const prev = fV ? roomCandidate(lx, lz - 1) : roomCandidate(lx - 1, lz);
+                        return !prev;
+                    };
                     if (!isPath) {
+                        // ── SIDE ROOMS + THE MAN DOOR ───────────────────────
+                        if (isBuiltRoom(localX, localZ)) {
+                            const flankV = (localX === 6 || localX === 8) && localZ !== 6 && localZ !== 8;
+                            this._buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, {buildWall, addGeometry, chunkGroup, hash});
+                            return;
+                        }
                         const block = buildWall(this.cellSize, this.cellSize, this.structMat);
                         block.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                         block.userData.isEntityBlocker = true;
@@ -2384,98 +2869,9 @@ export default class TheArchitect {
                         return;
                     }
                     if (localX === 7 && localZ === 7) {
-                        const spansX = random() > 0.5;
-                        const chokeType = Math.floor(random() * 4);
-                        const wallThick = 0.6;
-                        const gapW = chokeType === 0 ? 0.35 : 1.4;
-                        const sideW = (this.cellSize - gapW) / 2;
-                        const sOff = (this.cellSize / 2) - (sideW / 2);
-                        const p1 = buildWall(spansX ? sideW : wallThick, spansX ? wallThick : sideW, this.sharedWallMat);
-                        p1.position.set(x * this.cellSize + (spansX ? -sOff : 0), 1.5, z * this.cellSize + (spansX ? 0 : -sOff));
-                        p1.userData.isEntityBlocker = true;
-                        addGeometry(p1);
-                        const p2 = buildWall(spansX ? sideW : wallThick, spansX ? wallThick : sideW, this.sharedWallMat);
-                        p2.position.set(x * this.cellSize + (spansX ? sOff : 0), 1.5, z * this.cellSize + (spansX ? 0 : sOff));
-                        p2.userData.isEntityBlocker = true;
-                        addGeometry(p2);
-                        if (chokeType === 0) {
-                            const top = buildWall(spansX ? gapW : wallThick, spansX ? wallThick : gapW, this.structMat, 0.5);
-                            top.position.set(x * this.cellSize, 2.75, z * this.cellSize);
-                            addGeometry(top);
-                            const frame1 = new THREE.Mesh(this._boxGeo(spansX ? 0.05 : wallThick + 0.02, 3.0, spansX ? wallThick + 0.02 : 0.05), this.woodMat);
-                            frame1.position.set(x * this.cellSize + (spansX ? -gapW / 2 - 0.025 : 0), 1.5, z * this.cellSize + (spansX ? 0 : -gapW / 2 - 0.025));
-                            addGeometry(frame1);
-                            const frame2 = new THREE.Mesh(this._boxGeo(spansX ? 0.05 : wallThick + 0.02, 3.0, spansX ? wallThick + 0.02 : 0.05), this.woodMat);
-                            frame2.position.set(x * this.cellSize + (spansX ? gapW / 2 + 0.025 : 0), 1.5, z * this.cellSize + (spansX ? 0 : gapW / 2 + 0.025));
-                            addGeometry(frame2);
-                        } else if (chokeType === 1 || chokeType === 2) {
-                            const gapH = chokeType === 1 ? 0.6 : 1.2;
-                            const topH = 3.0 - gapH;
-                            const top = buildWall(spansX ? gapW : wallThick, spansX ? wallThick : gapW, this.sharedWallMat, topH, gapH);
-                            top.position.set(x * this.cellSize, gapH + (topH / 2), z * this.cellSize);
-                            top.userData.isEntityBlocker = true;
-                            addGeometry(top);
-                            const frameTop = new THREE.Mesh(this._boxGeo(spansX ? gapW : wallThick + 0.02, 0.05, spansX ? wallThick + 0.02 : gapW), this.woodMat);
-                            frameTop.position.set(x * this.cellSize, gapH + 0.025, z * this.cellSize);
-                            addGeometry(frameTop);
-                            const blockBox = new AABB(
-                                new Vec3(x * this.cellSize - (spansX ? gapW / 2 : wallThick / 2), 0, z * this.cellSize - (spansX ? wallThick / 2 : gapW / 2)),
-                                new Vec3(x * this.cellSize + (spansX ? gapW / 2 : wallThick / 2), 3.0, z * this.cellSize + (spansX ? wallThick / 2 : gapW / 2))
-                            );
-                            blockBox.isEntityBlocker = true;
-                            blockBox.isInvisibleBlocker = true;
-                            blockBox.chunkHash = hash;
-                            this.spatialGrid.insert(blockBox);
-                        } else if (chokeType === 3) {
-                            const top = buildWall(spansX ? gapW : wallThick, spansX ? wallThick : gapW, this.structMat, 0.35, 2.65);
-                            top.position.set(x * this.cellSize, 2.825, z * this.cellSize);
-                            addGeometry(top);
-                            const jambL = new THREE.Mesh(this._boxGeo(spansX ? 0.1 : wallThick + 0.05, 2.65, spansX ? wallThick + 0.05 : 0.1), this.woodMat);
-                            jambL.position.set(x * this.cellSize + (spansX ? -0.75 : 0), 1.325, z * this.cellSize + (spansX ? 0 : -0.75));
-                            addGeometry(jambL);
-                            const jambR = new THREE.Mesh(this._boxGeo(spansX ? 0.1 : wallThick + 0.05, 2.65, spansX ? wallThick + 0.05 : 0.1), this.woodMat);
-                            jambR.position.set(x * this.cellSize + (spansX ? 0.75 : 0), 1.325, z * this.cellSize + (spansX ? 0 : 0.75));
-                            addGeometry(jambR);
-                            const jambT = new THREE.Mesh(this._boxGeo(spansX ? 1.6 : wallThick + 0.05, 0.1, spansX ? wallThick + 0.05 : 1.6), this.woodMat);
-                            jambT.position.set(x * this.cellSize, 2.70, z * this.cellSize);
-                            addGeometry(jambT);
-                            const doorW = 1.4;
-                            const doorT = 0.1;
-                            let doorGeo;
-                            let doorMesh;
-                            if (spansX) {
-                                doorGeo = this._cacheGeo('hingedDoor:X', () => {
-                                    const g = new THREE.BoxGeometry(doorW, 2.65, doorT);
-                                    g.translate(doorW / 2, 0, doorT / 2);
-                                    return g;
-                                });
-                                doorMesh = new THREE.Mesh(doorGeo, this.doorMat);
-                                doorMesh.position.set(x * this.cellSize - doorW / 2, 1.325, z * this.cellSize);
-                                doorMesh.userData = {chunkHash: hash, closedRot: 0, currentRot: 0};
-                            } else {
-                                doorGeo = this._cacheGeo('hingedDoor:Z', () => {
-                                    const g = new THREE.BoxGeometry(doorT, 2.65, doorW);
-                                    g.translate(doorT / 2, 0, doorW / 2);
-                                    return g;
-                                });
-                                doorMesh = new THREE.Mesh(doorGeo, this.doorMat);
-                                doorMesh.position.set(x * this.cellSize, 1.325, z * this.cellSize - doorW / 2);
-                                doorMesh.userData = {
-                                    chunkHash: hash,
-                                    closedRot: -Math.PI / 2,
-                                    currentRot: -Math.PI / 2
-                                };
-                            }
-                            doorMesh.castShadow = doorMesh.receiveShadow = true;
-                            chunkGroup.add(doorMesh);
-                            this.interactiveDoors.push(doorMesh);
-                            this.walls.push(doorMesh);
-                            doorMesh.updateMatrixWorld();
-                            const dBox = new THREE.Box3().setFromObject(doorMesh);
-                            dBox.chunkHash = hash;
-                            doorMesh.userData.box = dBox;
-                            this.spatialGrid.insert(dBox);
-                        }
+                        // The crossing centerpiece: a giant column of monitors +
+                        // cables. Still the bottleneck — you route around it.
+                        this._buildCheckpointColumn(x, z, hash, {addGeometry, stagingMeshes});
                     } else {
                         if ((localX % 3 === 0 || localZ % 3 === 0) && random() > 0.5) {
                             const activeMat = this.baseLightMat.clone();
@@ -2493,6 +2889,217 @@ export default class TheArchitect {
                                 targetIntensity: 0.7,
                                 currentIntensity: 0.7
                             });
+                        }
+                        // ── THE CHECKPOINT DRESS ────────────────────────────
+                        // The arms were empty tile. Now they read as a
+                        // quarantine control post: supply crates, drums, AV
+                        // carts, and hazmat suits racked against the walls.
+                        // Everything hugs the ±wall lateral; a ≥1.4u lane
+                        // stays open down the spine so the choke is the only
+                        // real bottleneck. Soft goods (suits, sheeting) carry
+                        // no collision — they brush past you, feet visible.
+                        const cx0 = x * this.cellSize, cz0 = z * this.cellSize;
+                        const alongZ = localX === 7; // hall travels Z, walls on ±X
+                        const travelCoord = alongZ ? localZ : localX;
+                        const nearGate = travelCoord <= 1 || travelCoord >= 14;
+                        const nearChoke = Math.abs(travelCoord - 7) === 1;
+                        // lateral placement: side = ±1 picks a wall
+                        const lat = (side, off) => alongZ
+                            ? [cx0 + side * off, cz0]
+                            : [cx0, cz0 + side * off];
+                        // A man door on a flanking cell opens into this arm on
+                        // one side. Keep that side clear of dress so nothing
+                        // fouls the doorway. side -1 → cell 6, side +1 → cell 8.
+                        const doorMinus = alongZ ? isBuiltRoom(6, localZ) : isBuiltRoom(localX, 6);
+                        const doorPlus = alongZ ? isBuiltRoom(8, localZ) : isBuiltRoom(localX, 8);
+                        const anyDoor = doorMinus || doorPlus;
+                        const clearSide = (pref) => {
+                            const blocked = (s) => (s < 0 ? doorMinus : doorPlus);
+                            if (!blocked(pref)) return pref;
+                            if (!blocked(-pref)) return -pref;
+                            return 0; // both sides carry a door — skip the prop
+                        };
+                        const decalMesh = (mesh) => {
+                            mesh.userData.chunkHash = hash;
+                            mesh.updateMatrixWorld(true);
+                            stagingMeshes.push(mesh);
+                        };
+                        if (!this.hazmatMat) {
+                            this.hazmatMat = new THREE.MeshStandardMaterial({color: 0xc9b83a, roughness: 0.85});
+                            this.sharedAssets.add(this.hazmatMat.uuid);
+                        }
+                        if (!this.deconSheetMat) {
+                            this.deconSheetMat = new THREE.MeshStandardMaterial({
+                                color: 0xbfd8d0, transparent: true, opacity: 0.28,
+                                roughness: 0.6, side: THREE.DoubleSide
+                            });
+                            this.sharedAssets.add(this.deconSheetMat.uuid);
+                        }
+                        // ── prop builders (all face-agnostic via alongZ) ──
+                        const hazmatSuit = (px, pz, faceYaw) => {
+                            const suit = new THREE.Group();
+                            const torso = new THREE.Mesh(this._boxGeo(0.4, 0.55, 0.24), this.hazmatMat);
+                            torso.position.y = 1.55;
+                            const hood = new THREE.Mesh(this._boxGeo(0.24, 0.24, 0.24), this.hazmatMat);
+                            hood.position.y = 1.94;
+                            const visor = new THREE.Mesh(this._boxGeo(0.16, 0.12, 0.02), this.crtScreenMat);
+                            visor.position.set(0, 1.96, 0.13);
+                            suit.add(torso, hood, visor);
+                            for (let a = -1; a <= 1; a += 2) {
+                                const arm = new THREE.Mesh(this._boxGeo(0.11, 0.5, 0.11), this.hazmatMat);
+                                arm.position.set(a * 0.24, 1.32, 0);
+                                const leg = new THREE.Mesh(this._boxGeo(0.14, 0.55, 0.14), this.hazmatMat);
+                                leg.position.set(a * 0.11, 0.92, 0);
+                                suit.add(arm, leg);
+                            }
+                            suit.position.set(px, 0, pz);
+                            suit.rotation.y = faceYaw + (random() - 0.5) * 0.25;
+                            suit.traverse(m => { if (m.isMesh) decalMesh(m); });
+                        };
+                        const suitRack = (side) => {
+                            const railLen = 3.2;
+                            const [rx, rz] = lat(side, 1.82);
+                            const rail = new THREE.Mesh(
+                                this._boxGeo(alongZ ? 0.06 : railLen, 0.06, alongZ ? railLen : 0.06), this.metalMat);
+                            rail.position.set(rx, 2.35, rz);
+                            addGeometry(rail);
+                            for (let p = -1; p <= 1; p += 2) {
+                                const post = new THREE.Mesh(this._boxGeo(0.06, 2.35, 0.06), this.metalMat);
+                                const [ppx, ppz] = alongZ ? [rx, rz + p * 1.5] : [rx + p * 1.5, rz];
+                                post.position.set(ppx, 1.17, ppz);
+                                decalMesh(post);
+                            }
+                            const faceYaw = alongZ ? (side < 0 ? Math.PI / 2 : -Math.PI / 2) : (side < 0 ? Math.PI : 0);
+                            const n = 2 + Math.floor(random() * 2);
+                            for (let i = 0; i < n; i++) {
+                                const t = (n === 1) ? 0 : (i / (n - 1) - 0.5) * 2.4;
+                                const [sx, sz] = alongZ ? [rx, rz + t] : [rx + t, rz];
+                                if (random() > 0.15) hazmatSuit(sx, sz, faceYaw);
+                            }
+                        };
+                        const crateStack = (side) => {
+                            if (!this.cartonGeo) {
+                                this.cartonGeo = new THREE.BoxGeometry(0.6, 0.5, 0.6);
+                                this.geoCache.set(this.cartonGeo.uuid, true);
+                            }
+                            const cartonPool = this.cartonMats || [this.fileBoxMat];
+                            const [bx0, bz0] = lat(side, 1.45);
+                            const pallet = new THREE.Mesh(this._boxGeo(1.3, 0.12, 1.3), this.woodMat);
+                            pallet.position.set(bx0, 0.06, bz0);
+                            addGeometry(pallet);
+                            const cols = 1 + Math.floor(random() * 2);
+                            for (let c = 0; c < cols; c++) {
+                                const ox = (c - (cols - 1) / 2) * 0.62;
+                                const stack = 1 + Math.floor(random() * 3);
+                                for (let s = 0; s < stack; s++) {
+                                    const mBox = new THREE.Mesh(this.cartonGeo, cartonPool[Math.floor(random() * cartonPool.length)]);
+                                    const jitter = (random() - 0.5) * 0.12;
+                                    mBox.rotation.y = (random() - 0.5) * 0.3;
+                                    const [mx, mz] = alongZ ? [bx0 + jitter, bz0 + ox] : [bx0 + ox, bz0 + jitter];
+                                    mBox.position.set(mx, 0.37 + s * 0.5, mz);
+                                    addGeometry(mBox);
+                                }
+                            }
+                        };
+                        const drumCluster = (side) => {
+                            const drumGeo = this._cacheGeo('ckDrum', () => new THREE.CylinderGeometry(0.29, 0.29, 0.92, 10));
+                            const n = 2 + Math.floor(random() * 2);
+                            const [dx0, dz0] = lat(side, 1.5);
+                            for (let i = 0; i < n; i++) {
+                                const drum = new THREE.Mesh(drumGeo, random() > 0.5 ? this.rustMat : this.hazmatMat);
+                                const off = (i - (n - 1) / 2) * 0.64;
+                                const [ddx, ddz] = alongZ ? [dx0 + (random() - 0.5) * 0.2, dz0 + off] : [dx0 + off, dz0 + (random() - 0.5) * 0.2];
+                                drum.position.set(ddx, 0.46, ddz);
+                                addGeometry(drum);
+                                const ring = new THREE.Mesh(this._boxGeo(0.6, 0.05, 0.6), this.hazardMat);
+                                ring.position.set(ddx, 0.7, ddz);
+                                decalMesh(ring);
+                            }
+                        };
+                        const avCart = (side) => {
+                            const cart = new THREE.Group();
+                            const shelf = new THREE.Mesh(this._boxGeo(0.9, 0.05, 0.6), this.metalMat);
+                            shelf.position.y = 0.78;
+                            const lower = new THREE.Mesh(this._boxGeo(0.9, 0.05, 0.6), this.metalMat);
+                            lower.position.y = 0.4;
+                            cart.add(shelf, lower);
+                            for (let lx2 = -1; lx2 <= 1; lx2 += 2) for (let lz2 = -1; lz2 <= 1; lz2 += 2) {
+                                const leg = new THREE.Mesh(this._boxGeo(0.05, 0.78, 0.05), this.metalMat);
+                                leg.position.set(lx2 * 0.4, 0.39, lz2 * 0.26);
+                                cart.add(leg);
+                            }
+                            const body = new THREE.Mesh(this.terminalBodyGeo, this.baseHousingMat);
+                            body.position.set(0, 1.0, 0);
+                            const screen = new THREE.Mesh(this._boxGeo(0.45, 0.35, 0.05), this.crtScreenMat);
+                            screen.position.set(0, 1.0, 0.26);
+                            cart.add(body, screen);
+                            const [ax, az] = lat(side, 1.5);
+                            cart.position.set(ax, 0, az);
+                            cart.rotation.y = (alongZ ? 0 : Math.PI / 2) + (random() - 0.5) * 0.4;
+                            addFurniture(cart);
+                        };
+                        const deconSheet = () => {
+                            // hangs across the whole hall — you push through blind
+                            const strips = 5;
+                            for (let i = 0; i < strips; i++) {
+                                const t = (i / (strips - 1) - 0.5) * 3.4;
+                                const strip = new THREE.Mesh(
+                                    this._boxGeo(alongZ ? 0.62 : 0.03, 2.3, alongZ ? 0.03 : 0.62), this.deconSheetMat);
+                                const [spx, spz] = alongZ ? [cx0 + t, cz0] : [cx0, cz0 + t];
+                                strip.position.set(spx, 1.3, spz);
+                                strip.rotation.y = (random() - 0.5) * 0.05;
+                                decalMesh(strip);
+                            }
+                            const track = new THREE.Mesh(
+                                this._boxGeo(alongZ ? 3.6 : 0.06, 0.08, alongZ ? 0.06 : 3.6), this.metalMat);
+                            track.position.set(cx0, 2.48, cz0);
+                            decalMesh(track);
+                        };
+                        // ── the control desk: sells the checkpoint at a glance ──
+                        if (nearChoke && this._ckDeskHash !== hash) {
+                            this._ckDeskHash = hash; // one control desk per checkpoint chunk
+                            const side = random() > 0.5 ? 1 : -1;
+                            const [dx0, dz0] = lat(side, 1.15);
+                            const desk = new THREE.Group();
+                            const top = new THREE.Mesh(this._boxGeo(alongZ ? 1.0 : 2.0, 0.08, alongZ ? 2.0 : 1.0), this.woodMat);
+                            top.position.y = 0.78;
+                            const skirt = new THREE.Mesh(this._boxGeo(alongZ ? 0.9 : 1.9, 0.68, alongZ ? 1.9 : 0.9), this.structMat);
+                            skirt.position.y = 0.38;
+                            desk.add(top, skirt);
+                            const body = new THREE.Mesh(this.terminalBodyGeo, this.baseHousingMat);
+                            body.position.set(0, 1.0, 0);
+                            const screen = new THREE.Mesh(this._boxGeo(0.45, 0.35, 0.05), this.crtScreenMat);
+                            screen.position.set(0, 1.0, alongZ ? 0.26 : 0.26);
+                            desk.add(body, screen);
+                            desk.position.set(dx0, 0, dz0);
+                            desk.rotation.y = alongZ ? (side < 0 ? -Math.PI / 2 : Math.PI / 2) : (side < 0 ? 0 : Math.PI);
+                            addFurniture(desk);
+                            hazmatSuit(...lat(side, 1.85), alongZ ? (side < 0 ? Math.PI / 2 : -Math.PI / 2) : (side < 0 ? Math.PI : 0));
+                            return;
+                        }
+                        if (nearGate) return; // keep the arm mouths clear
+                        const dress = random();
+                        if (dress < 0.16) {
+                            const s = clearSide(random() > 0.5 ? 1 : -1);
+                            if (s) suitRack(s);
+                        } else if (dress < 0.34) {
+                            const s = clearSide(random() > 0.5 ? 1 : -1);
+                            if (s) crateStack(s);
+                            if (random() > 0.6) {
+                                const s2 = clearSide(random() > 0.5 ? 1 : -1);
+                                if (s2) drumCluster(s2);
+                            }
+                        } else if (dress < 0.46) {
+                            const s = clearSide(random() > 0.5 ? 1 : -1);
+                            if (s) drumCluster(s);
+                        } else if (dress < 0.58) {
+                            const s = clearSide(random() > 0.5 ? 1 : -1);
+                            if (s) avCart(s);
+                        } else if (dress < 0.66) {
+                            if (!anyDoor) deconSheet(); // curtain spans the hall — skip near any door
+                        } else if (dress < 0.80) {
+                            if (!doorPlus) crateStack(1);
+                            if (!doorMinus) crateStack(-1); // both walls, lane still open
                         }
                     }
                 }
