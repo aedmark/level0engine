@@ -680,13 +680,19 @@
 <div id="ui-layer">
     <button id="menuToggleBtn" class="btn">MENU</button>
     <div class="control-panel">
-        <h1>LEVEL 0 ENGINE v0.4.13</h1>
+        <h1>LEVEL 0 ENGINE v0.4.14</h1>
         <div class="instructions">
             <p align="center">WASD to Move | Shift to Run<br>'E' to Interact | 'C' to Crouch<br>'Q' to Squeeze | 'V' to Blink<br>'F' for
                 Flashlight | '1' Use Battery<br>'2' Use Water | LMB to Look<br>RMB to Lean</p><br>
         </div><br>
         <label>Architecture Seed (String)</label>
         <input type="text" id="seedInput" value="LVL0410">
+        <label>Teleport (X / Z)</label>
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+            <input type="text" id="teleportX" placeholder="X" style="margin-bottom: 0;">
+            <input type="text" id="teleportZ" placeholder="Z" style="margin-bottom: 0;">
+            <button id="teleportBtn" class="btn" style="margin-top: 0; width: auto; padding: 0.5rem 1rem;">GO</button>
+        </div>
         <label>Display Format</label>
         <select id="aspectSelect">
             <option value="auto">Dynamic (Full Window)</option>

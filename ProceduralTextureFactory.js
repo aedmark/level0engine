@@ -165,8 +165,8 @@ export default class ProceduralTextureFactory {
         carpetCtx.imageSmoothingEnabled = true;
         const carpetTexture = new THREE.CanvasTexture(carpetCanvas);
         carpetTexture.wrapS = carpetTexture.wrapT = THREE.RepeatWrapping;
-        carpetTexture.magFilter = THREE.NearestFilter;
-        carpetTexture.minFilter = THREE.NearestMipmapLinearFilter;
+        carpetTexture.magFilter = THREE.LinearFilter;
+        carpetTexture.minFilter = THREE.LinearMipmapLinearFilter;
         const {canvas: ceilingCanvas, ctx: ceilCtx} = this._createContext(512, 512);
         ceilCtx.fillStyle = '#e0dbcf';
         ceilCtx.fillRect(0, 0, 512, 512);
@@ -427,17 +427,24 @@ export default class ProceduralTextureFactory {
         ventCtx.fillStyle = '#808080';
         ventCtx.fillRect(6, 6, 500, 244);
         const slotColor = '#151515', slotWidth = 480, slotX = 16, slotY = 16, slotHeight = 224;
-        ventCtx.fillStyle = slotColor;
+        ventCtx.fillStyle = '#9a9a9a';
         ventCtx.fillRect(slotX, slotY, slotWidth, slotHeight);
-        const slatCount = 14, slatSpacing = Math.floor(slotHeight / slatCount), slatHeight = 8;
-        for (let i = 0; i < slatCount; i++) {
-            let yPos = slotY + (i * slatSpacing) + 2;
-            ventCtx.fillStyle = '#a0a0a0';
-            ventCtx.fillRect(slotX, yPos, slotWidth, slatHeight);
-            ventCtx.fillStyle = '#d0d0d0';
-            ventCtx.fillRect(slotX, yPos, slotWidth, 2);
-            ventCtx.fillStyle = '#505050';
-            ventCtx.fillRect(slotX, yPos + slatHeight - 2, slotWidth, 2);
+        for (let ix = 0; ix < 30; ix++) {
+            for (let iy = 0; iy < 14; iy++) {
+                let hX = slotX + 4 + (ix * 16);
+                let hY = slotY + 4 + (iy * 16);
+                
+                ventCtx.fillStyle = '#c0c0c0';
+                ventCtx.fillRect(hX, hY + 12, 12, 2);
+                ventCtx.fillRect(hX + 12, hY, 2, 14);
+                
+                ventCtx.fillStyle = '#505050';
+                ventCtx.fillRect(hX - 2, hY - 2, 14, 2);
+                ventCtx.fillRect(hX - 2, hY - 2, 2, 14);
+
+                ventCtx.fillStyle = slotColor;
+                ventCtx.fillRect(hX, hY, 12, 12);
+            }
         }
         ventCtx.fillStyle = '#c0c0c0';
         ventCtx.beginPath();

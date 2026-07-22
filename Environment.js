@@ -36,6 +36,7 @@ export default class Environment {
         this.pointsOfInterest = [];
         this._breakerHuntHops = undefined;
         this._macroChunkHashes = new Set();
+        this._sectorBags = null;
     }
     _sectorFog(id) {
         const s = SECTORS[id];
@@ -207,7 +208,12 @@ export default class Environment {
             if (isOpen) {
                 if (!door.userData.isLatched) {
                     const triggerPos = (entityOpen && !playerOpen) ? this.anomaly.group.position : playerPos;
-                    const isZDoor = Math.abs(door.userData.closedRot) < 0.1 || Math.abs(door.userData.closedRot - Math.PI) < 0.1;
+                    // useXApproach is explicit for doors whose leaf geometry is
+                    // already flush at rotation 0 (no rest-rotation offset), so
+                    // closedRot can't double as an orientation hint for them.
+                    // Falls back to the closedRot heuristic for every other door.
+                    const isZDoor = door.userData.useXApproach ? false :
+                        (Math.abs(door.userData.closedRot) < 0.1 || Math.abs(door.userData.closedRot - Math.PI) < 0.1);
                     const swingAngle = Math.PI / 2.2;
                     let desiredRot;
                     if (isZDoor) {
@@ -469,6 +475,15 @@ export default class Environment {
         });
         document.getElementById('generateBtn').addEventListener('click', () => {
             this.generate();
+        });
+        document.getElementById('teleportBtn').addEventListener('click', () => {
+            const tx = parseFloat(document.getElementById('teleportX').value);
+            const tz = parseFloat(document.getElementById('teleportZ').value);
+            if (!isNaN(tx) && !isNaN(tz)) {
+                this.camera.position.x = tx;
+                this.camera.position.z = tz;
+                this.updateChunks(this.camera.position);
+            }
         });
         document.getElementById('fogSlider').addEventListener('input', (e) => {
             this.baseFogDensity = e.target.value / 100;
@@ -744,6 +759,7 @@ export default class Environment {
         // maze but deals different anomalies. Nothing else may consume it.
         this._runSalt32 = (Math.random() * 4294967296) >>> 0;
         this._macroChunkHashes = new Set();
+        this._sectorBags = null;
         if (this.tagPool) {
             this.tagPool.forEach(tag => tag.visible = false);
             this.tagIndex = 0;
@@ -1468,7 +1484,14 @@ export default class Environment {
             });
             doorMesh = new THREE.Mesh(g, leafMat);
             doorMesh.position.set(bx, 1.325, cz0 - doorW / 2);
-            doorMesh.userData = {chunkHash: hash, closedRot: -Math.PI / 2, currentRot: -Math.PI / 2};
+            // This leaf (hingedDoor:Z) is built flush at rotation 0 already —
+            // no rest offset needed. closedRot: -PI/2 previously didn't match
+            // the mesh's actual (never explicitly set) rotation.y of 0, so the
+            // first open snapped ~90 deg instead of swinging smoothly, and
+            // closing settled at -90 deg instead of true flush (reads as
+            // "stuck halfway"). useXApproach keeps the correct swing-side
+            // check now that closedRot no longer signals it.
+            doorMesh.userData = {chunkHash: hash, closedRot: 0, currentRot: 0, useXApproach: true};
         } else {
             const g = this._cacheGeo('hingedDoor:X', () => {
                 const gg = new THREE.BoxGeometry(doorW, 2.65, doorT);
@@ -1719,7 +1742,14 @@ export default class Environment {
             win.position.y = 1.13;
             g.add(body, win, cabin);
             const onBlocks = random() > 0.7;
-            const halfL = (along ? L : W) / 2 - 0.5, halfW = (along ? W : L) / 2;
+            // halfL/halfW are the car's own length/width insets — always L
+            // and W, full stop. The wx/wz assignment below already swaps
+            // which world axis (X or Z) each one lands on for `along`; doing
+            // the same swap here too cancelled out for along===true (right
+            // by coincidence) but doubled up for along===false, placing
+            // wheels at +/-L/2 on the width axis instead of +/-W/2 — off the
+            // side of the body entirely on every sideways-oriented car.
+            const halfL = L / 2 - 0.5, halfW = W / 2;
             for (const sl of [-1, 1]) for (const sw of [-1, 1]) {
                 const wx = along ? sl * halfL : sw * halfW;
                 const wz = along ? sw * halfW : sl * halfL;
@@ -1734,13 +1764,32 @@ export default class Environment {
                     g.add(wheel);
                 }
             }
-            g.position.set(px + (random() - 0.5) * 0.4, 0, pz + (random() - 0.5) * 0.4);
-            g.rotation.y = (random() - 0.5) * 0.3;
+            // A 3.4-long car in a 4.0 cell only has ~0.3u of built-in
+            // clearance to the cell edge even at zero jitter/rotation — the
+            // old +/-0.2 position jitter and +/-0.15 rotation could eat
+            // straight through that and into a fence run on an adjacent
+            // wall cell. Tightened both so the worst case stays inside the
+            // cell with room to spare.
+            g.position.set(px + (random() - 0.5) * 0.2, 0, pz + (random() - 0.5) * 0.2);
+            g.rotation.y = (random() - 0.5) * 0.15;
             addFurniture(g);
             // impound tag on the hood — keeps the case-file document flowing
             if (random() > 0.4) {
                 const tag = new THREE.Mesh(this.documentGeo, this.documentMat);
-                tag.position.set(g.position.x, 1.02, g.position.z);
+                // Was pinned to the car's own pivot, which is dead center
+                // under the cabin/windshield (cabin spans y 0.84-1.40) — the
+                // tag rendered embedded inside that geometry, invisible but
+                // still hit by the interact raycast (no occlusion check
+                // there). Push it out to the exposed hood/trunk area instead:
+                // same longitudinal inset as the wheels (halfL, already
+                // clear of the cabin's footprint), rotated with the body.
+                const hoodSide = random() > 0.5 ? 1 : -1;
+                const hoodLocalX = along ? hoodSide * halfL : 0;
+                const hoodLocalZ = along ? 0 : hoodSide * halfL;
+                const cosR = Math.cos(g.rotation.y), sinR = Math.sin(g.rotation.y);
+                const tagX = g.position.x + (hoodLocalX * cosR + hoodLocalZ * sinR);
+                const tagZ = g.position.z + (-hoodLocalX * sinR + hoodLocalZ * cosR);
+                tag.position.set(tagX, 0.93, tagZ);
                 tag.rotation.y = random() * Math.PI;
                 tag.userData = {type: 'document', chunkHash: hash, active: true, zone: 'IMPOUND', docId: 'TAG_' + Math.floor(random() * 9999)};
                 chunkGroup.add(tag);
@@ -1832,13 +1881,41 @@ export default class Environment {
         if (isMacroStructure) {
             const isExitPhase = this.player && this.player.objectives && this.player.objectives.fixed >= this.player.objectives.total &&
                 this.player.hasVisitedAnnex && !this.player.objectives.escaped;
-            const sectorRoll = random();
-            const validSectors = sectorMatrix.filter(s => {
-                if (isExitPhase) return s.id !== "CHECKPOINT";
-                return s.id !== "EXIT";
-            });
-            const sectorIndex = Math.floor(sectorRoll * validSectors.length);
-            activeSector = validSectors[sectorIndex];
+            // Math.floor(random() * validSectors.length) was already exactly
+            // uniform per draw (11 candidates, each 1/11 per roll) — that part
+            // was never biased. But independent draws don't stop the same
+            // handful of sectors from clustering together while others go
+            // long stretches unseen; over a single play session that reads as
+            // "some zones are rare" even though the odds were fair in the
+            // limit. Switching to a shuffled no-repeat bag (Fisher-Yates,
+            // reshuffled once exhausted) bounds the wait for any given sector
+            // to at most 10 other macro chunks — a real fairness guarantee,
+            // not just a fair coin.
+            const poolKey = isExitPhase ? 'exit' : 'normal';
+            if (!this._sectorBags) this._sectorBags = {};
+            if (!this._sectorBags[poolKey] || this._sectorBags[poolKey].length === 0) {
+                // Bag stores IDs only, not the sector objects themselves.
+                // sectorMatrix is rebuilt fresh every buildChunk call — each
+                // sector's build() closes over *this* chunk's chunkGroup,
+                // stagingMeshes, hash, and random. Stashing the objects
+                // across chunks meant every pop after the bag's first fill
+                // was handing back a build() still wired to a previous,
+                // already-finalized chunk's geometry group — it ran, but
+                // nothing it built ever reached the chunk actually being
+                // generated.
+                const ids = sectorMatrix
+                    .filter(s => isExitPhase ? s.id !== "CHECKPOINT" : s.id !== "EXIT")
+                    .map(s => s.id);
+                for (let i = ids.length - 1; i > 0; i--) {
+                    const j = Math.floor(random() * (i + 1));
+                    const tmp = ids[i];
+                    ids[i] = ids[j];
+                    ids[j] = tmp;
+                }
+                this._sectorBags[poolKey] = ids;
+            }
+            const activeSectorId = this._sectorBags[poolKey].pop();
+            activeSector = sectorMatrix.find(s => s.id === activeSectorId);
             this.macroZones.set(hash, {
                 id: activeSector.id,
                 fog: this._sectorFog(activeSector.id),
@@ -2637,14 +2714,19 @@ export default class Environment {
             let rz = Math.floor(randomFn() * (this.chunkSize - 4)) + 2;
             maze[rx][rz] = false;
         }
-        maze[7][0] = false;
-        maze[7][1] = false;
-        maze[15][7] = false;
-        maze[14][7] = false;
-        maze[7][15] = false;
-        maze[7][14] = false;
-        maze[0][7] = false;
-        maze[1][7] = false;
+        // The old version only forced the 2 cells nearest each gate open,
+        // independent of whether carve()'s random walk ever actually reached
+        // that far out. carve() only connects what it visits — an airlock's
+        // two guaranteed-open cells could dead-end into solid wall on every
+        // other side if the walk didn't happen to extend to that arm. (7,7)
+        // is always open (it's the carve root), so forcing the full cross —
+        // not just the gate-adjacent cells — guarantees every gate has an
+        // unbroken line straight to the center, the same guarantee
+        // CHECKPOINT's hand-built corridor already gives it.
+        for (let i = 0; i < this.chunkSize; i++) {
+            maze[7][i] = false;
+            maze[i][7] = false;
+        }
         return maze;
     }
     _compileInstances(hash, chunkGroup, stagingMeshes, randomFn) {

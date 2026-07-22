@@ -34,8 +34,9 @@ export default class RenderEngine {
         this.ambientLight = new THREE.HemisphereLight(0xfff5c2, 0x3d3520, 0.85);
         this.scene.add(this.ambientLight);
         this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
-            minFilter: THREE.NearestFilter,
-            magFilter: THREE.NearestFilter
+            minFilter: THREE.LinearFilter,
+            magFilter: THREE.LinearFilter,
+            samples: 4
         });
         this.postScene = new THREE.Scene();
         this.postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);

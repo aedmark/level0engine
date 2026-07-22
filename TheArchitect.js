@@ -365,14 +365,58 @@ export default class TheArchitect {
                         const wall = new THREE.Mesh(this.sharedWallGeo, this.sharedWallMat);
                         wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                         addGeometry(wall);
+                        // Which face got the vent used to be pure random(0-3),
+                        // blind to whether that side actually opens onto a
+                        // corridor. Every wall cube already overlaps its
+                        // neighbor's cell slightly to avoid seams, so when the
+                        // chosen face happened to back onto another solid wall
+                        // cell, that neighbor's own cube reached back further
+                        // than the vent's 0.06u protrusion ever pokes out —
+                        // burying the vent inside the neighbor's wallpaper
+                        // instead of leaving it exposed on an open hallway face.
+                        // Can't just re-roll random() to check neighbors here —
+                        // that would desync the chunk's PRNG stream from
+                        // everything generated after this cell. The wall/open
+                        // split itself is decided by this same fractal pass
+                        // (isWall = iter > 6, further coin-flipped by random()
+                        // above), so re-running just the deterministic fractal
+                        // half for each neighbor — no random() calls — gives a
+                        // side-effect-free prediction to bias face selection
+                        // toward whichever side(s) are actually likely open.
+                        // Same cx/cy the chunk's own isWall pass derives from
+                        // baseSeed (buildChunk) — recomputed here since this
+                        // structural-matrix entry only receives ctx, not the
+                        // chunk's local fractal constants.
+                        const fCx = Math.sin(this.baseSeed) * 0.8;
+                        const fCy = Math.cos(this.baseSeed * 0.5) * 0.8;
+                        const probablyOpen = (nx, nz) => {
+                            let fzx = nx * 0.15, fzy = nz * 0.15, fiter = 0;
+                            let fzx2 = fzx * fzx, fzy2 = fzy * fzy;
+                            while (fzx2 + fzy2 < 4 && fiter < 15) {
+                                fzy = 2 * fzx * fzy + fCy;
+                                fzx = fzx2 - fzy2 + fCx;
+                                fzx2 = fzx * fzx;
+                                fzy2 = fzy * fzy;
+                                fiter++;
+                            }
+                            return fiter <= 6;
+                        };
+                        const openFaces = [];
+                        if (probablyOpen(x, z + 1)) openFaces.push(0);
+                        if (probablyOpen(x, z - 1)) openFaces.push(1);
+                        if (probablyOpen(x + 1, z)) openFaces.push(2);
+                        if (probablyOpen(x - 1, z)) openFaces.push(3);
+                        const ventFace = openFaces.length > 0
+                            ? openFaces[Math.floor(random() * openFaces.length)]
+                            : face;
                         const ventGeo = this._boxGeo(1.2, 0.6, 0.05);
                         const vent = new THREE.Mesh(ventGeo, this.wallVentMat);
                         const finalOffset = (this.cellSize / 2) + 0.06;
-                        if (face === 0) {
+                        if (ventFace === 0) {
                             vent.position.set(x * this.cellSize, 2.6, z * this.cellSize + finalOffset);
-                        } else if (face === 1) {
+                        } else if (ventFace === 1) {
                             vent.position.set(x * this.cellSize, 2.6, z * this.cellSize - finalOffset);
-                        } else if (face === 2) {
+                        } else if (ventFace === 2) {
                             vent.rotation.y = Math.PI / 2;
                             vent.position.set(x * this.cellSize + finalOffset, 2.6, z * this.cellSize);
                         } else {
@@ -1137,46 +1181,76 @@ export default class TheArchitect {
                     const px = x * this.cellSize, pz = z * this.cellSize;
                     const isWall = maze && maze[localX][localZ];
                     if (isWall) {
+                        // Yard fence, not a room wall — was reusing the 3.0
+                        // (floor-to-ceiling) wall height, which reads as a
+                        // solid partition instead of chainlink you can see
+                        // over. FENCE_H/FENCE_SCALE shrink every dimension
+                        // below by the same ratio so posts, rails, gates and
+                        // panels stay proportional to each other.
+                        const FENCE_H = 1.8, FENCE_SCALE = FENCE_H / 3.0;
                         if (!this.fenceGeoX) {
-                            this.fenceGeoX = new THREE.BoxGeometry(this.cellSize, 3.0, 0.05);
+                            this.fenceGeoX = new THREE.BoxGeometry(this.cellSize, FENCE_H, 0.05);
                             this.geoCache.set(this.fenceGeoX.uuid, true);
-                            this.fenceGeoZ = new THREE.BoxGeometry(0.05, 3.0, this.cellSize);
+                            this.fenceGeoZ = new THREE.BoxGeometry(0.05, FENCE_H, this.cellSize);
                             this.geoCache.set(this.fenceGeoZ.uuid, true);
                         }
+                        // Each wall cell only ever draws its own +X,+Z corner
+                        // post — the far end of each run relies on a
+                        // neighbouring wall cell to draw the matching post at
+                        // that shared corner. Where there's no such neighbour
+                        // (a dead end), that corner was never getting a post
+                        // at all. mwWall + the two checks below cap those ends.
+                        const mwWall = (dx, dz) => {
+                            const nx = localX + dx, nz = localZ + dz;
+                            return nx >= 0 && nx < this.chunkSize && nz >= 0 && nz < this.chunkSize && maze && maze[nx][nz];
+                        };
                         const cPillar = new THREE.Mesh(this.vPipeGeo, this.rustMat);
-                        cPillar.position.set(px + (this.cellSize / 2), 1.5, pz + (this.cellSize / 2));
+                        cPillar.scale.set(1, FENCE_SCALE, 1);
+                        cPillar.position.set(px + (this.cellSize / 2), FENCE_H / 2, pz + (this.cellSize / 2));
                         addGeometry(cPillar);
+                        if (!mwWall(-1, 0)) {
+                            const endPillar = new THREE.Mesh(this.vPipeGeo, this.rustMat);
+                            endPillar.scale.set(1, FENCE_SCALE, 1);
+                            endPillar.position.set(px - (this.cellSize / 2), FENCE_H / 2, pz + (this.cellSize / 2));
+                            addGeometry(endPillar);
+                        }
+                        if (!mwWall(0, -1)) {
+                            const endPillar = new THREE.Mesh(this.vPipeGeo, this.rustMat);
+                            endPillar.scale.set(1, FENCE_SCALE, 1);
+                            endPillar.position.set(px + (this.cellSize / 2), FENCE_H / 2, pz - (this.cellSize / 2));
+                            addGeometry(endPillar);
+                        }
                         const buildFenceRun = (alongX) => {
                             const fx = px + (alongX ? 0 : this.cellSize / 2);
                             const fz = pz + (alongX ? this.cellSize / 2 : 0);
                             if (random() > 0.85) {
                                 for (let s = -1; s <= 1; s += 2) {
-                                    const stub = new THREE.Mesh(this._boxGeo(alongX ? 1.3 : 0.05, 3.0, alongX ? 0.05 : 1.3), this.waterMat);
-                                    stub.position.set(fx + (alongX ? s * 1.35 : 0), 1.5, fz + (alongX ? 0 : s * 1.35));
+                                    const stub = new THREE.Mesh(this._boxGeo(alongX ? 1.3 : 0.05, FENCE_H, alongX ? 0.05 : 1.3), this.waterMat);
+                                    stub.position.set(fx + (alongX ? s * 1.35 : 0), FENCE_H / 2, fz + (alongX ? 0 : s * 1.35));
                                     addGeometry(stub);
                                     const gatePost = new THREE.Mesh(this.vPipeGeo, this.metalMat);
-                                    gatePost.scale.set(0.7, 0.75, 0.7);
-                                    gatePost.position.set(fx + (alongX ? s * 0.7 : 0), 1.12, fz + (alongX ? 0 : s * 0.7));
+                                    gatePost.scale.set(0.7, 0.75 * FENCE_SCALE, 0.7);
+                                    gatePost.position.set(fx + (alongX ? s * 0.7 : 0), 1.12 * FENCE_SCALE, fz + (alongX ? 0 : s * 0.7));
                                     addGeometry(gatePost);
                                 }
                                 const gateGeo = this._cacheGeo(`impGate:${alongX ? 'X' : 'Z'}`, () => {
-                                    const g = new THREE.BoxGeometry(alongX ? 1.4 : 0.05, 2.2, alongX ? 0.05 : 1.4);
+                                    const g = new THREE.BoxGeometry(alongX ? 1.4 : 0.05, 2.2 * FENCE_SCALE, alongX ? 0.05 : 1.4);
                                     g.translate(alongX ? 0.7 : 0, 0, alongX ? 0 : 0.7);
                                     return g;
                                 });
                                 const gate = new THREE.Mesh(gateGeo, this.waterMat);
-                                gate.position.set(fx - (alongX ? 0.7 : 0), 1.15, fz - (alongX ? 0 : 0.7));
+                                gate.position.set(fx - (alongX ? 0.7 : 0), 1.15 * FENCE_SCALE, fz - (alongX ? 0 : 0.7));
                                 gate.rotation.y = (random() > 0.5 ? 1 : -1) * (0.3 + random() * 1.0);
                                 gate.userData.chunkHash = hash;
                                 gate.updateMatrixWorld(true);
                                 stagingMeshes.push(gate);
                             } else {
                                 const fence = new THREE.Mesh(alongX ? this.fenceGeoX : this.fenceGeoZ, this.waterMat);
-                                fence.position.set(fx, 1.5, fz);
+                                fence.position.set(fx, FENCE_H / 2, fz);
                                 if (random() > (alongX ? 0.1 : 0.2)) fence.userData.isEntityBlocker = true;
                                 addGeometry(fence);
                                 const rail = new THREE.Mesh(this._boxGeo(alongX ? this.cellSize : 0.07, 0.07, alongX ? 0.07 : this.cellSize), this.rustMat);
-                                rail.position.set(fx, 2.96, fz);
+                                rail.position.set(fx, FENCE_H - 0.04, fz);
                                 addGeometry(rail);
                             }
                         };
@@ -2619,7 +2693,10 @@ export default class TheArchitect {
                         });
                         doorMesh = new THREE.Mesh(doorGeo, annexDoorMat);
                         doorMesh.position.set(wx, 1.325, wz - doorW / 2);
-                        doorMesh.userData = (isOpenable || isKeypad) ? {chunkHash: hash, closedRot: -Math.PI / 2, currentRot: -Math.PI / 2} : {chunkHash: hash};
+                        // Same rest-rotation mismatch as the checkpoint man
+                        // door (Environment.js _buildCheckpointRoom): this
+                        // hingedDoor:Z leaf is flush at rotation 0, not -PI/2.
+                        doorMesh.userData = (isOpenable || isKeypad) ? {chunkHash: hash, closedRot: 0, currentRot: 0, useXApproach: true} : {chunkHash: hash};
                     }
                     if (isKeypad) doorMesh.userData.codeLocked = true;
                     doorMesh.castShadow = doorMesh.receiveShadow = true;
@@ -2935,6 +3012,14 @@ export default class TheArchitect {
                         // real bottleneck. Soft goods (suits, sheeting) carry
                         // no collision — they brush past you, feet visible.
                         const cx0 = x * this.cellSize, cz0 = z * this.cellSize;
+                        // Fresh (non-warp) starts hard-spawn the camera at world
+                        // origin (Environment.js generate()). The plain maze
+                        // keeps a 2-cell buffer clear of that point on purpose;
+                        // this dress pass never inherited that rule, so a hazmat
+                        // suit or crate stack could land right on the player.
+                        // Structure/walls above are already built — only the
+                        // decorative clutter below needs to stay off the spawn.
+                        if (Math.hypot(cx0, cz0) < this.cellSize * 2) return;
                         const alongZ = localX === 7; // hall travels Z, walls on ±X
                         const travelCoord = alongZ ? localZ : localX;
                         const nearGate = travelCoord <= 1 || travelCoord >= 14;
@@ -2990,11 +3075,29 @@ export default class TheArchitect {
                             }
                             suit.position.set(px, 0, pz);
                             suit.rotation.y = faceYaw + (random() - 0.5) * 0.25;
+                            // suit is never parented into the live scene graph,
+                            // so nothing ever calls updateMatrix/updateMatrixWorld
+                            // on the group itself. Without this, decalMesh's
+                            // per-child updateMatrixWorld(true) reads suit's
+                            // still-identity matrixWorld and bakes every child
+                            // to its bare local offset — every suit in the level
+                            // collapsing onto roughly the same spot near world
+                            // origin instead of the rack. Force it here so the
+                            // group's transform is resolved before children
+                            // snapshot themselves into stagingMeshes.
+                            suit.updateMatrixWorld(true);
                             suit.traverse(m => { if (m.isMesh) decalMesh(m); });
                         };
                         const suitRack = (side) => {
                             const railLen = 3.2;
-                            const [rx, rz] = lat(side, 1.82);
+                            // Wall face sits at ±2.0 from the corridor centerline
+                            // (see the flanking block-fill above). 1.82 left only
+                            // ~0.18u before the wall, and the suit's own ~0.24u
+                            // depth ate the rest — rail and suits read as flush
+                            // against the wall. 1.5 matches the clearance every
+                            // sibling prop in this dress pass already uses
+                            // (crateStack/drumCluster/avCart).
+                            const [rx, rz] = lat(side, 1.5);
                             const rail = new THREE.Mesh(
                                 this._boxGeo(alongZ ? 0.06 : railLen, 0.06, alongZ ? railLen : 0.06), this.metalMat);
                             rail.position.set(rx, 2.35, rz);
@@ -3110,7 +3213,9 @@ export default class TheArchitect {
                             desk.position.set(dx0, 0, dz0);
                             desk.rotation.y = alongZ ? (side < 0 ? -Math.PI / 2 : Math.PI / 2) : (side < 0 ? 0 : Math.PI);
                             addFurniture(desk);
-                            hazmatSuit(...lat(side, 1.85), alongZ ? (side < 0 ? Math.PI / 2 : -Math.PI / 2) : (side < 0 ? Math.PI : 0));
+                            // No standalone suit here — suits only belong on
+                            // suitRack. This spot used to get its own hazmat
+                            // suit as desk dressing; removed per design call.
                             return;
                         }
                         if (nearGate) return; // keep the arm mouths clear
