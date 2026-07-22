@@ -11,6 +11,8 @@ export default class LumenGrid {
         this._shadowSlotFixtures = new Array(this.maxShadowLights).fill(null);
         this._shadowRR = 0;
         this.shadowsDirty = false;
+        this._lastShadowRefresh = -Infinity;
+        this.shadowDirtyInterval = 0.08;
         for (let i = 0; i < this.maxActiveLights; i++) {
             const radius = i < this.maxShadowLights ? 20.0 : 10.0;
             const light = new THREE.PointLight(0xffebd6, 0, radius, 2.0);
@@ -78,13 +80,15 @@ export default class LumenGrid {
         }
         let nearestFixture = null;
         let minLightDistSq = Infinity;
+        const shadowRefreshDue = this.shadowsDirty && (time - this._lastShadowRefresh >= this.shadowDirtyInterval);
+        if (shadowRefreshDue) this._lastShadowRefresh = time;
         for (let i = 0; i < this.maxActiveLights; i++) {
             const light = this.lightPool[i];
             const fixture = this._activeFixtures[i];
             if (fixture) {
                 const isShadowCaster = i < this.maxShadowLights;
                 fixture.hasShadow = isShadowCaster;
-                if (isShadowCaster && (this._shadowSlotFixtures[i] !== fixture || this.shadowsDirty)) {
+                if (isShadowCaster && (this._shadowSlotFixtures[i] !== fixture || shadowRefreshDue)) {
                     this._shadowSlotFixtures[i] = fixture;
                     light.shadow.needsUpdate = true;
                 }

@@ -215,7 +215,7 @@ document.addEventListener('somatic-read', (e) => {
 document.addEventListener('somatic-close-document', () => {
     const inquestOverlay = document.getElementById('inquest-overlay');
     if (inquestOverlay && inquestOverlay.style.display === 'block') {
-        if (inquestLocked) return; // verdict filed — the sequence owns the exit now
+        if (inquestLocked) return;
         inquestOverlay.style.display = 'none';
         pendingExit = null;
         player.input.state.isReading = false;
@@ -243,10 +243,6 @@ document.addEventListener('somatic-close-document', () => {
         acoustics.triggerSomaticEvent('item', 1.0, 0.2);
     }
 });
-
-// ============ THE INQUEST ============
-// The exit elevator will not descend while the case is open. Environment
-// detects the interaction; this block adjudicates the filing.
 let pendingExit = null;
 let inquestLocked = false;
 
@@ -283,7 +279,7 @@ window.handleInquest = (choice) => {
     if (choice === story.truth) {
         result.innerText = '> FINDING ACCEPTED. CASE CLOSED.';
         result.style.color = '#55ff55';
-        player.coherence = 1.0; // certainty settles the mind
+        player.coherence = 1.0;
         const exitRef = pendingExit;
         pendingExit = null;
         acoustics.triggerSomaticEvent('tape_click', 1.0, 0.6);
@@ -308,10 +304,6 @@ window.handleInquest = (choice) => {
                     player.depth++;
                     if (player.depth > player.bestDepth) player.bestDepth = player.depth;
                     player.updateObjectives();
-                    // True descent: the verdict closes THIS case. FL-N mutates
-                    // the seed, so the non-warp generate() below re-derives
-                    // baseSeed and StoryEngine deals a fresh cold case for the
-                    // new floor. The old warp-in-place is gone — depth is real.
                     triggerAscension();
                     environment.generate();
                 }, 3500);
@@ -342,7 +334,7 @@ document.addEventListener('keydown', (e) => {
 
 let currentKeypadInput = "";
 
-document.addEventListener('somatic-keypad', (e) => {
+document.addEventListener('somatic-keypad', () => {
     if (player.input.state.isReading) return;
     player.input.state.isReading = true;
     player.input.state.isRunning = false;
@@ -520,8 +512,6 @@ const DebugHUD = {
     _hitches: 0,
     _genHitches: 0,
     _worstHitch: 0,
-    // Called every frame regardless of visibility: a hitch you weren't
-    // watching for is still a hitch.
     recordFrame(delta) {
         if (delta <= 0.05) return;
         this._hitches++;

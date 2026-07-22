@@ -365,28 +365,6 @@ export default class TheArchitect {
                         const wall = new THREE.Mesh(this.sharedWallGeo, this.sharedWallMat);
                         wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
                         addGeometry(wall);
-                        // Which face got the vent used to be pure random(0-3),
-                        // blind to whether that side actually opens onto a
-                        // corridor. Every wall cube already overlaps its
-                        // neighbor's cell slightly to avoid seams, so when the
-                        // chosen face happened to back onto another solid wall
-                        // cell, that neighbor's own cube reached back further
-                        // than the vent's 0.06u protrusion ever pokes out —
-                        // burying the vent inside the neighbor's wallpaper
-                        // instead of leaving it exposed on an open hallway face.
-                        // Can't just re-roll random() to check neighbors here —
-                        // that would desync the chunk's PRNG stream from
-                        // everything generated after this cell. The wall/open
-                        // split itself is decided by this same fractal pass
-                        // (isWall = iter > 6, further coin-flipped by random()
-                        // above), so re-running just the deterministic fractal
-                        // half for each neighbor — no random() calls — gives a
-                        // side-effect-free prediction to bias face selection
-                        // toward whichever side(s) are actually likely open.
-                        // Same cx/cy the chunk's own isWall pass derives from
-                        // baseSeed (buildChunk) — recomputed here since this
-                        // structural-matrix entry only receives ctx, not the
-                        // chunk's local fractal constants.
                         const fCx = Math.sin(this.baseSeed) * 0.8;
                         const fCy = Math.cos(this.baseSeed * 0.5) * 0.8;
                         const probablyOpen = (nx, nz) => {
@@ -695,7 +673,6 @@ export default class TheArchitect {
                     for (let i = 0; i < this._globalSwitches.length; i++) {
                         const s = this._globalSwitches[i];
                         const distSq = (cx - s.x) * (cx - s.x) + (cz - s.z) * (cz - s.z);
-                        // breakers repel breakers at 60u; POIs only need 30u clearance
                         const limit = s.poi ? 900.0 : 3600.0;
                         if (distSq > 0.1 && distSq < limit) {
                             tooClose = true;
@@ -747,10 +724,6 @@ export default class TheArchitect {
                 }
             },
             {
-                // NOTE: this prob must never tie another entry's — the cell picker
-                // is find() over a descending sort, and a tied threshold makes the
-                // later entry unreachable. This blueprint was dead code at 0.028
-                // (tied with the dangle-tile entry) until v0.4.11.
                 prob: 0.0235, build: (x, z) => {
                     const cx = x * this.cellSize;
                     const cz = z * this.cellSize;
@@ -760,7 +733,6 @@ export default class TheArchitect {
                     for (let i = 0; i < this._globalSwitches.length; i++) {
                         const s = this._globalSwitches[i];
                         const distSq = (cx - s.x) * (cx - s.x) + (cz - s.z) * (cz - s.z);
-                        // POIs pack denser than breakers: 40u from each other, 30u from switches
                         const limit = s.poi ? 1600.0 : 900.0;
                         if (distSq > 0.1 && distSq < limit) {
                             tooClose = true;
@@ -781,21 +753,12 @@ export default class TheArchitect {
                         addGeometry(wall);
                         return;
                     }
-                    // ── POI fork ────────────────────────────────────────────
-                    // Every draw below comes from a local stream keyed on cell
-                    // position + the run salt. The shared chunk stream is never
-                    // touched past this point, so acceptance and flavor can
-                    // vary per run while the maze around this cell stays
-                    // seed-deterministic. (The reject path draws nothing from
-                    // the shared stream either — parity holds both ways.)
                     let poiSeed = (Math.imul(cx | 0, 73856093) ^ Math.imul(cz | 0, 19349663) ^ ctx.runSalt32) >>> 0;
                     const poiRandom = () => {
                         poiSeed = (poiSeed * 1664525 + 1013904223) >>> 0;
                         return poiSeed / 4294967296.0;
                     };
                     if (poiRandom() > 0.7) {
-                        // This run, the anomaly simply isn't here. Same fallback
-                        // as a crowded cell: sealed mass of building.
                         const wall = buildWall(this.cellSize, this.cellSize, this.sharedWallMat);
                         wall.position.set(cx, 1.5, cz);
                         wall.userData.isEntityBlocker = true;
@@ -1132,8 +1095,8 @@ export default class TheArchitect {
                 id: "EXIT",
                 foundationMat: this.tileMat,
                 ceilingMat: this.structMat,
-                build: (x, z, localX, localZ, maze, inDir, outDir) => {
-                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.structMat, "EXIT")) return;
+                build: (x, z, localX, localZ) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, this.structMat, "EXIT")) return;
                     const isPathX = localZ === 7;
                     const isPathZ = localX === 7;
                     if (localX >= 5 && localX <= 9 && localZ >= 5 && localZ <= 9) {
@@ -1176,17 +1139,11 @@ export default class TheArchitect {
                 id: "IMPOUND",
                 foundationMat: this.structMat,
                 ceilingMat: this.impoundCeilingMat || this.clinicMat,
-                build: (x, z, localX, localZ, maze, inDir, outDir) => {
-                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.impoundWallMat || this.sharedWallMat, "IMPOUND")) return;
+                build: (x, z, localX, localZ, maze) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, this.impoundWallMat || this.sharedWallMat, "IMPOUND")) return;
                     const px = x * this.cellSize, pz = z * this.cellSize;
                     const isWall = maze && maze[localX][localZ];
                     if (isWall) {
-                        // Yard fence, not a room wall — was reusing the 3.0
-                        // (floor-to-ceiling) wall height, which reads as a
-                        // solid partition instead of chainlink you can see
-                        // over. FENCE_H/FENCE_SCALE shrink every dimension
-                        // below by the same ratio so posts, rails, gates and
-                        // panels stay proportional to each other.
                         const FENCE_H = 1.8, FENCE_SCALE = FENCE_H / 3.0;
                         if (!this.fenceGeoX) {
                             this.fenceGeoX = new THREE.BoxGeometry(this.cellSize, FENCE_H, 0.05);
@@ -1194,12 +1151,6 @@ export default class TheArchitect {
                             this.fenceGeoZ = new THREE.BoxGeometry(0.05, FENCE_H, this.cellSize);
                             this.geoCache.set(this.fenceGeoZ.uuid, true);
                         }
-                        // Each wall cell only ever draws its own +X,+Z corner
-                        // post — the far end of each run relies on a
-                        // neighbouring wall cell to draw the matching post at
-                        // that shared corner. Where there's no such neighbour
-                        // (a dead end), that corner was never getting a post
-                        // at all. mwWall + the two checks below cap those ends.
                         const mwWall = (dx, dz) => {
                             const nx = localX + dx, nz = localZ + dz;
                             return nx >= 0 && nx < this.chunkSize && nz >= 0 && nz < this.chunkSize && maze && maze[nx][nz];
@@ -1225,7 +1176,7 @@ export default class TheArchitect {
                             const fz = pz + (alongX ? this.cellSize / 2 : 0);
                             if (random() > 0.85) {
                                 for (let s = -1; s <= 1; s += 2) {
-                                    const stub = new THREE.Mesh(this._boxGeo(alongX ? 1.3 : 0.05, FENCE_H, alongX ? 0.05 : 1.3), this.waterMat);
+                                    const stub = new THREE.Mesh(this._boxGeo(alongX ? 1.3 : 0.05, FENCE_H, alongX ? 0.05 : 1.3), this.fenceMat);
                                     stub.position.set(fx + (alongX ? s * 1.35 : 0), FENCE_H / 2, fz + (alongX ? 0 : s * 1.35));
                                     addGeometry(stub);
                                     const gatePost = new THREE.Mesh(this.vPipeGeo, this.metalMat);
@@ -1238,14 +1189,14 @@ export default class TheArchitect {
                                     g.translate(alongX ? 0.7 : 0, 0, alongX ? 0 : 0.7);
                                     return g;
                                 });
-                                const gate = new THREE.Mesh(gateGeo, this.waterMat);
+                                const gate = new THREE.Mesh(gateGeo, this.fenceMat);
                                 gate.position.set(fx - (alongX ? 0.7 : 0), 1.15 * FENCE_SCALE, fz - (alongX ? 0 : 0.7));
                                 gate.rotation.y = (random() > 0.5 ? 1 : -1) * (0.3 + random() * 1.0);
                                 gate.userData.chunkHash = hash;
                                 gate.updateMatrixWorld(true);
                                 stagingMeshes.push(gate);
                             } else {
-                                const fence = new THREE.Mesh(alongX ? this.fenceGeoX : this.fenceGeoZ, this.waterMat);
+                                const fence = new THREE.Mesh(alongX ? this.fenceGeoX : this.fenceGeoZ, this.fenceMat);
                                 fence.position.set(fx, FENCE_H / 2, fz);
                                 if (random() > (alongX ? 0.1 : 0.2)) fence.userData.isEntityBlocker = true;
                                 addGeometry(fence);
@@ -1262,7 +1213,6 @@ export default class TheArchitect {
                             return nx >= 0 && nx < this.chunkSize && nz >= 0 && nz < this.chunkSize && maze && maze[nx][nz];
                         };
                         const pocketWalls = (mw(1, 0) ? 1 : 0) + (mw(-1, 0) ? 1 : 0) + (mw(0, 1) ? 1 : 0) + (mw(0, -1) ? 1 : 0);
-                        // ── the impound yard itself: cars, machinery, tires ──
                         let placedBig = false;
                         if (pocketWalls >= 1 && random() > 0.58) {
                             const pick = random();
@@ -1333,17 +1283,8 @@ export default class TheArchitect {
                 id: "CLINIC",
                 foundationMat: this.clinicMat,
                 ceilingMat: this.clinicMat,
-                build: (x, z, localX, localZ, maze, inDir, outDir) => {
-                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat, "CLINIC")) return;
-                    // ── THE WARD ───────────────────────────────────────────
-                    // The clinic runs on the sector maze now. Walls become
-                    // ward architecture with four personalities: solid wall
-                    // with bumper rails, a curtain hung where architecture
-                    // should be (visually solid, physically passable — feet
-                    // visible in the hem gap), a squeeze slot for 'Q', or a
-                    // curtained cot alcove. Corridors fight back with gurney
-                    // blockades, crouch-under ceiling collapses, and screen
-                    // slaloms. The gate approaches stay clear.
+                build: (x, z, localX, localZ, maze) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, this.sharedWallMat, "CLINIC")) return;
                     const cx0 = x * this.cellSize, cz0 = z * this.cellSize;
                     const wallAt = (lx, lz) => (lx < 0 || lx > 15 || lz < 0 || lz > 15) ? true : (maze ? maze[lx][lz] === true : false);
                     const decal = (mesh) => {
@@ -1352,7 +1293,6 @@ export default class TheArchitect {
                         stagingMeshes.push(mesh);
                     };
                     const hangCurtain = (alongZ, px, pz, width) => {
-                        // No collision box: the curtain is a lie you walk through.
                         const track = new THREE.Mesh(this._boxGeo(alongZ ? 0.06 : width, 0.08, alongZ ? width : 0.06), this.metalMat);
                         track.position.set(px, 2.52, pz);
                         decal(track);
@@ -1367,21 +1307,17 @@ export default class TheArchitect {
                         addGeometry(pole);
                     };
                     if (maze && maze[localX][localZ]) {
-                        // ── Ward wall cell ──
                         const zRun = wallAt(localX, localZ - 1) || wallAt(localX, localZ + 1);
                         const xRun = wallAt(localX - 1, localZ) || wallAt(localX + 1, localZ);
                         const alongZ = zRun && !xRun ? true : (xRun && !zRun ? false : ((localX + localZ) % 2 === 0));
                         const openDirs = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx2, dz2]) => !wallAt(localX + dx2, localZ + dz2));
                         const roll = random();
                         if (roll < 0.14 && openDirs.length > 0) {
-                            // ── Cot alcove: three walls, a cot, a curtain ──
                             const [odx, odz] = openDirs[Math.floor(random() * openDirs.length)];
                             const back = buildWall(odx !== 0 ? 0.3 : this.cellSize, odx !== 0 ? this.cellSize : 0.3, this.sharedWallMat, 3.0);
                             back.position.set(cx0 - odx * 1.85, 1.5, cz0 - odz * 1.85);
                             addGeometry(back);
                             for (let s = -1; s <= 1; s += 2) {
-                                // side walls stop 0.3 short of the opening:
-                                // the front corners are canonical squeeze gaps
                                 const sw = buildWall(odx !== 0 ? 3.7 : 0.3, odx !== 0 ? 0.3 : 3.7, this.sharedWallMat, 3.0);
                                 sw.position.set(cx0 + (odx !== 0 ? -odx * 0.15 : s * 1.85), 1.5, cz0 + (odx !== 0 ? s * 1.85 : -odz * 0.15));
                                 addGeometry(sw);
@@ -1398,14 +1334,11 @@ export default class TheArchitect {
                             ivPole(cx0 + (odz !== 0 ? 1.3 : -odx * 0.2), cz0 + (odx !== 0 ? 1.3 : -odz * 0.2));
                             hangCurtain(odx !== 0, cx0 + odx * 1.6, cz0 + odz * 1.6, 3.6);
                         } else if (roll < 0.27) {
-                            // ── Curtain wall: pass through blind ──
                             hangCurtain(alongZ, cx0, cz0, this.cellSize);
                             if (random() > 0.6) {
-                                // double layer, offset — two veils deep
                                 hangCurtain(alongZ, cx0 + (alongZ ? 0.7 : 0), cz0 + (alongZ ? 0 : 0.7), this.cellSize);
                             }
                         } else if (roll < 0.38) {
-                            // ── Squeeze slot: 0.4u of daylight, 'Q' to earn it ──
                             const segLen = 1.8;
                             for (let s = -1; s <= 1; s += 2) {
                                 const seg = buildWall(alongZ ? 1.2 : segLen, alongZ ? segLen : 1.2, this.sharedWallMat, 3.0);
@@ -1413,7 +1346,6 @@ export default class TheArchitect {
                                 addGeometry(seg);
                             }
                         } else {
-                            // ── Solid ward wall, bumper rails on exposed faces ──
                             const wall = buildWall(this.cellSize, this.cellSize, this.sharedWallMat, 3.0);
                             wall.position.set(cx0, 1.5, cz0);
                             addGeometry(wall);
@@ -1425,7 +1357,6 @@ export default class TheArchitect {
                         }
                         return;
                     }
-                    // ── Corridor cell ──
                     const gateApproach = (localX === 7 && (localZ <= 2 || localZ >= 13)) || (localZ === 7 && (localX <= 2 || localX >= 13));
                     const corrX = !wallAt(localX - 1, localZ) || !wallAt(localX + 1, localZ);
                     const obRoll = gateApproach ? 1.0 : random();
@@ -1449,7 +1380,6 @@ export default class TheArchitect {
                     }
                     if (gateApproach) return;
                     if (obRoll < 0.12) {
-                        // ── Gurney blockade: abandoned mid-transfer ──
                         const gurney = new THREE.Group();
                         const bed = new THREE.Mesh(this._boxGeo(1.0, 0.12, 2.0), this.structMat);
                         bed.position.y = 0.75;
@@ -1461,40 +1391,28 @@ export default class TheArchitect {
                             legs.position.set(0, 0.375, e * 0.85);
                             gurney.add(legs);
                         }
-                        // long axis lies ACROSS the travel direction
                         gurney.rotation.y = (corrX ? 0 : Math.PI / 2) + (random() - 0.5) * 0.9;
                         gurney.position.set(cx0 + (random() - 0.5) * 1.2, 0, cz0 + (random() - 0.5) * 1.2);
                         addFurniture(gurney);
                         if (random() > 0.5) ivPole(cx0 + (random() - 0.5) * 2.5, cz0 + (random() - 0.5) * 2.5);
                     } else if (isCollapse) {
-                        // ── Ceiling collapse: a slab of the ward roof has caved
-                        // in. It spans the corridor WIDTH (no sidestep) but stays
-                        // shallow along travel so it no longer fouls the screens
-                        // and cots in neighbouring cells. Belly at 1.22: crouch
-                        // (top 1.2) clears, standing doesn't. Collision is the
-                        // concrete mass itself; every hanging piece stays at or
-                        // above the belly so nothing dangles into the crawl space.
-                        const travelX = corrX;               // corridor runs along X
-                        const depth = 2.6;                   // shallow along travel
-                        const massW = travelX ? depth : this.cellSize; // X size
-                        const massD = travelX ? this.cellSize : depth; // Z size
+                        const travelX = corrX;
+                        const depth = 2.6;
+                        const massW = travelX ? depth : this.cellSize;
+                        const massD = travelX ? this.cellSize : depth;
                         const belly = 1.22;
                         const massH = 3.0 - belly;
-                        // structural concrete mass — carries the collision
                         const body = buildWall(massW, massD, this.structMat, massH);
                         body.position.set(cx0, belly + massH / 2, cz0);
                         addGeometry(body);
-                        // ceiling-tile skin on the underside — still reads as roof
                         const skin = new THREE.Mesh(this._boxGeo(massW - 0.1, 0.06, massD - 0.1), this.ceilMat);
                         skin.position.set(cx0, belly + 0.04, cz0);
                         decal(skin);
-                        // a tilted broken chunk sagging at the torn edge
                         const side = random() > 0.5 ? 1 : -1;
                         const chunk = new THREE.Mesh(this._boxGeo(travelX ? depth * 0.5 : 1.5, 0.5, travelX ? 1.5 : depth * 0.5), this.structMat);
                         chunk.position.set(cx0 + (travelX ? 0 : side * 1.0), belly + 0.5, cz0 + (travelX ? side * 1.0 : 0));
                         chunk.rotation.set(travelX ? 0 : side * 0.24, 0, travelX ? -side * 0.24 : 0);
                         decal(chunk);
-                        // exposed rebar raking out of the break (stays above belly)
                         if (!this.collapseRebarGeo) {
                             this.collapseRebarGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.8, 5);
                             this.geoCache.set(this.collapseRebarGeo.uuid, true);
@@ -1506,12 +1424,10 @@ export default class TheArchitect {
                             bar.rotation.set((random() - 0.5) * 0.3, random() * Math.PI, Math.PI / 2 + (random() - 0.5) * 0.3);
                             decal(bar);
                         }
-                        // a severed duct end poking from the cavity (bottom ~1.4)
                         const duct = new THREE.Mesh(this._boxGeo(0.5, 0.85, 0.5), this.metalMat);
                         duct.position.set(cx0 + (random() - 0.5) * 1.2, belly + 0.6, cz0 + (random() - 0.5) * 1.2);
                         duct.rotation.set((random() - 0.5) * 0.3, random() * Math.PI, (random() - 0.5) * 0.3);
                         decal(duct);
-                        // fallen tiles + a leaning strut on the floor
                         if (!this.fallenTileGeo) {
                             this.fallenTileGeo = new THREE.BoxGeometry(0.9, 0.04, 0.9);
                             this.geoCache.set(this.fallenTileGeo.uuid, true);
@@ -1528,7 +1444,6 @@ export default class TheArchitect {
                         strut.rotation.z = (random() - 0.5) * 0.5;
                         decal(strut);
                     } else if (obRoll < 0.32) {
-                        // ── Privacy screen slalom ──
                         for (let s = -1; s <= 1; s += 2) {
                             const screen = new THREE.Mesh(this._boxGeo(corrX ? 0.1 : 2.6, 2.4, corrX ? 2.6 : 0.1), this.fabricMat);
                             screen.position.set(
@@ -1540,7 +1455,6 @@ export default class TheArchitect {
                             addGeometry(screen);
                         }
                     } else if (obRoll < 0.42) {
-                        // ── Waiting area detritus ──
                         const chairCount = 1 + Math.floor(random() * 2);
                         for (let i = 0; i < chairCount; i++) {
                             addFurniture(buildChair(cx0 + (random() - 0.5) * 2.2, 0, cz0 + (random() - 0.5) * 2.2, random() * Math.PI * 2));
@@ -1557,7 +1471,6 @@ export default class TheArchitect {
                             addGeometry(mBox);
                         }
                     } else if (obRoll < 0.50) {
-                        // ── Floor rot ──
                         const mold = new THREE.Mesh(this.moldGeo, this.moldMat);
                         mold.position.set(cx0 + (random() - 0.5) * 1.5, 0.015, cz0 + (random() - 0.5) * 1.5);
                         mold.rotation.y = random() * Math.PI * 2;
@@ -1569,22 +1482,12 @@ export default class TheArchitect {
                 id: "BOARDROOM",
                 foundationMat: this.boardTileMat || this.tileMat,
                 ceilingMat: this.clinicMat,
-                build: (x, z, localX, localZ, maze, inDir, outDir) => {
-                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat, "BOARDROOM")) return;
-                    // ── OFFICE HIGHRISE NIGHTMARE ──────────────────────────
-                    // Corridor spines run the gate lines (7) plus secondary
-                    // halls at 3 and 11. The blocks between are office suites.
-                    // Suite faces push 0.8u into the corridors (≈2.2u clear),
-                    // fronted by solid partition or a fully framed glass
-                    // vestibule with a working door. A few suites are sealed
-                    // fishbowls: glass on every side, no door, one occupant.
+                build: (x, z, localX, localZ) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, this.sharedWallMat, "BOARDROOM")) return;
                     const bx = x * this.cellSize, bz = z * this.cellSize;
                     const glass = this.glassMat || this.fabricMat;
                     const isC = (v) => v === 3 || v === 7 || v === 11;
                     const last = this.chunkSize - 2;
-                    // Fishbowl seals need cross-cell agreement, and the build
-                    // stream can't provide it (draw order varies). World cell
-                    // coords + seed hash gives every cell the same answer.
                     const cellHash = (gx, gz) => {
                         const h = Math.sin(gx * 127.1 + gz * 311.7 + (this.baseSeed % 4096) * 0.618) * 43758.5453;
                         return h - Math.floor(h);
@@ -1609,7 +1512,6 @@ export default class TheArchitect {
                             currentIntensity: 0.65
                         });
                     };
-                    // ── Corridor cells: empty throat, humming ceiling ──
                     if (isC(localX) || isC(localZ)) {
                         const junction = isC(localX) && isC(localZ);
                         if (!junction && (localX + localZ) % 2 === 0 && random() > 0.30) {
@@ -1619,7 +1521,6 @@ export default class TheArchitect {
                         }
                         return;
                     }
-                    // ── Suite cell: build its faces, then dress it ──
                     const bowlHere = isBowl(x, z, localX, localZ);
                     const post = (px, pz, thick = 0.15) => {
                         const p = buildWall(thick, thick, this.metalMat, 3.0);
@@ -1660,9 +1561,6 @@ export default class TheArchitect {
                         door.userData.box = dBox;
                         this.spatialGrid.insert(dBox);
                     };
-                    // A framed glass face: sill + head rails, posts at BOTH
-                    // ends, and either a doored aperture or a center mullion.
-                    // No pane ever floats without a boundary again.
                     const glassFace = (alongX, faceC, latC, len, withDoor) => {
                         const half = len / 2;
                         if (alongX) {
@@ -1702,20 +1600,11 @@ export default class TheArchitect {
                         }
                     };
                     const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-                    // Guaranteed egress, decided by hash so both sides of any
-                    // wall agree without touching the stream: a suite with a
-                    // corridor face gets exactly one door on a chosen face; a
-                    // landlocked suite gets one forced-open partition toward a
-                    // corridor-adjacent neighbor. No accidental fishbowls.
                     const inSuite = (lx, lz) => lx >= 1 && lx <= last && lz >= 1 && lz <= last && !isC(lx) && !isC(lz);
                     const corridorFaces = (lx, lz) => dirs.filter(([ddx, ddz]) => {
                         const nx = lx + ddx, nz = lz + ddz;
                         return nx >= 1 && nx <= last && nz >= 1 && nz <= last && (isC(nx) || isC(nz));
                     });
-                    // Not every suite gets its own door — that's a mesh-budget
-                    // and atmosphere decision. ~35% are doored; the rest open
-                    // into a doored neighbor. Chains always terminate: doorless
-                    // cells with no doored neighbor fall back to a self-door.
                     const hasOwnDoor = (gx, gz, lx, lz) =>
                         corridorFaces(lx, lz).length > 0 && !isBowl(gx, gz, lx, lz) && cellHash(gx + 31, gz + 17) < 0.35;
                     const egress = (gx, gz, lx, lz) => {
@@ -1742,22 +1631,16 @@ export default class TheArchitect {
                     for (let d = 0; d < 4; d++) {
                         const dx = dirs[d][0], dz = dirs[d][1];
                         const nlx = localX + dx, nlz = localZ + dz;
-                        if (nlx < 1 || nlx > last || nlz < 1 || nlz > last) continue; // perimeter seals that side
+                        if (nlx < 1 || nlx > last || nlz < 1 || nlz > last) continue;
                         const alongX = dz !== 0;
-                        // Ends that meet a corridor junction extend 0.8u so the
-                        // corner closes against the perpendicular face.
                         const negLat = alongX ? localX - 1 : localZ - 1;
                         const posLat = alongX ? localX + 1 : localZ + 1;
                         const extNeg = (negLat >= 1 && isC(negLat)) ? 0.8 : 0;
                         const extPos = (posLat <= last && isC(posLat)) ? 0.8 : 0;
                         if (isC(nlx) || isC(nlz)) {
-                            // Corridor-facing front, pushed into the hall.
                             const faceC = alongX ? bz + dz * 2.8 : bx + dx * 2.8;
                             const len = this.cellSize + extNeg + extPos;
                             const latC = (alongX ? bx : bz) + (extPos - extNeg) / 2;
-                            // A lateral end on the chunk perimeter leaves the
-                            // 0.8u strip behind the pushed front open toward
-                            // the corridor gate. Cap it with a return wall.
                             for (let e = -1; e <= 1; e += 2) {
                                 const latEdge = (e < 0 ? negLat : posLat);
                                 if (latEdge >= 1 && latEdge <= last) continue;
@@ -1773,16 +1656,13 @@ export default class TheArchitect {
                             } else if (isDoorFace) {
                                 glassFace(alongX, faceC, latC, len, true);
                             } else if (random() < 0.18) {
-                                glassFace(alongX, faceC, latC, len, false); // display window, no door
+                                glassFace(alongX, faceC, latC, len, false);
                             } else {
                                 const wall = buildWall(alongX ? len : 0.2, alongX ? 0.2 : len, this.sharedWallMat, 3.0);
                                 wall.position.set(alongX ? latC : faceC, 1.5, alongX ? faceC : latC);
                                 addGeometry(wall);
                             }
                         } else if (dx === 1 || dz === 1) {
-                            // Interior partition, owned by the lower cell. The
-                            // same junction extension seals the strip behind
-                            // pushed-in fronts so suites don't leak sideways.
                             const faceC = alongX ? bz + 2 : bx + 2;
                             const len = this.cellSize + extNeg + extPos;
                             const latC = (alongX ? bx : bz) + (extPos - extNeg) / 2;
@@ -1796,7 +1676,6 @@ export default class TheArchitect {
                                     (nbEgress.open && nbEgress.open[0] === -dx && nbEgress.open[1] === -dz);
                                 const roll = random();
                                 if (forcedOpen || roll < 0.35) {
-                                    // open plan: suites merge into a warren
                                 } else if (roll < 0.78) {
                                     glassFace(alongX, faceC, latC, len, false);
                                 } else {
@@ -1807,14 +1686,9 @@ export default class TheArchitect {
                             }
                         }
                     }
-                    // Corner column at every interior four-corner: partitions
-                    // terminate into it instead of leaving a pinhole where two
-                    // perpendicular panes almost meet. This is the fix for
-                    // "the glass walls do not connect."
                     if (inSuite(localX + 1, localZ) && inSuite(localX, localZ + 1) && inSuite(localX + 1, localZ + 1)) {
                         post(bx + 2, bz + 2, 0.24);
                     }
-                    // ── Dressing ──
                     if (bowlHere) {
                         if (random() > 0.45) {
                             addFurniture(buildChair(bx + (random() - 0.5) * 1.2, 0, bz + (random() - 0.5) * 1.2, random() * Math.PI * 2));
@@ -1886,8 +1760,8 @@ export default class TheArchitect {
                 id: "ARCHIVE",
                 foundationMat: this.structMat,
                 ceilingMat: this.structMat,
-                build: (x, z, localX, localZ, maze, inDir, outDir) => {
-                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.structMat, "ARCHIVE")) return;
+                build: (x, z, localX, localZ, maze) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, this.structMat, "ARCHIVE")) return;
                     const isWall = maze && maze[localX][localZ];
                     const acx = x * this.cellSize, acz = z * this.cellSize;
                     if (!this.bookRowGeo) {
@@ -2013,8 +1887,8 @@ export default class TheArchitect {
                 id: "SERVER",
                 foundationMat: this.serverFloorMat,
                 ceilingMat: this.serverFloorMat,
-                build: (x, z, localX, localZ, maze, inDir, outDir) => {
-                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat, "SERVER")) return;
+                build: (x, z, localX, localZ, maze) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, this.sharedWallMat, "SERVER")) return;
                     const isWall = maze && maze[localX][localZ];
                     if (isWall) {
                         const rack = buildWall(this.cellSize * 0.85, this.cellSize * 0.85, this.serverMat);
@@ -2075,8 +1949,8 @@ export default class TheArchitect {
                 id: "MAINTENANCE",
                 foundationMat: this.serverFloorMat,
                 ceilingMat: this.structMat,
-                build: (x, z, localX, localZ, maze, inDir, outDir) => {
-                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.structMat, "MAINTENANCE")) return;
+                build: (x, z, localX, localZ, maze) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, this.structMat, "MAINTENANCE")) return;
                     const isWall = maze && maze[localX][localZ];
                     if (isWall) {
                         const block = buildWall(this.cellSize, this.cellSize, this.structMat);
@@ -2183,8 +2057,8 @@ export default class TheArchitect {
             {
                 id: "CHASM",
                 foundationMat: null,
-                build: (x, z, localX, localZ, maze, inDir, outDir) => {
-                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat, "CHASM")) return;
+                build: (x, z, localX, localZ, maze) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, this.sharedWallMat, "CHASM")) return;
                     const isVoid = !maze || maze[localX][localZ];
                     const gx = x * this.cellSize, gz = z * this.cellSize;
                     if (!isVoid) {
@@ -2199,10 +2073,6 @@ export default class TheArchitect {
                         const vE = checkVoid(localX + 1, localZ);
                         const vN = checkVoid(localX, localZ - 1);
                         const vS = checkVoid(localX, localZ + 1);
-                        // Each railing end extends 0.2 toward a neighbor only when that neighbor
-                        // is solid (bridging a straight run or reaching a corner post below).
-                        // When the neighbor is itself void, the end stays flush with the cell
-                        // edge instead of overshooting past the corner into the next one.
                         if (vW) {
                             const extN = !vN, extS = !vS;
                             const len = this.cellSize + (extN ? 0.2 : 0) + (extS ? 0.2 : 0);
@@ -2235,9 +2105,6 @@ export default class TheArchitect {
                             railing.position.set(gx + cx, 0.6, gz + 1.8);
                             addGeometry(railing);
                         }
-                        // Corner posts cap outside (convex) corners flush and plug the notch
-                        // left at inside (concave) corners, so perpendicular railings always
-                        // read as a clean 90-degree joint instead of overshoot or a gap.
                         const addCornerPost = (px, pz) => {
                             const post = buildWall(0.3, 0.3, this.rustMat, 1.2);
                             post.position.set(px, 0.6, pz);
@@ -2252,10 +2119,6 @@ export default class TheArchitect {
                         if (!vW && !vS && checkVoid(localX - 1, localZ + 1)) addCornerPost(gx - 1.8, gz + 1.8);
                         if (!vE && !vS && checkVoid(localX + 1, localZ + 1)) addCornerPost(gx + 1.8, gz + 1.8);
                         if (random() > 0.78) {
-                            // Deck-level red markers: dropped into the fog layer
-                            // and cranked up so they burn through the black. They
-                            // hug a walkway edge overlooking the drop, on a short
-                            // stanchion instead of a ceiling wire.
                             const lampMat = this.baseLightMat.clone();
                             lampMat.color.setHex(0xff2200);
                             lampMat.emissive.setHex(0xff0000);
@@ -2290,11 +2153,6 @@ export default class TheArchitect {
                         voidBox.isVoid = true;
                         voidBox.chunkHash = hash;
                         this.spatialGrid.insert(voidBox);
-                        // ── PILLARS: guarantee a few per chasm, then scatter more ──
-                        // No pillar shortage: 3–5 are seeded onto known void cells
-                        // up front (so a chasm is never empty), plus a random
-                        // scatter on top. The seeded picks use a local RNG so the
-                        // chunk's main PRNG stream is untouched.
                         if (this._chasmPillarHash !== hash) {
                             this._chasmPillarHash = hash;
                             const band = [];
@@ -2309,7 +2167,7 @@ export default class TheArchitect {
                                     const j = Math.floor(rng() * (i + 1));
                                     const t = band[i]; band[i] = band[j]; band[j] = t;
                                 }
-                                const want = Math.min(band.length, 3 + ((hash >>> 3) % 3)); // 3–5
+                                const want = Math.min(band.length, 3 + ((hash >>> 3) % 3));
                                 for (let k = 0; k < want; k++) set.add(band[k]);
                             }
                             this._chasmPillarSet = set;
@@ -2322,9 +2180,6 @@ export default class TheArchitect {
                             const pillar = buildWall(pw, pw, this.rustMat, 80.0);
                             pillar.position.set(gx, -30.0, gz);
                             addGeometry(pillar);
-                            // ── uplighting: a base flood that rakes up the shaft so
-                            // the pillar looms out of the black fog. Aimed at the
-                            // nearest walkway so its lit face greets the player.
                             const isVoidCell = (nx, nz) =>
                                 (nx < 0 || nx >= this.chunkSize || nz < 0 || nz >= this.chunkSize)
                                     ? true : (!maze || maze[nx][nz]);
@@ -2363,12 +2218,12 @@ export default class TheArchitect {
                 id: "INCINERATOR",
                 foundationMat: this.diamondPlateMat || this.rustMat,
                 ceilingMat: this.incinCeilingMat || null,
-                build: (x, z, localX, localZ, maze, inDir, outDir) => {
+                build: (x, z, localX, localZ) => {
                     const edge = this.chunkSize - 1;
                     const isDoorwayNS = localX === 7 && (localZ === 0 || localZ === edge);
                     const isDoorwayEW = localZ === 7 && (localX === 0 || localX === edge);
                     const isDoorway = isDoorwayNS || isDoorwayEW;
-                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat, "INCINERATOR")) {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, this.sharedWallMat, "INCINERATOR")) {
                         if (!isDoorway) {
                             const lEdge = this.chunkSize - 1;
                             const liners = [];
@@ -2593,8 +2448,8 @@ export default class TheArchitect {
                 id: "ANNEX",
                 foundationMat: this.clinicMat,
                 ceilingMat: this.clinicMat,
-                build: (x, z, localX, localZ, maze, inDir, outDir) => {
-                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat, "ANNEX")) return;
+                build: (x, z, localX, localZ) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, this.sharedWallMat, "ANNEX")) return;
                     const ox = x * this.cellSize, oz = z * this.cellSize;
                     const isCorr = (lx, lz) => lx > 0 && lx < this.chunkSize - 1 && lz > 0 && lz < this.chunkSize - 1 &&
                         (lx === 7 || lz === 3 || lz === 7 || lz === 11);
@@ -2693,9 +2548,6 @@ export default class TheArchitect {
                         });
                         doorMesh = new THREE.Mesh(doorGeo, annexDoorMat);
                         doorMesh.position.set(wx, 1.325, wz - doorW / 2);
-                        // Same rest-rotation mismatch as the checkpoint man
-                        // door (Environment.js _buildCheckpointRoom): this
-                        // hingedDoor:Z leaf is flush at rotation 0, not -PI/2.
                         doorMesh.userData = (isOpenable || isKeypad) ? {chunkHash: hash, closedRot: 0, currentRot: 0, useXApproach: true} : {chunkHash: hash};
                     }
                     if (isKeypad) doorMesh.userData.codeLocked = true;
@@ -2867,8 +2719,8 @@ export default class TheArchitect {
             {
                 id: "ATRIUM",
                 foundationMat: this.dirtMat,
-                build: (x, z, localX, localZ, maze, inDir, outDir) => {
-                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.sharedWallMat, "ATRIUM")) {
+                build: (x, z, localX, localZ, maze) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, this.sharedWallMat, "ATRIUM")) {
                         if (this.farVoidMat) {
                             if (!this.fieldPlaneGeo) {
                                 this.fieldPlaneGeo = new THREE.PlaneGeometry(this.cellSize + 0.02, 3.0);
@@ -2927,7 +2779,7 @@ export default class TheArchitect {
                             pole.position.set(gx + (random() - 0.5) * 1.5, 2.5, gz + (random() - 0.5) * 1.5);
                             addGeometry(pole);
                         }
-                        return;
+
                     }
                 }
             },
@@ -2935,15 +2787,13 @@ export default class TheArchitect {
                 id: "CHECKPOINT",
                 foundationMat: this.tileMat,
                 ceilingMat: this.structMat,
-                build: (x, z, localX, localZ, maze, inDir, outDir) => {
-                    if (ctx.buildPerimeter(x, z, localX, localZ, inDir, outDir, this.structMat, "CHECKPOINT")) return;
+                build: (x, z, localX, localZ) => {
+                    if (ctx.buildPerimeter(x, z, localX, localZ, this.structMat, "CHECKPOINT")) return;
                     const isPathN = localX === 7 && localZ <= 7;
                     const isPathS = localX === 7 && localZ >= 7;
                     const isPathW = localZ === 7 && localX <= 7;
                     const isPathE = localZ === 7 && localX >= 7;
                     const isPath = isPathN || isPathS || isPathW || isPathE;
-                    // ── room selection, shared by the fill branch and the dress ──
-                    // Pure hash of the cell so the chunk PRNG stream is untouched.
                     const ckHash = (a, b, salt) => {
                         let h = (hash ^ Math.imul(a + 64, 73856093) ^ Math.imul(b + 64, 19349663) ^ Math.imul(salt + 1, 83492791)) >>> 0;
                         h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;
@@ -2955,13 +2805,11 @@ export default class TheArchitect {
                         const fV = (lx === 6 || lx === 8) && lz !== 6 && lz !== 8;
                         const fH = (lz === 6 || lz === 8) && lx !== 6 && lx !== 8;
                         if (!fV && !fH) return false;
-                        const t = fV ? lz : lx;               // travel coord along the arm
-                        if (t < 3 || t > 12) return false;    // clear of the gate mouths
-                        if (Math.abs(t - 7) < 2) return false; // clear of the center core
+                        const t = fV ? lz : lx;
+                        if (t < 3 || t > 12) return false;
+                        if (Math.abs(t - 7) < 2) return false;
                         return ckHash(lx, lz, 11) < 0.14;
                     };
-                    // A room is BUILT only at the start of a run of candidates, so
-                    // its three non-door faces always back onto solid fill.
                     const isBuiltRoom = (lx, lz) => {
                         if (!roomCandidate(lx, lz)) return false;
                         const fV = (lx === 6 || lx === 8) && lz !== 6 && lz !== 8;
@@ -2969,7 +2817,6 @@ export default class TheArchitect {
                         return !prev;
                     };
                     if (!isPath) {
-                        // ── SIDE ROOMS + THE MAN DOOR ───────────────────────
                         if (isBuiltRoom(localX, localZ)) {
                             const flankV = (localX === 6 || localX === 8) && localZ !== 6 && localZ !== 8;
                             this._buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, {buildWall, addGeometry, chunkGroup, hash});
@@ -2982,8 +2829,6 @@ export default class TheArchitect {
                         return;
                     }
                     if (localX === 7 && localZ === 7) {
-                        // The crossing centerpiece: a giant column of monitors +
-                        // cables. Still the bottleneck — you route around it.
                         this._buildCheckpointColumn(x, z, hash, {addGeometry, stagingMeshes});
                     } else {
                         if ((localX % 3 === 0 || localZ % 3 === 0) && random() > 0.5) {
@@ -3003,34 +2848,15 @@ export default class TheArchitect {
                                 currentIntensity: 0.7
                             });
                         }
-                        // ── THE CHECKPOINT DRESS ────────────────────────────
-                        // The arms were empty tile. Now they read as a
-                        // quarantine control post: supply crates, drums, AV
-                        // carts, and hazmat suits racked against the walls.
-                        // Everything hugs the ±wall lateral; a ≥1.4u lane
-                        // stays open down the spine so the choke is the only
-                        // real bottleneck. Soft goods (suits, sheeting) carry
-                        // no collision — they brush past you, feet visible.
                         const cx0 = x * this.cellSize, cz0 = z * this.cellSize;
-                        // Fresh (non-warp) starts hard-spawn the camera at world
-                        // origin (Environment.js generate()). The plain maze
-                        // keeps a 2-cell buffer clear of that point on purpose;
-                        // this dress pass never inherited that rule, so a hazmat
-                        // suit or crate stack could land right on the player.
-                        // Structure/walls above are already built — only the
-                        // decorative clutter below needs to stay off the spawn.
                         if (Math.hypot(cx0, cz0) < this.cellSize * 2) return;
-                        const alongZ = localX === 7; // hall travels Z, walls on ±X
+                        const alongZ = localX === 7;
                         const travelCoord = alongZ ? localZ : localX;
                         const nearGate = travelCoord <= 1 || travelCoord >= 14;
                         const nearChoke = Math.abs(travelCoord - 7) === 1;
-                        // lateral placement: side = ±1 picks a wall
                         const lat = (side, off) => alongZ
                             ? [cx0 + side * off, cz0]
                             : [cx0, cz0 + side * off];
-                        // A man door on a flanking cell opens into this arm on
-                        // one side. Keep that side clear of dress so nothing
-                        // fouls the doorway. side -1 → cell 6, side +1 → cell 8.
                         const doorMinus = alongZ ? isBuiltRoom(6, localZ) : isBuiltRoom(localX, 6);
                         const doorPlus = alongZ ? isBuiltRoom(8, localZ) : isBuiltRoom(localX, 8);
                         const anyDoor = doorMinus || doorPlus;
@@ -3038,7 +2864,7 @@ export default class TheArchitect {
                             const blocked = (s) => (s < 0 ? doorMinus : doorPlus);
                             if (!blocked(pref)) return pref;
                             if (!blocked(-pref)) return -pref;
-                            return 0; // both sides carry a door — skip the prop
+                            return 0;
                         };
                         const decalMesh = (mesh) => {
                             mesh.userData.chunkHash = hash;
@@ -3056,7 +2882,6 @@ export default class TheArchitect {
                             });
                             this.sharedAssets.add(this.deconSheetMat.uuid);
                         }
-                        // ── prop builders (all face-agnostic via alongZ) ──
                         const hazmatSuit = (px, pz, faceYaw) => {
                             const suit = new THREE.Group();
                             const torso = new THREE.Mesh(this._boxGeo(0.4, 0.55, 0.24), this.hazmatMat);
@@ -3075,28 +2900,11 @@ export default class TheArchitect {
                             }
                             suit.position.set(px, 0, pz);
                             suit.rotation.y = faceYaw + (random() - 0.5) * 0.25;
-                            // suit is never parented into the live scene graph,
-                            // so nothing ever calls updateMatrix/updateMatrixWorld
-                            // on the group itself. Without this, decalMesh's
-                            // per-child updateMatrixWorld(true) reads suit's
-                            // still-identity matrixWorld and bakes every child
-                            // to its bare local offset — every suit in the level
-                            // collapsing onto roughly the same spot near world
-                            // origin instead of the rack. Force it here so the
-                            // group's transform is resolved before children
-                            // snapshot themselves into stagingMeshes.
                             suit.updateMatrixWorld(true);
                             suit.traverse(m => { if (m.isMesh) decalMesh(m); });
                         };
                         const suitRack = (side) => {
                             const railLen = 3.2;
-                            // Wall face sits at ±2.0 from the corridor centerline
-                            // (see the flanking block-fill above). 1.82 left only
-                            // ~0.18u before the wall, and the suit's own ~0.24u
-                            // depth ate the rest — rail and suits read as flush
-                            // against the wall. 1.5 matches the clearance every
-                            // sibling prop in this dress pass already uses
-                            // (crateStack/drumCluster/avCart).
                             const [rx, rz] = lat(side, 1.5);
                             const rail = new THREE.Mesh(
                                 this._boxGeo(alongZ ? 0.06 : railLen, 0.06, alongZ ? railLen : 0.06), this.metalMat);
@@ -3178,7 +2986,6 @@ export default class TheArchitect {
                             addFurniture(cart);
                         };
                         const deconSheet = () => {
-                            // hangs across the whole hall — you push through blind
                             const strips = 5;
                             for (let i = 0; i < strips; i++) {
                                 const t = (i / (strips - 1) - 0.5) * 3.4;
@@ -3194,9 +3001,8 @@ export default class TheArchitect {
                             track.position.set(cx0, 2.48, cz0);
                             decalMesh(track);
                         };
-                        // ── the control desk: sells the checkpoint at a glance ──
                         if (nearChoke && this._ckDeskHash !== hash) {
-                            this._ckDeskHash = hash; // one control desk per checkpoint chunk
+                            this._ckDeskHash = hash;
                             const side = random() > 0.5 ? 1 : -1;
                             const [dx0, dz0] = lat(side, 1.15);
                             const desk = new THREE.Group();
@@ -3213,12 +3019,9 @@ export default class TheArchitect {
                             desk.position.set(dx0, 0, dz0);
                             desk.rotation.y = alongZ ? (side < 0 ? -Math.PI / 2 : Math.PI / 2) : (side < 0 ? 0 : Math.PI);
                             addFurniture(desk);
-                            // No standalone suit here — suits only belong on
-                            // suitRack. This spot used to get its own hazmat
-                            // suit as desk dressing; removed per design call.
                             return;
                         }
-                        if (nearGate) return; // keep the arm mouths clear
+                        if (nearGate) return;
                         const dress = random();
                         if (dress < 0.16) {
                             const s = clearSide(random() > 0.5 ? 1 : -1);
@@ -3237,10 +3040,10 @@ export default class TheArchitect {
                             const s = clearSide(random() > 0.5 ? 1 : -1);
                             if (s) avCart(s);
                         } else if (dress < 0.66) {
-                            if (!anyDoor) deconSheet(); // curtain spans the hall — skip near any door
+                            if (!anyDoor) deconSheet();
                         } else if (dress < 0.80) {
                             if (!doorPlus) crateStack(1);
-                            if (!doorMinus) crateStack(-1); // both walls, lane still open
+                            if (!doorMinus) crateStack(-1);
                         }
                     }
                 }

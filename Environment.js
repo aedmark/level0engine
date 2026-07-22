@@ -7,6 +7,7 @@ import SpatialHashGrid from './SpatialHashGrid.js';
 import TheArchitect from './TheArchitect.js';
 import LumenGrid from './LumenGrid.js';
 import SECTORS from './Sectors.js';
+
 export default class Environment {
     constructor(engine, player) {
         this.engine = engine;
@@ -62,7 +63,7 @@ export default class Environment {
                 }
             }
         }
-        this.processChunkQueue();
+        this.processChunkQueue().catch(err => console.error('Chunk queue processing failed:', err));
         const deadHashes = new Set();
         for (const [hash, chunkGroup] of this.activeChunks.entries()) {
             if (!chunksToKeep.has(hash)) {
@@ -208,10 +209,6 @@ export default class Environment {
             if (isOpen) {
                 if (!door.userData.isLatched) {
                     const triggerPos = (entityOpen && !playerOpen) ? this.anomaly.group.position : playerPos;
-                    // useXApproach is explicit for doors whose leaf geometry is
-                    // already flush at rotation 0 (no rest-rotation offset), so
-                    // closedRot can't double as an orientation hint for them.
-                    // Falls back to the closedRot heuristic for every other door.
                     const isZDoor = door.userData.useXApproach ? false :
                         (Math.abs(door.userData.closedRot) < 0.1 || Math.abs(door.userData.closedRot - Math.PI) < 0.1);
                     const swingAngle = Math.PI / 2.2;
@@ -336,27 +333,26 @@ export default class Environment {
     async processChunkQueue() {
         if (this.isBuildingChunk) return;
         this.isBuildingChunk = true;
-        while (this.chunkQueue.length > 0) {
-            const chunk = this.chunkQueue.shift();
-            this.queuedHashes.delete(chunk.hash);
-            const currentX = Math.floor(this.camera.position.x / (this.chunkSize * 4));
-            const currentZ = Math.floor(this.camera.position.z / (this.chunkSize * 4));
-            if (Math.abs(chunk.x - currentX) <= this.renderDistance && Math.abs(chunk.z - currentZ) <= this.renderDistance) {
-                // Instrumentation: wall-clock per chunk build. Builds yield to
-                // rAF internally, so this is elapsed time, not blocked time —
-                // read it alongside the HITCH line in the debug HUD, which
-                // catches the actual dropped frames.
-                const genT0 = performance.now();
-                await this.buildChunk(chunk.x, chunk.z, chunk.hash);
-                const genMs = performance.now() - genT0;
-                if (!this.genStats) this.genStats = {count: 0, totalMs: 0, worstMs: 0, lastMs: 0};
-                this.genStats.count++;
-                this.genStats.totalMs += genMs;
-                this.genStats.lastMs = genMs;
-                if (genMs > this.genStats.worstMs) this.genStats.worstMs = genMs;
+        try {
+            while (this.chunkQueue.length > 0) {
+                const chunk = this.chunkQueue.shift();
+                this.queuedHashes.delete(chunk.hash);
+                const currentX = Math.floor(this.camera.position.x / (this.chunkSize * 4));
+                const currentZ = Math.floor(this.camera.position.z / (this.chunkSize * 4));
+                if (Math.abs(chunk.x - currentX) <= this.renderDistance && Math.abs(chunk.z - currentZ) <= this.renderDistance) {
+                    const genT0 = performance.now();
+                    await this.buildChunk(chunk.x, chunk.z, chunk.hash);
+                    const genMs = performance.now() - genT0;
+                    if (!this.genStats) this.genStats = {count: 0, totalMs: 0, worstMs: 0, lastMs: 0};
+                    this.genStats.count++;
+                    this.genStats.totalMs += genMs;
+                    this.genStats.lastMs = genMs;
+                    if (genMs > this.genStats.worstMs) this.genStats.worstMs = genMs;
+                }
             }
+        } finally {
+            this.isBuildingChunk = false;
         }
-        this.isBuildingChunk = false;
         if (this.isSpawning) {
             this.isSpawning = false;
             const flash = document.getElementById('flash-overlay');
@@ -713,8 +709,6 @@ export default class Environment {
                     detail: {docId: hit.userData.docId, zone: hit.userData.zone || null}
                 }));
             } else if (hit && hit.userData.type === 'exit' && hit.userData.active) {
-                // The elevator no longer descends on touch. The case must be
-                // filed first — main.js runs the Inquest and adjudicates.
                 document.dispatchEvent(new CustomEvent('somatic-inquest', {detail: {exitRef: hit}}));
             }
         });
@@ -754,9 +748,6 @@ export default class Environment {
         this._globalSwitches = [];
         this.pointsOfInterest = [];
         this._breakerHuntHops = this._rollHuntHops();
-        // Run salt: re-rolled every generation, deliberately unseeded. POIs
-        // fold this into their own local stream, so a replayed seed keeps its
-        // maze but deals different anomalies. Nothing else may consume it.
         this._runSalt32 = (Math.random() * 4294967296) >>> 0;
         this._macroChunkHashes = new Set();
         this._sectorBags = null;
@@ -1208,9 +1199,7 @@ export default class Environment {
             });
         }
     }
-    // Zone-builder geometry cache: identical shapes share one geometry so
-    // _compileInstances can batch them by uuid instead of drawing solos.
-    // Keys are exact dims (all deterministic), so the cache stays bounded.
+
     _cacheGeo(key, make) {
         let geo = this.geoCache.get(key);
         if (!geo) {
@@ -1381,7 +1370,7 @@ export default class Environment {
                 group.position.set(x, y, z);
                 return group;
             },
-            buildPerimeter: (x, z, localX, localZ, inDir, outDir, wallMat, sectorId) => {
+            buildPerimeter: (x, z, localX, localZ, wallMat, sectorId) => {
                 const isPerimeter = localX === 0 || localX === this.chunkSize - 1 || localZ === 0 || localZ === this.chunkSize - 1;
                 if (!isPerimeter) return false;
                 if (sectorId && helpers.markOccupied) helpers.markOccupied(x, z);
@@ -1415,27 +1404,17 @@ export default class Environment {
         return helpers;
     }
 
-    // ── THE MAN DOOR + CHECKPOINT SIDE ROOMS ─────────────────────────
-    // Carves a storage/surprise pocket into the checkpoint's solid fill.
-    // The pocket's three non-door faces back onto neighbouring solid
-    // blocks (the caller guarantees this), so we only build the fourth
-    // wall — the one facing the corridor arm — with a gray steel fire
-    // door (the "man door") set into it. All randomness is a pure hash
-    // of the cell (ckHash) so the PRNG stream for the rest of the chunk
-    // is untouched: every non-room cell renders exactly as before.
     _buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, ctx) {
         const {buildWall, addGeometry, chunkGroup, hash} = ctx;
         const cs = this.cellSize;
         const cx0 = x * cs, cz0 = z * cs;
-        // direction from the room toward the corridor arm (door faces this way)
         const dir = flankV ? (localX === 6 ? 1 : -1) : (localZ === 6 ? 1 : -1);
-        const bx = cx0 + (flankV ? dir * (cs / 2) : 0);   // door-wall boundary
+        const bx = cx0 + (flankV ? dir * (cs / 2) : 0);
         const bz = cz0 + (flankV ? 0 : dir * (cs / 2));
         const doorW = 1.4, doorT = 0.1;
         const frameMat = this.annexFrameMat || this.metalMat;
         const leafMat = this.annexDoorMat || this.doorMat;
 
-        // ── the door wall: two solid stubs, a steel frame, a hazard lintel ──
         if (flankV) {
             for (let s = -1; s <= 1; s += 2) {
                 const stub = buildWall(0.25, 1.2, this.structMat);
@@ -1474,7 +1453,6 @@ export default class Environment {
             addGeometry(mark);
         }
 
-        // ── the man door leaf (gray steel, hinged, interactive) ──
         let doorMesh;
         if (flankV) {
             const g = this._cacheGeo('hingedDoor:Z', () => {
@@ -1484,13 +1462,6 @@ export default class Environment {
             });
             doorMesh = new THREE.Mesh(g, leafMat);
             doorMesh.position.set(bx, 1.325, cz0 - doorW / 2);
-            // This leaf (hingedDoor:Z) is built flush at rotation 0 already —
-            // no rest offset needed. closedRot: -PI/2 previously didn't match
-            // the mesh's actual (never explicitly set) rotation.y of 0, so the
-            // first open snapped ~90 deg instead of swinging smoothly, and
-            // closing settled at -90 deg instead of true flush (reads as
-            // "stuck halfway"). useXApproach keeps the correct swing-side
-            // check now that closedRot no longer signals it.
             doorMesh.userData = {chunkHash: hash, closedRot: 0, currentRot: 0, useXApproach: true};
         } else {
             const g = this._cacheGeo('hingedDoor:X', () => {
@@ -1512,9 +1483,8 @@ export default class Environment {
         doorMesh.userData.box = dBox;
         this.spatialGrid.insert(dBox);
 
-        // ── interior anchor frame (nx/nz points at the back wall) ──
-        const nx = flankV ? -dir : 0, nz = flankV ? 0 : -dir;   // toward back wall
-        const tx = flankV ? 0 : 1, tz = flankV ? 1 : 0;         // lateral axis
+        const nx = flankV ? -dir : 0, nz = flankV ? 0 : -dir;
+        const tx = flankV ? 0 : 1, tz = flankV ? 1 : 0;
         const at = (fwd, lat) => [cx0 + nx * fwd + tx * lat, cz0 + nz * fwd + tz * lat];
         const place = (mesh, px, py, pz) => { mesh.position.set(px, py, pz); addGeometry(mesh); };
         const cartonGeo = this._cacheGeo('ckRoomCarton', () => new THREE.BoxGeometry(0.5, 0.42, 0.5));
@@ -1528,7 +1498,6 @@ export default class Environment {
         const roll = ckHash(localX, localZ, 7);
         let lit = true;
         if (roll < 0.45) {
-            // ── STORAGE: a steel shelf unit against the back wall ──
             for (const sy of [0.45, 1.15, 1.85, 2.5]) {
                 const shelf = new THREE.Mesh(this._boxGeo(flankV ? 0.5 : 2.6, 0.05, flankV ? 2.6 : 0.5), this.metalMat);
                 const [px, pz] = at(1.55, 0);
@@ -1542,7 +1511,6 @@ export default class Environment {
             const spots = [[1.55, -0.9, 0.7], [1.55, 0.0, 0.7], [1.55, 0.9, 0.7], [1.55, -0.5, 1.4], [1.55, 0.6, 1.4], [1.0, 1.0, 0.37]];
             for (const [f, l, y] of spots) if (ckHash(localX + l * 3, localZ + f * 3, 4) > 0.25) carton(f, l, y);
         } else if (roll < 0.70) {
-            // ── OVERFLOW: pallet, stacked cartons, a lone drum ──
             const [px, pz] = at(1.3, -0.6);
             const pallet = new THREE.Mesh(this._boxGeo(1.2, 0.12, 1.2), this.woodMat);
             place(pallet, px, 0.06, pz);
@@ -1553,7 +1521,6 @@ export default class Environment {
             const [dx, dz] = at(1.4, 1.1);
             place(drum, dx, 0.46, dz);
         } else if (roll < 0.87) {
-            // ── SUPPLY CACHE: a genuine reward — battery + almond water ──
             const [tx0, tz0] = at(1.4, 0);
             const tableTop = new THREE.Mesh(this._boxGeo(flankV ? 0.7 : 1.4, 0.06, flankV ? 1.4 : 0.7), this.metalMat);
             place(tableTop, tx0, 0.78, tz0);
@@ -1579,7 +1546,6 @@ export default class Environment {
             drop(this.batteryPrefab, 'battery', 1.4, -0.3);
             if (ckHash(localX, localZ, 2) > 0.4) drop(this.almondPrefab, 'almond', 1.4, 0.3);
         } else {
-            // ── SURPRISE: a lone chair facing the dark back wall, no light ──
             lit = false;
             const [sx, sz] = at(1.3, (ckHash(localX, localZ, 6) - 0.5) * 1.2);
             const seat = new THREE.Mesh(this._boxGeo(0.45, 0.06, 0.45), this.structMat);
@@ -1592,7 +1558,6 @@ export default class Environment {
             }
         }
 
-        // ── ceiling light (dark rooms stay dark) ──
         if (lit) {
             const activeMat = this.baseLightMat.clone();
             const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
@@ -1612,13 +1577,6 @@ export default class Environment {
         }
     }
 
-    // ── THE CHECKPOINT CORE: a giant column of monitors + cables ─────
-    // Replaces the old squeeze-partition at the arms' crossing with a
-    // floor-to-ceiling equipment stack: a monitor wall on all four faces,
-    // a cable trunk feeding the ceiling, and coils pooled at the base.
-    // The 1.3u core carries collision (entity blocker); ~1.35u of walkable
-    // margin stays open on every side, so it still reads as the bottleneck.
-    // Deterministic (pure hash of the chunk) — no PRNG draws.
     _buildCheckpointColumn(x, z, hash, ctx) {
         const {addGeometry, stagingMeshes} = ctx;
         const cs = this.cellSize;
@@ -1634,7 +1592,6 @@ export default class Environment {
             this.sharedAssets.add(this.laptopScreenMat.uuid);
         }
 
-        // core equipment column — collision + entity blocker, floor to ceiling
         const coreW = 1.3;
         const core = new THREE.Mesh(this._boxGeo(coreW, 3.0, coreW), this.baseHousingMat);
         core.position.set(cx, 1.5, cz);
@@ -1647,7 +1604,6 @@ export default class Environment {
         cap.position.set(cx, 2.9, cz);
         decor(cap);
 
-        // monitor wall — a grid of screens (some live, most dead) on 4 faces
         const faces = [[0, 1], [0, -1], [1, 0], [-1, 0]];
         const rows = [0.8, 1.4, 2.0, 2.55];
         const colsOff = [-0.32, 0.32];
@@ -1677,12 +1633,10 @@ export default class Environment {
             }
         }
 
-        // cable trunk climbing one corner into the ceiling
         const trunk = new THREE.Mesh(this._boxGeo(0.22, 3.2, 0.22), this.metalMat);
         trunk.position.set(cx + 0.55, 1.6, cz + 0.55);
         decor(trunk);
 
-        // loose cables draping from the ceiling down the column
         const cableGeo = this._cacheGeo('ckColCable', () => new THREE.CylinderGeometry(0.035, 0.035, 1.0, 6));
         for (let i = 0; i < 6; i++) {
             const len = 1.2 + sHash(100 + i) * 1.6;
@@ -1694,7 +1648,6 @@ export default class Environment {
             decor(cable);
         }
 
-        // cable coils pooled at the base
         const loopGeo = this._cacheGeo('ckColLoop', () => new THREE.TorusGeometry(0.4, 0.04, 6, 12));
         for (let i = 0; i < 3; i++) {
             const loop = new THREE.Mesh(loopGeo, this.rustMat);
@@ -1704,13 +1657,6 @@ export default class Environment {
         }
     }
 
-    // ── IMPOUND YARD ITEMS: the big stuff in the pens ────────────────
-    // Procedural impounded property — cars (some up on blocks), skid-
-    // mounted machinery, and stacked tires — assembled from boxes and
-    // cylinders on shared materials. Placed as a group via addFurniture
-    // so it gets one collision box and skips if it would foul a fence.
-    // Returns true once an attempt is made (placement may still be
-    // culled by the overlap guard, which is fine — it just leaves a gap).
     _buildImpoundItem(px, pz, kind, ctx) {
         const {addFurniture, chunkGroup, hash, random} = ctx;
         if (!this._impPaintMats) {
@@ -1742,13 +1688,6 @@ export default class Environment {
             win.position.y = 1.13;
             g.add(body, win, cabin);
             const onBlocks = random() > 0.7;
-            // halfL/halfW are the car's own length/width insets — always L
-            // and W, full stop. The wx/wz assignment below already swaps
-            // which world axis (X or Z) each one lands on for `along`; doing
-            // the same swap here too cancelled out for along===true (right
-            // by coincidence) but doubled up for along===false, placing
-            // wheels at +/-L/2 on the width axis instead of +/-W/2 — off the
-            // side of the body entirely on every sideways-oriented car.
             const halfL = L / 2 - 0.5, halfW = W / 2;
             for (const sl of [-1, 1]) for (const sw of [-1, 1]) {
                 const wx = along ? sl * halfL : sw * halfW;
@@ -1764,25 +1703,11 @@ export default class Environment {
                     g.add(wheel);
                 }
             }
-            // A 3.4-long car in a 4.0 cell only has ~0.3u of built-in
-            // clearance to the cell edge even at zero jitter/rotation — the
-            // old +/-0.2 position jitter and +/-0.15 rotation could eat
-            // straight through that and into a fence run on an adjacent
-            // wall cell. Tightened both so the worst case stays inside the
-            // cell with room to spare.
             g.position.set(px + (random() - 0.5) * 0.2, 0, pz + (random() - 0.5) * 0.2);
             g.rotation.y = (random() - 0.5) * 0.15;
             addFurniture(g);
-            // impound tag on the hood — keeps the case-file document flowing
             if (random() > 0.4) {
                 const tag = new THREE.Mesh(this.documentGeo, this.documentMat);
-                // Was pinned to the car's own pivot, which is dead center
-                // under the cabin/windshield (cabin spans y 0.84-1.40) — the
-                // tag rendered embedded inside that geometry, invisible but
-                // still hit by the interact raycast (no occlusion check
-                // there). Push it out to the exposed hood/trunk area instead:
-                // same longitudinal inset as the wheels (halfL, already
-                // clear of the cabin's footprint), rotated with the body.
                 const hoodSide = random() > 0.5 ? 1 : -1;
                 const hoodLocalX = along ? hoodSide * halfL : 0;
                 const hoodLocalZ = along ? 0 : hoodSide * halfL;
@@ -1822,7 +1747,6 @@ export default class Environment {
             return true;
         }
 
-        // kind === 'tires'
         const tGeo = this._cacheGeo('impTireStack', () => new THREE.CylinderGeometry(0.42, 0.42, 0.24, 16));
         const n = 3 + Math.floor(random() * 4);
         const bx = (random() - 0.5) * 1.2, bz = (random() - 0.5) * 1.2;
@@ -1875,34 +1799,12 @@ export default class Environment {
         let sectorMaze = null;
         let chunkBreakerCount = 0;
         const breakerPositions = [];
-        const hashVal = Math.abs((chunkX * 104729) + (chunkZ * 1299827));
-        const inDir = hashVal % 4;
-        const outDir = (hashVal + 1 + (hashVal % 3)) % 4;
         if (isMacroStructure) {
             const isExitPhase = this.player && this.player.objectives && this.player.objectives.fixed >= this.player.objectives.total &&
                 this.player.hasVisitedAnnex && !this.player.objectives.escaped;
-            // Math.floor(random() * validSectors.length) was already exactly
-            // uniform per draw (11 candidates, each 1/11 per roll) — that part
-            // was never biased. But independent draws don't stop the same
-            // handful of sectors from clustering together while others go
-            // long stretches unseen; over a single play session that reads as
-            // "some zones are rare" even though the odds were fair in the
-            // limit. Switching to a shuffled no-repeat bag (Fisher-Yates,
-            // reshuffled once exhausted) bounds the wait for any given sector
-            // to at most 10 other macro chunks — a real fairness guarantee,
-            // not just a fair coin.
             const poolKey = isExitPhase ? 'exit' : 'normal';
             if (!this._sectorBags) this._sectorBags = {};
             if (!this._sectorBags[poolKey] || this._sectorBags[poolKey].length === 0) {
-                // Bag stores IDs only, not the sector objects themselves.
-                // sectorMatrix is rebuilt fresh every buildChunk call — each
-                // sector's build() closes over *this* chunk's chunkGroup,
-                // stagingMeshes, hash, and random. Stashing the objects
-                // across chunks meant every pop after the bag's first fill
-                // was handing back a build() still wired to a previous,
-                // already-finalized chunk's geometry group — it ran, but
-                // nothing it built ever reached the chunk actually being
-                // generated.
                 const ids = sectorMatrix
                     .filter(s => isExitPhase ? s.id !== "CHECKPOINT" : s.id !== "EXIT")
                     .map(s => s.id);
@@ -1927,7 +1829,7 @@ export default class Environment {
                 startZ: startZ
             });
             if (["ARCHIVE", "SERVER", "MAINTENANCE", "IMPOUND", "ATRIUM", "CHASM", "CLINIC"].includes(activeSector.id)) {
-                sectorMaze = this._generateSectorMaze(random, inDir, outDir);
+                sectorMaze = this._generateSectorMaze(random);
             }
             if (activeSector.foundationMat) {
                 const innerSize = (this.chunkSize - 2) * this.cellSize;
@@ -1993,7 +1895,7 @@ export default class Environment {
         const occupied = new Set();
         ctx.markOccupied = (ox, oz) => occupied.add(`${ox},${oz}`);
         ctx.isOccupied = (ox, oz) => occupied.has(`${ox},${oz}`);
-        if (isMacroStructure) {
+        if (isMacroStructure && activeSector) {
             const hallwayNeedsFloor = activeSector.id === "CHASM";
             const hallwayNeedsCeiling = activeSector.id === "CHASM" || activeSector.id === "ATRIUM";
             this._buildEntranceHallways(chunkGroup, hash, startX, startZ, activeSector.id, ctx, hallwayNeedsFloor, hallwayNeedsCeiling);
@@ -2005,9 +1907,16 @@ export default class Environment {
                 const localZ = z - startZ;
                 
                 if (isMacroStructure) {
-                    const isPerimeter = localX === 0 || localX === this.chunkSize - 1 || localZ === 0 || localZ === this.chunkSize - 1;
-                    if (ctx.isOccupied(x, z) && !isPerimeter) continue;
-                    activeSector.build(x, z, localX, localZ, typeof sectorMaze !== 'undefined' ? sectorMaze : null, inDir, outDir);
+                    // Cells the airlock has already claimed (its doorway cell and
+                    // the connecting cell just behind it - see _buildEntranceHallways)
+                    // are marked occupied before this loop runs. That footprint has
+                    // to stay off-limits to every sector's build(), including its
+                    // own perimeter wall/doorway cell - otherwise sector-specific
+                    // decor keyed only off localX/localZ (ducts, vents, pipes, lamps)
+                    // has no way to know the airlock is standing there and generates
+                    // straight through it, regardless of which zone owns the chunk.
+                    if (ctx.isOccupied(x, z)) continue;
+                    activeSector.build(x, z, localX, localZ, typeof sectorMaze !== 'undefined' ? sectorMaze : null);
                     continue;
                 }
                 
@@ -2172,14 +2081,30 @@ export default class Environment {
             });
             const outer = cellAt(side.boundary);
             const inDir = side.dir;
+            let innerCellX = outer.x, innerCellZ = outer.z;
             for (let cross = 7; cross <= 7; cross++) {
                 for (let depth = 0; depth <= 1; depth++) {
                     const lx = spansX ? cross : (side.boundary + inDir * depth);
                     const lz = spansX ? (side.boundary + inDir * depth) : cross;
                     ctx.markOccupied(startX + lx, startZ + lz);
+                    if (depth === 1) {
+                        innerCellX = startX + lx;
+                        innerCellZ = startZ + lz;
+                    }
                 }
             }
             this._buildAirlock(chunkGroup, hash, outer.x * this.cellSize, outer.z * this.cellSize, spansX, sectorId, outSign);
+            // The depth-1 cell sits between the airlock's own chamber footprint
+            // (chamberDepth=2.8, short of a full cellSize=4 cell) and the rest of
+            // the sector's interior. Sectors that skip their whole-chunk floor
+            // and/or ceiling (CHASM has no floor at all; CHASM/ATRIUM swap the
+            // ceiling for a distant void canopy) would otherwise leave this one
+            // cell open straight into the void right at the threshold - visible
+            // through the airlock before the door even opens, which breaks the
+            // "sealed loading zone" illusion the airlock exists to preserve.
+            if (needsFloor || needsCeiling) {
+                this._buildHallwaySegment(chunkGroup, hash, innerCellX * this.cellSize, innerCellZ * this.cellSize, spansX, needsFloor, needsCeiling);
+            }
         }
     }
     _buildAirlock(chunkGroup, hash, dcx, dcz, spansX, sectorId, outSign) {
@@ -2229,7 +2154,6 @@ export default class Environment {
             jambB.position.set(cx + (spansX ? 1.75 : 0), 1.5, cz + (spansX ? 0 : 1.75));
             addGeometry(jambB);
 
-            // Designated Pocket Housing Casings (Left and Right sides)
             for (let side = -1; side <= 1; side += 2) {
                 const pocketOuter = bWall(
                     spansX ? 1.7 : 0.08,
@@ -2382,8 +2306,6 @@ export default class Environment {
         const outerDoor = createDoorAssembly(outerX, outerZ);
         const innerDoor = createDoorAssembly(innerX, innerZ);
 
-        // The airlock needs to cover the void from the outer edge of the perimeter cell (dcz - 1.75)
-        // to the inner door (dcz + 2.8). Total depth = 4.55. Center offset = 0.525.
         const fullDepth = chamberDepth + 1.75;
         const outCenterOff = (chamberDepth - 1.75) * 0.5;
         const extMidZ = dcz + (spansX ? inSign * outCenterOff : 0);
@@ -2503,9 +2425,6 @@ export default class Environment {
         const maxCoord = Math.max(outerCoord, innerCoord) + 0.2;
         const isPlayerInChamber = inChamberCross && (playerPos[axis] >= minCoord && playerPos[axis] <= maxCoord);
 
-        const playerOutside = ((playerPos[axis] - airlock.outerPos[axis]) * airlock.outSign) > 0.2;
-        const playerInside = ((playerPos[axis] - airlock.innerPos[axis]) * (-airlock.outSign)) > 0.2;
-
         const playerNearOuter = airlock.outerDoor.data.playerOpen === true;
         const playerNearInner = airlock.innerDoor.data.playerOpen === true;
         const switchPressed = airlock.switchGrp && airlock.switchGrp.userData.playerOpen === true;
@@ -2574,12 +2493,10 @@ export default class Environment {
                 if (airlock.outerDoor.data.progress === 0 && airlock.innerDoor.data.progress === 0) {
                     airlock.state = 'CYCLING';
                     airlock.cycleTimer = airlock.cycleDuration;
-                    const destSector = (airlock.openedFrom === 'OUTSIDE') ? airlock.sectorId : 'NORMAL';
-                    this._doorSectorForce = destSector;
+                    this._doorSectorForce = (airlock.openedFrom === 'OUTSIDE') ? airlock.sectorId : 'NORMAL';
                     document.dispatchEvent(new CustomEvent('somatic-airlock', {
                         detail: {distSq: pDistChamberSq, intensity: 1.0}
                     }));
-                    // Trigger a single, long pressurization hiss for the entire cycle duration
                     document.dispatchEvent(new CustomEvent('somatic-airlock-hiss', {
                         detail: {distSq: pDistChamberSq, intensity: 1.0}
                     }));
@@ -2590,7 +2507,6 @@ export default class Environment {
                 airlock.outerDoor.data.target = 0.0;
                 airlock.innerDoor.data.target = 0.0;
 
-                // Continuously drive target destination sector fog/audio swap behind closed doors
                 const targetSector = (airlock.openedFrom === 'OUTSIDE') ? airlock.sectorId : 'NORMAL';
                 this._doorSectorForce = targetSector;
 
@@ -2694,8 +2610,8 @@ export default class Environment {
             }
         }
     }
-    _generateSectorMaze(randomFn, inDir, outDir) {
-        const maze = Array(this.chunkSize).fill().map(() => Array(this.chunkSize).fill(true));
+    _generateSectorMaze(randomFn) {
+        const maze = Array(this.chunkSize).fill(undefined).map(() => Array(this.chunkSize).fill(true));
         const carve = (cx, cz) => {
             maze[cx][cz] = false;
             const dirs = [[0, -2], [2, 0], [0, 2], [-2, 0]];
@@ -2714,15 +2630,6 @@ export default class Environment {
             let rz = Math.floor(randomFn() * (this.chunkSize - 4)) + 2;
             maze[rx][rz] = false;
         }
-        // The old version only forced the 2 cells nearest each gate open,
-        // independent of whether carve()'s random walk ever actually reached
-        // that far out. carve() only connects what it visits — an airlock's
-        // two guaranteed-open cells could dead-end into solid wall on every
-        // other side if the walk didn't happen to extend to that arm. (7,7)
-        // is always open (it's the carve root), so forcing the full cross —
-        // not just the gate-adjacent cells — guarantees every gate has an
-        // unbroken line straight to the center, the same guarantee
-        // CHECKPOINT's hand-built corridor already gives it.
         for (let i = 0; i < this.chunkSize; i++) {
             maze[7][i] = false;
             maze[i][7] = false;
@@ -2905,8 +2812,6 @@ export default class Environment {
         }
         const anomalyPressure = this.player.anomalyPressure || 0;
         if (this.interactables && this.player && this.player.updateObjectives) {
-            // Min-search runs on squared distances; sqrt fires exactly once at
-            // the display boundary. The radar reads the same, the loop pays less.
             let nearestDistSq = Infinity;
             const isExitPhase = this.player.objectives.fixed >= this.player.objectives.total;
             if (isExitPhase && !this.player.hasVisitedAnnex) {

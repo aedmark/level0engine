@@ -16,7 +16,7 @@ export default class ProceduralTextureFactory {
         for (let i = 0; i < data.length; i += 4) {
             seed = (seed * 1664525 + 1013904223) >>> 0;
             if ((seed >>> 24) > 217) {
-                const val = (seed & 0x10000) ? 0 : 255;
+                const val = (seed && 0x10000) ? 0 : 255;
                 data[i] = data[i + 1] = data[i + 2] = val;
                 data[i + 3] = 10 + ((seed >>> 8) % 50);
             }
@@ -556,7 +556,6 @@ export default class ProceduralTextureFactory {
             alphaTest: 0.5,
             side: THREE.DoubleSide
         });
-        const waterMat = fenceMat;
         const {canvas: hazardCanvas, ctx: hazCtx} = this._createContext(256, 256);
         hazCtx.fillStyle = '#ffcc00';
         hazCtx.fillRect(0, 0, 256, 256);
@@ -648,7 +647,7 @@ export default class ProceduralTextureFactory {
         aCtx.globalAlpha = 1.0;
         const almondTexture = new THREE.CanvasTexture(almondCanvas);
         const almondMat = new THREE.MeshStandardMaterial({map: almondTexture, roughness: 0.8});
-        return {waterMat, hazardMat, glowMat, glowGeo, tagMat, tagGeo, voidMat, rustMat, metalMat, almondMat};
+        return {fenceMat, hazardMat, glowMat, glowGeo, tagMat, tagGeo, voidMat, rustMat, metalMat, almondMat};
     }
     static _buildAnnexAssets(masterNoise) {
         // Base brushed-steel plate: also used for the door's thin edge faces.
@@ -671,9 +670,6 @@ export default class ProceduralTextureFactory {
         steelCtx.globalAlpha = 1.0;
         const steelTexture = new THREE.CanvasTexture(steelCanvas);
         const annexEdgeMat = new THREE.MeshStandardMaterial({map: steelTexture, roughness: 0.5, metalness: 0.7});
-        // Front face: welded frame seam, wired-glass observation window, mid-rail,
-        // hazard stripe and a scuffed kick plate - a basement fire-door, not a
-        // household slab.
         const {canvas: doorCanvas, ctx: doorCtx} = this._createContext(256, 512);
         doorCtx.drawImage(steelCanvas, 0, 0);
         doorCtx.strokeStyle = 'rgba(0,0,0,0.35)';

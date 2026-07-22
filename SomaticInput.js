@@ -1,8 +1,6 @@
 // SomaticInput.js
 // LEVEL 0 PERIPHERAL NERVOUS SYSTEM
 
-import Vec3 from './Vec3.js';
-
 const PREVENT_KEYS = new Set(['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyV', 'KeyQ', 'KeyF', 'KeyE', 'KeyG', 'KeyZ', 'Space']);
 
 export default class SomaticInput {
@@ -44,7 +42,7 @@ export default class SomaticInput {
         if (lockSurface) {
             lockSurface.addEventListener('click', () => {
                 if (this.state.isReading || this.isLocked || this.lockFallback) return;
-                document.body.requestPointerLock();
+                document.body.requestPointerLock()?.catch(() => {});
                 setTimeout(() => {
                     if (!this.isLocked) this.lockFallback = true;
                 }, 400);

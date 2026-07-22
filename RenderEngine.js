@@ -17,10 +17,6 @@ export default class RenderEngine {
         this.scene.fog = new THREE.FogExp2(0xa89f68, 0.05);
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
         this.camera.position.y = 1.6;
-        // Standard depth: near 0.1 / far 100 gives ~1.5mm precision at 50 units,
-        // and the decal materials already carry polygonOffset + depthWrite:false.
-        // Log depth wrote gl_FragDepth per fragment, which defeats early-Z.
-        // A/B the old mode anytime with ?logdepth in the URL.
         const logDepth = new URLSearchParams(window.location.search).has('logdepth');
         this.renderer = new THREE.WebGLRenderer({antialias: false, powerPreference: "high-performance", logarithmicDepthBuffer: logDepth});
         this.renderer.setPixelRatio(1.0);

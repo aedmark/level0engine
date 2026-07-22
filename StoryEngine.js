@@ -12,8 +12,8 @@ export default class StoryEngine {
         };
         const pick = (arr) => arr[Math.floor(this.rand() * arr.length)];
 
-        const FIRST = ['Marion', 'Hollis', 'Petra', 'Vernon', 'Ada', 'Ruth', 'Kai', 'Andrew', 'Jess', 'Emile', 'Casper', 'Lena', 'Howard', 'Iris', 'Salvador'];
-        const LAST = ['Vance', 'Okafor', 'Lindqvist', 'Marsh', 'Delacroix', 'Edmark', 'Crownover', 'Bloom', 'Kessler', 'Antoun', 'Reyes', 'Whitlock'];
+        const FIRST = ['Marion', 'Hollis', 'Petra', 'Vernon', 'Gordon', 'Cassandra', 'Ada', 'Ruth', 'Kai', 'Andrew', 'Jess', 'Emile', 'Casper', 'Lena', 'Howard', 'Iris', 'Salvador'];
+        const LAST = ['Vance', 'Okafor', 'Lindqvist', 'Marsh', 'Delacroix', 'Edmark', 'Crownover', 'Bloom', 'Pleimart','Kessler', 'Antoun', 'Reyes', 'Whitlock'];
         const used = new Set();
         const mkName = () => {
             let n;
