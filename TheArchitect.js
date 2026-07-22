@@ -2121,26 +2121,62 @@ export default class TheArchitect {
                             if (nx < 0 || nx >= this.chunkSize || nz < 0 || nz >= this.chunkSize) return false;
                             return !maze || maze[nx][nz];
                         };
-                        if (checkVoid(localX - 1, localZ)) {
-                            const railing = buildWall(0.15, this.cellSize + 0.4, this.rustMat, 1.2);
-                            railing.position.set(gx - 1.8, 0.6, gz);
+                        const vW = checkVoid(localX - 1, localZ);
+                        const vE = checkVoid(localX + 1, localZ);
+                        const vN = checkVoid(localX, localZ - 1);
+                        const vS = checkVoid(localX, localZ + 1);
+                        // Each railing end extends 0.2 toward a neighbor only when that neighbor
+                        // is solid (bridging a straight run or reaching a corner post below).
+                        // When the neighbor is itself void, the end stays flush with the cell
+                        // edge instead of overshooting past the corner into the next one.
+                        if (vW) {
+                            const extN = !vN, extS = !vS;
+                            const len = this.cellSize + (extN ? 0.2 : 0) + (extS ? 0.2 : 0);
+                            const cz = (extS ? 0.1 : 0) - (extN ? 0.1 : 0);
+                            const railing = buildWall(0.15, len, this.rustMat, 1.2);
+                            railing.position.set(gx - 1.8, 0.6, gz + cz);
                             addGeometry(railing);
                         }
-                        if (checkVoid(localX + 1, localZ)) {
-                            const railing = buildWall(0.15, this.cellSize + 0.4, this.rustMat, 1.2);
-                            railing.position.set(gx + 1.8, 0.6, gz);
+                        if (vE) {
+                            const extN = !vN, extS = !vS;
+                            const len = this.cellSize + (extN ? 0.2 : 0) + (extS ? 0.2 : 0);
+                            const cz = (extS ? 0.1 : 0) - (extN ? 0.1 : 0);
+                            const railing = buildWall(0.15, len, this.rustMat, 1.2);
+                            railing.position.set(gx + 1.8, 0.6, gz + cz);
                             addGeometry(railing);
                         }
-                        if (checkVoid(localX, localZ - 1)) {
-                            const railing = buildWall(this.cellSize + 0.4, 0.15, this.rustMat, 1.2);
-                            railing.position.set(gx, 0.6, gz - 1.8);
+                        if (vN) {
+                            const extW = !vW, extE = !vE;
+                            const len = this.cellSize + (extW ? 0.2 : 0) + (extE ? 0.2 : 0);
+                            const cx = (extE ? 0.1 : 0) - (extW ? 0.1 : 0);
+                            const railing = buildWall(len, 0.15, this.rustMat, 1.2);
+                            railing.position.set(gx + cx, 0.6, gz - 1.8);
                             addGeometry(railing);
                         }
-                        if (checkVoid(localX, localZ + 1)) {
-                            const railing = buildWall(this.cellSize + 0.4, 0.15, this.rustMat, 1.2);
-                            railing.position.set(gx, 0.6, gz + 1.8);
+                        if (vS) {
+                            const extW = !vW, extE = !vE;
+                            const len = this.cellSize + (extW ? 0.2 : 0) + (extE ? 0.2 : 0);
+                            const cx = (extE ? 0.1 : 0) - (extW ? 0.1 : 0);
+                            const railing = buildWall(len, 0.15, this.rustMat, 1.2);
+                            railing.position.set(gx + cx, 0.6, gz + 1.8);
                             addGeometry(railing);
                         }
+                        // Corner posts cap outside (convex) corners flush and plug the notch
+                        // left at inside (concave) corners, so perpendicular railings always
+                        // read as a clean 90-degree joint instead of overshoot or a gap.
+                        const addCornerPost = (px, pz) => {
+                            const post = buildWall(0.3, 0.3, this.rustMat, 1.2);
+                            post.position.set(px, 0.6, pz);
+                            addGeometry(post);
+                        };
+                        if (vW && vN) addCornerPost(gx - 1.8, gz - 1.8);
+                        if (vE && vN) addCornerPost(gx + 1.8, gz - 1.8);
+                        if (vW && vS) addCornerPost(gx - 1.8, gz + 1.8);
+                        if (vE && vS) addCornerPost(gx + 1.8, gz + 1.8);
+                        if (!vW && !vN && checkVoid(localX - 1, localZ - 1)) addCornerPost(gx - 1.8, gz - 1.8);
+                        if (!vE && !vN && checkVoid(localX + 1, localZ - 1)) addCornerPost(gx + 1.8, gz - 1.8);
+                        if (!vW && !vS && checkVoid(localX - 1, localZ + 1)) addCornerPost(gx - 1.8, gz + 1.8);
+                        if (!vE && !vS && checkVoid(localX + 1, localZ + 1)) addCornerPost(gx + 1.8, gz + 1.8);
                         if (random() > 0.78) {
                             // Deck-level red markers: dropped into the fog layer
                             // and cranked up so they burn through the black. They

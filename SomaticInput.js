@@ -118,7 +118,7 @@ export default class SomaticInput {
                 document.dispatchEvent(new Event('somatic-close-document'));
             } else {
                 document.dispatchEvent(new CustomEvent('somatic-interact', {
-                    detail: {position: this.camera.position, direction: this.camera.getWorldDirection(new Vec3())}
+                    detail: {position: this.camera.getWorldPosition(new THREE.Vector3()), direction: this.camera.getWorldDirection(new THREE.Vector3())}
                 }));
             }
         }

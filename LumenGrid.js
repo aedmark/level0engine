@@ -12,7 +12,7 @@ export default class LumenGrid {
         this._shadowRR = 0;
         this.shadowsDirty = false;
         for (let i = 0; i < this.maxActiveLights; i++) {
-            const radius = i < this.maxShadowLights ? 20 : 30;
+            const radius = i < this.maxShadowLights ? 20.0 : 10.0;
             const light = new THREE.PointLight(0xffebd6, 0, radius, 2.0);
             if (i < this.maxShadowLights) {
                 light.castShadow = true;
@@ -20,8 +20,8 @@ export default class LumenGrid {
                 light.shadow.mapSize.height = 512;
                 light.shadow.camera.near = 0.5;
                 light.shadow.camera.far = 20;
-                light.shadow.bias = -0.0001;
-                light.shadow.normalBias = 0.05;
+                light.shadow.bias = -0.0002;
+                light.shadow.normalBias = 0.015;
                 light.shadow.autoUpdate = false;
             }
             this.scene.add(light);
@@ -94,8 +94,8 @@ export default class LumenGrid {
                 }
                 light.position.copy(fixture.position);
                 const dist = Math.sqrt(fixture.distSq);
-                const activeRadius = isShadowCaster ? 20 : 30;
-                const fadeEnvelope = Math.max(0, Math.min(1, (activeRadius - dist) / 8.0));
+                const activeRadius = isShadowCaster ? 20.0 : 10.0;
+                const fadeEnvelope = Math.max(0, Math.min(1, (activeRadius - dist) / 4.0));
                 const intensityScalar = isShadowCaster ? 0.65 : 0.35;
                 if (fixture.material && fixture.material.emissive) {
                     light.color.copy(fixture.material.emissive);

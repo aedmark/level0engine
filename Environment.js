@@ -22,6 +22,7 @@ export default class Environment {
         this.activeChunks = new Map();
         this.currentChunkCoords = {x: null, z: null};
         this.interactiveDoors = [];
+        this.airlocks = [];
         this.localFixtures = [];
         this.lastAudioOcclusionTime = 0;
         this.currentOcclusionState = false;
@@ -91,6 +92,9 @@ export default class Environment {
             this.walls = this.walls.filter(w => !deadHashes.has(w.userData.chunkHash));
             this.fixtureData = this.fixtureData.filter(f => !deadHashes.has(f.chunkHash));
             this.interactiveDoors = this.interactiveDoors.filter(d => !deadHashes.has(d.userData.chunkHash));
+            if (this.airlocks) {
+                this.airlocks = this.airlocks.filter(a => !deadHashes.has(a.chunkHash));
+            }
             if (this.interactables) {
                 this.interactables = this.interactables.filter(i => !deadHashes.has(i.userData.chunkHash));
             }
@@ -124,6 +128,7 @@ export default class Environment {
     }
     _updateSliderDoor(door, playerPos, delta) {
         const ud = door.userData;
+        if (ud.isAirlockDoor) return;
         const pDistSq = playerPos.distanceToSquared(door.position);
         const entityOpen = ud.entityOpen === true;
         ud.entityOpen = false;
@@ -183,6 +188,9 @@ export default class Environment {
         this._playerMoveX = playerPos.x - this._prevPlayerPos.x;
         this._playerMoveZ = playerPos.z - this._prevPlayerPos.z;
         this._prevPlayerPos.copy(playerPos);
+        if (this.airlocks) {
+            this.airlocks.forEach(airlock => this._updateAirlock(airlock, playerPos, delta));
+        }
         this.interactiveDoors.forEach(door => {
             if (door.userData.isSlider) {
                 this._updateSliderDoor(door, playerPos, delta);
@@ -510,7 +518,7 @@ export default class Environment {
                 const zones = Array.from(this.macroZones.values());
                 const zone = zones[Math.floor(Math.random() * zones.length)];
                 const tx = (zone.startX + 7) * this.cellSize;
-                const tz = (zone.startZ + 1) * this.cellSize;
+                const tz = (zone.startZ + 3) * this.cellSize;
                 this.camera.position.set(tx, 1.6, tz);
                 console.log(`Teleported to zone: ${zone.id}`);
             } else {
@@ -556,7 +564,7 @@ export default class Environment {
             let hit = null;
             let closestDistSq = 9.0;
             const checkObj = (obj) => {
-                if (obj.userData.isSlider) return;
+                if (obj.userData.isSlider && !obj.userData.isAirlockDoor) return;
                 const distSq = obj.position.distanceToSquared(e.detail.position);
                 if (distSq < closestDistSq) {
                     this._interactDir.subVectors(obj.position, e.detail.position).normalize();
@@ -568,6 +576,14 @@ export default class Environment {
             };
             if (this.interactables) this.interactables.forEach(checkObj);
             if (this.interactiveDoors) this.interactiveDoors.forEach(checkObj);
+            if (hit && hit.userData.isAirlockDoor) {
+                hit.userData.playerOpen = true;
+                return;
+            }
+            if (hit && hit.userData.isAirlockSwitch) {
+                hit.userData.playerOpen = true;
+                return;
+            }
             if (hit && hit.userData.codeLocked) {
                 this._keypadDoor = hit;
                 document.dispatchEvent(new CustomEvent('somatic-keypad', {detail: {}}));
@@ -758,7 +774,8 @@ export default class Environment {
             this.sharedWallMat = new THREE.MeshStandardMaterial({
                 map: this.wallTexture,
                 color: 0xffffff,
-                roughness: 0.6,
+                roughness: 0.75,
+                metalness: 0.05,
                 bumpMap: this.wallTexture,
                 bumpScale: 0.010
             });
@@ -1907,14 +1924,19 @@ export default class Environment {
         for (let x = startX; x < startX + this.chunkSize; x++) {
             for (let z = startZ; z < startZ + this.chunkSize; z++) {
                 if (!isMacroStructure && Math.abs(x) < 2 && Math.abs(z) < 2) continue;
-                if (ctx.isOccupied(x, z)) continue;
-                ctx.markOccupied(x, z);
                 const localX = x - startX;
                 const localZ = z - startZ;
+                
                 if (isMacroStructure) {
+                    const isPerimeter = localX === 0 || localX === this.chunkSize - 1 || localZ === 0 || localZ === this.chunkSize - 1;
+                    if (ctx.isOccupied(x, z) && !isPerimeter) continue;
                     activeSector.build(x, z, localX, localZ, typeof sectorMaze !== 'undefined' ? sectorMaze : null, inDir, outDir);
                     continue;
                 }
+                
+                if (ctx.isOccupied(x, z)) continue;
+                ctx.markOccupied(x, z);
+
                 let zx = x * 0.15;
                 let zy = z * 0.15;
                 let iter = 0;
@@ -2057,11 +2079,6 @@ export default class Environment {
         this._compileInstances(hash, chunkGroup, stagingMeshes, random);
     }
     _buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling) {
-        // Hermetic threshold model: a single sliding blast door sits exactly on the
-        // zone's chunk boundary. No concrete corridor is carved into the zone's own
-        // interior anymore - whatever is immediately behind the door belongs entirely
-        // to that sector's own build() logic, same as it was before entrance hallways
-        // existed. This avoids generic "hallway" geometry bleeding into every zone.
         const edge = this.chunkSize - 1;
         const sides = [
             {spansX: true, boundary: 0, dir: 1},
@@ -2077,11 +2094,32 @@ export default class Environment {
                 z: startZ + (spansX ? local : 7)
             });
             const outer = cellAt(side.boundary);
-            ctx.markOccupied(outer.x, outer.z);
-            this._buildBlastDoor(chunkGroup, hash, outer.x * this.cellSize, outer.z * this.cellSize, spansX, sectorId, outSign);
+            const inDir = side.dir;
+            for (let cross = 7; cross <= 7; cross++) {
+                for (let depth = 0; depth <= 1; depth++) {
+                    const lx = spansX ? cross : (side.boundary + inDir * depth);
+                    const lz = spansX ? (side.boundary + inDir * depth) : cross;
+                    ctx.markOccupied(startX + lx, startZ + lz);
+                }
+            }
+            this._buildAirlock(chunkGroup, hash, outer.x * this.cellSize, outer.z * this.cellSize, spansX, sectorId, outSign);
         }
     }
-    _buildBlastDoor(chunkGroup, hash, dcx, dcz, spansX, sectorId, outSign) {
+    _buildAirlock(chunkGroup, hash, dcx, dcz, spansX, sectorId, outSign) {
+        if (!this.airlockRedMat) {
+            this.airlockRedMat = new THREE.MeshBasicMaterial({color: 0xff2222});
+            this.airlockGreenMat = new THREE.MeshBasicMaterial({color: 0x22ff44});
+        }
+        const inSign = outSign * -1;
+        const chamberDepth = 2.8;
+
+        const outerX = dcx;
+        const outerZ = dcz;
+        const innerX = dcx + (spansX ? 0 : inSign * chamberDepth);
+        const innerZ = dcz + (spansX ? inSign * chamberDepth : 0);
+        const midX = dcx + (spansX ? 0 : inSign * chamberDepth * 0.5);
+        const midZ = dcz + (spansX ? inSign * chamberDepth * 0.5 : 0);
+
         const addGeometry = (mesh) => {
             mesh.userData.chunkHash = hash;
             mesh.updateMatrixWorld(true);
@@ -2093,6 +2131,7 @@ export default class Environment {
             chunkGroup.add(mesh);
             this.walls.push(mesh);
         };
+
         const bWall = (w, h, d, mat) => {
             const key = `door_${w}_${h}_${d}`;
             let geo = this.geoCache.get(key);
@@ -2103,104 +2142,433 @@ export default class Environment {
             }
             return new THREE.Mesh(geo, mat);
         };
-        const jambA = bWall(spansX ? 0.5 : 0.7, 3.0, spansX ? 0.7 : 0.5, this.structMat);
-        jambA.position.set(dcx - (spansX ? 1.75 : 0), 1.5, dcz - (spansX ? 0 : 1.75));
-        addGeometry(jambA);
-        const jambB = bWall(spansX ? 0.5 : 0.7, 3.0, spansX ? 0.7 : 0.5, this.structMat);
-        jambB.position.set(dcx + (spansX ? 1.75 : 0), 1.5, dcz + (spansX ? 0 : 1.75));
-        addGeometry(jambB);
-        const header = bWall(spansX ? 3.0 : 0.7, 0.4, spansX ? 0.7 : 3.0, this.metalMat);
-        header.position.set(dcx, 2.8, dcz);
-        addGeometry(header);
-        const inSign = outSign * -1;
-        const awkL = 3.0;
-        const awning = bWall(spansX ? this.cellSize : awkL, 0.05, spansX ? awkL : this.cellSize, this.metalMat);
-        awning.position.set(
-            dcx + (spansX ? 0 : inSign * 1.5),
-            2.95,
-            dcz + (spansX ? inSign * 1.5 : 0)
-        );
-        addGeometry(awning);
+
+        const createDoorAssembly = (cx, cz) => {
+            const jambA = bWall(spansX ? 0.5 : 0.7, 3.0, spansX ? 0.7 : 0.5, this.structMat);
+            jambA.position.set(cx - (spansX ? 1.75 : 0), 1.5, cz - (spansX ? 0 : 1.75));
+            addGeometry(jambA);
+
+            const jambB = bWall(spansX ? 0.5 : 0.7, 3.0, spansX ? 0.7 : 0.5, this.structMat);
+            jambB.position.set(cx + (spansX ? 1.75 : 0), 1.5, cz + (spansX ? 0 : 1.75));
+            addGeometry(jambB);
+
+            // Designated Pocket Housing Casings (Left and Right sides)
+            for (let side = -1; side <= 1; side += 2) {
+                const pocketOuter = bWall(
+                    spansX ? 1.7 : 0.08,
+                    2.8,
+                    spansX ? 0.08 : 1.7,
+                    this.metalMat
+                );
+                pocketOuter.position.set(
+                    cx + (spansX ? side * 2.35 : 0.20),
+                    1.4,
+                    cz + (spansX ? 0.20 : side * 2.35)
+                );
+                addGeometry(pocketOuter);
+
+                const pocketInner = bWall(
+                    spansX ? 1.7 : 0.08,
+                    2.8,
+                    spansX ? 0.08 : 1.7,
+                    this.metalMat
+                );
+                pocketInner.position.set(
+                    cx + (spansX ? side * 2.35 : -0.20),
+                    1.4,
+                    cz + (spansX ? -0.20 : side * 2.35)
+                );
+                addGeometry(pocketInner);
+
+                const pocketCap = bWall(
+                    spansX ? 0.08 : 0.48,
+                    2.8,
+                    spansX ? 0.48 : 0.08,
+                    this.structMat
+                );
+                pocketCap.position.set(
+                    cx + (spansX ? side * 3.20 : 0),
+                    1.4,
+                    cz + (spansX ? 0 : side * 3.20)
+                );
+                addGeometry(pocketCap);
+
+                const pocketTop = bWall(
+                    spansX ? 1.7 : 0.48,
+                    0.08,
+                    spansX ? 0.48 : 1.7,
+                    this.metalMat
+                );
+                pocketTop.position.set(
+                    cx + (spansX ? side * 2.35 : 0),
+                    2.76,
+                    cz + (spansX ? 0 : side * 2.35)
+                );
+                addGeometry(pocketTop);
+            }
+
+            const header = bWall(spansX ? 3.0 : 0.7, 0.4, spansX ? 0.7 : 3.0, this.metalMat);
+            header.position.set(cx, 2.8, cz);
+            addGeometry(header);
+
+            const lampHousing = bWall(spansX ? 0.4 : 0.2, 0.15, spansX ? 0.2 : 0.4, this.metalMat);
+            lampHousing.position.set(cx, 3.05, cz);
+            chunkGroup.add(lampHousing);
+
+            const lampLens = new THREE.Mesh(this._boxGeo(spansX ? 0.3 : 0.12, 0.1, spansX ? 0.12 : 0.3), this.airlockRedMat);
+            lampLens.position.set(cx, 3.02, cz);
+            chunkGroup.add(lampLens);
+
+            const doorGroup = new THREE.Group();
+            doorGroup.position.set(cx, 0, cz);
+
+            const getDoorGeo = (name, w, h, d) => {
+                const key = `${name}_${spansX}`;
+                let geo = this.geoCache.get(key);
+                if (!geo) {
+                    geo = new THREE.BoxGeometry(w, h, d);
+                    this.geoCache.set(key, geo);
+                    this.geoCache.set(geo.uuid, true);
+                }
+                return geo;
+            };
+            const panelGeo = spansX
+                ? getDoorGeo('doorPanel', 1.58, 2.6, 0.24)
+                : getDoorGeo('doorPanel', 0.24, 2.6, 1.58);
+            const stripeGeo = spansX
+                ? getDoorGeo('doorStripe', 0.14, 2.6, 0.26)
+                : getDoorGeo('doorStripe', 0.26, 2.6, 0.14);
+            const ribGeo = spansX
+                ? getDoorGeo('doorRib', 1.58, 0.08, 0.28)
+                : getDoorGeo('doorRib', 0.28, 0.08, 1.58);
+
+            const mkPanel = (side) => {
+                const p = new THREE.Mesh(panelGeo, this.metalMat);
+                if (spansX) p.position.set(side * 0.76, 1.3, 0);
+                else p.position.set(0, 1.3, side * 0.76);
+                const stripe = new THREE.Mesh(stripeGeo, this.hazardMat);
+                if (spansX) stripe.position.set(-side * 0.72, 0, 0);
+                else stripe.position.set(0, 0, -side * 0.72);
+                p.add(stripe);
+                for (let ry = -1; ry <= 1; ry += 2) {
+                    const rib = new THREE.Mesh(ribGeo, this.structMat);
+                    rib.position.set(0, ry * 0.75, 0);
+                    p.add(rib);
+                }
+                p.castShadow = p.receiveShadow = true;
+                p.userData.chunkHash = hash;
+                doorGroup.add(p);
+                return p;
+            };
+            const panelL = mkPanel(-1);
+            const panelR = mkPanel(1);
+            chunkGroup.add(doorGroup);
+            doorGroup.updateMatrixWorld(true);
+            this.walls.push(panelL, panelR);
+
+            const doorBox = new THREE.Box3();
+            if (spansX) {
+                doorBox.min.set(cx - 1.55, 0.0, cz - 0.25);
+                doorBox.max.set(cx + 1.55, 2.6, cz + 0.25);
+            } else {
+                doorBox.min.set(cx - 0.25, 0.0, cz - 1.55);
+                doorBox.max.set(cx + 0.25, 2.6, cz + 1.55);
+            }
+            doorBox.chunkHash = hash;
+            this.spatialGrid.insert(doorBox);
+
+            const slideAxis = spansX ? 'x' : 'z';
+            doorGroup.userData = {
+                chunkHash: hash,
+                isSlider: true,
+                isAirlockDoor: true,
+                spansX: spansX,
+                panels: [panelL, panelR],
+                baseOffsets: [panelL.position[slideAxis], panelR.position[slideAxis]],
+                signs: [-1, 1],
+                slideDist: 1.55,
+                progress: 0,
+                target: 0,
+                lastTarget: 0,
+                box: doorBox,
+                closedBox: doorBox.clone(),
+                sectorId: sectorId,
+                outSign: outSign
+            };
+            this.interactiveDoors.push({
+                position: new THREE.Vector3(cx, 1.5, cz),
+                userData: doorGroup.userData
+            });
+            return {group: doorGroup, data: doorGroup.userData, position: new THREE.Vector3(cx, 0, cz), lamp: lampLens};
+        };
+
+        const outerDoor = createDoorAssembly(outerX, outerZ);
+        const innerDoor = createDoorAssembly(innerX, innerZ);
+
+        // The airlock needs to cover the void from the outer edge of the perimeter cell (dcz - 1.75)
+        // to the inner door (dcz + 2.8). Total depth = 4.55. Center offset = 0.525.
+        const fullDepth = chamberDepth + 1.75;
+        const outCenterOff = (chamberDepth - 1.75) * 0.5;
+        const extMidZ = dcz + (spansX ? inSign * outCenterOff : 0);
+        const extMidX = dcx + (spansX ? 0 : inSign * outCenterOff);
+
         for (let cs = -1; cs <= 1; cs += 2) {
-            const clad = bWall(spansX ? 0.4 : 1.7, 3.0, spansX ? 1.7 : 0.4, this.structMat);
-            clad.position.set(
-                dcx + (spansX ? cs * 1.8 : inSign * 1.2),
-                1.5,
-                dcz + (spansX ? inSign * 1.2 : cs * 1.8)
+            const sideWall = bWall(
+                spansX ? 0.4 : fullDepth,
+                3.0,
+                spansX ? fullDepth : 0.4,
+                this.structMat
             );
-            addGeometry(clad);
+            sideWall.position.set(
+                spansX ? dcx + cs * 1.75 : extMidX,
+                1.5,
+                spansX ? extMidZ : dcz + cs * 1.75
+            );
+            addGeometry(sideWall);
         }
-        const doorGroup = new THREE.Group();
-        doorGroup.position.set(dcx, 0, dcz);
-        const getDoorGeo = (name, w, h, d) => {
-            const key = `${name}_${spansX}`;
-            let geo = this.geoCache.get(key);
-            if (!geo) {
-                geo = new THREE.BoxGeometry(w, h, d);
-                this.geoCache.set(key, geo);
-                this.geoCache.set(geo.uuid, true);
-            }
-            return geo;
-        };
-        const panelGeo = spansX
-            ? getDoorGeo('doorPanel', 1.58, 2.6, 0.24)
-            : getDoorGeo('doorPanel', 0.24, 2.6, 1.58);
-        const stripeGeo = spansX
-            ? getDoorGeo('doorStripe', 0.14, 2.6, 0.26)
-            : getDoorGeo('doorStripe', 0.26, 2.6, 0.14);
-        const ribGeo = spansX
-            ? getDoorGeo('doorRib', 1.58, 0.08, 0.28)
-            : getDoorGeo('doorRib', 0.28, 0.08, 1.58);
-        const mkPanel = (side) => {
-            const p = new THREE.Mesh(panelGeo, this.metalMat);
-            if (spansX) p.position.set(side * 0.76, 1.3, 0);
-            else p.position.set(0, 1.3, side * 0.76);
-            const stripe = new THREE.Mesh(stripeGeo, this.hazardMat);
-            if (spansX) stripe.position.set(-side * 0.72, 0, 0);
-            else stripe.position.set(0, 0, -side * 0.72);
-            p.add(stripe);
-            for (let ry = -1; ry <= 1; ry += 2) {
-                const rib = new THREE.Mesh(ribGeo, this.structMat);
-                rib.position.set(0, ry * 0.75, 0);
-                p.add(rib);
-            }
-            p.castShadow = p.receiveShadow = true;
-            p.userData.chunkHash = hash;
-            doorGroup.add(p);
-            return p;
-        };
-        const panelL = mkPanel(-1);
-        const panelR = mkPanel(1);
-        chunkGroup.add(doorGroup);
-        doorGroup.updateMatrixWorld(true);
-        this.walls.push(panelL, panelR);
-        const doorBox = new THREE.Box3();
+
+        const roofL = fullDepth + 0.2;
+        const roof = bWall(spansX ? 3.8 : roofL, 0.1, spansX ? roofL : 3.8, this.metalMat);
+        roof.position.set(extMidX, 2.95, extMidZ);
+        addGeometry(roof);
+
+        const floorPlate = bWall(spansX ? 3.0 : chamberDepth, 0.04, spansX ? chamberDepth : 3.0, this.metalMat);
+        floorPlate.position.set(midX, 0.02, midZ);
+        addGeometry(floorPlate);
+
+        const switchGroup = new THREE.Group();
+        const switchBase = bWall(spansX ? 0.05 : 0.3, 0.4, spansX ? 0.3 : 0.05, this.metalMat);
+        const switchButtonMat = new THREE.MeshBasicMaterial({color: 0x00ffcc});
+        const switchButtonGeo = new THREE.BoxGeometry(spansX ? 0.06 : 0.1, 0.1, spansX ? 0.1 : 0.06);
+        const switchButton = new THREE.Mesh(switchButtonGeo, switchButtonMat);
         if (spansX) {
-            doorBox.min.set(dcx - 1.55, 0.0, dcz - 0.25);
-            doorBox.max.set(dcx + 1.55, 2.6, dcz + 0.25);
+            switchButton.position.set(-0.03, 0, 0);
+            switchGroup.position.set(midX + 1.525, 1.3, midZ);
         } else {
-            doorBox.min.set(dcx - 0.25, 0.0, dcz - 1.55);
-            doorBox.max.set(dcx + 0.25, 2.6, dcz + 1.55);
+            switchButton.position.set(0, 0, -0.03);
+            switchGroup.position.set(midX, 1.3, midZ + 1.525);
         }
-        doorBox.chunkHash = hash;
-        this.spatialGrid.insert(doorBox);
-        const slideAxis = spansX ? 'x' : 'z';
-        doorGroup.userData = {
+        switchGroup.add(switchBase, switchButton);
+        switchGroup.userData = { isAirlockSwitch: true, entityOpen: false, chunkHash: hash };
+        chunkGroup.add(switchGroup);
+        if (!this.interactables) this.interactables = [];
+        this.interactables.push(switchGroup);
+
+        const airlock = {
             chunkHash: hash,
-            isSlider: true,
             spansX: spansX,
-            panels: [panelL, panelR],
-            baseOffsets: [panelL.position[slideAxis], panelR.position[slideAxis]],
-            signs: [-1, 1],
-            slideDist: 1.62,
-            progress: 0,
-            lastTarget: 0,
-            box: doorBox,
-            closedBox: doorBox.clone(),
             sectorId: sectorId,
-            outSign: outSign
+            outSign: outSign,
+            outerDoor: outerDoor,
+            innerDoor: innerDoor,
+            switchGrp: switchGroup,
+            chamberCenter: new THREE.Vector3(midX, 0, midZ),
+            outerPos: outerDoor.position,
+            innerPos: innerDoor.position,
+            state: 'IDLE',
+            cycleTimer: 0.0,
+            cycleDuration: 2.5,
+            openedFrom: null
         };
-        this.interactiveDoors.push(doorGroup);
+
+        if (!this.airlocks) this.airlocks = [];
+        this.airlocks.push(airlock);
+    }
+    _updateAirlockDoor(doorObj, delta) {
+        const ud = doorObj.data;
+        const target = ud.target;
+        const pDistSq = doorObj.position.distanceToSquared(this.camera.position);
+        if (target !== ud.lastTarget) {
+            ud.lastTarget = target;
+            document.dispatchEvent(new CustomEvent('somatic-door', {
+                detail: {distSq: pDistSq, intensity: target === 1.0 ? 0.7 : 0.45, variant: 'blast'}
+            }));
+        }
+        if (ud.progress !== target) {
+            const speed = ud.entityOpen ? 3.0 : 1.2;
+            const dir = target > ud.progress ? 1 : -1;
+            ud.progress = Math.max(0, Math.min(1, ud.progress + dir * speed * delta));
+            const t = ud.progress;
+            const eased = t * t * (3 - 2 * t);
+            const axis = ud.spansX ? 'x' : 'z';
+            for (let i = 0; i < 2; i++) {
+                const p = ud.panels[i];
+                p.position[axis] = ud.baseOffsets[i] + ud.signs[i] * eased * ud.slideDist;
+            }
+            this.lumenGrid.shadowsDirty = true;
+            if (ud.progress > 0.12) {
+                if (!ud.box.isEmpty()) ud.box.makeEmpty();
+            } else if (ud.progress === 0) {
+                if (ud.box.isEmpty()) ud.box.copy(ud.closedBox);
+            }
+            if (ud.progress === 1 || ud.progress === 0) {
+                document.dispatchEvent(new CustomEvent('somatic-door', {
+                    detail: {distSq: pDistSq, intensity: ud.progress === 0 ? 0.9 : 0.5, variant: 'blast'}
+                }));
+            }
+        }
+        ud.entityOpen = false;
+    }
+    _updateAirlock(airlock, playerPos, delta) {
+        const axis = airlock.spansX ? 'z' : 'x';
+        const crossAxis = airlock.spansX ? 'x' : 'z';
+
+        const pDistOuterSq = playerPos.distanceToSquared(airlock.outerPos);
+        const pDistInnerSq = playerPos.distanceToSquared(airlock.innerPos);
+        const pDistChamberSq = playerPos.distanceToSquared(airlock.chamberCenter);
+
+        if (pDistChamberSq > 1200.0 && airlock.state === 'IDLE') return;
+
+        const inChamberCross = Math.abs(playerPos[crossAxis] - airlock.chamberCenter[crossAxis]) < 1.65;
+        const outerCoord = airlock.outerPos[axis];
+        const innerCoord = airlock.innerPos[axis];
+        const minCoord = Math.min(outerCoord, innerCoord) - 0.2;
+        const maxCoord = Math.max(outerCoord, innerCoord) + 0.2;
+        const isPlayerInChamber = inChamberCross && (playerPos[axis] >= minCoord && playerPos[axis] <= maxCoord);
+
+        const playerOutside = ((playerPos[axis] - airlock.outerPos[axis]) * airlock.outSign) > 0.2;
+        const playerInside = ((playerPos[axis] - airlock.innerPos[axis]) * (-airlock.outSign)) > 0.2;
+
+        const playerNearOuter = airlock.outerDoor.data.playerOpen === true;
+        const playerNearInner = airlock.innerDoor.data.playerOpen === true;
+        const switchPressed = airlock.switchGrp && airlock.switchGrp.userData.playerOpen === true;
+
+        airlock.outerDoor.data.playerOpen = false;
+        airlock.innerDoor.data.playerOpen = false;
+        if (airlock.switchGrp) airlock.switchGrp.userData.playerOpen = false;
+
+        const entityNearOuter = airlock.outerDoor.data.entityOpen === true;
+        const entityNearInner = airlock.innerDoor.data.entityOpen === true;
+        
+        airlock.outerDoor.data.entityOpen = false;
+        airlock.innerDoor.data.entityOpen = false;
+
+        const openOuter = playerNearOuter || entityNearOuter;
+        const openInner = playerNearInner || entityNearInner;
+
+        switch (airlock.state) {
+            case 'IDLE':
+                airlock.outerDoor.data.target = 0.0;
+                airlock.innerDoor.data.target = 0.0;
+                if (openOuter) {
+                    airlock.state = 'OUTER_OPENING';
+                    airlock.openedFrom = 'OUTSIDE';
+                } else if (openInner) {
+                    airlock.state = 'INNER_OPENING';
+                    airlock.openedFrom = 'INSIDE';
+                }
+                break;
+
+            case 'OUTER_OPENING':
+                airlock.outerDoor.data.target = 1.0;
+                airlock.innerDoor.data.target = 0.0;
+                if (isPlayerInChamber) {
+                    airlock.state = 'AWAITING_SWITCH';
+                } else if (!isPlayerInChamber && pDistOuterSq > 30.0) {
+                    airlock.state = 'CLOSING_AFTER_EXIT';
+                }
+                break;
+
+            case 'INNER_OPENING':
+                airlock.innerDoor.data.target = 1.0;
+                airlock.outerDoor.data.target = 0.0;
+                if (isPlayerInChamber) {
+                    airlock.state = 'AWAITING_SWITCH';
+                } else if (!isPlayerInChamber && pDistInnerSq > 30.0) {
+                    airlock.state = 'CLOSING_AFTER_EXIT';
+                }
+                break;
+
+            case 'AWAITING_SWITCH':
+                if (switchPressed) {
+                    airlock.state = 'WAIT_IN_CHAMBER';
+                } else if (!isPlayerInChamber) {
+                    if (airlock.openedFrom === 'OUTSIDE' && pDistOuterSq > 30.0) {
+                        airlock.state = 'CLOSING_AFTER_EXIT';
+                    } else if (airlock.openedFrom === 'INSIDE' && pDistInnerSq > 30.0) {
+                        airlock.state = 'CLOSING_AFTER_EXIT';
+                    }
+                }
+                break;
+
+            case 'WAIT_IN_CHAMBER':
+                airlock.outerDoor.data.target = 0.0;
+                airlock.innerDoor.data.target = 0.0;
+                if (airlock.outerDoor.data.progress === 0 && airlock.innerDoor.data.progress === 0) {
+                    airlock.state = 'CYCLING';
+                    airlock.cycleTimer = airlock.cycleDuration;
+                    const destSector = (airlock.openedFrom === 'OUTSIDE') ? airlock.sectorId : 'NORMAL';
+                    this._doorSectorForce = destSector;
+                    document.dispatchEvent(new CustomEvent('somatic-airlock', {
+                        detail: {distSq: pDistChamberSq, intensity: 1.0}
+                    }));
+                    // Trigger a single, long pressurization hiss for the entire cycle duration
+                    document.dispatchEvent(new CustomEvent('somatic-airlock-hiss', {
+                        detail: {distSq: pDistChamberSq, intensity: 1.0}
+                    }));
+                }
+                break;
+
+            case 'CYCLING':
+                airlock.outerDoor.data.target = 0.0;
+                airlock.innerDoor.data.target = 0.0;
+
+                // Continuously drive target destination sector fog/audio swap behind closed doors
+                const targetSector = (airlock.openedFrom === 'OUTSIDE') ? airlock.sectorId : 'NORMAL';
+                this._doorSectorForce = targetSector;
+
+                airlock.cycleTimer -= delta;
+                if (airlock.cycleTimer <= 0) {
+                    if (airlock.openedFrom === 'OUTSIDE') {
+                        airlock.state = 'EXIT_INNER';
+                        this._doorSectorForce = airlock.sectorId;
+                    } else {
+                        airlock.state = 'EXIT_OUTER';
+                        this._doorSectorForce = 'NORMAL';
+                    }
+                }
+                break;
+
+            case 'EXIT_INNER':
+                airlock.innerDoor.data.target = 1.0;
+                airlock.outerDoor.data.target = 0.0;
+                if (airlock.sectorId && pDistInnerSq < 30.0) {
+                    this._doorSectorForce = airlock.sectorId;
+                }
+                if (!isPlayerInChamber && pDistInnerSq > 30.0) {
+                    airlock.state = 'CLOSING_AFTER_EXIT';
+                }
+                break;
+
+            case 'EXIT_OUTER':
+                airlock.outerDoor.data.target = 1.0;
+                airlock.innerDoor.data.target = 0.0;
+                if (pDistOuterSq < 30.0) {
+                    this._doorSectorForce = 'NORMAL';
+                }
+                if (!isPlayerInChamber && pDistOuterSq > 30.0) {
+                    airlock.state = 'CLOSING_AFTER_EXIT';
+                }
+                break;
+
+            case 'CLOSING_AFTER_EXIT':
+                airlock.outerDoor.data.target = 0.0;
+                airlock.innerDoor.data.target = 0.0;
+                if (airlock.outerDoor.data.progress === 0 && airlock.innerDoor.data.progress === 0) {
+                    airlock.state = 'IDLE';
+                }
+                break;
+        }
+
+        const isReadyToPass = airlock.state === 'EXIT_INNER' || airlock.state === 'EXIT_OUTER' || airlock.state === 'OUTER_OPENING' || airlock.state === 'INNER_OPENING';
+        const targetMat = isReadyToPass ? this.airlockGreenMat : this.airlockRedMat;
+        if (airlock.outerDoor.lamp.material !== targetMat) {
+            airlock.outerDoor.lamp.material = targetMat;
+            airlock.innerDoor.lamp.material = targetMat;
+        }
+
+        this._updateAirlockDoor(airlock.outerDoor, delta);
+        this._updateAirlockDoor(airlock.innerDoor, delta);
     }
     _buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling) {
         const addGeometry = (mesh) => {
@@ -2398,15 +2766,15 @@ export default class Environment {
                 }
             }
         }
-        this._stickySectorId = activeSector === "NORMAL" ? null : activeSector;
-        if (activeSector === "ANNEX" && this.player && !this.player.hasVisitedAnnex) {
-            this.player.hasVisitedAnnex = true;
-            this.player.updateObjectives();
-        }
         if (this._doorSectorForce) {
             activeSector = this._doorSectorForce;
             targetFog = this._sectorFog(activeSector);
             this._doorSectorForce = null;
+        }
+        this._stickySectorId = activeSector === "NORMAL" ? null : activeSector;
+        if (activeSector === "ANNEX" && this.player && !this.player.hasVisitedAnnex) {
+            this.player.hasVisitedAnnex = true;
+            this.player.updateObjectives();
         }
         if (this.baseFogDensity !== undefined) {
             if (this.currentFogDensity === undefined) this.currentFogDensity = targetFog;

@@ -383,7 +383,9 @@ export default class AcousticEngine {
             'drip': ['sine', 1100, 350, 0.06, 0.07, 0.005, 0.35, null],
             'laugh': ['square', 110, 35, 1.8, 0.25, 0.1, 2.5, {type: 'lowpass', start: 800, end: 150, ramp: 1.5}],
             'tape_garble': ['sawtooth', 300, 600, 0.05, 0.06, 0.02, 0.1, {type: 'bandpass', start: 1200, end: 600, ramp: 0.1}],
-            'tape_click': ['square', 800, 100, 0.02, 0.15, 0.01, 0.05, null]
+            'tape_click': ['square', 800, 100, 0.02, 0.15, 0.01, 0.05, null],
+            'airlock_cycle': ['sawtooth', 85, 35, 1.2, 0.25, 0.1, 1.2, {type: 'bandpass', start: 1800, end: 300, ramp: 1.0}],
+            'airlock_hiss': ['sine', 1, 1, 1.0, 0.4, 0.1, 2.5, {type: 'bandpass', start: 4000, end: 1000, ramp: 2.5}]
         };
         if (voices[type]) spawnVoice(...voices[type]);
     }
