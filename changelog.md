@@ -1,5 +1,19 @@
 # Level 0 Engine Changelog
 
+## [v0.4.15] - 2026-07-22
+
+_The Boardroom Bloom & Padded Annex Update_
+
+#### Added
+
+- **[GEOMETRY] The Annex Gets Dressed:** The Annex borrowed its floor and ceiling straight from the Clinic (`clinicMat`) and its walls from the shared Level 0 wallpaper — same materials as a generic corridor, on a zone billed as its own Research Annex. It now has a complete identity built from scratch in `_buildAnnexAssets`: walls are beige tufted/button padding (a 4x3 grid of radial-gradient pads with diagonal corner creases and a shared button at every seam — asylum-cell quilting, not office trim), the floor is a repeating Archimedean spiral medallion tile, and the ceiling is a bank of bright emissive-white diffuser panels with the same spiral inked in black directly onto them, a negative-image twin staring back down at the floor's own spiral. Repeat scale on both floor and ceiling is now tuned to the zone's actual footprint (`(chunkSize - 2) * cellSize` = 56 world units) so each tile lands on exactly one 4-unit hallway width instead of the arbitrary texture-space guess that used to put more than one corridor's worth of pattern under a single tile. The corridor light fixtures moved off the same 0xffaa55 hazard-amber every generic hallway and Impound use, to bright white, with coverage raised from ~55% to ~90% of eligible cells — since LumenGrid reads its real-time light color straight from the fixture's emissive value, the actual illumination now matches the ceiling art instead of reading like a recolored hallway.
+
+- **[GEOMETRY] Maintenance Tunnel Clutter:** The tunnels had structural pipes and hazard trim but nothing anyone had actually left behind while working there. Open cells with at least one adjacent wall now have a 75% chance of leaning one of three props against it: a spare-pipe stack (a proper 3-2-1 pyramid of six 2.4m rust offcuts), a cable spool (a 1.3m wire reel standing on its edge, sometimes with a length of cable trailing off across the floor), or a wheeled tool cart (waist-height shelf, visible casters, a toolbox and a couple of wrenches on top). The first pass came in sized like dollhouse furniture — 1m pipe stubs, a cart topping out at the knee — and the spool's core cylinder carried a stray 90-degree rotation that left it misaligned with the two discs it was supposed to connect, so it never actually spanned between them; both are now built at real hardware dimensions off the confirmed 1-unit-equals-1m scale (player eye height is 1.6). Pipe joints separately have a chance of a dark, rust-tinged leak stain pooling on the floor beneath them, built with the same overlapping-radial-gradient technique as the existing mold and ceiling-stain decals.
+
+#### Fixed
+
+- **[TEXTURES] Boardroom Wallpaper — Half a Tree, Repeating Sideways:** The fractal tree motif's canopy only reached about 56% of the way up its own wall texture (`drawFractalBloom` ran out of reach at recursion depth 5 / initial length 68 / branch ratio 0.7), and its branches stayed deliberately clear of the tile's left and right edges to avoid an old overlapping-trunks bug — so the 4x horizontal repeat read as four identical, isolated stamped trees with visible gaps between them, and the top third of every wall panel sat bare. Retuned to depth 6 / length 130 / ratio 0.78: the canopy now reaches to within 33px of the top of the canvas, and its outer branches spread edge-to-edge so neighboring repeats' canopies interlock at the seam instead of standing apart. A second, much fainter pass of the same recursive bloom (stroke/fill alpha dropped to a whisper) fills the negative space that opened up around the lower trunk once the canopy grew, reading as soft understory foliage rather than a second competing tree.
+
 ## [v0.4.14] - 2026-07-22
 
 _The Yellow Man & Even Odds Update_

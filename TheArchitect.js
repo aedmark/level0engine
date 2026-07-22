@@ -1085,6 +1085,7 @@ export default class TheArchitect {
             addGeometry,
             buildChair,
             buildTable,
+            buildCouch,
             addFurniture,
             chunkGroup,
             hash,
@@ -1483,18 +1484,27 @@ export default class TheArchitect {
                 foundationMat: this.boardTileMat || this.tileMat,
                 ceilingMat: this.clinicMat,
                 build: (x, z, localX, localZ) => {
-                    if (ctx.buildPerimeter(x, z, localX, localZ, this.sharedWallMat, "BOARDROOM")) return;
+                    if (ctx.buildPerimeter(x, z, localX, localZ, this.boardWallMat || this.sharedWallMat, "BOARDROOM")) return;
                     const bx = x * this.cellSize, bz = z * this.cellSize;
                     const glass = this.glassMat || this.fabricMat;
                     const isC = (v) => v === 3 || v === 7 || v === 11;
                     const last = this.chunkSize - 2;
+                    const edge = this.chunkSize - 1;
+                    const foyerDepth = 2;
+                    const foyerHalfWidth = 1;
+                    const isFoyer = (lx, lz) =>
+                        (lz <= foyerDepth && Math.abs(lx - 7) <= foyerHalfWidth) ||
+                        (lz >= edge - foyerDepth && Math.abs(lx - 7) <= foyerHalfWidth) ||
+                        (lx <= foyerDepth && Math.abs(lz - 7) <= foyerHalfWidth) ||
+                        (lx >= edge - foyerDepth && Math.abs(lz - 7) <= foyerHalfWidth);
+                    const isHallway = (lx, lz) => isC(lx) || isC(lz) || isFoyer(lx, lz);
                     const cellHash = (gx, gz) => {
                         const h = Math.sin(gx * 127.1 + gz * 311.7 + (this.baseSeed % 4096) * 0.618) * 43758.5453;
                         return h - Math.floor(h);
                     };
                     const isBowl = (gx, gz, lx, lz) =>
                         lx >= 1 && lx <= last && lz >= 1 && lz <= last &&
-                        !isC(lx) && !isC(lz) && cellHash(gx, gz) < 0.10;
+                        !isHallway(lx, lz) && cellHash(gx, gz) < 0.10;
                     const ceilingPanel = (px, pz) => {
                         const activeMat = ctx.getLightMaterial(0xe8f2ff, 0xd8e8ff, false);
                         const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
@@ -1512,12 +1522,25 @@ export default class TheArchitect {
                             currentIntensity: 0.65
                         });
                     };
-                    if (isC(localX) || isC(localZ)) {
+                    if (isHallway(localX, localZ)) {
                         const junction = isC(localX) && isC(localZ);
                         if (!junction && (localX + localZ) % 2 === 0 && random() > 0.30) {
                             ceilingPanel(bx, bz);
                         } else if (junction && random() > 0.5) {
                             ceilingPanel(bx, bz);
+                        }
+                        if (isFoyer(localX, localZ) && !isC(localX) && !isC(localZ)) {
+                            const inNSFoyer = (localZ <= foyerDepth || localZ >= edge - foyerDepth) && Math.abs(localX - 7) <= foyerHalfWidth;
+                            const inWEFoyer = (localX <= foyerDepth || localX >= edge - foyerDepth) && Math.abs(localZ - 7) <= foyerHalfWidth;
+                            let rotY = null;
+                            if (inNSFoyer && Math.abs(localX - 7) === foyerHalfWidth) {
+                                rotY = (localX < 7) ? Math.PI / 2 : -Math.PI / 2;
+                            } else if (inWEFoyer && Math.abs(localZ - 7) === foyerHalfWidth) {
+                                rotY = (localZ < 7) ? 0 : Math.PI;
+                            }
+                            if (rotY !== null && random() > 0.45) {
+                                addFurniture(buildCouch(bx, 0, bz, rotY));
+                            }
                         }
                         return;
                     }
@@ -1600,10 +1623,10 @@ export default class TheArchitect {
                         }
                     };
                     const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-                    const inSuite = (lx, lz) => lx >= 1 && lx <= last && lz >= 1 && lz <= last && !isC(lx) && !isC(lz);
+                    const inSuite = (lx, lz) => lx >= 1 && lx <= last && lz >= 1 && lz <= last && !isHallway(lx, lz);
                     const corridorFaces = (lx, lz) => dirs.filter(([ddx, ddz]) => {
                         const nx = lx + ddx, nz = lz + ddz;
-                        return nx >= 1 && nx <= last && nz >= 1 && nz <= last && (isC(nx) || isC(nz));
+                        return nx >= 1 && nx <= last && nz >= 1 && nz <= last && isHallway(nx, nz);
                     });
                     const hasOwnDoor = (gx, gz, lx, lz) =>
                         corridorFaces(lx, lz).length > 0 && !isBowl(gx, gz, lx, lz) && cellHash(gx + 31, gz + 17) < 0.35;
@@ -1635,18 +1658,23 @@ export default class TheArchitect {
                         const alongX = dz !== 0;
                         const negLat = alongX ? localX - 1 : localZ - 1;
                         const posLat = alongX ? localX + 1 : localZ + 1;
-                        const extNeg = (negLat >= 1 && isC(negLat)) ? 0.8 : 0;
-                        const extPos = (posLat <= last && isC(posLat)) ? 0.8 : 0;
-                        if (isC(nlx) || isC(nlz)) {
+                        const cornerExt = alongX ? 0.92 : 0.88;
+                        const extNeg = (negLat >= 1 && (alongX ? isHallway(negLat, localZ) : isHallway(localX, negLat))) ? cornerExt : 0;
+                        const extPos = (posLat <= last && (alongX ? isHallway(posLat, localZ) : isHallway(localX, posLat))) ? cornerExt : 0;
+                        if (isHallway(nlx, nlz)) {
                             const faceC = alongX ? bz + dz * 2.8 : bx + dx * 2.8;
                             const len = this.cellSize + extNeg + extPos;
                             const latC = (alongX ? bx : bz) + (extPos - extNeg) / 2;
                             for (let e = -1; e <= 1; e += 2) {
                                 const latEdge = (e < 0 ? negLat : posLat);
                                 if (latEdge >= 1 && latEdge <= last) continue;
+                                const startXw = x - localX, startZw = z - localZ;
+                                const permGX = alongX ? latEdge : nlx;
+                                const permGZ = alongX ? nlz : latEdge;
+                                if (ctx.isOccupied && ctx.isOccupied(startXw + permGX, startZw + permGZ)) continue;
                                 const retLat = (alongX ? bx : bz) + e * 2;
                                 const retFace = (alongX ? bz : bx) + (alongX ? dz : dx) * 2.4;
-                                const ret = buildWall(alongX ? 0.2 : 0.8, alongX ? 0.8 : 0.2, this.sharedWallMat, 3.0);
+                                const ret = buildWall(alongX ? 0.2 : 0.8, alongX ? 0.8 : 0.2, this.boardWallMat || this.sharedWallMat, 3.0);
                                 ret.position.set(alongX ? retLat : retFace, 1.5, alongX ? retFace : retLat);
                                 addGeometry(ret);
                             }
@@ -1658,7 +1686,7 @@ export default class TheArchitect {
                             } else if (random() < 0.18) {
                                 glassFace(alongX, faceC, latC, len, false);
                             } else {
-                                const wall = buildWall(alongX ? len : 0.2, alongX ? 0.2 : len, this.sharedWallMat, 3.0);
+                                const wall = buildWall(alongX ? len : 0.2, alongX ? 0.2 : len, this.boardWallMat || this.sharedWallMat, 3.0);
                                 wall.position.set(alongX ? latC : faceC, 1.5, alongX ? faceC : latC);
                                 addGeometry(wall);
                             }
@@ -1679,7 +1707,7 @@ export default class TheArchitect {
                                 } else if (roll < 0.78) {
                                     glassFace(alongX, faceC, latC, len, false);
                                 } else {
-                                    const wall = buildWall(alongX ? len : 0.15, alongX ? 0.15 : len, this.sharedWallMat, 3.0);
+                                    const wall = buildWall(alongX ? len : 0.15, alongX ? 0.15 : len, this.boardWallMat || this.sharedWallMat, 3.0);
                                     wall.position.set(alongX ? latC : faceC, 1.5, alongX ? faceC : latC);
                                     addGeometry(wall);
                                 }
@@ -2032,6 +2060,114 @@ export default class TheArchitect {
                                 const junction = new THREE.Mesh(this.pipeJunctionGeo, this.rustMat);
                                 junction.position.set(x * this.cellSize + offset, 2.8, z * this.cellSize + offset);
                                 addGeometry(junction);
+                                if (this.leakStainGeo && random() > 0.5) {
+                                    const stain = new THREE.Mesh(this.leakStainGeo, this.leakStainMat);
+                                    stain.position.set(x * this.cellSize + offset, 0.025, z * this.cellSize + offset);
+                                    stain.rotation.y = random() * Math.PI * 2;
+                                    const sc = 0.7 + random() * 0.6;
+                                    stain.scale.set(sc, sc, sc);
+                                    addGeometry(stain);
+                                }
+                            }
+                        }
+                        const wallSides = [];
+                        if (wN) wallSides.push([0, -1]);
+                        if (wS) wallSides.push([0, 1]);
+                        if (wE) wallSides.push([1, 0]);
+                        if (wW) wallSides.push([-1, 0]);
+                        if (wallSides.length > 0 && wallSides.length < 4 && random() < 0.75) {
+                            const [csx, csz] = wallSides[Math.floor(random() * wallSides.length)];
+                            const perp = csx !== 0 ? [0, 1] : [1, 0];
+                            const jitter = (random() - 0.5) * 1.6;
+                            const clx = x * this.cellSize + csx * 1.35 + perp[0] * jitter;
+                            const clz = z * this.cellSize + csz * 1.35 + perp[1] * jitter;
+                            const facing = Math.atan2(-csx, -csz);
+                            const roll = random();
+                            if (roll < 0.42) {
+                                const pr = 0.1, plen = 2.4;
+                                const stackGeo = this._cacheGeo('maintPipeStack', () => {
+                                    const g = new THREE.CylinderGeometry(pr, pr, plen, 10);
+                                    g.rotateZ(Math.PI / 2);
+                                    return g;
+                                });
+                                const stackGroup = new THREE.Group();
+                                const rowH = pr * Math.sqrt(3);
+                                const rows = [
+                                    [-2 * pr, 0, 2 * pr],
+                                    [-pr, pr],
+                                    [0]
+                                ];
+                                rows.forEach((row, ri) => {
+                                    row.forEach((sox) => {
+                                        const seg = new THREE.Mesh(stackGeo, this.rustMat);
+                                        seg.position.set(sox, pr + ri * rowH, (random() - 0.5) * 0.1);
+                                        seg.rotation.x = (random() - 0.5) * 0.12;
+                                        stackGroup.add(seg);
+                                    });
+                                });
+                                stackGroup.position.set(clx, 0, clz);
+                                stackGroup.rotation.y = facing + (random() - 0.5) * 0.3;
+                                addFurniture(stackGroup);
+                            } else if (roll < 0.44) {
+                                const discGeo = this._cacheGeo('maintSpoolDisc', () => new THREE.CylinderGeometry(0.65, 0.65, 0.07, 20));
+                                const coreGeo = this._cacheGeo('maintSpoolCore', () => new THREE.CylinderGeometry(0.16, 0.18, 0.58, 12));
+                                const spool = new THREE.Group();
+                                const discA = new THREE.Mesh(discGeo, this.woodMat);
+                                discA.position.y = 0.29;
+                                const discB = new THREE.Mesh(discGeo, this.woodMat);
+                                discB.position.y = -0.29;
+                                const core = new THREE.Mesh(coreGeo, this.rustMat);
+                                spool.add(discA, discB, core);
+                                spool.rotation.z = Math.PI / 2;
+                                spool.position.set(clx, 0.65, clz);
+                                spool.rotation.y = random() * Math.PI * 2;
+                                addFurniture(spool);
+                                if (random() > 0.4) {
+                                    const cableGeo = this._cacheGeo('maintTrailCable', () => {
+                                        const g = new THREE.CylinderGeometry(0.035, 0.035, 1.8, 6);
+                                        g.rotateZ(Math.PI / 2);
+                                        return g;
+                                    });
+                                    const cable = new THREE.Mesh(cableGeo, this.baseHousingMat);
+                                    cable.position.set(clx + perp[0] * 1.05, 0.035, clz + perp[1] * 1.05);
+                                    cable.rotation.y = facing + Math.PI / 2 + (random() - 0.5) * 0.4;
+                                    addFurniture(cable);
+                                }
+                            } else {
+                                if (!this.toolboxMat) {
+                                    this.toolboxMat = new THREE.MeshStandardMaterial({color: 0xa33322, roughness: 0.6, metalness: 0.2});
+                                    this.sharedAssets.add(this.toolboxMat.uuid);
+                                }
+                                const cart = new THREE.Group();
+                                const shelfTopY = 0.9, shelfLowY = 0.48, casterR = 0.07;
+                                const shelf = new THREE.Mesh(this._boxGeo(0.85, 0.05, 0.55), this.metalMat);
+                                shelf.position.y = shelfTopY;
+                                cart.add(shelf);
+                                const lower = new THREE.Mesh(this._boxGeo(0.85, 0.05, 0.55), this.metalMat);
+                                lower.position.y = shelfLowY;
+                                cart.add(lower);
+                                const casterGeo = this._cacheGeo('maintCasterWheel', () => new THREE.CylinderGeometry(casterR, casterR, 0.05, 10));
+                                for (let lx2 = -1; lx2 <= 1; lx2 += 2) for (let lz2 = -1; lz2 <= 1; lz2 += 2) {
+                                    const leg = new THREE.Mesh(this._boxGeo(0.05, shelfTopY - casterR * 2, 0.05), this.metalMat);
+                                    leg.position.set(lx2 * 0.38, casterR + (shelfTopY - casterR * 2) / 2, lz2 * 0.24);
+                                    cart.add(leg);
+                                    const caster = new THREE.Mesh(casterGeo, this.baseHousingMat);
+                                    caster.rotation.x = Math.PI / 2;
+                                    caster.position.set(lx2 * 0.38, casterR, lz2 * 0.24);
+                                    cart.add(caster);
+                                }
+                                const toolbox = new THREE.Mesh(this._boxGeo(0.5, 0.28, 0.35), this.toolboxMat);
+                                toolbox.position.set(-0.1, shelfTopY + 0.16, 0);
+                                cart.add(toolbox);
+                                for (let w = 0; w < 2; w++) {
+                                    const wrench = new THREE.Mesh(this._boxGeo(0.35, 0.035, 0.06), this.rustMat);
+                                    wrench.position.set(0.22, shelfTopY + 0.03, -0.15 + w * 0.3);
+                                    wrench.rotation.y = (random() - 0.5) * 0.6;
+                                    cart.add(wrench);
+                                }
+                                cart.position.set(clx, 0, clz);
+                                cart.rotation.y = facing + (random() - 0.5) * 0.5;
+                                addFurniture(cart);
                             }
                         }
                         if (random() > 0.7) {
@@ -2218,7 +2354,7 @@ export default class TheArchitect {
                 id: "INCINERATOR",
                 foundationMat: this.diamondPlateMat || this.rustMat,
                 ceilingMat: this.incinCeilingMat || null,
-                build: (x, z, localX, localZ) => {
+                build: (x, z, localX, localZ, maze) => {
                     const edge = this.chunkSize - 1;
                     const isDoorwayNS = localX === 7 && (localZ === 0 || localZ === edge);
                     const isDoorwayEW = localZ === 7 && (localX === 0 || localX === edge);
@@ -2277,15 +2413,33 @@ export default class TheArchitect {
                         }
                         return;
                     }
-                    const isMainPath = localX === 7 || localZ === 7;
-                    if (localX >= 4 && localX <= 11 && localZ >= 4 && localZ <= 11 && !isMainPath) {
+                    const ductMat = this.ventMat || this.metalMat || this.rustMat;
+                    if (!this.emberGrilleMat) {
+                        this.emberGrilleMat = new THREE.MeshStandardMaterial({
+                            color: 0x2a1005, emissive: 0xff5500, emissiveIntensity: 1.2, roughness: 0.9
+                        });
+                        this.sharedAssets.add(this.emberGrilleMat.uuid);
+                    }
+                    if (!this.valveGeo) {
+                        this.valveGeo = new THREE.TorusGeometry(0.17, 0.03, 6, 12);
+                        this.geoCache.set(this.valveGeo.uuid, true);
+                    }
+                    const cxw = x * this.cellSize, czw = z * this.cellSize;
+                    const isW = (lx, lz) => {
+                        if (lx < 0 || lx >= this.chunkSize || lz < 0 || lz >= this.chunkSize) {
+                            return !((lx === 7 && (lz === -1 || lz === this.chunkSize)) || (lz === 7 && (lx === -1 || lx === this.chunkSize)));
+                        }
+                        return maze ? maze[lx][lz] : false;
+                    };
+                    const isWall = maze && maze[localX][localZ];
+                    if (isWall) {
                         const block = buildWall(this.cellSize, this.cellSize, this.rustMat, 3.0);
-                        block.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                        block.position.set(cxw, 1.5, czw);
                         block.userData.isEntityBlocker = true;
                         addGeometry(block);
                         const buildSconce = (nx, nz) => {
-                            const fx = x * this.cellSize + nx * 2.0;
-                            const fz = z * this.cellSize + nz * 2.0;
+                            const fx = cxw + nx * 2.0;
+                            const fz = czw + nz * 2.0;
                             const activeMat = ctx.getLightMaterial(0xff5522, 0xff2200, false);
                             const housing = buildWall(nx !== 0 ? 0.16 : 0.8, nz !== 0 ? 0.16 : 0.8, this.rustMat, 0.5);
                             housing.position.set(fx + nx * 0.08, 1.5, fz + nz * 0.08);
@@ -2311,151 +2465,105 @@ export default class TheArchitect {
                                 currentIntensity: 1.2
                             });
                         };
-                        if (localX === 4 && localZ % 2 === 0) buildSconce(-1, 0);
-                        if (localX === 11 && localZ % 2 === 0) buildSconce(1, 0);
-                        if (localZ === 4 && localX % 2 === 1) buildSconce(0, -1);
-                        if (localZ === 11 && localX % 2 === 1) buildSconce(0, 1);
-                    } else {
-                        const ductMat = this.ventMat || this.metalMat || this.rustMat;
-                        if (!this.emberGrilleMat) {
-                            this.emberGrilleMat = new THREE.MeshStandardMaterial({
-                                color: 0x2a1005, emissive: 0xff5500, emissiveIntensity: 1.2, roughness: 0.9
-                            });
-                            this.sharedAssets.add(this.emberGrilleMat.uuid);
+                        if (!isW(localX - 1, localZ) && random() > 0.55) buildSconce(-1, 0);
+                        if (!isW(localX + 1, localZ) && random() > 0.55) buildSconce(1, 0);
+                        if (!isW(localX, localZ - 1) && random() > 0.55) buildSconce(0, -1);
+                        if (!isW(localX, localZ + 1) && random() > 0.55) buildSconce(0, 1);
+                        return;
+                    }
+                    const wN = isW(localX, localZ - 1);
+                    const wS = isW(localX, localZ + 1);
+                    const wE = isW(localX + 1, localZ);
+                    const wW = isW(localX - 1, localZ);
+                    const throughNS = !wN || !wS;
+                    const throughEW = !wE || !wW;
+                    if (throughNS) {
+                        const spine = buildWall(1.1, this.cellSize, ductMat, 0.4);
+                        spine.position.set(cxw, 2.78, czw);
+                        addGeometry(spine);
+                        if ((localX + localZ) % 2 === 0) {
+                            const grille = buildWall(0.5, 0.5, this.emberGrilleMat, 0.06);
+                            grille.position.set(cxw, 2.57, czw);
+                            addGeometry(grille);
                         }
-                        if (!this.valveGeo) {
-                            this.valveGeo = new THREE.TorusGeometry(0.17, 0.03, 6, 12);
-                            this.geoCache.set(this.valveGeo.uuid, true);
+                    }
+                    if (throughEW) {
+                        const spine = buildWall(this.cellSize, 1.1, ductMat, 0.4);
+                        spine.position.set(cxw, 2.78, czw);
+                        addGeometry(spine);
+                        if ((localX + localZ) % 2 === 1) {
+                            const grille = buildWall(0.5, 0.5, this.emberGrilleMat, 0.06);
+                            grille.position.set(cxw, 2.57, czw);
+                            addGeometry(grille);
                         }
-                        const cxw = x * this.cellSize, czw = z * this.cellSize;
-                        const isCorridorNS = localX === 7 && (localZ <= 3 || localZ >= 12);
-                        const isCorridorEW = localZ === 7 && (localX <= 3 || localX >= 12);
-                        if (isCorridorNS || isCorridorEW) {
-                            const spine = buildWall(isCorridorNS ? 1.1 : this.cellSize, isCorridorNS ? this.cellSize : 1.1, ductMat, 0.4);
-                            spine.position.set(cxw, 2.78, czw);
-                            addGeometry(spine);
-                            if ((localX + localZ) % 2 === 0) {
-                                const grille = buildWall(0.5, 0.5, this.emberGrilleMat, 0.06);
-                                grille.position.set(cxw, 2.57, czw);
-                                addGeometry(grille);
-                            }
-                            const crossX = isCorridorNS && (localZ === 2 || localZ === 13);
-                            const crossZ = isCorridorEW && (localX === 2 || localX === 13);
-                            if (crossX || crossZ) {
-                                for (let as = -1; as <= 1; as += 2) {
-                                    const riser = buildWall(0.7, 0.7, ductMat, 1.15);
-                                    riser.position.set(cxw + (crossX ? as * 1.65 : 0), 2.0, czw + (crossX ? 0 : as * 1.65));
-                                    addGeometry(riser);
-                                }
-                                const bridge = buildWall(crossX ? this.cellSize : 0.7, crossX ? 0.7 : this.cellSize, ductMat, 0.4);
-                                bridge.position.set(cxw, 2.75, czw);
-                                addGeometry(bridge);
-                            }
-                            return;
+                    }
+                    if (throughNS && throughEW) {
+                        for (let as = -1; as <= 1; as += 2) {
+                            const riser = buildWall(0.7, 0.7, ductMat, 1.15);
+                            riser.position.set(cxw + as * 1.65, 2.0, czw);
+                            addGeometry(riser);
                         }
-                        const midX = (localX === 2 || localX === 13);
-                        const midZ = (localZ === 2 || localZ === 13);
-                        const buildDuctRun = (alongZ) => {
-                            const gapCell = alongZ ? (localZ % 4 === 0) : (localX % 4 === 0);
-                            if (gapCell) {
-                                for (let as = -1; as <= 1; as += 2) {
-                                    const riser = buildWall(0.7, 0.7, ductMat, 1.15);
-                                    riser.position.set(cxw + (alongZ ? 0 : as * 1.65), 2.0, czw + (alongZ ? as * 1.65 : 0));
-                                    addGeometry(riser);
-                                }
-                                const bridge = buildWall(alongZ ? 0.7 : this.cellSize, alongZ ? this.cellSize : 0.7, ductMat, 0.4);
-                                bridge.position.set(cxw, 2.75, czw);
-                                addGeometry(bridge);
-                            } else {
-                                const duct = buildWall(alongZ ? 0.7 : this.cellSize, alongZ ? this.cellSize : 0.7, ductMat, 0.7);
-                                duct.position.set(cxw, 1.15, czw);
-                                addGeometry(duct);
-                                if (random() > 0.65) {
-                                    const gs = random() > 0.5 ? 1 : -1;
-                                    const g = buildWall(alongZ ? 0.06 : 0.6, alongZ ? 0.6 : 0.06, this.emberGrilleMat, 0.3);
-                                    g.position.set(cxw + (alongZ ? gs * 0.38 : 0), 1.15, czw + (alongZ ? 0 : gs * 0.38));
-                                    addGeometry(g);
-                                }
-                            }
-                        };
-                        if (midX) buildDuctRun(true);
-                        if (midZ) buildDuctRun(false);
-                        if (!midX && !midZ && ((localX * 7 + localZ * 13) % 5 === 0) && random() > 0.35) {
-                            const count = 1 + Math.floor(random() * 3);
-                            for (let pi = 0; pi < count; pi++) {
-                                const pox = (random() - 0.5) * 1.6, poz = (random() - 0.5) * 1.6;
-                                const ps = 0.8 + random() * 1.6;
-                                const pipe = new THREE.Mesh(this.vPipeGeo, this.rustMat);
-                                pipe.position.set(cxw + pox, 1.5, czw + poz);
-                                pipe.scale.set(ps, 1.0, ps);
-                                addGeometry(pipe);
-                                if (random() > 0.6) {
-                                    const valve = new THREE.Mesh(this.valveGeo, this.metalMat);
-                                    valve.rotation.x = Math.PI / 2;
-                                    valve.position.set(cxw + pox, 1.0 + random() * 1.0, czw + poz);
-                                    addGeometry(valve);
-                                }
+                        const bridge = buildWall(this.cellSize, 0.7, ductMat, 0.4);
+                        bridge.position.set(cxw, 2.75, czw);
+                        addGeometry(bridge);
+                    }
+                    if (!throughNS && !throughEW && random() > 0.4) {
+                        const count = 1 + Math.floor(random() * 3);
+                        for (let pi = 0; pi < count; pi++) {
+                            const pox = (random() - 0.5) * 1.6, poz = (random() - 0.5) * 1.6;
+                            const ps = 0.8 + random() * 1.6;
+                            const pipe = new THREE.Mesh(this.vPipeGeo, this.rustMat);
+                            pipe.position.set(cxw + pox, 1.5, czw + poz);
+                            pipe.scale.set(ps, 1.0, ps);
+                            addGeometry(pipe);
+                            if (random() > 0.6) {
+                                const valve = new THREE.Mesh(this.valveGeo, this.metalMat);
+                                valve.rotation.x = Math.PI / 2;
+                                valve.position.set(cxw + pox, 1.0 + random() * 1.0, czw + poz);
+                                addGeometry(valve);
                             }
                         }
-                        if (localZ % 2 === 1) {
-                            const hPipe = new THREE.Mesh(this.pipeGeo, this.rustMat);
-                            hPipe.position.set(cxw, 2.72, czw + 1.2);
-                            addGeometry(hPipe);
-                        }
-                        if (localX % 2 === 1) {
-                            const hPipe2 = new THREE.Mesh(this.pipeGeo, this.rustMat);
-                            hPipe2.rotation.y = Math.PI / 2;
-                            hPipe2.position.set(cxw + 1.2, 2.85, czw);
-                            addGeometry(hPipe2);
-                        }
-                        if (localZ % 2 === 1 && localX % 2 === 1) {
-                            const joint = new THREE.Mesh(this.pipeJointGeo, this.metalMat);
-                            joint.position.set(cxw + 1.2, 2.785, czw + 1.2);
-                            addGeometry(joint);
-                        }
-                        if (localZ % 2 === 1 && localX % 2 === 0) {
-                            const mnt = new THREE.Mesh(this.pipeMountGeo, this.rustMat);
-                            mnt.position.set(cxw, 2.88, czw + 1.2);
-                            addGeometry(mnt);
-                        }
-                        if (localX % 2 === 1 && localZ % 2 === 0) {
-                            const mnt2 = new THREE.Mesh(this.pipeMountGeo, this.rustMat);
-                            mnt2.position.set(cxw + 1.2, 2.94, czw);
-                            addGeometry(mnt2);
-                        }
-                        if (localZ >= 4 && localZ <= 11 && (localX === 3 || localX === 12) && localZ % 3 === 2 && localZ % 4 !== 0) {
-                            const dirf = localX === 3 ? 1 : -1;
-                            const feed = buildWall(6.0, 0.6, ductMat, 0.4);
-                            feed.position.set(cxw - dirf * 1.0, 2.78, czw);
-                            addGeometry(feed);
-                            const climb = buildWall(0.6, 0.6, ductMat, 1.1);
-                            climb.position.set(cxw - dirf * 4.0, 2.03, czw);
-                            addGeometry(climb);
-                        }
-                        if (localX >= 4 && localX <= 11 && (localZ === 3 || localZ === 12) && localX % 3 === 2 && localX % 4 !== 0) {
-                            const dirf = localZ === 3 ? 1 : -1;
-                            const feed = buildWall(0.6, 6.0, ductMat, 0.4);
-                            feed.position.set(cxw, 2.78, czw - dirf * 1.0);
-                            addGeometry(feed);
-                            const climb = buildWall(0.6, 0.6, ductMat, 1.1);
-                            climb.position.set(cxw, 2.03, czw - dirf * 4.0);
-                            addGeometry(climb);
-                        }
+                    }
+                    if (localZ % 2 === 1) {
+                        const hPipe = new THREE.Mesh(this.pipeGeo, this.rustMat);
+                        hPipe.position.set(cxw, 2.72, czw + 1.2);
+                        addGeometry(hPipe);
+                    }
+                    if (localX % 2 === 1) {
+                        const hPipe2 = new THREE.Mesh(this.pipeGeo, this.rustMat);
+                        hPipe2.rotation.y = Math.PI / 2;
+                        hPipe2.position.set(cxw + 1.2, 2.85, czw);
+                        addGeometry(hPipe2);
+                    }
+                    if (localZ % 2 === 1 && localX % 2 === 1) {
+                        const joint = new THREE.Mesh(this.pipeJointGeo, this.metalMat);
+                        joint.position.set(cxw + 1.2, 2.785, czw + 1.2);
+                        addGeometry(joint);
+                    }
+                    if (localZ % 2 === 1 && localX % 2 === 0) {
+                        const mnt = new THREE.Mesh(this.pipeMountGeo, this.rustMat);
+                        mnt.position.set(cxw, 2.88, czw + 1.2);
+                        addGeometry(mnt);
+                    }
+                    if (localX % 2 === 1 && localZ % 2 === 0) {
+                        const mnt2 = new THREE.Mesh(this.pipeMountGeo, this.rustMat);
+                        mnt2.position.set(cxw + 1.2, 2.94, czw);
+                        addGeometry(mnt2);
                     }
                 }
             },
             {
                 id: "ANNEX",
-                foundationMat: this.clinicMat,
-                ceilingMat: this.clinicMat,
+                foundationMat: this.annexFloorMat || this.clinicMat,
+                ceilingMat: this.annexCeilingMat || this.clinicMat,
                 build: (x, z, localX, localZ) => {
-                    if (ctx.buildPerimeter(x, z, localX, localZ, this.sharedWallMat, "ANNEX")) return;
+                    if (ctx.buildPerimeter(x, z, localX, localZ, this.annexWallMat || this.sharedWallMat, "ANNEX")) return;
                     const ox = x * this.cellSize, oz = z * this.cellSize;
                     const isCorr = (lx, lz) => lx > 0 && lx < this.chunkSize - 1 && lz > 0 && lz < this.chunkSize - 1 &&
                         (lx === 7 || lz === 3 || lz === 7 || lz === 11);
                     if (isCorr(localX, localZ)) {
-                        if ((localX + localZ) % 2 === 0 && random() > 0.45) {
-                            const activeMat = ctx.getLightMaterial(0xffaa55, 0xffaa55, false);
+                        if ((localX + localZ) % 2 === 0 && random() > 0.1) {
+                            const activeMat = ctx.getLightMaterial(0xffffff, 0xffffff, false);
                             const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
                             panel.position.set(ox, 2.98, oz);
                             chunkGroup.add(panel);
@@ -2479,7 +2587,7 @@ export default class TheArchitect {
                     if (isCorr(localX - 1, localZ)) corrEdges.push([-1, 0]);
                     if (isCorr(localX + 1, localZ)) corrEdges.push([1, 0]);
                     if (corrEdges.length === 0) {
-                        const block = buildWall(this.cellSize, this.cellSize, this.sharedWallMat);
+                        const block = buildWall(this.cellSize, this.cellSize, this.annexWallMat || this.sharedWallMat);
                         block.position.set(ox, 1.5, oz);
                         block.userData.isEntityBlocker = true;
                         addGeometry(block);
@@ -2498,7 +2606,7 @@ export default class TheArchitect {
                         else if (isOffice(nx, nz)) buildIt = (ez === -1 || ex === -1);
                         else buildIt = false;
                         if (buildIt) {
-                            const wallSeg = buildWall(ex === 0 ? this.cellSize : 0.25, ex === 0 ? 0.25 : this.cellSize, this.sharedWallMat);
+                            const wallSeg = buildWall(ex === 0 ? this.cellSize + 0.27 : 0.25, ex === 0 ? 0.25 : this.cellSize + 0.23, this.annexWallMat || this.sharedWallMat);
                             wallSeg.position.set(ox + ex * 2, 1.5, oz + ez * 2);
                             wallSeg.userData.isEntityBlocker = true;
                             addGeometry(wallSeg);
@@ -2515,7 +2623,7 @@ export default class TheArchitect {
                         this.sharedAssets.add(this.laptopScreenMat.uuid);
                     }
                     for (let s = -1; s <= 1; s += 2) {
-                        const stub = buildWall(spansX ? 1.2 : 0.25, spansX ? 0.25 : 1.2, this.sharedWallMat);
+                        const stub = buildWall(spansX ? 1.2 : 0.25, spansX ? 0.25 : 1.2, this.annexWallMat || this.sharedWallMat);
                         stub.position.set(wx + (spansX ? s * 1.4 : 0), 1.5, wz + (spansX ? 0 : s * 1.4));
                         stub.userData.isEntityBlocker = true;
                         addGeometry(stub);

@@ -1139,6 +1139,9 @@ export default class Environment {
             this.cushionGeo = new THREE.BoxGeometry(0.8, 0.15, 0.8);
             this.backrestGeo = new THREE.BoxGeometry(0.8, 0.8, 0.15);
             this.legGeo = new THREE.BoxGeometry(0.1, 0.4, 0.1);
+            this.couchSeatGeo = new THREE.BoxGeometry(2.2, 0.3, 0.85);
+            this.couchBackGeo = new THREE.BoxGeometry(2.2, 0.7, 0.18);
+            this.couchArmGeo = new THREE.BoxGeometry(0.18, 0.55, 0.85);
             this.tableTopGeo = new THREE.BoxGeometry(1.2, 0.05, 1.2);
             this.tableBaseGeo = new THREE.BoxGeometry(0.5, 0.8, 0.5);
             this.wallVentMat = this.ventMat.clone();
@@ -1354,6 +1357,36 @@ export default class Environment {
                 group.add(l3);
                 const l4 = new THREE.Mesh(this.legGeo, this.structMat);
                 l4.position.set(-0.3, 0.2, -0.3);
+                group.add(l4);
+                group.position.set(x, y, z);
+                group.rotation.y = rotY;
+                return group;
+            },
+            buildCouch: (x, y, z, rotY) => {
+                const group = new THREE.Group();
+                const seat = new THREE.Mesh(this.couchSeatGeo, this.fabricMat);
+                seat.position.set(0, 0.35, 0.1);
+                group.add(seat);
+                const back = new THREE.Mesh(this.couchBackGeo, this.fabricMat);
+                back.position.set(0, 0.7, -0.32);
+                group.add(back);
+                const armL = new THREE.Mesh(this.couchArmGeo, this.fabricMat);
+                armL.position.set(-1.05, 0.55, 0.05);
+                group.add(armL);
+                const armR = new THREE.Mesh(this.couchArmGeo, this.fabricMat);
+                armR.position.set(1.05, 0.55, 0.05);
+                group.add(armR);
+                const l1 = new THREE.Mesh(this.legGeo, this.structMat);
+                l1.position.set(0.9, 0.15, 0.35);
+                group.add(l1);
+                const l2 = new THREE.Mesh(this.legGeo, this.structMat);
+                l2.position.set(-0.9, 0.15, 0.35);
+                group.add(l2);
+                const l3 = new THREE.Mesh(this.legGeo, this.structMat);
+                l3.position.set(0.9, 0.15, -0.35);
+                group.add(l3);
+                const l4 = new THREE.Mesh(this.legGeo, this.structMat);
+                l4.position.set(-0.9, 0.15, -0.35);
                 group.add(l4);
                 group.position.set(x, y, z);
                 group.rotation.y = rotY;
@@ -1828,7 +1861,7 @@ export default class Environment {
                 startX: startX,
                 startZ: startZ
             });
-            if (["ARCHIVE", "SERVER", "MAINTENANCE", "IMPOUND", "ATRIUM", "CHASM", "CLINIC"].includes(activeSector.id)) {
+            if (["ARCHIVE", "SERVER", "MAINTENANCE", "IMPOUND", "ATRIUM", "CHASM", "CLINIC", "INCINERATOR"].includes(activeSector.id)) {
                 sectorMaze = this._generateSectorMaze(random);
             }
             if (activeSector.foundationMat) {

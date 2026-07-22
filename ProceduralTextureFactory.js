@@ -750,7 +750,144 @@ export default class ProceduralTextureFactory {
         const annexDoorMatBack = new THREE.MeshStandardMaterial({map: doorBackTexture, roughness: 0.45, metalness: 0.65});
         const annexDoorMat = [annexEdgeMat, annexEdgeMat, annexEdgeMat, annexEdgeMat, annexDoorMatFront, annexDoorMatBack];
         const annexFrameMat = new THREE.MeshStandardMaterial({color: 0x53585c, roughness: 0.4, metalness: 0.8});
-        return {annexDoorMat, annexFrameMat};
+        const {canvas: annexWallCanvas, ctx: annexWallCtx} = this._createContext(512, 512);
+        annexWallCtx.fillStyle = '#968c72';
+        annexWallCtx.fillRect(0, 0, 512, 512);
+        const padCols = 4, padRows = 3, padMargin = 5;
+        const padW = 512 / padCols, padH = 480 / padRows;
+        for (let r = 0; r < padRows; r++) {
+            for (let c = 0; c < padCols; c++) {
+                const x0 = c * padW + padMargin, y0 = r * padH + padMargin;
+                const x1 = (c + 1) * padW - padMargin, y1 = (r + 1) * padH - padMargin;
+                const pcx = (x0 + x1) / 2, pcy = (y0 + y1) / 2;
+                const maxRx = (x1 - x0) / 2, maxRy = (y1 - y0) / 2;
+                const steps = 16;
+                for (let i = steps; i >= 0; i--) {
+                    const t = i / steps;
+                    const shade = -26 * t;
+                    annexWallCtx.fillStyle = `rgb(${182 + shade}, ${171 + shade}, ${146 + shade})`;
+                    annexWallCtx.beginPath();
+                    annexWallCtx.ellipse(pcx, pcy, maxRx * t, maxRy * t, 0, 0, Math.PI * 2);
+                    annexWallCtx.fill();
+                }
+                annexWallCtx.strokeStyle = 'rgba(90, 80, 58, 0.55)';
+                annexWallCtx.lineWidth = 1;
+                [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([dx, dy]) => {
+                    annexWallCtx.beginPath();
+                    annexWallCtx.moveTo(pcx, pcy);
+                    annexWallCtx.lineTo(pcx + dx * maxRx * 0.92, pcy + dy * maxRy * 0.92);
+                    annexWallCtx.stroke();
+                });
+                annexWallCtx.strokeStyle = 'rgba(70, 62, 46, 0.6)';
+                annexWallCtx.lineWidth = 2;
+                annexWallCtx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+            }
+        }
+        for (let r = 0; r <= padRows; r++) {
+            for (let c = 0; c <= padCols; c++) {
+                const x = c * padW, y = r * padH;
+                annexWallCtx.fillStyle = '#4e4632';
+                annexWallCtx.beginPath();
+                annexWallCtx.arc(x, y, 5, 0, Math.PI * 2);
+                annexWallCtx.fill();
+                annexWallCtx.fillStyle = 'rgba(200, 188, 160, 0.55)';
+                annexWallCtx.beginPath();
+                annexWallCtx.arc(x - 1.5, y - 2, 2.2, 0, Math.PI * 2);
+                annexWallCtx.fill();
+            }
+        }
+        annexWallCtx.globalAlpha = 0.22;
+        annexWallCtx.drawImage(masterNoise, 0, 0);
+        annexWallCtx.globalAlpha = 1.0;
+        annexWallCtx.fillStyle = '#443f30';
+        annexWallCtx.fillRect(0, 480, 512, 32);
+        annexWallCtx.fillStyle = '#302c20';
+        annexWallCtx.fillRect(0, 476, 512, 4);
+        const annexWallTexture = new THREE.CanvasTexture(annexWallCanvas);
+        annexWallTexture.wrapS = THREE.RepeatWrapping;
+        annexWallTexture.wrapT = THREE.ClampToEdgeWrapping;
+        annexWallTexture.repeat.set(4, 1);
+        const annexWallMat = new THREE.MeshStandardMaterial({
+            map: annexWallTexture,
+            color: 0xffffff,
+            roughness: 0.88,
+            metalness: 0.0,
+            bumpMap: annexWallTexture,
+            bumpScale: 0.02
+        });
+
+        const {canvas: annexFloorCanvas, ctx: annexFloorCtx} = this._createContext(256, 256);
+        annexFloorCtx.fillStyle = '#c9c2ac';
+        annexFloorCtx.fillRect(0, 0, 256, 256);
+        const drawSpiral = (ctx, startTheta, maxTheta, coilPx, width, style) => {
+            ctx.strokeStyle = style;
+            ctx.lineWidth = width;
+            ctx.beginPath();
+            let theta = startTheta;
+            let first = true;
+            while (theta < maxTheta) {
+                const r = coilPx * theta;
+                const px = 128 + Math.cos(theta) * r;
+                const py = 128 + Math.sin(theta) * r;
+                if (first) { ctx.moveTo(px, py); first = false; }
+                else ctx.lineTo(px, py);
+                theta += 0.05;
+            }
+            ctx.stroke();
+        };
+        drawSpiral(annexFloorCtx, 0, 4 * Math.PI, 15.5, 5, '#78694e');
+        drawSpiral(annexFloorCtx, 0.35, 4 * Math.PI, 15.5, 2, '#968867');
+        annexFloorCtx.strokeStyle = '#96907a';
+        annexFloorCtx.lineWidth = 2;
+        annexFloorCtx.strokeRect(0, 0, 256, 256);
+        annexFloorCtx.globalAlpha = 0.15;
+        annexFloorCtx.drawImage(masterNoise, 0, 0, 256, 256);
+        annexFloorCtx.globalAlpha = 1.0;
+        const annexFloorTexture = new THREE.CanvasTexture(annexFloorCanvas);
+        annexFloorTexture.wrapS = annexFloorTexture.wrapT = THREE.RepeatWrapping;
+        annexFloorTexture.repeat.set(14, 14);
+        const annexFloorMat = new THREE.MeshStandardMaterial({
+            map: annexFloorTexture,
+            roughness: 0.5,
+            metalness: 0.08,
+            bumpMap: annexFloorTexture,
+            bumpScale: 0.01
+        });
+
+        const {canvas: annexCeilCanvas, ctx: annexCeilCtx} = this._createContext(256, 256);
+        annexCeilCtx.fillStyle = '#dcdcd6';
+        annexCeilCtx.fillRect(0, 0, 256, 256);
+        annexCeilCtx.fillStyle = '#ffffff';
+        annexCeilCtx.fillRect(6, 6, 244, 244);
+        annexCeilCtx.strokeStyle = '#c4c4bd';
+        annexCeilCtx.lineWidth = 6;
+        annexCeilCtx.strokeRect(0, 0, 256, 256);
+        annexCeilCtx.strokeStyle = 'rgba(215, 215, 208, 0.8)';
+        annexCeilCtx.lineWidth = 1;
+        for (let x = 6; x < 250; x += 20) {
+            annexCeilCtx.beginPath();
+            annexCeilCtx.moveTo(x, 6);
+            annexCeilCtx.lineTo(x, 250);
+            annexCeilCtx.stroke();
+        }
+        drawSpiral(annexCeilCtx, 0, 4 * Math.PI, 15.5, 5, '#000000');
+        drawSpiral(annexCeilCtx, 0.35, 4 * Math.PI, 15.5, 2, '#1a1a1a');
+        annexCeilCtx.globalAlpha = 0.05;
+        annexCeilCtx.drawImage(masterNoise, 0, 0, 256, 256);
+        annexCeilCtx.globalAlpha = 1.0;
+        const annexCeilTexture = new THREE.CanvasTexture(annexCeilCanvas);
+        annexCeilTexture.wrapS = annexCeilTexture.wrapT = THREE.RepeatWrapping;
+        annexCeilTexture.repeat.set(14, 14);
+        const annexCeilingMat = new THREE.MeshStandardMaterial({
+            map: annexCeilTexture,
+            color: 0xffffff,
+            emissive: 0xffffff,
+            emissiveIntensity: 0.9,
+            roughness: 0.4,
+            metalness: 0.0
+        });
+
+        return {annexDoorMat, annexFrameMat, annexWallMat, annexFloorMat, annexCeilingMat};
     }
     static _buildImpoundAssets(masterNoise) {
         const ribWidth = 28;
@@ -766,8 +903,6 @@ export default class ProceduralTextureFactory {
                 ctx.fillRect(x, 0, ribWidth, h);
             }
         };
-        // Perimeter wall: rusted, riveted corrugated siding - a wire-pen storage
-        // lockup, not another stretch of the overworld's yellow wallpaper.
         const {canvas: wallCanvas, ctx: wallCtx} = this._createContext(512, 512);
         drawCorrugation(wallCtx, 512, 512, '#7d848a', '#9aa1a6', '#5b6166');
         wallCtx.fillStyle = 'rgba(20,20,20,0.3)';
@@ -805,7 +940,6 @@ export default class ProceduralTextureFactory {
             bumpMap: impoundWallTexture,
             bumpScale: 0.02
         });
-        // Ceiling: corrugated tin roof underside, rust bleeding from the panel seams.
         const {canvas: ceilCanvas, ctx: ceilCtx} = this._createContext(512, 512);
         drawCorrugation(ceilCtx, 512, 512, '#6b7075', '#84898e', '#484d51');
         ceilCtx.fillStyle = 'rgba(10,10,10,0.35)';
@@ -835,6 +969,103 @@ export default class ProceduralTextureFactory {
         });
         return {impoundWallMat, impoundCeilingMat};
     }
+    static _buildBoardroomAssets(masterNoise) {
+        const {canvas: wallCanvas, ctx: wallCtx} = this._createContext(512, 512);
+        wallCtx.fillStyle = '#c7c1b3';
+        wallCtx.fillRect(0, 0, 512, 512);
+        const drawFractalBloom = (cx, cy, len, angle, depth, seed) => {
+            if (depth <= 0 || len < 4) {
+                const petals = 5;
+                for (let p = 0; p < petals; p++) {
+                    const pa = (p / petals) * Math.PI * 2 + seed * 6.28;
+                    wallCtx.beginPath();
+                    wallCtx.ellipse(
+                        cx + Math.cos(pa) * len * 0.7, cy + Math.sin(pa) * len * 0.7,
+                        Math.max(1.5, len * 0.55), Math.max(1, len * 0.28),
+                        pa, 0, Math.PI * 2
+                    );
+                    wallCtx.fill();
+                }
+                return;
+            }
+            const ex = cx + Math.cos(angle) * len;
+            const ey = cy + Math.sin(angle) * len;
+            wallCtx.beginPath();
+            wallCtx.moveTo(cx, cy);
+            wallCtx.lineTo(ex, ey);
+            wallCtx.stroke();
+            const spread = 0.4 + seed * 0.2;
+            drawFractalBloom(ex, ey, len * 0.78, angle - spread, depth - 1, seed);
+            drawFractalBloom(ex, ey, len * 0.78, angle + spread, depth - 1, seed);
+        };
+
+        wallCtx.strokeStyle = 'rgba(94, 88, 72, 0.32)';
+        wallCtx.fillStyle = 'rgba(94, 88, 72, 0.26)';
+        wallCtx.lineWidth = 1.5;
+        const seed = 0.42;
+        const groundY = 468;
+        const trunkLen = 130;
+        drawFractalBloom(256, groundY, trunkLen, -Math.PI / 2, 6, seed);
+
+        const sprigY = groundY - trunkLen * 0.45;
+        wallCtx.strokeStyle = 'rgba(94, 88, 72, 0.16)';
+        wallCtx.fillStyle = 'rgba(94, 88, 72, 0.12)';
+        wallCtx.lineWidth = 1;
+        drawFractalBloom(256, sprigY, 55, -Math.PI / 2 - 1.15, 3, seed);
+        drawFractalBloom(256, sprigY, 47, -Math.PI / 2 + 1.25, 3, seed);
+
+        wallCtx.globalAlpha = 0.30;
+        wallCtx.drawImage(masterNoise, 0, 0);
+        wallCtx.globalAlpha = 1.0;
+        wallCtx.fillStyle = '#55503e';
+        wallCtx.fillRect(0, 480, 512, 32);
+        wallCtx.fillStyle = '#3d3929';
+        wallCtx.fillRect(0, 476, 512, 4);
+        wallCtx.fillStyle = 'rgba(0,0,0,0.12)';
+        wallCtx.fillRect(255, 0, 2, 512);
+
+        const boardWallTexture = new THREE.CanvasTexture(wallCanvas);
+        boardWallTexture.wrapS = THREE.RepeatWrapping;
+        boardWallTexture.wrapT = THREE.ClampToEdgeWrapping;
+        boardWallTexture.repeat.set(4, 1);
+        const boardWallMat = new THREE.MeshStandardMaterial({
+            map: boardWallTexture,
+            color: 0xffffff,
+            roughness: 0.7,
+            metalness: 0.05,
+            bumpMap: boardWallTexture,
+            bumpScale: 0.008
+        });
+        return {boardWallMat};
+    }
+    static _buildMaintenanceAssets(masterNoise) {
+        const {canvas: leakCanvas, ctx: leakCtx} = this._createContext(256, 256);
+        for (let i = 0; i < 10; i++) {
+            const cx = 60 + Math.random() * 136, cy = 60 + Math.random() * 136, r = 20 + Math.random() * 45;
+            const grad = leakCtx.createRadialGradient(cx, cy, 0, cx, cy, r);
+            grad.addColorStop(0, `rgba(18, 15, 12, ${0.55 + Math.random() * 0.3})`);
+            grad.addColorStop(0.55, 'rgba(35, 26, 18, 0.25)');
+            grad.addColorStop(1, 'rgba(35, 26, 18, 0)');
+            leakCtx.fillStyle = grad;
+            leakCtx.beginPath();
+            leakCtx.ellipse(cx, cy, r, r * (0.55 + Math.random() * 0.35), Math.random() * Math.PI, 0, Math.PI * 2);
+            leakCtx.fill();
+        }
+        const leakTexture = new THREE.CanvasTexture(leakCanvas);
+        const leakStainMat = new THREE.MeshStandardMaterial({
+            map: leakTexture,
+            transparent: true,
+            depthWrite: false,
+            opacity: 0.85,
+            roughness: 0.35,
+            metalness: 0.05,
+            polygonOffset: true,
+            polygonOffsetFactor: -1
+        });
+        const leakStainGeo = new THREE.PlaneGeometry(1.6, 1.6);
+        leakStainGeo.rotateX(-Math.PI / 2);
+        return {leakStainMat, leakStainGeo};
+    }
     static generateAssets() {
         const masterNoise = this._generateMasterNoise();
         const structAssets = this._buildStructuralAssets(masterNoise);
@@ -844,6 +1075,8 @@ export default class ProceduralTextureFactory {
         const hazardAssets = this._buildHazardAndMiscAssets(masterNoise);
         const annexAssets = this._buildAnnexAssets(masterNoise);
         const impoundAssets = this._buildImpoundAssets(masterNoise);
+        const boardroomAssets = this._buildBoardroomAssets(masterNoise);
+        const maintenanceAssets = this._buildMaintenanceAssets(masterNoise);
         const assets = {
             ...structAssets,
             ...surfaceAssets,
@@ -851,7 +1084,9 @@ export default class ProceduralTextureFactory {
             ...techAssets,
             ...hazardAssets,
             ...annexAssets,
-            ...impoundAssets
+            ...impoundAssets,
+            ...boardroomAssets,
+            ...maintenanceAssets
         };
         const applyOpt = (item) => {
             if (item && item.isTexture) {
