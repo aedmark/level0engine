@@ -40,29 +40,46 @@ export default class AABB {
     static rayIntersectsBox(origin, direction, box, target) {
         let tmin = -Infinity;
         let tmax = Infinity;
-        const o = [origin.x, origin.y, origin.z];
-        const d = [direction.x, direction.y, direction.z];
-        const bmin = [box.min.x, box.min.y, box.min.z];
-        const bmax = [box.max.x, box.max.y, box.max.z];
-        for (let i = 0; i < 3; i++) {
-            if (Math.abs(d[i]) < 1e-12) {
-                if (o[i] < bmin[i] || o[i] > bmax[i]) return false;
-                continue;
-            }
-            let t1 = (bmin[i] - o[i]) / d[i];
-            let t2 = (bmax[i] - o[i]) / d[i];
-            if (t1 > t2) {
-                const tmp = t1;
-                t1 = t2;
-                t2 = tmp;
-            }
+
+        // X axis
+        if (Math.abs(direction.x) < 1e-12) {
+            if (origin.x < box.min.x || origin.x > box.max.x) return false;
+        } else {
+            let t1 = (box.min.x - origin.x) / direction.x;
+            let t2 = (box.max.x - origin.x) / direction.x;
+            if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
             tmin = Math.max(tmin, t1);
             tmax = Math.min(tmax, t2);
             if (tmin > tmax) return false;
         }
+
+        // Y axis
+        if (Math.abs(direction.y) < 1e-12) {
+            if (origin.y < box.min.y || origin.y > box.max.y) return false;
+        } else {
+            let t1 = (box.min.y - origin.y) / direction.y;
+            let t2 = (box.max.y - origin.y) / direction.y;
+            if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+            tmin = Math.max(tmin, t1);
+            tmax = Math.min(tmax, t2);
+            if (tmin > tmax) return false;
+        }
+
+        // Z axis
+        if (Math.abs(direction.z) < 1e-12) {
+            if (origin.z < box.min.z || origin.z > box.max.z) return false;
+        } else {
+            let t1 = (box.min.z - origin.z) / direction.z;
+            let t2 = (box.max.z - origin.z) / direction.z;
+            if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+            tmin = Math.max(tmin, t1);
+            tmax = Math.min(tmax, t2);
+            if (tmin > tmax) return false;
+        }
+
         if (tmax < 0) return false;
         const t = tmin >= 0 ? tmin : tmax;
-        if (target) target.set(o[0] + d[0] * t, o[1] + d[1] * t, o[2] + d[2] * t);
+        if (target) target.set(origin.x + direction.x * t, origin.y + direction.y * t, origin.z + direction.z * t);
         return true;
     }
 }

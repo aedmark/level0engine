@@ -335,7 +335,8 @@ export default class PlayerController {
                 this.linguisticDarkMatter = Math.max(0.0, this.linguisticDarkMatter - (delta * 1.5));
             }
             const maxBatteryCeiling = 100.0 - this.linguisticDarkMatter;
-            const kineticCharge = (currentActualSpeed * 0.15) + (angularSpeed * 20.0);
+            const clampedAngular = Math.min(5.0, angularSpeed);
+            const kineticCharge = (currentActualSpeed * 0.15) + (clampedAngular * 8.0);
             this.flashlightBattery = Math.min(maxBatteryCeiling, this.flashlightBattery + (kineticCharge * delta));
         }
         const fatigueRatio = this.stamina / this.maxStamina;
@@ -487,10 +488,10 @@ export default class PlayerController {
             this._leanOffset.set(0, 0, 0);
             return;
         }
-        this._applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid);
+        this._applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes);
     }
 
-    _applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid) {
+    _applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes) {
         const state = this.input.state;
         const baseBobFreq = state.isRunning ? 3.5 : 2.0;
         const breathFreq = Math.max(1.0, baseBobFreq - (this.exhaustion * 0.8));
@@ -534,7 +535,33 @@ export default class PlayerController {
         const leanDrop = (1.0 - Math.cos(this.currentLean)) * 0.8;
         const cosY = Math.cos(this.camera.rotation.y);
         const sinY = Math.sin(this.camera.rotation.y);
-        this._leanOffset.set(leanLateral * cosY, 0, -leanLateral * sinY);
+        
+        let leanMag = Math.abs(leanLateral);
+        let leanDirX = leanMag > 0 ? (leanLateral > 0 ? cosY : -cosY) : 0;
+        let leanDirZ = leanMag > 0 ? (leanLateral > 0 ? -sinY : sinY) : 0;
+        
+        if (leanMag > 0 && localBoxes) {
+            const origin = this.camera.position;
+            const dir = {x: leanDirX, y: 0, z: leanDirZ};
+            let maxLean = leanMag;
+            const camTarget = new Vec3();
+            for (let i = 0; i < localBoxes.length; i++) {
+                const box = localBoxes[i];
+                if (box.max.y > origin.y - 0.2 && box.min.y < origin.y + 0.2 && !box.isInvisibleBlocker) {
+                    if (AABB.rayIntersectsBox(origin, dir, box, camTarget)) {
+                        const dx = camTarget.x - origin.x;
+                        const dz = camTarget.z - origin.z;
+                        const dist = Math.sqrt(dx*dx + dz*dz);
+                        if (dist < maxLean + 0.15) {
+                            maxLean = Math.max(0, dist - 0.15);
+                        }
+                    }
+                }
+            }
+            leanMag = maxLean;
+        }
+        
+        this._leanOffset.set(leanDirX * leanMag, 0, leanDirZ * leanMag);
         this.camera.position.x += this._leanOffset.x;
         this.camera.position.z += this._leanOffset.z;
         if (!inVoid && targetFeetY === -100) targetFeetY = 0;

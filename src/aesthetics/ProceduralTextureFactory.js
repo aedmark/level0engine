@@ -16,7 +16,7 @@ export default class ProceduralTextureFactory {
         for (let i = 0; i < data.length; i += 4) {
             seed = (seed * 1664525 + 1013904223) >>> 0;
             if ((seed >>> 24) > 217) {
-                const val = (seed && 0x10000) ? 0 : 255;
+                const val = (seed & 0x10000) ? 0 : 255;
                 data[i] = data[i + 1] = data[i + 2] = val;
                 data[i + 3] = 10 + ((seed >>> 8) % 50);
             }

@@ -301,9 +301,15 @@ export default class Anomaly {
                         if (!blockedZ && this._boxZ.intersectsBox(localBoxes[i])) blockedZ = true;
                     }
                 }
-                if (!blockedX && blockedZ) {
+                if (!blockedX && !blockedZ) {
+                    if (Math.abs(moveVec.x) > Math.abs(moveVec.z)) {
+                        this.group.position.x += moveVec.x;
+                    } else {
+                        this.group.position.z += moveVec.z;
+                    }
+                } else if (!blockedX) {
                     this.group.position.x += moveVec.x;
-                } else if (!blockedZ && blockedX) {
+                } else if (!blockedZ) {
                     this.group.position.z += moveVec.z;
                 } else {
                     if (this.backtrackTimer <= 0) {

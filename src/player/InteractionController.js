@@ -4,6 +4,8 @@
 export default class InteractionController {
     constructor(env) {
         this.env = env;
+        this._camDir = new THREE.Vector3();
+        this._lookDir = new THREE.Vector3();
     }
 
     shatterFixture(fixture) {
@@ -85,6 +87,25 @@ export default class InteractionController {
         env._playerMoveX = playerPos.x - env._prevPlayerPos.x;
         env._playerMoveZ = playerPos.z - env._prevPlayerPos.z;
         env._prevPlayerPos.copy(playerPos);
+        
+        let lookingAtHit = false;
+        let closestDistSq = 9.0;
+        if (env.camera) env.camera.getWorldDirection(this._camDir);
+        const checkObj = (obj) => {
+            if (obj.userData.isSlider && !obj.userData.isAirlockDoor) return;
+            const distSq = obj.position.distanceToSquared(playerPos);
+            if (distSq < closestDistSq) {
+                this._lookDir.subVectors(obj.position, playerPos).normalize();
+                if (this._camDir.dot(this._lookDir) > 0.75) {
+                    closestDistSq = distSq;
+                    lookingAtHit = true;
+                }
+            }
+        };
+        if (env.interactables) env.interactables.forEach(checkObj);
+        if (env.interactiveDoors) env.interactiveDoors.forEach(checkObj);
+        env.isLookingAtInteractable = lookingAtHit;
+
         if (env.airlocks) {
             env.airlocks.forEach(airlock => env._updateAirlock(airlock, playerPos, delta));
         }
@@ -293,8 +314,8 @@ export default class InteractionController {
         airlock.outerDoor.data.entityOpen = false;
         airlock.innerDoor.data.entityOpen = false;
 
-        const openOuter = playerNearOuter || entityNearOuter;
-        const openInner = playerNearInner || entityNearInner;
+        const openOuter = playerNearOuter;
+        const openInner = playerNearInner;
 
         switch (airlock.state) {
             case 'IDLE':

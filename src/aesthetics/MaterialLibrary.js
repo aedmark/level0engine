@@ -423,7 +423,7 @@ export default class MaterialLibrary {
             env.observerGeo = new THREE.CylinderGeometry(0.15, 0.1, 1.9, 8);
             env.observers = [];
             env.sharedAssets = new Set();
-            Object.values(this).forEach(v => {
+            Object.values(env).forEach(v => {
                 if (v && v.isGeometry) env.sharedAssets.add(v.uuid);
                 if (v && v.isMaterial) env.sharedAssets.add(v.uuid);
             });

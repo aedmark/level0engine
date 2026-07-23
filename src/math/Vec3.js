@@ -33,6 +33,13 @@ export default class Vec3 {
         return this;
     }
 
+    sub(v) {
+        this.x -= v.x;
+        this.y -= v.y;
+        this.z -= v.z;
+        return this;
+    }
+
     subVectors(a, b) {
         this.x = a.x - b.x;
         this.y = a.y - b.y;

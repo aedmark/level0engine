@@ -150,6 +150,9 @@ export default class Environment {
                     this.genStats.totalMs += genMs;
                     this.genStats.lastMs = genMs;
                     if (genMs > this.genStats.worstMs) this.genStats.worstMs = genMs;
+                    
+                    // Yield to the event loop so we don't drop frames during bulk generation
+                    await new Promise(resolve => setTimeout(resolve, 0));
                 }
             }
         } finally {
@@ -1097,7 +1100,6 @@ export default class Environment {
             const inServer = activeSector === "SERVER";
             
             this.dustCloud.rotation.y = time * 0.025;
-            this.dustCloud.rotation.z = time * 0.01;
             
             const positions = this.dustCloud.geometry.attributes.position.array;
             const fallSpeed = inImpound ? 0.04 : (inAnnex ? -0.01 : 0.0025);

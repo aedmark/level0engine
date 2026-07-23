@@ -12,6 +12,7 @@ const acoustics = new AcousticEngine();
 window.acoustics = acoustics;
 const player = new PlayerController(engine.camera, engine.renderer.domElement);
 const environment = new Environment(engine, player);
+window.environment = environment;
 
 function loadState() {
     const data = localStorage.getItem('level0_state');
@@ -177,10 +178,30 @@ document.addEventListener('somatic-read', (e) => {
                 : getStory().collected.length - 1;
         }
 
-        if (docId && String(docId).startsWith('TAPE_')) {
-            docOverlay.style.backgroundColor = '#111';
-            docOverlay.style.color = '#55ff55';
-            docOverlay.style.borderColor = '#55ff55';
+        docOverlay.className = '';
+        if (isTerminal) {
+            docOverlay.classList.add('terminal-mode');
+            docContent.innerText = '';
+            
+            if (docOverlay) docOverlay.style.display = 'block';
+            acoustics.triggerSomaticEvent('terminal_click', 1.0, 0.5);
+
+            let i = 0;
+            typeWriterInterval = setInterval(() => {
+                if (i < fullText.length) {
+                    docContent.innerText += fullText.charAt(i);
+                    if (fullText.charAt(i) !== ' ' && fullText.charAt(i) !== '\n' && Math.random() > 0.4) {
+                        acoustics.triggerSomaticEvent('terminal_blip', 1.0, 0.15);
+                    }
+                    i++;
+                } else {
+                    clearInterval(typeWriterInterval);
+                    typeWriterInterval = null;
+                    acoustics.triggerSomaticEvent('terminal_click', 1.0, 0.4);
+                }
+            }, 15);
+        } else if (docId && String(docId).startsWith('TAPE_')) {
+            docOverlay.classList.add('tape-mode');
             docContent.innerText = '';
 
             if (docOverlay) docOverlay.style.display = 'block';
@@ -200,12 +221,13 @@ document.addEventListener('somatic-read', (e) => {
                     acoustics.triggerSomaticEvent('tape_click', 1.0, 0.4);
                 }
             }, 35);
-        } else {
-            docOverlay.style.backgroundColor = '#f4f1e1';
-            docOverlay.style.color = '#1a1811';
-            docOverlay.style.borderColor = '#a89f68';
+        } else if (zone === 'IMPOUND') {
+            docOverlay.classList.add('clipboard-mode');
             docContent.innerText = fullText;
-
+            if (docOverlay) docOverlay.style.display = 'block';
+            acoustics.triggerSomaticEvent('item', 1.0, 0.4);
+        } else {
+            docContent.innerText = fullText;
             if (docOverlay) docOverlay.style.display = 'block';
             acoustics.triggerSomaticEvent('item', 1.0, 0.4);
         }
@@ -471,6 +493,14 @@ class UIManager {
                 else if (cohInt < 50) this.coordsEl.style.color = '#ffaa55';
                 else this.coordsEl.style.color = '';
                 this.coordsEl._last = newCoords;
+            }
+        }
+        if (!this.crosshair) this.crosshair = document.getElementById('crosshair');
+        if (this.crosshair && window.environment) {
+            const active = window.environment.isLookingAtInteractable === true;
+            if (this.crosshair._lastActive !== active) {
+                this.crosshair.classList.toggle('active-interact', active);
+                this.crosshair._lastActive = active;
             }
         }
         if (this.batLevel) {

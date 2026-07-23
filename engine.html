@@ -431,6 +431,49 @@
             box-shadow: 0 0 30px rgba(0,0,0,0.9);
         }
 
+        #document-overlay.terminal-mode {
+            background-color: #050505 !important;
+            background-image: linear-gradient(
+                    rgba(51, 255, 51, 0.1) 50%,
+                    transparent 50%
+            ) !important;
+            color: #33ff33 !important;
+            border-color: #33ff33 !important;
+            text-shadow: 0 0 5px rgba(51, 255, 51, 0.5);
+        }
+
+        #document-overlay.tape-mode {
+            background-color: #111 !important;
+            background-image: none !important;
+            color: #55ff55 !important;
+            border-color: #55ff55 !important;
+        }
+
+        #document-overlay.clipboard-mode {
+            background-color: #fffbf0 !important;
+            color: #2a221b !important;
+            border: 12px solid #5c432d !important;
+            border-top: 40px solid #4a3624 !important;
+            border-radius: 4px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            background-image: none !important;
+            padding-top: 3.5rem;
+        }
+        
+        #document-overlay.clipboard-mode::before {
+            content: "";
+            position: absolute;
+            top: -35px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 25px;
+            background-color: #a0a0a0;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            border: 1px solid #777;
+        }
+
         #document-content {
             font-size: 1.1rem;
             line-height: 1.5;
@@ -538,6 +581,30 @@
             z-index: 15;
             pointer-events: none;
             mix-blend-mode: difference;
+            transition: all 0.2s ease-out;
+        }
+
+        #crosshair.active-interact {
+            width: 12px;
+            height: 12px;
+            background-color: transparent;
+            border: 2px solid rgba(212, 195, 130, 0.9);
+            box-shadow: 0 0 8px rgba(212, 195, 130, 0.4);
+            mix-blend-mode: normal;
+        }
+
+        #crosshair.active-interact::after {
+            content: "[E]";
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #d4c382;
+            font-size: 10px;
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+            text-shadow: 0 0 4px rgba(0,0,0,0.8);
+            pointer-events: none;
         }
 
         #flash-overlay {

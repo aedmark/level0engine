@@ -82,7 +82,7 @@ export const BoardroomSector = (env, ctx) => {
                         return;
                     }
                     const bowlHere = isBowl(x, z, localX, localZ);
-                    const post = (px, pz, thick = 0.15) => {
+                    const post = (px, pz, thick = 0.22) => {
                         const p = buildWall(thick, thick, env.metalMat, 3.0);
                         p.position.set(px, 1.5, pz);
                         addGeometry(p);
@@ -94,10 +94,10 @@ export const BoardroomSector = (env, ctx) => {
                         addGeometry(g);
                     };
                     const rails = (alongX, px, pz, len) => {
-                        const sill = buildWall(alongX ? len : 0.15, alongX ? 0.15 : len, env.metalMat, 0.12);
+                        const sill = buildWall(alongX ? len : 0.22, alongX ? 0.22 : len, env.metalMat, 0.12);
                         sill.position.set(px, 0.06, pz);
                         addGeometry(sill);
-                        const head = buildWall(alongX ? len : 0.15, alongX ? 0.15 : len, env.metalMat, 0.3);
+                        const head = buildWall(alongX ? len : 0.22, alongX ? 0.22 : len, env.metalMat, 0.3);
                         head.position.set(px, 2.83, pz);
                         addGeometry(head);
                     };
@@ -125,36 +125,36 @@ export const BoardroomSector = (env, ctx) => {
                         const half = len / 2;
                         if (alongX) {
                             rails(true, latC, faceC, len);
-                            post(latC - half + 0.075, faceC);
-                            post(latC + half - 0.075, faceC);
+                            post(latC - half + 0.11, faceC, 0.22);
+                            post(latC + half - 0.11, faceC, 0.22);
                             if (withDoor) {
                                 const dl = bx - 0.55, dr = bx + 0.55;
-                                const lStart = latC - half + 0.15;
-                                const rEnd = latC + half - 0.15;
+                                const lStart = latC - half + 0.22;
+                                const rEnd = latC + half - 0.22;
                                 pane(true, (lStart + dl) / 2, faceC, dl - lStart);
                                 pane(true, (dr + rEnd) / 2, faceC, rEnd - dr);
                                 post(dl, faceC, 0.1);
                                 post(dr, faceC, 0.1);
                                 hangDoor(true, bx - 0.5, faceC, 0);
                             } else {
-                                pane(true, latC, faceC, len - 0.3);
+                                pane(true, latC, faceC, len - 0.44);
                                 post(latC, faceC, 0.1);
                             }
                         } else {
                             rails(false, faceC, latC, len);
-                            post(faceC, latC - half + 0.075);
-                            post(faceC, latC + half - 0.075);
+                            post(faceC, latC - half + 0.11, 0.22);
+                            post(faceC, latC + half - 0.11, 0.22);
                             if (withDoor) {
                                 const dl = bz - 0.55, dr = bz + 0.55;
-                                const lStart = latC - half + 0.15;
-                                const rEnd = latC + half - 0.15;
+                                const lStart = latC - half + 0.22;
+                                const rEnd = latC + half - 0.22;
                                 pane(false, faceC, (lStart + dl) / 2, dl - lStart);
                                 pane(false, faceC, (dr + rEnd) / 2, rEnd - dr);
                                 post(faceC, dl, 0.1);
                                 post(faceC, dr, 0.1);
                                 hangDoor(false, faceC, bz + 0.5, Math.PI / 2);
                             } else {
-                                pane(false, faceC, latC, len - 0.3);
+                                pane(false, faceC, latC, len - 0.44);
                                 post(faceC, latC, 0.1);
                             }
                         }
@@ -215,25 +215,29 @@ export const BoardroomSector = (env, ctx) => {
                                 ret.position.set(alongX ? retLat : retFace, 1.5, alongX ? retFace : retLat);
                                 addGeometry(ret);
                             }
+                            const adjLen = len - (extNeg === 0 ? 0.1 : 0) - (extPos === 0 ? 0.1 : 0);
+                            const adjLatC = latC + (extNeg === 0 ? 0.05 : 0) - (extPos === 0 ? 0.05 : 0);
                             const isDoorFace = myEgress.door && myEgress.door[0] === dx && myEgress.door[1] === dz;
                             if (bowlHere) {
-                                glassFace(alongX, faceC, latC, len, false);
+                                glassFace(alongX, faceC, adjLatC, adjLen, false);
                             } else if (isDoorFace) {
-                                glassFace(alongX, faceC, latC, len, true);
+                                glassFace(alongX, faceC, adjLatC, adjLen, true);
                             } else if (random() < 0.18) {
-                                glassFace(alongX, faceC, latC, len, false);
+                                glassFace(alongX, faceC, adjLatC, adjLen, false);
                             } else {
-                                const wall = buildWall(alongX ? len : 0.2, alongX ? 0.2 : len, env.boardWallMat || env.sharedWallMat, 3.0);
-                                wall.position.set(alongX ? latC : faceC, 1.5, alongX ? faceC : latC);
+                                const wall = buildWall(alongX ? adjLen : 0.2, alongX ? 0.2 : adjLen, env.boardWallMat || env.sharedWallMat, 3.0);
+                                wall.position.set(alongX ? adjLatC : faceC, 1.5, alongX ? faceC : adjLatC);
                                 addGeometry(wall);
                             }
                         } else if (dx === 1 || dz === 1) {
                             const faceC = alongX ? bz + 2 : bx + 2;
                             const len = env.cellSize + extNeg + extPos;
                             const latC = (alongX ? bx : bz) + (extPos - extNeg) / 2;
+                            const adjLen = len - (extNeg === 0 ? 0.1 : 0) - (extPos === 0 ? 0.1 : 0);
+                            const adjLatC = latC + (extNeg === 0 ? 0.05 : 0) - (extPos === 0 ? 0.05 : 0);
                             const neighborBowl = isBowl(x + dx, z + dz, nlx, nlz);
                             if (bowlHere || neighborBowl) {
-                                glassFace(alongX, faceC, latC, len, false);
+                                glassFace(alongX, faceC, adjLatC, adjLen, false);
                             } else {
                                 const nbEgress = egress(x + dx, z + dz, nlx, nlz);
                                 const forcedOpen =
@@ -242,10 +246,10 @@ export const BoardroomSector = (env, ctx) => {
                                 const roll = random();
                                 if (forcedOpen || roll < 0.35) {
                                 } else if (roll < 0.78) {
-                                    glassFace(alongX, faceC, latC, len, false);
+                                    glassFace(alongX, faceC, adjLatC, adjLen, false);
                                 } else {
-                                    const wall = buildWall(alongX ? len : 0.15, alongX ? 0.15 : len, env.boardWallMat || env.sharedWallMat, 3.0);
-                                    wall.position.set(alongX ? latC : faceC, 1.5, alongX ? faceC : latC);
+                                    const wall = buildWall(alongX ? adjLen : 0.15, alongX ? 0.15 : adjLen, env.boardWallMat || env.sharedWallMat, 3.0);
+                                    wall.position.set(alongX ? adjLatC : faceC, 1.5, alongX ? faceC : adjLatC);
                                     addGeometry(wall);
                                 }
                             }
