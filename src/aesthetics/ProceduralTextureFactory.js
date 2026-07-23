@@ -1066,6 +1066,123 @@ export default class ProceduralTextureFactory {
         leakStainGeo.rotateX(-Math.PI / 2);
         return {leakStainMat, leakStainGeo};
     }
+    static _buildArchiveAssets(masterNoise) {
+        // Forest green walls, decades of damp discoloration bleeding down from the ceiling line.
+        const {canvas: wallCanvas, ctx: wallCtx} = this._createContext(512, 512);
+        wallCtx.fillStyle = '#2c4830';
+        wallCtx.fillRect(0, 0, 512, 512);
+        wallCtx.lineWidth = 1;
+        for (let i = 0; i < 512; i += 16) {
+            wallCtx.strokeStyle = (i % 64 === 0) ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.02)';
+            wallCtx.beginPath();
+            wallCtx.moveTo(i, 0);
+            wallCtx.lineTo(i, 512);
+            wallCtx.stroke();
+        }
+        // Age stains are NOT baked into this tileable base — a baked blob repeats identically
+        // every 4 wall-widths and reads as an obvious pattern. Instead they're scattered as
+        // separate decal meshes at build time (see archiveStainMat/archiveStainGeo below),
+        // the same way moldMat/leakStainMat/ceilingStainMat are scattered elsewhere.
+        wallCtx.globalAlpha = 0.4;
+        wallCtx.drawImage(masterNoise, 0, 0);
+        wallCtx.globalAlpha = 1.0;
+        wallCtx.fillStyle = '#1f331f';
+        wallCtx.fillRect(0, 480, 512, 32);
+        wallCtx.fillStyle = '#152315';
+        wallCtx.fillRect(0, 476, 512, 4);
+        wallCtx.fillStyle = 'rgba(0,0,0,0.15)';
+        wallCtx.fillRect(255, 0, 2, 512);
+        const archiveWallTexture = new THREE.CanvasTexture(wallCanvas);
+        archiveWallTexture.wrapS = THREE.RepeatWrapping;
+        archiveWallTexture.wrapT = THREE.ClampToEdgeWrapping;
+        archiveWallTexture.repeat.set(4, 1);
+        const archiveWallMat = new THREE.MeshStandardMaterial({
+            map: archiveWallTexture,
+            roughness: 0.95,
+            metalness: 0.0,
+            bumpMap: archiveWallTexture,
+            bumpScale: 0.015
+        });
+        // Water-damage decal, scattered individually per wall at build time so each stain
+        // gets its own random position/rotation/scale instead of repeating with the tile.
+        const {canvas: stainCanvas, ctx: stainCtx} = this._createContext(256, 256);
+        for (let i = 0; i < 5; i++) {
+            const cx = 60 + Math.random() * 136, cy = 40 + Math.random() * 176, r = 25 + Math.random() * 55;
+            const grad = stainCtx.createRadialGradient(cx, cy, 0, cx, cy, r);
+            grad.addColorStop(0, `rgba(16, 22, 12, ${0.35 + Math.random() * 0.3})`);
+            grad.addColorStop(0.55, 'rgba(22, 30, 16, 0.18)');
+            grad.addColorStop(1, 'rgba(22, 30, 16, 0)');
+            stainCtx.fillStyle = grad;
+            stainCtx.beginPath();
+            stainCtx.ellipse(cx, cy, r, r * (0.5 + Math.random() * 0.6), Math.random() * Math.PI, 0, Math.PI * 2);
+            stainCtx.fill();
+        }
+        for (let i = 0; i < 4; i++) {
+            const grad = stainCtx.createLinearGradient(0, 0, 0, 256);
+            grad.addColorStop(0, `rgba(100, 82, 44, ${0.15 + Math.random() * 0.25})`);
+            grad.addColorStop(1, 'rgba(100, 82, 44, 0)');
+            stainCtx.fillStyle = grad;
+            const sx = 20 + Math.random() * 216;
+            const sw = Math.random() * 24 + 8;
+            stainCtx.fillRect(sx, 0, sw, 256 * (0.4 + Math.random() * 0.55));
+        }
+        const archiveStainTexture = new THREE.CanvasTexture(stainCanvas);
+        const archiveStainMat = new THREE.MeshStandardMaterial({
+            map: archiveStainTexture,
+            transparent: true,
+            depthWrite: false,
+            opacity: 0.85,
+            roughness: 0.95,
+            polygonOffset: true,
+            polygonOffsetFactor: -1
+        });
+        const archiveStainGeo = new THREE.PlaneGeometry(2.2, 2.6);
+        // 50's linoleum floor: cream/russet checker, speckled and scuffed from foot traffic.
+        const {canvas: floorCanvas, ctx: floorCtx} = this._createContext(256, 256);
+        const tileA = '#ddceA2', tileB = '#8a3a2e';
+        const tiles = 8, tileSize = 256 / tiles;
+        for (let ty = 0; ty < tiles; ty++) {
+            for (let tx = 0; tx < tiles; tx++) {
+                floorCtx.fillStyle = (tx + ty) % 2 === 0 ? tileA : tileB;
+                floorCtx.fillRect(tx * tileSize, ty * tileSize, tileSize, tileSize);
+            }
+        }
+        floorCtx.globalAlpha = 0.18;
+        floorCtx.drawImage(masterNoise, 0, 0, 256, 256);
+        floorCtx.globalAlpha = 1.0;
+        for (let i = 0; i < 70; i++) {
+            floorCtx.strokeStyle = `rgba(20, 15, 10, ${Math.random() * 0.12})`;
+            floorCtx.lineWidth = 0.5 + Math.random() * 1.5;
+            floorCtx.beginPath();
+            const sx = Math.random() * 256, sy = Math.random() * 256;
+            floorCtx.moveTo(sx, sy);
+            floorCtx.lineTo(sx + (Math.random() - 0.5) * 30, sy + (Math.random() - 0.5) * 30);
+            floorCtx.stroke();
+        }
+        floorCtx.strokeStyle = 'rgba(0,0,0,0.2)';
+        floorCtx.lineWidth = 1;
+        for (let t = 0; t <= tiles; t++) {
+            floorCtx.beginPath();
+            floorCtx.moveTo(0, t * tileSize);
+            floorCtx.lineTo(256, t * tileSize);
+            floorCtx.stroke();
+            floorCtx.beginPath();
+            floorCtx.moveTo(t * tileSize, 0);
+            floorCtx.lineTo(t * tileSize, 256);
+            floorCtx.stroke();
+        }
+        const archiveFloorTexture = new THREE.CanvasTexture(floorCanvas);
+        archiveFloorTexture.wrapS = archiveFloorTexture.wrapT = THREE.RepeatWrapping;
+        archiveFloorTexture.repeat.set(16, 16);
+        const archiveFloorMat = new THREE.MeshStandardMaterial({
+            map: archiveFloorTexture,
+            roughness: 0.35,
+            metalness: 0.02,
+            bumpMap: archiveFloorTexture,
+            bumpScale: 0.006
+        });
+        return {archiveWallMat, archiveFloorMat, archiveStainMat, archiveStainGeo};
+    }
     static generateAssets() {
         const masterNoise = this._generateMasterNoise();
         const structAssets = this._buildStructuralAssets(masterNoise);
@@ -1077,6 +1194,7 @@ export default class ProceduralTextureFactory {
         const impoundAssets = this._buildImpoundAssets(masterNoise);
         const boardroomAssets = this._buildBoardroomAssets(masterNoise);
         const maintenanceAssets = this._buildMaintenanceAssets(masterNoise);
+        const archiveAssets = this._buildArchiveAssets(masterNoise);
         const assets = {
             ...structAssets,
             ...surfaceAssets,
@@ -1086,7 +1204,8 @@ export default class ProceduralTextureFactory {
             ...annexAssets,
             ...impoundAssets,
             ...boardroomAssets,
-            ...maintenanceAssets
+            ...maintenanceAssets,
+            ...archiveAssets
         };
         const applyOpt = (item) => {
             if (item && item.isTexture) {

@@ -1,7 +1,7 @@
 // AcousticEngine.js
 // LEVEL 0 DEDICATED ACOUSTIC TOPOLOGY
 
-import SECTORS, {DEFAULT_FOLEY} from './Sectors.js';
+import SECTORS, {DEFAULT_FOLEY} from '../world/Sectors.js';
 
 export default class AcousticEngine {
     constructor() {

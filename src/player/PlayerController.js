@@ -2,8 +2,8 @@
 // LEVEL 0 PLAYER CONTROLLER
 
 import SomaticInput from './SomaticInput.js';
-import Vec3 from './Vec3.js';
-import AABB from './AABB.js';
+import Vec3 from '../math/Vec3.js';
+import AABB from '../math/AABB.js';
 
 export default class PlayerController {
     constructor(camera, domElement) {
@@ -14,6 +14,7 @@ export default class PlayerController {
         this.direction = new Vec3();
         this.isSqueezing = false;
         this._envForcedDown = false;
+        this._groundFeetY = camera.position.y - 1.6;
         this.flashlightBattery = 100.0;
         this.baseRadius = 0.4;
         this.squeezeRadius = 0.12;
@@ -185,8 +186,7 @@ export default class PlayerController {
         const px = this.camera.position.x;
         const pz = this.camera.position.z;
         const localBoxes = spatialGrid.getNearby(px, pz, 2.0);
-        const currentVisHeight = state.isCrawling ? 0.3 : (state.isCrouching ? 0.8 : 1.6);
-        const currentFeetY = this.camera.position.y - currentVisHeight;
+        const currentFeetY = this._groundFeetY;
         let maxAvailableHeight = 3.0;
         this._vecMin.set(px - this.baseRadius, currentFeetY + 0.1, pz - this.baseRadius);
         this._vecMax.set(px + this.baseRadius, currentFeetY + 2.6, pz + this.baseRadius);
@@ -548,5 +548,6 @@ export default class PlayerController {
         }
         const lerpFactor = targetFeetY === -100 ? 1.0 : 1.0 - Math.exp(-12.0 * delta);
         this.camera.position.y += (targetCamY - this.camera.position.y) * lerpFactor;
+        if (targetFeetY !== -100) this._groundFeetY = targetFeetY;
     }
 }

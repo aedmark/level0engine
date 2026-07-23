@@ -1,8 +1,8 @@
 // Anomaly.js
 // LEVEL 0 PREDATORY HAZARD
 
-import Vec3 from './Vec3.js';
-import AABB from './AABB.js';
+import Vec3 from '../math/Vec3.js';
+import AABB from '../math/AABB.js';
 
 export default class Anomaly {
     constructor(scene, camera, player, environment) {

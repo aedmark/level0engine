@@ -1,11 +1,11 @@
 // main.js
 // LEVEL 0 SYSTEM BOOTSTRAP
 
-import RenderEngine from './RenderEngine.js';
-import PlayerController from './PlayerController.js';
-import Environment from './Environment.js';
-import AcousticEngine from './AcousticEngine.js';
-import StoryEngine from './StoryEngine.js';
+import RenderEngine from './src/core/RenderEngine.js';
+import PlayerController from './src/player/PlayerController.js';
+import Environment from './src/core/Environment.js';
+import AcousticEngine from './src/narrative/AcousticEngine.js';
+import StoryEngine from './src/narrative/StoryEngine.js';
 
 const engine = new RenderEngine();
 const acoustics = new AcousticEngine();

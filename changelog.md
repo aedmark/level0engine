@@ -1,5 +1,20 @@
 # Level 0 Engine Changelog
 
+## [v0.4.16] - 2026-07-22
+
+_The Architectural Exodus & Agricultural Expansion Update_
+
+#### Added
+
+- **[GEOMETRY] Atrium Agriculture Expansion:** The Atrium's previously cubist corn walls have been supplemented with organic, procedural narrative artifacts. Scarecrows (constructed from wood and fabric geometry), scattered wheelbarrows (metallic trays on cylindrical wheels, occasionally overturned as obstacles), and abandoned scythes now spawn within the pathways and corn blocks. This breaks up the purely Euclidean grid and injects thematic density into the sector.
+
+#### Changed
+
+- **[ARCHITECTURE] The Great Root Exodus:** The engine's monolithic, root-level structure has been completely modularized. Over 20 core Javascript files were migrated from the root directory into a categorized `src/` hierarchy (`core/`, `math/`, `world/`, `world/sectors/`, `aesthetics/`, `player/`, `entities/`, `narrative/`). An automated sequence updated all relative ES module imports across the repository mathematically. The root directory is now clean, housing only the HTML entry points and `main.js` to preserve web server mapping.
+- **[GEOMETRY] Clinic Ceiling Collapses:** Previously, ceiling cave-ins were simulated by a massive, solid concrete block hanging mid-air from the ceiling. This has been replaced with a proper grounded, impassable rubble pile. The generation now includes a simulated dark void in the ceiling layer, scattered broken concrete chunks, exposed rebar, a severed ventilation duct, and fallen ceiling tiles resting on the rubble base. The collision matrix has been updated to track the grounded pile.
+- **[GENERATION] Clinic Collapse Frequency:** The threshold for a Clinic structural failure was previously an 8% probability per eligible path chunk, generating an excessive number of cave-ins per zone. The probability curve has been sharply tuned down to 1.5%, ensuring these collapses remain rare anomalies that yield roughly 1 or 2 per Clinic sector.
+- **[GEOMETRY] Impound Ceiling Raised:** The Impound sector no longer shares the claustrophobic 3.0-unit standard ceiling height. The base environment logic was updated to support dynamic sector heights, forcing the Impound roof up to a 6.0-unit elevation. The `buildPerimeter` structural kit was similarly synchronized to build 6.0-unit perimeter walls to mathematically seal the newly increased volume against the surrounding void.
+
 ## [v0.4.15] - 2026-07-22
 
 _The Boardroom Bloom & Padded Annex Update_
