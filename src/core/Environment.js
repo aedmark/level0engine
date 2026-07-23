@@ -20,6 +20,7 @@ export default class Environment {
         this.player = player;
         this.walls = [];
         this.fixtureData = [];
+        this.idlingCars = [];
         this.spatialGrid = new SpatialHashGrid(4);
         this.wallBoxes = [];
         this.chunkSize = 16;
@@ -100,6 +101,7 @@ export default class Environment {
             });
             this.walls = this.walls.filter(w => !deadHashes.has(w.userData.chunkHash));
             this.fixtureData = this.fixtureData.filter(f => !deadHashes.has(f.chunkHash));
+            this.idlingCars = this.idlingCars.filter(c => !deadHashes.has(c.chunkHash));
             this.interactiveDoors = this.interactiveDoors.filter(d => !deadHashes.has(d.userData.chunkHash));
             if (this.airlocks) {
                 this.airlocks = this.airlocks.filter(a => !deadHashes.has(a.chunkHash));
@@ -539,6 +541,7 @@ export default class Environment {
         this.activeChunks.clear();
         this.walls = [];
         this.fixtureData = [];
+        this.idlingCars = [];
         this.interactables = [];
         this.macroZones.clear();
         this.spatialGrid.clear();
@@ -1090,28 +1093,41 @@ export default class Environment {
             
             const inArchive = activeSector === "ARCHIVE";
             const inImpound = activeSector === "IMPOUND";
+            const inAnnex = activeSector === "ANNEX";
+            const inServer = activeSector === "SERVER";
             
             this.dustCloud.rotation.y = time * 0.025;
             this.dustCloud.rotation.z = time * 0.01;
             
             const positions = this.dustCloud.geometry.attributes.position.array;
-            const fallSpeed = inImpound ? 0.04 : 0.0025;
-            for (let i = 1; i < positions.length; i += 3) {
-                positions[i] -= fallSpeed;
-                if (positions[i] < -15.0) positions[i] += 30.0;
+            const fallSpeed = inImpound ? 0.04 : (inAnnex ? -0.01 : 0.0025);
+            for (let i = 0; i < positions.length; i += 3) {
+                if (inServer) {
+                    positions[i] += 0.18;
+                    if (positions[i] > 15.0) positions[i] -= 30.0;
+                    positions[i+2] += 0.05;
+                    if (positions[i+2] > 15.0) positions[i+2] -= 30.0;
+                } else {
+                    positions[i+1] -= fallSpeed;
+                    if (positions[i+1] < -15.0) positions[i+1] += 30.0;
+                    else if (positions[i+1] > 15.0) positions[i+1] -= 30.0;
+                }
             }
             this.dustCloud.geometry.attributes.position.needsUpdate = true;
             
-            const baseOpacity = inImpound ? 0.6 : (inArchive ? 0.30 : 0.10);
-            const crawlOpacity = inImpound ? 0.7 : (inArchive ? 0.45 : 0.35);
+            const baseOpacity = inImpound ? 0.6 : (inArchive ? 0.30 : (inAnnex ? 0.45 : (inServer ? 0.35 : 0.10)));
+            const crawlOpacity = inImpound ? 0.7 : (inArchive ? 0.45 : (inAnnex ? 0.55 : (inServer ? 0.45 : 0.35)));
             const targetDustOpacity = this.player.isCrawling ? crawlOpacity : baseOpacity;
             
-            const baseSize = inImpound ? 0.18 : (inArchive ? 0.07 : 0.05);
-            const crawlSize = inImpound ? 0.22 : (inArchive ? 0.09 : 0.08);
+            const baseSize = inImpound ? 0.18 : (inArchive ? 0.07 : (inAnnex ? 0.45 : (inServer ? 0.12 : 0.05)));
+            const crawlSize = inImpound ? 0.22 : (inArchive ? 0.09 : (inAnnex ? 0.50 : (inServer ? 0.16 : 0.08)));
             const targetDustSize = this.player.isCrawling ? crawlSize : baseSize;
             
             this.dustCloud.material.opacity += (targetDustOpacity - this.dustCloud.material.opacity) * 0.05;
             this.dustCloud.material.size += (targetDustSize - this.dustCloud.material.size) * 0.05;
+            
+            const targetColor = inAnnex ? 0xe8ddc5 : 0xffffff;
+            this.dustCloud.material.color.lerp(new THREE.Color(targetColor), 0.05);
         }
         if (this.exhaustCloud) {
             this.exhaustCloud.position.copy(cameraPos);
@@ -1219,6 +1235,16 @@ export default class Environment {
                 }
             }
         }
+        
+        let idlingCarDistSq = 999999.0;
+        if (this.idlingCars) {
+            for (let i = 0; i < this.idlingCars.length; i++) {
+                const c = this.idlingCars[i];
+                const d = c.position.distanceToSquared(cameraPos);
+                if (d < idlingCarDistSq) idlingCarDistSq = d;
+            }
+        }
+        
         return {
             minLightDist,
             isOccluded,
@@ -1226,7 +1252,8 @@ export default class Environment {
             anomalyPressure,
             playerSpeed,
             playerExhaustion: this.player.exhaustion,
-            isBlackout: this.blackoutChunks.size > 0
+            isBlackout: this.blackoutChunks.size > 0,
+            idlingCarDistSq
         };
     }
 }

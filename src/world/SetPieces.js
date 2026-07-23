@@ -311,6 +311,24 @@ export default class SetPieces {
             g.position.set(px + (random() - 0.5) * 0.2, 0, pz + (random() - 0.5) * 0.2);
             g.rotation.y = (random() - 0.5) * 0.15;
             addFurniture(g);
+            
+            if (random() > 0.80) {
+                if (!env.idlingCars) env.idlingCars = [];
+                let tooClose = false;
+                for (let i = 0; i < env.idlingCars.length; i++) {
+                    if (env.idlingCars[i].position.distanceToSquared(g.position) < 10000) {
+                        tooClose = true;
+                        break;
+                    }
+                }
+                if (!tooClose) {
+                    env.idlingCars.push({
+                        chunkHash: hash,
+                        position: g.position.clone()
+                    });
+                }
+            }
+            
             if (random() > 0.4) {
                 const tag = new THREE.Mesh(env.documentGeo, env.documentMat);
                 const hoodSide = random() > 0.5 ? 1 : -1;

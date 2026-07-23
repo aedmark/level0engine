@@ -155,6 +155,43 @@ export default class AcousticEngine {
         this.hazardBell.connect(this.hazardBellGain);
         this.hazardBellGain.connect(this.masterGain);
         this.hazardBell.start();
+        this.idlingGain = this.ctx.createGain();
+        this.idlingGain.gain.value = 0.0;
+        this.idlingOsc = this.ctx.createOscillator();
+        this.idlingOsc.type = 'sawtooth';
+        this.idlingOsc.frequency.value = 55;
+        this.idlingLFO = this.ctx.createOscillator();
+        this.idlingLFO.type = 'sine';
+        this.idlingLFO.frequency.value = 14;
+        this.idlingLFOGain = this.ctx.createGain();
+        this.idlingLFOGain.gain.value = 8;
+        this.idlingLFO.connect(this.idlingLFOGain);
+        this.idlingLFOGain.connect(this.idlingOsc.frequency);
+        this.idlingFilter = this.ctx.createBiquadFilter();
+        this.idlingFilter.type = 'lowpass';
+        this.idlingFilter.frequency.value = 400;
+        this.idlingOsc.connect(this.idlingFilter);
+        this.idlingFilter.connect(this.idlingGain);
+        this.idlingGain.connect(this.masterGain);
+        this.idlingOsc.start();
+        this.idlingLFO.start();
+        
+        this.muzakGain = this.ctx.createGain();
+        this.muzakGain.gain.value = 0.0;
+        this.muzakFilter = this.ctx.createBiquadFilter();
+        this.muzakFilter.type = 'lowpass';
+        this.muzakFilter.frequency.value = 500;
+        this.muzakFilter.connect(this.muzakGain);
+        this.muzakGain.connect(this.masterGain);
+        
+        this.muzakLFO = this.ctx.createOscillator();
+        this.muzakLFO.type = 'sine';
+        this.muzakLFO.frequency.value = 0.15;
+        this.muzakLFOGain = this.ctx.createGain();
+        this.muzakLFOGain.gain.value = 15;
+        this.muzakLFO.connect(this.muzakLFOGain);
+        this.muzakLFO.start();
+
         const t = this.ctx.currentTime;
         this.mainGain.gain.setValueAtTime(0, t);
         this.whineGain.gain.setValueAtTime(0, t);
@@ -162,6 +199,8 @@ export default class AcousticEngine {
         this.peaceGain.gain.setValueAtTime(0, t);
         this.entityGain.gain.setValueAtTime(0, t);
         this.hazardBellGain.gain.setValueAtTime(0, t);
+        this.idlingGain.gain.setValueAtTime(0, t);
+        this.muzakGain.gain.setValueAtTime(0, t);
         this.subRumble.frequency.setValueAtTime(60, t);
         this.kineticFilter.frequency.setValueAtTime(250, t);
         this.subRumble.start();
@@ -191,7 +230,8 @@ export default class AcousticEngine {
             isBlackout,
             paranoia,
             adrenaline = 0.0,
-            eyesClosed = 0.0
+            eyesClosed = 0.0,
+            idlingCarDistSq = 9999.0
         } = telemetry;
         const proximity = Math.max(0, 1.0 - (minLightDist / 20.0));
         const mix = (SECTORS[activeSector] && SECTORS[activeSector].ambience) || SECTORS.NORMAL.ambience;
@@ -234,6 +274,49 @@ export default class AcousticEngine {
             const targetFeedback = (room && room.feedback) || 0.2;
             setParam('delayTime', this.spatialDelay.delayTime, targetDelay, 1.0);
             setParam('feedback', this.feedbackGain.gain, targetFeedback, 1.0);
+        }
+        if (this.idlingGain) {
+            const idleVol = Math.max(0.0, 1.0 - Math.sqrt(idlingCarDistSq) / 20.0);
+            setParam('idling', this.idlingGain.gain, idleVol * 0.06, 0.5);
+        }
+        if (this.muzakGain) {
+            if (activeSector === "ANNEX" && !isBlackout) {
+                setParam('muzak', this.muzakGain.gain, 1.2, 2.0);
+                if (!this._muzakNextBeat || time > this._muzakNextBeat - 0.5) {
+                    if (!this._muzakNextBeat) this._muzakNextBeat = time + 0.1;
+                    if (this._muzakStep === undefined) this._muzakStep = 0;
+                    
+                    const chords = [
+                        [174.61, 220.00, 261.63, 329.63],
+                        [185.00, 220.00, 261.63, 311.13],
+                        [196.00, 233.08, 293.66, 349.23],
+                        [196.00, 246.94, 293.66, 349.23],
+                    ];
+                    const melody = [
+                        349.23, 392.00, 440.00, 523.25, 
+                        349.23, null,   440.00, 392.00,
+                        349.23, 392.00, 440.00, 523.25,
+                        587.33, 523.25, 440.00, 392.00
+                    ];
+                    
+                    const beatTime = this._muzakNextBeat;
+                    const chordIdx = Math.floor(this._muzakStep / 4) % chords.length;
+                    
+                    if (this._muzakStep % 4 === 0) {
+                        chords[chordIdx].forEach(f => this.playMuzakNote(f, beatTime, true));
+                    }
+                    
+                    const mFreq = melody[this._muzakStep % melody.length];
+                    if (mFreq) {
+                        this.playMuzakNote(mFreq, beatTime, false);
+                    }
+                    
+                    this._muzakNextBeat += 0.5;
+                    this._muzakStep++;
+                }
+            } else {
+                setParam('muzak', this.muzakGain.gain, 0.0, 2.0);
+            }
         }
         if (activeSector === "ARCHIVE" && !isBlackout) {
             if (!this._archiveNextEvent) this._archiveNextEvent = time + 2.0;
@@ -286,7 +369,8 @@ export default class AcousticEngine {
                 this._impoundNextEvent = time + 6.0 + Math.random() * 10.0;
                 const iRoll = Math.random();
                 const iDistSq = 36.0 + Math.random() * 364.0;
-                if (iRoll < 0.65) this.triggerSomaticEvent('rattle', iDistSq, 0.5 + Math.random() * 0.5);
+                if (iRoll < 0.20) this.triggerSomaticEvent('car_horn', iDistSq, 0.6 + Math.random() * 0.4);
+                else if (iRoll < 0.65) this.triggerSomaticEvent('rattle', iDistSq, 0.5 + Math.random() * 0.5);
                 else this.triggerSomaticEvent('door', iDistSq, 0.25 + Math.random() * 0.15);
             }
         } else {
@@ -319,6 +403,23 @@ export default class AcousticEngine {
             this.currentSector = activeSector;
         }
     }
+    
+    playMuzakNote(freq, time, isChord = false) {
+        if (!this.muzakGain || this.ctx.state === 'suspended') return;
+        const osc = this.ctx.createOscillator();
+        osc.type = isChord ? 'triangle' : 'sine';
+        osc.frequency.value = freq;
+        if (this.muzakLFOGain) this.muzakLFOGain.connect(osc.frequency);
+        const env = this.ctx.createGain();
+        osc.connect(env);
+        env.connect(this.muzakFilter);
+        env.gain.setValueAtTime(0, time);
+        env.gain.linearRampToValueAtTime(isChord ? 0.05 : 0.1, time + 0.05);
+        env.gain.exponentialRampToValueAtTime(0.001, time + 1.5);
+        osc.start(time);
+        osc.stop(time + 1.5);
+    }
+
     triggerSomaticEvent(type, distanceSq, intensity) {
         if (!this.initialized || this.ctx.state === 'suspended') return;
         if (distanceSq > 1600.0) return;
@@ -385,7 +486,8 @@ export default class AcousticEngine {
             'tape_garble': ['sawtooth', 300, 600, 0.05, 0.06, 0.02, 0.1, {type: 'bandpass', start: 1200, end: 600, ramp: 0.1}],
             'tape_click': ['square', 800, 100, 0.02, 0.15, 0.01, 0.05, null],
             'airlock_cycle': ['sawtooth', 85, 35, 1.2, 0.25, 0.1, 1.2, {type: 'bandpass', start: 1800, end: 300, ramp: 1.0}],
-            'airlock_hiss': ['sine', 1, 1, 1.0, 0.4, 0.1, 2.5, {type: 'bandpass', start: 4000, end: 1000, ramp: 2.5}]
+            'airlock_hiss': ['sine', 1, 1, 1.0, 0.4, 0.1, 2.5, {type: 'bandpass', start: 4000, end: 1000, ramp: 2.5}],
+            'car_horn': ['square', 320, 310, 0.1, 0.35, 0.05, 0.65, null]
         };
         if (voices[type]) spawnVoice(...voices[type]);
     }

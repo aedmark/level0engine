@@ -1,15 +1,24 @@
 # Level 0 Engine Changelog
 
-## [v0.4.16] - 2026-07-22
+## [v0.5.0] - 2026-07-22
 
 _The Architectural Exodus & Agricultural Expansion Update_
 
 #### Added
 
+- **[AUDIO & FX] Dynamic Sector Acoustics:** The `AcousticEngine` now triggers procedural audio dynamically based on sector conditions:
+  - `IMPOUND`: Parked vehicles occasionally emit procedural idling engine rumbles (modulated sawtooth waves passed through a lowpass filter) and sporadic square-wave car horns in the distance.
+  - `ANNEX`: A tape-warped, heavily detuned Bossa Nova sequence fades in, simulating degraded Muzak playing through cheap PA speakers.
+- **[FX] Procedural Sector Particulates:** The global dust loop in `Environment.js` now alters its behavior dynamically per sector:
+  - `IMPOUND`: Dust simulates falling ash/snow with slow downward drift.
+  - `ANNEX`: Dust simulates thick nicotine smoke by increasing particle opacity/size, reversing drift upwards, and lerping to a dingy pale yellow color.
+  - `SERVER`: Dust is caught in aggressive horizontal drafts simulating massive industrial cooling fans.
+- **[GEOMETRY] Server Sector IT Clutter:** The random floor clutter in the Server sector aisles has been replaced with procedural IT-specific geometry: empty wooden pallets, large wooden spools of CAT6 cable, and rolling metal A/V carts occasionally carrying CRT monitors.
 - **[GEOMETRY] Atrium Agriculture Expansion:** The Atrium's previously cubist corn walls have been supplemented with organic, procedural narrative artifacts. Scarecrows (constructed from wood and fabric geometry), scattered wheelbarrows (metallic trays on cylindrical wheels, occasionally overturned as obstacles), and abandoned scythes now spawn within the pathways and corn blocks. This breaks up the purely Euclidean grid and injects thematic density into the sector.
 
 #### Changed
 
+- **[GEOMETRY] Impound Sector Lighting:** The standard claustrophobic ceiling lighting fixtures have been entirely removed from the Impound yard. Illumination is now provided by towering stadium lights mounted on poles scattered randomly throughout the environment.
 - **[ARCHITECTURE] The Great Root Exodus:** The engine's monolithic, root-level structure has been completely modularized. Over 20 core Javascript files were migrated from the root directory into a categorized `src/` hierarchy (`core/`, `math/`, `world/`, `world/sectors/`, `aesthetics/`, `player/`, `entities/`, `narrative/`). An automated sequence updated all relative ES module imports across the repository mathematically. The root directory is now clean, housing only the HTML entry points and `main.js` to preserve web server mapping.
 - **[GEOMETRY] Clinic Ceiling Collapses:** Previously, ceiling cave-ins were simulated by a massive, solid concrete block hanging mid-air from the ceiling. This has been replaced with a proper grounded, impassable rubble pile. The generation now includes a simulated dark void in the ceiling layer, scattered broken concrete chunks, exposed rebar, a severed ventilation duct, and fallen ceiling tiles resting on the rubble base. The collision matrix has been updated to track the grounded pile.
 - **[GENERATION] Clinic Collapse Frequency:** The threshold for a Clinic structural failure was previously an 8% probability per eligible path chunk, generating an excessive number of cave-ins per zone. The probability curve has been sharply tuned down to 1.5%, ensuring these collapses remain rare anomalies that yield roughly 1 or 2 per Clinic sector.
