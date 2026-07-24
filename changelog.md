@@ -1,5 +1,23 @@
 # Level 0 Engine Changelog
 
+## [v0.5.4] - 2026-07-24
+
+### Added
+- Procedural card-based random seed system (`generateCardSeed()`) for unique world generation on every cold boot.
+- New post-processing heat wave distortion shader active in the INCINERATOR sector.
+- Massive particle system upgrade for the INCINERATOR, adding thousands of fast-moving, glowing orange embers.
+
+### Changed
+- Refactored the procedural chunk generation to guarantee all macro-structure airlocks connect perfectly to a 9x9 perimeter ring in adjacent chunks, preventing impassable walls.
+- Placed a 5x5 solid pillar in the center of all procedural maze chunks to prevent unnaturally long, straight corridors and preserve the maze feeling.
+- Improved lighting in the CHASM sector by enabling double-sided shadows on floors and increasing shadow camera depth for the giant lighthouse fixtures.
+- Dropped the ambient light and glow intensity in the INCINERATOR to create a darker, more oppressive atmosphere that emphasizes the glowing embers and emergency lights.
+
+### Fixed
+- Fixed an issue where the heat wave shader's UV coordinate shift was breaking the CRT monitor border effect by moving the distortion to the texture lookup phase.
+- Fixed a major framerate drop in the post-processing shader by eliminating divergent `if` branching.
+- Fixed a bug where reading the `delta` timer in the rendering loop was accidentally resetting the physics simulation clock, causing the player to move at a fraction of the intended speed.
+
 ## [v0.5.3] - 2026-07-24
 
 _The Archive Aesthetics Update_

@@ -47,7 +47,8 @@ export default class RenderEngine {
                 darkness: {value: 0.0},
                 panic: {value: 0.0},
                 adrenaline: {value: 0.0},
-                eyesClosed: {value: 0.0}
+                eyesClosed: {value: 0.0},
+                heat: {value: 0.0}
             },
             vertexShader: `
                 varying vec2 vUv;
@@ -67,6 +68,7 @@ export default class RenderEngine {
                 uniform float globalSeed;
                 uniform float adrenaline;
                 uniform float eyesClosed;
+                uniform float heat;
                 varying vec2 vUv;
                 float random(vec2 st) {
                     return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
@@ -81,6 +83,7 @@ export default class RenderEngine {
                 
                 void main() {
                     vec2 uv = curve(vUv);
+                    
                     vec2 centerUv = uv - 0.5;
                     float distSq = dot(centerUv, centerUv);
                     float border = smoothstep(0.0, 0.03, uv.x) * smoothstep(1.0, 0.97, uv.x) * 
@@ -111,9 +114,14 @@ export default class RenderEngine {
                     float panicTear = panic > 0.3 ? (sin(time * 25.0) * 0.02 * pCurve) : 0.0;
                     float caShift = (0.0005 + (distSq * 0.0015)) * stressGate + (squeeze * 0.003) + pow(anomaly, 1.5) * 0.05 + pow(exhaustion, 2.0) * 0.01 + heartbeatCA + panicTear;
                     vec2 offset = vec2(caShift, 0.0); 
-                    vec4 texR = texture2D(tDiffuse, uv + offset);
-                    vec4 texG = texture2D(tDiffuse, uv);
-                    vec4 texB = texture2D(tDiffuse, uv - offset);
+                    
+                    float heatWave = sin(uv.x * 30.0 + time * 10.0) * sin(uv.y * 15.0 - time * 5.0);
+                    vec2 heatOffset = vec2(heatWave * 0.005, heatWave * 0.015) * heat;
+                    vec2 sampleUv = uv + heatOffset;
+                    
+                    vec4 texR = texture2D(tDiffuse, sampleUv + offset);
+                    vec4 texG = texture2D(tDiffuse, sampleUv);
+                    vec4 texB = texture2D(tDiffuse, sampleUv - offset);
                     vec3 col = vec3(texR.r, texG.g, texB.b);
                     float luminance = dot(col, vec3(0.299, 0.587, 0.114));
                     vec3 fauxHalation = (texR.rgb + texB.rgb) * 0.3;
@@ -201,6 +209,13 @@ export default class RenderEngine {
         this.postMaterial.uniforms.panic.value = this.paranoia || 0.0;
         this.postMaterial.uniforms.adrenaline.value = this.adrenaline || 0.0;
         this.postMaterial.uniforms.eyesClosed.value = this.eyesClosed || 0.0;
+        
+        if (this.heatTarget !== undefined) {
+            if (this.currentHeat === undefined) this.currentHeat = 0.0;
+            this.currentHeat += (this.heatTarget - this.currentHeat) * 0.016 * 2.0;
+            this.postMaterial.uniforms.heat.value = this.currentHeat;
+        }
+
         this.renderer.setRenderTarget(null);
         this.renderer.render(this.postScene, this.postCamera);
     }

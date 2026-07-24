@@ -14,12 +14,28 @@ const player = new PlayerController(engine.camera, engine.renderer.domElement);
 const environment = new Environment(engine, player);
 window.environment = environment;
 
+function generateCardSeed() {
+    const suits = ['H', 'D', 'C', 'S'];
+    const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+    const deck = [];
+    for (const suit of suits) {
+        for (const rank of ranks) {
+            deck.push(`${rank}${suit}`);
+        }
+    }
+    for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    return [deck[0], deck[1], deck[2], deck[3], deck[4]].join('-');
+}
+
 function loadState() {
     const data = localStorage.getItem('level0_state');
     if (!data) return null;
     try {
         const state = JSON.parse(data);
-        document.getElementById('seedInput').value = state.seed || "BACKROOMS";
+        document.getElementById('seedInput').value = state.seed || generateCardSeed();
         document.getElementById('aspectSelect').value = state.aspect || "1.3333333333";
         document.getElementById('fogSlider').value = state.fog || "5";
         document.getElementById('fovSlider').value = state.fov || "75";
@@ -70,6 +86,9 @@ function saveState() {
 }
 
 const savedState = loadState();
+if (!document.getElementById('seedInput').value) {
+    document.getElementById('seedInput').value = generateCardSeed();
+}
 environment.setup();
 if (savedState) {
     engine.camera.position.set(savedState.px, savedState.py, savedState.pz);
@@ -643,6 +662,7 @@ function animate() {
     engine.anomaly = telemetry.anomalyPressure + (telemetry.paranoia * 0.5);
     engine.darkness = player.perceivedDarkness || 0.0;
     engine.paranoia = telemetry.paranoia;
+    engine.heatTarget = telemetry.activeSector === "INCINERATOR" ? 1.0 : 0.0;
     engine.adrenaline = player.adrenalineTimer > 0 ? (player.adrenalineTimer / 2.5) : 0.0;
     engine.eyesClosed = player.input.state.isClosingEyes ? 1.0 : 0.0;
     if (engine.paranoia > 0.4 && Math.random() < (engine.paranoia * delta * 0.3)) {

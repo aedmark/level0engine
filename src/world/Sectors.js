@@ -45,9 +45,9 @@ const SECTORS = {
         delay: 0.05, feedback: 0.1
     },
     INCINERATOR: {
-        fog: 0.18, fogColor: 0x551100,
-        ambience: {noise: 0.60, peace: 0.01, rumble: 169, freq: 60, freqOcc: 60, whine: 0.0, whineOcc: 0.0, dynamicWhine: false},
-        delay: 0.02, feedback: 0.05
+        fog: 0.28, fogColor: 0x441100,
+        ambience: {noise: 0.65, peace: 0.01, rumble: 269, freq: 60, freqOcc: 60, whine: 0.0, whineOcc: 0.0, dynamicWhine: false},
+        delay: 0.02, feedback: 0.15
     },
     CHASM: {
         fog: 0.20, fogColor: 0x0f1036,

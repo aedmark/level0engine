@@ -180,7 +180,8 @@ export default class Environment {
             map: carpetTexture,
             roughness: 1.0,
             bumpMap: carpetTexture,
-            bumpScale: 0.015
+            bumpScale: 0.015,
+            shadowSide: THREE.DoubleSide
         });
         this.ceilMat = new THREE.MeshStandardMaterial({
             map: ceilingTexture,
@@ -236,7 +237,7 @@ export default class Environment {
         this.dustCloud = new THREE.Points(dustGeo, dustMat);
         this.scene.add(this.dustCloud);
         const exhaustGeo = new THREE.BufferGeometry();
-        const exhaustCount = 450;
+        const exhaustCount = 2000;
         const exhaustPos = new Float32Array(exhaustCount * 3);
         for (let i = 0; i < exhaustCount * 3; i++) {
             exhaustPos[i] = (Math.random() - 0.5) * 30.0;
@@ -562,6 +563,8 @@ export default class Environment {
         this.fixtureData = [];
         this.idlingCars = [];
         this.interactables = [];
+        this.interactiveDoors = [];
+        this.airlocks = [];
         this.macroZones.clear();
         this.spatialGrid.clear();
         this.currentChunkCoords = {x: null, z: null};
@@ -708,6 +711,7 @@ export default class Environment {
                 const centerOffset = (this.chunkSize * this.cellSize) / 2 - (this.cellSize / 2);
                 foundation.position.set(startX * this.cellSize + centerOffset, 0.02, startZ * this.cellSize + centerOffset);
                 foundation.receiveShadow = true;
+                foundation.castShadow = true;
                 chunkGroup.add(foundation);
             }
             if (activeSector.ceilingMat) {
@@ -731,6 +735,7 @@ export default class Environment {
             floor.rotation.x = -Math.PI / 2;
             floor.position.set(startX * this.cellSize + centerOffset, 0, startZ * this.cellSize + centerOffset);
             floor.receiveShadow = true;
+            floor.castShadow = true;
             chunkGroup.add(floor);
         }
 
@@ -800,6 +805,23 @@ export default class Environment {
                 }
                 let isWall = iter > 6;
                 if (random() > 0.70) isWall = !isWall;
+                
+                const inNRing = localZ === 3 && localX >= 3 && localX <= 11;
+                const inSRing = localZ === 11 && localX >= 3 && localX <= 11;
+                const inWRing = localX === 3 && localZ >= 3 && localZ <= 11;
+                const inERing = localX === 11 && localZ >= 3 && localZ <= 11;
+                
+                const inNPath = localX === 7 && localZ <= 3;
+                const inSPath = localX === 7 && localZ >= 11;
+                const inWPath = localZ === 7 && localX <= 3;
+                const inEPath = localZ === 7 && localX >= 11;
+
+                const isArtery = inNRing || inSRing || inWRing || inERing || inNPath || inSPath || inWPath || inEPath;
+                const isBlocker = localX >= 5 && localX <= 9 && localZ >= 5 && localZ <= 9;
+
+                if (isBlocker) isWall = true;
+                if (isArtery) isWall = false;
+
                 if (isWall) {
                     const structRoll = random();
                     const structure = structuralMatrix.find(s => structRoll >= s.prob);
@@ -824,7 +846,7 @@ export default class Environment {
                             ceilingStain.scale.set(scale * 1.3, scale * 1.3, scale * 1.3);
                             ctx.addGeometry(ceilingStain);
                         }
-                    } else if (floorRoll > 0.80) {
+                    } else if (floorRoll > 0.80 && !isArtery) {
                         hasTallObstacle = true;
                         const divW = random() > 0.5 ? this.cellSize * 0.8 : this.cellSize * 0.2;
                         const divD = divW === this.cellSize * 0.8 ? this.cellSize * 0.2 : this.cellSize * 0.8;
@@ -877,7 +899,7 @@ export default class Environment {
                                 stagingMeshes.push(glow);
                             }
                         }
-                    } else if (!hasTallObstacle && random() > 0.95 && chunkBreakerCount < 3) {
+                    } else if (!hasTallObstacle && random() > 0.95 && chunkBreakerCount < 3 && !isArtery) {
                         const px = x * this.cellSize;
                         const pz = z * this.cellSize;
                         let isTooClose = false;
@@ -948,8 +970,8 @@ export default class Environment {
     // hallway seals now live in SetPieces.js - kept as thin delegators so
     // every existing call site (this._buildXxx(...), including the ones
     // TheArchitect.js calls under its .call(this, ctx) binding) keeps working.
-    _buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId) {
-        return this.setPieces.buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId);
+    _buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId, buildWalls = true) {
+        return this.setPieces.buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId, buildWalls);
     }
     _generateSectorMaze(randomFn) {
         return this.setPieces.generateSectorMaze(randomFn);
@@ -1161,13 +1183,22 @@ export default class Environment {
         }
         if (this.exhaustCloud) {
             this.exhaustCloud.position.copy(cameraPos);
-            this.exhaustCloud.rotation.y = time * -0.07;
-            this.exhaustCloud.rotation.x = time * 0.04;
-            const targetExhaustOpacity = (activeSector === "INCINERATOR") ? 0.85 : ((activeSector === "SERVER") ? 0.35 : 0.0);
+            
+            const isIncinerator = activeSector === "INCINERATOR";
+            this.exhaustCloud.rotation.y = time * (isIncinerator ? -0.18 : -0.07);
+            this.exhaustCloud.rotation.x = time * (isIncinerator ? 0.12 : 0.04);
+            
+            const targetExhaustOpacity = isIncinerator ? 0.95 : ((activeSector === "SERVER") ? 0.35 : 0.0);
             const exhaustRate = targetExhaustOpacity > this.exhaustMat.opacity ? 0.08 : 0.20;
             this.exhaustMat.opacity += (targetExhaustOpacity - this.exhaustMat.opacity) * exhaustRate;
+            
+            const targetColor = isIncinerator ? 0xff4400 : 0x00ffcc;
+            this.exhaustMat.color.lerp(new THREE.Color(targetColor), 0.05);
+
             if (this.exhaustMat.opacity > 0.01) {
-                this.exhaustMat.size = 0.08 + (Math.sin(time * 12.0) * 0.02);
+                const baseSize = isIncinerator ? 0.18 : 0.08;
+                const pulse = isIncinerator ? Math.sin(time * 24.0) * 0.05 : Math.sin(time * 12.0) * 0.02;
+                this.exhaustMat.size = baseSize + pulse;
             }
         }
         const anomalyPressure = this.player.anomalyPressure || 0;
@@ -1251,11 +1282,13 @@ export default class Environment {
             let targetAmbient = Math.max(minAmbient, baseAmbient - (darknessPressure * 0.4));
             if (this._stickySectorId === "IMPOUND" || this._stickySectorId === "CHASM") targetAmbient = 0.0;
             else if (this._stickySectorId === "ARCHIVE") targetAmbient = 0.25;
+            else if (this._stickySectorId === "INCINERATOR") targetAmbient = 0.15;
             this.engine.ambientLight.intensity += (targetAmbient - this.engine.ambientLight.intensity) * 0.05;
             if (this.glowMat) {
                 let targetGlowOpacity = Math.max(0.0, 1.0 - (darknessPressure * 0.4));
                 if (this._stickySectorId === "IMPOUND" || this._stickySectorId === "CHASM") targetGlowOpacity = 0.0;
                 else if (this._stickySectorId === "ARCHIVE") targetGlowOpacity = 0.15;
+                else if (this._stickySectorId === "INCINERATOR") targetGlowOpacity = 0.1;
                 this.glowMat.opacity += (targetGlowOpacity - this.glowMat.opacity) * 0.1;
             }
         }

@@ -430,7 +430,8 @@ export default class SetPieces {
             }
             env._buildAirlock(chunkGroup, hash, outer.x * env.cellSize, outer.z * env.cellSize, spansX, sectorId, outSign);
             if (needsFloor || needsCeiling) {
-                env._buildHallwaySegment(chunkGroup, hash, innerCellX * env.cellSize, innerCellZ * env.cellSize, spansX, needsFloor, needsCeiling, sectorId);
+                env._buildHallwaySegment(chunkGroup, hash, innerCellX * env.cellSize, innerCellZ * env.cellSize, spansX, needsFloor, needsCeiling, sectorId, true);
+                env._buildHallwaySegment(chunkGroup, hash, outer.x * env.cellSize, outer.z * env.cellSize, spansX, needsFloor, needsCeiling, sectorId, false);
             }
         }
     }
@@ -451,6 +452,8 @@ export default class SetPieces {
         const midZ = dcz + (spansX ? inSign * chamberDepth * 0.5 : 0);
 
         const addGeometry = (mesh) => {
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
             mesh.userData.chunkHash = hash;
             mesh.updateMatrixWorld(true);
             if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
@@ -701,9 +704,11 @@ export default class SetPieces {
         if (!env.airlocks) env.airlocks = [];
         env.airlocks.push(airlock);
     }
-    buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId) {
+    buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId, buildWalls = true) {
         const env = this.env;
         const addGeometry = (mesh) => {
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
             mesh.userData.chunkHash = hash;
             mesh.updateMatrixWorld(true);
             if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
@@ -714,18 +719,20 @@ export default class SetPieces {
             chunkGroup.add(mesh);
             env.walls.push(mesh);
         };
-        const wallKey = `hallwayWall_${spansX}`;
-        let wallGeo = env.geoCache.get(wallKey);
-        if (!wallGeo) {
-            wallGeo = new THREE.BoxGeometry(spansX ? 0.4 : env.cellSize, 3.0, spansX ? env.cellSize : 0.4);
-            env.geoCache.set(wallKey, wallGeo);
-            env.geoCache.set(wallGeo.uuid, true);
-        }
-        for (const side of [-1, 1]) {
-            const wall = new THREE.Mesh(wallGeo, env.structMat);
-            if (spansX) wall.position.set(cx + side * 1.75, 1.5, cz);
-            else wall.position.set(cx, 1.5, cz + side * 1.75);
-            addGeometry(wall);
+        if (buildWalls) {
+            const wallKey = `hallwayWall_${spansX}`;
+            let wallGeo = env.geoCache.get(wallKey);
+            if (!wallGeo) {
+                wallGeo = new THREE.BoxGeometry(spansX ? 0.4 : env.cellSize, 3.0, spansX ? env.cellSize : 0.4);
+                env.geoCache.set(wallKey, wallGeo);
+                env.geoCache.set(wallGeo.uuid, true);
+            }
+            for (const side of [-1, 1]) {
+                const wall = new THREE.Mesh(wallGeo, env.structMat);
+                if (spansX) wall.position.set(cx + side * 1.75, 1.5, cz);
+                else wall.position.set(cx, 1.5, cz + side * 1.75);
+                addGeometry(wall);
+            }
         }
         if (needsFloor || needsCeiling) {
             const floorKey = 'hallwayFloorCeil';

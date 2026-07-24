@@ -195,7 +195,7 @@ export default class ProceduralTextureFactory {
         const tileTexture = new THREE.CanvasTexture(tileCanvas);
         tileTexture.wrapS = tileTexture.wrapT = THREE.RepeatWrapping;
         tileTexture.repeat.set(16, 16);
-        const tileMat = new THREE.MeshStandardMaterial({map: tileTexture, roughness: 0.1, metalness: 0.6});
+        const tileMat = new THREE.MeshStandardMaterial({map: tileTexture, roughness: 0.1, metalness: 0.6, shadowSide: THREE.DoubleSide});
         const {canvas: clinicCanvas, ctx: cCtx} = this._createContext(256, 256);
         cCtx.fillStyle = '#e8ecef';
         cCtx.fillRect(0, 0, 256, 256);
@@ -222,7 +222,8 @@ export default class ProceduralTextureFactory {
             bumpMap: clinicBumpTex,
             bumpScale: 0.015,
             roughness: 0.1,
-            metalness: 0.15
+            metalness: 0.15,
+            shadowSide: THREE.DoubleSide
         });
         return {carpetTexture, ceilingTexture, tileMat, clinicMat};
     }

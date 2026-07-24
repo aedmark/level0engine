@@ -130,12 +130,23 @@ export default class LumenGrid {
                 const inactiveLight = wrapper.isSpot ? wrapper.point : wrapper.spot;
                 inactiveLight.intensity = 0;
                 
+                const isLH = fixture.isLighthouse;
                 const isShadowCaster = i < this.maxShadowLights;
                 fixture.hasShadow = isShadowCaster;
-                if (isShadowCaster && (this._shadowSlotFixtures[i] !== fixture || shadowRefreshDue)) {
-                    this._shadowSlotFixtures[i] = fixture;
-                    light.shadow.needsUpdate = true;
+                
+                if (isShadowCaster) {
+                    const reqFar = isLH ? 150.0 : 20.0;
+                    if (light.shadow.camera.far !== reqFar) {
+                        light.shadow.camera.far = reqFar;
+                        light.shadow.camera.updateProjectionMatrix();
+                        light.shadow.needsUpdate = true;
+                    }
+                    if (this._shadowSlotFixtures[i] !== fixture || shadowRefreshDue) {
+                        this._shadowSlotFixtures[i] = fixture;
+                        light.shadow.needsUpdate = true;
+                    }
                 }
+                
                 if (fixture.distSq < minLightDistSq) {
                     minLightDistSq = fixture.distSq;
                     nearestFixture = fixture;
@@ -144,7 +155,6 @@ export default class LumenGrid {
                 if (wrapper.isSpot && fixture.targetPos) {
                     light.target.position.copy(fixture.targetPos);
                 }
-                const isLH = fixture.isLighthouse;
                 light.distance = isLH ? 150.0 : (isShadowCaster ? 20.0 : 10.0);
                 
                 const dist = Math.sqrt(fixture.distSq);
