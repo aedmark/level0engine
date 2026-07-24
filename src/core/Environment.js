@@ -205,6 +205,18 @@ export default class Environment {
             this.metalMat.bumpMap = this.structMat.map;
             this.metalMat.bumpScale = 0.03;
         }
+        const particleCanvas = document.createElement('canvas');
+        particleCanvas.width = 32;
+        particleCanvas.height = 32;
+        const particleCtx = particleCanvas.getContext('2d');
+        const gradient = particleCtx.createRadialGradient(16, 16, 0, 16, 16, 16);
+        gradient.addColorStop(0, 'rgba(255,255,255,1)');
+        gradient.addColorStop(0.4, 'rgba(255,255,255,0.5)');
+        gradient.addColorStop(1, 'rgba(255,255,255,0)');
+        particleCtx.fillStyle = gradient;
+        particleCtx.fillRect(0, 0, 32, 32);
+        const particleTex = new THREE.CanvasTexture(particleCanvas);
+
         const dustGeo = new THREE.BufferGeometry();
         const dustCount = 2500;
         const dustPos = new Float32Array(dustCount * 3);
@@ -215,9 +227,11 @@ export default class Environment {
         const dustMat = new THREE.PointsMaterial({
             color: 0xffffff,
             size: 0.05,
+            map: particleTex,
             transparent: true,
             opacity: 0.10,
-            depthWrite: false
+            depthWrite: false,
+            alphaTest: 0.01
         });
         this.dustCloud = new THREE.Points(dustGeo, dustMat);
         this.scene.add(this.dustCloud);
@@ -231,9 +245,11 @@ export default class Environment {
         this.exhaustMat = new THREE.PointsMaterial({
             color: 0x00ffcc,
             size: 0.08,
+            map: particleTex,
             transparent: true,
             opacity: 0.0,
             depthWrite: false,
+            alphaTest: 0.01,
             blending: THREE.AdditiveBlending
         });
         this.exhaustCloud = new THREE.Points(exhaustGeo, this.exhaustMat);
@@ -932,8 +948,8 @@ export default class Environment {
     // hallway seals now live in SetPieces.js - kept as thin delegators so
     // every existing call site (this._buildXxx(...), including the ones
     // TheArchitect.js calls under its .call(this, ctx) binding) keeps working.
-    _buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling) {
-        return this.setPieces.buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling);
+    _buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId) {
+        return this.setPieces.buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId);
     }
     _generateSectorMaze(randomFn) {
         return this.setPieces.generateSectorMaze(randomFn);
@@ -958,7 +974,7 @@ export default class Environment {
             if (group.meshes.length > 1) {
                 const iMesh = new THREE.InstancedMesh(group.geometry, group.material, group.meshes.length);
                 if (!isDecal) {
-                    iMesh.castShadow = true;
+                    iMesh.castShadow = (group.material !== this.fenceMat);
                     iMesh.receiveShadow = true;
                 }
                 iMesh.userData.chunkHash = hash;
@@ -980,7 +996,7 @@ export default class Environment {
                 const mesh = group.meshes[0];
                 mesh.matrixWorld.decompose(mesh.position, mesh.quaternion, mesh.scale);
                 if (!isDecal) {
-                    mesh.castShadow = true;
+                    mesh.castShadow = (group.material !== this.fenceMat);
                     mesh.receiveShadow = true;
                     this.walls.push(mesh);
                 }
@@ -1000,6 +1016,17 @@ export default class Environment {
         return this.anomaly.update(delta, time);
     }
     updateLights(time) {
+        if (this.fixtureData) {
+            for (let i = 0; i < this.fixtureData.length; i++) {
+                const fixture = this.fixtureData[i];
+                if (fixture.isLighthouse) {
+                    const angle = time * fixture.sweepSpeed + fixture.sweepPhase;
+                    fixture.targetPos.x = fixture.position.x + Math.cos(angle) * 10.0;
+                    fixture.targetPos.z = fixture.position.z + Math.sin(angle) * 10.0;
+                    fixture.targetPos.y = 0.0; // Point beam vertically towards the catwalk path
+                }
+            }
+        }
         const cameraPos = this.camera.position;
         if (!this.audioRaycaster) {
             this.audioRaycaster = new THREE.Raycaster();
@@ -1098,11 +1125,12 @@ export default class Environment {
             const inImpound = activeSector === "IMPOUND";
             const inAnnex = activeSector === "ANNEX";
             const inServer = activeSector === "SERVER";
+            const inChasm = activeSector === "CHASM";
             
             this.dustCloud.rotation.y = time * 0.025;
             
             const positions = this.dustCloud.geometry.attributes.position.array;
-            const fallSpeed = inImpound ? 0.04 : (inAnnex ? -0.01 : 0.0025);
+            const fallSpeed = inImpound ? 0.04 : (inAnnex ? -0.01 : (inChasm ? -0.02 : 0.0025));
             for (let i = 0; i < positions.length; i += 3) {
                 if (inServer) {
                     positions[i] += 0.18;
@@ -1117,18 +1145,18 @@ export default class Environment {
             }
             this.dustCloud.geometry.attributes.position.needsUpdate = true;
             
-            const baseOpacity = inImpound ? 0.6 : (inArchive ? 0.30 : (inAnnex ? 0.45 : (inServer ? 0.35 : 0.10)));
-            const crawlOpacity = inImpound ? 0.7 : (inArchive ? 0.45 : (inAnnex ? 0.55 : (inServer ? 0.45 : 0.35)));
+            const baseOpacity = inImpound ? 0.6 : (inArchive ? 0.30 : (inAnnex ? 0.45 : (inServer ? 0.35 : (inChasm ? 0.65 : 0.10))));
+            const crawlOpacity = inImpound ? 0.7 : (inArchive ? 0.45 : (inAnnex ? 0.55 : (inServer ? 0.45 : (inChasm ? 0.75 : 0.35))));
             const targetDustOpacity = this.player.isCrawling ? crawlOpacity : baseOpacity;
             
-            const baseSize = inImpound ? 0.18 : (inArchive ? 0.07 : (inAnnex ? 0.45 : (inServer ? 0.12 : 0.05)));
-            const crawlSize = inImpound ? 0.22 : (inArchive ? 0.09 : (inAnnex ? 0.50 : (inServer ? 0.16 : 0.08)));
+            const baseSize = inImpound ? 0.18 : (inArchive ? 0.07 : (inAnnex ? 0.45 : (inServer ? 0.12 : (inChasm ? 0.35 : 0.05))));
+            const crawlSize = inImpound ? 0.22 : (inArchive ? 0.09 : (inAnnex ? 0.50 : (inServer ? 0.16 : (inChasm ? 0.45 : 0.08))));
             const targetDustSize = this.player.isCrawling ? crawlSize : baseSize;
             
             this.dustCloud.material.opacity += (targetDustOpacity - this.dustCloud.material.opacity) * 0.05;
             this.dustCloud.material.size += (targetDustSize - this.dustCloud.material.size) * 0.05;
             
-            const targetColor = inAnnex ? 0xe8ddc5 : 0xffffff;
+            const targetColor = inAnnex ? 0xe8ddc5 : (inChasm ? 0x2288ff : 0xffffff);
             this.dustCloud.material.color.lerp(new THREE.Color(targetColor), 0.05);
         }
         if (this.exhaustCloud) {
@@ -1206,7 +1234,7 @@ export default class Environment {
             this.player.updateObjectives(signalText);
         }
         if (this.flashlight) {
-            let targetIntensity = this.player.flashlightActive ? 1.1 : 0.0;
+            let targetIntensity = this.player.flashlightActive ? 4.2 : 0.0;
             if (this.player.flashlightActive) {
                 const batteryFactor = Math.min(1.0, this.player.flashlightBattery / 30.0);
                 targetIntensity *= (0.1 + 0.9 * batteryFactor);
@@ -1221,11 +1249,11 @@ export default class Environment {
             const baseAmbient = 0.85;
             const minAmbient = 0.005;
             let targetAmbient = Math.max(minAmbient, baseAmbient - (darknessPressure * 0.4));
-            if (this._stickySectorId === "IMPOUND") targetAmbient = 0.0;
+            if (this._stickySectorId === "IMPOUND" || this._stickySectorId === "CHASM") targetAmbient = 0.0;
             this.engine.ambientLight.intensity += (targetAmbient - this.engine.ambientLight.intensity) * 0.05;
             if (this.glowMat) {
                 let targetGlowOpacity = Math.max(0.0, 1.0 - (darknessPressure * 0.4));
-                if (this._stickySectorId === "IMPOUND") targetGlowOpacity = 0.0;
+                if (this._stickySectorId === "IMPOUND" || this._stickySectorId === "CHASM") targetGlowOpacity = 0.0;
                 this.glowMat.opacity += (targetGlowOpacity - this.glowMat.opacity) * 0.1;
             }
         }

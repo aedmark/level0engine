@@ -1,5 +1,49 @@
 # Level 0 Engine Changelog
 
+## [v0.5.2] - 2026-07-23
+
+_The Chasm Overhaul Update_
+
+#### Added
+
+- **[GEOMETRY] Procedural Chasm Lighthouses:** Completely replaced ambient lighting in the Chasm sector with a procedural lighthouse system. Massive spotlight towers now spawn dynamically deep in the abyss (between `y = -25.0` and `y = 9.0`), casting sweeping, volumetric beams that explicitly track the walkable catwalk level. The engine strictly guarantees 4 to 7 lighthouses per chunk, providing dramatic, intersecting shadows that emphasize the vast verticality.
+- **[AUDIO] Chasm Foley Profile:** The Chasm now features a custom procedural footstep acoustic profile. Stepping on the catwalk triggers a fast-attack `240Hz` triangle wave passed through a `1600Hz` bandpass filter with a long decay, perfectly simulating the heavy, echoing clank of walking across rusty industrial grating (reminiscent of the grating sounds from Silent Hill).
+- **[GEOMETRY] Catwalk Truss Infrastructure:** The Chasm's floating floor tiles have been completely overhauled. The catwalks are now supported by a massive, procedural structural truss system consisting of corner support legs dropping 80 meters into the void, reinforced by an intricate network of X-braced diagonal crossbeams. The generic half-wall railings were also replaced with harsh black-iron bar railings.
+- **[FX] Abyssal Spore Particles:** The Chasm's particle system now generates a slow-moving, upward-drifting cloud of bioluminescent blue spores, creating an eerie, deep-sea aquatic aesthetic as they float up from the darkness below.
+
+#### Changed
+
+- **[LIGHTING] LumenGrid Lighthouse Culling:** Updated the engine's `LumenGrid` occlusion subsystem with a special architectural exception for lighthouses. Previously, aggressive bounds would cull all light sources over 35 meters away. Lighthouses now have an expanded culling boundary of 120 meters and their physical `SpotLight` distance has been boosted to 150 meters, allowing them to remain active and cast dynamic shadows from across the entire sector.
+- **[GEOMETRY] Sector-Aware Airlock Ceilings:** The engine's chunk builder now dynamically passes sector IDs down into the perimeter hallway logic. Airlocks transitioning into the Chasm no longer generate an immersion-breaking 2D drop-ceiling plane; instead, they generate a 3D flush structural cap with an internal dropped bezel ring rendered in dark industrial metal, perfectly framing the entrance into the void.
+- **[LIGHTING] Flashlight Calibration:** Drastically boosted the player's flashlight intensity in `Environment.js` to counteract the total removal of ambient lighting in dark sectors like the Chasm and the Impound, rendering it highly effective and essential for navigation.
+- **[AESTHETICS] Catwalk Perforated Grating:** The generic tile floor of the Chasm has been replaced with a procedural rusted metal material. It utilizes a dynamically generated canvas texture that simulates a dotted perforation pattern using `destination-out` composite operations, making the floor physically transparent so players can see the darkness—and the sweeping lighthouse beams—directly through the grating beneath their feet.
+- **[AUDIO] Environmental Groans:** Implemented procedural metallic groaning synthesis in `AcousticEngine` with randomized pitch drops and varied durations, sounding like a sinking ship settling into the abyss.
+
+
+## [v0.5.1] - 2026-07-23
+
+_The Checkpoint Guidance & Sector Hunt Update_
+
+#### Added
+
+- **[UI] Sector Hunt Debug Tool:** Added a sector selection dropdown to the debug overlay. Engaging it triggers a rapid background generation loop that hunts for the chosen sector and immediately teleports the player to it, removing the guesswork from targeted environment testing.
+- **[UI] Interactive Crosshair:** The center reticle now acts as a dynamic interaction probe. When the player aims at an interactable entity (clipboards, keypads, doors, etc.) within range, the crosshair expands to clearly signal that an action is available, bridging the gap between presence and interaction.
+- **[AUDIO] Procedural Sector Foley:** Added two new sector-specific acoustic loops to `AcousticEngine`:
+  - `CHECKPOINT`: Emits erratic digital static, data processing hums, and monitor glitches to give life to the massive central terminal core.
+  - `BOARDROOM`: Features eerie, muffled corporate echoes—shuffling papers, distant ringing phones, and intermittent pen clicks—cutting through a heavily reduced white-noise floor.
+
+#### Changed
+
+- **[GEOMETRY] Checkpoint Painted Guiding Lines:** The Checkpoint sector floor has been upgraded from generic tile to a tiling concrete texture layered with colored directional stripes (red, yellow, blue). Rather than stretching a low-res texture across the chunk, the stripes are generated natively as dedicated planar decals that flawlessly trace the corridors. They intersect seamlessly at the central monitor core via a custom cross texture and properly extend underneath the sector's entrance airlocks.
+- **[PARTICLES] Volumetric Smoke Particles:** Refactored the engine's particle geometry. Smoke and dust clouds (most notably in the Annex) no longer render as flat, ghostly squares. They now use a procedural radial-alpha sphere mapping, smoothly blending out at the edges to simulate authentic volumetric gas.
+- **[NARRATIVE] Context-Aware Document UI:** The document reading interface now adapts to the nature of the prop. Paper notes and records are rendered pinned to a physical clipboard overlay, while electronic logs and laptop terminals display within a high-contrast, glowing retro CRT interface.
+
+#### Fixed
+
+- **[LIGHTING] Solid Fence Shadows:** Chainlink fences in the Impound yard and throughout the facility incorrectly cast solid, impenetrable wall shadows. The fence material has been properly exempted from the shadow-caster pass.
+- **[LIGHTING] Stadium Light Cones:** Stadium fixtures in the Impound sector were casting omnidirectional light, projecting impossible shadows directly backward onto their own poles. They now correctly project a focused 45-degree spotlight cone.
+- **[AUDIO] The Anomaly Airlock Stutter:** Fixed a critical acoustic collision where the Anomaly attempting to shoulder through a sliding airlock door would continuously re-trigger the interaction event, causing the heavy hydraulic hiss to stack into a deafening, infinite audio glitch.
+
 ## [v0.5.0] - 2026-07-22
 
 _The Architectural Exodus & Agricultural Expansion Update_

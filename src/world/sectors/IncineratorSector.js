@@ -79,7 +79,7 @@ export const IncineratorSector = (env, ctx) => {
                         }
                         return;
                     }
-                    const ductMat = env.ventMat || env.metalMat || env.rustMat;
+                    const ductMat = env.ductMat || env.ventMat || env.metalMat || env.rustMat;
                     if (!env.emberGrilleMat) {
                         env.emberGrilleMat = new THREE.MeshStandardMaterial({
                             color: 0x2a1005, emissive: 0xff5500, emissiveIntensity: 1.2, roughness: 0.9

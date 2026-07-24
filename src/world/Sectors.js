@@ -17,7 +17,7 @@ const SECTORS = {
     },
     BOARDROOM: {
         fog: 0.01, fogColor: 0xa0bbd6,
-        ambience: {noise: 0.4, peace: 0.0, rumble: 60, freq: 250, freqOcc: 120, whine: 0.0, whineOcc: 0.0, dynamicWhine: false},
+        ambience: {noise: 0.05, peace: 0.0, rumble: 60, freq: 250, freqOcc: 120, whine: 0.0, whineOcc: 0.0, dynamicWhine: false},
         foley: {oscFreq: 120, filterType: 'lowpass', filterFreq: 1400, gain: 0.18, attack: 0.02, decay: 0.12},
         delay: 0.25, feedback: 0.35
     },
@@ -50,8 +50,9 @@ const SECTORS = {
         delay: 0.02, feedback: 0.05
     },
     CHASM: {
-        fog: 0.15, fogColor: 0x000000,
+        fog: 0.20, fogColor: 0x0f1036,
         ambience: {noise: 0.25, peace: 0.0, rumble: 30, freq: 40, freqOcc: 40, whine: 0.0, whineOcc: 0.0, dynamicWhine: false},
+        foley: {oscFreq: 240, filterType: 'bandpass', filterFreq: 1600, gain: 0.18, attack: 0.005, decay: 0.3},
         delay: 0.8, feedback: 0.7
     },
     ATRIUM: {
@@ -67,7 +68,11 @@ const SECTORS = {
         delay: 0.1, feedback: 0.12
     },
     EXIT: {fog: 0.05},
-    CHECKPOINT: {fog: 0.05}
+    CHECKPOINT: {
+        fog: 0.05,
+        ambience: {noise: 0.2, peace: 0.0, rumble: 80, freq: 1000, freqOcc: 500, whine: 0.05, whineOcc: 0.01, dynamicWhine: true},
+        foley: {oscFreq: 800, filterType: 'bandpass', filterFreq: 2000, gain: 0.1, attack: 0.01, decay: 0.1}
+    }
 };
 
 export default SECTORS;

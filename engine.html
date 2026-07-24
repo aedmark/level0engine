@@ -753,7 +753,23 @@
                 Flashlight | '1' Use Battery<br>'2' Use Water | LMB to Look<br>RMB to Lean</p><br>
         </div><br>
         <label>Architecture Seed (String)</label>
-        <input type="text" id="seedInput" value="LVL0410">
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+            <input type="text" id="seedInput" value="LVL0410" style="margin-bottom: 0;">
+            <select id="sectorHuntSelect" class="btn" style="margin-bottom: 0; padding: 0.5rem;">
+                <option value="">Find Sector...</option>
+                <option value="ARCHIVE">Archive</option>
+                <option value="IMPOUND">Impound</option>
+                <option value="ANNEX">Annex</option>
+                <option value="SERVER">Server</option>
+                <option value="BOARDROOM">Boardroom</option>
+                <option value="INCINERATOR">Incinerator</option>
+                <option value="ATRIUM">Atrium</option>
+                <option value="CLINIC">Clinic</option>
+                <option value="MAINTENANCE">Maintenance</option>
+                <option value="CHASM">Chasm</option>
+                <option value="CHECKPOINT">Checkpoint</option>
+            </select>
+        </div>
         <label>Teleport (X / Z)</label>
         <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
             <input type="text" id="teleportX" placeholder="X" style="margin-bottom: 0;">

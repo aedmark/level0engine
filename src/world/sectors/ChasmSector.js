@@ -24,9 +24,96 @@ export const ChasmSector = (env, ctx) => {
                     const isVoid = !maze || maze[localX][localZ];
                     const gx = x * env.cellSize, gz = z * env.cellSize;
                     if (!isVoid) {
-                        const bFloor = buildWall(env.cellSize, env.cellSize, env.diamondPlateMat || env.structMat, 0.2);
-                        bFloor.position.set(gx, -0.1, gz);
-                        addGeometry(bFloor);
+                            if (!env.catwalkMat) {
+                                const cwCanvas = document.createElement('canvas');
+                                cwCanvas.width = cwCanvas.height = 128;
+                                const cctx = cwCanvas.getContext('2d');
+                                cctx.fillStyle = '#4a2c1a'; // Dark rust base
+                                cctx.fillRect(0, 0, 128, 128);
+                                for(let i=0; i<1500; i++) {
+                                    cctx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.15)';
+                                    cctx.fillRect(Math.random()*128, Math.random()*128, 2, 2);
+                                }
+                                cctx.globalCompositeOperation = 'destination-out';
+                                const cols = 6, rows = 6;
+                                const sx = 128/cols, sy = 128/rows;
+                                for (let y = 0; y < rows; y++) {
+                                    for (let x = 0; x < cols; x++) {
+                                        const ox = (y % 2 === 0) ? 0 : sx / 2;
+                                        cctx.beginPath();
+                                        cctx.arc(x*sx + ox, y*sy + sy/2, 5, 0, Math.PI * 2);
+                                        cctx.fill();
+                                    }
+                                }
+                                const tex = new THREE.CanvasTexture(cwCanvas);
+                                tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+                                tex.repeat.set(12, 12); // Grid scaling
+                                env.catwalkMat = new THREE.MeshStandardMaterial({
+                                    map: tex, 
+                                    transparent: true, 
+                                    alphaTest: 0.5,
+                                    metalness: 0.8,
+                                    roughness: 0.6,
+                                    side: THREE.DoubleSide
+                                });
+                            }
+                            
+                            const floorGeo = new THREE.PlaneGeometry(env.cellSize, env.cellSize);
+                            const bFloor = new THREE.Mesh(floorGeo, env.catwalkMat);
+                            bFloor.rotation.x = -Math.PI / 2;
+                            bFloor.position.set(gx, 0, gz);
+                            addGeometry(bFloor);
+                            
+                            if (!env.blackIronMat) env.blackIronMat = new THREE.MeshStandardMaterial({color: 0x151515, roughness: 0.7, metalness: 0.9});
+                            const hx = env.cellSize / 2;
+                            const tb1 = buildWall(env.cellSize, 0.1, env.blackIronMat, 0.2);
+                            tb1.position.set(gx, -0.1, gz - hx + 0.05); addGeometry(tb1);
+                            const tb2 = buildWall(env.cellSize, 0.1, env.blackIronMat, 0.2);
+                            tb2.position.set(gx, -0.1, gz + hx - 0.05); addGeometry(tb2);
+                            const tb3 = buildWall(0.1, env.cellSize - 0.2, env.blackIronMat, 0.2);
+                            tb3.position.set(gx - hx + 0.05, -0.1, gz); addGeometry(tb3);
+                            const tb4 = buildWall(0.1, env.cellSize - 0.2, env.blackIronMat, 0.2);
+                            tb4.position.set(gx + hx - 0.05, -0.1, gz); addGeometry(tb4);
+
+                            const drop = 80;
+                            const lPos = env.cellSize / 2 - 0.1;
+                            for (const dx of [-lPos, lPos]) {
+                                for (const dz of [-lPos, lPos]) {
+                                    const leg = buildWall(0.2, 0.2, env.blackIronMat, drop);
+                                    leg.position.set(gx + dx, -drop/2, gz + dz);
+                                    addGeometry(leg);
+                                }
+                            }
+                            
+                            const span = env.cellSize - 0.2;
+                            const depth = 4.0;
+                            const diagLen = Math.sqrt(span*span + depth*depth);
+                            const angle = Math.atan2(depth, span);
+                            
+                            for (let y = -4; y > -drop; y -= 4) {
+                                for (const dz of [-lPos, lPos]) {
+                                    const cross1 = buildWall(diagLen, 0.1, env.blackIronMat, 0.1);
+                                    cross1.rotation.z = angle;
+                                    cross1.position.set(gx, y, gz + dz);
+                                    addGeometry(cross1);
+                                    
+                                    const cross2 = buildWall(diagLen, 0.1, env.blackIronMat, 0.1);
+                                    cross2.rotation.z = -angle;
+                                    cross2.position.set(gx, y, gz + dz);
+                                    addGeometry(cross2);
+                                }
+                                for (const dx of [-lPos, lPos]) {
+                                    const cross1 = buildWall(0.1, diagLen, env.blackIronMat, 0.1);
+                                    cross1.rotation.x = angle;
+                                    cross1.position.set(gx + dx, y, gz);
+                                    addGeometry(cross1);
+                                    
+                                    const cross2 = buildWall(0.1, diagLen, env.blackIronMat, 0.1);
+                                    cross2.rotation.x = -angle;
+                                    cross2.position.set(gx + dx, y, gz);
+                                    addGeometry(cross2);
+                                }
+                            }
                         const checkVoid = (nx, nz) => {
                             if (nx < 0 || nx >= env.chunkSize || nz < 0 || nz >= env.chunkSize) return false;
                             return !maze || maze[nx][nz];
@@ -35,40 +122,59 @@ export const ChasmSector = (env, ctx) => {
                         const vE = checkVoid(localX + 1, localZ);
                         const vN = checkVoid(localX, localZ - 1);
                         const vS = checkVoid(localX, localZ + 1);
+                        if (!env.blackIronMat) env.blackIronMat = new THREE.MeshStandardMaterial({color: 0x151515, roughness: 0.7, metalness: 0.9});
+                        const buildRailZ = (x, z, len) => {
+                            const top = buildWall(0.08, len, env.blackIronMat, 0.08);
+                            top.position.set(x, 1.15, z);
+                            addGeometry(top);
+                            const mid = buildWall(0.05, len, env.blackIronMat, 0.05);
+                            mid.position.set(x, 0.6, z);
+                            addGeometry(mid);
+                            for (let p = -len/2 + 0.5; p < len/2; p += 1.5) {
+                                const vpost = buildWall(0.08, 0.08, env.blackIronMat, 1.2);
+                                vpost.position.set(x, 0.6, z + p);
+                                addGeometry(vpost);
+                            }
+                        };
+                        const buildRailX = (x, z, len) => {
+                            const top = buildWall(len, 0.08, env.blackIronMat, 0.08);
+                            top.position.set(x, 1.15, z);
+                            addGeometry(top);
+                            const mid = buildWall(len, 0.05, env.blackIronMat, 0.05);
+                            mid.position.set(x, 0.6, z);
+                            addGeometry(mid);
+                            for (let p = -len/2 + 0.5; p < len/2; p += 1.5) {
+                                const vpost = buildWall(0.08, 0.08, env.blackIronMat, 1.2);
+                                vpost.position.set(x + p, 0.6, z);
+                                addGeometry(vpost);
+                            }
+                        };
                         if (vW) {
                             const extN = !vN, extS = !vS;
                             const len = env.cellSize + (extN ? 0.2 : 0) + (extS ? 0.2 : 0);
                             const cz = (extS ? 0.1 : 0) - (extN ? 0.1 : 0);
-                            const railing = buildWall(0.15, len, env.rustMat, 1.2);
-                            railing.position.set(gx - 1.8, 0.6, gz + cz);
-                            addGeometry(railing);
+                            buildRailZ(gx - 1.8, gz + cz, len);
                         }
                         if (vE) {
                             const extN = !vN, extS = !vS;
                             const len = env.cellSize + (extN ? 0.2 : 0) + (extS ? 0.2 : 0);
                             const cz = (extS ? 0.1 : 0) - (extN ? 0.1 : 0);
-                            const railing = buildWall(0.15, len, env.rustMat, 1.2);
-                            railing.position.set(gx + 1.8, 0.6, gz + cz);
-                            addGeometry(railing);
+                            buildRailZ(gx + 1.8, gz + cz, len);
                         }
                         if (vN) {
                             const extW = !vW, extE = !vE;
                             const len = env.cellSize + (extW ? 0.2 : 0) + (extE ? 0.2 : 0);
                             const cx = (extE ? 0.1 : 0) - (extW ? 0.1 : 0);
-                            const railing = buildWall(len, 0.15, env.rustMat, 1.2);
-                            railing.position.set(gx + cx, 0.6, gz - 1.8);
-                            addGeometry(railing);
+                            buildRailX(gx + cx, gz - 1.8, len);
                         }
                         if (vS) {
                             const extW = !vW, extE = !vE;
                             const len = env.cellSize + (extW ? 0.2 : 0) + (extE ? 0.2 : 0);
                             const cx = (extE ? 0.1 : 0) - (extW ? 0.1 : 0);
-                            const railing = buildWall(len, 0.15, env.rustMat, 1.2);
-                            railing.position.set(gx + cx, 0.6, gz + 1.8);
-                            addGeometry(railing);
+                            buildRailX(gx + cx, gz + 1.8, len);
                         }
                         const addCornerPost = (px, pz) => {
-                            const post = buildWall(0.3, 0.3, env.rustMat, 1.2);
+                            const post = buildWall(0.2, 0.2, env.blackIronMat, 1.2);
                             post.position.set(px, 0.6, pz);
                             addGeometry(post);
                         };
@@ -80,33 +186,17 @@ export const ChasmSector = (env, ctx) => {
                         if (!vE && !vN && checkVoid(localX + 1, localZ - 1)) addCornerPost(gx + 1.8, gz - 1.8);
                         if (!vW && !vS && checkVoid(localX - 1, localZ + 1)) addCornerPost(gx - 1.8, gz + 1.8);
                         if (!vE && !vS && checkVoid(localX + 1, localZ + 1)) addCornerPost(gx + 1.8, gz + 1.8);
-                        if (random() > 0.78) {
-                            const lampMat = env.baseLightMat.clone();
-                            lampMat.color.setHex(0xff2200);
-                            lampMat.emissive.setHex(0xff0000);
-                            const edge = 1.7;
-                            let ex = checkVoid(localX - 1, localZ) ? -edge : (checkVoid(localX + 1, localZ) ? edge : 0);
-                            let ez = 0;
-                            if (ex === 0) ez = checkVoid(localX, localZ - 1) ? -edge : (checkVoid(localX, localZ + 1) ? edge : 0);
-                            const post = buildWall(0.12, 0.12, env.rustMat, 0.5);
-                            post.position.set(gx + ex, 0.25, gz + ez);
-                            addGeometry(post);
-                            const lamp = buildWall(0.28, 0.28, lampMat, 0.3);
-                            lamp.position.set(gx + ex, 0.6, gz + ez);
-                            lamp.userData.chunkHash = hash;
-                            chunkGroup.add(lamp);
-                            lamp.updateMatrixWorld(true);
-                            env.walls.push(lamp);
-                            env.fixtureData.push({
-                                chunkHash: hash,
-                                position: new THREE.Vector3(gx + ex, 0.55, gz + ez),
-                                flickerOffset: random() * 500,
-                                material: lampMat,
-                                isFaulty: random() > 0.75,
-                                baseIntensity: 2.4,
-                                targetIntensity: 2.4,
-                                currentIntensity: 2.4
-                            });
+
+                        // Giant column directly behind airlock doors to cast shadows
+                        const isAirlockExit = (localX === 7 && (localZ === 2 || localZ === 12)) || (localZ === 7 && (localX === 2 || localX === 12));
+                        if (isAirlockExit) {
+                            const giantCol = buildWall(1.8, 1.8, env.rustMat, 80.0);
+                            giantCol.position.set(gx, -30.0, gz);
+                            addGeometry(giantCol);
+
+                            const colBase = buildWall(2.0, 2.0, env.blackIronMat, 10.0);
+                            colBase.position.set(gx, -4.5, gz);
+                            addGeometry(colBase);
                         }
                     } else {
                         const voidBox = new AABB();
@@ -131,10 +221,29 @@ export const ChasmSector = (env, ctx) => {
                                 }
                                 const want = Math.min(band.length, 3 + ((hash >>> 3) % 3));
                                 for (let k = 0; k < want; k++) set.add(band[k]);
+                                
+                                const lhSet = new Set();
+                                let s2 = (hash ^ 0x00BEEF00) >>> 0;
+                                const rng2 = () => { s2 = (s2 * 1664525 + 1013904223) >>> 0; return s2 / 4294967296; };
+                                const lhBand = [...band];
+                                for (let i = lhBand.length - 1; i > 0; i--) {
+                                    const j = Math.floor(rng2() * (i + 1));
+                                    const t = lhBand[i]; lhBand[i] = lhBand[j]; lhBand[j] = t;
+                                }
+                                const wantLH = Math.min(lhBand.length, 4 + ((hash >>> 5) % 4)); // 4 to 7
+                                let added = 0;
+                                for (let k = 0; k < lhBand.length && added < wantLH; k++) {
+                                    if (!set.has(lhBand[k])) {
+                                        lhSet.add(lhBand[k]);
+                                        added++;
+                                    }
+                                }
+                                env._chasmLighthouseSet = lhSet;
                             }
                             env._chasmPillarSet = set;
                         }
                         const guaranteed = env._chasmPillarSet.has(localX * env.chunkSize + localZ);
+                        const guaranteedLighthouse = env._chasmLighthouseSet.has(localX * env.chunkSize + localZ);
                         const scatter = random() > 0.90;
                         const inBand = localX > 2 && localX < 12 && localZ > 2 && localZ < 12;
                         if (guaranteed || (scatter && inBand)) {
@@ -142,35 +251,54 @@ export const ChasmSector = (env, ctx) => {
                             const pillar = buildWall(pw, pw, env.rustMat, 80.0);
                             pillar.position.set(gx, -30.0, gz);
                             addGeometry(pillar);
-                            const isVoidCell = (nx, nz) =>
-                                (nx < 0 || nx >= env.chunkSize || nz < 0 || nz >= env.chunkSize)
-                                    ? true : (!maze || maze[nx][nz]);
-                            let ox = 0, oz = 0;
-                            const nb = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-                            for (let n = 0; n < nb.length; n++) {
-                                if (!isVoidCell(localX + nb[n][0], localZ + nb[n][1])) { ox = nb[n][0]; oz = nb[n][1]; break; }
-                            }
-                            if (ox === 0 && oz === 0) ox = localX < 7 ? 1 : -1;
-                            const off = pw / 2 + 0.5;
-                            const canX = gx + ox * off, canZ = gz + oz * off;
-                            const upMat = env.baseLightMat.clone();
-                            upMat.color.setHex(0xff3a00);
-                            upMat.emissive.setHex(0xff2200);
-                            const can = new THREE.Mesh(env._boxGeo(0.4, 0.25, 0.4), upMat);
-                            can.position.set(canX, 0.35, canZ);
-                            can.userData.chunkHash = hash;
-                            chunkGroup.add(can);
-                            can.updateMatrixWorld(true);
-                            env.walls.push(can);
+                        } else if (guaranteedLighthouse) {
+                            const bottomY = -50.0;
+                            const poleTop = -25.0 + random() * 34.0; // Vary height between -25 and +9 (ceiling is 10)
+                            const poleH = poleTop - bottomY;
+                            const poleY = bottomY + poleH / 2;
+                            const pole = buildWall(0.6, 0.6, env.rustMat, poleH);
+                            pole.position.set(gx, poleY, gz);
+                            addGeometry(pole);
+
+                            const lhMat = env.baseLightMat.clone();
+                            lhMat.color.setHex(0xffeedd);
+                            lhMat.emissive.setHex(0xffeedd);
+                            
+                            const base = new THREE.Mesh(env._boxGeo(0.8, 0.4, 0.8), env.rustMat);
+                            base.position.set(gx, poleTop + 0.2, gz);
+                            chunkGroup.add(base);
+                            
+                            if (!env._lhGlassMat) env._lhGlassMat = new THREE.MeshStandardMaterial({color: 0x333333, transparent: true, opacity: 0.3, roughness: 0.1, metalness: 0.8});
+                            const glass = new THREE.Mesh(env._cacheGeo('lhGlass', () => new THREE.CylinderGeometry(0.35, 0.35, 0.6, 8)), env._lhGlassMat);
+                            glass.position.set(gx, poleTop + 0.7, gz);
+                            chunkGroup.add(glass);
+                            
+                            const cap = new THREE.Mesh(env._cacheGeo('lhCap', () => new THREE.CylinderGeometry(0.4, 0.45, 0.1, 8)), env.rustMat);
+                            cap.position.set(gx, poleTop + 1.05, gz);
+                            chunkGroup.add(cap);
+
+                            base.userData.chunkHash = hash;
+                            glass.userData.chunkHash = hash;
+                            cap.userData.chunkHash = hash;
+                            base.updateMatrixWorld(true);
+                            glass.updateMatrixWorld(true);
+                            cap.updateMatrixWorld(true);
+                            env.walls.push(base, glass, cap);
+                            
                             env.fixtureData.push({
                                 chunkHash: hash,
-                                position: new THREE.Vector3(canX, 1.2, canZ),
+                                position: new THREE.Vector3(gx, poleTop + 0.7, gz),
+                                targetPos: new THREE.Vector3(gx, poleTop + 0.7, gz),
+                                isSpot: true,
+                                isLighthouse: true,
+                                sweepSpeed: 0.4 + random() * 0.4,
+                                sweepPhase: random() * Math.PI * 2,
                                 flickerOffset: random() * 500,
-                                material: upMat,
+                                material: lhMat,
                                 isFaulty: false,
-                                baseIntensity: 3.0,
-                                targetIntensity: 3.0,
-                                currentIntensity: 3.0
+                                baseIntensity: 5.0,
+                                targetIntensity: 5.0,
+                                currentIntensity: 5.0
                             });
                         }
                     }

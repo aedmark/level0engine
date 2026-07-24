@@ -18,15 +18,26 @@ export const CheckpointSector = (env, ctx) => {
 
     return {
                 id: "CHECKPOINT",
-                foundationMat: env.tileMat,
+                foundationMat: env.checkpointFloorMat,
                 ceilingMat: env.structMat,
                 build: (x, z, localX, localZ) => {
-                    if (ctx.buildPerimeter(x, z, localX, localZ, env.structMat, "CHECKPOINT")) return;
                     const isPathN = localX === 7 && localZ <= 7;
                     const isPathS = localX === 7 && localZ >= 7;
                     const isPathW = localZ === 7 && localX <= 7;
                     const isPathE = localZ === 7 && localX >= 7;
                     const isPath = isPathN || isPathS || isPathW || isPathE;
+                    if (isPath) {
+                        const lineGeo = new THREE.PlaneGeometry(env.cellSize, env.cellSize);
+                        const isCenter = localX === 7 && localZ === 7;
+                        const lineMesh = new THREE.Mesh(lineGeo, isCenter ? env.checkpointLineCrossMat : env.checkpointLineMat);
+                        lineMesh.rotation.x = -Math.PI / 2;
+                        if (!isCenter && (isPathN || isPathS)) {
+                            lineMesh.rotation.z = Math.PI / 2;
+                        }
+                        lineMesh.position.set(x * env.cellSize, 0.03, z * env.cellSize);
+                        chunkGroup.add(lineMesh);
+                    }
+                    if (ctx.buildPerimeter(x, z, localX, localZ, env.structMat, "CHECKPOINT")) return;
                     const ckHash = (a, b, salt) => {
                         let h = (hash ^ Math.imul(a + 64, 73856093) ^ Math.imul(b + 64, 19349663) ^ Math.imul(salt + 1, 83492791)) >>> 0;
                         h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;

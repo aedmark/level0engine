@@ -24,10 +24,16 @@ export const ServerSector = (env, ctx) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, env.sharedWallMat, "SERVER")) return;
                     const isWall = maze && maze[localX][localZ];
                     if (isWall) {
-                        const rack = buildWall(env.cellSize * 0.85, env.cellSize * 0.85, env.serverMat);
-                        rack.position.set(x * env.cellSize, 1.5, z * env.cellSize);
-                        rack.userData.isEntityBlocker = true;
-                        addGeometry(rack);
+                        const edge = env.chunkSize - 1;
+                        const isNearDoorNS = (localZ === 1 || localZ === edge - 1) && (localX >= 6 && localX <= 8);
+                        const isNearDoorEW = (localX === 1 || localX === edge - 1) && (localZ >= 6 && localZ <= 8);
+                        
+                        if (!isNearDoorNS && !isNearDoorEW) {
+                            const rack = buildWall(env.cellSize * 0.85, env.cellSize * 0.85, env.serverMat);
+                            rack.position.set(x * env.cellSize, 1.5, z * env.cellSize);
+                            rack.userData.isEntityBlocker = true;
+                            addGeometry(rack);
+                        }
                     } else {
                         const openE = localX < env.chunkSize - 1 ? !maze[localX + 1][localZ] : !maze[localX][localZ];
                         const openS = localZ < env.chunkSize - 1 ? !maze[localX][localZ + 1] : !maze[localX][localZ];

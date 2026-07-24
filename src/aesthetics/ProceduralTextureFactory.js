@@ -466,6 +466,37 @@ export default class ProceduralTextureFactory {
             bumpMap: ventTexture,
             bumpScale: 0.02
         });
+
+        const {canvas: ductCanvas, ctx: ductCtx} = this._createContext(256, 256);
+        ductCtx.fillStyle = '#505456';
+        ductCtx.fillRect(0, 0, 256, 256);
+        ductCtx.lineWidth = 2;
+        for (let y = 0; y < 256; y += 32) {
+            ductCtx.strokeStyle = '#3a3e40';
+            ductCtx.beginPath();
+            ductCtx.moveTo(0, y);
+            ductCtx.lineTo(256, y);
+            ductCtx.stroke();
+            ductCtx.strokeStyle = '#6a6e70';
+            ductCtx.beginPath();
+            ductCtx.moveTo(0, y + 2);
+            ductCtx.lineTo(256, y + 2);
+            ductCtx.stroke();
+        }
+        ductCtx.globalAlpha = 0.35;
+        ductCtx.drawImage(masterNoise, 0, 0, 256, 256);
+        ductCtx.globalAlpha = 1.0;
+        const ductTexture = new THREE.CanvasTexture(ductCanvas);
+        ductTexture.wrapS = ductTexture.wrapT = THREE.RepeatWrapping;
+        ductTexture.repeat.set(2, 2);
+        const ductMat = new THREE.MeshStandardMaterial({
+            map: ductTexture,
+            roughness: 0.55,
+            metalness: 0.75,
+            bumpMap: ductTexture,
+            bumpScale: 0.01
+        });
+
         const {canvas: serverCanvas, ctx: serverCtx} = this._createContext(256, 512);
         serverCtx.fillStyle = '#c4c1b5';
         serverCtx.fillRect(0, 0, 256, 512);
@@ -528,7 +559,7 @@ export default class ProceduralTextureFactory {
             roughness: 0.8
         });
         const baseHousingMat = new THREE.MeshStandardMaterial({color: 0x1a1a1a, roughness: 0.9});
-        return {ventMat, serverMat, baseLightMat, baseBrokenLightMat, baseHousingMat};
+        return {ventMat, ductMat, serverMat, baseLightMat, baseBrokenLightMat, baseHousingMat};
     }
     static _buildHazardAndMiscAssets(masterNoise) {
         const {canvas: fenceCanvas, ctx: fenceCtx} = this._createContext(64, 64);

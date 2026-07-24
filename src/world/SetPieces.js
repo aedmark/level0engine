@@ -412,11 +412,21 @@ export default class SetPieces {
                         innerCellX = startX + lx;
                         innerCellZ = startZ + lz;
                     }
+                    if (sectorId === "CHECKPOINT") {
+                        const lineGeo = new THREE.PlaneGeometry(env.cellSize, env.cellSize);
+                        const lineMesh = new THREE.Mesh(lineGeo, env.checkpointLineMat);
+                        lineMesh.rotation.x = -Math.PI / 2;
+                        if (spansX) {
+                            lineMesh.rotation.z = Math.PI / 2;
+                        }
+                        lineMesh.position.set((startX + lx) * env.cellSize, 0.03, (startZ + lz) * env.cellSize);
+                        chunkGroup.add(lineMesh);
+                    }
                 }
             }
             env._buildAirlock(chunkGroup, hash, outer.x * env.cellSize, outer.z * env.cellSize, spansX, sectorId, outSign);
             if (needsFloor || needsCeiling) {
-                env._buildHallwaySegment(chunkGroup, hash, innerCellX * env.cellSize, innerCellZ * env.cellSize, spansX, needsFloor, needsCeiling);
+                env._buildHallwaySegment(chunkGroup, hash, innerCellX * env.cellSize, innerCellZ * env.cellSize, spansX, needsFloor, needsCeiling, sectorId);
             }
         }
     }
@@ -687,7 +697,7 @@ export default class SetPieces {
         if (!env.airlocks) env.airlocks = [];
         env.airlocks.push(airlock);
     }
-    buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling) {
+    buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId) {
         const env = this.env;
         const addGeometry = (mesh) => {
             mesh.userData.chunkHash = hash;
@@ -728,10 +738,37 @@ export default class SetPieces {
                 addGeometry(floor);
             }
             if (needsCeiling) {
-                const ceil = new THREE.Mesh(floorGeo, env.ceilMat);
-                ceil.rotation.x = Math.PI / 2;
-                ceil.position.set(cx, 2.99, cz);
-                addGeometry(ceil);
+                let mat = env.ceilMat;
+                let isChasm = sectorId === "CHASM";
+                if (isChasm) mat = env.blackIronMat || env.structMat;
+                else if (sectorId === "IMPOUND") mat = env.impoundCeilingMat || env.structMat;
+                else if (sectorId === "INCINERATOR") mat = env.incinCeilingMat || env.structMat;
+                else if (sectorId === "ANNEX") mat = env.annexCeilingMat || env.structMat;
+                
+                if (isChasm) {
+                    const ceilGeo = new THREE.BoxGeometry(
+                        spansX ? 3.9 : env.cellSize,
+                        0.4,
+                        spansX ? env.cellSize : 3.9
+                    );
+                    const ceil = new THREE.Mesh(ceilGeo, mat);
+                    ceil.position.set(cx, 3.2, cz);
+                    addGeometry(ceil);
+                    
+                    const bezelGeo = new THREE.BoxGeometry(
+                        spansX ? 2.8 : env.cellSize,
+                        0.2,
+                        spansX ? env.cellSize : 2.8
+                    );
+                    const bezel = new THREE.Mesh(bezelGeo, mat);
+                    bezel.position.set(cx, 2.9, cz);
+                    addGeometry(bezel);
+                } else {
+                    const ceil = new THREE.Mesh(floorGeo, mat);
+                    ceil.rotation.x = Math.PI / 2;
+                    ceil.position.set(cx, 2.99, cz);
+                    addGeometry(ceil);
+                }
             }
         }
     }

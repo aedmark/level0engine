@@ -422,6 +422,64 @@ export default class MaterialLibrary {
             env.observerMat = new THREE.MeshBasicMaterial({color: 0x010101, transparent: true, opacity: 0.85});
             env.observerGeo = new THREE.CylinderGeometry(0.15, 0.1, 1.9, 8);
             env.observers = [];
+            const cpCanvas = document.createElement('canvas');
+            cpCanvas.width = cpCanvas.height = 256;
+            const cpc = cpCanvas.getContext('2d');
+            cpc.fillStyle = '#8a8d8f';
+            cpc.fillRect(0, 0, 256, 256);
+            for (let i = 0; i < 400; i++) {
+                cpc.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)';
+                cpc.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 2, 1 + Math.random() * 2);
+            }
+            const cpTex = new THREE.CanvasTexture(cpCanvas);
+            cpTex.wrapS = cpTex.wrapT = THREE.RepeatWrapping;
+            cpTex.repeat.set(15, 15);
+            env.checkpointFloorMat = new THREE.MeshStandardMaterial({
+                map: cpTex,
+                roughness: 0.85,
+                metalness: 0.1,
+                color: 0xbbbbbb
+            });
+            
+            const lineCanvas = document.createElement('canvas');
+            lineCanvas.width = lineCanvas.height = 128;
+            const lc = lineCanvas.getContext('2d');
+            lc.clearRect(0, 0, 128, 128);
+            lc.lineWidth = 12;
+            lc.strokeStyle = '#d32f2f'; lc.beginPath(); lc.moveTo(0, 48); lc.lineTo(128, 48); lc.stroke();
+            lc.strokeStyle = '#fbc02d'; lc.beginPath(); lc.moveTo(0, 64); lc.lineTo(128, 64); lc.stroke();
+            lc.strokeStyle = '#1976d2'; lc.beginPath(); lc.moveTo(0, 80); lc.lineTo(128, 80); lc.stroke();
+            const lineTex = new THREE.CanvasTexture(lineCanvas);
+            env.checkpointLineMat = new THREE.MeshStandardMaterial({
+                map: lineTex,
+                transparent: true,
+                roughness: 0.9,
+                metalness: 0.0,
+                depthWrite: false,
+                polygonOffset: true,
+                polygonOffsetFactor: -1,
+                polygonOffsetUnits: -1
+            });
+            
+            const crossCanvas = document.createElement('canvas');
+            crossCanvas.width = crossCanvas.height = 128;
+            const cc = crossCanvas.getContext('2d');
+            cc.clearRect(0, 0, 128, 128);
+            cc.lineWidth = 12;
+            cc.strokeStyle = '#d32f2f'; cc.beginPath(); cc.moveTo(0, 48); cc.lineTo(128, 48); cc.moveTo(48, 0); cc.lineTo(48, 128); cc.stroke();
+            cc.strokeStyle = '#fbc02d'; cc.beginPath(); cc.moveTo(0, 64); cc.lineTo(128, 64); cc.moveTo(64, 0); cc.lineTo(64, 128); cc.stroke();
+            cc.strokeStyle = '#1976d2'; cc.beginPath(); cc.moveTo(0, 80); cc.lineTo(128, 80); cc.moveTo(80, 0); cc.lineTo(80, 128); cc.stroke();
+            const crossTex = new THREE.CanvasTexture(crossCanvas);
+            env.checkpointLineCrossMat = new THREE.MeshStandardMaterial({
+                map: crossTex,
+                transparent: true,
+                roughness: 0.9,
+                metalness: 0.0,
+                depthWrite: false,
+                polygonOffset: true,
+                polygonOffsetFactor: -1,
+                polygonOffsetUnits: -1
+            });
             env.sharedAssets = new Set();
             Object.values(env).forEach(v => {
                 if (v && v.isGeometry) env.sharedAssets.add(v.uuid);

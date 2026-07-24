@@ -139,6 +139,37 @@ export default class AcousticEngine {
         this.feedbackGain.connect(this.spatialDelay);
         this.spatialDelay.connect(this.masterGain);
         this.mainGain.connect(this.masterGain);
+        this.chasmGroanGain = this.ctx.createGain();
+        this.chasmGroanGain.gain.value = 0.0;
+        
+        this.groanOsc1 = this.ctx.createOscillator();
+        this.groanOsc1.type = 'sawtooth';
+        this.groanOsc1.frequency.value = 55;
+        this.groanOsc2 = this.ctx.createOscillator();
+        this.groanOsc2.type = 'square';
+        this.groanOsc2.frequency.value = 54;
+        
+        this.groanFilter = this.ctx.createBiquadFilter();
+        this.groanFilter.type = 'lowpass';
+        this.groanFilter.frequency.value = 150;
+        
+        this.groanLFO = this.ctx.createOscillator();
+        this.groanLFO.type = 'sine';
+        this.groanLFO.frequency.value = 0.05;
+        this.groanLFOGain = this.ctx.createGain();
+        this.groanLFOGain.gain.value = 300;
+        this.groanLFO.connect(this.groanLFOGain);
+        this.groanLFOGain.connect(this.groanFilter.frequency);
+        
+        this.groanOsc1.connect(this.groanFilter);
+        this.groanOsc2.connect(this.groanFilter);
+        this.groanFilter.connect(this.chasmGroanGain);
+        this.chasmGroanGain.connect(this.masterGain);
+        
+        this.groanOsc1.start();
+        this.groanOsc2.start();
+        this.groanLFO.start();
+
         this.tinnitusOsc = this.ctx.createOscillator();
         this.tinnitusOsc.type = 'sine';
         this.tinnitusOsc.frequency.value = 4500.0;
@@ -279,6 +310,34 @@ export default class AcousticEngine {
             const idleVol = Math.max(0.0, 1.0 - Math.sqrt(idlingCarDistSq) / 20.0);
             setParam('idling', this.idlingGain.gain, idleVol * 0.06, 0.5);
         }
+        if (this.chasmGroanGain) {
+            if (activeSector === "CHASM" && !isBlackout) {
+                if (!this._nextGroanTime) this._nextGroanTime = time + 2.0 + Math.random() * 5.0;
+                
+                if (time > this._nextGroanTime) {
+                    const duration = 2.0 + Math.random() * 4.5; // Shorter, varied duration
+                    this._nextGroanTime = time + duration + 6.0 + Math.random() * 12.0; // Wait before next groan
+                    
+                    const startPitch = 40 + Math.random() * 30; // 40Hz to 70Hz
+                    const endPitch = startPitch * (0.5 + Math.random() * 0.3); // Taper to lower pitch
+                    
+                    // Pitch envelope
+                    this.groanOsc1.frequency.setValueAtTime(startPitch, time);
+                    this.groanOsc1.frequency.exponentialRampToValueAtTime(endPitch, time + duration);
+                    this.groanOsc2.frequency.setValueAtTime(startPitch - 1.5, time);
+                    this.groanOsc2.frequency.exponentialRampToValueAtTime(endPitch - 1.5, time + duration);
+                    
+                    // Amplitude envelope
+                    const peakGain = 0.12 + Math.random() * 0.1; // Reduced gain (LOUD fix)
+                    this.chasmGroanGain.gain.setValueAtTime(0.001, time);
+                    this.chasmGroanGain.gain.linearRampToValueAtTime(peakGain, time + duration * 0.3);
+                    this.chasmGroanGain.gain.linearRampToValueAtTime(0.001, time + duration);
+                }
+            } else {
+                setParam('chasmGroan', this.chasmGroanGain.gain, 0.0, 1.0);
+                this._nextGroanTime = 0;
+            }
+        }
         if (this.muzakGain) {
             if (activeSector === "ANNEX" && !isBlackout) {
                 setParam('muzak', this.muzakGain.gain, 1.2, 2.0);
@@ -375,6 +434,32 @@ export default class AcousticEngine {
             }
         } else {
             this._impoundNextEvent = 0;
+        }
+        if (activeSector === "BOARDROOM" && !isBlackout) {
+            if (!this._boardroomNextEvent) this._boardroomNextEvent = time + 3.0;
+            if (time >= this._boardroomNextEvent) {
+                this._boardroomNextEvent = time + 6.0 + Math.random() * 10.0;
+                const bRoll = Math.random();
+                const bDistSq = 36.0 + Math.random() * 364.0;
+                if (bRoll < 0.20) this.triggerSomaticEvent('phone_ring', bDistSq, 0.4 + Math.random() * 0.3);
+                else if (bRoll < 0.65) this.triggerSomaticEvent('page', bDistSq, 0.6 + Math.random() * 0.4);
+                else this.triggerSomaticEvent('tape_click', bDistSq, 0.5 + Math.random() * 0.3);
+            }
+        } else {
+            this._boardroomNextEvent = 0;
+        }
+        if (activeSector === "CHECKPOINT" && !isBlackout) {
+            if (!this._checkpointNextEvent) this._checkpointNextEvent = time + 2.0;
+            if (time >= this._checkpointNextEvent) {
+                this._checkpointNextEvent = time + 3.0 + Math.random() * 5.0;
+                const cRoll = Math.random();
+                const cDistSq = 36.0 + Math.random() * 200.0;
+                if (cRoll < 0.30) this.triggerSomaticEvent('terminal_blip', cDistSq, 0.3 + Math.random() * 0.4);
+                else if (cRoll < 0.60) this.triggerSomaticEvent('tape_garble', cDistSq, 0.4 + Math.random() * 0.4);
+                else this.triggerSomaticEvent('tape_click', cDistSq, 0.2 + Math.random() * 0.3);
+            }
+        } else {
+            this._checkpointNextEvent = 0;
         }
         if (this.tinnitusGain) {
             const isPanicking = paranoia > 0.7 && playerExhaustion > 0.6;
@@ -478,6 +563,7 @@ export default class AcousticEngine {
             'whisper': ['sine', 25, 20, 1.2, 0.06, 0.4, 1.4, {type: 'bandpass', start: 2800, end: 1600, ramp: 1.2}],
             'cough': ['sine', 70, 45, 0.05, 0.22, 0.005, 0.16, {type: 'bandpass', start: 900, end: 350, ramp: 0.1}],
             'page': ['sine', 30, 20, 0.1, 0.02, 0.05, 0.35, {type: 'highpass', start: 2500, end: 1500, ramp: 0.3}],
+            'phone_ring': ['square', 800, 800, 0.1, 0.04, 0.02, 1.2, {type: 'lowpass', start: 1500, end: 1500, ramp: 0}],
             'leaves': ['sine', 22, 18, 0.9, 0.05, 0.3, 1.1, {type: 'bandpass', start: 1600, end: 900, ramp: 0.9}],
             'rattle': ['sine', 40, 30, 0.3, 0.05, 0.02, 0.55, {type: 'bandpass', start: 2400, end: 1200, ramp: 0.45}],
             'hoot': ['sine', 340, 250, 0.3, 0.05, 0.08, 0.55, null],

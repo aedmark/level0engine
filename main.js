@@ -676,3 +676,47 @@ function updateVHSTime() {
 
 setInterval(updateVHSTime, 1000);
 updateVHSTime();
+
+document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e) => {
+    const targetSector = e.target.value;
+    if (!targetSector) return;
+    
+    let attempts = 0;
+    const baseSeedStr = document.getElementById('seedInput').value.split('-F')[0];
+    const originalSeed = document.getElementById('seedInput').value;
+    
+    const uiLayer = document.getElementById('ui-layer');
+    if (uiLayer) uiLayer.style.opacity = '0.5';
+    
+    while(attempts < 150) {
+        const testSeed = baseSeedStr + "-F" + attempts;
+        document.getElementById('seedInput').value = testSeed;
+        environment.generate();
+        environment.updateChunks(new THREE.Vector3(0, 1.6, 0));
+        
+        while (environment.isBuildingChunk || environment.chunkQueue.length > 0) {
+            await new Promise(r => setTimeout(r, 5));
+        }
+        
+        const zones = Array.from(environment.macroZones.values());
+        const target = zones.find(z => z.id === targetSector);
+        
+        if (target) {
+            const tx = (target.startX + 7) * environment.cellSize;
+            const tz = (target.startZ + 3) * environment.cellSize;
+            engine.camera.position.set(tx, 1.6, tz);
+            console.log(`[SectorHunt] Found ${targetSector} on seed ${testSeed}`);
+            e.target.value = "";
+            if (uiLayer) uiLayer.style.opacity = '1';
+            return;
+        }
+        attempts++;
+        if (attempts % 5 === 0) await new Promise(r => setTimeout(r, 0));
+    }
+    
+    console.log(`[SectorHunt] Could not find ${targetSector} after 150 attempts.`);
+    document.getElementById('seedInput').value = originalSeed;
+    environment.generate();
+    e.target.value = "";
+    if (uiLayer) uiLayer.style.opacity = '1';
+});

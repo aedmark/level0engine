@@ -120,16 +120,23 @@ export const ImpoundSector = (env, ctx) => {
                             
                             const lx = (px + env.cellSize/2) + Math.sin(rotY) * 0.8;
                             const lz = (pz + env.cellSize/2) + Math.cos(rotY) * 0.8;
+                            
+                            const tx = lx + Math.sin(rotY) * 10.0;
+                            const tz = lz + Math.cos(rotY) * 10.0;
+                            const targetPos = new THREE.Vector3(tx, 0, tz);
+                            
                             env.fixtureData.push({
                                 chunkHash: hash,
                                 position: new THREE.Vector3(lx, mastHeight, lz),
+                                isSpot: true,
+                                targetPos: targetPos,
                                 flickerOffset: random() * 500,
                                 material: activeMat,
                                 isFaulty: random() > 0.9,
-                                baseIntensity: 3.5,
-                                targetIntensity: 3.5,
-                                currentIntensity: 3.5,
-                                distance: 25.0
+                                baseIntensity: 5.5,
+                                targetIntensity: 5.5,
+                                currentIntensity: 5.5,
+                                distance: 35.0
                             });
                             return;
                         }
