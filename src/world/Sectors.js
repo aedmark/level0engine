@@ -33,7 +33,7 @@ const SECTORS = {
         foley: {oscFreq: 800, filterType: 'highpass', filterFreq: 3000, gain: 0.15, attack: 0.01, decay: 0.06}
     },
     ARCHIVE: {
-        fog: 0.02, fogColor: 0x11111,
+        fog: 0.03, fogColor: 0x555555,
         ambience: {noise: 0.06, peace: 0.0, rumble: 45, freq: 60, freqOcc: 60, whine: 0.0005, whineOcc: 0.0001, dynamicWhine: false},
         foley: {oscFreq: 90, filterType: 'lowpass', filterFreq: 900, gain: 0.12, attack: 0.03, decay: 0.10},
         delay: 0.35, feedback: 0.45

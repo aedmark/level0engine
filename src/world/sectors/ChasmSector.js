@@ -186,18 +186,7 @@ export const ChasmSector = (env, ctx) => {
                         if (!vE && !vN && checkVoid(localX + 1, localZ - 1)) addCornerPost(gx + 1.8, gz - 1.8);
                         if (!vW && !vS && checkVoid(localX - 1, localZ + 1)) addCornerPost(gx - 1.8, gz + 1.8);
                         if (!vE && !vS && checkVoid(localX + 1, localZ + 1)) addCornerPost(gx + 1.8, gz + 1.8);
-
-                        // Giant column directly behind airlock doors to cast shadows
-                        const isAirlockExit = (localX === 7 && (localZ === 2 || localZ === 12)) || (localZ === 7 && (localX === 2 || localX === 12));
-                        if (isAirlockExit) {
-                            const giantCol = buildWall(1.8, 1.8, env.rustMat, 80.0);
-                            giantCol.position.set(gx, -30.0, gz);
-                            addGeometry(giantCol);
-
-                            const colBase = buildWall(2.0, 2.0, env.blackIronMat, 10.0);
-                            colBase.position.set(gx, -4.5, gz);
-                            addGeometry(colBase);
-                        }
+                        
                     } else {
                         const voidBox = new AABB();
                         voidBox.min.set(gx - 2, -100, gz - 2);
@@ -230,13 +219,34 @@ export const ChasmSector = (env, ctx) => {
                                     const j = Math.floor(rng2() * (i + 1));
                                     const t = lhBand[i]; lhBand[i] = lhBand[j]; lhBand[j] = t;
                                 }
-                                const wantLH = Math.min(lhBand.length, 4 + ((hash >>> 5) % 4)); // 4 to 7
-                                let added = 0;
-                                for (let k = 0; k < lhBand.length && added < wantLH; k++) {
-                                    if (!set.has(lhBand[k])) {
-                                        lhSet.add(lhBand[k]);
-                                        added++;
+                                const wantLH = Math.min(lhBand.length, 7); // Exactly 7 lighthouses
+                                let minSpacing = 4.0;
+                                while (lhSet.size < wantLH && minSpacing >= 0) {
+                                    lhSet.clear();
+                                    let added = 0;
+                                    for (let k = 0; k < lhBand.length && added < wantLH; k++) {
+                                        const candidate = lhBand[k];
+                                        if (set.has(candidate)) continue;
+                                        const cx = Math.floor(candidate / env.chunkSize);
+                                        const cz = candidate % env.chunkSize;
+                                        
+                                        let tooClose = false;
+                                        for (const existing of lhSet) {
+                                            const ex = Math.floor(existing / env.chunkSize);
+                                            const ez = existing % env.chunkSize;
+                                            const dist = Math.sqrt((cx - ex) ** 2 + (cz - ez) ** 2);
+                                            if (dist < minSpacing) {
+                                                tooClose = true;
+                                                break;
+                                            }
+                                        }
+                                        
+                                        if (!tooClose) {
+                                            lhSet.add(candidate);
+                                            added++;
+                                        }
                                     }
+                                    minSpacing -= 0.5;
                                 }
                                 env._chasmLighthouseSet = lhSet;
                             }
@@ -252,43 +262,66 @@ export const ChasmSector = (env, ctx) => {
                             pillar.position.set(gx, -30.0, gz);
                             addGeometry(pillar);
                         } else if (guaranteedLighthouse) {
-                            const bottomY = -50.0;
-                            const poleTop = -25.0 + random() * 34.0; // Vary height between -25 and +9 (ceiling is 10)
-                            const poleH = poleTop - bottomY;
-                            const poleY = bottomY + poleH / 2;
+                            const lhIndex = Array.from(env._chasmLighthouseSet).indexOf(localX * env.chunkSize + localZ);
+                            const isAbove = lhIndex < 4;
+
+                            let poleStart, poleEnd, sign;
+                            if (isAbove) {
+                                poleStart = 10.0;
+                                poleEnd = 3.0 + random() * 4.0;
+                                sign = -1;
+                            } else {
+                                poleStart = -50.0;
+                                poleEnd = -2.0 - random() * 15.0;
+                                sign = 1;
+                            }
+
+                            const poleH = Math.abs(poleStart - poleEnd);
+                            const poleY = (poleStart + poleEnd) / 2;
                             const pole = buildWall(0.6, 0.6, env.rustMat, poleH);
                             pole.position.set(gx, poleY, gz);
                             addGeometry(pole);
 
-                            const lhMat = env.baseLightMat.clone();
-                            lhMat.color.setHex(0xffeedd);
-                            lhMat.emissive.setHex(0xffeedd);
+                            const lhMat = new THREE.MeshStandardMaterial({
+                                color: 0xffeedd,
+                                emissive: 0xffeedd,
+                                transparent: true,
+                                opacity: 0.5,
+                                roughness: 0.1,
+                                metalness: 0.1
+                            });
                             
                             const base = new THREE.Mesh(env._boxGeo(0.8, 0.4, 0.8), env.rustMat);
-                            base.position.set(gx, poleTop + 0.2, gz);
+                            base.position.set(gx, poleEnd + sign * 0.2, gz);
                             chunkGroup.add(base);
                             
-                            if (!env._lhGlassMat) env._lhGlassMat = new THREE.MeshStandardMaterial({color: 0x333333, transparent: true, opacity: 0.3, roughness: 0.1, metalness: 0.8});
-                            const glass = new THREE.Mesh(env._cacheGeo('lhGlass', () => new THREE.CylinderGeometry(0.35, 0.35, 0.6, 8)), env._lhGlassMat);
-                            glass.position.set(gx, poleTop + 0.7, gz);
+                            const glass = new THREE.Mesh(env._cacheGeo('lhGlass', () => new THREE.CylinderGeometry(0.35, 0.35, 0.6, 8)), lhMat);
+                            glass.position.set(gx, poleEnd + sign * 0.7, gz);
                             chunkGroup.add(glass);
+
+                            const bulb = new THREE.Mesh(env._cacheGeo('lhBulb', () => new THREE.SphereGeometry(0.15, 8, 8)), lhMat);
+                            bulb.position.set(gx, poleEnd + sign * 0.7, gz);
+                            chunkGroup.add(bulb);
                             
                             const cap = new THREE.Mesh(env._cacheGeo('lhCap', () => new THREE.CylinderGeometry(0.4, 0.45, 0.1, 8)), env.rustMat);
-                            cap.position.set(gx, poleTop + 1.05, gz);
+                            cap.position.set(gx, poleEnd + sign * 1.05, gz);
+                            if (isAbove) cap.rotation.x = Math.PI;
                             chunkGroup.add(cap);
 
                             base.userData.chunkHash = hash;
                             glass.userData.chunkHash = hash;
+                            bulb.userData.chunkHash = hash;
                             cap.userData.chunkHash = hash;
                             base.updateMatrixWorld(true);
                             glass.updateMatrixWorld(true);
+                            bulb.updateMatrixWorld(true);
                             cap.updateMatrixWorld(true);
                             env.walls.push(base, glass, cap);
                             
                             env.fixtureData.push({
                                 chunkHash: hash,
-                                position: new THREE.Vector3(gx, poleTop + 0.7, gz),
-                                targetPos: new THREE.Vector3(gx, poleTop + 0.7, gz),
+                                position: new THREE.Vector3(gx, poleEnd + sign * 0.7, gz),
+                                targetPos: new THREE.Vector3(gx, poleEnd + sign * 0.7, gz),
                                 isSpot: true,
                                 isLighthouse: true,
                                 sweepSpeed: 0.4 + random() * 0.4,

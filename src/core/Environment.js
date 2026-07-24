@@ -439,7 +439,7 @@ export default class Environment {
                 if (!isBlackout) {
                     this.blackoutChunks.add(chunkHash);
                     this.fixtureData.forEach(fixture => {
-                        if (fixture.chunkHash === chunkHash && !fixture.isDead) {
+                        if (fixture.chunkHash === chunkHash && !fixture.isDead && !fixture.isLighthouse && !fixture.isArchiveLight) {
                             fixture.originalFaulty = fixture.isFaulty;
                             fixture.baseIntensity = 2.5;
                             fixture.targetIntensity = 2.5;
@@ -482,7 +482,7 @@ export default class Environment {
                 } else {
                     this.blackoutChunks.delete(chunkHash);
                     this.fixtureData.forEach(fixture => {
-                        if (fixture.chunkHash === chunkHash) {
+                        if (fixture.chunkHash === chunkHash && !fixture.isLighthouse && !fixture.isArchiveLight) {
                             clearTimeout(fixture.flickerTimer);
                             clearTimeout(fixture.restoreTimer);
                             fixture.isDead = false;
@@ -1250,10 +1250,12 @@ export default class Environment {
             const minAmbient = 0.005;
             let targetAmbient = Math.max(minAmbient, baseAmbient - (darknessPressure * 0.4));
             if (this._stickySectorId === "IMPOUND" || this._stickySectorId === "CHASM") targetAmbient = 0.0;
+            else if (this._stickySectorId === "ARCHIVE") targetAmbient = 0.25;
             this.engine.ambientLight.intensity += (targetAmbient - this.engine.ambientLight.intensity) * 0.05;
             if (this.glowMat) {
                 let targetGlowOpacity = Math.max(0.0, 1.0 - (darknessPressure * 0.4));
                 if (this._stickySectorId === "IMPOUND" || this._stickySectorId === "CHASM") targetGlowOpacity = 0.0;
+                else if (this._stickySectorId === "ARCHIVE") targetGlowOpacity = 0.15;
                 this.glowMat.opacity += (targetGlowOpacity - this.glowMat.opacity) * 0.1;
             }
         }

@@ -307,8 +307,8 @@ export default class AcousticEngine {
             setParam('feedback', this.feedbackGain.gain, targetFeedback, 1.0);
         }
         if (this.idlingGain) {
-            const idleVol = Math.max(0.0, 1.0 - Math.sqrt(idlingCarDistSq) / 20.0);
-            setParam('idling', this.idlingGain.gain, idleVol * 0.06, 0.5);
+            const idleVol = Math.max(0.0, 1.0 - Math.sqrt(idlingCarDistSq) / 30.0);
+            setParam('idling', this.idlingGain.gain, idleVol * 0.20, 0.5);
         }
         if (this.chasmGroanGain) {
             if (activeSector === "CHASM" && !isBlackout) {

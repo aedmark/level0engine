@@ -178,7 +178,7 @@ export default class LumenGrid {
                     if (fixture.material) fixture.material.emissiveIntensity = Math.max(0.05, fixture.currentIntensity * 0.6);
                 } else {
                     light.intensity = (fixture.baseIntensity + (Math.sin(time * 120.0 + fixture.flickerOffset) * 0.02)) * fadeEnvelope * intensityScalar;
-                    if (fixture.material) fixture.material.emissiveIntensity = 0.4;
+                    if (fixture.material) fixture.material.emissiveIntensity = fixture.isLighthouse ? 2.0 : 0.4;
                 }
             } else {
                 wrapper.point.intensity = 0;

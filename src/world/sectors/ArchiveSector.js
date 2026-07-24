@@ -236,9 +236,11 @@ export const ArchiveSector = (env, ctx) => {
                                 flickerOffset: random() * 500,
                                 material: bulbMat,
                                 isFaulty: true,
-                                baseIntensity: 0.3,
-                                targetIntensity: 0.3,
-                                currentIntensity: 0.3
+                                isArchiveLight: true,
+                                isShadowCaster: true,
+                                baseIntensity: 1.5,
+                                targetIntensity: 1.5,
+                                currentIntensity: 1.5
                             });
                         }
                     }

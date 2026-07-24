@@ -312,21 +312,25 @@ export default class SetPieces {
             g.rotation.y = (random() - 0.5) * 0.15;
             addFurniture(g);
             
-            if (random() > 0.80) {
+            if (!env._impoundIdleCarsInChunk) env._impoundIdleCarsInChunk = {};
+            if (env._impoundIdleCarsInChunk[hash] === undefined) env._impoundIdleCarsInChunk[hash] = 0;
+
+            const currentIdling = env._impoundIdleCarsInChunk[hash];
+            let shouldIdle = false;
+
+            if (currentIdling === 0) {
+                shouldIdle = true;
+            } else if (currentIdling < 3 && random() > 0.85) {
+                shouldIdle = true;
+            }
+
+            if (shouldIdle) {
                 if (!env.idlingCars) env.idlingCars = [];
-                let tooClose = false;
-                for (let i = 0; i < env.idlingCars.length; i++) {
-                    if (env.idlingCars[i].position.distanceToSquared(g.position) < 10000) {
-                        tooClose = true;
-                        break;
-                    }
-                }
-                if (!tooClose) {
-                    env.idlingCars.push({
-                        chunkHash: hash,
-                        position: g.position.clone()
-                    });
-                }
+                env._impoundIdleCarsInChunk[hash]++;
+                env.idlingCars.push({
+                    chunkHash: hash,
+                    position: g.position.clone()
+                });
             }
             
             if (random() > 0.4) {
