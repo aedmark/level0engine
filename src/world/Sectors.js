@@ -33,8 +33,8 @@ const SECTORS = {
         foley: {oscFreq: 800, filterType: 'highpass', filterFreq: 3000, gain: 0.15, attack: 0.01, decay: 0.06}
     },
     ARCHIVE: {
-        fog: 0.03, fogColor: 0x555555,
-        ambience: {noise: 0.06, peace: 0.0, rumble: 45, freq: 60, freqOcc: 60, whine: 0.0005, whineOcc: 0.0001, dynamicWhine: false},
+        fog: 0.04, fogColor: 0x0f0f0f,
+        ambience: {noise: 0.06, peace: 0.0, rumble: 45, freq: 60, freqOcc: 60, whine: 0.0005, whineOcc: 0.0001, dynamicWhine: true},
         foley: {oscFreq: 90, filterType: 'lowpass', filterFreq: 900, gain: 0.12, attack: 0.03, decay: 0.10},
         delay: 0.35, feedback: 0.45
     },
@@ -63,7 +63,7 @@ const SECTORS = {
     },
     ANNEX: {
         fog: 0.02, fogColor: 0x7d7568,
-        ambience: {noise: 0.03, peace: 0.0, rumble: 50, freq: 200, freqOcc: 100, whine: 0.001, whineOcc: 0.0003, dynamicWhine: false},
+        ambience: {noise: 0.03, peace: 0.0, rumble: 50, freq: 200, freqOcc: 100, whine: 0.001, whineOcc: 0.0003, dynamicWhine: true},
         foley: {oscFreq: 420, filterType: 'highpass', filterFreq: 2200, gain: 0.1, attack: 0.01, decay: 0.07},
         delay: 0.1, feedback: 0.12
     },

@@ -1098,31 +1098,56 @@ export default class ProceduralTextureFactory {
         return {leakStainMat, leakStainGeo};
     }
     static _buildArchiveAssets(masterNoise) {
-        // Forest green walls, decades of damp discoloration bleeding down from the ceiling line.
         const {canvas: wallCanvas, ctx: wallCtx} = this._createContext(512, 512);
+        
+        // Top 75%: Forest Green
         wallCtx.fillStyle = '#2c4830';
-        wallCtx.fillRect(0, 0, 512, 512);
+        wallCtx.fillRect(0, 0, 512, 384);
+        
         wallCtx.lineWidth = 1;
         for (let i = 0; i < 512; i += 16) {
             wallCtx.strokeStyle = (i % 64 === 0) ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.02)';
             wallCtx.beginPath();
             wallCtx.moveTo(i, 0);
-            wallCtx.lineTo(i, 512);
+            wallCtx.lineTo(i, 384);
             wallCtx.stroke();
         }
-        // Age stains are NOT baked into this tileable base — a baked blob repeats identically
-        // every 4 wall-widths and reads as an obvious pattern. Instead they're scattered as
-        // separate decal meshes at build time (see archiveStainMat/archiveStainGeo below),
-        // the same way moldMat/leakStainMat/ceilingStainMat are scattered elsewhere.
+        
+        // Bottom 25%: Walnut Paneling
+        wallCtx.fillStyle = '#3a2012';
+        wallCtx.fillRect(0, 384, 512, 128);
+        
+        for (let i = 0; i < 512; i += 4) {
+            if (i % 64 === 0) {
+                wallCtx.fillStyle = '#1e0f06';
+                wallCtx.fillRect(i, 384, 4, 128);
+                wallCtx.fillStyle = '#4a2d1a';
+                wallCtx.fillRect(i + 4, 384, 2, 128);
+            } else if (Math.random() > 0.3) {
+                wallCtx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+                wallCtx.fillRect(i, 384, 1 + Math.random(), 128);
+            }
+        }
+        
+        // Chair rail
+        wallCtx.fillStyle = '#1e0f06';
+        wallCtx.fillRect(0, 380, 512, 4);
+        wallCtx.fillStyle = '#4a2d1a';
+        wallCtx.fillRect(0, 376, 512, 4);
+        
+        // Baseboard
+        wallCtx.fillStyle = '#221109';
+        wallCtx.fillRect(0, 480, 512, 32);
+        wallCtx.fillStyle = '#110804';
+        wallCtx.fillRect(0, 476, 512, 4);
+
         wallCtx.globalAlpha = 0.4;
         wallCtx.drawImage(masterNoise, 0, 0);
         wallCtx.globalAlpha = 1.0;
-        wallCtx.fillStyle = '#1f331f';
-        wallCtx.fillRect(0, 480, 512, 32);
-        wallCtx.fillStyle = '#152315';
-        wallCtx.fillRect(0, 476, 512, 4);
+        
         wallCtx.fillStyle = 'rgba(0,0,0,0.15)';
         wallCtx.fillRect(255, 0, 2, 512);
+        
         const archiveWallTexture = new THREE.CanvasTexture(wallCanvas);
         archiveWallTexture.wrapS = THREE.RepeatWrapping;
         archiveWallTexture.wrapT = THREE.ClampToEdgeWrapping;
@@ -1134,40 +1159,7 @@ export default class ProceduralTextureFactory {
             bumpMap: archiveWallTexture,
             bumpScale: 0.015
         });
-        // Water-damage decal, scattered individually per wall at build time so each stain
-        // gets its own random position/rotation/scale instead of repeating with the tile.
-        const {canvas: stainCanvas, ctx: stainCtx} = this._createContext(256, 256);
-        for (let i = 0; i < 5; i++) {
-            const cx = 60 + Math.random() * 136, cy = 40 + Math.random() * 176, r = 25 + Math.random() * 55;
-            const grad = stainCtx.createRadialGradient(cx, cy, 0, cx, cy, r);
-            grad.addColorStop(0, `rgba(16, 22, 12, ${0.35 + Math.random() * 0.3})`);
-            grad.addColorStop(0.55, 'rgba(22, 30, 16, 0.18)');
-            grad.addColorStop(1, 'rgba(22, 30, 16, 0)');
-            stainCtx.fillStyle = grad;
-            stainCtx.beginPath();
-            stainCtx.ellipse(cx, cy, r, r * (0.5 + Math.random() * 0.6), Math.random() * Math.PI, 0, Math.PI * 2);
-            stainCtx.fill();
-        }
-        for (let i = 0; i < 4; i++) {
-            const grad = stainCtx.createLinearGradient(0, 0, 0, 256);
-            grad.addColorStop(0, `rgba(100, 82, 44, ${0.15 + Math.random() * 0.25})`);
-            grad.addColorStop(1, 'rgba(100, 82, 44, 0)');
-            stainCtx.fillStyle = grad;
-            const sx = 20 + Math.random() * 216;
-            const sw = Math.random() * 24 + 8;
-            stainCtx.fillRect(sx, 0, sw, 256 * (0.4 + Math.random() * 0.55));
-        }
-        const archiveStainTexture = new THREE.CanvasTexture(stainCanvas);
-        const archiveStainMat = new THREE.MeshStandardMaterial({
-            map: archiveStainTexture,
-            transparent: true,
-            depthWrite: false,
-            opacity: 0.85,
-            roughness: 0.95,
-            polygonOffset: true,
-            polygonOffsetFactor: -1
-        });
-        const archiveStainGeo = new THREE.PlaneGeometry(2.2, 2.6);
+
         // 50's linoleum floor: cream/russet checker, speckled and scuffed from foot traffic.
         const {canvas: floorCanvas, ctx: floorCtx} = this._createContext(256, 256);
         const tileA = '#ddceA2', tileB = '#8a3a2e';
@@ -1212,7 +1204,65 @@ export default class ProceduralTextureFactory {
             bumpMap: archiveFloorTexture,
             bumpScale: 0.006
         });
-        return {archiveWallMat, archiveFloorMat, archiveStainMat, archiveStainGeo};
+        
+        // Paper Mat
+        const {canvas: pCanvas, ctx: pCtx} = this._createContext(64, 64);
+        pCtx.fillStyle = '#f0eee6';
+        pCtx.fillRect(0, 0, 64, 64);
+        pCtx.globalAlpha = 0.15;
+        pCtx.drawImage(masterNoise, 0, 0, 64, 64);
+        pCtx.globalAlpha = 1.0;
+        pCtx.fillStyle = 'rgba(0,0,0,0.15)';
+        for (let i = 8; i < 56; i += 6) {
+            pCtx.fillRect(8, i, 48 * (0.6 + Math.random()*0.4), 1.5);
+        }
+        const paperTex = new THREE.CanvasTexture(pCanvas);
+        const paperMat = new THREE.MeshStandardMaterial({map: paperTex, roughness: 1.0});
+        const paperGeo = new THREE.PlaneGeometry(0.2, 0.28);
+        
+        // Coffee Stain Mat
+        const {canvas: cCanvas, ctx: cCtx} = this._createContext(64, 64);
+        const grad = cCtx.createRadialGradient(32, 32, 10, 32, 32, 30);
+        grad.addColorStop(0, 'rgba(40, 20, 10, 0.05)');
+        grad.addColorStop(0.8, 'rgba(40, 20, 10, 0.15)');
+        grad.addColorStop(0.9, 'rgba(40, 20, 10, 0.7)');
+        grad.addColorStop(1, 'rgba(40, 20, 10, 0)');
+        cCtx.fillStyle = grad;
+        cCtx.beginPath();
+        cCtx.arc(32, 32, 30, 0, Math.PI * 2);
+        cCtx.fill();
+        const coffeeTex = new THREE.CanvasTexture(cCanvas);
+        const coffeeStainMat = new THREE.MeshStandardMaterial({
+            map: coffeeTex, transparent: true, depthWrite: false, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -1
+        });
+        const coffeeStainGeo = new THREE.PlaneGeometry(0.25, 0.25);
+        
+        // Single Book Materials
+        const {canvas: pageCanvas, ctx: pageCtx} = this._createContext(64, 64);
+        pageCtx.fillStyle = '#e8e5df';
+        pageCtx.fillRect(0, 0, 64, 64);
+        pageCtx.fillStyle = 'rgba(0,0,0,0.1)';
+        for(let i=0; i<64; i+=2) pageCtx.fillRect(0, i, 64, 0.5);
+        const pageTex = new THREE.CanvasTexture(pageCanvas);
+        const pageMat = new THREE.MeshStandardMaterial({map: pageTex, roughness: 0.9});
+
+        const coverColors = ['#4a1a1a', '#1a2a4a', '#1a4a2a', '#4a3a1a', '#2a2a2a'];
+        const bookMatSets = coverColors.map(color => {
+            const {canvas: covCanvas, ctx: covCtx} = this._createContext(64, 64);
+            covCtx.fillStyle = color;
+            covCtx.fillRect(0, 0, 64, 64);
+            covCtx.globalAlpha = 0.3;
+            covCtx.drawImage(masterNoise, 0, 0, 64, 64);
+            covCtx.globalAlpha = 1.0;
+            covCtx.fillStyle = 'rgba(0,0,0,0.4)';
+            covCtx.fillRect(10, 0, 4, 64);
+            covCtx.fillRect(50, 0, 4, 64);
+            const covTex = new THREE.CanvasTexture(covCanvas);
+            const covMat = new THREE.MeshStandardMaterial({map: covTex, roughness: 0.8});
+            return [pageMat, pageMat, covMat, covMat, pageMat, covMat];
+        });
+        
+        return {archiveWallMat, archiveFloorMat, paperMat, paperGeo, coffeeStainMat, coffeeStainGeo, bookMatSets};
     }
     static generateAssets() {
         const masterNoise = this._generateMasterNoise();

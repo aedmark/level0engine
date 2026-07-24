@@ -1,5 +1,21 @@
 # Level 0 Engine Changelog
 
+## [v0.5.3] - 2026-07-24
+
+_The Archive Aesthetics Update_
+
+#### Added
+
+- **[AESTHETICS] Procedural Clutter:** Completely removed the generic banana boxes and file cartons scattered across the Archive sector. Replaced them with massive, dense clusters of procedurally generated books, sprawling piles of typed papers, and large coffee stain ring decals to simulate the frantic aftermath of panicked researchers.
+- **[GEOMETRY] The Scholar's Desk:** Designed and integrated a brand new wooden desk object into the Archive's procedural generation pool, featuring dual drawer pedestals and a heavy modesty panel.
+- **[AESTHETICS] Authentic Book Materials:** Dynamic books now map independent, high-detail procedural canvas textures per-face, allowing rich archival colors (crimson, navy, forest green, leather brown) to wrap the spines and covers while exposing finely striated, off-white pages on the edges.
+
+#### Changed
+
+- **[GEOMETRY] Archive Ceiling Expansion:** Doubled the physical height of the Archive sector's perimeter walls from 3.0 to 6.0 meters, pushing the upper bounds into the darkness and preventing the hanging bowl lights from casting hard, immersion-breaking cutoffs against the void.
+- **[AESTHETICS] Wainscoting Calibration:** The procedural wall texture in the Archive was mathematically shifted to keep the bottom walnut paneling physically anchored at its original waist-height, allowing the upper forest-green wallpaper to seamlessly stretch upward into the darkness without distorting the wood.
+- **[GEOMETRY] Furniture Scaling & Refinement:** Re-calibrated the architectural scale of the desks and book carts in the Archive, bringing them up from awkwardly miniature dimensions to a sturdy 1.5x and 1.25x scale respectively, ensuring they read as imposing, heavy furniture. Clutter algorithms were also updated to allow books and papers to randomly spawn directly on top of the new desk surfaces.
+
 ## [v0.5.2] - 2026-07-23
 
 _The Chasm Overhaul Update_

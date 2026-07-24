@@ -211,6 +211,32 @@ export default class StructureKit {
                 group.position.set(x, y, z);
                 return group;
             },
+            buildDesk: (x, y, z, rotY = 0) => {
+                const group = new THREE.Group();
+                const topGeo = env._cacheGeo('deskTop15', () => new THREE.BoxGeometry(2.4, 0.075, 1.2));
+                const top = new THREE.Mesh(topGeo, env.woodMat);
+                top.position.set(0, 1.125, 0);
+                group.add(top);
+                
+                const pedGeo = env._cacheGeo('deskPed15', () => new THREE.BoxGeometry(0.6, 1.08, 1.14));
+                
+                const pedL = new THREE.Mesh(pedGeo, env.metalMat);
+                pedL.position.set(-0.87, 0.54, 0);
+                group.add(pedL);
+                
+                const pedR = new THREE.Mesh(pedGeo, env.metalMat);
+                pedR.position.set(0.87, 0.54, 0);
+                group.add(pedR);
+                
+                const modGeo = env._cacheGeo('deskMod15', () => new THREE.BoxGeometry(2.25, 0.75, 0.075));
+                const modPanel = new THREE.Mesh(modGeo, env.metalMat);
+                modPanel.position.set(0, 0.675, -0.525);
+                group.add(modPanel);
+                
+                group.position.set(x, y, z);
+                group.rotation.y = rotY;
+                return group;
+            },
             buildPerimeter: (x, z, localX, localZ, wallMat, sectorId, height = 3.0) => {
                 const isPerimeter = localX === 0 || localX === env.chunkSize - 1 || localZ === 0 || localZ === env.chunkSize - 1;
                 if (!isPerimeter) return false;

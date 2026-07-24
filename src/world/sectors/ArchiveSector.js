@@ -9,6 +9,7 @@ export const ArchiveSector = (env, ctx) => {
         addGeometry,
         buildChair,
         buildTable,
+        buildDesk,
         buildCouch,
         addFurniture,
         chunkGroup,
@@ -21,26 +22,7 @@ export const ArchiveSector = (env, ctx) => {
                 foundationMat: env.archiveFloorMat || env.structMat,
                 ceilingMat: null,
                 build: (x, z, localX, localZ, maze) => {
-                    if (ctx.buildPerimeter(x, z, localX, localZ, env.archiveWallMat || env.structMat, "ARCHIVE")) {
-                        if (env.archiveStainGeo && random() > 0.45) {
-                            env.geoCache.set(env.archiveStainGeo.uuid, true);
-                            const edge = env.chunkSize - 1;
-                            // The wall block spans the full cell (half-extent cellSize/2 + 0.01),
-                            // so the decal needs to clear that surface outward, not sit just inside
-                            // it - otherwise it's buried in the opaque box and never rendered.
-                            const half = env.cellSize / 2 + 0.05;
-                            let nx = 0, nz = 0, rotY = 0;
-                            if (localX === 0) { nx = half; rotY = Math.PI / 2; }
-                            else if (localX === edge) { nx = -half; rotY = -Math.PI / 2; }
-                            else if (localZ === 0) { nz = half; rotY = 0; }
-                            else if (localZ === edge) { nz = -half; rotY = Math.PI; }
-                            const stain = new THREE.Mesh(env.archiveStainGeo, env.archiveStainMat);
-                            stain.position.set(x * env.cellSize + nx, 0.9 + random() * 1.1, z * env.cellSize + nz);
-                            stain.rotation.y = rotY;
-                            const sc = 0.6 + random() * 0.8;
-                            stain.scale.set(sc, sc * (0.8 + random() * 0.5), 1);
-                            addGeometry(stain);
-                        }
+                    if (ctx.buildPerimeter(x, z, localX, localZ, env.archiveWallMat || env.structMat, "ARCHIVE", 6.0)) {
                         return;
                     }
                     const isWall = maze && maze[localX][localZ];
@@ -51,19 +33,74 @@ export const ArchiveSector = (env, ctx) => {
                         env.fileBoxGeo = new THREE.BoxGeometry(0.42, 0.3, 0.32);
                         env.geoCache.set(env.fileBoxGeo.uuid, true);
                     }
+                    const buildBookCart = (cx, cz, rotY) => {
+                        const g = new THREE.Group();
+                        const shelfGeo = env._cacheGeo('cartShelf125', () => new THREE.BoxGeometry(1.25, 0.0625, 0.625));
+                        for (let i = 0; i < 3; i++) {
+                            const shelf = new THREE.Mesh(shelfGeo, env.metalMat);
+                            shelf.position.y = 0.25 + i * 0.5;
+                            g.add(shelf);
+                            if (random() > 0.3) {
+                                const row = new THREE.Mesh(env.bookRowGeo, env.bookRowMat);
+                                row.scale.set(0.25, 0.6, 1.0);
+                                row.position.set((random() - 0.5) * 0.25, shelf.position.y + 0.21, 0);
+                                g.add(row);
+                            }
+                        }
+                        const postGeo = env._cacheGeo('cartPost125', () => new THREE.CylinderGeometry(0.025, 0.025, 1.25, 8));
+                        for (let px = -1; px <= 1; px += 2) {
+                            for (let pz = -1; pz <= 1; pz += 2) {
+                                const post = new THREE.Mesh(postGeo, env.metalMat);
+                                post.position.set(px * 0.6, 0.625, pz * 0.2875);
+                                g.add(post);
+                            }
+                        }
+                        g.position.set(cx, 0, cz);
+                        g.rotation.y = rotY;
+                        return g;
+                    };
+                    
+                    const spawnClutter = (cx, cy, cz, radius = 1.0) => {
+                        const r = random();
+                        if (r > 0.6) {
+                            if (!env.singleBookGeo) env.singleBookGeo = new THREE.BoxGeometry(0.35, 0.08, 0.45);
+                            const numStacks = 2 + Math.floor(random() * 3);
+                            for (let s = 0; s < numStacks; s++) {
+                                const stackX = cx + (random() - 0.5) * radius * 0.8;
+                                const stackZ = cz + (random() - 0.5) * radius * 0.8;
+                                const stackH = 1 + Math.floor(random() * 5);
+                                for (let i = 0; i < stackH; i++) {
+                                    const matSet = env.bookMatSets ? env.bookMatSets[Math.floor(random() * env.bookMatSets.length)] : env.bookRowMat;
+                                    const bk = new THREE.Mesh(env.singleBookGeo, matSet);
+                                    bk.position.set(stackX + (random() - 0.5) * 0.08, cy + 0.04 + i * 0.08, stackZ + (random() - 0.5) * 0.08);
+                                    bk.rotation.y = random() * Math.PI * 2;
+                                    addGeometry(bk);
+                                }
+                            }
+                        } else if (r > 0.2) {
+                            const numP = 8 + Math.floor(random() * 12);
+                            for (let i = 0; i < numP; i++) {
+                                if (!env.paperGeo || !env.paperMat) break;
+                                const p = new THREE.Mesh(env.paperGeo, env.paperMat);
+                                p.position.set(cx + (random() - 0.5) * radius, cy + 0.01 + i * 0.002, cz + (random() - 0.5) * radius);
+                                p.rotation.x = -Math.PI / 2;
+                                p.rotation.z = random() * Math.PI * 2;
+                                addGeometry(p);
+                            }
+                        } else {
+                            if (env.coffeeStainGeo && env.coffeeStainMat) {
+                                const stain = new THREE.Mesh(env.coffeeStainGeo, env.coffeeStainMat);
+                                stain.position.set(cx, cy + 0.005, cz);
+                                stain.rotation.x = -Math.PI / 2;
+                                stain.rotation.z = random() * Math.PI * 2;
+                                stain.scale.setScalar(0.5 + random() * 1.5);
+                                addGeometry(stain);
+                            }
+                        }
+                    };
+
                     if (isWall) {
-                        // Reuse the same connected-run logic the other zones use for their maze
-                        // walls: a shelf cell only gets an end-cap upright where the row actually
-                        // terminates. Where a neighboring cell continues the same run, the spine
-                        // and boards run edge-to-edge into it instead, so a row of maze cells reads
-                        // as one continuous shelving unit rather than a chain of separate modules.
                         const inMaze = (nx, nz) => nx >= 0 && nx < env.chunkSize && nz >= 0 && nz < env.chunkSize && maze[nx][nz];
-                        // A neighbor being maze-wall isn't enough to skip our cap - if that
-                        // neighbor orients along the OTHER axis (a T/elbow junction), its board
-                        // never reaches back toward us, so a cap suppressed on "neighbor exists"
-                        // alone leaves an exposed, uncapped end. Recompute the neighbor's own
-                        // orientation with the same rule and only treat it as continuing our run
-                        // when the two agree.
                         const runOrientation = (lx, lz) => {
                             const zR = inMaze(lx, lz - 1) || inMaze(lx, lz + 1);
                             const xR = inMaze(lx - 1, lz) || inMaze(lx + 1, lz);
@@ -79,62 +116,73 @@ export const ArchiveSector = (env, ctx) => {
                             : (inMaze(localX + 1, localZ) && runOrientation(localX + 1, localZ) === false);
                         const openNeg = !continuesNeg;
                         const openPos = !continuesPos;
-                        // Cap sits at the board's true tip (minus a hair for a flush look), not
-                        // inset from it - the boards now run the full cell span, so an inset cap
-                        // used to leave the last few centimeters of every slat poking past the post.
                         const capOffset = runSpan / 2 - 0.03;
-                        for (let e = -1; e <= 1; e += 2) {
-                            if (e < 0 ? !openNeg : !openPos) continue;
-                            const upright = buildWall(alongZ ? 1.0 : 0.12, alongZ ? 0.12 : 1.0, env.metalMat, 3.0);
-                            upright.position.set(acx + (alongZ ? 0 : e * capOffset), 1.5, acz + (alongZ ? e * capOffset : 0));
-                            addGeometry(upright);
-                        }
-                        const spine = buildWall(alongZ ? 0.08 : runSpan, alongZ ? runSpan : 0.08, env.metalMat, 3.0);
-                        spine.position.set(acx, 1.5, acz);
-                        spine.userData.isEntityBlocker = true;
-                        addGeometry(spine);
-                        const levels = [0.14, 0.88, 1.62, 2.36];
-                        for (let li = 0; li < levels.length; li++) {
-                            const shelfY = levels[li];
-                            const board = buildWall(alongZ ? 0.96 : runSpan, alongZ ? runSpan : 0.96, env.woodMat, 0.06);
-                            board.position.set(acx, shelfY, acz);
-                            addGeometry(board);
-                            for (let face = -1; face <= 1; face += 2) {
-                                const roll = random();
-                                if (roll > 0.22) {
-                                    const row = new THREE.Mesh(env.bookRowGeo, env.bookRowMat);
-                                    const wScale = 0.45 + random() * 0.55;
-                                    const slide = (random() - 0.5) * 3.5 * (1 - wScale);
-                                    row.position.set(
-                                        acx + (alongZ ? face * 0.24 : slide),
-                                        shelfY + 0.34,
-                                        acz + (alongZ ? slide : face * 0.24)
-                                    );
-                                    if (alongZ) row.rotation.y = Math.PI / 2;
-                                    row.scale.set(wScale, 1, 1);
-                                    addGeometry(row);
-                                }
-                                if (roll < 0.4) {
-                                    const boxCount = 1 + Math.floor(random() * 2);
-                                    for (let bi = 0; bi < boxCount; bi++) {
-                                        const fb = new THREE.Mesh(env.fileBoxGeo, env.fileBoxMat);
-                                        const bSlide = (random() - 0.5) * 3.0;
-                                        fb.position.set(
-                                            acx + (alongZ ? face * 0.26 : bSlide),
-                                            shelfY + 0.19,
-                                            acz + (alongZ ? bSlide : face * 0.26)
+                        
+                        for (let side = -1; side <= 1; side += 2) {
+                            const sx = acx + (alongZ ? side * 0.7 : 0);
+                            const sz = acz + (alongZ ? 0 : side * 0.7);
+
+                            for (let e = -1; e <= 1; e += 2) {
+                                if (e < 0 ? !openNeg : !openPos) continue;
+                                const upright = buildWall(alongZ ? 1.0 : 0.12, alongZ ? 0.12 : 1.0, env.metalMat, 3.0);
+                                upright.position.set(sx + (alongZ ? 0 : e * capOffset), 1.5, sz + (alongZ ? e * capOffset : 0));
+                                addGeometry(upright);
+                            }
+                            const spine = buildWall(alongZ ? 0.08 : runSpan, alongZ ? runSpan : 0.08, env.metalMat, 3.0);
+                            spine.position.set(sx, 1.5, sz);
+                            spine.userData.isEntityBlocker = true;
+                            addGeometry(spine);
+                            const levels = [0.14, 0.88, 1.62, 2.36];
+                            for (let li = 0; li < levels.length; li++) {
+                                const shelfY = levels[li];
+                                const board = buildWall(alongZ ? 0.96 : runSpan, alongZ ? runSpan : 0.96, env.woodMat, 0.06);
+                                board.position.set(sx, shelfY, sz);
+                                addGeometry(board);
+                                for (let face = -1; face <= 1; face += 2) {
+                                    const roll = random();
+                                    if (roll > 0.22) {
+                                        const row = new THREE.Mesh(env.bookRowGeo, env.bookRowMat);
+                                        const wScale = 0.45 + random() * 0.55;
+                                        const slide = (random() - 0.5) * 3.5 * (1 - wScale);
+                                        row.position.set(
+                                            sx + (alongZ ? face * 0.24 : slide),
+                                            shelfY + 0.34,
+                                            sz + (alongZ ? slide : face * 0.24)
                                         );
-                                        fb.rotation.y = (alongZ ? Math.PI / 2 : 0) + (random() - 0.5) * 0.25;
-                                        addGeometry(fb);
+                                        if (alongZ) row.rotation.y = Math.PI / 2;
+                                        row.scale.set(wScale, 1, 1);
+                                        addGeometry(row);
+                                    }
+                                    if (roll < 0.4) {
+                                        const boxCount = 1 + Math.floor(random() * 2);
+                                        for (let bi = 0; bi < boxCount; bi++) {
+                                            const fb = new THREE.Mesh(env.fileBoxGeo, env.fileBoxMat);
+                                            const bSlide = (random() - 0.5) * 3.0;
+                                            fb.position.set(
+                                                sx + (alongZ ? face * 0.26 : bSlide),
+                                                shelfY + 0.19,
+                                                sz + (alongZ ? bSlide : face * 0.26)
+                                            );
+                                            fb.rotation.y = (alongZ ? Math.PI / 2 : 0) + (random() - 0.5) * 0.25;
+                                            addGeometry(fb);
+                                        }
                                     }
                                 }
                             }
+                            const cap = buildWall(alongZ ? 0.96 : runSpan, alongZ ? runSpan : 0.96, env.metalMat, 0.06);
+                            cap.position.set(sx, 2.92, sz);
+                            addGeometry(cap);
                         }
-                        const cap = buildWall(alongZ ? 0.96 : runSpan, alongZ ? runSpan : 0.96, env.metalMat, 0.06);
-                        cap.position.set(acx, 2.92, acz);
-                        addGeometry(cap);
                     } else {
-                        if (random() > 0.72) {
+                        if (random() > 0.85) {
+                            addFurniture(buildBookCart(acx + (random() - 0.5), acz + (random() - 0.5), random() * Math.PI));
+                        } else if (random() > 0.85) {
+                            addFurniture(buildDesk(acx, 0, acz, random() * Math.PI));
+                            if (random() > 0.5) spawnClutter(acx, 1.125, acz, 0.8);
+                            if (random() > 0.5) {
+                                addFurniture(buildChair(acx + 0.7, 0, acz, -Math.PI / 2));
+                            }
+                        } else if (random() > 0.72) {
                             const sheets = 1 + Math.floor(random() * 2);
                             for (let i = 0; i < sheets; i++) {
                                 const sheet = new THREE.Mesh(env.documentGeo, env.documentMat);
@@ -161,16 +209,9 @@ export const ArchiveSector = (env, ctx) => {
                             }
                         }
                         if (random() > 0.88) {
-                            const stackH = 1 + Math.floor(random() * 3);
                             const sx = acx + (random() - 0.5) * 1.8;
                             const sz = acz + (random() - 0.5) * 1.8;
-                            const cartonPool = env.cartonMats || [env.fileBoxMat];
-                            for (let i = 0; i < stackH; i++) {
-                                const fb = new THREE.Mesh(env.fileBoxGeo, cartonPool[Math.floor(random() * cartonPool.length)]);
-                                fb.position.set(sx + (random() - 0.5) * 0.08, 0.15 + i * 0.3, sz + (random() - 0.5) * 0.08);
-                                fb.rotation.y = random() * Math.PI * 2;
-                                addGeometry(fb);
-                            }
+                            spawnClutter(sx, 0.0, sz, 1.8);
                         }
                         // No ceiling panel here anymore - the archive has an open ceiling, so
                         // light comes down instead: a bare bulb in a rusted bowl shade, hanging
