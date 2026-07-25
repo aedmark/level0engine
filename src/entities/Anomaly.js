@@ -4,6 +4,10 @@
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 
+/**
+ * The base predatory hazard in the engine. It handles core logic for tracking,
+ * pathfinding, player perception (sight/sound), and locomotion.
+ */
 export default class Anomaly {
     constructor(scene, camera, player, environment) {
         this.scene = scene;
@@ -64,6 +68,12 @@ export default class Anomaly {
         this.scene.add(this.group);
     }
 
+    /**
+     * Resets the anomaly to a specific position and resets its tracking state.
+     * @param {number} x - The X coordinate to spawn at.
+     * @param {number} y - The Y coordinate to spawn at.
+     * @param {number} z - The Z coordinate to spawn at.
+     */
     reset(x, y, z) {
         this.isActive = true;
         this.breadcrumbs = [];
@@ -74,6 +84,12 @@ export default class Anomaly {
         this.target.copy(this.group.position);
     }
 
+    /**
+     * Updates the anomaly's state, AI logic, and position.
+     * @param {number} delta - Time elapsed since the last frame.
+     * @param {number} time - Total elapsed time.
+     * @returns {Object|null} A state object (e.g., {consumed: true}) if the player is caught, otherwise null.
+     */
     update(delta, time) {
         if (!this.isActive) {
             if (this.player.anomalyPressure > 0) this.player.anomalyPressure = 0;

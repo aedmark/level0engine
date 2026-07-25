@@ -12,6 +12,15 @@ import StructureKit from '../world/StructureKit.js';
 import SetPieces from '../world/SetPieces.js';
 import InteractionController from '../player/InteractionController.js';
 
+/**
+ * The god-class memory manager and procedural generation orchestrator.
+ * 
+ * Educational Note: In a traditional game engine (like Unity or Unreal), levels are built in 
+ * an editor and loaded entirely into memory. Because LEVEL 0 is infinitely procedural, 
+ * this class acts like a memory garbage collector. It dynamically loads "chunks" of the maze 
+ * as the player walks near them, and unloads them as the player walks away, keeping the 
+ * memory footprint tiny even in an infinite world.
+ */
 export default class Environment {
     // ==========================================
     // LIFECYCLE & INITIALIZATION
@@ -22,6 +31,16 @@ export default class Environment {
         return this.entityManager ? this.entityManager.activeEntity : null;
     }
 
+    /**
+     * Initializes the environment memory structures and spatial grid.
+     * 
+     * Educational Note: We use a `SpatialHashGrid` and manual `Map`s for chunks rather than 
+     * simply throwing everything into `this.scene`. This allows us to query "what objects 
+     * are within 5 meters of the player" in O(1) time without iterating over thousands of meshes.
+     * 
+     * @param {Object} engine - The core RenderEngine instance.
+     * @param {Object} player - The PlayerController instance.
+     */
     constructor(engine, player) {
         this.engine = engine;
         this.scene = engine.scene;

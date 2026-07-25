@@ -1,7 +1,16 @@
 // Synthesizer.js
 // LEVEL 0 SYNTHPAD
 
+/**
+ * Synthesizer
+ * Initializes and wires up the web audio graph nodes for continuous, atmospheric sound synthesis.
+ * Handles sub-bass rumbling, kinetic whine, paranoia drones, sector ambiance, and noise generation.
+ */
 export default class Synthesizer {
+    /**
+     * Injects, connects, and starts all persistent Web Audio graph nodes into the engine.
+     * @param {AcousticEngine} engine - The main acoustic engine instance to populate.
+     */
     static injectNodes(engine) {
         const ctx = engine.ctx;
         

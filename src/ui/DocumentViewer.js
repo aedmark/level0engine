@@ -1,6 +1,13 @@
 // DocumentViewer.js
 // LEVEL 0 DOCUMENT VIEWER
 
+/**
+ * Manages the overlay UI for reading notes, terminals, and listening to tapes.
+ * 
+ * This class uses CSS classes (`terminal-mode`, `tape-mode`) applied to a single
+ * overlay element to radically change the presentation of the text. This is much more efficient 
+ * than having five different DOM overlays for different item types.
+ */
 export default class DocumentViewer {
     constructor(player, acoustics, getStoryFn) {
         this.player = player;
@@ -18,6 +25,13 @@ export default class DocumentViewer {
         return footer;
     }
 
+    /**
+     * Binds the event listeners for opening, closing, and navigating documents.
+     *
+     * Notice the typewriter effect for terminals and tapes using `setInterval`.
+     * Audio blips are synced to the character rendering rate, with a random chance to skip a blip 
+     * to make it sound organic rather than perfectly robotic.
+     */
     bindEvents() {
         document.addEventListener('somatic-doc-nav', (e) => {
             if (this.terminalBrowseIndex === null) return;

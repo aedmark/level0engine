@@ -1,6 +1,14 @@
 // SetPieces.js
 // LEVEL 0 SET-PIECE BUILDERS
 
+/**
+ * A collection of highly detailed, deterministic, multi-mesh prefabs (like Airlocks and Checkpoint Rooms).
+ * 
+ * Educational Note: While most of the maze is generated via simple `buildWall` calls, 
+ * sometimes we want complex interactive set pieces. This file handles assembling those 
+ * complex prefabs (like `doorGroup` assemblies) and correctly registering them with the 
+ * physics system (`spatialGrid`) and interactivity manager (`interactiveDoors`, `airlocks`).
+ */
 export default class SetPieces {
     constructor(env) {
         this.env = env;

@@ -1,16 +1,36 @@
 // ProceduralTextureFactory.js
 // LEVEL 0 TEXTURE & MATERIAL PIPELINE
 
+/**
+ * The core generator for all procedural textures used in the game.
+ * 
+ * This file is responsible for keeping the game bundle so incredibly small.
+ * Instead of loading dozens of MBs of .png files for walls, floors, ceilings, and props, 
+ * this class uses the HTML5 `CanvasRenderingContext2D` API to draw every texture from scratch 
+ * when the game loads. It combines simple shapes, procedural noise (`_generateMasterNoise`), 
+ * and gradients to create all the materials used by the `MaterialLibrary`.
+ */
+
 export default class ProceduralTextureFactory {
-    static _createContext(width, height) {
+    static _createContext(width, height, opaque = true) {
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
-        return {canvas, ctx: canvas.getContext('2d')};
+        return {canvas, ctx: canvas.getContext('2d', opaque ? { alpha: false } : undefined)};
+    }
+
+    static _createWrappedTexture(canvas, repeatX = 1, repeatY = 1, clampT = false) {
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = clampT ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping;
+        if (repeatX !== 1 || repeatY !== 1) {
+            texture.repeat.set(repeatX, repeatY);
+        }
+        return texture;
     }
 
     static _generateMasterNoise() {
-        const {canvas, ctx} = this._createContext(512, 512);
+        const {canvas, ctx} = this._createContext(512, 512, false);
         const img = ctx.createImageData(512, 512);
         const data = img.data;
         let seed = 1337;
@@ -49,9 +69,7 @@ export default class ProceduralTextureFactory {
         }
         const {canvas: headerCanvas, ctx: headerCtx} = this._createContext(512, 512);
         headerCtx.drawImage(wallCanvas, 0, 0);
-        const headerTexture = new THREE.CanvasTexture(headerCanvas);
-        headerTexture.wrapS = headerTexture.wrapT = THREE.RepeatWrapping;
-        headerTexture.repeat.set(4, 0.1);
+        const headerTexture = this._createWrappedTexture(headerCanvas, 4, 0.1);
         headerTexture.offset.set(0, 0.9);
         const headerMat = new THREE.MeshStandardMaterial({
             map: headerTexture,
@@ -65,10 +83,7 @@ export default class ProceduralTextureFactory {
         wallCtx.fillRect(0, 476, 512, 4);
         wallCtx.fillStyle = 'rgba(0,0,0,0.15)';
         wallCtx.fillRect(255, 0, 2, 512);
-        const wallTexture = new THREE.CanvasTexture(wallCanvas);
-        wallTexture.wrapS = THREE.RepeatWrapping;
-        wallTexture.wrapT = THREE.ClampToEdgeWrapping;
-        wallTexture.repeat.set(4, 1);
+        const wallTexture = this._createWrappedTexture(wallCanvas, 4, 1, true);
         const {canvas: structCanvas, ctx: structCtx} = this._createContext(512, 512);
         structCtx.fillStyle = '#5c5441';
         structCtx.fillRect(0, 0, 512, 512);
@@ -90,9 +105,7 @@ export default class ProceduralTextureFactory {
             structCtx.fillRect(startX, 0, streakW, 512);
             if (startX + streakW > 512) structCtx.fillRect(startX - 512, 0, streakW, 512);
         }
-        const structTexture = new THREE.CanvasTexture(structCanvas);
-        structTexture.wrapS = structTexture.wrapT = THREE.RepeatWrapping;
-        structTexture.repeat.set(2, 2);
+        const structTexture = this._createWrappedTexture(structCanvas, 2, 2);
         const structMat = new THREE.MeshStandardMaterial({
             map: structTexture,
             roughness: 1.0,
@@ -166,8 +179,7 @@ export default class ProceduralTextureFactory {
         carpetCtx.imageSmoothingEnabled = false;
         carpetCtx.drawImage(noiseCanvas, 0, 0, 512, 512);
         carpetCtx.imageSmoothingEnabled = true;
-        const carpetTexture = new THREE.CanvasTexture(carpetCanvas);
-        carpetTexture.wrapS = carpetTexture.wrapT = THREE.RepeatWrapping;
+        const carpetTexture = this._createWrappedTexture(carpetCanvas);
         carpetTexture.magFilter = THREE.LinearFilter;
         carpetTexture.minFilter = THREE.LinearMipmapLinearFilter;
         const {canvas: ceilingCanvas, ctx: ceilCtx} = this._createContext(512, 512);
@@ -184,8 +196,7 @@ export default class ProceduralTextureFactory {
         ceilCtx.globalAlpha = 0.25;
         ceilCtx.drawImage(masterNoise, 0, 0, 512, 512);
         ceilCtx.globalAlpha = 1.0;
-        const ceilingTexture = new THREE.CanvasTexture(ceilingCanvas);
-        ceilingTexture.wrapS = ceilingTexture.wrapT = THREE.RepeatWrapping;
+        const ceilingTexture = this._createWrappedTexture(ceilingCanvas);
         const {canvas: tileCanvas, ctx: tileCtx} = this._createContext(256, 256);
         tileCtx.fillStyle = '#080808';
         tileCtx.fillRect(0, 0, 256, 256);
@@ -195,9 +206,7 @@ export default class ProceduralTextureFactory {
         tileCtx.globalAlpha = 0.15;
         tileCtx.drawImage(masterNoise, 0, 0, 256, 256);
         tileCtx.globalAlpha = 1.0;
-        const tileTexture = new THREE.CanvasTexture(tileCanvas);
-        tileTexture.wrapS = tileTexture.wrapT = THREE.RepeatWrapping;
-        tileTexture.repeat.set(16, 16);
+        const tileTexture = this._createWrappedTexture(tileCanvas, 16, 16);
         const tileMat = new THREE.MeshStandardMaterial({
             map: tileTexture,
             roughness: 0.1,
@@ -219,12 +228,8 @@ export default class ProceduralTextureFactory {
         cbCtx.strokeStyle = '#000000';
         cbCtx.lineWidth = 4;
         cbCtx.strokeRect(0, 0, 256, 256);
-        const clinicTex = new THREE.CanvasTexture(clinicCanvas);
-        clinicTex.wrapS = clinicTex.wrapT = THREE.RepeatWrapping;
-        clinicTex.repeat.set(32, 32);
-        const clinicBumpTex = new THREE.CanvasTexture(clinicBumpCanvas);
-        clinicBumpTex.wrapS = clinicBumpTex.wrapT = THREE.RepeatWrapping;
-        clinicBumpTex.repeat.set(32, 32);
+        const clinicTex = this._createWrappedTexture(clinicCanvas, 32, 32);
+        const clinicBumpTex = this._createWrappedTexture(clinicBumpCanvas, 32, 32);
         const clinicMat = new THREE.MeshStandardMaterial({
             map: clinicTex,
             bumpMap: clinicBumpTex,
@@ -237,7 +242,7 @@ export default class ProceduralTextureFactory {
     }
 
     static _buildOrganicAssets(masterNoise) {
-        const {canvas: moldCanvas, ctx: moldCtx} = this._createContext(256, 256);
+        const {canvas: moldCanvas, ctx: moldCtx} = this._createContext(256, 256, false);
         for (let i = 0; i < 12; i++) {
             const cx = 40 + Math.random() * 176, cy = 40 + Math.random() * 176, r = 8 + Math.random() * 20;
             const grad = moldCtx.createRadialGradient(cx, cy, 0, cx, cy, r);
@@ -261,7 +266,7 @@ export default class ProceduralTextureFactory {
         });
         const moldGeo = new THREE.PlaneGeometry(3, 3);
         moldGeo.rotateX(-Math.PI / 2);
-        const {canvas: ceilStainCanvas, ctx: ceilStainCtx} = this._createContext(256, 256);
+        const {canvas: ceilStainCanvas, ctx: ceilStainCtx} = this._createContext(256, 256, false);
         for (let i = 0; i < 8; i++) {
             const cx = 40 + Math.random() * 176, cy = 40 + Math.random() * 176, r = 10 + Math.random() * 25;
             const grad = ceilStainCtx.createRadialGradient(cx, cy, 0, cx, cy, r);
@@ -305,18 +310,14 @@ export default class ProceduralTextureFactory {
         fCtx.drawImage(masterNoise, 0, 0, 256, 1024);
         fCtx.drawImage(masterNoise, 0, 0, 1024, 256);
         fCtx.globalAlpha = 1.0;
-        const fabricTexture = new THREE.CanvasTexture(fabricCanvas);
-        fabricTexture.wrapS = fabricTexture.wrapT = THREE.RepeatWrapping;
-        fabricTexture.repeat.set(4, 4);
+        const fabricTexture = this._createWrappedTexture(fabricCanvas, 4, 4);
         const fabricMat = new THREE.MeshStandardMaterial({
             map: fabricTexture,
             roughness: 0.98,
             bumpMap: fabricTexture,
             bumpScale: 0.05
         });
-        const mossTexture = new THREE.CanvasTexture(fabricCanvas);
-        mossTexture.wrapS = mossTexture.wrapT = THREE.RepeatWrapping;
-        mossTexture.repeat.set(32, 32);
+        const mossTexture = this._createWrappedTexture(fabricCanvas, 32, 32);
         const mossMat = new THREE.MeshStandardMaterial({map: mossTexture, roughness: 1.0});
         const {canvas: cornCanvas, ctx: cornCtx} = this._createContext(256, 256);
         cornCtx.fillStyle = '#11220a';
@@ -352,9 +353,7 @@ export default class ProceduralTextureFactory {
         cornCtx.globalCompositeOperation = 'overlay';
         cornCtx.globalAlpha = 0.5;
         cornCtx.drawImage(masterNoise, 0, 0, 256, 256);
-        const cornTexture = new THREE.CanvasTexture(cornCanvas);
-        cornTexture.wrapS = cornTexture.wrapT = THREE.RepeatWrapping;
-        cornTexture.repeat.set(2, 1);
+        const cornTexture = this._createWrappedTexture(cornCanvas, 2, 1);
         const cornMat = new THREE.MeshStandardMaterial({
             map: cornTexture,
             roughness: 1.0,
@@ -395,9 +394,7 @@ export default class ProceduralTextureFactory {
         }
         dirtCtx.globalAlpha = 0.5;
         dirtCtx.drawImage(masterNoise, 0, 0, 256, 256);
-        const dirtTexture = new THREE.CanvasTexture(dirtCanvas);
-        dirtTexture.wrapS = dirtTexture.wrapT = THREE.RepeatWrapping;
-        dirtTexture.repeat.set(16, 16);
+        const dirtTexture = this._createWrappedTexture(dirtCanvas, 16, 16);
         const dirtMat = new THREE.MeshStandardMaterial({
             map: dirtTexture,
             roughness: 1.0,
@@ -417,9 +414,7 @@ export default class ProceduralTextureFactory {
         }
         skyCtx.globalAlpha = 0.1;
         skyCtx.drawImage(masterNoise, 0, 0, 512, 512);
-        const skyTexture = new THREE.CanvasTexture(skyCanvas);
-        skyTexture.wrapS = skyTexture.wrapT = THREE.RepeatWrapping;
-        skyTexture.repeat.set(4, 4);
+        const skyTexture = this._createWrappedTexture(skyCanvas, 4, 4);
         const nightSkyMat = new THREE.MeshBasicMaterial({
             map: skyTexture,
             fog: false
@@ -462,9 +457,7 @@ export default class ProceduralTextureFactory {
         ventCtx.globalAlpha = 0.7;
         ventCtx.drawImage(masterNoise, 0, 0, 512, 256);
         ventCtx.globalAlpha = 1.0;
-        const ventTexture = new THREE.CanvasTexture(ventCanvas);
-        ventTexture.wrapS = ventTexture.wrapT = THREE.RepeatWrapping;
-        ventTexture.repeat.set(1, 1);
+        const ventTexture = this._createWrappedTexture(ventCanvas, 1, 1);
         const ventMat = new THREE.MeshStandardMaterial({
             map: ventTexture,
             roughness: 0.7,
@@ -491,9 +484,7 @@ export default class ProceduralTextureFactory {
         ductCtx.globalAlpha = 0.35;
         ductCtx.drawImage(masterNoise, 0, 0, 256, 256);
         ductCtx.globalAlpha = 1.0;
-        const ductTexture = new THREE.CanvasTexture(ductCanvas);
-        ductTexture.wrapS = ductTexture.wrapT = THREE.RepeatWrapping;
-        ductTexture.repeat.set(2, 2);
+        const ductTexture = this._createWrappedTexture(ductCanvas, 2, 2);
         const ductMat = new THREE.MeshStandardMaterial({
             map: ductTexture,
             roughness: 0.55,
@@ -521,9 +512,7 @@ export default class ProceduralTextureFactory {
         serverCtx.strokeStyle = '#8c887d';
         serverCtx.lineWidth = 4;
         serverCtx.strokeRect(0, 0, 256, 512);
-        const serverTexture = new THREE.CanvasTexture(serverCanvas);
-        serverTexture.wrapS = serverTexture.wrapT = THREE.RepeatWrapping;
-        serverTexture.repeat.set(4, 1);
+        const serverTexture = this._createWrappedTexture(serverCanvas, 4, 1);
         const serverMat = new THREE.MeshStandardMaterial({map: serverTexture, roughness: 0.3, metalness: 0.8});
         const {canvas: lightCanvas, ctx: lightCtx} = this._createContext(128, 256);
         lightCtx.fillStyle = '#ffffe0';
@@ -567,7 +556,7 @@ export default class ProceduralTextureFactory {
     }
 
     static _buildHazardAndMiscAssets(masterNoise) {
-        const {canvas: fenceCanvas, ctx: fenceCtx} = this._createContext(64, 64);
+        const {canvas: fenceCanvas, ctx: fenceCtx} = this._createContext(64, 64, false);
         fenceCtx.strokeStyle = '#99aab5';
         fenceCtx.lineWidth = 4;
         fenceCtx.beginPath();
@@ -582,9 +571,7 @@ export default class ProceduralTextureFactory {
         fenceCtx.drawImage(masterNoise, 0, 0, 64, 64);
         fenceCtx.globalCompositeOperation = 'source-over';
         fenceCtx.globalAlpha = 1.0;
-        const fenceTex = new THREE.CanvasTexture(fenceCanvas);
-        fenceTex.wrapS = fenceTex.wrapT = THREE.RepeatWrapping;
-        fenceTex.repeat.set(12, 12);
+        const fenceTex = this._createWrappedTexture(fenceCanvas, 12, 12);
         const fenceMat = new THREE.MeshStandardMaterial({
             map: fenceTex,
             roughness: 0.4,
@@ -607,11 +594,9 @@ export default class ProceduralTextureFactory {
         hazCtx.globalAlpha = 0.6;
         hazCtx.drawImage(masterNoise, 0, 0, 256, 256);
         hazCtx.globalAlpha = 1.0;
-        const hazardTexture = new THREE.CanvasTexture(hazardCanvas);
-        hazardTexture.wrapS = hazardTexture.wrapT = THREE.RepeatWrapping;
-        hazardTexture.repeat.set(2, 2);
+        const hazardTexture = this._createWrappedTexture(hazardCanvas, 2, 2);
         const hazardMat = new THREE.MeshStandardMaterial({map: hazardTexture, roughness: 0.8});
-        const {canvas: glowCanvas, ctx: glowCtx} = this._createContext(256, 256);
+        const {canvas: glowCanvas, ctx: glowCtx} = this._createContext(256, 256, false);
         const glowGrad = glowCtx.createRadialGradient(128, 128, 0, 128, 128, 128);
         glowGrad.addColorStop(0, 'rgba(255, 255, 220, 0.035)');
         glowGrad.addColorStop(1, 'rgba(255, 255, 220, 0)');
@@ -628,7 +613,7 @@ export default class ProceduralTextureFactory {
         });
         const glowGeo = new THREE.PlaneGeometry(3.8, 3.8);
         glowGeo.rotateX(-Math.PI / 2);
-        const {canvas: tagCanvas, ctx: tagCtx} = this._createContext(128, 128);
+        const {canvas: tagCanvas, ctx: tagCtx} = this._createContext(128, 128, false);
         tagCtx.strokeStyle = '#ff0055';
         tagCtx.lineWidth = 12;
         tagCtx.lineCap = 'round';
@@ -657,8 +642,7 @@ export default class ProceduralTextureFactory {
             polygonOffsetFactor: -4
         });
         const tagGeo = new THREE.PlaneGeometry(0.5, 0.5);
-        const voidTexture = new THREE.CanvasTexture(masterNoise);
-        voidTexture.wrapS = voidTexture.wrapT = THREE.RepeatWrapping;
+        const voidTexture = this._createWrappedTexture(masterNoise);
         const voidMat = new THREE.MeshStandardMaterial({
             color: 0x020202,
             roughness: 0.15,
@@ -884,9 +868,7 @@ export default class ProceduralTextureFactory {
         annexFloorCtx.globalAlpha = 0.15;
         annexFloorCtx.drawImage(masterNoise, 0, 0, 256, 256);
         annexFloorCtx.globalAlpha = 1.0;
-        const annexFloorTexture = new THREE.CanvasTexture(annexFloorCanvas);
-        annexFloorTexture.wrapS = annexFloorTexture.wrapT = THREE.RepeatWrapping;
-        annexFloorTexture.repeat.set(14, 14);
+        const annexFloorTexture = this._createWrappedTexture(annexFloorCanvas, 14, 14);
         const annexFloorMat = new THREE.MeshStandardMaterial({
             map: annexFloorTexture,
             roughness: 0.5,
@@ -915,9 +897,7 @@ export default class ProceduralTextureFactory {
         annexCeilCtx.globalAlpha = 0.05;
         annexCeilCtx.drawImage(masterNoise, 0, 0, 256, 256);
         annexCeilCtx.globalAlpha = 1.0;
-        const annexCeilTexture = new THREE.CanvasTexture(annexCeilCanvas);
-        annexCeilTexture.wrapS = annexCeilTexture.wrapT = THREE.RepeatWrapping;
-        annexCeilTexture.repeat.set(14, 14);
+        const annexCeilTexture = this._createWrappedTexture(annexCeilCanvas, 14, 14);
         const annexCeilingMat = new THREE.MeshStandardMaterial({
             map: annexCeilTexture,
             color: 0xffffff,
@@ -996,9 +976,7 @@ export default class ProceduralTextureFactory {
         ceilCtx.globalAlpha = 0.25;
         ceilCtx.drawImage(masterNoise, 0, 0);
         ceilCtx.globalAlpha = 1.0;
-        const impoundCeilingTexture = new THREE.CanvasTexture(ceilCanvas);
-        impoundCeilingTexture.wrapS = impoundCeilingTexture.wrapT = THREE.RepeatWrapping;
-        impoundCeilingTexture.repeat.set(8, 8);
+        const impoundCeilingTexture = this._createWrappedTexture(ceilCanvas, 8, 8);
         const impoundCeilingMat = new THREE.MeshStandardMaterial({
             map: impoundCeilingTexture,
             color: 0xffffff,
@@ -1061,10 +1039,7 @@ export default class ProceduralTextureFactory {
         wallCtx.fillRect(0, 476, 512, 4);
         wallCtx.fillStyle = 'rgba(0,0,0,0.12)';
         wallCtx.fillRect(255, 0, 2, 512);
-        const boardWallTexture = new THREE.CanvasTexture(wallCanvas);
-        boardWallTexture.wrapS = THREE.RepeatWrapping;
-        boardWallTexture.wrapT = THREE.ClampToEdgeWrapping;
-        boardWallTexture.repeat.set(4, 1);
+        const boardWallTexture = this._createWrappedTexture(wallCanvas, 4, 1, true);
         const boardWallMat = new THREE.MeshStandardMaterial({
             map: boardWallTexture,
             color: 0xffffff,
@@ -1077,7 +1052,7 @@ export default class ProceduralTextureFactory {
     }
 
     static _buildMaintenanceAssets(masterNoise) {
-        const {canvas: leakCanvas, ctx: leakCtx} = this._createContext(256, 256);
+        const {canvas: leakCanvas, ctx: leakCtx} = this._createContext(256, 256, false);
         for (let i = 0; i < 10; i++) {
             const cx = 60 + Math.random() * 136, cy = 60 + Math.random() * 136, r = 20 + Math.random() * 45;
             const grad = leakCtx.createRadialGradient(cx, cy, 0, cx, cy, r);
@@ -1143,10 +1118,7 @@ export default class ProceduralTextureFactory {
         wallCtx.globalAlpha = 1.0;
         wallCtx.fillStyle = 'rgba(0,0,0,0.15)';
         wallCtx.fillRect(255, 0, 2, 512);
-        const archiveWallTexture = new THREE.CanvasTexture(wallCanvas);
-        archiveWallTexture.wrapS = THREE.RepeatWrapping;
-        archiveWallTexture.wrapT = THREE.ClampToEdgeWrapping;
-        archiveWallTexture.repeat.set(4, 1);
+        const archiveWallTexture = this._createWrappedTexture(wallCanvas, 4, 1, true);
         const archiveWallMat = new THREE.MeshStandardMaterial({
             map: archiveWallTexture,
             roughness: 0.95,
@@ -1187,9 +1159,7 @@ export default class ProceduralTextureFactory {
             floorCtx.lineTo(t * tileSize, 256);
             floorCtx.stroke();
         }
-        const archiveFloorTexture = new THREE.CanvasTexture(floorCanvas);
-        archiveFloorTexture.wrapS = archiveFloorTexture.wrapT = THREE.RepeatWrapping;
-        archiveFloorTexture.repeat.set(16, 16);
+        const archiveFloorTexture = this._createWrappedTexture(floorCanvas, 16, 16);
         const archiveFloorMat = new THREE.MeshStandardMaterial({
             map: archiveFloorTexture,
             roughness: 0.35,
@@ -1210,7 +1180,7 @@ export default class ProceduralTextureFactory {
         const paperTex = new THREE.CanvasTexture(pCanvas);
         const paperMat = new THREE.MeshStandardMaterial({map: paperTex, roughness: 1.0});
         const paperGeo = new THREE.PlaneGeometry(0.2, 0.28);
-        const {canvas: cCanvas, ctx: cCtx} = this._createContext(64, 64);
+        const {canvas: cCanvas, ctx: cCtx} = this._createContext(64, 64, false);
         const grad = cCtx.createRadialGradient(32, 32, 10, 32, 32, 30);
         grad.addColorStop(0, 'rgba(40, 20, 10, 0.05)');
         grad.addColorStop(0.8, 'rgba(40, 20, 10, 0.15)');

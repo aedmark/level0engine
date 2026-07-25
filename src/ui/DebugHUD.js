@@ -1,6 +1,13 @@
 // DebugHUD.js
 // LEVEL 0 DEBUG HUD
 
+/**
+ * An on-screen developer console for tracking performance and game state.
+ * 
+ * This overlay is critical for profiling performance in a browser environment.
+ * It specifically tracks frame "hitches" (drops below 20 FPS) and correlates them with 
+ * chunk generation, allowing developers to see if procedural generation is causing stuttering.
+ */
 export const DebugHUD = {
     el: null,
     visible: false,
@@ -10,6 +17,16 @@ export const DebugHUD = {
     _genHitches: 0,
     _worstHitch: 0,
     
+    /**
+     * Records anomalous frame times to identify stuttering ("hitches").
+     * 
+     * A delta of `> 0.05` means the frame took longer than 50 milliseconds
+     * to render (less than 20 FPS). This usually means the garbage collector ran or a heavy 
+     * procedural chunk was just built.
+     * 
+     * @param {number} delta - The time in seconds the last frame took to render.
+     * @param {Object} environment - The environment instance (to check generation state).
+     */
     recordFrame(delta, environment) {
         if (delta <= 0.05) return;
         this._hitches++;

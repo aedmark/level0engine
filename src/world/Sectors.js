@@ -1,8 +1,25 @@
 // Sectors.js
 // LEVEL 0 SECTOR REGISTRY
 
+/**
+ * The default parameters for procedural footstep generation (synthesized via Web Audio API).
+ * 
+ * Instead of loading hundreds of .wav files for footsteps on different
+ * surfaces, this engine synthesizes them procedurally. This saves memory and allows for 
+ * infinite dynamic variation based on the player's momentum and the sector's acoustics.
+ */
 export const DEFAULT_FOLEY = {oscFreq: 60, filterType: 'lowpass', filterFreq: 600, gain: 0.10, attack: 0.04, decay: 0.18};
 
+/**
+ * Configuration dictionary mapping sector IDs to their specific atmospheric properties.
+ * 
+ * This object acts as the "DNA" for the engine's dynamic atmosphere.
+ * As the player walks from a 'NORMAL' chunk into an 'INCINERATOR' chunk, the `RenderEngine` 
+ * and `Foley` system smoothly interpolate these values. 
+ * - `fog`/`fogColor`: Drives the WebGL shader uniforms for volumetric rendering.
+ * - `ambience`: Parameters for the procedural drone synthesizer (rumble, whine, noise).
+ * - `foley`: Overrides the player's procedural footstep synthesis (e.g. echoey reverb in the CHASM).
+ */
 const SECTORS = {
     NORMAL: {
         fog: 0.05,
@@ -16,7 +33,7 @@ const SECTORS = {
         delay: 0.45, feedback: 0.35
     },
     BOARDROOM: {
-        fog: 0.01, fogColor: 0xa0bbd6,
+        fog: 0.02, fogColor: 0xa0bbd6,
         ambience: {noise: 0.05, peace: 0.0, rumble: 60, freq: 250, freqOcc: 120, whine: 0.0, whineOcc: 0.0, dynamicWhine: false},
         foley: {oscFreq: 120, filterType: 'lowpass', filterFreq: 1400, gain: 0.18, attack: 0.02, decay: 0.12},
         delay: 0.25, feedback: 0.35
@@ -28,12 +45,12 @@ const SECTORS = {
         delay: 0.06, feedback: 0.08
     },
     CLINIC: {
-        fog: 0.03, fogColor: 0x7799aa,
+        fog: 0.04, fogColor: 0x7799aa,
         ambience: {noise: 0.1, peace: 0.0, rumble: 60, freq: 180, freqOcc: 180, whine: 0.003, whineOcc: 0.003, dynamicWhine: false},
         foley: {oscFreq: 800, filterType: 'highpass', filterFreq: 3000, gain: 0.15, attack: 0.01, decay: 0.06}
     },
     ARCHIVE: {
-        fog: 0.04, fogColor: 0x0f0f0f,
+        fog: 0.06, fogColor: 0x0f0f0f,
         ambience: {noise: 0.06, peace: 0.0, rumble: 45, freq: 60, freqOcc: 60, whine: 0.0005, whineOcc: 0.0001, dynamicWhine: true},
         foley: {oscFreq: 90, filterType: 'lowpass', filterFreq: 900, gain: 0.12, attack: 0.03, decay: 0.10},
         delay: 0.35, feedback: 0.45

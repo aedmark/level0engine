@@ -1,6 +1,13 @@
 // InquestController.js
 // LEVEL 0 Quest Controller
 
+/**
+ * Manages the final "Inquest" terminal UI where the player must guess the truth.
+ * 
+ * This acts as the win/loss condition logic handler for a level.
+ * If the player chooses the option that matches the `StoryEngine`'s seeded truth, 
+ * they advance to the next layer (`onAscension`). If they fail, the facility kills them (`onBlackout`).
+ */
 export default class InquestController {
     constructor(player, acoustics, engine, environment, getStoryFn, onAscension, onBlackout) {
         this.player = player;
@@ -15,6 +22,15 @@ export default class InquestController {
         this.inquestLocked = false;
     }
     
+    /**
+     * Evaluates the player's choice against the true outcome of the narrative.
+     * 
+     * Notice the tight coupling to the metabolic and engine state here.
+     * On success, we bump the `ambientLight` intensity to blind the player with white light, 
+     * and increment the `player.depth`. On failure, we trigger `onBlackout()`.
+     * 
+     * @param {number} choice - The index (0, 1, or 2) of the player's selected answer.
+     */
     handleInquest(choice) {
         if (this.inquestLocked || !this.pendingExit) return;
         this.inquestLocked = true;

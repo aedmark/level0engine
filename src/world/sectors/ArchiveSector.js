@@ -1,8 +1,17 @@
 // ArchiveSector.js
+// LEVEL 0 ENGINE SECTOR DATA
 
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
+/**
+ * A procedural sector generator characterized by dense, labyrinthine library shelves.
+ * 
+ * Educational Note: Unlike the Annex which defines its own walls based on coordinates, 
+ * the Archive borrows the output of the global maze generator (`maze` argument). 
+ * It interprets the maze walls as massive metal shelving units, turning a simple 2D 
+ * maze array into a 3D physical environment.
+ */
 export const ArchiveSector = (env, ctx) => {
     const {
         random,

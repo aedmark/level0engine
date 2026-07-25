@@ -1,8 +1,18 @@
 // IncineratorSector.js
+// LEVEL 0 ENGINE SECTOR DATA
+
 
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
+/**
+ * A procedural sector generator characterized by massive rusted pipes and glowing ember grilles.
+ * 
+ * Notice how the ceiling ductwork uses continuous connection logic (`throughNS`,
+ * `throughEW`). By checking the maze walls to the North, South, East, and West, the generator 
+ * can decide whether to spawn a straight pipe, an elbow joint, or a 4-way intersection, 
+ * ensuring the pipe networks always look structurally sound across chunk boundaries.
+ */
 export const IncineratorSector = (env, ctx) => {
     const {
         random,

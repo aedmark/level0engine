@@ -1,8 +1,17 @@
 // ExitSector.js
+// LEVEL 0 ENGINE SECTOR DATA
 
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
+/**
+ * A procedural sector generator characterized by a central elevator/exit point.
+ * 
+ * This is a highly deterministic, non-random sector. It always carves
+ * a cross shape and places an `elevator` interactive object dead-center. The elevator 
+ * is tagged with `{type: 'exit', active: true}` and pushed into `env.interactables`, 
+ * which the `InteractionController` raycasts against to trigger level completion.
+ */
 export const ExitSector = (env, ctx) => {
     const {
         random,

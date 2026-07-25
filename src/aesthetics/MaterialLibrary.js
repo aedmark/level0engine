@@ -1,9 +1,29 @@
 // MaterialLibrary.js
 // LEVEL 0 MATERIAL & GEOMETRY FACTORY
 
+/**
+ * A centralized factory for generating and caching Three.js materials and geometries.
+ * 
+ * To keep the game bundle extremely small and avoid loading external image files,
+ * this engine procedurally generates its textures at runtime using the HTML5 2D Canvas API. 
+ * (e.g. `dpCanvas` for diamond plate, `ccv` for soot-stained ceilings). These canvases are 
+ * then converted into `THREE.CanvasTexture` objects.
+ */
 export default class MaterialLibrary {
+    // ==========================================
+    // LIFECYCLE & INITIALIZATION
+    // ==========================================
+
+    /**
+     * Injects dynamically generated geometries, materials, and procedural textures 
+     * into the provided environment instance. Initializes shared assets used across the world.
+     * @param {Object} env - The target Environment instance to inject materials into.
+     */
     static injectMaterials(env) {
         if (env.sharedWallGeo) return;
+        
+        // --- BASE STRUCTURES ---
+        // Define fundamental geometries used widely across sectors
         env.sharedWallGeo = new THREE.BoxGeometry(env.cellSize + 0.02, 3, env.cellSize + 0.02);
         env.sharedWallMat = new THREE.MeshStandardMaterial({
             map: env.wallTexture,
@@ -21,6 +41,12 @@ export default class MaterialLibrary {
         env.pipeJunctionGeo = new THREE.BoxGeometry(0.28, 0.28, 0.28);
         env.pipeMountGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8);
         env.vPipeGeo = new THREE.CylinderGeometry(0.06, 0.06, 3.0, 8);
+        
+        // --- PROCEDURAL TEXTURES ---
+        // We use the HTML5 2D Canvas API to procedurally generate textures at runtime.
+        // This keeps the game bundle size extremely small and eliminates load times for image assets.
+        // It also fits perfectly with the liminal, slightly surreal aesthetic of Level 0.
+        
         env.rustMat = new THREE.MeshStandardMaterial({
             color: 0x4a433a,
             emissive: 0x111111,
@@ -62,6 +88,8 @@ export default class MaterialLibrary {
         env.diamondPlateMat = new THREE.MeshStandardMaterial({
             map: dpTex, bumpMap: dpTex, bumpScale: 0.05, metalness: 0.25, roughness: 0.75
         });
+        
+        // 2. Incinerator Ceiling Panels (Dark, soot-stained industrial ceiling)
         const ccv = document.createElement('canvas');
         ccv.width = ccv.height = 256;
         const cpx = ccv.getContext('2d');
@@ -125,6 +153,8 @@ export default class MaterialLibrary {
         env.incinCeilingMat = new THREE.MeshStandardMaterial({
             map: ceilTex, bumpMap: ceilTex, bumpScale: 0.03, metalness: 0.3, roughness: 0.9
         });
+        
+        // 3. Office Drop Ceiling Tiles (Board Tile)
         const btc = document.createElement('canvas');
         btc.width = btc.height = 256;
         const btx = btc.getContext('2d');
@@ -160,6 +190,8 @@ export default class MaterialLibrary {
             color: 0xbfe3ef, transparent: true, opacity: 0.22,
             roughness: 0.08, metalness: 0.1, depthWrite: false
         });
+        
+        // 4. Bookshelf Spines (Procedurally generated random book widths/colors)
         const bkc = document.createElement('canvas');
         bkc.width = 256;
         bkc.height = 128;
@@ -189,6 +221,8 @@ export default class MaterialLibrary {
         bkTex.wrapS = bkTex.wrapT = THREE.RepeatWrapping;
         bkTex.repeat.set(3, 1);
         env.bookRowMat = new THREE.MeshStandardMaterial({map: bkTex, roughness: 0.9, metalness: 0.0});
+        
+        // 5. Cardboard Box Textures (File Box, Moving Box, Banana Box, Parcel)
         const fbc = document.createElement('canvas');
         fbc.width = fbc.height = 128;
         const fbx = fbc.getContext('2d');
@@ -313,6 +347,8 @@ export default class MaterialLibrary {
         const pcTex = new THREE.CanvasTexture(pcc);
         env.parcelBoxMat = new THREE.MeshStandardMaterial({map: pcTex, roughness: 0.85, metalness: 0.0});
         env.cartonMats = [env.fileBoxMat, env.movingBoxMat, env.bananaBoxMat, env.parcelBoxMat];
+        
+        // 6. Foliage (Procedural leaf blobs used for potted plants)
         const flc = document.createElement('canvas');
         flc.width = flc.height = 128;
         const flx = flc.getContext('2d');
@@ -332,6 +368,8 @@ export default class MaterialLibrary {
         const flTex = new THREE.CanvasTexture(flc);
         flTex.wrapS = flTex.wrapT = THREE.RepeatWrapping;
         env.foliageMat = new THREE.MeshStandardMaterial({map: flTex, roughness: 0.95, metalness: 0.0});
+        
+        // 7. Far Void (The endless abyss outside the playable area, implemented as a dark gradient with faint vertical streaks)
         const fvc = document.createElement('canvas');
         fvc.width = 256;
         fvc.height = 128;
@@ -363,6 +401,9 @@ export default class MaterialLibrary {
         const fvTex = new THREE.CanvasTexture(fvc);
         fvTex.wrapS = fvTex.wrapT = THREE.RepeatWrapping;
         env.farVoidMat = new THREE.MeshBasicMaterial({map: fvTex});
+        
+        // --- FURNITURE & PROP PRIMITIVES ---
+        // Building blocks used by the context-aware generation in Environment.js
         env.cushionGeo = new THREE.BoxGeometry(0.8, 0.15, 0.8);
         env.backrestGeo = new THREE.BoxGeometry(0.8, 0.8, 0.15);
         env.legGeo = new THREE.BoxGeometry(0.1, 0.4, 0.1);
@@ -394,7 +435,14 @@ export default class MaterialLibrary {
         env.terminalBodyGeo = new THREE.BoxGeometry(0.5, 0.4, 0.5);
         env.documentGeo = new THREE.PlaneGeometry(0.2, 0.3);
         env.documentGeo.rotateX(-Math.PI / 2);
+        
+        // Cache used by chunk generation to avoid duplicating complex meshes
         env.geoCache = new Map();
+        
+        // --- PREFABS ---
+        // Pre-assembled hierarchical groups for interactable items.
+        
+        // Almond Water
         env.almondPrefab = new THREE.Group();
         const aBodyGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.12, 16);
         const aNeckGeo = new THREE.CylinderGeometry(0.012, 0.035, 0.05, 16);
@@ -406,6 +454,8 @@ export default class MaterialLibrary {
         const aCap = new THREE.Mesh(aCapGeo, env.metalMat);
         aCap.position.y = 0.12 + 0.05 + 0.0075;
         env.almondPrefab.add(aBody, aNeck, aCap);
+        
+        // Battery
         env.batteryPrefab = new THREE.Group();
         const bBodyGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.16, 16);
         const bRimGeo = new THREE.CylinderGeometry(0.052, 0.052, 0.015, 16);
@@ -419,6 +469,10 @@ export default class MaterialLibrary {
         const bTerm = new THREE.Mesh(bTermGeo, env.metalMat);
         bTerm.position.y = 0.16 + 0.01;
         env.batteryPrefab.add(bBody, bTopRim, bBotRim, bTerm);
+        
+        // --- ENTITIES & DECALS ---
+        
+        // The Observer Entity (Stalker)
         env.observerMat = new THREE.MeshBasicMaterial({color: 0x010101, transparent: true, opacity: 0.85});
         env.observerGeo = new THREE.CylinderGeometry(0.15, 0.1, 1.9, 8);
         env.observers = [];
@@ -508,6 +562,10 @@ export default class MaterialLibrary {
             polygonOffsetFactor: -1,
             polygonOffsetUnits: -1
         });
+        
+        // --- ASSET REGISTRATION ---
+        // Collect all geometries and materials so they can be properly disposed of later
+        // preventing memory leaks when chunks are loaded and unloaded dynamically.
         env.sharedAssets = new Set();
         Object.values(env).forEach(v => {
             if (v && v.isGeometry) env.sharedAssets.add(v.uuid);

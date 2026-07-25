@@ -3,6 +3,13 @@
 
 import SECTORS from '../world/Sectors.js';
 
+/**
+ * Mixer
+ * 
+ * Modulates the parameters of the Web Audio nodes in real-time based on player telemetry.
+ * It blends procedural ambiance, kinetic filters (footsteps, exertion), and somatic 
+ * events depending on the active sector and the player's physical/mental state.
+ */
 export default class Mixer {
     static update(engine, telemetry) {
         if (!engine.initialized || !engine.mainGain || engine.ctx.state === 'suspended') return;
@@ -148,93 +155,96 @@ export default class Mixer {
             }
         }
         
-        if (activeSector === "ARCHIVE" && !isBlackout) {
-            if (!engine._archiveNextEvent) engine._archiveNextEvent = time + 2.0;
-            if (engine._archiveCoughAt && time >= engine._archiveCoughAt) {
-                engine.triggerSomaticEvent('cough', engine._archiveCoughDistSq, 0.7 + Math.random() * 0.4);
-                engine._archiveCoughAt = 0;
-            }
-            if (time >= engine._archiveNextEvent) {
-                engine._archiveNextEvent = time + 4.0 + Math.random() * 9.0;
-                const roll = Math.random();
-                const fakeDistSq = 36.0 + Math.random() * 364.0;
-                if (roll < 0.45) engine.triggerSomaticEvent('whisper', fakeDistSq, 0.5 + Math.random() * 0.4);
-                else if (roll < 0.75) {
-                    engine.triggerSomaticEvent('cough', fakeDistSq, 0.9 + Math.random() * 0.4);
-                    engine._archiveCoughAt = time + 0.1 + Math.random() * 0.06;
-                    engine._archiveCoughDistSq = fakeDistSq;
-                } else {
-                    engine.triggerSomaticEvent('page', fakeDistSq, 0.5 + Math.random() * 0.4);
-                }
-            }
-        } else {
-            engine._archiveNextEvent = 0;
-            engine._archiveCoughAt = 0;
-        }
+        // --- SECTOR-SPECIFIC AMBIENT EVENTS ---
+        // We use a switch statement to cleanly route sector events. 
+        // During blackouts, all sector-specific ambient noises cease.
         
-        if (activeSector === "ATRIUM" && !isBlackout) {
-            if (!engine._atriumNextEvent) engine._atriumNextEvent = time + 3.0;
-            if (engine._atriumHootAt && time >= engine._atriumHootAt) {
-                engine.triggerSomaticEvent('hoot', engine._atriumHootDistSq, 0.55 + Math.random() * 0.25);
-                engine._atriumHootAt = 0;
+        // Always reset timers for inactive sectors to prevent events from carrying over
+        if (activeSector !== "ARCHIVE" || isBlackout) { engine._archiveNextEvent = 0; engine._archiveCoughAt = 0; }
+        if (activeSector !== "ATRIUM" || isBlackout) { engine._atriumNextEvent = 0; engine._atriumHootAt = 0; }
+        if (activeSector !== "IMPOUND" || isBlackout) { engine._impoundNextEvent = 0; }
+        if (activeSector !== "BOARDROOM" || isBlackout) { engine._boardroomNextEvent = 0; }
+        if (activeSector !== "CHECKPOINT" || isBlackout) { engine._checkpointNextEvent = 0; }
+
+        if (!isBlackout) {
+            switch (activeSector) {
+                case "ARCHIVE":
+                    if (!engine._archiveNextEvent) engine._archiveNextEvent = time + 2.0;
+                    if (engine._archiveCoughAt && time >= engine._archiveCoughAt) {
+                        engine.triggerSomaticEvent('cough', engine._archiveCoughDistSq, 0.7 + Math.random() * 0.4);
+                        engine._archiveCoughAt = 0;
+                    }
+                    if (time >= engine._archiveNextEvent) {
+                        engine._archiveNextEvent = time + 4.0 + Math.random() * 9.0;
+                        const roll = Math.random();
+                        const fakeDistSq = 36.0 + Math.random() * 364.0;
+                        if (roll < 0.45) engine.triggerSomaticEvent('whisper', fakeDistSq, 0.5 + Math.random() * 0.4);
+                        else if (roll < 0.75) {
+                            engine.triggerSomaticEvent('cough', fakeDistSq, 0.9 + Math.random() * 0.4);
+                            engine._archiveCoughAt = time + 0.1 + Math.random() * 0.06;
+                            engine._archiveCoughDistSq = fakeDistSq;
+                        } else {
+                            engine.triggerSomaticEvent('page', fakeDistSq, 0.5 + Math.random() * 0.4);
+                        }
+                    }
+                    break;
+                    
+                case "ATRIUM":
+                    if (!engine._atriumNextEvent) engine._atriumNextEvent = time + 3.0;
+                    if (engine._atriumHootAt && time >= engine._atriumHootAt) {
+                        engine.triggerSomaticEvent('hoot', engine._atriumHootDistSq, 0.55 + Math.random() * 0.25);
+                        engine._atriumHootAt = 0;
+                    }
+                    if (time >= engine._atriumNextEvent) {
+                        engine._atriumNextEvent = time + 5.0 + Math.random() * 10.0;
+                        const aRoll = Math.random();
+                        const aDistSq = 36.0 + Math.random() * 364.0;
+                        if (aRoll < 0.65) {
+                            engine.triggerSomaticEvent('leaves', aDistSq, 0.5 + Math.random() * 0.5);
+                        } else {
+                            engine.triggerSomaticEvent('hoot', aDistSq, 0.7 + Math.random() * 0.3);
+                            engine._atriumHootAt = time + 0.4 + Math.random() * 0.15;
+                            engine._atriumHootDistSq = aDistSq;
+                        }
+                    }
+                    break;
+                    
+                case "IMPOUND":
+                    if (!engine._impoundNextEvent) engine._impoundNextEvent = time + 3.0;
+                    if (time >= engine._impoundNextEvent) {
+                        engine._impoundNextEvent = time + 6.0 + Math.random() * 10.0;
+                        const iRoll = Math.random();
+                        const iDistSq = 36.0 + Math.random() * 364.0;
+                        if (iRoll < 0.20) engine.triggerSomaticEvent('car_horn', iDistSq, 0.6 + Math.random() * 0.4);
+                        else if (iRoll < 0.65) engine.triggerSomaticEvent('rattle', iDistSq, 0.5 + Math.random() * 0.5);
+                        else engine.triggerSomaticEvent('door', iDistSq, 0.25 + Math.random() * 0.15);
+                    }
+                    break;
+                    
+                case "BOARDROOM":
+                    if (!engine._boardroomNextEvent) engine._boardroomNextEvent = time + 3.0;
+                    if (time >= engine._boardroomNextEvent) {
+                        engine._boardroomNextEvent = time + 6.0 + Math.random() * 10.0;
+                        const bRoll = Math.random();
+                        const bDistSq = 36.0 + Math.random() * 364.0;
+                        if (bRoll < 0.20) engine.triggerSomaticEvent('phone_ring', bDistSq, 0.4 + Math.random() * 0.3);
+                        else if (bRoll < 0.65) engine.triggerSomaticEvent('page', bDistSq, 0.6 + Math.random() * 0.4);
+                        else engine.triggerSomaticEvent('tape_click', bDistSq, 0.5 + Math.random() * 0.3);
+                    }
+                    break;
+                    
+                case "CHECKPOINT":
+                    if (!engine._checkpointNextEvent) engine._checkpointNextEvent = time + 2.0;
+                    if (time >= engine._checkpointNextEvent) {
+                        engine._checkpointNextEvent = time + 3.0 + Math.random() * 5.0;
+                        const cRoll = Math.random();
+                        const cDistSq = 36.0 + Math.random() * 200.0;
+                        if (cRoll < 0.30) engine.triggerSomaticEvent('terminal_blip', cDistSq, 0.3 + Math.random() * 0.4);
+                        else if (cRoll < 0.60) engine.triggerSomaticEvent('tape_garble', cDistSq, 0.4 + Math.random() * 0.4);
+                        else engine.triggerSomaticEvent('tape_click', cDistSq, 0.2 + Math.random() * 0.3);
+                    }
+                    break;
             }
-            if (time >= engine._atriumNextEvent) {
-                engine._atriumNextEvent = time + 5.0 + Math.random() * 10.0;
-                const aRoll = Math.random();
-                const aDistSq = 36.0 + Math.random() * 364.0;
-                if (aRoll < 0.65) {
-                    engine.triggerSomaticEvent('leaves', aDistSq, 0.5 + Math.random() * 0.5);
-                } else {
-                    engine.triggerSomaticEvent('hoot', aDistSq, 0.7 + Math.random() * 0.3);
-                    engine._atriumHootAt = time + 0.4 + Math.random() * 0.15;
-                    engine._atriumHootDistSq = aDistSq;
-                }
-            }
-        } else {
-            engine._atriumNextEvent = 0;
-            engine._atriumHootAt = 0;
-        }
-        
-        if (activeSector === "IMPOUND" && !isBlackout) {
-            if (!engine._impoundNextEvent) engine._impoundNextEvent = time + 3.0;
-            if (time >= engine._impoundNextEvent) {
-                engine._impoundNextEvent = time + 6.0 + Math.random() * 10.0;
-                const iRoll = Math.random();
-                const iDistSq = 36.0 + Math.random() * 364.0;
-                if (iRoll < 0.20) engine.triggerSomaticEvent('car_horn', iDistSq, 0.6 + Math.random() * 0.4);
-                else if (iRoll < 0.65) engine.triggerSomaticEvent('rattle', iDistSq, 0.5 + Math.random() * 0.5);
-                else engine.triggerSomaticEvent('door', iDistSq, 0.25 + Math.random() * 0.15);
-            }
-        } else {
-            engine._impoundNextEvent = 0;
-        }
-        
-        if (activeSector === "BOARDROOM" && !isBlackout) {
-            if (!engine._boardroomNextEvent) engine._boardroomNextEvent = time + 3.0;
-            if (time >= engine._boardroomNextEvent) {
-                engine._boardroomNextEvent = time + 6.0 + Math.random() * 10.0;
-                const bRoll = Math.random();
-                const bDistSq = 36.0 + Math.random() * 364.0;
-                if (bRoll < 0.20) engine.triggerSomaticEvent('phone_ring', bDistSq, 0.4 + Math.random() * 0.3);
-                else if (bRoll < 0.65) engine.triggerSomaticEvent('page', bDistSq, 0.6 + Math.random() * 0.4);
-                else engine.triggerSomaticEvent('tape_click', bDistSq, 0.5 + Math.random() * 0.3);
-            }
-        } else {
-            engine._boardroomNextEvent = 0;
-        }
-        
-        if (activeSector === "CHECKPOINT" && !isBlackout) {
-            if (!engine._checkpointNextEvent) engine._checkpointNextEvent = time + 2.0;
-            if (time >= engine._checkpointNextEvent) {
-                engine._checkpointNextEvent = time + 3.0 + Math.random() * 5.0;
-                const cRoll = Math.random();
-                const cDistSq = 36.0 + Math.random() * 200.0;
-                if (cRoll < 0.30) engine.triggerSomaticEvent('terminal_blip', cDistSq, 0.3 + Math.random() * 0.4);
-                else if (cRoll < 0.60) engine.triggerSomaticEvent('tape_garble', cDistSq, 0.4 + Math.random() * 0.4);
-                else engine.triggerSomaticEvent('tape_click', cDistSq, 0.2 + Math.random() * 0.3);
-            }
-        } else {
-            engine._checkpointNextEvent = 0;
         }
         
         if (engine.tinnitusGain) {

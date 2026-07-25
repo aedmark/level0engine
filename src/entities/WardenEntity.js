@@ -4,6 +4,10 @@
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 
+/**
+ * A patrol-based hazard ("The Warden") that roams the impound sector.
+ * Uses a spotlight to sweep the area; detects the player via line-of-sight and spotlight cone intersection.
+ */
 export default class WardenEntity {
     constructor(scene, camera, player, environment) {
         this.scene = scene;
@@ -46,6 +50,12 @@ export default class WardenEntity {
         this.scene.add(this.group);
     }
 
+    /**
+     * Resets the entity and spawns it at the given coordinates.
+     * @param {number} x - The X coordinate to spawn at.
+     * @param {number} y - The Y coordinate to spawn at.
+     * @param {number} z - The Z coordinate to spawn at.
+     */
     reset(x, y, z) {
         this.isActive = true;
         this.graceTimer = 2.0;
@@ -56,6 +66,12 @@ export default class WardenEntity {
         this.light.color.setHex(0xffffff);
     }
 
+    /**
+     * Updates the entity's behavior, including spotlight sweeping, tracking, and locomotion.
+     * @param {number} delta - Time elapsed since the last frame.
+     * @param {number} time - Total elapsed time.
+     * @returns {Object|null} Returns a state object (e.g., {consumed: true}) if the player is caught, otherwise null.
+     */
     update(delta, time) {
         if (!this.isActive) {
             this.group.visible = false;

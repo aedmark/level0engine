@@ -1,8 +1,17 @@
 // BoardroomSector.js
+// LEVEL 0 ENGINE SECTOR DATA
 
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
+/**
+ * A procedural sector generator characterized by large, glass-walled meeting rooms.
+ * 
+ * This generator uses a coordinate hashing function (`cellHash`)
+ * to carve out large "bowls" (open rooms) in the grid, overriding the standard wall 
+ * placement. It then dynamically builds glass panes and vestibule doors around the perimeter 
+ * of these bowls to create the illusion of structured corporate suites.
+ */
 export const BoardroomSector = (env, ctx) => {
     const {
         random,

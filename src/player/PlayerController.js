@@ -5,6 +5,14 @@ import SomaticInput from './SomaticInput.js';
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 
+/**
+ * The core physical and metabolic controller for the player.
+ * 
+ * Educational Note: This class manages not just movement, but the player's physical and 
+ * mental state (stamina, exhaustion, coherence, paranoia). By tying movement speeds, FOV, 
+ * and head-bob to these metabolic states, the controls naturally feel more sluggish and 
+ * erratic as the player panics or gets exhausted.
+ */
 export default class PlayerController {
     constructor(camera, domElement) {
         this.camera = camera;
@@ -165,6 +173,16 @@ export default class PlayerController {
         });
     }
 
+    /**
+     * Main physics and logic tick for the player.
+     * 
+     * Educational Note: We use a custom AABB collision sweep instead of a heavy physics engine
+     * like Cannon.js or Ammo.js. By expanding the player's bounding box and checking against 
+     * the Spatial Hash Grid, we can do fast, sliding wall-collisions in just a few lines of math.
+     * 
+     * @param {number} delta - Time elapsed since last frame.
+     * @param {SpatialHashGrid} spatialGrid - The world's spatial partition grid for collision.
+     */
     update(delta, spatialGrid) {
         delta = Math.min(delta, 0.05);
         if (this.isGodMode) {
@@ -491,6 +509,16 @@ export default class PlayerController {
         this._applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes);
     }
 
+    /**
+     * Applies camera shake, head-bob, FOV warping, and leaning based on physical state.
+     * 
+     * Educational Note: Camera movement is crucial for first-person horror. Instead of 
+     * static animations, the head-bob frequency and amplitude are driven dynamically by 
+     * the player's speed, exhaustion, and panic levels. This creates an emergent, 
+     * breathing camera that feels alive.
+     * 
+     * @private
+     */
     _applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes) {
         const state = this.input.state;
         const baseBobFreq = state.isRunning ? 3.5 : 2.0;

@@ -1,8 +1,17 @@
 // ImpoundSector.js
+// LEVEL 0 ENGINE SECTOR DATA
 
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
+/**
+ * A procedural sector generator characterized by chain-link fences and impounded vehicles.
+ * 
+ * This module shows how to handle "perimeter fencing" in a chunked world.
+ * Because chunks are isolated, we have to look at adjacent chunks in the `maze` array 
+ * (using the `mwWall` helper) to determine if a fence should have an end-post or connect 
+ * seamlessly to a fence in the neighboring chunk.
+ */
 export const ImpoundSector = (env, ctx) => {
     const {
         random,

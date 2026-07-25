@@ -1,6 +1,14 @@
 // RenderEngine.js
 // LEVEL 0 CORE RENDER ENGINE
 
+/**
+ * Wraps Three.js to provide the core graphics pipeline, post-processing, and viewport scaling.
+ * 
+ * Educational Note: This engine utilizes a "deferred" or "post-processing" style pipeline. 
+ * Instead of drawing directly to the screen, we draw the 3D scene into an off-screen buffer 
+ * (`this.target`). We then map that buffer onto a 2D plane (`postPlane`) and run a custom 
+ * GLSL fragment shader over it to apply CRT curves, chromatic aberration, and paranoia tearing.
+ */
 export default class RenderEngine {
     // ==========================================
     // LIFECYCLE & INITIALIZATION
@@ -73,6 +81,12 @@ export default class RenderEngine {
          * The Somatic Shader. Handles all post-processing effects including:
          * CRT curvature, chromatic aberration, exhaustion vignettes, paranoia tearing, 
          * blink state, heat waves, and anomalous visual corruption.
+         * 
+         * Educational Note: A ShaderMaterial lets us write raw WebGL (GLSL) code. 
+         * `uniforms` are variables passed from the CPU (JavaScript) to the GPU (GLSL) 
+         * every frame. By feeding our player's metabolic stats (panic, exhaustion) 
+         * into these uniforms, the shader mathematically warps the pixels on the GPU, 
+         * which is vastly faster than trying to calculate screen-distortion on the CPU.
          */
         this.postMaterial = new THREE.ShaderMaterial({
             uniforms: {

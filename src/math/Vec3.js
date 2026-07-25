@@ -1,6 +1,13 @@
 // Vec3.js
 // LEVEL 0 HOMEGROWN MATH
 
+/**
+ * A lightweight, homegrown 3D vector math class. 
+ * Educational Note: While Three.js provides THREE.Vector3, using a custom, minimal 
+ * vector class for high-frequency internal engine calculations (like physics, AI, or grid checks) 
+ * reduces memory footprint and garbage collection (GC) pauses since it lacks the massive 
+ * prototype chain of Three.js objects.
+ */
 export default class Vec3 {
     constructor(x = 0, y = 0, z = 0) {
         this.x = x;
@@ -86,16 +93,29 @@ export default class Vec3 {
         return this;
     }
 
+    /**
+     * Applies a quaternion rotation to this vector.
+     * This uses the standard quaternion-vector multiplication formula
+     * (v' = q * v * q^-1) expanded algebraically for maximum performance.
+     * @param {THREE.Quaternion} q - The quaternion to apply.
+     * @returns {Vec3} This vector (chainable).
+     */
     applyQuaternion(q) {
         const {x, y, z} = this;
         const qx = q.x, qy = q.y, qz = q.z, qw = q.w;
+        
+        // Calculate quaternion * vector
         const ix = qw * x + qy * z - qz * y;
         const iy = qw * y + qz * x - qx * z;
         const iz = qw * z + qx * y - qy * x;
         const iw = -qx * x - qy * y - qz * z;
+        
+        // Calculate (quaternion * vector) * quaternion^-1
         this.x = ix * qw + iw * -qx + iy * -qz - iz * -qy;
         this.y = iy * qw + iw * -qy + iz * -qx - ix * -qz;
         this.z = iz * qw + iw * -qz + ix * -qy - iy * -qx;
+        
         return this;
     }
+
 }

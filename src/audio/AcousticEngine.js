@@ -5,6 +5,17 @@ import Synthesizer from './Synthesizer.js';
 import Mixer from './Mixer.js';
 import Foley from './Foley.js';
 
+/**
+ * AcousticEngine
+ * 
+ * The central manager for all procedural audio in Level 0.
+ * Instead of playing pre-recorded audio files, all sound is generated at runtime
+ * using the Web Audio API. This allows for dynamic, context-aware soundscapes that
+ * react to player telemetry (speed, exhaustion, paranoia, proximity to entities).
+ * 
+ * It delegates node creation to `Synthesizer.js`, real-time mixing to `Mixer.js`, 
+ * and specific event triggers to `Foley.js`.
+ */
 export default class AcousticEngine {
     constructor() {
         this.initialized = false;

@@ -4,6 +4,10 @@
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 
+/**
+ * A highly aggressive, heat-based entity ("The Ember") found in the incinerator sector.
+ * Freezes when observed but radiates lethal heat that drains stamina. Charges when unobserved.
+ */
 export default class IncineratorEntity {
     constructor(scene, camera, player, environment) {
         this.scene = scene;
@@ -70,6 +74,12 @@ export default class IncineratorEntity {
         this.scene.add(this.group);
     }
 
+    /**
+     * Resets the entity and spawns it at the given coordinates, resetting heat levels.
+     * @param {number} x - The X coordinate to spawn at.
+     * @param {number} y - The Y coordinate to spawn at.
+     * @param {number} z - The Z coordinate to spawn at.
+     */
     reset(x, y, z) {
         this.isActive = true;
         this.graceTimer = 3.0;
@@ -81,6 +91,12 @@ export default class IncineratorEntity {
         this.light.intensity = 2.0;
     }
 
+    /**
+     * Updates the entity's behavior, including the weeping angel mechanic, heat radiation, and pursuit.
+     * @param {number} delta - Time elapsed since the last frame.
+     * @param {number} time - Total elapsed time.
+     * @returns {Object|null} Returns a state object (e.g., {consumed: true}) if the player is caught, otherwise null.
+     */
     update(delta, time) {
         if (!this.isActive) {
             this.group.visible = false;

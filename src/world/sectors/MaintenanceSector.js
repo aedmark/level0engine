@@ -1,8 +1,17 @@
 // MaintenanceSector.js
+// LEVEL 0 ENGINE SECTOR DATA
 
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
+/**
+ * A procedural sector generator characterized by tight crawlspaces, scattered tools, and hazard trims.
+ * 
+ * This sector heavily utilizes the `addFurniture` context helper. Furniture
+ * like the toolbox carts and pipe stacks are added to a centralized furniture array rather 
+ * than directly to the `chunkGroup`, allowing the `Environment` class to defer their rendering 
+ * or apply special LOD (Level of Detail) culling to small props to save performance.
+ */
 export const MaintenanceSector = (env, ctx) => {
     const {
         random,

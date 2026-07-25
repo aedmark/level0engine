@@ -1,6 +1,15 @@
 // StructureKit.js
 // LEVEL 0 STRUCTURAL BUILD TOOLKIT
 
+/**
+ * A utility class providing common geometry-building helpers passed via `ctx` to all sectors.
+ * 
+ * Educational Note: This class is vital for performance. Notice the `cacheGeo` and `buildWall` 
+ * functions. Instead of creating a new `THREE.BoxGeometry` for every wall in the maze (which 
+ * would destroy memory and crash the browser), we hash the dimensions (`w_h_d_yOffset`) and 
+ * re-use the exact same geometry reference. This allows Three.js to render thousands of walls 
+ * with minimal overhead.
+ */
 export default class StructureKit {
     constructor(env) {
         this.env = env;

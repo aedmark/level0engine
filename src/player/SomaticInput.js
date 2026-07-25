@@ -3,6 +3,14 @@
 
 const PREVENT_KEYS = new Set(['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyV', 'KeyQ', 'KeyF', 'KeyE', 'KeyG', 'KeyZ', 'Space']);
 
+/**
+ * Translates raw browser keyboard/mouse events into semantic gameplay intentions.
+ * 
+ * "Somatics" refers to the body. This class maps raw keystrokes (W, A, S, D)
+ * into physical intents (`moveForward`, `isCrouching`, `isClosingEyes`). By separating raw input 
+ * from the PlayerController, we ensure the physics engine only ever cares *what* the player wants to do, 
+ * not *how* they pressed the button to do it.
+ */
 export default class SomaticInput {
     constructor(camera) {
         this.camera = camera;
@@ -27,6 +35,12 @@ export default class SomaticInput {
         this._bindEvents();
     }
 
+    /**
+     * Updates continuous input states per-frame.
+     * 
+     * Handles the "hold-to-crawl" logic. If the 'C' key is held for more
+     * than 300ms, it transitions from a crouch to a crawl.
+     */
     update() {
         if (this._cKeyDown && !this._cKeyHandled && (performance.now() - this._cKeyPressTime > 300)) {
             this.state.isCrawling = !this.state.isCrawling;
@@ -193,6 +207,16 @@ export default class SomaticInput {
         }
     }
 
+    /**
+     * Translates mouse movement into camera rotation or physical leaning.
+     * 
+     * If `isPeeking` is true (right mouse button held), moving the mouse
+     * side-to-side translates into `targetLean` instead of camera yaw. This allows the player 
+     * to physically lean around corners without changing the direction they are walking.
+     * 
+     * @private
+     * @param {MouseEvent} e - The raw DOM mouse movement event.
+     */
     _onMouseMove(e) {
         if (!this.isLocked && !(this.lockFallback && this._dragLook)) return;
         if (this.state.isPeeking) {

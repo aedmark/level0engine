@@ -1,6 +1,14 @@
 // StoryEngine.js
 // LEVEL 0 STORY ENGINE.
 
+/**
+ * A procedural narrative generator that constructs a coherent lore state per playthrough.
+ * 
+ * Instead of static text, this engine uses a seeded random number generator (PRNG).
+ * When the player starts a run, the seed dictates the names of the cast, the access codes,
+ * and the ultimate "truth" of the mystery. This ensures that every note, terminal, and tape 
+ * points toward a consistent conclusion for that specific seed, making each run unique but solvable.
+ */
 export default class StoryEngine {
     constructor(seed) {
         this.seed = (seed || 1) >>> 0;
@@ -12,8 +20,8 @@ export default class StoryEngine {
         };
         const pick = (arr) => arr[Math.floor(this.rand() * arr.length)];
 
-        const FIRST = ['Marion', 'Hollis', 'Petra', 'Vernon', 'Gordon', 'Cassandra', 'Ada', 'Ruth', 'Kai', 'Andrew', 'Jess', 'Emile', 'Casper', 'Lena', 'Howard', 'Iris', 'Salvador'];
-        const LAST = ['Vance', 'Okafor', 'Lindqvist', 'Marsh', 'Delacroix', 'Edmark', 'Crownover', 'Bloom', 'Pleimart','Kessler', 'Antoun', 'Reyes', 'Whitlock'];
+        const FIRST = ['Marion', 'Edward', 'Hollis', 'Petra', 'Vernon', 'Gordon', 'Cassandra', 'Ada', 'Ruth', 'Kai', 'Andrew', 'Jess', 'Emile', 'Casper', 'Lena', 'Howard', 'Iris', 'Salvador'];
+        const LAST = ['Vance', 'Okafor', 'Lindqvist', 'Marsh', 'Delacroix', 'Edmark', "Edwards", 'Crownover', 'Bloom', 'Pleimart', 'Kessler', 'Antoun', 'Reyes', 'Whitlock'];
         const used = new Set();
         const mkName = () => {
             let n;
@@ -45,6 +53,15 @@ export default class StoryEngine {
         this._anchorCodeFragments();
     }
 
+    /**
+     * Builds the library of narrative fragments (tapes, reports, memos).
+     * 
+     * We inject the randomly generated names (c.lead, c.lost) and codes (code, pen, hrs)
+     * directly into template literals. One of three possible "foreshadowing" threads is also injected
+     * based on `this.truth`, planting seeds for the final revelation.
+     * 
+     * @private
+     */
     _buildLibrary() {
         const c = this.cast;
         const P = this.projectName;
@@ -122,6 +139,15 @@ export default class StoryEngine {
             this.library.DEFAULT.length + 1;
     }
 
+    /**
+     * Shuffles the document arrays to ensure random discovery order.
+     * 
+     * Uses the Fisher-Yates shuffle algorithm alongside our seeded PRNG.
+     * This guarantees that the order in which documents are found is randomized, but will 
+     * always be exactly the same if the same seed is used.
+     * 
+     * @private
+     */
     _shuffleLibrary() {
         for (const key in this.library) {
             const arr = this.library[key];
@@ -147,6 +173,18 @@ export default class StoryEngine {
         }
     }
 
+    /**
+     * Retrieves the next available story fragment for a specific object (document/terminal/tape).
+     * 
+     * Once an object (docId) is interacted with, the engine permanently maps
+     * that ID to a specific piece of text in `this.assignments`. If the player drops a document 
+     * and picks it up again later, it will still say the same thing. Terminals cycle through 
+     * all previously collected documents.
+     * 
+     * @param {string} docId - The unique identifier of the interactable object.
+     * @param {string} [zone] - The sector the object was found in (determines document category).
+     * @returns {Object} An object containing the text and the player's collection progress.
+     */
     getFragment(docId, zone) {
         const idStr = String(docId || 'X');
 

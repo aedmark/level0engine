@@ -3,6 +3,10 @@
 
 import Vec3 from '../math/Vec3.js';
 
+/**
+ * A passive entity that spawns in the archive sector. Scatters when approached,
+ * but drops documents when observed by the flashlight for a prolonged period.
+ */
 export default class ArchivistEntity {
     constructor(scene, camera, player, environment) {
         this.scene = scene;
@@ -34,6 +38,12 @@ export default class ArchivistEntity {
         this.scene.add(this.group);
     }
 
+    /**
+     * Resets the entity and spawns it at the given coordinates.
+     * @param {number} x - The X coordinate to spawn at.
+     * @param {number} y - The Y coordinate to spawn at.
+     * @param {number} z - The Z coordinate to spawn at.
+     */
     reset(x, y, z) {
         this.isActive = true;
         this.graceTimer = 10.0;
@@ -44,6 +54,12 @@ export default class ArchivistEntity {
         this.observeTimer = 0;
     }
 
+    /**
+     * Updates the entity's behavior, tracking observation and scatter mechanics.
+     * @param {number} delta - Time elapsed since the last frame.
+     * @param {number} time - Total elapsed time.
+     * @returns {Object|null} Returns null; the archivist does not attack or consume the player.
+     */
     update(delta, time) {
         if (!this.isActive) {
             this.group.visible = false;
@@ -109,6 +125,9 @@ export default class ArchivistEntity {
         return null;
     }
 
+    /**
+     * Spawns an interactable document drop in the world when successfully observed.
+     */
     dropDocument() {
         this.droppedDoc = true;
         const docMat = new THREE.MeshBasicMaterial({color: 0xffffff});

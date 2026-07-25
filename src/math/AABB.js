@@ -3,6 +3,14 @@
 
 import Vec3 from './Vec3.js';
 
+/**
+ * AABB (Axis-Aligned Bounding Box)
+ * A lightweight 3D bounding box class used for fast collision detection.
+ * 
+ * "Axis-Aligned" means the box cannot rotate; its edges are always
+ * perfectly parallel to the X, Y, and Z axes. This makes intersection math incredibly fast 
+ * and simple, allowing the engine to test hundreds of collisions per frame without dropping FPS.
+ */
 export default class AABB {
     constructor(min = new Vec3(Infinity, Infinity, Infinity), max = new Vec3(-Infinity, -Infinity, -Infinity)) {
         this.min = new Vec3(min.x, min.y, min.z);
@@ -37,6 +45,20 @@ export default class AABB {
             box.max.z >= this.min.z && box.min.z <= this.max.z;
     }
 
+    /**
+     * Ray-Box Intersection using the "Slab Method".
+     * 
+     * This algorithm treats the AABB as three pairs of parallel planes (slabs).
+     * A ray is fired and we calculate where it enters and exits each slab. If the ray's entry 
+     * into the *last* slab happens *before* its exit out of the *first* slab, the ray has 
+     * passed through the box. This is highly optimized and avoids square roots.
+     * 
+     * @param {Vec3} origin - The starting point of the ray.
+     * @param {Vec3} direction - The normalized direction vector of the ray.
+     * @param {AABB} box - The bounding box to test against.
+     * @param {Vec3} [target] - Optional target vector to store the exact impact point.
+     * @returns {boolean} True if the ray hits the box, false otherwise.
+     */
     static rayIntersectsBox(origin, direction, box, target) {
         let tmin = -Infinity;
         let tmax = Infinity;

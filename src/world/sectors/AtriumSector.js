@@ -1,8 +1,18 @@
 // AtriumSector.js
+// LEVEL 0 ENGINE SECTOR DATA
+
 
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
+/**
+ * A procedural sector generator that acts as an outdoor "courtyard" inside the facility.
+ * 
+ * This sector breaks the claustrophobia by dropping the ceiling
+ * and rendering a starry sky texture. It uses the `maze` array not to place walls, 
+ * but to place dense clusters of corn stalks and scarecrows, repurposing the maze logic 
+ * into a cornfield logic.
+ */
 export const AtriumSector = (env, ctx) => {
     const {
         random,
