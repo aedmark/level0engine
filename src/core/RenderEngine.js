@@ -32,7 +32,7 @@ export default class RenderEngine {
         this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
             minFilter: THREE.LinearFilter,
             magFilter: THREE.LinearFilter,
-            samples: 4
+            samples: 0
         });
         this.postScene = new THREE.Scene();
         this.postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -94,11 +94,8 @@ export default class RenderEngine {
                     }
                     float phasePos = fract(time * 0.05);
                     float phaseBand = 1.0 - smoothstep(0.0, 0.02, abs(uv.y - phasePos));
-                    float pCurve = pow(panic, 3.0);
-                    // Baseline CA + tracking jitter should only exist once the player is
-                    // actually stressed; at full rest this must read as 0 or thin, distant,
-                    // high-contrast geometry (chasm pillars against open sky) will visibly
-                    // vibrate/ghost from a permanent sub-pixel RGB split and tracking wobble.
+                    float pCurve = panic * panic * panic; // Optimized pow
+                    
                     float stressLevel = max(squeeze, max(anomaly, max(exhaustion, max(panic, adrenaline))));
                     float stressGate = smoothstep(0.0, 0.2, stressLevel);
                     if (anomaly > 0.01 || panic > 0.01) {
@@ -112,19 +109,29 @@ export default class RenderEngine {
                     uv.x += phaseBand * 0.0002 * sin(time * 50.0) * stressGate;
                     float heartbeatCA = exhaustion > 0.3 ? sin(time * (10.0 + exhaustion * 5.0)) * 0.004 * exhaustion : 0.0;
                     float panicTear = panic > 0.3 ? (sin(time * 25.0) * 0.02 * pCurve) : 0.0;
-                    float caShift = (0.0005 + (distSq * 0.0015)) * stressGate + (squeeze * 0.003) + pow(anomaly, 1.5) * 0.05 + pow(exhaustion, 2.0) * 0.01 + heartbeatCA + panicTear;
+                    
+                    float caShift = (0.0005 + (distSq * 0.0015)) * stressGate + (squeeze * 0.003) + (anomaly * anomaly * sqrt(anomaly)) * 0.05 + (exhaustion * exhaustion) * 0.01 + heartbeatCA + panicTear;
                     vec2 offset = vec2(caShift, 0.0); 
                     
-                    float heatWave = sin(uv.x * 30.0 + time * 10.0) * sin(uv.y * 15.0 - time * 5.0);
+                    float heatWave = heat > 0.01 ? sin(uv.x * 30.0 + time * 10.0) * sin(uv.y * 15.0 - time * 5.0) : 0.0;
                     vec2 heatOffset = vec2(heatWave * 0.005, heatWave * 0.015) * heat;
                     vec2 sampleUv = uv + heatOffset;
                     
-                    vec4 texR = texture2D(tDiffuse, sampleUv + offset);
-                    vec4 texG = texture2D(tDiffuse, sampleUv);
-                    vec4 texB = texture2D(tDiffuse, sampleUv - offset);
-                    vec3 col = vec3(texR.r, texG.g, texB.b);
+                    vec3 col;
+                    vec3 fauxHalation;
+                    if (caShift < 0.0001) {
+                        vec4 tex = texture2D(tDiffuse, sampleUv);
+                        col = tex.rgb;
+                        fauxHalation = tex.rgb * 0.6;
+                    } else {
+                        vec4 texR = texture2D(tDiffuse, sampleUv + offset);
+                        vec4 texG = texture2D(tDiffuse, sampleUv);
+                        vec4 texB = texture2D(tDiffuse, sampleUv - offset);
+                        col = vec3(texR.r, texG.g, texB.b);
+                        fauxHalation = (texR.rgb + texB.rgb) * 0.3;
+                    }
+                    
                     float luminance = dot(col, vec3(0.299, 0.587, 0.114));
-                    vec3 fauxHalation = (texR.rgb + texB.rgb) * 0.3;
                     col += max(vec3(0.0), fauxHalation - 0.5) * 0.15;
                     float noise = random(uv + mod(time, 10.0));
                     col -= (noise * (0.015 + darkness * 0.15 + anomaly * 0.9)) * (1.0 - luminance);

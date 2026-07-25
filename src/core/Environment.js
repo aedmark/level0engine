@@ -2,7 +2,7 @@
 // LEVEL 0 ENVIRONMENT & MEMORY MANAGER
 
 import ProceduralTextureFactory from '../aesthetics/ProceduralTextureFactory.js';
-import Anomaly from '../entities/Anomaly.js';
+import EntityManager from '../entities/EntityManager.js';
 import SpatialHashGrid from '../math/SpatialHashGrid.js';
 import TheArchitect from './TheArchitect.js';
 import LumenGrid from '../aesthetics/LumenGrid.js';
@@ -13,6 +13,10 @@ import SetPieces from '../world/SetPieces.js';
 import InteractionController from '../player/InteractionController.js';
 
 export default class Environment {
+    get anomaly() {
+        return this.entityManager ? this.entityManager.activeEntity : null;
+    }
+
     constructor(engine, player) {
         this.engine = engine;
         this.scene = engine.scene;
@@ -256,7 +260,7 @@ export default class Environment {
         this.exhaustCloud = new THREE.Points(exhaustGeo, this.exhaustMat);
         this.scene.add(this.exhaustCloud);
         this.lumenGrid = new LumenGrid(this.scene);
-        this.anomaly = new Anomaly(this.scene, this.camera, this.player, this);
+        this.entityManager = new EntityManager(this.scene, this.camera, this.player, this);
         this.tagPool = [];
         this.tagIndex = 0;
         this.tagGroup = new THREE.Group();
@@ -589,16 +593,17 @@ export default class Environment {
             const warpX = this.camera.position.x + (signX * (1500 + Math.random() * 2000));
             const warpZ = this.camera.position.z + (signZ * (1500 + Math.random() * 2000));
             this.camera.position.set(warpX, 1.6, warpZ);
-            this.anomaly.reset(warpX + 32, 1.5, warpZ + 32);
-        } else {
-            this.camera.position.set(0, 1.6, 0);
-            this.anomaly.reset(32, 1.5, 32);
-            const seedString = document.getElementById('seedInput').value || "ASYNC RESEARCH INSTITUTE";
-            this.baseSeed = 0;
-            for (let i = 0; i < seedString.length; i++) {
-                this.baseSeed = ((this.baseSeed << 5) - this.baseSeed) + seedString.charCodeAt(i);
-                this.baseSeed |= 0;
+            if (warpHappened) {
+            if (this.anomaly) this.anomaly.reset(warpX + 32, 1.5, warpZ + 32);
             }
+        } else {
+            this.player.coherence = 1.0;
+            if (this.anomaly) this.anomaly.reset(32, 1.5, 32);
+        }    const seedString = document.getElementById('seedInput').value || "ASYNC RESEARCH INSTITUTE";
+        this.baseSeed = 0;
+        for (let i = 0; i < seedString.length; i++) {
+            this.baseSeed = ((this.baseSeed << 5) - this.baseSeed) + seedString.charCodeAt(i);
+            this.baseSeed |= 0;
         }
         this.cellSize = 4;
         MaterialLibrary.injectMaterials(this);
@@ -1035,7 +1040,7 @@ export default class Environment {
         link.click();
     }
     updateEntity(playerPos, delta, time) {
-        return this.anomaly.update(delta, time);
+        return this.entityManager.update(delta, time, this._stickySectorId || 'NORMAL');
     }
     updateLights(time) {
         if (this.fixtureData) {
@@ -1178,8 +1183,10 @@ export default class Environment {
             this.dustCloud.material.opacity += (targetDustOpacity - this.dustCloud.material.opacity) * 0.05;
             this.dustCloud.material.size += (targetDustSize - this.dustCloud.material.size) * 0.05;
             
+            if (!this._dustColor) this._dustColor = new THREE.Color();
             const targetColor = inAnnex ? 0xe8ddc5 : (inChasm ? 0x2288ff : 0xffffff);
-            this.dustCloud.material.color.lerp(new THREE.Color(targetColor), 0.05);
+            this._dustColor.setHex(targetColor);
+            this.dustCloud.material.color.lerp(this._dustColor, 0.05);
         }
         if (this.exhaustCloud) {
             this.exhaustCloud.position.copy(cameraPos);
@@ -1192,8 +1199,10 @@ export default class Environment {
             const exhaustRate = targetExhaustOpacity > this.exhaustMat.opacity ? 0.08 : 0.20;
             this.exhaustMat.opacity += (targetExhaustOpacity - this.exhaustMat.opacity) * exhaustRate;
             
-            const targetColor = isIncinerator ? 0xff4400 : 0x00ffcc;
-            this.exhaustMat.color.lerp(new THREE.Color(targetColor), 0.05);
+            if (!this._exhaustColor) this._exhaustColor = new THREE.Color();
+            const targetColorEx = isIncinerator ? 0xff4400 : 0x00ffcc;
+            this._exhaustColor.setHex(targetColorEx);
+            this.exhaustMat.color.lerp(this._exhaustColor, 0.05);
 
             if (this.exhaustMat.opacity > 0.01) {
                 const baseSize = isIncinerator ? 0.18 : 0.08;
