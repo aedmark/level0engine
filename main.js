@@ -1,6 +1,9 @@
 // main.js
 // LEVEL 0 SYSTEM BOOTSTRAP
 
+// ==========================================
+// IMPORTS
+// ==========================================
 import RenderEngine from './src/core/RenderEngine.js';
 import PlayerController from './src/player/PlayerController.js';
 import Environment from './src/core/Environment.js';
@@ -15,6 +18,9 @@ import InquestController from './src/ui/InquestController.js';
 import UIManager from './src/ui/UIManager.js';
 import { DebugHUD } from './src/ui/DebugHUD.js';
 
+// ==========================================
+// SYSTEM INITIALIZATION
+// ==========================================
 const engine = new RenderEngine();
 const acoustics = new AcousticEngine();
 window.acoustics = acoustics;
@@ -25,6 +31,15 @@ window.environment = environment;
 const saveManager = new SaveManager(engine, player, environment, acoustics);
 const somatic = new SomaticController(acoustics);
 
+// ==========================================
+// GLOBALS & HELPERS
+// ==========================================
+
+/**
+ * Lazy loads or retrieves the cached StoryEngine instance.
+ * Rebuilds the narrative tree if the base seed changes.
+ * @returns {StoryEngine} The active narrative instance.
+ */
 function getStory() {
     if (!getStory._cache || getStory._lastSeed !== environment.baseSeed) {
         getStory._cache = new StoryEngine(environment.baseSeed);
@@ -33,14 +48,19 @@ function getStory() {
     return getStory._cache;
 }
 
-const docViewer = new DocumentViewer(player, acoustics, getStory);
-const keypad = new KeypadController(player, acoustics, getStory);
-
+/**
+ * Forces a soft-reset of the environment by mutating the seed string,
+ * effectively plunging the player into a blackout/regenerated zone.
+ */
 function triggerBlackout() {
     const seedInput = document.getElementById('seedInput');
     seedInput.value = seedInput.value + " NULL";
 }
 
+/**
+ * Increments the floor layer (FL-X) inside the seed, appending it
+ * if it doesn't already exist. Prepares the environment for descent/ascent.
+ */
 function triggerAscension() {
     const seedInput = document.getElementById('seedInput');
     const parts = seedInput.value.split(" FL-");
@@ -48,14 +68,27 @@ function triggerAscension() {
     seedInput.value = parts[0] + " FL-" + floor;
 }
 
+// ==========================================
+// CONTROLLER REGISTRATION
+// ==========================================
+const docViewer = new DocumentViewer(player, acoustics, getStory);
+const keypad = new KeypadController(player, acoustics, getStory);
 const inquest = new InquestController(player, acoustics, engine, environment, getStory, triggerAscension, triggerBlackout);
 
-// Initialize State
+// ==========================================
+// STATE HYDRATION & BOOT
+// ==========================================
+
+// Seed Management
 const savedState = saveManager.loadState();
 if (!document.getElementById('seedInput').value) {
     document.getElementById('seedInput').value = saveManager.generateCardSeed();
 }
+
+// Build World
 environment.setup();
+
+// Hydrate Player & Camera
 if (savedState) {
     engine.camera.position.set(savedState.px, savedState.py, savedState.pz);
     engine.camera.rotation.set(savedState.rx, savedState.ry, 0, 'YXZ');
@@ -78,6 +111,14 @@ DebugHUD.bindEvents();
 saveManager.startAutoSave();
 UIManager.startVHSTimer();
 
+// ==========================================
+// DEBUG & TOOLS
+// ==========================================
+
+/**
+ * Development hook: Allows jumping to specific sectors by brute-forcing
+ * seeds until the environment generator naturally spawns the requested zone.
+ */
 document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e) => {
     const targetSector = e.target.value;
     if (!targetSector) return;
@@ -122,7 +163,14 @@ document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e
     if (uiLayer) uiLayer.style.opacity = '1';
 });
 
-// Animation Loop
+// ==========================================
+// MAIN GAME LOOP
+// ==========================================
+
+/**
+ * The primary render loop. Orchestrates WebGL rendering, physics/collision hashing,
+ * entity ticks, player input handling, and shader uniform updates.
+ */
 function animate() {
     requestAnimationFrame(animate);
     const delta = engine.delta;
@@ -134,9 +182,11 @@ function animate() {
         return;
     }
     
+    // Environment Tick
     environment.updateChunks(engine.camera.position);
     environment.updateInteractives(engine.camera.position, delta);
     
+    // Fall Detection (OOB bounds check)
     if (engine.camera.position.y < -15.0 && player.isGodMode) {
         engine.camera.position.y = 3.0;
         player.velocity.set(0, 0, 0);
@@ -152,6 +202,7 @@ function animate() {
         return;
     }
     
+    // Entity Processing
     const entityState = environment.updateEntity(engine.camera.position, delta, time);
     if (entityState && entityState.consumed) {
         player.isDead = true;
@@ -166,21 +217,29 @@ function animate() {
         return;
     }
     
+    // Player Kinematics
     player.update(delta, environment.spatialGrid);
+    
+    // Warp-Zone Spawning (Staircase triggers)
     if (engine.camera.position.y > 2.8 && player.onWarpZone && !environment.isSpawning) {
         environment.generate(true);
         return;
     }
     
+    // Render Variables & Telemetry
     engine.exhaustion = player.exhaustion;
     const squeezeFactor = (player.baseRadius - player.playerRadius) / (player.baseRadius - player.squeezeRadius);
     engine.squeeze = Math.max(0.0, Math.min(1.0, squeezeFactor));
+    
     const telemetry = environment.updateLights(time);
     telemetry.paranoia = player.paranoia || 0.0;
     telemetry.adrenaline = engine.adrenaline;
     telemetry.eyesClosed = engine.eyesClosed;
+    
+    // Update Acoustic Mix
     acoustics.update(telemetry);
     
+    // Post-Processing Params
     engine.anomaly = telemetry.anomalyPressure + (telemetry.paranoia * 0.5);
     engine.darkness = player.perceivedDarkness || 0.0;
     engine.paranoia = telemetry.paranoia;
@@ -188,14 +247,17 @@ function animate() {
     engine.adrenaline = player.adrenalineTimer > 0 ? (player.adrenalineTimer / 2.5) : 0.0;
     engine.eyesClosed = player.input.state.isClosingEyes ? 1.0 : 0.0;
     
+    // Paranoia Hallucinations (Audio)
     if (engine.paranoia > 0.4 && Math.random() < (engine.paranoia * delta * 0.3)) {
         const fakeDistSq = Math.pow(10.0 + (Math.random() * 20.0), 2);
         acoustics.triggerSomaticEvent(Math.random() > 0.7 ? 'door' : 'step', fakeDistSq, 0.3 + Math.random() * 0.5);
     }
     
+    // UI Ticks
     UIManager.update(time, engine, player, environment);
     DebugHUD.update(time, delta, telemetry, engine, player, environment);
     
+    // Final Pass
     engine.render();
 }
 

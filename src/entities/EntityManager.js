@@ -4,6 +4,7 @@
 import Anomaly from './Anomaly.js';
 import ArchivistEntity from './ArchivistEntity.js';
 import WardenEntity from './WardenEntity.js';
+import IncineratorEntity from './IncineratorEntity.js';
 
 export default class EntityManager {
     constructor(scene, camera, player, environment) {
@@ -14,8 +15,14 @@ export default class EntityManager {
         this.entities = {
             'DEFAULT': new Anomaly(scene, camera, player, environment),
             'ARCHIVE': new ArchivistEntity(scene, camera, player, environment),
-            'IMPOUND': new WardenEntity(scene, camera, player, environment)
+            'IMPOUND': new WardenEntity(scene, camera, player, environment),
+            'INCINERATOR': new IncineratorEntity(scene, camera, player, environment)
         };
+        for (let key in this.entities) {
+            if (this.entities[key].group) {
+                this.entities[key].group.visible = false;
+            }
+        }
         this.activeType = null;
         this.activeEntity = null;
     }
@@ -26,6 +33,8 @@ export default class EntityManager {
             targetType = 'ARCHIVE';
         } else if (activeSector === 'IMPOUND') {
             targetType = 'IMPOUND';
+        } else if (activeSector === 'INCINERATOR') {
+            targetType = 'INCINERATOR';
         }
         if (this.activeType !== targetType) {
             if (this.activeEntity) {

@@ -13,6 +13,11 @@ import SetPieces from '../world/SetPieces.js';
 import InteractionController from '../player/InteractionController.js';
 
 export default class Environment {
+    // ==========================================
+    // LIFECYCLE & INITIALIZATION
+    // ==========================================
+
+
     get anomaly() {
         return this.entityManager ? this.entityManager.activeEntity : null;
     }
@@ -52,133 +57,6 @@ export default class Environment {
         this.interactionController = new InteractionController(this);
     }
 
-    _sectorFog(id) {
-        const s = SECTORS[id];
-        return (s && s.fog !== undefined) ? s.fog : 0.05;
-    }
-
-    updateChunks(playerPos) {
-        const activeCellSize = this.cellSize || 4;
-        const chunkX = Math.floor(playerPos.x / (this.chunkSize * activeCellSize));
-        const chunkZ = Math.floor(playerPos.z / (this.chunkSize * activeCellSize));
-        if (this.currentChunkCoords.x === chunkX && this.currentChunkCoords.z === chunkZ) return;
-        this.currentChunkCoords.x = chunkX;
-        this.currentChunkCoords.z = chunkZ;
-        const chunksToKeep = new Set();
-        for (let x = -this.renderDistance; x <= this.renderDistance; x++) {
-            for (let z = -this.renderDistance; z <= this.renderDistance; z++) {
-                const targetX = chunkX + x;
-                const targetZ = chunkZ + z;
-                const hash = `${targetX},${targetZ}`;
-                chunksToKeep.add(hash);
-                if (!this.activeChunks.has(hash) && !this.queuedHashes.has(hash)) {
-                    this.chunkQueue.push({x: targetX, z: targetZ, hash: hash});
-                    this.queuedHashes.add(hash);
-                }
-            }
-        }
-        this.processChunkQueue().catch(err => console.error('Chunk queue processing failed:', err));
-        const deadHashes = new Set();
-        for (const [hash, chunkGroup] of this.activeChunks.entries()) {
-            if (!chunksToKeep.has(hash)) {
-                deadHashes.add(hash);
-                this.scene.remove(chunkGroup);
-                chunkGroup.traverse((child) => {
-                    if (child.isInstancedMesh) child.dispose();
-                    if (child.geometry && !this.sharedAssets.has(child.geometry.uuid) && !this.geoCache.has(child.geometry.uuid)) {
-                        child.geometry.dispose();
-                    }
-                    if (child.material) {
-                        const materials = Array.isArray(child.material) ? child.material : [child.material];
-                        materials.forEach(m => {
-                            if (!this.sharedAssets.has(m.uuid)) m.dispose();
-                        });
-                    }
-                });
-                this.activeChunks.delete(hash);
-                this.blackoutChunks.delete(hash);
-                this.spatialGrid.removeByChunk(hash);
-            }
-        }
-        if (deadHashes.size > 0) {
-            deadHashes.forEach(h => {
-                this.macroZones.delete(h);
-                if (this._annexKeypadChunks) this._annexKeypadChunks.delete(h);
-            });
-            this.walls = this.walls.filter(w => !deadHashes.has(w.userData.chunkHash));
-            this.fixtureData = this.fixtureData.filter(f => !deadHashes.has(f.chunkHash));
-            this.idlingCars = this.idlingCars.filter(c => !deadHashes.has(c.chunkHash));
-            this.interactiveDoors = this.interactiveDoors.filter(d => !deadHashes.has(d.userData.chunkHash));
-            if (this.airlocks) {
-                this.airlocks = this.airlocks.filter(a => !deadHashes.has(a.chunkHash));
-            }
-            if (this.interactables) {
-                this.interactables = this.interactables.filter(i => !deadHashes.has(i.userData.chunkHash));
-            }
-            if (this.observers) {
-                this.observers = this.observers.filter(o => !deadHashes.has(o.userData.chunkHash));
-            }
-            if (this.pointsOfInterest) {
-                this.pointsOfInterest = this.pointsOfInterest.filter(p => !deadHashes.has(p.chunkHash));
-            }
-        }
-    }
-
-    _rollHuntHops() {
-        const r = Math.random();
-        if (r < 0.10) return 0;
-        if (r < 0.60) return 1;
-        return 2;
-    }
-
-    shatterFixture(fixture) {
-        return this.interactionController.shatterFixture(fixture);
-    }
-
-    _updateSliderDoor(door, playerPos, delta) {
-        return this.interactionController.updateSliderDoor(door, playerPos, delta);
-    }
-
-    updateInteractives(playerPos, delta) {
-        return this.interactionController.updateInteractives(playerPos, delta);
-    }
-
-    async processChunkQueue() {
-        if (this.isBuildingChunk) return;
-        this.isBuildingChunk = true;
-        try {
-            while (this.chunkQueue.length > 0) {
-                const chunk = this.chunkQueue.shift();
-                this.queuedHashes.delete(chunk.hash);
-                const currentX = Math.floor(this.camera.position.x / (this.chunkSize * 4));
-                const currentZ = Math.floor(this.camera.position.z / (this.chunkSize * 4));
-                if (Math.abs(chunk.x - currentX) <= this.renderDistance && Math.abs(chunk.z - currentZ) <= this.renderDistance) {
-                    const genT0 = performance.now();
-                    await this.buildChunk(chunk.x, chunk.z, chunk.hash);
-                    const genMs = performance.now() - genT0;
-                    if (!this.genStats) this.genStats = {count: 0, totalMs: 0, worstMs: 0, lastMs: 0};
-                    this.genStats.count++;
-                    this.genStats.totalMs += genMs;
-                    this.genStats.lastMs = genMs;
-                    if (genMs > this.genStats.worstMs) this.genStats.worstMs = genMs;
-                    await new Promise(resolve => setTimeout(resolve, 0));
-                }
-            }
-        } finally {
-            this.isBuildingChunk = false;
-        }
-        if (this.isSpawning) {
-            this.isSpawning = false;
-            const flash = document.getElementById('flash-overlay');
-            if (flash) {
-                flash.style.transition = 'opacity 2.0s ease-in';
-                flash.style.opacity = '0';
-                setTimeout(() => {
-                    if (flash.style.opacity === '0') flash.style.backgroundColor = '#fff';
-                }, 2050);
-            }
-        }
-    }
 
     setup() {
         const assets = ProceduralTextureFactory.generateAssets();
@@ -545,104 +423,121 @@ export default class Environment {
         });
     }
 
-    generate(isWarp = false) {
-        const flash = document.getElementById('flash-overlay');
-        if (flash) {
-            flash.style.transition = 'none';
-            flash.style.backgroundColor = '#000';
-            flash.style.opacity = '1';
-        }
-        this.isSpawning = true;
-        this.activeChunks.forEach((chunkGroup) => {
-            this.scene.remove(chunkGroup);
-            chunkGroup.traverse((child) => {
-                if (child.isInstancedMesh) child.dispose();
-                if (child.geometry && !this.sharedAssets.has(child.geometry.uuid) && (!this.geoCache || !this.geoCache.has(child.geometry.uuid))) {
-                    child.geometry.dispose();
+    // ==========================================
+    // CORE LOOPS & STATE
+    // ==========================================
+
+    /**
+     * The core spatial-hashing update loop. Triggers chunk loading/unloading dynamically
+     * based on player proximity. Discards stale chunks to maintain 60fps.
+     * @param {THREE.Vector3} playerPos - The current camera position.
+     */
+
+    updateChunks(playerPos) {
+        const activeCellSize = this.cellSize || 4;
+        const chunkX = Math.floor(playerPos.x / (this.chunkSize * activeCellSize));
+        const chunkZ = Math.floor(playerPos.z / (this.chunkSize * activeCellSize));
+        if (this.currentChunkCoords.x === chunkX && this.currentChunkCoords.z === chunkZ) return;
+        this.currentChunkCoords.x = chunkX;
+        this.currentChunkCoords.z = chunkZ;
+        const chunksToKeep = new Set();
+        for (let x = -this.renderDistance; x <= this.renderDistance; x++) {
+            for (let z = -this.renderDistance; z <= this.renderDistance; z++) {
+                const targetX = chunkX + x;
+                const targetZ = chunkZ + z;
+                const hash = `${targetX},${targetZ}`;
+                chunksToKeep.add(hash);
+                if (!this.activeChunks.has(hash) && !this.queuedHashes.has(hash)) {
+                    this.chunkQueue.push({x: targetX, z: targetZ, hash: hash});
+                    this.queuedHashes.add(hash);
                 }
-                if (child.material) {
-                    const materials = Array.isArray(child.material) ? child.material : [child.material];
-                    materials.forEach(m => {
-                        if (!this.sharedAssets.has(m.uuid)) m.dispose();
-                    });
-                }
-            });
-        });
-        this.activeChunks.clear();
-        this.walls = [];
-        this.fixtureData = [];
-        this.idlingCars = [];
-        this.interactables = [];
-        this.interactiveDoors = [];
-        this.airlocks = [];
-        this.macroZones.clear();
-        this.spatialGrid.clear();
-        this.currentChunkCoords = {x: null, z: null};
-        this.blackoutChunks.clear();
-        this.observers = [];
-        this._globalSwitches = [];
-        this.pointsOfInterest = [];
-        this._breakerHuntHops = this._rollHuntHops();
-        this._runSalt32 = (Math.random() * 4294967296) >>> 0;
-        this._macroChunkHashes = new Set();
-        this._sectorBags = null;
-        if (this.tagPool) {
-            this.tagPool.forEach(tag => tag.visible = false);
-            this.tagIndex = 0;
-        }
-        this.chunkQueue = [];
-        this.isBuildingChunk = false;
-        this.player.velocity.set(0, 0, 0);
-        if (isWarp) {
-            const signX = Math.random() > 0.5 ? 1 : -1;
-            const signZ = Math.random() > 0.5 ? 1 : -1;
-            const warpX = this.camera.position.x + (signX * (1500 + Math.random() * 2000));
-            const warpZ = this.camera.position.z + (signZ * (1500 + Math.random() * 2000));
-            this.camera.position.set(warpX, 1.6, warpZ);
-            if (warpHappened) {
-                if (this.anomaly) this.anomaly.reset(warpX + 32, 1.5, warpZ + 32);
             }
-        } else {
-            this.player.coherence = 1.0;
-            if (this.anomaly) this.anomaly.reset(32, 1.5, 32);
         }
-        const seedString = document.getElementById('seedInput').value || "ASYNC RESEARCH INSTITUTE";
-        this.baseSeed = 0;
-        for (let i = 0; i < seedString.length; i++) {
-            this.baseSeed = ((this.baseSeed << 5) - this.baseSeed) + seedString.charCodeAt(i);
-            this.baseSeed |= 0;
+        this.processChunkQueue().catch(err => console.error('Chunk queue processing failed:', err));
+        const deadHashes = new Set();
+        for (const [hash, chunkGroup] of this.activeChunks.entries()) {
+            if (!chunksToKeep.has(hash)) {
+                deadHashes.add(hash);
+                this.scene.remove(chunkGroup);
+                chunkGroup.traverse((child) => {
+                    if (child.isInstancedMesh) child.dispose();
+                    if (child.geometry && !this.sharedAssets.has(child.geometry.uuid) && !this.geoCache.has(child.geometry.uuid)) {
+                        child.geometry.dispose();
+                    }
+                    if (child.material) {
+                        const materials = Array.isArray(child.material) ? child.material : [child.material];
+                        materials.forEach(m => {
+                            if (!this.sharedAssets.has(m.uuid)) m.dispose();
+                        });
+                    }
+                });
+                this.activeChunks.delete(hash);
+                this.blackoutChunks.delete(hash);
+                this.spatialGrid.removeByChunk(hash);
+            }
         }
-        this.cellSize = 4;
-        MaterialLibrary.injectMaterials(this);
+        if (deadHashes.size > 0) {
+            deadHashes.forEach(h => {
+                this.macroZones.delete(h);
+                if (this._annexKeypadChunks) this._annexKeypadChunks.delete(h);
+            });
+            this.walls = this.walls.filter(w => !deadHashes.has(w.userData.chunkHash));
+            this.fixtureData = this.fixtureData.filter(f => !deadHashes.has(f.chunkHash));
+            this.idlingCars = this.idlingCars.filter(c => !deadHashes.has(c.chunkHash));
+            this.interactiveDoors = this.interactiveDoors.filter(d => !deadHashes.has(d.userData.chunkHash));
+            if (this.airlocks) {
+                this.airlocks = this.airlocks.filter(a => !deadHashes.has(a.chunkHash));
+            }
+            if (this.interactables) {
+                this.interactables = this.interactables.filter(i => !deadHashes.has(i.userData.chunkHash));
+            }
+            if (this.observers) {
+                this.observers = this.observers.filter(o => !deadHashes.has(o.userData.chunkHash));
+            }
+            if (this.pointsOfInterest) {
+                this.pointsOfInterest = this.pointsOfInterest.filter(p => !deadHashes.has(p.chunkHash));
+            }
+        }
     }
 
-    _cacheGeo(key, make) {
-        return this.structureKit.cacheGeo(key, make);
+
+    async processChunkQueue() {
+        if (this.isBuildingChunk) return;
+        this.isBuildingChunk = true;
+        try {
+            while (this.chunkQueue.length > 0) {
+                const chunk = this.chunkQueue.shift();
+                this.queuedHashes.delete(chunk.hash);
+                const currentX = Math.floor(this.camera.position.x / (this.chunkSize * 4));
+                const currentZ = Math.floor(this.camera.position.z / (this.chunkSize * 4));
+                if (Math.abs(chunk.x - currentX) <= this.renderDistance && Math.abs(chunk.z - currentZ) <= this.renderDistance) {
+                    const genT0 = performance.now();
+                    await this.buildChunk(chunk.x, chunk.z, chunk.hash);
+                    const genMs = performance.now() - genT0;
+                    if (!this.genStats) this.genStats = {count: 0, totalMs: 0, worstMs: 0, lastMs: 0};
+                    this.genStats.count++;
+                    this.genStats.totalMs += genMs;
+                    this.genStats.lastMs = genMs;
+                    if (genMs > this.genStats.worstMs) this.genStats.worstMs = genMs;
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+            }
+        } finally {
+            this.isBuildingChunk = false;
+        }
+        if (this.isSpawning) {
+            this.isSpawning = false;
+            const flash = document.getElementById('flash-overlay');
+            if (flash) {
+                flash.style.transition = 'opacity 2.0s ease-in';
+                flash.style.opacity = '0';
+                setTimeout(() => {
+                    if (flash.style.opacity === '0') flash.style.backgroundColor = '#fff';
+                }, 2050);
+            }
+        }
     }
 
-    _boxGeo(w, h, d) {
-        return this.structureKit.boxGeo(w, h, d);
-    }
-
-    _planeGeo(w, h) {
-        return this.structureKit.planeGeo(w, h);
-    }
-
-    _createChunkHelpers(hash, chunkGroup, stagingMeshes, random) {
-        return this.structureKit.createChunkHelpers(hash, chunkGroup, stagingMeshes, random);
-    }
-
-    _buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, ctx) {
-        return this.setPieces.buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, ctx);
-    }
-
-    _buildCheckpointColumn(x, z, hash, ctx) {
-        return this.setPieces.buildCheckpointColumn(x, z, hash, ctx);
-    }
-
-    _buildImpoundItem(px, pz, kind, ctx) {
-        return this.setPieces.buildImpoundItem(px, pz, kind, ctx);
-    }
 
     async buildChunk(chunkX, chunkZ, hash) {
         const chunkGroup = new THREE.Group();
@@ -959,93 +854,24 @@ export default class Environment {
         this._compileInstances(hash, chunkGroup, stagingMeshes, random);
     }
 
-    _buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling) {
-        return this.setPieces.buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling);
+
+    updateInteractives(playerPos, delta) {
+        return this.interactionController.updateInteractives(playerPos, delta);
     }
 
-    _buildAirlock(chunkGroup, hash, dcx, dcz, spansX, sectorId, outSign) {
-        return this.setPieces.buildAirlock(chunkGroup, hash, dcx, dcz, spansX, sectorId, outSign);
-    }
-
-    _updateAirlockDoor(doorObj, delta) {
-        return this.interactionController.updateAirlockDoor(doorObj, delta);
-    }
-
-    _updateAirlock(airlock, playerPos, delta) {
-        return this.interactionController.updateAirlock(airlock, playerPos, delta);
-    }
-
-    _buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId, buildWalls = true) {
-        return this.setPieces.buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId, buildWalls);
-    }
-
-    _generateSectorMaze(randomFn) {
-        return this.setPieces.generateSectorMaze(randomFn);
-    }
-
-    _compileInstances(hash, chunkGroup, stagingMeshes, randomFn) {
-        const instancedGroups = new Map();
-        stagingMeshes.forEach(mesh => {
-            const matSig = Array.isArray(mesh.material) ? mesh.material.map(m => m.uuid).join('_') : mesh.material.uuid;
-            const sig = `${mesh.geometry.uuid}_${matSig}`;
-            if (!instancedGroups.has(sig)) {
-                instancedGroups.set(sig, {
-                    geometry: mesh.geometry,
-                    material: mesh.material,
-                    meshes: []
-                });
-            }
-            instancedGroups.get(sig).meshes.push(mesh);
-        });
-        const dummyColor = new THREE.Color();
-        instancedGroups.forEach(group => {
-            const isDecal = group.material === this.moldMat || group.material === this.ceilingStainMat || group.material === this.glowMat;
-            if (group.meshes.length > 1) {
-                const iMesh = new THREE.InstancedMesh(group.geometry, group.material, group.meshes.length);
-                if (!isDecal) {
-                    iMesh.castShadow = (group.material !== this.fenceMat);
-                    iMesh.receiveShadow = true;
-                }
-                iMesh.userData.chunkHash = hash;
-                const isStructural = group.material === this.sharedWallMat || group.material === this.headerMat;
-                const needsColor = !isStructural && !isDecal;
-                group.meshes.forEach((mesh, index) => {
-                    iMesh.setMatrixAt(index, mesh.matrixWorld);
-                    if (needsColor) {
-                        const shade = 0.85 + (randomFn() * 0.15);
-                        dummyColor.setRGB(shade, shade * 0.95, shade * 0.90);
-                        iMesh.setColorAt(index, dummyColor);
-                    }
-                });
-                iMesh.instanceMatrix.needsUpdate = true;
-                if (needsColor && iMesh.instanceColor) iMesh.instanceColor.needsUpdate = true;
-                chunkGroup.add(iMesh);
-                if (!isDecal) this.walls.push(iMesh);
-            } else {
-                const mesh = group.meshes[0];
-                mesh.matrixWorld.decompose(mesh.position, mesh.quaternion, mesh.scale);
-                if (!isDecal) {
-                    mesh.castShadow = (group.material !== this.fenceMat);
-                    mesh.receiveShadow = true;
-                    this.walls.push(mesh);
-                }
-                chunkGroup.add(mesh);
-            }
-        });
-    }
-
-    captureAsset() {
-        this.engine.render();
-        const dataURL = this.engine.renderer.domElement.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.download = `backrooms_asset_${Date.now()}.png`;
-        link.href = dataURL;
-        link.click();
-    }
+    /**
+     * Routes entity tick commands to the EntityManager based on the sticky sector.
+     */
 
     updateEntity(playerPos, delta, time) {
         return this.entityManager.update(delta, time, this._stickySectorId || 'NORMAL');
     }
+
+    /**
+     * Evaluates spatial grid chunks to determine active sector, blends sector fog,
+     * and modulates light intensity or triggers random breaker/flicker events.
+     * @param {number} time - Global runtime elapsed.
+     */
 
     updateLights(time) {
         if (this.fixtureData) {
@@ -1325,4 +1151,249 @@ export default class Environment {
             idlingCarDistSq
         };
     }
+
+    // ==========================================
+    // PROCEDURAL GENERATION PIPELINE
+    // ==========================================
+
+    /**
+     * Triggers the procedural generation pipeline. Builds the environment, distributes light fixtures,
+     * and spawns interactive elements.
+     * @param {boolean} isWarp - True if the player is being warped across coordinates.
+     */
+
+    generate(isWarp = false) {
+        const flash = document.getElementById('flash-overlay');
+        if (flash) {
+            flash.style.transition = 'none';
+            flash.style.backgroundColor = '#000';
+            flash.style.opacity = '1';
+        }
+        this.isSpawning = true;
+        this.activeChunks.forEach((chunkGroup) => {
+            this.scene.remove(chunkGroup);
+            chunkGroup.traverse((child) => {
+                if (child.isInstancedMesh) child.dispose();
+                if (child.geometry && !this.sharedAssets.has(child.geometry.uuid) && (!this.geoCache || !this.geoCache.has(child.geometry.uuid))) {
+                    child.geometry.dispose();
+                }
+                if (child.material) {
+                    const materials = Array.isArray(child.material) ? child.material : [child.material];
+                    materials.forEach(m => {
+                        if (!this.sharedAssets.has(m.uuid)) m.dispose();
+                    });
+                }
+            });
+        });
+        this.activeChunks.clear();
+        this.walls = [];
+        this.fixtureData = [];
+        this.idlingCars = [];
+        this.interactables = [];
+        this.interactiveDoors = [];
+        this.airlocks = [];
+        this.macroZones.clear();
+        this.spatialGrid.clear();
+        this.currentChunkCoords = {x: null, z: null};
+        this.blackoutChunks.clear();
+        this.observers = [];
+        this._globalSwitches = [];
+        this.pointsOfInterest = [];
+        this._breakerHuntHops = this._rollHuntHops();
+        this._runSalt32 = (Math.random() * 4294967296) >>> 0;
+        this._macroChunkHashes = new Set();
+        this._sectorBags = null;
+        if (this.tagPool) {
+            this.tagPool.forEach(tag => tag.visible = false);
+            this.tagIndex = 0;
+        }
+        this.chunkQueue = [];
+        this.isBuildingChunk = false;
+        this.player.velocity.set(0, 0, 0);
+        if (isWarp) {
+            const signX = Math.random() > 0.5 ? 1 : -1;
+            const signZ = Math.random() > 0.5 ? 1 : -1;
+            const warpX = this.camera.position.x + (signX * (1500 + Math.random() * 2000));
+            const warpZ = this.camera.position.z + (signZ * (1500 + Math.random() * 2000));
+            this.camera.position.set(warpX, 1.6, warpZ);
+            if (warpHappened) {
+                if (this.anomaly) this.anomaly.reset(warpX + 32, 1.5, warpZ + 32);
+            }
+        } else {
+            this.player.coherence = 1.0;
+            if (this.anomaly) this.anomaly.reset(32, 1.5, 32);
+        }
+        const seedString = document.getElementById('seedInput').value || "ASYNC RESEARCH INSTITUTE";
+        this.baseSeed = 0;
+        for (let i = 0; i < seedString.length; i++) {
+            this.baseSeed = ((this.baseSeed << 5) - this.baseSeed) + seedString.charCodeAt(i);
+            this.baseSeed |= 0;
+        }
+        this.cellSize = 4;
+        MaterialLibrary.injectMaterials(this);
+    }
+
+
+    _generateSectorMaze(randomFn) {
+        return this.setPieces.generateSectorMaze(randomFn);
+    }
+
+
+    _compileInstances(hash, chunkGroup, stagingMeshes, randomFn) {
+        const instancedGroups = new Map();
+        stagingMeshes.forEach(mesh => {
+            const matSig = Array.isArray(mesh.material) ? mesh.material.map(m => m.uuid).join('_') : mesh.material.uuid;
+            const sig = `${mesh.geometry.uuid}_${matSig}`;
+            if (!instancedGroups.has(sig)) {
+                instancedGroups.set(sig, {
+                    geometry: mesh.geometry,
+                    material: mesh.material,
+                    meshes: []
+                });
+            }
+            instancedGroups.get(sig).meshes.push(mesh);
+        });
+        const dummyColor = new THREE.Color();
+        instancedGroups.forEach(group => {
+            const isDecal = group.material === this.moldMat || group.material === this.ceilingStainMat || group.material === this.glowMat;
+            if (group.meshes.length > 1) {
+                const iMesh = new THREE.InstancedMesh(group.geometry, group.material, group.meshes.length);
+                if (!isDecal) {
+                    iMesh.castShadow = (group.material !== this.fenceMat);
+                    iMesh.receiveShadow = true;
+                }
+                iMesh.userData.chunkHash = hash;
+                const isStructural = group.material === this.sharedWallMat || group.material === this.headerMat;
+                const needsColor = !isStructural && !isDecal;
+                group.meshes.forEach((mesh, index) => {
+                    iMesh.setMatrixAt(index, mesh.matrixWorld);
+                    if (needsColor) {
+                        const shade = 0.85 + (randomFn() * 0.15);
+                        dummyColor.setRGB(shade, shade * 0.95, shade * 0.90);
+                        iMesh.setColorAt(index, dummyColor);
+                    }
+                });
+                iMesh.instanceMatrix.needsUpdate = true;
+                if (needsColor && iMesh.instanceColor) iMesh.instanceColor.needsUpdate = true;
+                chunkGroup.add(iMesh);
+                if (!isDecal) this.walls.push(iMesh);
+            } else {
+                const mesh = group.meshes[0];
+                mesh.matrixWorld.decompose(mesh.position, mesh.quaternion, mesh.scale);
+                if (!isDecal) {
+                    mesh.castShadow = (group.material !== this.fenceMat);
+                    mesh.receiveShadow = true;
+                    this.walls.push(mesh);
+                }
+                chunkGroup.add(mesh);
+            }
+        });
+    }
+
+
+    _createChunkHelpers(hash, chunkGroup, stagingMeshes, random) {
+        return this.structureKit.createChunkHelpers(hash, chunkGroup, stagingMeshes, random);
+    }
+
+    // ==========================================
+    // SECTOR GEOMETRY BUILDERS
+    // ==========================================
+
+
+    _buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling) {
+        return this.setPieces.buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling);
+    }
+
+
+    _buildAirlock(chunkGroup, hash, dcx, dcz, spansX, sectorId, outSign) {
+        return this.setPieces.buildAirlock(chunkGroup, hash, dcx, dcz, spansX, sectorId, outSign);
+    }
+
+
+    _buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId, buildWalls = true) {
+        return this.setPieces.buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId, buildWalls);
+    }
+
+
+    _buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, ctx) {
+        return this.setPieces.buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, ctx);
+    }
+
+
+    _buildCheckpointColumn(x, z, hash, ctx) {
+        return this.setPieces.buildCheckpointColumn(x, z, hash, ctx);
+    }
+
+
+    _buildImpoundItem(px, pz, kind, ctx) {
+        return this.setPieces.buildImpoundItem(px, pz, kind, ctx);
+    }
+
+    // ==========================================
+    // INTERACTIVE LOGIC
+    // ==========================================
+
+
+    _updateSliderDoor(door, playerPos, delta) {
+        return this.interactionController.updateSliderDoor(door, playerPos, delta);
+    }
+
+
+    _updateAirlockDoor(doorObj, delta) {
+        return this.interactionController.updateAirlockDoor(doorObj, delta);
+    }
+
+
+    _updateAirlock(airlock, playerPos, delta) {
+        return this.interactionController.updateAirlock(airlock, playerPos, delta);
+    }
+
+
+    shatterFixture(fixture) {
+        return this.interactionController.shatterFixture(fixture);
+    }
+
+
+    _rollHuntHops() {
+        const r = Math.random();
+        if (r < 0.10) return 0;
+        if (r < 0.60) return 1;
+        return 2;
+    }
+
+    // ==========================================
+    // MATH & UTILITIES
+    // ==========================================
+
+
+    _cacheGeo(key, make) {
+        return this.structureKit.cacheGeo(key, make);
+    }
+
+
+    _boxGeo(w, h, d) {
+        return this.structureKit.boxGeo(w, h, d);
+    }
+
+
+    _planeGeo(w, h) {
+        return this.structureKit.planeGeo(w, h);
+    }
+
+
+    _sectorFog(id) {
+        const s = SECTORS[id];
+        return (s && s.fog !== undefined) ? s.fog : 0.05;
+    }
+
+
+    captureAsset() {
+        this.engine.render();
+        const dataURL = this.engine.renderer.domElement.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `backrooms_asset_${Date.now()}.png`;
+        link.href = dataURL;
+        link.click();
+    }
+
 }
