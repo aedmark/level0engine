@@ -4,7 +4,7 @@
 import RenderEngine from './src/core/RenderEngine.js';
 import PlayerController from './src/player/PlayerController.js';
 import Environment from './src/core/Environment.js';
-import AcousticEngine from './src/narrative/AcousticEngine.js';
+import AcousticEngine from './src/audio/AcousticEngine.js';
 import StoryEngine from './src/narrative/StoryEngine.js';
 
 import SaveManager from './src/system/SaveManager.js';

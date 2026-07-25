@@ -17,7 +17,6 @@ export default class LumenGrid {
             const radius = i < this.maxShadowLights ? 20.0 : 10.0;
             const pointLight = new THREE.PointLight(0xffebd6, 0, radius, 2.0);
             const spotLight = new THREE.SpotLight(0xffebd6, 0, radius, Math.PI / 8, 0.4, 2.0);
-            
             if (i < this.maxShadowLights) {
                 const setupShadow = (l) => {
                     l.castShadow = true;
@@ -39,7 +38,9 @@ export default class LumenGrid {
                 point: pointLight,
                 spot: spotLight,
                 isSpot: false,
-                get active() { return this.isSpot ? this.spot : this.point; }
+                get active() {
+                    return this.isSpot ? this.spot : this.point;
+                }
             });
         }
     }
@@ -57,16 +58,21 @@ export default class LumenGrid {
             const fixture = fixtureData[i];
             const isLH = fixture.isLighthouse;
             const cullLimit = isLH ? 120.0 : baseCullingLimit;
-            
             const dx = cameraPos.x - fixture.position.x;
-            if (dx > cullLimit || dx < -cullLimit) { fixture.hasShadow = false; continue; }
-
+            if (dx > cullLimit || dx < -cullLimit) {
+                fixture.hasShadow = false;
+                continue;
+            }
             const dz = cameraPos.z - fixture.position.z;
-            if (dz > cullLimit || dz < -cullLimit) { fixture.hasShadow = false; continue; }
-
+            if (dz > cullLimit || dz < -cullLimit) {
+                fixture.hasShadow = false;
+                continue;
+            }
             const dy = cameraPos.y - fixture.position.y;
-            if (dy > cullLimit || dy < -cullLimit) { fixture.hasShadow = false; continue; }
-
+            if (dy > cullLimit || dy < -cullLimit) {
+                fixture.hasShadow = false;
+                continue;
+            }
             const distSq = (dx * dx) + (dy * dy) + (dz * dz);
             const maxDistSq = isLH ? 14400.0 : 900.0;
             if (distSq < maxDistSq) {
@@ -77,7 +83,6 @@ export default class LumenGrid {
                     fixture.distSq = distSq;
                     fixture._biasedDistSq = fixture.hasShadow ? distSq - 40.0 : distSq;
                     if (this._prevActive.has(fixture)) fixture._biasedDistSq -= 30.0;
-                    
                     let targetToInsert = fixture;
                     if (!targetToInsert.noShadow) {
                         let insertPos = -1;
@@ -96,7 +101,6 @@ export default class LumenGrid {
                             targetToInsert = pushedOut;
                         }
                     }
-                    
                     if (targetToInsert) {
                         let insertPos2 = -1;
                         for (let j = this.maxShadowLights; j < this.maxActiveLights; j++) {
@@ -129,11 +133,9 @@ export default class LumenGrid {
                 const light = wrapper.active;
                 const inactiveLight = wrapper.isSpot ? wrapper.point : wrapper.spot;
                 inactiveLight.intensity = 0;
-                
                 const isLH = fixture.isLighthouse;
                 const isShadowCaster = i < this.maxShadowLights;
                 fixture.hasShadow = isShadowCaster;
-                
                 if (isShadowCaster) {
                     const reqFar = isLH ? 150.0 : 20.0;
                     if (light.shadow.camera.far !== reqFar) {
@@ -146,7 +148,6 @@ export default class LumenGrid {
                         light.shadow.needsUpdate = true;
                     }
                 }
-                
                 if (fixture.distSq < minLightDistSq) {
                     minLightDistSq = fixture.distSq;
                     nearestFixture = fixture;
@@ -156,7 +157,6 @@ export default class LumenGrid {
                     light.target.position.copy(fixture.targetPos);
                 }
                 light.distance = isLH ? 150.0 : (isShadowCaster ? 20.0 : 10.0);
-                
                 const dist = Math.sqrt(fixture.distSq);
                 const activeRadius = isLH ? 120.0 : (isShadowCaster ? 20.0 : 10.0);
                 const fadeEnvelope = Math.max(0, Math.min(1, (activeRadius - dist) / 4.0));
@@ -164,7 +164,6 @@ export default class LumenGrid {
                 if (fixture.material && fixture.material.emissive) {
                     light.color.copy(fixture.material.emissive);
                 }
-
                 if (fixture.isDead) {
                     light.intensity = 0.0;
                     if (fixture.material) fixture.material.emissiveIntensity = 0.0;

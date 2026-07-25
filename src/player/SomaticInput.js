@@ -1,5 +1,5 @@
 // SomaticInput.js
-// LEVEL 0 PERIPHERAL NERVOUS SYSTEM
+// LEVEL 0 PLAYER SOMATICS
 
 const PREVENT_KEYS = new Set(['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyV', 'KeyQ', 'KeyF', 'KeyE', 'KeyG', 'KeyZ', 'Space']);
 

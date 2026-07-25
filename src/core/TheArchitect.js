@@ -1,5 +1,5 @@
 // TheArchitect.js
-// LEVEL 0 PROCEDURAL BLUEPRINT FACTORY - COORDINATOR
+// LEVEL 0 PROCEDURAL BLUEPRINT FACTORY STUB
 
 import StructuralBlueprints from '../world/StructuralBlueprints.js';
 import SectorBlueprints from '../world/SectorBlueprints.js';

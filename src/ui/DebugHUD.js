@@ -1,3 +1,6 @@
+// DebugHUD.js
+// LEVEL 0 DEBUG HUD
+
 export const DebugHUD = {
     el: null,
     visible: false,

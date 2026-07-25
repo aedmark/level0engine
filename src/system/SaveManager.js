@@ -1,3 +1,6 @@
+// SaveManager.js
+// LEVEL 0 SAVE STATE MANAGER
+
 export default class SaveManager {
     constructor(engine, player, environment, acoustics) {
         this.engine = engine;

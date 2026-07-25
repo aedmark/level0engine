@@ -18,7 +18,11 @@ export default class RenderEngine {
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
         this.camera.position.y = 1.6;
         const logDepth = new URLSearchParams(window.location.search).has('logdepth');
-        this.renderer = new THREE.WebGLRenderer({antialias: false, powerPreference: "high-performance", logarithmicDepthBuffer: logDepth});
+        this.renderer = new THREE.WebGLRenderer({
+            antialias: false,
+            powerPreference: "high-performance",
+            logarithmicDepthBuffer: logDepth
+        });
         this.renderer.setPixelRatio(1.0);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = true;
@@ -80,10 +84,8 @@ export default class RenderEngine {
                     coord.y *= 1.0 + (coord.x * coord.x) * 0.0625;
                     return coord * 0.46 + 0.5;
                 }
-                
                 void main() {
                     vec2 uv = curve(vUv);
-                    
                     vec2 centerUv = uv - 0.5;
                     float distSq = dot(centerUv, centerUv);
                     float border = smoothstep(0.0, 0.03, uv.x) * smoothstep(1.0, 0.97, uv.x) * 
@@ -95,7 +97,6 @@ export default class RenderEngine {
                     float phasePos = fract(time * 0.05);
                     float phaseBand = 1.0 - smoothstep(0.0, 0.02, abs(uv.y - phasePos));
                     float pCurve = panic * panic * panic; // Optimized pow
-                    
                     float stressLevel = max(squeeze, max(anomaly, max(exhaustion, max(panic, adrenaline))));
                     float stressGate = smoothstep(0.0, 0.2, stressLevel);
                     if (anomaly > 0.01 || panic > 0.01) {
@@ -109,14 +110,11 @@ export default class RenderEngine {
                     uv.x += phaseBand * 0.0002 * sin(time * 50.0) * stressGate;
                     float heartbeatCA = exhaustion > 0.3 ? sin(time * (10.0 + exhaustion * 5.0)) * 0.004 * exhaustion : 0.0;
                     float panicTear = panic > 0.3 ? (sin(time * 25.0) * 0.02 * pCurve) : 0.0;
-                    
                     float caShift = (0.0005 + (distSq * 0.0015)) * stressGate + (squeeze * 0.003) + (anomaly * anomaly * sqrt(anomaly)) * 0.05 + (exhaustion * exhaustion) * 0.01 + heartbeatCA + panicTear;
                     vec2 offset = vec2(caShift, 0.0); 
-                    
                     float heatWave = heat > 0.01 ? sin(uv.x * 30.0 + time * 10.0) * sin(uv.y * 15.0 - time * 5.0) : 0.0;
                     vec2 heatOffset = vec2(heatWave * 0.005, heatWave * 0.015) * heat;
                     vec2 sampleUv = uv + heatOffset;
-                    
                     vec3 col;
                     vec3 fauxHalation;
                     if (caShift < 0.0001) {
@@ -130,7 +128,6 @@ export default class RenderEngine {
                         col = vec3(texR.r, texG.g, texB.b);
                         fauxHalation = (texR.rgb + texB.rgb) * 0.3;
                     }
-                    
                     float luminance = dot(col, vec3(0.299, 0.587, 0.114));
                     col += max(vec3(0.0), fauxHalation - 0.5) * 0.15;
                     float noise = random(uv + mod(time, 10.0));
@@ -172,12 +169,10 @@ export default class RenderEngine {
                 h = w / this.aspectRatio;
             }
         }
-
         w = Math.floor(w);
         h = Math.floor(h);
         if (w % 2 !== 0) w -= 1;
         if (h % 2 !== 0) h -= 1;
-
         const wrapper = document.getElementById('screen-wrapper');
         if (wrapper) {
             wrapper.style.width = `${w}px`;
@@ -185,14 +180,13 @@ export default class RenderEngine {
         }
         this.camera.aspect = w / h;
         this.camera.updateProjectionMatrix();
-
         const scale = this.resolutionScale;
         const renderW = Math.floor(w * scale);
         const renderH = Math.floor(h * scale);
-
         this.renderer.setSize(renderW, renderH, false);
         this.target.setSize(renderW, renderH);
     }
+
     get delta() {
         const now = performance.now();
         if (!this._lastTime) this._lastTime = now;
@@ -200,6 +194,7 @@ export default class RenderEngine {
         this._lastTime = now;
         return diff;
     }
+
     get time() {
         if (!this._startTime) this._startTime = performance.now();
         return (performance.now() - this._startTime) / 1000;
@@ -216,13 +211,11 @@ export default class RenderEngine {
         this.postMaterial.uniforms.panic.value = this.paranoia || 0.0;
         this.postMaterial.uniforms.adrenaline.value = this.adrenaline || 0.0;
         this.postMaterial.uniforms.eyesClosed.value = this.eyesClosed || 0.0;
-        
         if (this.heatTarget !== undefined) {
             if (this.currentHeat === undefined) this.currentHeat = 0.0;
             this.currentHeat += (this.heatTarget - this.currentHeat) * 0.016 * 2.0;
             this.postMaterial.uniforms.heat.value = this.currentHeat;
         }
-
         this.renderer.setRenderTarget(null);
         this.renderer.render(this.postScene, this.postCamera);
     }

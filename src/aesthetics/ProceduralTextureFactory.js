@@ -8,6 +8,7 @@ export default class ProceduralTextureFactory {
         canvas.height = height;
         return {canvas, ctx: canvas.getContext('2d')};
     }
+
     static _generateMasterNoise() {
         const {canvas, ctx} = this._createContext(512, 512);
         const img = ctx.createImageData(512, 512);
@@ -24,6 +25,7 @@ export default class ProceduralTextureFactory {
         ctx.putImageData(img, 0, 0);
         return canvas;
     }
+
     static _buildStructuralAssets(masterNoise) {
         const {canvas: wallCanvas, ctx: wallCtx} = this._createContext(512, 512);
         wallCtx.fillStyle = '#d4c382';
@@ -145,6 +147,7 @@ export default class ProceduralTextureFactory {
         const doorMat = [doorMatEdge, doorMatEdge, doorMatEdge, doorMatEdge, doorMatFront, doorMatBack];
         return {headerMat, wallTexture, structMat, woodMat, doorMat};
     }
+
     static _buildSurfaceAssets(masterNoise) {
         const {canvas: carpetCanvas, ctx: carpetCtx} = this._createContext(512, 512);
         const {canvas: noiseCanvas, ctx: noiseCtx} = this._createContext(256, 256);
@@ -195,7 +198,12 @@ export default class ProceduralTextureFactory {
         const tileTexture = new THREE.CanvasTexture(tileCanvas);
         tileTexture.wrapS = tileTexture.wrapT = THREE.RepeatWrapping;
         tileTexture.repeat.set(16, 16);
-        const tileMat = new THREE.MeshStandardMaterial({map: tileTexture, roughness: 0.1, metalness: 0.6, shadowSide: THREE.DoubleSide});
+        const tileMat = new THREE.MeshStandardMaterial({
+            map: tileTexture,
+            roughness: 0.1,
+            metalness: 0.6,
+            shadowSide: THREE.DoubleSide
+        });
         const {canvas: clinicCanvas, ctx: cCtx} = this._createContext(256, 256);
         cCtx.fillStyle = '#e8ecef';
         cCtx.fillRect(0, 0, 256, 256);
@@ -227,6 +235,7 @@ export default class ProceduralTextureFactory {
         });
         return {carpetTexture, ceilingTexture, tileMat, clinicMat};
     }
+
     static _buildOrganicAssets(masterNoise) {
         const {canvas: moldCanvas, ctx: moldCtx} = this._createContext(256, 256);
         for (let i = 0; i < 12; i++) {
@@ -355,14 +364,12 @@ export default class ProceduralTextureFactory {
         const {canvas: dirtCanvas, ctx: dirtCtx} = this._createContext(256, 256);
         dirtCtx.fillStyle = '#1c150c';
         dirtCtx.fillRect(0, 0, 256, 256);
-        for(let i=0; i<400; i++) {
+        for (let i = 0; i < 400; i++) {
             dirtCtx.fillStyle = Math.random() > 0.5 ? '#2c2214' : '#0c0804';
             dirtCtx.beginPath();
             dirtCtx.arc(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 2, 0, Math.PI * 2);
             dirtCtx.fill();
         }
-        // Husks baked straight into the dirt texture instead of scattered as
-        // separate objects: dried, papery leaf-litter smears with a fiber midline.
         for (let i = 0; i < 16; i++) {
             const cx = Math.random() * 256, cy = Math.random() * 256;
             const len = 16 + Math.random() * 28;
@@ -419,6 +426,7 @@ export default class ProceduralTextureFactory {
         });
         return {moldMat, moldGeo, ceilingStainMat, ceilingStainGeo, fabricMat, mossMat, cornMat, dirtMat, nightSkyMat};
     }
+
     static _buildTechAssets(masterNoise) {
         const {canvas: ventCanvas, ctx: ventCtx} = this._createContext(512, 256);
         ventCtx.fillStyle = '#808080';
@@ -434,15 +442,12 @@ export default class ProceduralTextureFactory {
             for (let iy = 0; iy < 14; iy++) {
                 let hX = slotX + 4 + (ix * 16);
                 let hY = slotY + 4 + (iy * 16);
-                
                 ventCtx.fillStyle = '#c0c0c0';
                 ventCtx.fillRect(hX, hY + 12, 12, 2);
                 ventCtx.fillRect(hX + 12, hY, 2, 14);
-                
                 ventCtx.fillStyle = '#505050';
                 ventCtx.fillRect(hX - 2, hY - 2, 14, 2);
                 ventCtx.fillRect(hX - 2, hY - 2, 2, 14);
-
                 ventCtx.fillStyle = slotColor;
                 ventCtx.fillRect(hX, hY, 12, 12);
             }
@@ -467,7 +472,6 @@ export default class ProceduralTextureFactory {
             bumpMap: ventTexture,
             bumpScale: 0.02
         });
-
         const {canvas: ductCanvas, ctx: ductCtx} = this._createContext(256, 256);
         ductCtx.fillStyle = '#505456';
         ductCtx.fillRect(0, 0, 256, 256);
@@ -497,7 +501,6 @@ export default class ProceduralTextureFactory {
             bumpMap: ductTexture,
             bumpScale: 0.01
         });
-
         const {canvas: serverCanvas, ctx: serverCtx} = this._createContext(256, 512);
         serverCtx.fillStyle = '#c4c1b5';
         serverCtx.fillRect(0, 0, 256, 512);
@@ -562,6 +565,7 @@ export default class ProceduralTextureFactory {
         const baseHousingMat = new THREE.MeshStandardMaterial({color: 0x1a1a1a, roughness: 0.9});
         return {ventMat, ductMat, serverMat, baseLightMat, baseBrokenLightMat, baseHousingMat};
     }
+
     static _buildHazardAndMiscAssets(masterNoise) {
         const {canvas: fenceCanvas, ctx: fenceCtx} = this._createContext(64, 64);
         fenceCtx.strokeStyle = '#99aab5';
@@ -681,8 +685,8 @@ export default class ProceduralTextureFactory {
         const almondMat = new THREE.MeshStandardMaterial({map: almondTexture, roughness: 0.8});
         return {fenceMat, hazardMat, glowMat, glowGeo, tagMat, tagGeo, voidMat, rustMat, metalMat, almondMat};
     }
+
     static _buildAnnexAssets(masterNoise) {
-        // Base brushed-steel plate: also used for the door's thin edge faces.
         const {canvas: steelCanvas, ctx: steelCtx} = this._createContext(256, 512);
         const steelGrad = steelCtx.createLinearGradient(0, 0, 0, 512);
         steelGrad.addColorStop(0, '#787f85');
@@ -779,7 +783,11 @@ export default class ProceduralTextureFactory {
         doorBackCtx.drawImage(doorCanvas, 0, 0);
         const doorBackTexture = new THREE.CanvasTexture(doorBackCanvas);
         const annexDoorMatFront = new THREE.MeshStandardMaterial({map: doorTexture, roughness: 0.45, metalness: 0.65});
-        const annexDoorMatBack = new THREE.MeshStandardMaterial({map: doorBackTexture, roughness: 0.45, metalness: 0.65});
+        const annexDoorMatBack = new THREE.MeshStandardMaterial({
+            map: doorBackTexture,
+            roughness: 0.45,
+            metalness: 0.65
+        });
         const annexDoorMat = [annexEdgeMat, annexEdgeMat, annexEdgeMat, annexEdgeMat, annexDoorMatFront, annexDoorMatBack];
         const annexFrameMat = new THREE.MeshStandardMaterial({color: 0x53585c, roughness: 0.4, metalness: 0.8});
         const {canvas: annexWallCanvas, ctx: annexWallCtx} = this._createContext(512, 512);
@@ -847,7 +855,6 @@ export default class ProceduralTextureFactory {
             bumpMap: annexWallTexture,
             bumpScale: 0.02
         });
-
         const {canvas: annexFloorCanvas, ctx: annexFloorCtx} = this._createContext(256, 256);
         annexFloorCtx.fillStyle = '#c9c2ac';
         annexFloorCtx.fillRect(0, 0, 256, 256);
@@ -861,8 +868,10 @@ export default class ProceduralTextureFactory {
                 const r = coilPx * theta;
                 const px = 128 + Math.cos(theta) * r;
                 const py = 128 + Math.sin(theta) * r;
-                if (first) { ctx.moveTo(px, py); first = false; }
-                else ctx.lineTo(px, py);
+                if (first) {
+                    ctx.moveTo(px, py);
+                    first = false;
+                } else ctx.lineTo(px, py);
                 theta += 0.05;
             }
             ctx.stroke();
@@ -885,7 +894,6 @@ export default class ProceduralTextureFactory {
             bumpMap: annexFloorTexture,
             bumpScale: 0.01
         });
-
         const {canvas: annexCeilCanvas, ctx: annexCeilCtx} = this._createContext(256, 256);
         annexCeilCtx.fillStyle = '#dcdcd6';
         annexCeilCtx.fillRect(0, 0, 256, 256);
@@ -918,9 +926,9 @@ export default class ProceduralTextureFactory {
             roughness: 0.4,
             metalness: 0.0
         });
-
         return {annexDoorMat, annexFrameMat, annexWallMat, annexFloorMat, annexCeilingMat};
     }
+
     static _buildImpoundAssets(masterNoise) {
         const ribWidth = 28;
         const drawCorrugation = (ctx, w, h, base, hi, lo) => {
@@ -1001,6 +1009,7 @@ export default class ProceduralTextureFactory {
         });
         return {impoundWallMat, impoundCeilingMat};
     }
+
     static _buildBoardroomAssets(masterNoise) {
         const {canvas: wallCanvas, ctx: wallCtx} = this._createContext(512, 512);
         wallCtx.fillStyle = '#c7c1b3';
@@ -1030,7 +1039,6 @@ export default class ProceduralTextureFactory {
             drawFractalBloom(ex, ey, len * 0.78, angle - spread, depth - 1, seed);
             drawFractalBloom(ex, ey, len * 0.78, angle + spread, depth - 1, seed);
         };
-
         wallCtx.strokeStyle = 'rgba(94, 88, 72, 0.32)';
         wallCtx.fillStyle = 'rgba(94, 88, 72, 0.26)';
         wallCtx.lineWidth = 1.5;
@@ -1038,14 +1046,12 @@ export default class ProceduralTextureFactory {
         const groundY = 468;
         const trunkLen = 130;
         drawFractalBloom(256, groundY, trunkLen, -Math.PI / 2, 6, seed);
-
         const sprigY = groundY - trunkLen * 0.45;
         wallCtx.strokeStyle = 'rgba(94, 88, 72, 0.16)';
         wallCtx.fillStyle = 'rgba(94, 88, 72, 0.12)';
         wallCtx.lineWidth = 1;
         drawFractalBloom(256, sprigY, 55, -Math.PI / 2 - 1.15, 3, seed);
         drawFractalBloom(256, sprigY, 47, -Math.PI / 2 + 1.25, 3, seed);
-
         wallCtx.globalAlpha = 0.30;
         wallCtx.drawImage(masterNoise, 0, 0);
         wallCtx.globalAlpha = 1.0;
@@ -1055,7 +1061,6 @@ export default class ProceduralTextureFactory {
         wallCtx.fillRect(0, 476, 512, 4);
         wallCtx.fillStyle = 'rgba(0,0,0,0.12)';
         wallCtx.fillRect(255, 0, 2, 512);
-
         const boardWallTexture = new THREE.CanvasTexture(wallCanvas);
         boardWallTexture.wrapS = THREE.RepeatWrapping;
         boardWallTexture.wrapT = THREE.ClampToEdgeWrapping;
@@ -1070,6 +1075,7 @@ export default class ProceduralTextureFactory {
         });
         return {boardWallMat};
     }
+
     static _buildMaintenanceAssets(masterNoise) {
         const {canvas: leakCanvas, ctx: leakCtx} = this._createContext(256, 256);
         for (let i = 0; i < 10; i++) {
@@ -1098,13 +1104,11 @@ export default class ProceduralTextureFactory {
         leakStainGeo.rotateX(-Math.PI / 2);
         return {leakStainMat, leakStainGeo};
     }
+
     static _buildArchiveAssets(masterNoise) {
         const {canvas: wallCanvas, ctx: wallCtx} = this._createContext(512, 512);
-        
-        // Top 75%: Forest Green
         wallCtx.fillStyle = '#2c4830';
         wallCtx.fillRect(0, 0, 512, 384);
-        
         wallCtx.lineWidth = 1;
         for (let i = 0; i < 512; i += 16) {
             wallCtx.strokeStyle = (i % 64 === 0) ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.02)';
@@ -1113,11 +1117,8 @@ export default class ProceduralTextureFactory {
             wallCtx.lineTo(i, 384);
             wallCtx.stroke();
         }
-        
-        // Bottom 25%: Walnut Paneling
         wallCtx.fillStyle = '#3a2012';
         wallCtx.fillRect(0, 384, 512, 128);
-        
         for (let i = 0; i < 512; i += 4) {
             if (i % 64 === 0) {
                 wallCtx.fillStyle = '#1e0f06';
@@ -1129,26 +1130,19 @@ export default class ProceduralTextureFactory {
                 wallCtx.fillRect(i, 384, 1 + Math.random(), 128);
             }
         }
-        
-        // Chair rail
         wallCtx.fillStyle = '#1e0f06';
         wallCtx.fillRect(0, 380, 512, 4);
         wallCtx.fillStyle = '#4a2d1a';
         wallCtx.fillRect(0, 376, 512, 4);
-        
-        // Baseboard
         wallCtx.fillStyle = '#221109';
         wallCtx.fillRect(0, 480, 512, 32);
         wallCtx.fillStyle = '#110804';
         wallCtx.fillRect(0, 476, 512, 4);
-
         wallCtx.globalAlpha = 0.4;
         wallCtx.drawImage(masterNoise, 0, 0);
         wallCtx.globalAlpha = 1.0;
-        
         wallCtx.fillStyle = 'rgba(0,0,0,0.15)';
         wallCtx.fillRect(255, 0, 2, 512);
-        
         const archiveWallTexture = new THREE.CanvasTexture(wallCanvas);
         archiveWallTexture.wrapS = THREE.RepeatWrapping;
         archiveWallTexture.wrapT = THREE.ClampToEdgeWrapping;
@@ -1160,8 +1154,6 @@ export default class ProceduralTextureFactory {
             bumpMap: archiveWallTexture,
             bumpScale: 0.015
         });
-
-        // 50's linoleum floor: cream/russet checker, speckled and scuffed from foot traffic.
         const {canvas: floorCanvas, ctx: floorCtx} = this._createContext(256, 256);
         const tileA = '#ddceA2', tileB = '#8a3a2e';
         const tiles = 8, tileSize = 256 / tiles;
@@ -1205,8 +1197,6 @@ export default class ProceduralTextureFactory {
             bumpMap: archiveFloorTexture,
             bumpScale: 0.006
         });
-        
-        // Paper Mat
         const {canvas: pCanvas, ctx: pCtx} = this._createContext(64, 64);
         pCtx.fillStyle = '#f0eee6';
         pCtx.fillRect(0, 0, 64, 64);
@@ -1215,13 +1205,11 @@ export default class ProceduralTextureFactory {
         pCtx.globalAlpha = 1.0;
         pCtx.fillStyle = 'rgba(0,0,0,0.15)';
         for (let i = 8; i < 56; i += 6) {
-            pCtx.fillRect(8, i, 48 * (0.6 + Math.random()*0.4), 1.5);
+            pCtx.fillRect(8, i, 48 * (0.6 + Math.random() * 0.4), 1.5);
         }
         const paperTex = new THREE.CanvasTexture(pCanvas);
         const paperMat = new THREE.MeshStandardMaterial({map: paperTex, roughness: 1.0});
         const paperGeo = new THREE.PlaneGeometry(0.2, 0.28);
-        
-        // Coffee Stain Mat
         const {canvas: cCanvas, ctx: cCtx} = this._createContext(64, 64);
         const grad = cCtx.createRadialGradient(32, 32, 10, 32, 32, 30);
         grad.addColorStop(0, 'rgba(40, 20, 10, 0.05)');
@@ -1234,19 +1222,21 @@ export default class ProceduralTextureFactory {
         cCtx.fill();
         const coffeeTex = new THREE.CanvasTexture(cCanvas);
         const coffeeStainMat = new THREE.MeshStandardMaterial({
-            map: coffeeTex, transparent: true, depthWrite: false, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -1
+            map: coffeeTex,
+            transparent: true,
+            depthWrite: false,
+            roughness: 0.9,
+            polygonOffset: true,
+            polygonOffsetFactor: -1
         });
         const coffeeStainGeo = new THREE.PlaneGeometry(0.25, 0.25);
-        
-        // Single Book Materials
         const {canvas: pageCanvas, ctx: pageCtx} = this._createContext(64, 64);
         pageCtx.fillStyle = '#e8e5df';
         pageCtx.fillRect(0, 0, 64, 64);
         pageCtx.fillStyle = 'rgba(0,0,0,0.1)';
-        for(let i=0; i<64; i+=2) pageCtx.fillRect(0, i, 64, 0.5);
+        for (let i = 0; i < 64; i += 2) pageCtx.fillRect(0, i, 64, 0.5);
         const pageTex = new THREE.CanvasTexture(pageCanvas);
         const pageMat = new THREE.MeshStandardMaterial({map: pageTex, roughness: 0.9});
-
         const coverColors = ['#4a1a1a', '#1a2a4a', '#1a4a2a', '#4a3a1a', '#2a2a2a'];
         const bookMatSets = coverColors.map(color => {
             const {canvas: covCanvas, ctx: covCtx} = this._createContext(64, 64);
@@ -1262,9 +1252,9 @@ export default class ProceduralTextureFactory {
             const covMat = new THREE.MeshStandardMaterial({map: covTex, roughness: 0.8});
             return [pageMat, pageMat, covMat, covMat, pageMat, covMat];
         });
-        
         return {archiveWallMat, archiveFloorMat, paperMat, paperGeo, coffeeStainMat, coffeeStainGeo, bookMatSets};
     }
+
     static generateAssets() {
         const masterNoise = this._generateMasterNoise();
         const structAssets = this._buildStructuralAssets(masterNoise);

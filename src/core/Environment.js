@@ -51,10 +51,12 @@ export default class Environment {
         this.setPieces = new SetPieces(this);
         this.interactionController = new InteractionController(this);
     }
+
     _sectorFog(id) {
         const s = SECTORS[id];
         return (s && s.fog !== undefined) ? s.fog : 0.05;
     }
+
     updateChunks(playerPos) {
         const activeCellSize = this.cellSize || 4;
         const chunkX = Math.floor(playerPos.x / (this.chunkSize * activeCellSize));
@@ -121,21 +123,26 @@ export default class Environment {
             }
         }
     }
+
     _rollHuntHops() {
         const r = Math.random();
         if (r < 0.10) return 0;
         if (r < 0.60) return 1;
         return 2;
     }
+
     shatterFixture(fixture) {
         return this.interactionController.shatterFixture(fixture);
     }
+
     _updateSliderDoor(door, playerPos, delta) {
         return this.interactionController.updateSliderDoor(door, playerPos, delta);
     }
+
     updateInteractives(playerPos, delta) {
         return this.interactionController.updateInteractives(playerPos, delta);
     }
+
     async processChunkQueue() {
         if (this.isBuildingChunk) return;
         this.isBuildingChunk = true;
@@ -154,8 +161,6 @@ export default class Environment {
                     this.genStats.totalMs += genMs;
                     this.genStats.lastMs = genMs;
                     if (genMs > this.genStats.worstMs) this.genStats.worstMs = genMs;
-                    
-                    // Yield to the event loop so we don't drop frames during bulk generation
                     await new Promise(resolve => setTimeout(resolve, 0));
                 }
             }
@@ -174,6 +179,7 @@ export default class Environment {
             }
         }
     }
+
     setup() {
         const assets = ProceduralTextureFactory.generateAssets();
         Object.assign(this, assets);
@@ -221,7 +227,6 @@ export default class Environment {
         particleCtx.fillStyle = gradient;
         particleCtx.fillRect(0, 0, 32, 32);
         const particleTex = new THREE.CanvasTexture(particleCanvas);
-
         const dustGeo = new THREE.BufferGeometry();
         const dustCount = 2500;
         const dustPos = new Float32Array(dustCount * 3);
@@ -539,6 +544,7 @@ export default class Environment {
             }
         });
     }
+
     generate(isWarp = false) {
         const flash = document.getElementById('flash-overlay');
         if (flash) {
@@ -594,12 +600,13 @@ export default class Environment {
             const warpZ = this.camera.position.z + (signZ * (1500 + Math.random() * 2000));
             this.camera.position.set(warpX, 1.6, warpZ);
             if (warpHappened) {
-            if (this.anomaly) this.anomaly.reset(warpX + 32, 1.5, warpZ + 32);
+                if (this.anomaly) this.anomaly.reset(warpX + 32, 1.5, warpZ + 32);
             }
         } else {
             this.player.coherence = 1.0;
             if (this.anomaly) this.anomaly.reset(32, 1.5, 32);
-        }    const seedString = document.getElementById('seedInput').value || "ASYNC RESEARCH INSTITUTE";
+        }
+        const seedString = document.getElementById('seedInput').value || "ASYNC RESEARCH INSTITUTE";
         this.baseSeed = 0;
         for (let i = 0; i < seedString.length; i++) {
             this.baseSeed = ((this.baseSeed << 5) - this.baseSeed) + seedString.charCodeAt(i);
@@ -609,20 +616,18 @@ export default class Environment {
         MaterialLibrary.injectMaterials(this);
     }
 
-    // Geometry cache + the per-chunk ctx helper factory now live in
-    // StructureKit.js - these three stay as thin delegators so every existing
-    // call site (this._boxGeo, this._cacheGeo, this._createChunkHelpers,
-    // including the ones TheArchitect.js calls via .call(this, ctx)) keeps
-    // working unchanged.
     _cacheGeo(key, make) {
         return this.structureKit.cacheGeo(key, make);
     }
+
     _boxGeo(w, h, d) {
         return this.structureKit.boxGeo(w, h, d);
     }
+
     _planeGeo(w, h) {
         return this.structureKit.planeGeo(w, h);
     }
+
     _createChunkHelpers(hash, chunkGroup, stagingMeshes, random) {
         return this.structureKit.createChunkHelpers(hash, chunkGroup, stagingMeshes, random);
     }
@@ -630,12 +635,15 @@ export default class Environment {
     _buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, ctx) {
         return this.setPieces.buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, ctx);
     }
+
     _buildCheckpointColumn(x, z, hash, ctx) {
         return this.setPieces.buildCheckpointColumn(x, z, hash, ctx);
     }
+
     _buildImpoundItem(px, pz, kind, ctx) {
         return this.setPieces.buildImpoundItem(px, pz, kind, ctx);
     }
+
     async buildChunk(chunkX, chunkZ, hash) {
         const chunkGroup = new THREE.Group();
         this.scene.add(chunkGroup);
@@ -743,7 +751,6 @@ export default class Environment {
             floor.castShadow = true;
             chunkGroup.add(floor);
         }
-
         if (!usesVoidCeiling) {
             const ceil = new THREE.Mesh(ceilGeo, this.ceilMat);
             ceil.rotation.x = Math.PI / 2;
@@ -767,8 +774,13 @@ export default class Environment {
                 const skirt = new THREE.Mesh(skirtGeo, this.voidShroudMat);
                 if (side === 0) skirt.position.set(cxw0, 6.0, czw0 - skirtInset);
                 else if (side === 1) skirt.position.set(cxw0, 6.0, czw0 + skirtInset);
-                else if (side === 2) { skirt.position.set(cxw0 - skirtInset, 6.0, czw0); skirt.rotation.y = Math.PI / 2; }
-                else { skirt.position.set(cxw0 + skirtInset, 6.0, czw0); skirt.rotation.y = Math.PI / 2; }
+                else if (side === 2) {
+                    skirt.position.set(cxw0 - skirtInset, 6.0, czw0);
+                    skirt.rotation.y = Math.PI / 2;
+                } else {
+                    skirt.position.set(cxw0 + skirtInset, 6.0, czw0);
+                    skirt.rotation.y = Math.PI / 2;
+                }
                 chunkGroup.add(skirt);
             }
         }
@@ -786,16 +798,13 @@ export default class Environment {
                 if (!isMacroStructure && Math.abs(x) < 2 && Math.abs(z) < 2) continue;
                 const localX = x - startX;
                 const localZ = z - startZ;
-                
                 if (isMacroStructure) {
                     if (ctx.isOccupied(x, z)) continue;
                     activeSector.build(x, z, localX, localZ, typeof sectorMaze !== 'undefined' ? sectorMaze : null);
                     continue;
                 }
-                
                 if (ctx.isOccupied(x, z)) continue;
                 ctx.markOccupied(x, z);
-
                 let zx = x * 0.15;
                 let zy = z * 0.15;
                 let iter = 0;
@@ -810,23 +819,18 @@ export default class Environment {
                 }
                 let isWall = iter > 6;
                 if (random() > 0.70) isWall = !isWall;
-                
                 const inNRing = localZ === 3 && localX >= 3 && localX <= 11;
                 const inSRing = localZ === 11 && localX >= 3 && localX <= 11;
                 const inWRing = localX === 3 && localZ >= 3 && localZ <= 11;
                 const inERing = localX === 11 && localZ >= 3 && localZ <= 11;
-                
                 const inNPath = localX === 7 && localZ <= 3;
                 const inSPath = localX === 7 && localZ >= 11;
                 const inWPath = localZ === 7 && localX <= 3;
                 const inEPath = localZ === 7 && localX >= 11;
-
                 const isArtery = inNRing || inSRing || inWRing || inERing || inNPath || inSPath || inWPath || inEPath;
                 const isBlocker = localX >= 5 && localX <= 9 && localZ >= 5 && localZ <= 9;
-
                 if (isBlocker) isWall = true;
                 if (isArtery) isWall = false;
-
                 if (isWall) {
                     const structRoll = random();
                     const structure = structuralMatrix.find(s => structRoll >= s.prob);
@@ -954,33 +958,31 @@ export default class Environment {
         }
         this._compileInstances(hash, chunkGroup, stagingMeshes, random);
     }
+
     _buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling) {
         return this.setPieces.buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling);
     }
+
     _buildAirlock(chunkGroup, hash, dcx, dcz, spansX, sectorId, outSign) {
         return this.setPieces.buildAirlock(chunkGroup, hash, dcx, dcz, spansX, sectorId, outSign);
     }
-    // Door/airlock interaction state machines now live in
-    // InteractionController.js - kept as thin delegators so external callers
-    // (main.js calls updateInteractives, Anomaly.js calls shatterFixture) and
-    // internal sibling calls (updateInteractives -> _updateAirlock/_updateSliderDoor,
-    // _updateAirlock -> _updateAirlockDoor) keep working unchanged.
+
     _updateAirlockDoor(doorObj, delta) {
         return this.interactionController.updateAirlockDoor(doorObj, delta);
     }
+
     _updateAirlock(airlock, playerPos, delta) {
         return this.interactionController.updateAirlock(airlock, playerPos, delta);
     }
-    // Checkpoint desks/columns, impound vehicles, entrance airlocks and their
-    // hallway seals now live in SetPieces.js - kept as thin delegators so
-    // every existing call site (this._buildXxx(...), including the ones
-    // TheArchitect.js calls under its .call(this, ctx) binding) keeps working.
+
     _buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId, buildWalls = true) {
         return this.setPieces.buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId, buildWalls);
     }
+
     _generateSectorMaze(randomFn) {
         return this.setPieces.generateSectorMaze(randomFn);
     }
+
     _compileInstances(hash, chunkGroup, stagingMeshes, randomFn) {
         const instancedGroups = new Map();
         stagingMeshes.forEach(mesh => {
@@ -1031,6 +1033,7 @@ export default class Environment {
             }
         });
     }
+
     captureAsset() {
         this.engine.render();
         const dataURL = this.engine.renderer.domElement.toDataURL('image/png');
@@ -1039,9 +1042,11 @@ export default class Environment {
         link.href = dataURL;
         link.click();
     }
+
     updateEntity(playerPos, delta, time) {
         return this.entityManager.update(delta, time, this._stickySectorId || 'NORMAL');
     }
+
     updateLights(time) {
         if (this.fixtureData) {
             for (let i = 0; i < this.fixtureData.length; i++) {
@@ -1050,7 +1055,7 @@ export default class Environment {
                     const angle = time * fixture.sweepSpeed + fixture.sweepPhase;
                     fixture.targetPos.x = fixture.position.x + Math.cos(angle) * 10.0;
                     fixture.targetPos.z = fixture.position.z + Math.sin(angle) * 10.0;
-                    fixture.targetPos.y = 0.0; // Point beam vertically towards the catwalk path
+                    fixture.targetPos.y = 0.0;
                 }
             }
         }
@@ -1147,42 +1152,35 @@ export default class Environment {
         this.scene.background.lerp(finalTargetColor, colorRate);
         if (this.dustCloud) {
             this.dustCloud.position.copy(cameraPos);
-            
             const inArchive = activeSector === "ARCHIVE";
             const inImpound = activeSector === "IMPOUND";
             const inAnnex = activeSector === "ANNEX";
             const inServer = activeSector === "SERVER";
             const inChasm = activeSector === "CHASM";
-            
             this.dustCloud.rotation.y = time * 0.025;
-            
             const positions = this.dustCloud.geometry.attributes.position.array;
             const fallSpeed = inImpound ? 0.04 : (inAnnex ? -0.01 : (inChasm ? -0.02 : 0.0025));
             for (let i = 0; i < positions.length; i += 3) {
                 if (inServer) {
                     positions[i] += 0.18;
                     if (positions[i] > 15.0) positions[i] -= 30.0;
-                    positions[i+2] += 0.05;
-                    if (positions[i+2] > 15.0) positions[i+2] -= 30.0;
+                    positions[i + 2] += 0.05;
+                    if (positions[i + 2] > 15.0) positions[i + 2] -= 30.0;
                 } else {
-                    positions[i+1] -= fallSpeed;
-                    if (positions[i+1] < -15.0) positions[i+1] += 30.0;
-                    else if (positions[i+1] > 15.0) positions[i+1] -= 30.0;
+                    positions[i + 1] -= fallSpeed;
+                    if (positions[i + 1] < -15.0) positions[i + 1] += 30.0;
+                    else if (positions[i + 1] > 15.0) positions[i + 1] -= 30.0;
                 }
             }
             this.dustCloud.geometry.attributes.position.needsUpdate = true;
-            
             const baseOpacity = inImpound ? 0.6 : (inArchive ? 0.30 : (inAnnex ? 0.45 : (inServer ? 0.35 : (inChasm ? 0.65 : 0.10))));
             const crawlOpacity = inImpound ? 0.7 : (inArchive ? 0.45 : (inAnnex ? 0.55 : (inServer ? 0.45 : (inChasm ? 0.75 : 0.35))));
             const targetDustOpacity = this.player.isCrawling ? crawlOpacity : baseOpacity;
-            
             const baseSize = inImpound ? 0.18 : (inArchive ? 0.07 : (inAnnex ? 0.45 : (inServer ? 0.12 : (inChasm ? 0.35 : 0.05))));
             const crawlSize = inImpound ? 0.22 : (inArchive ? 0.09 : (inAnnex ? 0.50 : (inServer ? 0.16 : (inChasm ? 0.45 : 0.08))));
             const targetDustSize = this.player.isCrawling ? crawlSize : baseSize;
-            
             this.dustCloud.material.opacity += (targetDustOpacity - this.dustCloud.material.opacity) * 0.05;
             this.dustCloud.material.size += (targetDustSize - this.dustCloud.material.size) * 0.05;
-            
             if (!this._dustColor) this._dustColor = new THREE.Color();
             const targetColor = inAnnex ? 0xe8ddc5 : (inChasm ? 0x2288ff : 0xffffff);
             this._dustColor.setHex(targetColor);
@@ -1190,20 +1188,16 @@ export default class Environment {
         }
         if (this.exhaustCloud) {
             this.exhaustCloud.position.copy(cameraPos);
-            
             const isIncinerator = activeSector === "INCINERATOR";
             this.exhaustCloud.rotation.y = time * (isIncinerator ? -0.18 : -0.07);
             this.exhaustCloud.rotation.x = time * (isIncinerator ? 0.12 : 0.04);
-            
             const targetExhaustOpacity = isIncinerator ? 0.95 : ((activeSector === "SERVER") ? 0.35 : 0.0);
             const exhaustRate = targetExhaustOpacity > this.exhaustMat.opacity ? 0.08 : 0.20;
             this.exhaustMat.opacity += (targetExhaustOpacity - this.exhaustMat.opacity) * exhaustRate;
-            
             if (!this._exhaustColor) this._exhaustColor = new THREE.Color();
             const targetColorEx = isIncinerator ? 0xff4400 : 0x00ffcc;
             this._exhaustColor.setHex(targetColorEx);
             this.exhaustMat.color.lerp(this._exhaustColor, 0.05);
-
             if (this.exhaustMat.opacity > 0.01) {
                 const baseSize = isIncinerator ? 0.18 : 0.08;
                 const pulse = isIncinerator ? Math.sin(time * 24.0) * 0.05 : Math.sin(time * 12.0) * 0.02;
@@ -1244,7 +1238,10 @@ export default class Environment {
                         const dx = cameraPos.x - poi.x;
                         const dz = cameraPos.z - poi.z;
                         const dSq = dx * dx + dz * dz;
-                        if (dSq < nearestPoiDistSq) { nearestPoiDistSq = dSq; nearestPoi = poi; }
+                        if (dSq < nearestPoiDistSq) {
+                            nearestPoiDistSq = dSq;
+                            nearestPoi = poi;
+                        }
                     }
                     if (nearestPoi) {
                         if (nearestPoiDistSq < 9.0) {
@@ -1309,7 +1306,6 @@ export default class Environment {
                 }
             }
         }
-        
         let idlingCarDistSq = 999999.0;
         if (this.idlingCars) {
             for (let i = 0; i < this.idlingCars.length; i++) {
@@ -1318,7 +1314,6 @@ export default class Environment {
                 if (d < idlingCarDistSq) idlingCarDistSq = d;
             }
         }
-        
         return {
             minLightDist,
             isOccluded,

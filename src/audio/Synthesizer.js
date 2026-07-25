@@ -1,0 +1,277 @@
+// Synthesizer.js
+// LEVEL 0 SYNTHPAD
+
+export default class Synthesizer {
+    static injectNodes(engine) {
+        const ctx = engine.ctx;
+        
+        engine.masterGain = ctx.createGain();
+        engine.masterGain.gain.value = engine.masterVolume * 2.5;
+        engine.masterGain.connect(ctx.destination);
+        
+        engine.subRumble = ctx.createOscillator();
+        engine.subRumble.type = 'sine';
+        engine.subRumble.frequency.value = 60;
+        
+        const osc2 = ctx.createOscillator();
+        osc2.type = 'sawtooth';
+        osc2.frequency.value = 120;
+        
+        engine.kineticFilter = ctx.createBiquadFilter();
+        engine.kineticFilter.type = 'lowpass';
+        engine.kineticFilter.frequency.value = 250;
+        osc2.connect(engine.kineticFilter);
+        
+        const osc3 = ctx.createOscillator();
+        osc3.type = 'triangle';
+        osc3.frequency.value = 1200;
+        
+        engine.whineGain = ctx.createGain();
+        engine.whineGain.gain.value = 0;
+        osc3.connect(engine.whineGain);
+        
+        engine.mainGain = ctx.createGain();
+        engine.mainGain.gain.value = 0;
+        
+        const lfo = ctx.createOscillator();
+        lfo.type = 'sine';
+        lfo.frequency.value = 0.05;
+        
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = 0.002;
+        lfo.connect(lfoGain);
+        lfoGain.connect(engine.mainGain.gain);
+        
+        engine.exertionLFO = ctx.createOscillator();
+        engine.exertionLFO.type = 'sine';
+        engine.exertionLFO.frequency.value = 1.27;
+        
+        engine.exertionGain = ctx.createGain();
+        engine.exertionGain.gain.value = 0;
+        engine.exertionLFO.connect(engine.exertionGain);
+        engine.exertionGain.connect(engine.kineticFilter.frequency);
+        
+        const bufferSize = ctx.sampleRate * 2;
+        const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+        
+        engine.noiseSrc = ctx.createBufferSource();
+        engine.noiseSrc.buffer = noiseBuffer;
+        engine.noiseSrc.loop = true;
+        
+        engine.noiseFilter = ctx.createBiquadFilter();
+        engine.noiseFilter.type = 'lowpass';
+        engine.noiseFilter.frequency.value = 300;
+        
+        engine.atriumGain = ctx.createGain();
+        engine.atriumGain.gain.value = 0.0;
+        engine.noiseSrc.connect(engine.noiseFilter);
+        engine.noiseFilter.connect(engine.atriumGain);
+        engine.atriumGain.connect(engine.masterGain);
+        
+        engine.brownNoiseSrc = ctx.createBufferSource();
+        engine.brownNoiseSrc.buffer = noiseBuffer;
+        engine.brownNoiseSrc.loop = true;
+        
+        engine.brownFilter = ctx.createBiquadFilter();
+        engine.brownFilter.type = 'lowpass';
+        engine.brownFilter.frequency.value = 140;
+        
+        engine.brownGain = ctx.createGain();
+        engine.brownGain.gain.value = 0.0;
+        engine.brownNoiseSrc.connect(engine.brownFilter);
+        engine.brownFilter.connect(engine.brownGain);
+        engine.brownGain.connect(engine.masterGain);
+        engine.brownNoiseSrc.start();
+        
+        engine.peaceOsc = ctx.createOscillator();
+        engine.peaceOsc.type = 'sine';
+        engine.peaceOsc.frequency.value = 432;
+        engine.peaceGain = ctx.createGain();
+        engine.peaceGain.gain.value = 0.0;
+        engine.peaceOsc.connect(engine.peaceGain);
+        engine.peaceGain.connect(engine.masterGain);
+        
+        engine.entityOsc = ctx.createOscillator();
+        engine.entityOsc.type = 'sawtooth';
+        engine.entityOsc.frequency.value = 40;
+        
+        engine.entityLFO = ctx.createOscillator();
+        engine.entityLFO.type = 'square';
+        engine.entityLFO.frequency.value = 12;
+        
+        engine.entityLFOGain = ctx.createGain();
+        engine.entityLFOGain.gain.value = 100;
+        engine.entityLFO.connect(engine.entityLFOGain);
+        engine.entityLFOGain.connect(engine.entityOsc.frequency);
+        
+        engine.entityGain = ctx.createGain();
+        engine.entityGain.gain.value = 0.0;
+        engine.entityOsc.connect(engine.entityGain);
+        engine.entityGain.connect(engine.masterGain);
+        
+        engine.paranoiaOsc = ctx.createOscillator();
+        engine.paranoiaOsc.type = 'triangle';
+        engine.paranoiaOsc.frequency.value = 650;
+        
+        engine.paranoiaLFO = ctx.createOscillator();
+        engine.paranoiaLFO.type = 'sine';
+        engine.paranoiaLFO.frequency.value = 2.0;
+        
+        engine.paranoiaLFOGain = ctx.createGain();
+        engine.paranoiaLFOGain.gain.value = 10;
+        engine.paranoiaLFO.connect(engine.paranoiaLFOGain);
+        engine.paranoiaLFOGain.connect(engine.paranoiaOsc.frequency);
+        
+        engine.paranoiaFilter = ctx.createBiquadFilter();
+        engine.paranoiaFilter.type = 'lowpass';
+        engine.paranoiaFilter.frequency.value = 1200;
+        
+        engine.paranoiaGain = ctx.createGain();
+        engine.paranoiaGain.gain.value = 0.0;
+        engine.paranoiaOsc.connect(engine.paranoiaFilter);
+        engine.paranoiaFilter.connect(engine.paranoiaGain);
+        engine.paranoiaGain.connect(engine.masterGain);
+        engine.paranoiaOsc.start();
+        engine.paranoiaLFO.start();
+        
+        engine.stepFilter = ctx.createBiquadFilter();
+        engine.stepGain = ctx.createGain();
+        engine.stepFilter.connect(engine.stepGain);
+        engine.stepGain.connect(engine.masterGain);
+        
+        engine.doorFilter = ctx.createBiquadFilter();
+        engine.doorFilter.type = 'lowpass';
+        engine.doorGain = ctx.createGain();
+        engine.doorFilter.connect(engine.doorGain);
+        engine.doorGain.connect(engine.masterGain);
+        
+        engine.subRumble.connect(engine.mainGain);
+        engine.kineticFilter.connect(engine.mainGain);
+        engine.whineGain.connect(engine.mainGain);
+        
+        engine.spatialDelay = ctx.createDelay(2.0);
+        engine.spatialDelay.delayTime.value = 0.1;
+        engine.feedbackGain = ctx.createGain();
+        engine.feedbackGain.gain.value = 0.2;
+        
+        engine.mainGain.connect(engine.spatialDelay);
+        engine.spatialDelay.connect(engine.feedbackGain);
+        engine.feedbackGain.connect(engine.spatialDelay);
+        engine.spatialDelay.connect(engine.masterGain);
+        engine.mainGain.connect(engine.masterGain);
+        
+        engine.chasmGroanGain = ctx.createGain();
+        engine.chasmGroanGain.gain.value = 0.0;
+        engine.groanOsc1 = ctx.createOscillator();
+        engine.groanOsc1.type = 'sawtooth';
+        engine.groanOsc1.frequency.value = 55;
+        engine.groanOsc2 = ctx.createOscillator();
+        engine.groanOsc2.type = 'square';
+        engine.groanOsc2.frequency.value = 54;
+        
+        engine.groanFilter = ctx.createBiquadFilter();
+        engine.groanFilter.type = 'lowpass';
+        engine.groanFilter.frequency.value = 150;
+        
+        engine.groanLFO = ctx.createOscillator();
+        engine.groanLFO.type = 'sine';
+        engine.groanLFO.frequency.value = 0.05;
+        engine.groanLFOGain = ctx.createGain();
+        engine.groanLFOGain.gain.value = 300;
+        
+        engine.groanLFO.connect(engine.groanLFOGain);
+        engine.groanLFOGain.connect(engine.groanFilter.frequency);
+        engine.groanOsc1.connect(engine.groanFilter);
+        engine.groanOsc2.connect(engine.groanFilter);
+        engine.groanFilter.connect(engine.chasmGroanGain);
+        engine.chasmGroanGain.connect(engine.masterGain);
+        
+        engine.groanOsc1.start();
+        engine.groanOsc2.start();
+        engine.groanLFO.start();
+        
+        engine.tinnitusOsc = ctx.createOscillator();
+        engine.tinnitusOsc.type = 'sine';
+        engine.tinnitusOsc.frequency.value = 4500.0;
+        engine.tinnitusGain = ctx.createGain();
+        engine.tinnitusGain.gain.value = 0.0;
+        engine.tinnitusOsc.connect(engine.tinnitusGain);
+        engine.tinnitusGain.connect(engine.masterGain);
+        engine.tinnitusOsc.start();
+        
+        engine.hazardBell = ctx.createOscillator();
+        engine.hazardBell.type = 'triangle';
+        engine.hazardBell.frequency.value = 180;
+        engine.hazardBellGain = ctx.createGain();
+        engine.hazardBellGain.gain.value = 0.0;
+        engine.hazardBell.connect(engine.hazardBellGain);
+        engine.hazardBellGain.connect(engine.masterGain);
+        engine.hazardBell.start();
+        
+        engine.idlingGain = ctx.createGain();
+        engine.idlingGain.gain.value = 0.0;
+        engine.idlingOsc = ctx.createOscillator();
+        engine.idlingOsc.type = 'sawtooth';
+        engine.idlingOsc.frequency.value = 55;
+        
+        engine.idlingLFO = ctx.createOscillator();
+        engine.idlingLFO.type = 'sine';
+        engine.idlingLFO.frequency.value = 14;
+        engine.idlingLFOGain = ctx.createGain();
+        engine.idlingLFOGain.gain.value = 8;
+        
+        engine.idlingLFO.connect(engine.idlingLFOGain);
+        engine.idlingLFOGain.connect(engine.idlingOsc.frequency);
+        
+        engine.idlingFilter = ctx.createBiquadFilter();
+        engine.idlingFilter.type = 'lowpass';
+        engine.idlingFilter.frequency.value = 400;
+        engine.idlingOsc.connect(engine.idlingFilter);
+        engine.idlingFilter.connect(engine.idlingGain);
+        engine.idlingGain.connect(engine.masterGain);
+        
+        engine.idlingOsc.start();
+        engine.idlingLFO.start();
+        
+        engine.muzakGain = ctx.createGain();
+        engine.muzakGain.gain.value = 0.0;
+        engine.muzakFilter = ctx.createBiquadFilter();
+        engine.muzakFilter.type = 'lowpass';
+        engine.muzakFilter.frequency.value = 500;
+        engine.muzakFilter.connect(engine.muzakGain);
+        engine.muzakGain.connect(engine.masterGain);
+        
+        engine.muzakLFO = ctx.createOscillator();
+        engine.muzakLFO.type = 'sine';
+        engine.muzakLFO.frequency.value = 0.15;
+        engine.muzakLFOGain = ctx.createGain();
+        engine.muzakLFOGain.gain.value = 15;
+        engine.muzakLFO.connect(engine.muzakLFOGain);
+        engine.muzakLFO.start();
+        
+        const t = ctx.currentTime;
+        engine.mainGain.gain.setValueAtTime(0, t);
+        engine.whineGain.gain.setValueAtTime(0, t);
+        engine.atriumGain.gain.setValueAtTime(0, t);
+        engine.peaceGain.gain.setValueAtTime(0, t);
+        engine.entityGain.gain.setValueAtTime(0, t);
+        engine.hazardBellGain.gain.setValueAtTime(0, t);
+        engine.idlingGain.gain.setValueAtTime(0, t);
+        engine.muzakGain.gain.setValueAtTime(0, t);
+        
+        engine.subRumble.frequency.setValueAtTime(60, t);
+        engine.kineticFilter.frequency.setValueAtTime(250, t);
+        
+        engine.subRumble.start();
+        osc2.start();
+        osc3.start();
+        lfo.start();
+        engine.noiseSrc.start();
+        engine.peaceOsc.start();
+        engine.entityOsc.start();
+        engine.entityLFO.start();
+        engine.exertionLFO.start();
+    }
+}

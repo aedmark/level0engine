@@ -1,4 +1,5 @@
 // ImpoundSector.js
+
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
@@ -191,7 +192,6 @@ export const ImpoundSector = (env, ctx) => {
                                 addFurniture(buildChair(px - 0.5, 0, pz + 0.3, random() * Math.PI * 2));
                             }
                         }
-                        // Removed ceiling light fixtures per user request
                     }
                 }
             };

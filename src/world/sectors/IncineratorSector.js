@@ -1,4 +1,5 @@
 // IncineratorSector.js
+
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 

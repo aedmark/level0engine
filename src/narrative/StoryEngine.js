@@ -1,5 +1,5 @@
 // StoryEngine.js
-// THE PAPER TRAIL — a per-seed procedural cold case.
+// LEVEL 0 STORY ENGINE.
 
 export default class StoryEngine {
     constructor(seed) {

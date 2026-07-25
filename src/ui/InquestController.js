@@ -1,3 +1,6 @@
+// InquestController.js
+// LEVEL 0 Quest Controller
+
 export default class InquestController {
     constructor(player, acoustics, engine, environment, getStoryFn, onAscension, onBlackout) {
         this.player = player;

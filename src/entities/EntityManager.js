@@ -44,7 +44,7 @@ export default class EntityManager {
                 );
             }
         }
-        if (this.activeEntity && this.activeEntity.isActive) {
+        if (this.activeEntity) {
             return this.activeEntity.update(delta, time);
         }
         return null;

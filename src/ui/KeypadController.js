@@ -1,3 +1,6 @@
+// KeypadController.js
+// LEVEL 0 KEYPAD CONTROLS
+
 export default class KeypadController {
     constructor(player, acoustics, getStoryFn) {
         this.player = player;

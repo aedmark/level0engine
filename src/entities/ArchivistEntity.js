@@ -66,18 +66,14 @@ export default class ArchivistEntity {
             );
             return null;
         }
-        this._animate(time);
-        if (distSq < 100.0 && this.player.isRunning) {
+        // Scatter if player sprints near it, or gets too close
+        if ((distSq < 100.0 && this.player.isRunning) || distSq < 25.0) { 
             this.isActive = false;
-            document.dispatchEvent(new CustomEvent('somatic-lost', {
-                detail: {
-                    distSq: distSq,
-                    intensity: 1.0,
-                    isLaugh: false
-                }
-            }));
+            this.group.visible = false;
+            document.dispatchEvent(new CustomEvent('somatic-lost', { detail: { distSq: distSq, intensity: 1.0, isLaugh: false } }));
             return null;
         }
+        this._animate(time);
         let isObserved = false;
         if (this.player.flashlightActive && distSq < 400.0) {
             const toEntity = new Vec3().subVectors(this.group.position, playerPos).normalize();
@@ -93,8 +89,9 @@ export default class ArchivistEntity {
             if (this.observeTimer > 2.0 && !this.droppedDoc) {
                 this.dropDocument();
                 this.isActive = false;
+                this.group.visible = false;
                 this.observeTimer = 0;
-                document.dispatchEvent(new CustomEvent('somatic-item', {detail: {distSq: distSq, intensity: 1.5}}));
+                document.dispatchEvent(new CustomEvent('somatic-item', { detail: { distSq: distSq, intensity: 1.5 } }));
                 return null;
             }
         } else {

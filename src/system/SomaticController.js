@@ -1,3 +1,6 @@
+// SomaticController.js
+// LEVEL 0 ENVIRONMENTAL SOMATICS
+
 export default class SomaticController {
     constructor(acoustics) {
         this.acoustics = acoustics;

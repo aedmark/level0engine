@@ -1,4 +1,5 @@
 // ArchiveSector.js
+
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
@@ -213,17 +214,7 @@ export const ArchiveSector = (env, ctx) => {
                             const sz = acz + (random() - 0.5) * 1.8;
                             spawnClutter(sx, 0.0, sz, 1.8);
                         }
-                        // No ceiling panel here anymore - the archive has an open ceiling, so
-                        // light comes down instead: a bare bulb in a rusted bowl shade, hanging
-                        // off a wire that just runs up and disappears into the dark overhead.
-                        // Kept deliberately dim - this room should read as dark and broody, not lit.
                         if (random() > 0.85) {
-                            // Bowl geometry is a hemisphere (theta 0..PI/2): its own .position is
-                            // the RIM (open, downward-facing mouth), and the closed dome cap sits
-                            // above that at +bowlRadius. The wire has to land on the dome cap, not
-                            // the rim, or it reads as stopping short of the fixture instead of
-                            // plugging into it. Bulb hangs just inside/below the rim so it's
-                            // clearly cradled by the shade rather than floating apart from it.
                             const bowlRadius = 0.4;
                             const rimY = 2.65;
                             const domeTopY = rimY + bowlRadius;
@@ -236,11 +227,6 @@ export const ArchiveSector = (env, ctx) => {
                             env.walls.push(wire);
                             const bowlGeo = env._cacheGeo('archiveBowl', () => new THREE.SphereGeometry(bowlRadius, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2));
                             if (!env.archiveBowlMat) {
-                                // The bowl is a thin open shell, not a solid - it needs both faces
-                                // rendered or it vanishes entirely when viewed from underneath (and
-                                // partially drops out from other angles where the sightline grazes
-                                // through the open rim to the far inside wall). Cloned off rustMat
-                                // rather than flipping that material's side everywhere it's used.
                                 env.archiveBowlMat = env.rustMat.clone();
                                 env.archiveBowlMat.side = THREE.DoubleSide;
                                 env.sharedAssets.add(env.archiveBowlMat.uuid);
@@ -253,17 +239,10 @@ export const ArchiveSector = (env, ctx) => {
                             const bulbRadius = 0.08;
                             const bulbGeo = env._cacheGeo('archiveBulb', () => new THREE.SphereGeometry(bulbRadius, 8, 6));
                             const bulbMat = env.baseLightMat.clone();
-                            // baseLightMat carries the diagonal-crosshatch panel texture (map +
-                            // emissiveMap) meant for the flat rectangular light fixtures elsewhere -
-                            // on a small sphere that reads as a striped pool ball. Strip both so
-                            // it's just a plain glowing bulb.
                             bulbMat.map = null;
                             bulbMat.emissiveMap = null;
                             bulbMat.color.setHex(0xd8b276);
                             bulbMat.emissive.setHex(0xc89858);
-                            // Nested up against the dome's inner apex instead of dangling below
-                            // the rim - no separate socket/ballast geometry, just the bulb itself
-                            // pushed flush into the curve.
                             const bulbY = domeTopY - bulbRadius;
                             const bulb = new THREE.Mesh(bulbGeo, bulbMat);
                             bulb.position.set(x * env.cellSize, bulbY, z * env.cellSize);

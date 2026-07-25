@@ -1,3 +1,6 @@
+// UIManager.js
+// LEVEL 0 UI Manager
+
 export default class UIManager {
     static update(time, engine, player, environment) {
         if (time - (this._lastUpdate || 0) < 0.1) return;

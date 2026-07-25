@@ -1,5 +1,5 @@
 // AABB.js
-// LEVEL 0 HOMEGROWN MATH
+// LEVEL 0 MATH
 
 import Vec3 from './Vec3.js';
 
@@ -41,7 +41,6 @@ export default class AABB {
         let tmin = -Infinity;
         let tmax = Infinity;
 
-        // X axis
         if (Math.abs(direction.x) < 1e-12) {
             if (origin.x < box.min.x || origin.x > box.max.x) return false;
         } else {
@@ -53,7 +52,6 @@ export default class AABB {
             if (tmin > tmax) return false;
         }
 
-        // Y axis
         if (Math.abs(direction.y) < 1e-12) {
             if (origin.y < box.min.y || origin.y > box.max.y) return false;
         } else {
@@ -65,7 +63,6 @@ export default class AABB {
             if (tmin > tmax) return false;
         }
 
-        // Z axis
         if (Math.abs(direction.z) < 1e-12) {
             if (origin.z < box.min.z || origin.z > box.max.z) return false;
         } else {

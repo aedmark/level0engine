@@ -1,3 +1,6 @@
+// DocumentViewer.js
+// LEVEL 0 DOCUMENT VIEWER
+
 export default class DocumentViewer {
     constructor(player, acoustics, getStoryFn) {
         this.player = player;

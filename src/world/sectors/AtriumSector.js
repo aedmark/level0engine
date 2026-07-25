@@ -1,4 +1,5 @@
 // AtriumSector.js
+
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
@@ -49,9 +50,6 @@ export const AtriumSector = (env, ctx) => {
                         const skyGeo = env._planeGeo(innerSpan, innerSpan);
                         const sky = new THREE.Mesh(skyGeo, env.nightSkyMat);
                         sky.rotation.x = Math.PI / 2;
-                        // Corn blocks are 4.0 tall (see below), so 4.6 left the starfield
-                        // hovering just 0.6 units above the stalks - practically a low tin roof.
-                        // Pushed it up to 8.0, still shy of the outer void canopy at 9.0.
                         sky.position.set(gx + 2, 8.0, gz + 2);
                         ctx.chunkGroup.add(sky);
                         const fullSpan = env.chunkSize * env.cellSize;
