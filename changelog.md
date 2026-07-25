@@ -1,5 +1,20 @@
 # Level 0 Engine Changelog
 
+## [v0.5.5] - 2026-07-24
+
+_The Ember & Taxonomy Update_
+
+### Added
+- **[ENTITIES] The Ember:** A lethal new entity unique to the `INCINERATOR` sector. It employs a Catch-22 "Weeping Angel" mechanic—moving blindingly fast when unobserved, but rapidly absorbing heat and draining the player's stamina if stared at for too long.
+- **[ENTITIES] Somatic Heat Signatures:** The Ember radiates heat into the `AcousticEngine` via procedural heavy footstep and fire crackle acoustics that scale dynamically with its internal heat level.
+
+### Changed
+- **[ARCHITECTURE] Engine Taxonomy & Documentation:** Reorganized the internal structures of `Environment.js`, `main.js`, and `RenderEngine.js` using a custom AST parser script (`organize_env.cjs`). Categorized massive monoliths into strict taxonomical blocks and applied comprehensive JSDoc banners for human-readability.
+
+### Fixed
+- **[ENTITIES] Entity Spawn Point Clumping:** Fixed a critical rendering oversight where inactive entities (like the Warden and Archivist) were being added to the scene at `(0,0,0)` upon initialization before being assigned to a sector, causing massive geometry clipping at the default player spawn point.
+- **[ENTITIES] Entity Pathfinding:** Added a `stuckTimer` failsafe to `IncineratorEntity` so it automatically blinks closer to the player if it gets trapped behind maze walls for more than two seconds.
+
 ## [v0.5.4] - 2026-07-24
 
 ### Added

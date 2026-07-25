@@ -108,8 +108,13 @@ export default class IncineratorEntity {
             return null;
         }
         
+        // 2D Distance for collision check (ignore Y height difference)
+        const dx = this.group.position.x - playerPos.x;
+        const dz = this.group.position.z - playerPos.z;
+        const distSq2D = dx * dx + dz * dz;
+
         // Lethal collision
-        if (distSq < 2.0 && !this.player.isGodMode) {
+        if (distSq2D < 2.0 && !this.player.isGodMode) {
             return {consumed: true};
         }
         
@@ -216,8 +221,8 @@ export default class IncineratorEntity {
             this._nextPos.copy(this.group.position).add(moveVec);
             
             // Collision AABB
-            this._min.set(this._nextPos.x - 0.8, 0.0, this._nextPos.z - 0.8);
-            this._max.set(this._nextPos.x + 0.8, 4.0, this._nextPos.z + 0.8);
+            this._min.set(this._nextPos.x - 0.5, 0.0, this._nextPos.z - 0.5);
+            this._max.set(this._nextPos.x + 0.5, 4.0, this._nextPos.z + 0.5);
             this._box.set(this._min, this._max);
             
             let blocked = false;

@@ -246,15 +246,17 @@ export default class StructureKit {
                 const isDoorwayEW = localZ === 7 && (localX === 0 || localX === edge);
                 const isDoorway = isDoorwayNS || isDoorwayEW;
                 if (!isDoorway) {
-                    const key = `${env.cellSize}_${height}_${env.cellSize}_0`;
+                    const key = `${env.cellSize}_${height + 2.0}_${env.cellSize}_0`;
                     let geo = env.geoCache.get(key);
                     if (!geo) {
-                        geo = new THREE.BoxGeometry(env.cellSize + 0.02, height, env.cellSize + 0.02);
+                        geo = new THREE.BoxGeometry(env.cellSize + 0.02, height + 2.0, env.cellSize + 0.02);
                         env.geoCache.set(key, geo);
                         env.geoCache.set(geo.uuid, true);
                     }
                     const wall = new THREE.Mesh(geo, wallMat || env.sharedWallMat);
                     wall.position.set(x * env.cellSize, height / 2, z * env.cellSize);
+                    wall.castShadow = true;
+                    wall.receiveShadow = true;
                     wall.userData.chunkHash = hash;
                     wall.updateMatrixWorld(true);
                     if (!wall.geometry.boundingBox) wall.geometry.computeBoundingBox();

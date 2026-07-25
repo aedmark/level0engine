@@ -477,12 +477,12 @@ export default class SetPieces {
         };
 
         const createDoorAssembly = (cx, cz) => {
-            const jambA = bWall(spansX ? 0.5 : 0.7, 3.0, spansX ? 0.7 : 0.5, env.structMat);
-            jambA.position.set(cx - (spansX ? 1.75 : 0), 1.5, cz - (spansX ? 0 : 1.75));
+            const jambA = bWall(spansX ? 0.5 : 0.7, 3.4, spansX ? 0.7 : 0.5, env.structMat);
+            jambA.position.set(cx - (spansX ? 1.75 : 0), 1.7, cz - (spansX ? 0 : 1.75));
             addGeometry(jambA);
 
-            const jambB = bWall(spansX ? 0.5 : 0.7, 3.0, spansX ? 0.7 : 0.5, env.structMat);
-            jambB.position.set(cx + (spansX ? 1.75 : 0), 1.5, cz + (spansX ? 0 : 1.75));
+            const jambB = bWall(spansX ? 0.5 : 0.7, 3.4, spansX ? 0.7 : 0.5, env.structMat);
+            jambB.position.set(cx + (spansX ? 1.75 : 0), 1.7, cz + (spansX ? 0 : 1.75));
             addGeometry(jambB);
 
             for (let side = -1; side <= 1; side += 2) {
@@ -539,8 +539,8 @@ export default class SetPieces {
                 addGeometry(pocketTop);
             }
 
-            const header = bWall(spansX ? 3.0 : 0.7, 0.4, spansX ? 0.7 : 3.0, env.metalMat);
-            header.position.set(cx, 2.8, cz);
+            const header = bWall(spansX ? 3.0 : 0.7, 0.8, spansX ? 0.7 : 3.0, env.metalMat);
+            header.position.set(cx, 3.0, cz);
             addGeometry(header);
 
             const lampHousing = bWall(spansX ? 0.4 : 0.2, 0.15, spansX ? 0.2 : 0.4, env.metalMat);

@@ -650,6 +650,8 @@ export default class Environment {
             const ceil = new THREE.Mesh(ceilGeo, this.ceilMat);
             ceil.rotation.x = Math.PI / 2;
             ceil.position.set(startX * this.cellSize + centerOffset, cHeight, startZ * this.cellSize + centerOffset);
+            ceil.castShadow = true;
+            ceil.receiveShadow = true;
             chunkGroup.add(ceil);
         } else {
             if (!this.voidShroudMat) {
@@ -660,6 +662,7 @@ export default class Environment {
             const canopy = new THREE.Mesh(this._planeGeo(span, span), this.voidShroudMat);
             canopy.rotation.x = Math.PI / 2;
             canopy.position.set(startX * this.cellSize + centerOffset, 9.0, startZ * this.cellSize + centerOffset);
+            canopy.castShadow = true;
             chunkGroup.add(canopy);
             const skirtGeo = this._planeGeo(span, 6.3);
             const cxw0 = startX * this.cellSize + centerOffset;
@@ -676,6 +679,7 @@ export default class Environment {
                     skirt.position.set(cxw0 + skirtInset, 6.0, czw0);
                     skirt.rotation.y = Math.PI / 2;
                 }
+                skirt.castShadow = true;
                 chunkGroup.add(skirt);
             }
         }
@@ -724,8 +728,11 @@ export default class Environment {
                 const inEPath = localZ === 7 && localX >= 11;
                 const isArtery = inNRing || inSRing || inWRing || inERing || inNPath || inSPath || inWPath || inEPath;
                 const isBlocker = localX >= 5 && localX <= 9 && localZ >= 5 && localZ <= 9;
+                const isSpawnClear = (chunkX === 0 && chunkZ === 0) && (localX <= 3 && localZ <= 3);
+                
                 if (isBlocker) isWall = true;
-                if (isArtery) isWall = false;
+                if (isArtery || isSpawnClear) isWall = false;
+                
                 if (isWall) {
                     const structRoll = random();
                     const structure = structuralMatrix.find(s => structRoll >= s.prob);
