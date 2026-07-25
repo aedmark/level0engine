@@ -1,5 +1,22 @@
 # Level 0 Engine Changelog
 
+## [v0.5.6] - 2026-07-25
+
+_The Photophobia Update_
+
+### Added
+- **[SOMATICS] Photophobia Effect:** Implemented a new somatic post-processing shader. When the player stares directly into bright light sources (like the CHASM searchlights), the engine triggers an extreme luminance blowout and a radial ghosting blur to simulate ocular strain and pupil dilation.
+- **[ARCHITECTURE] Volumetric Beam Heuristic:** Added a lightweight, high-performance translucent cone geometry using additive blending to simulate atmospheric god rays in the CHASM.
+- **[ARCHITECTURE] Dynamic Housing Shields:** Attached procedurally rotating metal housing shields to the CHASM lighthouses. These physically block the emitting bulb from the rear and sides, ensuring the photophobia effect only triggers when the sweeping beam directly intersects the player's foveal cone.
+
+### Changed
+- **[WORLD] CHASM Density Calibration:** Reduced the procedural lighthouse generation cap from 7 to 4 to optimize visual density and structural carrying capacity.
+- **[ARCHITECTURE] Sector Light Culling:** Updated the environment loop to strictly cull CHASM searchlights and volumetric beams until the player explicitly crosses the airlock threshold, preventing light bleed into adjacent sectors.
+- **[ARCHITECTURE] Codebase Documentation:** Expanded the taxonomical in-line JSDoc documentation across the `src/world` directory, covering `Sectors.js` and `SetPieces.js`.
+
+### Fixed
+- **[RENDERING] Depth-Sorting Artifacts:** Resolved a Z-buffer depth sorting bug in the CHASM lighthouses where nested transparent materials caused the physical bulbs to become invisible behind the glass casing.
+
 ## [v0.5.5] - 2026-07-24
 
 _The Ember & Taxonomy Update_

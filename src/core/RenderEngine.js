@@ -99,7 +99,8 @@ export default class RenderEngine {
                 panic: {value: 0.0},
                 adrenaline: {value: 0.0},
                 eyesClosed: {value: 0.0},
-                heat: {value: 0.0}
+                heat: {value: 0.0},
+                glare: {value: 0.0}
             },
             vertexShader: `
                 varying vec2 vUv;
@@ -120,6 +121,7 @@ export default class RenderEngine {
                 uniform float adrenaline;
                 uniform float eyesClosed;
                 uniform float heat;
+                uniform float glare;
                 varying vec2 vUv;
                 
                 float random(vec2 st) {
@@ -189,6 +191,21 @@ export default class RenderEngine {
                         vec4 texB = texture2D(tDiffuse, sampleUv - offset);
                         col = vec3(texR.r, texG.g, texB.b);
                         fauxHalation = (texR.rgb + texB.rgb) * 0.3;
+                    }
+                    
+                    if (glare > 0.01) {
+                        float gBlur = glare * 0.03;
+                        vec3 blurCol = vec3(0.0);
+                        blurCol += texture2D(tDiffuse, sampleUv + vec2(gBlur, gBlur)).rgb;
+                        blurCol += texture2D(tDiffuse, sampleUv + vec2(-gBlur, gBlur)).rgb;
+                        blurCol += texture2D(tDiffuse, sampleUv + vec2(gBlur, -gBlur)).rgb;
+                        blurCol += texture2D(tDiffuse, sampleUv + vec2(-gBlur, -gBlur)).rgb;
+                        blurCol += texture2D(tDiffuse, sampleUv + vec2(0.0, gBlur * 1.5)).rgb;
+                        blurCol += texture2D(tDiffuse, sampleUv + vec2(0.0, -gBlur * 1.5)).rgb;
+                        blurCol += texture2D(tDiffuse, sampleUv + vec2(gBlur * 1.5, 0.0)).rgb;
+                        blurCol += texture2D(tDiffuse, sampleUv + vec2(-gBlur * 1.5, 0.0)).rgb;
+                        col = mix(col, blurCol * 0.125, clamp(glare * 2.5, 0.0, 1.0));
+                        col += vec3(glare * 0.9);
                     }
                     
                     // Image Adjustments
@@ -324,6 +341,7 @@ export default class RenderEngine {
         this.postMaterial.uniforms.panic.value = this.paranoia || 0.0;
         this.postMaterial.uniforms.adrenaline.value = this.adrenaline || 0.0;
         this.postMaterial.uniforms.eyesClosed.value = this.eyesClosed || 0.0;
+        this.postMaterial.uniforms.glare.value = this.glare || 0.0;
         
         // Heat Map Smoothing
         if (this.heatTarget !== undefined) {

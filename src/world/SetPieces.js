@@ -4,7 +4,7 @@
 /**
  * A collection of highly detailed, deterministic, multi-mesh prefabs (like Airlocks and Checkpoint Rooms).
  * 
- * Educational Note: While most of the maze is generated via simple `buildWall` calls, 
+ * While most of the maze is generated via simple `buildWall` calls,
  * sometimes we want complex interactive set pieces. This file handles assembling those 
  * complex prefabs (like `doorGroup` assemblies) and correctly registering them with the 
  * physics system (`spatialGrid`) and interactivity manager (`interactiveDoors`, `airlocks`).
@@ -14,6 +14,19 @@ export default class SetPieces {
         this.env = env;
     }
 
+    /**
+     * Constructs a highly detailed checkpoint room (often used at sector boundaries).
+     * This set piece includes a door frame, a functional hinged door, shelving, cartons, 
+     * and sometimes interactable items (batteries, almonds).
+     *
+     * @param {number} x - Global chunk X coordinate.
+     * @param {number} z - Global chunk Z coordinate.
+     * @param {number} localX - Local X coordinate within the chunk.
+     * @param {number} localZ - Local Z coordinate within the chunk.
+     * @param {boolean} flankV - If true, the room flanks vertically (along the Z axis); otherwise horizontally (X axis).
+     * @param {Function} ckHash - Deterministic hash function for this chunk.
+     * @param {Object} ctx - Builder context containing utility methods (buildWall, addGeometry, chunkGroup, hash).
+     */
     buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, ctx) {
         const env = this.env;
         const {buildWall, addGeometry, chunkGroup, hash} = ctx;
@@ -188,6 +201,15 @@ export default class SetPieces {
         }
     }
 
+    /**
+     * Constructs a central, decorative column for checkpoint areas, complete with 
+     * computer screens, cables, and structural supports.
+     * 
+     * @param {number} x - Global chunk X coordinate.
+     * @param {number} z - Global chunk Z coordinate.
+     * @param {number} hash - The deterministic hash ID of the chunk.
+     * @param {Object} ctx - Builder context (addGeometry, stagingMeshes).
+     */
     buildCheckpointColumn(x, z, hash, ctx) {
         const env = this.env;
         const {addGeometry, stagingMeshes} = ctx;
@@ -269,6 +291,16 @@ export default class SetPieces {
         }
     }
 
+    /**
+     * Spawns random debris or vehicles specific to the IMPOUND sector (cars, machines, tire stacks).
+     * Used to populate large open areas.
+     *
+     * @param {number} px - Global world X position.
+     * @param {number} pz - Global world Z position.
+     * @param {string} kind - The type of item to build ('car', 'machine', or default tire stack).
+     * @param {Object} ctx - Builder context (addFurniture, chunkGroup, hash, random).
+     * @returns {boolean} True if the item was successfully built.
+     */
     buildImpoundItem(px, pz, kind, ctx) {
         const env = this.env;
         const {addFurniture, chunkGroup, hash, random} = ctx;
@@ -396,6 +428,19 @@ export default class SetPieces {
         return true;
     }
 
+    /**
+     * Builds the four connecting hallways that link a chunk to its adjacent chunks.
+     * Often called by sector builders to ensure the 7x7 cross pattern is open.
+     *
+     * @param {THREE.Group} chunkGroup - The root mesh group for the chunk.
+     * @param {number} hash - The deterministic hash ID of the chunk.
+     * @param {number} startX - Global start X coordinate of the chunk.
+     * @param {number} startZ - Global start Z coordinate of the chunk.
+     * @param {string} sectorId - The ID of the sector being built.
+     * @param {Object} ctx - Builder context (markOccupied).
+     * @param {boolean} needsFloor - Whether to generate floor tiles for the hallways.
+     * @param {boolean} needsCeiling - Whether to generate ceiling tiles for the hallways.
+     */
     buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling) {
         const env = this.env;
         const edge = env.chunkSize - 1;
@@ -443,6 +488,18 @@ export default class SetPieces {
             }
         }
     }
+    /**
+     * Assembles a complex airlock structure with two sliding doors and an interaction switch.
+     * The airlock logic manages cycling between sectors.
+     *
+     * @param {THREE.Group} chunkGroup - The root mesh group for the chunk.
+     * @param {number} hash - The deterministic hash ID of the chunk.
+     * @param {number} dcx - Center X position of the airlock.
+     * @param {number} dcz - Center Z position of the airlock.
+     * @param {boolean} spansX - If true, the airlock spans the X axis; otherwise it spans the Z axis.
+     * @param {string} sectorId - The ID of the sector.
+     * @param {number} outSign - Direction multiplier indicating which way is "out" (1 or -1).
+     */
     buildAirlock(chunkGroup, hash, dcx, dcz, spansX, sectorId, outSign) {
         const env = this.env;
         if (!env.airlockRedMat) {
@@ -712,6 +769,19 @@ export default class SetPieces {
         if (!env.airlocks) env.airlocks = [];
         env.airlocks.push(airlock);
     }
+    /**
+     * Generates a simple modular hallway segment, including walls, floor, and ceiling.
+     * 
+     * @param {THREE.Group} chunkGroup - The root mesh group for the chunk.
+     * @param {number} hash - The deterministic hash ID of the chunk.
+     * @param {number} cx - Center X position.
+     * @param {number} cz - Center Z position.
+     * @param {boolean} spansX - If true, the hallway walls run along the X axis.
+     * @param {boolean} needsFloor - Whether to generate a floor tile.
+     * @param {boolean} needsCeiling - Whether to generate a ceiling tile.
+     * @param {string} sectorId - The ID of the sector (affects ceiling material).
+     * @param {boolean} buildWalls - Default true; if false, only floor/ceiling are generated.
+     */
     buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId, buildWalls = true) {
         const env = this.env;
         const addGeometry = (mesh) => {
@@ -791,6 +861,13 @@ export default class SetPieces {
             }
         }
     }
+    /**
+     * Uses a recursive backtracker algorithm to carve out a maze pattern within a chunk.
+     * Ensures paths always connect to the 7x7 cross in the center.
+     *
+     * @param {Function} randomFn - A deterministic random number generator.
+     * @returns {boolean[][]} A 2D array representing the maze grid, where false is a path and true is a wall.
+     */
     generateSectorMaze(randomFn) {
         const env = this.env;
         const maze = Array(env.chunkSize).fill(undefined).map(() => Array(env.chunkSize).fill(true));

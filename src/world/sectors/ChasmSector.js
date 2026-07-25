@@ -229,7 +229,7 @@ export const ChasmSector = (env, ctx) => {
                                     const j = Math.floor(rng2() * (i + 1));
                                     const t = lhBand[i]; lhBand[i] = lhBand[j]; lhBand[j] = t;
                                 }
-                                const wantLH = Math.min(lhBand.length, 7); // Exactly 7 lighthouses
+                                const wantLH = Math.min(lhBand.length, 5); // Exactly 5 lighthouses
                                 let minSpacing = 4.0;
                                 while (lhSet.size < wantLH && minSpacing >= 0) {
                                     lhSet.clear();
@@ -281,8 +281,8 @@ export const ChasmSector = (env, ctx) => {
                                 poleEnd = 3.0 + random() * 4.0;
                                 sign = -1;
                             } else {
-                                poleStart = -50.0;
-                                poleEnd = -2.0 - random() * 15.0;
+                                poleStart = -10.0;
+                                poleEnd = -3.0 - random() * 4.0;
                                 sign = 1;
                             }
 
@@ -309,7 +309,14 @@ export const ChasmSector = (env, ctx) => {
                             glass.position.set(gx, poleEnd + sign * 0.7, gz);
                             chunkGroup.add(glass);
 
-                            const bulb = new THREE.Mesh(env._cacheGeo('lhBulb', () => new THREE.SphereGeometry(0.15, 8, 8)), lhMat);
+                            if (!env._lhBulbMat) {
+                                env._lhBulbMat = new THREE.MeshBasicMaterial({ color: 0xffffee });
+                                env.sharedAssets.add(env._lhBulbMat.uuid);
+                            }
+                            const bulb = new THREE.Mesh(env._cacheGeo('lhBulb', () => new THREE.SphereGeometry(0.15, 8, 8)), env._lhBulbMat);
+                            const glowPoint = new THREE.PointLight(0xffeedd, 2.0, 10.0);
+                            glowPoint.castShadow = false;
+                            bulb.add(glowPoint);
                             bulb.position.set(gx, poleEnd + sign * 0.7, gz);
                             chunkGroup.add(bulb);
                             
@@ -318,15 +325,56 @@ export const ChasmSector = (env, ctx) => {
                             if (isAbove) cap.rotation.x = Math.PI;
                             chunkGroup.add(cap);
 
+
+                            if (!env._lhBeamMat) {
+                                env._lhBeamMat = new THREE.MeshBasicMaterial({
+                                    color: 0xffeedd,
+                                    transparent: true,
+                                    opacity: 0.02,
+                                    blending: THREE.AdditiveBlending,
+                                    depthWrite: false,
+                                    side: THREE.DoubleSide
+                                });
+                                env.sharedAssets.add(env._lhBeamMat.uuid);
+                            }
+                            
+                            const beamPivot = new THREE.Group();
+                            beamPivot.position.set(gx, poleEnd + sign * 0.7, gz);
+                            chunkGroup.add(beamPivot);
+
+                            const beamGeo = env._cacheGeo('lhBeam', () => {
+                                const geo = new THREE.CylinderGeometry(0.1, 8.0, 30.0, 16, 1, true);
+                                // The narrow tip (radiusTop) defaults to +Y, wide base to -Y.
+                                // Translate -15 places the tip precisely at the pivot origin (0,0,0).
+                                geo.translate(0, -15.0, 0);
+                                // Rotate -90 degrees on X to align the wide base toward the local +Z axis (the lookAt direction).
+                                geo.rotateX(-Math.PI / 2);
+                                return geo;
+                            });
+                            const beam = new THREE.Mesh(beamGeo, env._lhBeamMat);
+                            beamPivot.add(beam);
+
+                            const housingPivot = new THREE.Group();
+                            housingPivot.position.set(gx, poleEnd + sign * 0.7, gz);
+                            chunkGroup.add(housingPivot);
+                            
+                            const housingGeo = env._cacheGeo('lhHousing', () => {
+                                return new THREE.CylinderGeometry(0.38, 0.38, 0.62, 12, 1, false, Math.PI / 2, Math.PI);
+                            });
+                            const housing = new THREE.Mesh(housingGeo, env.rustMat);
+                            housingPivot.add(housing);
+
                             base.userData.chunkHash = hash;
                             glass.userData.chunkHash = hash;
                             bulb.userData.chunkHash = hash;
                             cap.userData.chunkHash = hash;
+                            housing.userData.chunkHash = hash;
                             base.updateMatrixWorld(true);
                             glass.updateMatrixWorld(true);
                             bulb.updateMatrixWorld(true);
                             cap.updateMatrixWorld(true);
-                            env.walls.push(base, glass, cap);
+                            housing.updateMatrixWorld(true);
+                            env.walls.push(base, glass, cap, housing);
                             
                             env.fixtureData.push({
                                 chunkHash: hash,
@@ -341,7 +389,9 @@ export const ChasmSector = (env, ctx) => {
                                 isFaulty: false,
                                 baseIntensity: 5.0,
                                 targetIntensity: 5.0,
-                                currentIntensity: 5.0
+                                currentIntensity: 5.0,
+                                volumetricMesh: beamPivot,
+                                housingMesh: housingPivot
                             });
                         }
                     }

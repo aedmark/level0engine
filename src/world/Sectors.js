@@ -15,10 +15,35 @@ export const DEFAULT_FOLEY = {oscFreq: 60, filterType: 'lowpass', filterFreq: 60
  * 
  * This object acts as the "DNA" for the engine's dynamic atmosphere.
  * As the player walks from a 'NORMAL' chunk into an 'INCINERATOR' chunk, the `RenderEngine` 
- * and `Foley` system smoothly interpolate these values. 
- * - `fog`/`fogColor`: Drives the WebGL shader uniforms for volumetric rendering.
- * - `ambience`: Parameters for the procedural drone synthesizer (rumble, whine, noise).
- * - `foley`: Overrides the player's procedural footstep synthesis (e.g. echoey reverb in the CHASM).
+ * and `Foley` system smoothly interpolate these values.
+ * 
+ * @typedef {Object} FoleyConfig
+ * @property {number} oscFreq - Base oscillator frequency for the footstep impact.
+ * @property {string} filterType - Biquad filter type ('lowpass', 'highpass', 'bandpass').
+ * @property {number} filterFreq - Frequency cutoff for the biquad filter.
+ * @property {number} gain - Master volume of the footstep.
+ * @property {number} attack - Fade-in time (in seconds) for the footstep envelope.
+ * @property {number} decay - Fade-out time (in seconds) for the footstep envelope.
+ * 
+ * @typedef {Object} AmbienceConfig
+ * @property {number} noise - White noise intensity.
+ * @property {number} peace - Smooths out harsh frequencies.
+ * @property {number} rumble - Low frequency oscillator gain (LFO).
+ * @property {number} freq - Base cutoff frequency for the ambient rumble.
+ * @property {number} freqOcc - Frequency occlusion (how muffled the ambient sound gets).
+ * @property {number} whine - High-frequency sine wave intensity (e.g., electrical whine).
+ * @property {number} whineOcc - High-frequency occlusion.
+ * @property {boolean} dynamicWhine - If true, the whine modulates in pitch over time.
+ * 
+ * @typedef {Object} SectorConfig
+ * @property {number} [fog] - Fog density for WebGL shader volumetric rendering.
+ * @property {number} [fogColor] - Hex color code for the fog rendering.
+ * @property {AmbienceConfig} [ambience] - Parameters for the procedural drone synthesizer.
+ * @property {FoleyConfig} [foley] - Overrides the procedural footstep synthesis for this sector.
+ * @property {number} [delay] - Master delay time for acoustic echo in this sector.
+ * @property {number} [feedback] - Master delay feedback loop intensity (how long the echo lasts).
+ * 
+ * @type {Object.<string, SectorConfig>}
  */
 const SECTORS = {
     NORMAL: {
@@ -67,7 +92,7 @@ const SECTORS = {
         delay: 0.02, feedback: 0.15
     },
     CHASM: {
-        fog: 0.20, fogColor: 0x0f1036,
+        fog: 0.21, fogColor: 0x052047,
         ambience: {noise: 0.25, peace: 0.0, rumble: 30, freq: 40, freqOcc: 40, whine: 0.0, whineOcc: 0.0, dynamicWhine: false},
         foley: {oscFreq: 240, filterType: 'bandpass', filterFreq: 1600, gain: 0.18, attack: 0.005, decay: 0.3},
         delay: 0.8, feedback: 0.7

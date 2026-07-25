@@ -900,14 +900,34 @@ export default class Environment {
      */
 
     updateLights(time) {
+        const isChasm = this._stickySectorId === 'CHASM';
         if (this.fixtureData) {
             for (let i = 0; i < this.fixtureData.length; i++) {
                 const fixture = this.fixtureData[i];
                 if (fixture.isLighthouse) {
+                    if (!isChasm) {
+                        fixture.currentIntensity = 0.0;
+                        fixture.targetIntensity = 0.0;
+                        if (fixture.volumetricMesh) fixture.volumetricMesh.visible = false;
+                        if (fixture.housingMesh) fixture.housingMesh.visible = false;
+                        continue;
+                    } else if (fixture.volumetricMesh && !fixture.volumetricMesh.visible) {
+                        fixture.currentIntensity = fixture.baseIntensity;
+                        fixture.targetIntensity = fixture.baseIntensity;
+                        fixture.volumetricMesh.visible = true;
+                        if (fixture.housingMesh) fixture.housingMesh.visible = true;
+                    }
+                    
                     const angle = time * fixture.sweepSpeed + fixture.sweepPhase;
                     fixture.targetPos.x = fixture.position.x + Math.cos(angle) * 10.0;
                     fixture.targetPos.z = fixture.position.z + Math.sin(angle) * 10.0;
                     fixture.targetPos.y = 0.0;
+                    if (fixture.volumetricMesh) {
+                        fixture.volumetricMesh.lookAt(fixture.targetPos);
+                    }
+                    if (fixture.housingMesh) {
+                        fixture.housingMesh.rotation.y = Math.atan2(fixture.targetPos.x - fixture.position.x, fixture.targetPos.z - fixture.position.z);
+                    }
                 }
             }
         }
@@ -922,6 +942,43 @@ export default class Environment {
         const minLightDistSq = lumenData.minLightDistSq;
         this.player.darknessPressure = darknessPressure;
         const minLightDist = nearestFixture ? Math.sqrt(minLightDistSq) : Infinity;
+        
+        if (this.currentGlare === undefined) this.currentGlare = 0.0;
+        let glareTarget = 0.0;
+
+        if (nearestFixture && minLightDist > 1.0) {
+            if (!this._camDir) this._camDir = new THREE.Vector3();
+            this.camera.getWorldDirection(this._camDir);
+            
+            if (!this._glareDir) this._glareDir = new THREE.Vector3();
+            this._glareDir.subVectors(nearestFixture.position, cameraPos).normalize();
+            
+            const dot = this._camDir.dot(this._glareDir);
+            if (dot > 0.95) { // Staring directly at the light
+                let beamAlign = 1.0;
+                if (nearestFixture.targetPos) {
+                    if (!this._lightBeamDir) this._lightBeamDir = new THREE.Vector3();
+                    this._lightBeamDir.subVectors(nearestFixture.targetPos, nearestFixture.position).normalize();
+                    
+                    if (!this._playerFromLight) this._playerFromLight = new THREE.Vector3();
+                    this._playerFromLight.subVectors(cameraPos, nearestFixture.position).normalize();
+                    
+                    beamAlign = this._lightBeamDir.dot(this._playerFromLight);
+                }
+                
+                if (beamAlign > 0.3) { // Beam is roughly pointing at the player (cone)
+                    const intensity = nearestFixture.currentIntensity || nearestFixture.baseIntensity || 1.0;
+                    const distFactor = 1.0 / (1.0 + minLightDist * 0.2); 
+                    const angleFactor = (dot - 0.95) * 20.0; 
+                    const directionalFactor = nearestFixture.targetPos ? Math.max(0, (beamAlign - 0.3) * 1.42) : 1.0;
+                    
+                    glareTarget = intensity * distFactor * angleFactor * directionalFactor * 0.2; 
+                }
+            }
+        }
+        
+        this.currentGlare += (glareTarget - this.currentGlare) * 0.1;
+        this.engine.glare = this.currentGlare;
         if (nearestFixture && minLightDist > 1.0) {
             if (time - this.lastAudioOcclusionTime > 0.1) {
                 this.audioDirection.subVectors(nearestFixture.position, cameraPos).normalize();
