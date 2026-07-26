@@ -41,7 +41,14 @@ export const MaintenanceSector = (env, ctx) => {
                     } else {
                         const isW = (lx, lz) => {
                             if (lx < 0 || lx >= env.chunkSize || lz < 0 || lz >= env.chunkSize) {
-                                return !((lx === 7 && (lz === -1 || lz === env.chunkSize)) || (lz === 7 && (lx === -1 || lx === env.chunkSize)));
+                                // The doorway itself is open
+                                if (lx === 7 && (lz === -1 || lz === env.chunkSize)) return false;
+                                if (lz === 7 && (lx === -1 || lx === env.chunkSize)) return false;
+                                // Treat the walls immediately adjacent to the doorway as open 
+                                // so that the hazard trims are permitted to extend into the airlock
+                                if ((lx === 6 || lx === 8) && (lz === -1 || lz === env.chunkSize)) return false;
+                                if ((lz === 6 || lz === 8) && (lx === -1 || lx === env.chunkSize)) return false;
+                                return true;
                             }
                             return maze[lx][lz];
                         };
@@ -113,6 +120,38 @@ export const MaintenanceSector = (env, ctx) => {
                                 const junction = new THREE.Mesh(env.pipeJunctionGeo, env.rustMat);
                                 junction.position.set(x * env.cellSize + offset, 2.8, z * env.cellSize + offset);
                                 addGeometry(junction);
+                                // Reduce spawn frequency
+                                if (random() > 0.85) {
+                                    const valveGroup = new THREE.Group();
+                                    const stemGeo = env._cacheGeo('maintValveStem', () => new THREE.CylinderGeometry(0.04, 0.04, 0.2, 8));
+                                    const stem = new THREE.Mesh(stemGeo, env.rustMat);
+                                    stem.position.y = 0.1;
+                                    const wheelGeo = env._cacheGeo('maintValveWheel', () => new THREE.TorusGeometry(0.22, 0.04, 12, 24));
+                                    const wheel = new THREE.Mesh(wheelGeo, env.valveMat || env.rustMat);
+                                    wheel.position.y = 0.2;
+                                    wheel.rotation.x = Math.PI / 2;
+                                    valveGroup.add(stem, wheel);
+                                    valveGroup.position.set(x * env.cellSize + offset, 2.8, z * env.cellSize + offset);
+                                    
+                                    // Ensure valves face outwards and don't intersect pipes
+                                    const validDirs = ['down'];
+                                    if (!openE) validDirs.push('east');
+                                    if (!openS) validDirs.push('south');
+                                    
+                                    const dir = validDirs[Math.floor(random() * validDirs.length)];
+                                    if (dir === 'down') {
+                                        valveGroup.rotation.x = Math.PI;
+                                    } else if (dir === 'east') { // points 45-deg down-east
+                                        valveGroup.rotation.z = -Math.PI * 0.75;
+                                    } else if (dir === 'south') { // points 45-deg down-south
+                                        valveGroup.rotation.x = Math.PI * 0.75;
+                                    }
+                                    
+                                    valveGroup.translateY(0.1);
+                                    valveGroup.userData = {type: 'valve', active: false, wheel: wheel, chunkHash: hash};
+                                    if (env.interactables) env.interactables.push(valveGroup);
+                                    chunkGroup.add(valveGroup);
+                                }
                                 if (env.leakStainGeo && random() > 0.5) {
                                     const stain = new THREE.Mesh(env.leakStainGeo, env.leakStainMat);
                                     stain.position.set(x * env.cellSize + offset, 0.025, z * env.cellSize + offset);
@@ -120,6 +159,40 @@ export const MaintenanceSector = (env, ctx) => {
                                     const sc = 0.7 + random() * 0.6;
                                     stain.scale.set(sc, sc, sc);
                                     addGeometry(stain);
+                                    
+                                    if (random() > 0.3) {
+                                        const coneGroup = new THREE.Group();
+                                        const coneGeo = env._cacheGeo('maintCautionConeBody', () => {
+                                            const g = new THREE.CylinderGeometry(0.05, 0.25, 0.85, 16);
+                                            g.translate(0, 0.425, 0);
+                                            return g;
+                                        });
+                                        const baseGeo = env._cacheGeo('maintCautionConeBase', () => {
+                                            const g = new THREE.BoxGeometry(0.55, 0.05, 0.55);
+                                            g.translate(0, 0.025, 0);
+                                            return g;
+                                        });
+                                        const coneMat = env.cautionConeMat || env.hazardMat;
+                                        const coneBaseMat = env.cautionConeBaseMat || coneMat;
+                                        const coneBody = new THREE.Mesh(coneGeo, coneMat);
+                                        const coneBase = new THREE.Mesh(baseGeo, coneBaseMat);
+                                        coneGroup.add(coneBody, coneBase);
+                                        // Constrain the spawn radius to spawn inward towards the room center 
+                                        // and avoid the hazard trims and wall-mounted furniture which sit at <= -1.6
+                                        const jx = (random() * 1.0) - 0.1;
+                                        const jz = (random() * 1.0) - 0.1;
+                                        coneGroup.position.set(x * env.cellSize + offset + jx, 0.0, z * env.cellSize + offset + jz);
+                                        coneGroup.rotation.order = 'YXZ';
+                                        coneGroup.rotation.y = random() * Math.PI * 2;
+                                        const isTipped = random() > 0.8;
+                                        if (isTipped) {
+                                            coneGroup.rotation.x = Math.PI / 2 + 0.258;
+                                            coneGroup.position.y = 0.266;
+                                        }
+                                        coneGroup.userData = {type: 'cone', tipped: isTipped, fallProgress: isTipped ? 1.0 : 0.0, active: true};
+                                        if (env.animators) env.animators.push(coneGroup);
+                                        chunkGroup.add(coneGroup);
+                                    }
                                 }
                             }
                         }
@@ -128,6 +201,92 @@ export const MaintenanceSector = (env, ctx) => {
                         if (wS) wallSides.push([0, 1]);
                         if (wE) wallSides.push([1, 0]);
                         if (wW) wallSides.push([-1, 0]);
+                        if (wallSides.length > 0) {
+                            wallSides.forEach(([csx, csz]) => {
+                                if (random() > 0.85) {
+                                    const isBreaker = random() > 0.5;
+                                    const perp = csx !== 0 ? [0, 1] : [1, 0];
+                                    const clx = x * env.cellSize + csx * ((env.cellSize / 2) - 0.1);
+                                    const clz = z * env.cellSize + csz * ((env.cellSize / 2) - 0.1);
+                                    const facing = Math.atan2(-csx, -csz);
+                                    
+                                    if (isBreaker) {
+                                        const boxGroup = new THREE.Group();
+                                        const boxGeo = env._cacheGeo('maintBreakerBox', () => new THREE.BoxGeometry(0.6, 0.8, 0.2));
+                                        const boxMesh = new THREE.Mesh(boxGeo, env.metalMat);
+                                        const handleGeo = env._cacheGeo('maintBreakerHandle', () => new THREE.BoxGeometry(0.05, 0.2, 0.05));
+                                        const handle = new THREE.Mesh(handleGeo, env.metalMat);
+                                        handle.position.set(0.15, 0, 0.0); // Inside the box
+                                        
+                                        const breakerDoor = new THREE.Mesh(env.breakerDoorGeo, env.hazardMat);
+                                        breakerDoor.position.set(-0.3, 0, 0.102);
+                                        
+                                        boxGroup.add(boxMesh, handle, breakerDoor);
+                                        boxGroup.position.set(clx, 1.4, clz);
+                                        boxGroup.rotation.y = facing;
+                                        boxGroup.userData = {type: 'breaker', active: true, chunkHash: hash, handle: handle, door: breakerDoor};
+                                        if (env.interactables) env.interactables.push(boxGroup);
+                                        chunkGroup.add(boxGroup);
+                                    } else {
+                                        const ventGroup = new THREE.Group();
+                                        
+                                        const frameGroup = new THREE.Group();
+                                        const frameHGeo = env._cacheGeo('maintVentFrameH', () => new THREE.BoxGeometry(1.2, 0.1, 0.1));
+                                        const frameVGeo = env._cacheGeo('maintVentFrameV', () => new THREE.BoxGeometry(0.1, 1.0, 0.1));
+                                        const frameTop = new THREE.Mesh(frameHGeo, env.rustMat); frameTop.position.y = 0.55;
+                                        const frameBot = new THREE.Mesh(frameHGeo, env.rustMat); frameBot.position.y = -0.55;
+                                        const frameLeft = new THREE.Mesh(frameVGeo, env.rustMat); frameLeft.position.x = -0.55;
+                                        const frameRight = new THREE.Mesh(frameVGeo, env.rustMat); frameRight.position.x = 0.55;
+                                        frameGroup.add(frameTop, frameBot, frameLeft, frameRight);
+                                        frameGroup.position.z = 0.05;
+
+                                        const ductGeo = env._cacheGeo('maintVentDuct', () => {
+                                            const g = new THREE.CircleGeometry(0.55, 16);
+                                            return g;
+                                        });
+                                        const duct = new THREE.Mesh(ductGeo, env.voidShroudMat || env.baseHousingMat);
+                                        duct.position.z = 0.01;
+
+                                        const fanGroup = new THREE.Group();
+                                        const bladeGeo = env._cacheGeo('maintVentBlade', () => new THREE.BoxGeometry(1.0, 0.15, 0.02));
+                                        const blade1 = new THREE.Mesh(bladeGeo, env.metalMat);
+                                        const blade2 = new THREE.Mesh(bladeGeo, env.metalMat);
+                                        blade2.rotation.z = Math.PI / 2;
+                                        const hubGeo = env._cacheGeo('maintVentHub', () => {
+                                            const g = new THREE.CylinderGeometry(0.15, 0.15, 0.04, 12);
+                                            g.rotateX(Math.PI / 2);
+                                            return g;
+                                        });
+                                        const hub = new THREE.Mesh(hubGeo, env.rustMat);
+                                        fanGroup.add(blade1, blade2, hub);
+                                        fanGroup.position.z = 0.03;
+
+                                        const grilleGroup = new THREE.Group();
+                                        const barGeoH = env._cacheGeo('maintVentBarH', () => new THREE.BoxGeometry(1.1, 0.02, 0.02));
+                                        const barGeoV = env._cacheGeo('maintVentBarV', () => new THREE.BoxGeometry(0.02, 1.1, 0.02));
+                                        for(let j = -0.4; j <= 0.4; j += 0.2) {
+                                            const barH = new THREE.Mesh(barGeoH, env.rustMat);
+                                            barH.position.y = j;
+                                            const barV = new THREE.Mesh(barGeoV, env.rustMat);
+                                            barV.position.x = j;
+                                            grilleGroup.add(barH, barV);
+                                        }
+                                        grilleGroup.position.z = 0.11;
+
+                                        const internalLight = new THREE.PointLight(0x77aaff, 1.0, 1.5);
+                                        internalLight.position.set(0, 0, -0.3);
+                                        
+                                        ventGroup.add(frameGroup, duct, fanGroup, grilleGroup, internalLight);
+                                        ventGroup.position.set(clx, 1.8, clz);
+                                        ventGroup.rotation.y = facing;
+                                        ventGroup.userData = {type: 'ventFan', active: true, fanMesh: fanGroup, spinSpeed: 2.0 + random() * 4.0};
+                                        chunkGroup.add(ventGroup);
+                                        if (env.animators) env.animators.push(ventGroup); // We will need to process env.animators in Environment.js
+                                    }
+                                }
+                            });
+                        }
+                        
                         if (wallSides.length > 0 && wallSides.length < 4 && random() < 0.75) {
                             const [csx, csz] = wallSides[Math.floor(random() * wallSides.length)];
                             const perp = csx !== 0 ? [0, 1] : [1, 0];
@@ -137,29 +296,61 @@ export const MaintenanceSector = (env, ctx) => {
                             const facing = Math.atan2(-csx, -csz);
                             const roll = random();
                             if (roll < 0.42) {
-                                const pr = 0.1, plen = 2.4;
+                                const stackGroup = new THREE.Group();
+                                
+                                // 1. Generate the Pallet
+                                const pallet = env._buildPallet();
+                                stackGroup.add(pallet);
+
+                                // 2. Generate the pipes (orienting the cross-section correctly along Z)
                                 const stackGeo = env._cacheGeo('maintPipeStack', () => {
-                                    const g = new THREE.CylinderGeometry(pr, pr, plen, 10);
-                                    g.rotateZ(Math.PI / 2);
+                                    const g = new THREE.CylinderGeometry(0.12, 0.12, 2.0, 12);
+                                    g.rotateZ(Math.PI / 2); // Pipe runs along X axis
                                     return g;
                                 });
-                                const stackGroup = new THREE.Group();
-                                const rowH = pr * Math.sqrt(3);
+                                const pr = 0.12;
+                                const rowH = pr * 1.732; // sqrt(3)
                                 const rows = [
                                     [-2 * pr, 0, 2 * pr],
                                     [-pr, pr],
                                     [0]
                                 ];
+                                const pipeBaseY = 0.17; // Sit on top of the pallet
                                 rows.forEach((row, ri) => {
-                                    row.forEach((sox) => {
+                                    row.forEach((soz) => {
                                         const seg = new THREE.Mesh(stackGeo, env.rustMat);
-                                        seg.position.set(sox, pr + ri * rowH, (random() - 0.5) * 0.1);
-                                        seg.rotation.x = (random() - 0.5) * 0.12;
+                                        // Z is the cross-section offset, X is jittered along length
+                                        seg.position.set((random() - 0.5) * 0.1, pipeBaseY + pr + ri * rowH, soz);
+                                        seg.rotation.x = (random() - 0.5) * 0.05;
                                         stackGroup.add(seg);
                                     });
                                 });
-                                stackGroup.position.set(clx, 0, clz);
-                                stackGroup.rotation.y = facing + (random() - 0.5) * 0.3;
+
+                                // 3. Add bands
+                                const bandGeo = env._cacheGeo('maintPipeBand', () => {
+                                    // 3-sided cylinder makes a triangle. Rotate so it's a flat band in YZ plane pointing UP
+                                    const g = new THREE.CylinderGeometry(0.32, 0.32, 0.04, 3);
+                                    g.rotateZ(Math.PI / 2);
+                                    g.rotateX(-Math.PI / 2);
+                                    return g;
+                                });
+                                if (!env.blackMat) env.blackMat = new THREE.MeshStandardMaterial({color: 0x111111, roughness: 0.8});
+                                [-0.6, 0.6].forEach(bx => {
+                                    const band = new THREE.Mesh(bandGeo, env.blackMat);
+                                    // Center of pyramid is exactly at Y = pipeBaseY + pr + rowH/3
+                                    band.position.set(bx, pipeBaseY + pr + rowH / 3, 0);
+                                    // Stretch vertically slightly to wrap around the pipes
+                                    band.scale.set(1, 1.25, 1.15);
+                                    stackGroup.add(band);
+                                });
+
+                                stackGroup.position.set(
+                                    (x * env.cellSize) + csx * 0.7 + perp[0] * (random() - 0.5) * 0.4, 
+                                    0, 
+                                    (z * env.cellSize) + csz * 0.7 + perp[1] * (random() - 0.5) * 0.4
+                                );
+                                stackGroup.rotation.y = facing + (random() - 0.5) * 0.15;
+                                stackGroup.scale.set(1.1, 1.1, 1.1);
                                 addFurniture(stackGroup);
                             } else if (roll < 0.44) {
                                 const discGeo = env._cacheGeo('maintSpoolDisc', () => new THREE.CylinderGeometry(0.65, 0.65, 0.07, 20));
@@ -174,6 +365,7 @@ export const MaintenanceSector = (env, ctx) => {
                                 spool.rotation.z = Math.PI / 2;
                                 spool.position.set(clx, 0.65, clz);
                                 spool.rotation.y = random() * Math.PI * 2;
+                                spool.scale.set(1.5, 1.5, 1.5);
                                 addFurniture(spool);
                                 if (random() > 0.4) {
                                     const cableGeo = env._cacheGeo('maintTrailCable', () => {
@@ -220,24 +412,34 @@ export const MaintenanceSector = (env, ctx) => {
                                 }
                                 cart.position.set(clx, 0, clz);
                                 cart.rotation.y = facing + (random() - 0.5) * 0.5;
+                                cart.scale.set(1.5, 1.5, 1.5);
                                 addFurniture(cart);
                             }
                         }
                         if (random() > 0.7) {
-                            const activeMat = ctx.getLightMaterial(0xffaa00, 0xaa5500, false);
-                            const panel = new THREE.Mesh(env.sharedPanelGeo, [env.baseHousingMat, env.baseHousingMat, env.baseHousingMat, activeMat, env.baseHousingMat, env.baseHousingMat]);
-                            panel.position.set(x * env.cellSize, 2.98, z * env.cellSize);
-                            chunkGroup.add(panel);
-                            env.walls.push(panel);
+                            const fixtureMat = ctx.getLightMaterial(0xff5500, 0xee4400, false);
+                            const beaconGeo = env._cacheGeo('maintBeacon', () => new THREE.CylinderGeometry(0.15, 0.1, 0.2, 12));
+                            const mesh = new THREE.Mesh(beaconGeo, fixtureMat);
+                            mesh.position.set(x * env.cellSize, 2.9, z * env.cellSize);
+                            const lightY = 2.8;
+                            
+                            chunkGroup.add(mesh);
+                            env.walls.push(mesh);
                             env.fixtureData.push({
                                 chunkHash: hash,
-                                position: new THREE.Vector3(x * env.cellSize, 2.8, z * env.cellSize),
+                                position: new THREE.Vector3(x * env.cellSize, lightY, z * env.cellSize),
                                 flickerOffset: random() * 500,
-                                material: activeMat,
-                                isFaulty: true,
-                                baseIntensity: 0.25,
-                                targetIntensity: 0.25,
-                                currentIntensity: 0.25
+                                material: fixtureMat,
+                                isFaulty: false,
+                                isTowBeacon: true,
+                                isSpot: true, // Will be overridden to false in LumenGrid if no shadow slot
+                                spotAngle: Math.PI / 3, // 60 degrees (broad)
+                                spotPenumbra: 0.8, // Soft edges
+                                sweepSpeed: 4.0 + random() * 2.0,
+                                sweepPhase: random() * Math.PI * 2,
+                                baseIntensity: 1.0,
+                                targetIntensity: 1.0,
+                                currentIntensity: 1.0
                             });
                         }
                     }

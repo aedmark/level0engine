@@ -1,5 +1,21 @@
 # Level 0 Engine Changelog
 
+## [v0.5.7] - 2026-07-25
+
+_The Maintenance Update_
+
+### Added
+- **[WORLD] Hazard Cone Physics:** Added interactive hazard cones to the MAINTENANCE sector. Sprinting into a cone will procedurally trip it over, calculating the impact angle and animating it falling away from the player.
+- **[SOMATICS] Stumble & Trip Mechanics:** Implemented a new `somatic-trip` event in the `PlayerController`. Tripping over objects immediately forces the player out of their sprint state and applies a violent, decaying camera dip and roll to simulate losing balance.
+- **[RENDERING] Custom Spot Angles:** Upgraded the `LumenGrid` illumination system to accept custom `spotAngle` and `spotPenumbra` definitions for individual fixtures.
+
+### Changed
+- **[WORLD] Hazard Light Sweeps:** Hazard lights in the MAINTENANCE sector now utilize the upgraded `LumenGrid` system to cast an ultra-wide (60-degree), soft-edged spotlight beam. This restores their ability to cast sweeping, rotating shadows while maintaining a broad area of illumination.
+- **[WORLD] Hazard Trim Seamless Extensions:** Updated the `MaintenanceSector` generator to treat off-chunk airlock coordinates as open space, permitting the yellow-and-black hazard floor trims to seamlessly extend across chunk boundaries and directly touch the airlock doors.
+
+### Fixed
+- **[PHYSICS] 3D Interaction Bounds:** Fixed a bug where interactions with small floor objects (like cones) would fail because the 3D distance check included the camera's Y-height (1.6m), putting it outside the 0.8m radius. Replaced it with a 2D planar X/Z distance check.
+
 ## [v0.5.6] - 2026-07-25
 
 _The Photophobia Update_

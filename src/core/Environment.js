@@ -333,6 +333,46 @@ export default class Environment {
                 document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 1.0, intensity: 0.5}}));
                 return;
             }
+            if (hit && hit.userData.type === 'valve') {
+                if (hit.userData.active) return;
+                hit.userData.active = true;
+                document.dispatchEvent(new CustomEvent('somatic-hiss', {detail: {distSq: 1.0, intensity: 1.5}}));
+                
+                if (!this.steamTex) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 64; canvas.height = 64;
+                    const ctx = canvas.getContext('2d');
+                    const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+                    grad.addColorStop(0, 'rgba(200, 220, 255, 0.5)');
+                    grad.addColorStop(0.4, 'rgba(200, 220, 255, 0.15)');
+                    grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(0, 0, 64, 64);
+                    this.steamTex = new THREE.CanvasTexture(canvas);
+                    this.steamMatTemplate = new THREE.SpriteMaterial({
+                        map: this.steamTex, color: 0xffffff, transparent: true,
+                        depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.5
+                    });
+                }
+                const steamGroup = new THREE.Group();
+                const steamCount = 20;
+                for (let i = 0; i < steamCount; i++) {
+                    const sprite = new THREE.Sprite(this.steamMatTemplate.clone());
+                    sprite.userData = {
+                        life: Math.random(),
+                        speed: 2.0 + Math.random() * 2.0,
+                        spreadX: (Math.random() - 0.5) * 1.5,
+                        spreadZ: (Math.random() - 0.5) * 1.5,
+                        baseScale: 0.3 + Math.random() * 0.3
+                    };
+                    sprite.position.set(0, sprite.userData.life * 1.5, 0);
+                    steamGroup.add(sprite);
+                }
+                hit.add(steamGroup);
+                if (!this.steamGroups) this.steamGroups = [];
+                this.steamGroups.push({group: steamGroup});
+                return;
+            }
             if (hit && hit.userData.type === 'breaker') {
                 if (!hit.userData.active) return;
                 hit.userData.active = false;
@@ -509,6 +549,9 @@ export default class Environment {
             }
             if (this.interactables) {
                 this.interactables = this.interactables.filter(i => !deadHashes.has(i.userData.chunkHash));
+            }
+            if (this.animators) {
+                this.animators = this.animators.filter(i => !deadHashes.has(i.userData.chunkHash));
             }
             if (this.observers) {
                 this.observers = this.observers.filter(o => !deadHashes.has(o.userData.chunkHash));
@@ -904,6 +947,14 @@ export default class Environment {
         if (this.fixtureData) {
             for (let i = 0; i < this.fixtureData.length; i++) {
                 const fixture = this.fixtureData[i];
+                if (fixture.isTowBeacon) {
+                    const angle = time * fixture.sweepSpeed + fixture.sweepPhase;
+                    if (!fixture.targetPos) fixture.targetPos = new THREE.Vector3();
+                    fixture.targetPos.x = fixture.position.x + Math.cos(angle) * 10.0;
+                    fixture.targetPos.z = fixture.position.z + Math.sin(angle) * 10.0;
+                    fixture.targetPos.y = fixture.position.y - 1.0;
+                    continue;
+                }
                 if (fixture.isLighthouse) {
                     if (!isChasm) {
                         fixture.currentIntensity = 0.0;
@@ -1180,7 +1231,7 @@ export default class Environment {
             this.player.updateObjectives(signalText);
         }
         if (this.flashlight) {
-            let targetIntensity = this.player.flashlightActive ? 4.2 : 0.0;
+            let targetIntensity = this.player.flashlightActive ? 2.2 : 0.0;
             if (this.player.flashlightActive) {
                 const batteryFactor = Math.min(1.0, this.player.flashlightBattery / 30.0);
                 targetIntensity *= (0.1 + 0.9 * batteryFactor);
@@ -1192,12 +1243,13 @@ export default class Environment {
         }
         const playerSpeed = Math.sqrt((this.player.velocity.x * this.player.velocity.x) + (this.player.velocity.z * this.player.velocity.z));
         if (this.engine.ambientLight) {
-            const baseAmbient = 0.85;
+            const baseAmbient = 0.80;
             const minAmbient = 0.005;
             let targetAmbient = Math.max(minAmbient, baseAmbient - (darknessPressure * 0.4));
-            if (this._stickySectorId === "IMPOUND" || this._stickySectorId === "CHASM") targetAmbient = 0.0;
-            else if (this._stickySectorId === "ARCHIVE") targetAmbient = 0.25;
+            if (this._stickySectorId === "IMPOUND" || this._stickySectorId === "CHASM") targetAmbient = 0.02;
+            else if (this._stickySectorId === "ARCHIVE") targetAmbient = 0.28;
             else if (this._stickySectorId === "INCINERATOR") targetAmbient = 0.15;
+            else if (this._stickySectorId === "MAINTENANCE") targetAmbient = 0.18;
             this.engine.ambientLight.intensity += (targetAmbient - this.engine.ambientLight.intensity) * 0.05;
             if (this.glowMat) {
                 let targetGlowOpacity = Math.max(0.0, 1.0 - (darknessPressure * 0.4));
@@ -1273,6 +1325,8 @@ export default class Environment {
         this.fixtureData = [];
         this.idlingCars = [];
         this.interactables = [];
+        this.animators = [];
+        this.steamClouds = [];
         this.interactiveDoors = [];
         this.airlocks = [];
         this.macroZones.clear();
@@ -1454,10 +1508,39 @@ export default class Environment {
     }
 
 
+    _buildPallet() {
+        if (!this.palletWoodMat) {
+            this.palletWoodMat = new THREE.MeshStandardMaterial({color: 0x8b7355, roughness: 0.9});
+            if (this.sharedAssets) this.sharedAssets.add(this.palletWoodMat.uuid);
+        }
+        const pallet = new THREE.Group();
+        const slatGeo = this._boxGeo(1.5, 0.025, 0.18);
+        const runnerGeo = this._boxGeo(0.12, 0.12, 1.4);
+
+        for(let i=0; i<5; i++) {
+            const topSlat = new THREE.Mesh(slatGeo, this.palletWoodMat);
+            topSlat.position.set(0, 0.1575, -0.6 + (i * 0.3));
+            pallet.add(topSlat);
+        }
+        
+        for(let i=0; i<3; i++) {
+            const botSlat = new THREE.Mesh(slatGeo, this.palletWoodMat);
+            botSlat.position.set(0, 0.0125, -0.6 + (i * 0.6));
+            pallet.add(botSlat);
+        }
+
+        for(let i=0; i<3; i++) {
+            const runner = new THREE.Mesh(runnerGeo, this.palletWoodMat);
+            runner.position.set(-0.6 + (i * 0.6), 0.085, 0); 
+            pallet.add(runner);
+        }
+        
+        return pallet;
+    }
+
     _boxGeo(w, h, d) {
         return this.structureKit.boxGeo(w, h, d);
     }
-
 
     _planeGeo(w, h) {
         return this.structureKit.planeGeo(w, h);

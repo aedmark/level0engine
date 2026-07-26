@@ -171,6 +171,10 @@ export default class PlayerController {
                 console.log("God mode disabled");
             }
         });
+        document.addEventListener('somatic-trip', () => {
+            this.input.state.isRunning = false;
+            this._tripStagger = 1.0;
+        });
     }
 
     /**
@@ -552,6 +556,13 @@ export default class PlayerController {
                 bobOffset = Math.sin(this.headBobPhase * 0.4) * (this.exhaustion * 0.04);
                 swayRoll = Math.cos(this.headBobPhase * 0.2) * (this.exhaustion * 0.015);
             }
+        }
+        
+        if (this._tripStagger > 0) {
+            this._tripStagger = Math.max(0, this._tripStagger - delta * 2.5);
+            const staggerEased = this._tripStagger * this._tripStagger;
+            bobOffset -= staggerEased * 0.35;
+            swayRoll += Math.sin(this._tripStagger * Math.PI * 6) * 0.12 * staggerEased;
         }
         this.currentLean += (state.targetLean - this.currentLean) * (1.0 - Math.exp(-15.0 * delta));
         const rollDamping = 1.0 - Math.exp(-12.0 * delta);

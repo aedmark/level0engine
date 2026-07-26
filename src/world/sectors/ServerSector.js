@@ -82,26 +82,7 @@ export const ServerSector = (env, ctx) => {
                             const ry = random() * Math.PI;
 
                             if (propType < 0.33) {
-                                const pallet = new THREE.Group();
-                                if (!env.palletWoodMat) {
-                                    env.palletWoodMat = new THREE.MeshStandardMaterial({color: 0x8b7355, roughness: 0.9});
-                                    if (env.sharedAssets) env.sharedAssets.add(env.palletWoodMat.uuid);
-                                }
-                                const slatGeo = env._boxGeo(1.2, 0.02, 0.15);
-                                const runnerGeo = env._boxGeo(1.2, 0.1, 0.1);
-                                for(let i=0; i<5; i++) {
-                                    const topSlat = new THREE.Mesh(slatGeo, env.palletWoodMat);
-                                    topSlat.position.set(0, 0.13, -0.5 + (i * 0.25));
-                                    pallet.add(topSlat);
-                                    const botSlat = new THREE.Mesh(slatGeo, env.palletWoodMat);
-                                    botSlat.position.set(0, 0.01, -0.5 + (i * 0.25));
-                                    pallet.add(botSlat);
-                                }
-                                for(let i=0; i<3; i++) {
-                                    const runner = new THREE.Mesh(runnerGeo, env.palletWoodMat);
-                                    runner.position.set(0, 0.07, -0.5 + (i * 0.5));
-                                    pallet.add(runner);
-                                }
+                                const pallet = env._buildPallet();
                                 pallet.position.set(rx, 0, rz);
                                 pallet.rotation.y = ry;
                                 chunkGroup.add(pallet);

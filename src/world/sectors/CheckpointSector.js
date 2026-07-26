@@ -73,7 +73,7 @@ export const CheckpointSector = (env, ctx) => {
                     if (!isPath) {
                         if (isBuiltRoom(localX, localZ)) {
                             const flankV = (localX === 6 || localX === 8) && localZ !== 6 && localZ !== 8;
-                            env._buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, {buildWall, addGeometry, chunkGroup, hash});
+                            env._buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, {buildWall, addGeometry, addFurniture, chunkGroup, hash});
                             return;
                         }
                         const block = buildWall(env.cellSize, env.cellSize, env.structMat);
@@ -185,9 +185,9 @@ export const CheckpointSector = (env, ctx) => {
                             }
                             const cartonPool = env.cartonMats || [env.fileBoxMat];
                             const [bx0, bz0] = lat(side, 1.45);
-                            const pallet = new THREE.Mesh(env._boxGeo(1.3, 0.12, 1.3), env.woodMat);
-                            pallet.position.set(bx0, 0.06, bz0);
-                            addGeometry(pallet);
+                            const pallet = env._buildPallet();
+                            pallet.position.set(bx0, 0, bz0);
+                            addFurniture(pallet);
                             const cols = 1 + Math.floor(random() * 2);
                             for (let c = 0; c < cols; c++) {
                                 const ox = (c - (cols - 1) / 2) * 0.62;

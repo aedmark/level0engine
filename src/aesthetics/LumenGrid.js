@@ -190,7 +190,12 @@ export default class LumenGrid {
             
             if (fixture) {
                 // Determine whether this fixture uses a SpotLight or PointLight
-                wrapper.isSpot = fixture.isSpot === true;
+                const isShadowSlot = i < this.maxShadowLights;
+                if (fixture.isTowBeacon && !isShadowSlot) {
+                    wrapper.isSpot = false;
+                } else {
+                    wrapper.isSpot = fixture.isSpot === true;
+                }
                 const light = wrapper.active;
                 const inactiveLight = wrapper.isSpot ? wrapper.point : wrapper.spot;
                 inactiveLight.intensity = 0; // Turn off the unused light type
@@ -222,6 +227,8 @@ export default class LumenGrid {
                 light.position.copy(fixture.position);
                 if (wrapper.isSpot && fixture.targetPos) {
                     light.target.position.copy(fixture.targetPos);
+                    light.angle = fixture.spotAngle !== undefined ? fixture.spotAngle : Math.PI / 8;
+                    light.penumbra = fixture.spotPenumbra !== undefined ? fixture.spotPenumbra : 0.4;
                 }
                 light.distance = isLH ? 150.0 : (isShadowCaster ? 20.0 : 10.0);
                 
@@ -235,10 +242,32 @@ export default class LumenGrid {
                     light.color.copy(fixture.material.emissive);
                 }
                 
-                // Process behavioral states: dead, flickering, or normal
+                // Process behavioral states: dead, flickering, strobe, pulse, or normal
                 if (fixture.isDead) {
                     light.intensity = 0.0;
                     if (fixture.material) fixture.material.emissiveIntensity = 0.0;
+                } else if (fixture.isStrobe) {
+                    // Fast, harsh strobe light (e.g. for alarms)
+                    const strobeFreq = 12.0; // 12 Hz strobe
+                    const isOn = Math.sin(time * Math.PI * 2 * strobeFreq + fixture.flickerOffset) > 0;
+                    fixture.currentIntensity = isOn ? fixture.baseIntensity * 1.5 : 0.0;
+                    light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
+                    if (fixture.material) fixture.material.emissiveIntensity = isOn ? 1.5 : 0.0;
+                } else if (fixture.isPulse) {
+                    // Organic, breathing pulse
+                    const pulseFreq = 0.5; // slow pulse
+                    const pulseVal = (Math.sin(time * Math.PI * 2 * pulseFreq + fixture.flickerOffset) + 1.0) / 2.0;
+                    const eased = pulseVal * pulseVal * (3.0 - 2.0 * pulseVal);
+                    fixture.currentIntensity = fixture.baseIntensity * (0.3 + 0.7 * eased);
+                    light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
+                    if (fixture.material) fixture.material.emissiveIntensity = 0.2 + 0.8 * eased;
+                } else if (fixture.isTowBeacon && !fixture.hasShadow) {
+                    // Pulse at the sweep speed frequency for non-shadowing beacons
+                    const pulseVal = (Math.sin(time * fixture.sweepSpeed + fixture.sweepPhase) + 1.0) / 2.0;
+                    const eased = pulseVal * pulseVal;
+                    fixture.currentIntensity = fixture.baseIntensity * (0.2 + 1.3 * eased);
+                    light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
+                    if (fixture.material) fixture.material.emissiveIntensity = 0.5 + 1.5 * eased;
                 } else if (fixture.isFaulty) {
                     // Complex flicker logic modeled with random timers and depths
                     if (fixture._nextFlicker === undefined) {
@@ -261,7 +290,7 @@ export default class LumenGrid {
                 } else {
                     // Normal light applies a subtle, slow sine-wave pulse for ambient atmosphere
                     light.intensity = (fixture.baseIntensity + (Math.sin(time * 120.0 + fixture.flickerOffset) * 0.02)) * fadeEnvelope * intensityScalar;
-                    if (fixture.material) fixture.material.emissiveIntensity = fixture.isLighthouse ? 2.0 : 0.4;
+                    if (fixture.material) fixture.material.emissiveIntensity = fixture.isLighthouse ? 5.0 : 0.4;
                 }
             } else {
                 // If no fixture is assigned to this slot, turn off the lights

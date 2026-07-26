@@ -29,7 +29,7 @@ export default class SetPieces {
      */
     buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, ctx) {
         const env = this.env;
-        const {buildWall, addGeometry, chunkGroup, hash} = ctx;
+        const {buildWall, addGeometry, addFurniture, chunkGroup, hash} = ctx;
         const cs = env.cellSize;
         const cx0 = x * cs, cz0 = z * cs;
         const dir = flankV ? (localX === 6 ? 1 : -1) : (localZ === 6 ? 1 : -1);
@@ -136,10 +136,11 @@ export default class SetPieces {
             for (const [f, l, y] of spots) if (ckHash(localX + l * 3, localZ + f * 3, 4) > 0.25) carton(f, l, y);
         } else if (roll < 0.70) {
             const [px, pz] = at(1.3, -0.6);
-            const pallet = new THREE.Mesh(env._boxGeo(1.2, 0.12, 1.2), env.woodMat);
-            place(pallet, px, 0.06, pz);
+            const pallet = env._buildPallet();
+            pallet.position.set(px, 0, pz);
+            addFurniture(pallet);
             for (let c = 0; c < 3; c++) for (let s = 0; s < 1 + Math.floor(ckHash(localX + c, localZ, c + 1) * 3); s++)
-                carton(1.3 + (c - 1) * 0.0, -0.6 + (c - 1) * 0.45, 0.3 + s * 0.44);
+                carton(1.3 + (c - 1) * 0.0, -0.6 + (c - 1) * 0.45, 0.39 + s * 0.44);
             const drumGeo = env._cacheGeo('ckRoomDrum', () => new THREE.CylinderGeometry(0.29, 0.29, 0.92, 10));
             const drum = new THREE.Mesh(drumGeo, env.rustMat);
             const [dx, dz] = at(1.4, 1.1);

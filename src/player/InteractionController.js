@@ -228,8 +228,77 @@ export default class InteractionController {
                             obj.userData.box.makeEmpty();
                         }
                     }
+                } else if (obj.userData.type === 'valve') {
+                    if (obj.userData.active && obj.userData.wheel) {
+                        if (!obj.userData.spinAngle) obj.userData.spinAngle = 0;
+                        if (obj.userData.spinAngle > -Math.PI * 6) {
+                            const spin = 10.0 * delta;
+                            obj.userData.wheel.rotation.z -= spin;
+                            obj.userData.spinAngle -= spin;
+                        }
+                    }
                 }
             });
+        }
+        if (env.animators) {
+            env.animators.forEach(anim => {
+                if (anim.userData.type === 'ventFan' && anim.userData.active) {
+                    anim.userData.fanMesh.rotation.z -= anim.userData.spinSpeed * delta;
+                } else if (anim.userData.type === 'cone') {
+                    if (!anim.userData.tipped) {
+                        if (env.player && env.player.isRunning) {
+                            const dx = playerPos.x - anim.position.x;
+                            const dz = playerPos.z - anim.position.z;
+                            const distSq2D = dx * dx + dz * dz;
+                            if (distSq2D < 0.64) { // Roughly 0.8m collision radius
+                                anim.userData.tipped = true;
+                                anim.userData.fallDir = anim.position.clone().sub(playerPos).normalize();
+                                // Trigger a heavy thud sound/shake
+                                document.dispatchEvent(new CustomEvent('somatic-step', {detail: {distSq: 0.1, intensity: 2.0}}));
+                                document.dispatchEvent(new CustomEvent('somatic-trip'));
+                            }
+                        }
+                    } else if (anim.userData.fallProgress < 1.0) {
+                        if (anim.userData.fallProgress === 0) {
+                            anim.rotation.y = Math.atan2(anim.userData.fallDir.x, anim.userData.fallDir.z);
+                        }
+                        anim.userData.fallProgress += delta * 3.5;
+                        if (anim.userData.fallProgress > 1.0) anim.userData.fallProgress = 1.0;
+                        const t = anim.userData.fallProgress;
+                        const eased = t * t * (3 - 2 * t);
+                        anim.rotation.x = (Math.PI / 2 + 0.258) * eased;
+                        anim.position.y = 0.266 * eased;
+                    }
+                }
+            });
+        }
+        if (env.steamGroups) {
+            for (let i = env.steamGroups.length - 1; i >= 0; i--) {
+                const groupObj = env.steamGroups[i];
+                if (!groupObj.group.parent) {
+                    groupObj.group.children.forEach(sprite => {
+                        if (sprite.material) sprite.material.dispose();
+                    });
+                    env.steamGroups.splice(i, 1);
+                    continue;
+                }
+                groupObj.group.children.forEach(sprite => {
+                    const ud = sprite.userData;
+                    ud.life += delta * ud.speed;
+                    if (ud.life > 1.5) {
+                        ud.life = 0;
+                        ud.spreadX = (Math.random() - 0.5) * 1.5;
+                        ud.spreadZ = (Math.random() - 0.5) * 1.5;
+                        ud.speed = 2.0 + Math.random() * 2.0;
+                    }
+                    sprite.position.set(ud.spreadX * ud.life, ud.life * 1.5, ud.spreadZ * ud.life);
+                    const scale = ud.baseScale + ud.life * 1.2;
+                    sprite.scale.set(scale, scale, 1);
+                    // Fade in quickly, then fade out
+                    const targetOpacity = ud.life < 0.2 ? (ud.life / 0.2) : (1.0 - (ud.life - 0.2) / 1.3);
+                    sprite.material.opacity = Math.max(0, targetOpacity * 0.4);
+                });
+            }
         }
         if (env.observers) {
             for (let i = env.observers.length - 1; i >= 0; i--) {
