@@ -88,6 +88,11 @@ export default class Mixer {
             setParam('idling', engine.idlingGain.gain, idleVol * 0.20, 0.5);
         }
         
+        if (engine.steamGain) {
+            const steamVol = Math.max(0.0, 1.0 - Math.sqrt(telemetry.closestActiveValveDistSq) / 25.0);
+            setParam('steam', engine.steamGain.gain, steamVol * 0.08, 0.2);
+        }
+        
         if (engine.chasmGroanGain) {
             if (activeSector === "CHASM" && !isBlackout) {
                 if (!engine._nextGroanTime) engine._nextGroanTime = time + 2.0 + Math.random() * 5.0;

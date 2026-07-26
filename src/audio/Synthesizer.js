@@ -87,6 +87,16 @@ export default class Synthesizer {
         engine.brownFilter.type = 'lowpass';
         engine.brownFilter.frequency.value = 140;
         
+        engine.steamFilter = ctx.createBiquadFilter();
+        engine.steamFilter.type = 'highpass';
+        engine.steamFilter.frequency.value = 3500;
+        
+        engine.steamGain = ctx.createGain();
+        engine.steamGain.gain.value = 0.0;
+        engine.noiseSrc.connect(engine.steamFilter);
+        engine.steamFilter.connect(engine.steamGain);
+        engine.steamGain.connect(engine.masterGain);
+        
         engine.brownGain = ctx.createGain();
         engine.brownGain.gain.value = 0.0;
         engine.brownNoiseSrc.connect(engine.brownFilter);

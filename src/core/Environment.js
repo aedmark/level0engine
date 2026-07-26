@@ -336,7 +336,7 @@ export default class Environment {
             if (hit && hit.userData.type === 'valve') {
                 if (hit.userData.active) return;
                 hit.userData.active = true;
-                document.dispatchEvent(new CustomEvent('somatic-hiss', {detail: {distSq: 1.0, intensity: 1.5}}));
+                document.dispatchEvent(new CustomEvent('somatic-valve', {detail: {distSq: 1.0, intensity: 1.5}}));
                 
                 if (!this.steamTex) {
                     const canvas = document.createElement('canvas');

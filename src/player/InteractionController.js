@@ -214,6 +214,7 @@ export default class InteractionController {
                 }
             }
         });
+        let closestActiveValveDistSq = 9999.0;
         if (env.interactables) {
             env.interactables.forEach(obj => {
                 if (obj.userData.type === 'grate' && !obj.userData.active) {
@@ -229,17 +230,22 @@ export default class InteractionController {
                         }
                     }
                 } else if (obj.userData.type === 'valve') {
-                    if (obj.userData.active && obj.userData.wheel) {
-                        if (!obj.userData.spinAngle) obj.userData.spinAngle = 0;
-                        if (obj.userData.spinAngle > -Math.PI * 6) {
-                            const spin = 10.0 * delta;
-                            obj.userData.wheel.rotation.z -= spin;
-                            obj.userData.spinAngle -= spin;
+                    if (obj.userData.active) {
+                        const vDistSq = obj.position.distanceToSquared(playerPos);
+                        if (vDistSq < closestActiveValveDistSq) closestActiveValveDistSq = vDistSq;
+                        if (obj.userData.wheel) {
+                            if (!obj.userData.spinAngle) obj.userData.spinAngle = 0;
+                            if (obj.userData.spinAngle > -Math.PI * 6) {
+                                const spin = 10.0 * delta;
+                                obj.userData.wheel.rotation.z -= spin;
+                                obj.userData.spinAngle -= spin;
+                            }
                         }
                     }
                 }
             });
         }
+        env.closestActiveValveDistSq = closestActiveValveDistSq;
         if (env.animators) {
             env.animators.forEach(anim => {
                 if (anim.userData.type === 'ventFan' && anim.userData.active) {

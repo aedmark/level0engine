@@ -98,7 +98,8 @@ export default class Foley {
             'terminal_click': ['square', 1200, 200, 0.02, 0.1, 0.01, 0.05, null],
             'airlock_cycle': ['sawtooth', 85, 35, 1.2, 0.25, 0.1, 1.2, {type: 'bandpass', start: 1800, end: 300, ramp: 1.0}],
             'airlock_hiss': ['sine', 1, 1, 1.0, 0.4, 0.1, 2.5, {type: 'bandpass', start: 4000, end: 1000, ramp: 2.5}],
-            'car_horn': ['square', 320, 310, 0.1, 0.35, 0.05, 0.65, null]
+            'car_horn': ['square', 320, 310, 0.1, 0.35, 0.05, 0.65, null],
+            'valve_turn': ['square',300, 600, 0.05, 0.06, 0.02, 0.1, {type: 'bandpass', start: 1200, end: 600, ramp: 0.1}]
         };
         
         if (voices[type]) spawnVoice(...voices[type]);

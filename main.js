@@ -235,6 +235,7 @@ function animate() {
     telemetry.paranoia = player.paranoia || 0.0;
     telemetry.adrenaline = engine.adrenaline;
     telemetry.eyesClosed = engine.eyesClosed;
+    telemetry.closestActiveValveDistSq = environment.closestActiveValveDistSq || 9999.0;
     
     // Update Acoustic Mix
     acoustics.update(telemetry);

@@ -31,6 +31,7 @@ export default class SomaticController {
         document.addEventListener('somatic-door', (e) => this.acoustics.triggerSomaticEvent(e.detail.variant === 'blast' ? 'blastdoor' : 'door', e.detail.distSq, e.detail.intensity));
         document.addEventListener('somatic-airlock', (e) => this.acoustics.triggerSomaticEvent('airlock_cycle', e.detail.distSq, e.detail.intensity));
         document.addEventListener('somatic-airlock-hiss', (e) => this.acoustics.triggerSomaticEvent('airlock_hiss', e.detail.distSq, e.detail.intensity));
+        document.addEventListener('somatic-valve', (e) => this.acoustics.triggerSomaticEvent('valve_turn', e.detail.distSq, e.detail.intensity));
         document.addEventListener('somatic-vent', (e) => this.acoustics.triggerSomaticEvent('vent', e.detail.distSq, e.detail.intensity));
         document.addEventListener('somatic-lost', (e) => this.acoustics.triggerSomaticEvent(e.detail.isLaugh ? 'laugh' : 'whisper', e.detail.distSq, e.detail.intensity));
         
