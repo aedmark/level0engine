@@ -44,10 +44,6 @@ export const MaintenanceSector = (env, ctx) => {
                                 // The doorway itself is open
                                 if (lx === 7 && (lz === -1 || lz === env.chunkSize)) return false;
                                 if (lz === 7 && (lx === -1 || lx === env.chunkSize)) return false;
-                                // Treat the walls immediately adjacent to the doorway as open 
-                                // so that the hazard trims are permitted to extend into the airlock
-                                if ((lx === 6 || lx === 8) && (lz === -1 || lz === env.chunkSize)) return false;
-                                if ((lz === 6 || lz === 8) && (lx === -1 || lx === env.chunkSize)) return false;
                                 return true;
                             }
                             return maze[lx][lz];

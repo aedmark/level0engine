@@ -31,10 +31,11 @@ export const CheckpointSector = (env, ctx) => {
                 foundationMat: env.checkpointFloorMat,
                 ceilingMat: env.structMat,
                 build: (x, z, localX, localZ) => {
-                    const isPathN = localX === 7 && localZ <= 7;
-                    const isPathS = localX === 7 && localZ >= 7;
-                    const isPathW = localZ === 7 && localX <= 7;
-                    const isPathE = localZ === 7 && localX >= 7;
+                    const edge = env.chunkSize - 1;
+                    const isPathN = localX === 7 && localZ > 0 && localZ <= 7;
+                    const isPathS = localX === 7 && localZ >= 7 && localZ < edge;
+                    const isPathW = localZ === 7 && localX > 0 && localX <= 7;
+                    const isPathE = localZ === 7 && localX >= 7 && localX < edge;
                     const isPath = isPathN || isPathS || isPathW || isPathE;
                     if (isPath) {
                         const lineGeo = new THREE.PlaneGeometry(env.cellSize, env.cellSize);

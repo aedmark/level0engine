@@ -25,7 +25,7 @@ export default class LumenGrid {
         // Maximum number of active light sources in the scene at any time
         this.maxActiveLights = 32;
         // Maximum number of lights allowed to cast expensive shadows
-        this.maxShadowLights = 7;
+        this.maxShadowLights = 8;
         
         this.lightPool = [];
         this._activeFixtures = new Array(this.maxActiveLights).fill(null);
@@ -130,8 +130,7 @@ export default class LumenGrid {
                     fixture.distSq = distSq;
                     
                     // Apply a negative distance bias to lights that already have shadows or were active last frame.
-                    // This creates hysteresis, preventing lights from rapidly swapping in and out of the shadow pool
-                    // as the player moves slightly back and forth.
+                    // This prevents lights from rapidly swapping in and out of the shadow pool.
                     fixture._biasedDistSq = fixture.hasShadow ? distSq - 40.0 : distSq;
                     if (this._prevActive.has(fixture)) fixture._biasedDistSq -= 30.0;
                     
@@ -248,14 +247,14 @@ export default class LumenGrid {
                     if (fixture.material) fixture.material.emissiveIntensity = 0.0;
                 } else if (fixture.isStrobe) {
                     // Fast, harsh strobe light (e.g. for alarms)
-                    const strobeFreq = 12.0; // 12 Hz strobe
+                    const strobeFreq = 12.0;
                     const isOn = Math.sin(time * Math.PI * 2 * strobeFreq + fixture.flickerOffset) > 0;
                     fixture.currentIntensity = isOn ? fixture.baseIntensity * 1.5 : 0.0;
                     light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
                     if (fixture.material) fixture.material.emissiveIntensity = isOn ? 1.5 : 0.0;
                 } else if (fixture.isPulse) {
                     // Organic, breathing pulse
-                    const pulseFreq = 0.5; // slow pulse
+                    const pulseFreq = 0.5;
                     const pulseVal = (Math.sin(time * Math.PI * 2 * pulseFreq + fixture.flickerOffset) + 1.0) / 2.0;
                     const eased = pulseVal * pulseVal * (3.0 - 2.0 * pulseVal);
                     fixture.currentIntensity = fixture.baseIntensity * (0.3 + 0.7 * eased);
@@ -301,8 +300,7 @@ export default class LumenGrid {
         }
         
         // --- PHASE 3: Shadow Map Round-Robin ---
-        // Force update one shadow map per frame to keep dynamic shadows looking alive 
-        // without incurring the cost of updating all of them simultaneously.
+        // Force update one shadow map per frame to keep dynamic shadows looking alive, cheaply
         if (this._activeFixtures[this._shadowRR]) {
             this.lightPool[this._shadowRR].active.shadow.needsUpdate = true;
         }

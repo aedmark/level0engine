@@ -251,30 +251,115 @@ export default class StructureKit {
                 if (!isPerimeter) return false;
                 if (sectorId && helpers.markOccupied) helpers.markOccupied(x, z);
                 const edge = env.chunkSize - 1;
-                const isDoorwayNS = localX === 7 && (localZ === 0 || localZ === edge);
-                const isDoorwayEW = localZ === 7 && (localX === 0 || localX === edge);
-                const isDoorway = isDoorwayNS || isDoorwayEW;
-                if (!isDoorway) {
-                    const key = `${env.cellSize}_${height + 2.0}_${env.cellSize}_0`;
-                    let geo = env.geoCache.get(key);
-                    if (!geo) {
-                        geo = new THREE.BoxGeometry(env.cellSize + 0.02, height + 2.0, env.cellSize + 0.02);
-                        env.geoCache.set(key, geo);
-                        env.geoCache.set(geo.uuid, true);
+                // SetPieces.buildAirlock now owns its entire footprint outright -- door, structural
+                // pillars, AND the outer cap that closes the seam to the rest of the envelope --
+                // instead of this helper trying to narrow its own wall around the airlock's
+                // geometry from the outside. That narrowing math is what caused the previous
+                // overlap/gap bugs (walls "coming away a full block" on one side, exposed interior
+                // texture on the other): two systems independently computing where the boundary
+                // between them should fall, and disagreeing. Now there's only one owner, so this
+                // just steps aside for the doorway's three cells (the core plus both shoulders).
+                // The airlock's doorframe now sits completely flush inside the 1-cell doorway opening.
+                // We use the sector's native wall material to build the door pockets (jambs) and the
+                // header above the door, ensuring a seamless aesthetic transition.
+                const isDoorwayNS = (localZ === 0 || localZ === edge) && localX === 7;
+                const isDoorwayEW = (localX === 0 || localX === edge) && localZ === 7;
+                if (isDoorwayNS || isDoorwayEW) {
+                    const wMat = wallMat || env.sharedWallMat;
+                    const aMat = env.metalMat || env.structMat; // Airlock texture
+                    
+                    const buildMat = (isNS) => {
+                        return [
+                            isNS ? aMat : (localX === edge ? env.sharedWallMat : wMat),
+                            isNS ? aMat : (localX === 0 ? env.sharedWallMat : wMat),
+                            wMat,
+                            aMat, // always airlock texture on the ceiling of the pocket
+                            !isNS ? aMat : (localZ === edge ? env.sharedWallMat : wMat),
+                            !isNS ? aMat : (localZ === 0 ? env.sharedWallMat : wMat)
+                        ];
+                    };
+                    
+                    const jambW = 0.25;
+                    const jambH = height + 2.0;
+                    const keyJ = `jamb_${jambW}_${jambH}_${isDoorwayNS}`;
+                    let jGeo = env.geoCache.get(keyJ);
+                    if (!jGeo) {
+                        jGeo = new THREE.BoxGeometry(isDoorwayNS ? jambW : env.cellSize, jambH, isDoorwayNS ? env.cellSize : jambW);
+                        env.geoCache.set(keyJ, jGeo);
+                        env.geoCache.set(jGeo.uuid, true);
                     }
-                    const wall = new THREE.Mesh(geo, wallMat || env.sharedWallMat);
-                    wall.position.set(x * env.cellSize, height / 2, z * env.cellSize);
-                    wall.castShadow = true;
-                    wall.receiveShadow = true;
-                    wall.userData.chunkHash = hash;
-                    wall.updateMatrixWorld(true);
-                    if (!wall.geometry.boundingBox) wall.geometry.computeBoundingBox();
-                    const box = wall.geometry.boundingBox.clone().applyMatrix4(wall.matrixWorld);
-                    box.chunkHash = hash;
-                    box.isEntityBlocker = true;
-                    env.spatialGrid.insert(box);
-                    stagingMeshes.push(wall);
+                    
+                    for (let s = -1; s <= 1; s += 2) {
+                        const jMesh = new THREE.Mesh(jGeo, buildMat(isDoorwayNS));
+                        const offset = 1.875 * s;
+                        jMesh.position.set(cx + (isDoorwayNS ? offset : 0), height / 2, cz + (isDoorwayEW ? offset : 0));
+                        jMesh.castShadow = jMesh.receiveShadow = true;
+                        jMesh.userData.chunkHash = hash;
+                        jMesh.updateMatrixWorld(true);
+                        if (!jMesh.geometry.boundingBox) jMesh.geometry.computeBoundingBox();
+                        const box = jMesh.geometry.boundingBox.clone().applyMatrix4(jMesh.matrixWorld);
+                        box.chunkHash = hash;
+                        box.isEntityBlocker = true;
+                        env.spatialGrid.insert(box);
+                        stagingMeshes.push(jMesh);
+                    }
+                    
+                    const headerH = height - 2.4;
+                    if (headerH > 0) {
+                        const headY = 3.4 + headerH / 2;
+                        const keyH = `header_${headerH}`;
+                        let hGeo = env.geoCache.get(keyH);
+                        if (!hGeo) {
+                            hGeo = new THREE.BoxGeometry(env.cellSize, headerH, env.cellSize);
+                            env.geoCache.set(keyH, hGeo);
+                            env.geoCache.set(hGeo.uuid, true);
+                        }
+                        const hMesh = new THREE.Mesh(hGeo, buildMat(isDoorwayNS));
+                        hMesh.position.set(cx, headY, cz);
+                        hMesh.castShadow = hMesh.receiveShadow = true;
+                        hMesh.userData.chunkHash = hash;
+                        hMesh.updateMatrixWorld(true);
+                        if (!hMesh.geometry.boundingBox) hMesh.geometry.computeBoundingBox();
+                        const box = hMesh.geometry.boundingBox.clone().applyMatrix4(hMesh.matrixWorld);
+                        box.chunkHash = hash;
+                        box.isEntityBlocker = true;
+                        env.spatialGrid.insert(box);
+                        stagingMeshes.push(hMesh);
+                    }
+                    return true;
                 }
+                const wMat = wallMat || env.sharedWallMat;
+                const w = env.cellSize + 0.02;
+                const d = env.cellSize + 0.02;
+                const cx = x * env.cellSize;
+                const cz = z * env.cellSize;
+                const key = `${env.cellSize}_${height + 2.0}_${env.cellSize}_0`;
+                let geo = env.geoCache.get(key);
+                if (!geo) {
+                    geo = new THREE.BoxGeometry(w, height + 2.0, d);
+                    env.geoCache.set(key, geo);
+                    env.geoCache.set(geo.uuid, true);
+                }
+                const multiMat = [
+                    localX === edge ? env.sharedWallMat : wMat, // +X
+                    localX === 0 ? env.sharedWallMat : wMat,    // -X
+                    wMat,                                       // +Y
+                    wMat,                                       // -Y
+                    localZ === edge ? env.sharedWallMat : wMat, // +Z
+                    localZ === 0 ? env.sharedWallMat : wMat     // -Z
+                ];
+                const wall = new THREE.Mesh(geo, multiMat);
+                wall.position.set(cx, height / 2, cz);
+                wall.castShadow = true;
+                wall.receiveShadow = true;
+                wall.userData.chunkHash = hash;
+                wall.updateMatrixWorld(true);
+                if (!wall.geometry.boundingBox) wall.geometry.computeBoundingBox();
+                const box = wall.geometry.boundingBox.clone().applyMatrix4(wall.matrixWorld);
+                box.chunkHash = hash;
+                box.isEntityBlocker = true;
+                env.spatialGrid.insert(box);
+                stagingMeshes.push(wall);
                 return true;
             }
         };

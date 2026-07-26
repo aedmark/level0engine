@@ -688,8 +688,8 @@ export default class ProceduralTextureFactory {
         const tiTex = this._createWrappedTexture(tiCanvas, 1, 1);
         const titaniumMat = new THREE.MeshStandardMaterial({
             map: tiTex,
-            roughness: 0.25,
-            metalness: 0.9,
+            roughness: 0.35,
+            metalness: 0.4,
             bumpMap: tiTex,
             bumpScale: 0.005
         });

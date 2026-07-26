@@ -221,7 +221,8 @@ export const BoardroomSector = (env, ctx) => {
                                 if (ctx.isOccupied && ctx.isOccupied(startXw + permGX, startZw + permGZ)) continue;
                                 const retLat = (alongX ? bx : bz) + e * 2;
                                 const retFace = (alongX ? bz : bx) + (alongX ? dz : dx) * 2.4;
-                                const ret = buildWall(alongX ? 0.2 : 0.8, alongX ? 0.8 : 0.2, env.boardWallMat || env.sharedWallMat, 3.0);
+                                const retMat = env.boardWallMat || env.sharedWallMat;
+                                const ret = buildWall(alongX ? 0.2 : 0.8, alongX ? 0.8 : 0.2, retMat, 3.0);
                                 ret.position.set(alongX ? retLat : retFace, 1.5, alongX ? retFace : retLat);
                                 addGeometry(ret);
                             }

@@ -99,14 +99,26 @@ export const ChasmSector = (env, ctx) => {
                             const depth = 4.0;
                             const diagLen = Math.sqrt(span*span + depth*depth);
                             const angle = Math.atan2(depth, span);
-                            
-                            for (let y = -4; y > -drop; y -= 4) {
+
+                            // Cross-bracing is a visual cue for a player looking down from the
+                            // catwalk. Past ~24 units the CHASM fog (density 0.21, see Sectors.js)
+                            // already reduces it to black, so tiling struts every 4 units all the
+                            // way to the -80 kill-plane produced ~130 invisible meshes per catwalk
+                            // tile for nothing -- on a macro CHASM chunk with dozens of catwalk
+                            // tiles, that synchronous mesh churn (each with a matrix update,
+                            // bounding-box clone, and spatial-grid insert) is what was landing as
+                            // a hard stutter whenever this sector rolled. The full-height `leg`
+                            // pylons above are untouched, so the structure still visually reaches
+                            // the floor.
+                            const braceFloor = Math.max(-drop, -24);
+                            const braceStep = 8;
+                            for (let y = -4; y > braceFloor; y -= braceStep) {
                                 for (const dz of [-lPos, lPos]) {
                                     const cross1 = buildWall(diagLen, 0.1, env.blackIronMat, 0.1);
                                     cross1.rotation.z = angle;
                                     cross1.position.set(gx, y, gz + dz);
                                     addGeometry(cross1);
-                                    
+
                                     const cross2 = buildWall(diagLen, 0.1, env.blackIronMat, 0.1);
                                     cross2.rotation.z = -angle;
                                     cross2.position.set(gx, y, gz + dz);
@@ -117,7 +129,7 @@ export const ChasmSector = (env, ctx) => {
                                     cross1.rotation.x = angle;
                                     cross1.position.set(gx + dx, y, gz);
                                     addGeometry(cross1);
-                                    
+
                                     const cross2 = buildWall(0.1, diagLen, env.blackIronMat, 0.1);
                                     cross2.rotation.x = -angle;
                                     cross2.position.set(gx + dx, y, gz);

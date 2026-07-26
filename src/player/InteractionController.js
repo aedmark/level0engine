@@ -438,8 +438,8 @@ export default class InteractionController {
         airlock.outerDoor.data.entityOpen = false;
         airlock.innerDoor.data.entityOpen = false;
 
-        const openOuter = playerNearOuter;
-        const openInner = playerNearInner;
+        const openOuter = playerNearOuter || entityNearOuter;
+        const openInner = playerNearInner || entityNearInner;
 
         switch (airlock.state) {
             case 'IDLE':

@@ -17,7 +17,7 @@ export default class SetPieces {
     /**
      * Constructs a highly detailed checkpoint room (often used at sector boundaries).
      * This set piece includes a door frame, a functional hinged door, shelving, cartons, 
-     * and sometimes interactable items (batteries, almonds).
+     * and sometimes interactable items (batteries, almond water).
      *
      * @param {number} x - Global chunk X coordinate.
      * @param {number} z - Global chunk Z coordinate.
@@ -519,6 +519,32 @@ export default class SetPieces {
      * @param {string} sectorId - The ID of the sector.
      * @param {number} outSign - Direction multiplier indicating which way is "out" (1 or -1).
      */
+    /**
+     * GROUND-UP REBUILD (see git history for the previous, iteratively-patched version).
+     *
+     * The old version built the door's sliding-pocket recess (jamb + four pocket plates) TWICE
+     * per airlock -- once per door -- plus a separate "side wall" spanning the same footprint
+     * again. That's 12+ near-overlapping boxes per side before the sector's own perimeter wall
+     * even entered the picture, all assuming they'd recess invisibly into solid mass that nothing
+     * actually guaranteed was there. In sectors with a tight corridor it silently overlapped the
+     * perimeter wall; in sectors with an open foyer (boardroom) it just stood there exposed --
+     * an unintentional-looking cluster of boxes instead of a doorframe.
+     *
+     * This version separates two concerns that used to be tangled together:
+     *   1. The DOOR (buildDoor) -- header, lamp, sliding panels. Untouched: same geometry, same
+     *      materials, same userData contract that InteractionController.updateAirlockDoor and
+     *      Environment's interact handler read from. This is "the door texture" the rework was
+     *      told to keep.
+     *   2. The SHELL -- one solid pillar per side (not per door) spanning the airlock's full
+     *      depth, plus an "outer cap" that explicitly closes the gap to the sector's ordinary
+     *      perimeter wall. StructureKit.buildPerimeter now simply steps aside for this doorway's
+     *      three cells instead of trying to narrow its own wall around the airlock's geometry --
+     *      the airlock owns its whole footprint outright, so there's no seam left for the two
+     *      systems to fight over.
+     *
+     * PILLAR_REACH and the perimeter's doorway-shoulder exemption in StructureKit.js are the one
+     * pair of numbers that must agree; see the comment on isDoorwayNS/isDoorwayEW there.
+     */
     buildAirlock(chunkGroup, hash, dcx, dcz, spansX, sectorId, outSign) {
         const env = this.env;
         if (!env.airlockRedMat) {
@@ -527,24 +553,32 @@ export default class SetPieces {
         }
         const inSign = outSign * -1;
         const chamberDepth = 2.8;
+        const halfDepth = chamberDepth * 0.5;
+        const fullDepth = chamberDepth + 0.7;
+        const outerX = dcx - (spansX ? 0 : inSign * halfDepth);
+        const outerZ = dcz - (spansX ? inSign * halfDepth : 0);
+        const innerX = dcx + (spansX ? 0 : inSign * halfDepth);
+        const innerZ = dcz + (spansX ? inSign * halfDepth : 0);
+        const midX = dcx;
+        const midZ = dcz;
 
-        const outerX = dcx;
-        const outerZ = dcz;
-        const innerX = dcx + (spansX ? 0 : inSign * chamberDepth);
-        const innerZ = dcz + (spansX ? inSign * chamberDepth : 0);
-        const midX = dcx + (spansX ? 0 : inSign * chamberDepth * 0.5);
-        const midZ = dcz + (spansX ? inSign * chamberDepth * 0.5 : 0);
+        // Cross-axis geometry, all in one place so the numbers can't drift apart:
+        //  - CORRIDOR_HALF matches every ordinary hallway wall in the engine (buildHallwaySegment,
+        //    buildPerimeter's default cell width) -- the pillar's inner face sits flush with it.
+        //  - PILLAR_REACH must comfortably clear the door panel's fully-open position. The panel
+        //    travels to baseOffset(0.76) + slideDist(1.55) = 2.31, with half-width 0.79, so its
+        //    outer edge reaches ~3.10. 3.5 leaves a real margin instead of a hairline fit.
+        //  - SHOULDER_OUTER is where the next untouched perimeter cell's inner face naturally
+        //    falls (one cell over from the doorway core, cellSize=4, half-width ~2.0 -> 4+2=6).
+        const CORRIDOR_HALF = 1.75;
+        const PILLAR_REACH = 2.2;
+        const SHOULDER_OUTER = 2.0;
 
         const addGeometry = (mesh) => {
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             mesh.userData.chunkHash = hash;
             mesh.updateMatrixWorld(true);
-            if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
-            const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
-            box.chunkHash = hash;
-            box.isEntityBlocker = true;
-            env.spatialGrid.insert(box);
             chunkGroup.add(mesh);
             env.walls.push(mesh);
         };
@@ -560,70 +594,11 @@ export default class SetPieces {
             return new THREE.Mesh(geo, mat);
         };
 
-        const createDoorAssembly = (cx, cz) => {
-            const jambA = bWall(spansX ? 0.5 : 0.7, 3.4, spansX ? 0.7 : 0.5, env.structMat);
-            jambA.position.set(cx - (spansX ? 1.75 : 0), 1.7, cz - (spansX ? 0 : 1.75));
-            addGeometry(jambA);
-
-            const jambB = bWall(spansX ? 0.5 : 0.7, 3.4, spansX ? 0.7 : 0.5, env.structMat);
-            jambB.position.set(cx + (spansX ? 1.75 : 0), 1.7, cz + (spansX ? 0 : 1.75));
-            addGeometry(jambB);
-
-            for (let side = -1; side <= 1; side += 2) {
-                const pocketOuter = bWall(
-                    spansX ? 1.7 : 0.08,
-                    2.8,
-                    spansX ? 0.08 : 1.7,
-                    env.metalMat
-                );
-                pocketOuter.position.set(
-                    cx + (spansX ? side * 2.35 : 0.20),
-                    1.4,
-                    cz + (spansX ? 0.20 : side * 2.35)
-                );
-                addGeometry(pocketOuter);
-
-                const pocketInner = bWall(
-                    spansX ? 1.7 : 0.08,
-                    2.8,
-                    spansX ? 0.08 : 1.7,
-                    env.metalMat
-                );
-                pocketInner.position.set(
-                    cx + (spansX ? side * 2.35 : -0.20),
-                    1.4,
-                    cz + (spansX ? -0.20 : side * 2.35)
-                );
-                addGeometry(pocketInner);
-
-                const pocketCap = bWall(
-                    spansX ? 0.08 : 0.48,
-                    2.8,
-                    spansX ? 0.48 : 0.08,
-                    env.structMat
-                );
-                pocketCap.position.set(
-                    cx + (spansX ? side * 3.20 : 0),
-                    1.4,
-                    cz + (spansX ? 0 : side * 3.20)
-                );
-                addGeometry(pocketCap);
-
-                const pocketTop = bWall(
-                    spansX ? 1.7 : 0.48,
-                    0.08,
-                    spansX ? 0.48 : 1.7,
-                    env.metalMat
-                );
-                pocketTop.position.set(
-                    cx + (spansX ? side * 2.35 : 0),
-                    2.76,
-                    cz + (spansX ? 0 : side * 2.35)
-                );
-                addGeometry(pocketTop);
-            }
-
-            const header = bWall(spansX ? 3.0 : 0.7, 0.8, spansX ? 0.7 : 3.0, env.metalMat);
+        // A single door: header, status lamp, and the two sliding panels -- unchanged from the
+        // previous build. No jamb/pocket geometry here anymore; the shell pillars (below) now
+        // provide that framing for both doors at once instead of each door building its own.
+        const buildDoor = (cx, cz) => {
+            const header = bWall(spansX ? 4.0 : 0.7, 0.8, spansX ? 0.7 : 4.0, env.metalMat);
             header.position.set(cx, 3.0, cz);
             addGeometry(header);
 
@@ -639,7 +614,7 @@ export default class SetPieces {
             doorGroup.position.set(cx, 0, cz);
 
             const getDoorGeo = (name, w, h, d) => {
-                const key = `${name}_${spansX}`;
+                const key = `${name}_${spansX}_${w}_${h}_${d}`;
                 let geo = env.geoCache.get(key);
                 if (!geo) {
                     geo = new THREE.BoxGeometry(w, h, d);
@@ -649,22 +624,27 @@ export default class SetPieces {
                 return geo;
             };
             const panelGeo = spansX
-                ? getDoorGeo('doorPanel', 1.58, 2.6, 0.24)
-                : getDoorGeo('doorPanel', 0.24, 2.6, 1.58);
+                ? getDoorGeo('doorPanel', 1.98, 2.6, 0.24)
+                : getDoorGeo('doorPanel', 0.24, 2.6, 1.98);
             const stripeGeo = spansX
                 ? getDoorGeo('doorStripe', 0.14, 2.6, 0.26)
                 : getDoorGeo('doorStripe', 0.26, 2.6, 0.14);
             const ribGeo = spansX
-                ? getDoorGeo('doorRib', 1.58, 0.08, 0.28)
-                : getDoorGeo('doorRib', 0.28, 0.08, 1.58);
+                ? getDoorGeo('doorRib', 1.98, 0.08, 0.28)
+                : getDoorGeo('doorRib', 0.28, 0.08, 1.98);
 
             const mkPanel = (side) => {
-                const p = new THREE.Mesh(panelGeo, env.titaniumMat || env.metalMat);
-                if (spansX) p.position.set(side * 0.76, 1.3, 0);
-                else p.position.set(0, 1.3, side * 0.76);
+                const edgeMat = env.blackIronMat || env.metalMat;
+                const faceMat = env.titaniumMat || env.metalMat;
+                const matArray = spansX
+                    ? [side === -1 ? edgeMat : faceMat, side === 1 ? edgeMat : faceMat, faceMat, faceMat, faceMat, faceMat]
+                    : [faceMat, faceMat, faceMat, faceMat, side === -1 ? edgeMat : faceMat, side === 1 ? edgeMat : faceMat];
+                const p = new THREE.Mesh(panelGeo, matArray);
+                if (spansX) p.position.set(side * 0.96, 1.3, 0);
+                else p.position.set(0, 1.3, side * 0.96);
                 const stripe = new THREE.Mesh(stripeGeo, env.hazardMat);
-                if (spansX) stripe.position.set(-side * 0.72, 0, 0);
-                else stripe.position.set(0, 0, -side * 0.72);
+                if (spansX) stripe.position.set(-side * 0.92, 0, 0);
+                else stripe.position.set(0, 0, -side * 0.92);
                 p.add(stripe);
                 for (let ry = -1; ry <= 1; ry += 2) {
                     const rib = new THREE.Mesh(ribGeo, env.titaniumMat || env.metalMat);
@@ -691,6 +671,7 @@ export default class SetPieces {
                 doorBox.max.set(cx + 0.25, 2.6, cz + 1.55);
             }
             doorBox.chunkHash = hash;
+            doorBox.isEntityBlocker = true;
             env.spatialGrid.insert(doorBox);
 
             const slideAxis = spansX ? 'x' : 'z';
@@ -718,35 +699,37 @@ export default class SetPieces {
             return {group: doorGroup, data: doorGroup.userData, position: new THREE.Vector3(cx, 0, cz), lamp: lampLens};
         };
 
-        const outerDoor = createDoorAssembly(outerX, outerZ);
-        const innerDoor = createDoorAssembly(innerX, innerZ);
+        const outerDoor = buildDoor(outerX, outerZ);
+        const innerDoor = buildDoor(innerX, innerZ);
 
-        const fullDepth = chamberDepth + 1.75;
-        const outCenterOff = (chamberDepth - 1.75) * 0.5;
-        const extMidZ = dcz + (spansX ? inSign * outCenterOff : 0);
-        const extMidX = dcx + (spansX ? 0 : inSign * outCenterOff);
+        // buildPerimeter builds its blocks at geometry height (height_param + 2.0) = 5.0, centered
+        // at y=1.5 -- i.e. a vertical span of [-1.0, 4.0], a full 2 units taller than the 3.0-tall
+        // (0 to 3) convention every interior/hallway wall in the engine uses. That extra height is
+        // presumably deliberate over-build so the sector's true boundary never shows a peek-through
+        // at any camera angle or terrain height. Every previous airlock piece (jamb, pocket, the old
+        // sideWall/housing, and this rebuild's pillar/cap) used the ordinary 3.0-tall convention
+        // instead, which sat flush with the perimeter in X/Z but fell 1 unit short of it on top and
+        // 1 unit short underneath -- a real seam, just one that used to be hidden by how many
+        // overlapping, differently-sized boxes were stacked in that area. Consolidating down to one
+        // clean box per side finally made that seam visible instead of accidentally papering over
+        // it. Matching the perimeter's own height here (not the interior-wall height) closes it for
+        // good, since these pieces now sit directly against the perimeter with nothing in between.
+        // The door pockets (jambs) and over-door header are now dynamically generated by
+        // StructureKit.buildPerimeter using the sector's native wall material and height.
+        // This ensures a seamless texture blend, so we no longer build generic structural
+        // pillars here.
 
-        for (let cs = -1; cs <= 1; cs += 2) {
-            const sideWall = bWall(
-                spansX ? 0.4 : fullDepth,
-                3.0,
-                spansX ? fullDepth : 0.4,
-                env.structMat
-            );
-            sideWall.position.set(
-                spansX ? dcx + cs * 1.75 : extMidX,
-                1.5,
-                spansX ? extMidZ : dcz + cs * 1.75
-            );
-            addGeometry(sideWall);
-        }
+        const roofSpan = SHOULDER_OUTER * 2 + 0.2;
+        const capMat = env.blackIronMat || env.structMat;
+        const ceilBase = bWall(4.2, 0.4, 4.2, capMat);
+        ceilBase.position.set(midX, 3.2, midZ);
+        addGeometry(ceilBase);
 
-        const roofL = fullDepth + 0.2;
-        const roof = bWall(spansX ? 3.8 : roofL, 0.1, spansX ? roofL : 3.8, env.metalMat);
-        roof.position.set(extMidX, 2.95, extMidZ);
-        addGeometry(roof);
+        const bezel = bWall(3.2, 0.2, 3.2, capMat);
+        bezel.position.set(midX, 2.9, midZ);
+        addGeometry(bezel);
 
-        const floorPlate = bWall(spansX ? 3.0 : chamberDepth, 0.04, spansX ? chamberDepth : 3.0, env.metalMat);
+        const floorPlate = bWall(4.0, 0.04, 4.0, env.metalMat);
         floorPlate.position.set(midX, 0.02, midZ);
         addGeometry(floorPlate);
 
@@ -757,10 +740,10 @@ export default class SetPieces {
         const switchButton = new THREE.Mesh(switchButtonGeo, switchButtonMat);
         if (spansX) {
             switchButton.position.set(-0.03, 0, 0);
-            switchGroup.position.set(midX + 1.525, 1.3, midZ);
+            switchGroup.position.set(midX + 1.725, 1.3, midZ);
         } else {
             switchButton.position.set(0, 0, -0.03);
-            switchGroup.position.set(midX, 1.3, midZ + 1.525);
+            switchGroup.position.set(midX, 1.3, midZ + 1.725);
         }
         switchGroup.add(switchBase, switchButton);
         switchGroup.userData = { isAirlockSwitch: true, entityOpen: false, chunkHash: hash };

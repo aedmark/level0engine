@@ -14,30 +14,28 @@ import InteractionController from '../player/InteractionController.js';
 
 /**
  * The god-class memory manager and procedural generation orchestrator.
- * 
- * Educational Note: In a traditional game engine (like Unity or Unreal), levels are built in 
- * an editor and loaded entirely into memory. Because LEVEL 0 is infinitely procedural, 
- * this class acts like a memory garbage collector. It dynamically loads "chunks" of the maze 
- * as the player walks near them, and unloads them as the player walks away, keeping the 
+ *
+ * Educational Note: In a traditional game engine (like Unity or Unreal), levels are built in
+ * an editor and loaded entirely into memory. Because LEVEL 0 is infinitely procedural,
+ * this class acts like a memory garbage collector. It dynamically loads "chunks" of the maze
+ * as the player walks near them, and unloads them as the player walks away, keeping the
  * memory footprint tiny even in an infinite world.
  */
 export default class Environment {
     // ==========================================
     // LIFECYCLE & INITIALIZATION
     // ==========================================
-
-
     get anomaly() {
         return this.entityManager ? this.entityManager.activeEntity : null;
     }
 
     /**
      * Initializes the environment memory structures and spatial grid.
-     * 
-     * Educational Note: We use a `SpatialHashGrid` and manual `Map`s for chunks rather than 
-     * simply throwing everything into `this.scene`. This allows us to query "what objects 
+     *
+     * Educational Note: We use a `SpatialHashGrid` and manual `Map`s for chunks rather than
+     * simply throwing everything into `this.scene`. This allows us to query "what objects
      * are within 5 meters of the player" in O(1) time without iterating over thousands of meshes.
-     * 
+     *
      * @param {Object} engine - The core RenderEngine instance.
      * @param {Object} player - The PlayerController instance.
      */
@@ -75,7 +73,6 @@ export default class Environment {
         this.setPieces = new SetPieces(this);
         this.interactionController = new InteractionController(this);
     }
-
 
     setup() {
         const assets = ProceduralTextureFactory.generateAssets();
@@ -337,10 +334,10 @@ export default class Environment {
                 if (hit.userData.active) return;
                 hit.userData.active = true;
                 document.dispatchEvent(new CustomEvent('somatic-valve', {detail: {distSq: 1.0, intensity: 1.5}}));
-                
                 if (!this.steamTex) {
                     const canvas = document.createElement('canvas');
-                    canvas.width = 64; canvas.height = 64;
+                    canvas.width = 64;
+                    canvas.height = 64;
                     const ctx = canvas.getContext('2d');
                     const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
                     grad.addColorStop(0, 'rgba(200, 220, 255, 0.5)');
@@ -485,13 +482,11 @@ export default class Environment {
     // ==========================================
     // CORE LOOPS & STATE
     // ==========================================
-
     /**
      * The core spatial-hashing update loop. Triggers chunk loading/unloading dynamically
      * based on player proximity. Discards stale chunks to maintain 60fps.
      * @param {THREE.Vector3} playerPos - The current camera position.
      */
-
     updateChunks(playerPos) {
         const activeCellSize = this.cellSize || 4;
         const chunkX = Math.floor(playerPos.x / (this.chunkSize * activeCellSize));
@@ -525,7 +520,6 @@ export default class Environment {
                 this.spatialGrid.removeByChunk(hash);
             }
         }
-        
         if (chunksToDispose.length > 0) {
             this._asyncDisposeChunks(chunksToDispose).catch(console.error);
         }
@@ -555,7 +549,6 @@ export default class Environment {
             }
         }
     }
-
 
     async processChunkQueue() {
         if (this.isBuildingChunk) return;
@@ -600,7 +593,6 @@ export default class Environment {
             const chunkGroup = chunks[i];
             const meshes = [];
             chunkGroup.traverse((child) => meshes.push(child));
-            
             for (let j = 0; j < meshes.length; j++) {
                 const child = meshes[j];
                 if (child.isInstancedMesh) child.dispose();
@@ -613,7 +605,6 @@ export default class Environment {
                         if (!this.sharedAssets.has(m.uuid)) m.dispose();
                     });
                 }
-                
                 if (performance.now() - disposeStartTime > 3.0) {
                     await new Promise(resolve => setTimeout(resolve, 0));
                     disposeStartTime = performance.now();
@@ -777,6 +768,10 @@ export default class Environment {
         }
         for (let x = startX; x < startX + this.chunkSize; x++) {
             for (let z = startZ; z < startZ + this.chunkSize; z++) {
+                if (performance.now() - chunkStartTime > 5.0) {
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                    chunkStartTime = performance.now();
+                }
                 if (!isMacroStructure && Math.abs(x) < 2 && Math.abs(z) < 2) continue;
                 const localX = x - startX;
                 const localZ = z - startZ;
@@ -812,10 +807,8 @@ export default class Environment {
                 const isArtery = inNRing || inSRing || inWRing || inERing || inNPath || inSPath || inWPath || inEPath;
                 const isBlocker = localX >= 5 && localX <= 9 && localZ >= 5 && localZ <= 9;
                 const isSpawnClear = (chunkX === 0 && chunkZ === 0) && (localX <= 3 && localZ <= 3);
-                
                 if (isBlocker) isWall = true;
                 if (isArtery || isSpawnClear) isWall = false;
-                
                 if (isWall) {
                     const structRoll = random();
                     const structure = structuralMatrix.find(s => structRoll >= s.prob);
@@ -934,10 +927,6 @@ export default class Environment {
                             this.spatialGrid.insert(pBox);
                         }
                     }
-                    if (performance.now() - chunkStartTime > 5.0) {
-                        await new Promise(resolve => setTimeout(resolve, 0));
-                        chunkStartTime = performance.now();
-                    }
                 }
             }
         }
@@ -947,7 +936,6 @@ export default class Environment {
         await this._compileInstances(hash, chunkGroup, stagingMeshes, random);
     }
 
-
     updateInteractives(playerPos, delta) {
         return this.interactionController.updateInteractives(playerPos, delta);
     }
@@ -955,7 +943,6 @@ export default class Environment {
     /**
      * Routes entity tick commands to the EntityManager based on the sticky sector.
      */
-
     updateEntity(playerPos, delta, time) {
         return this.entityManager.update(delta, time, this._stickySectorId || 'NORMAL');
     }
@@ -965,7 +952,6 @@ export default class Environment {
      * and modulates light intensity or triggers random breaker/flicker events.
      * @param {number} time - Global runtime elapsed.
      */
-
     updateLights(time) {
         const isChasm = this._stickySectorId === 'CHASM';
         if (this.fixtureData) {
@@ -992,7 +978,6 @@ export default class Environment {
                         fixture.volumetricMesh.visible = true;
                         if (fixture.housingMesh) fixture.housingMesh.visible = true;
                     }
-                    
                     const angle = time * fixture.sweepSpeed + fixture.sweepPhase;
                     fixture.targetPos.x = fixture.position.x + Math.cos(angle) * 10.0;
                     fixture.targetPos.z = fixture.position.z + Math.sin(angle) * 10.0;
@@ -1017,41 +1002,32 @@ export default class Environment {
         const minLightDistSq = lumenData.minLightDistSq;
         this.player.darknessPressure = darknessPressure;
         const minLightDist = nearestFixture ? Math.sqrt(minLightDistSq) : Infinity;
-        
         if (this.currentGlare === undefined) this.currentGlare = 0.0;
         let glareTarget = 0.0;
-
         if (nearestFixture && minLightDist > 1.0) {
             if (!this._camDir) this._camDir = new THREE.Vector3();
             this.camera.getWorldDirection(this._camDir);
-            
             if (!this._glareDir) this._glareDir = new THREE.Vector3();
             this._glareDir.subVectors(nearestFixture.position, cameraPos).normalize();
-            
             const dot = this._camDir.dot(this._glareDir);
             if (dot > 0.95) { // Staring directly at the light
                 let beamAlign = 1.0;
                 if (nearestFixture.targetPos) {
                     if (!this._lightBeamDir) this._lightBeamDir = new THREE.Vector3();
                     this._lightBeamDir.subVectors(nearestFixture.targetPos, nearestFixture.position).normalize();
-                    
                     if (!this._playerFromLight) this._playerFromLight = new THREE.Vector3();
                     this._playerFromLight.subVectors(cameraPos, nearestFixture.position).normalize();
-                    
                     beamAlign = this._lightBeamDir.dot(this._playerFromLight);
                 }
-                
                 if (beamAlign > 0.3) { // Beam is roughly pointing at the player (cone)
                     const intensity = nearestFixture.currentIntensity || nearestFixture.baseIntensity || 1.0;
-                    const distFactor = 1.0 / (1.0 + minLightDist * 0.2); 
-                    const angleFactor = (dot - 0.95) * 20.0; 
+                    const distFactor = 1.0 / (1.0 + minLightDist * 0.2);
+                    const angleFactor = (dot - 0.95) * 20.0;
                     const directionalFactor = nearestFixture.targetPos ? Math.max(0, (beamAlign - 0.3) * 1.42) : 1.0;
-                    
-                    glareTarget = intensity * distFactor * angleFactor * directionalFactor * 0.2; 
+                    glareTarget = intensity * distFactor * angleFactor * directionalFactor * 0.2;
                 }
             }
         }
-        
         this.currentGlare += (glareTarget - this.currentGlare) * 0.1;
         this.engine.glare = this.currentGlare;
         if (nearestFixture && minLightDist > 1.0) {
@@ -1128,7 +1104,16 @@ export default class Environment {
             this._targetFogColor.copy(this._baseFogColor);
         }
         if (!this._blackColor) this._blackColor = new THREE.Color(0x000000);
-        const darknessRatio = Math.min(1.0, darknessPressure * 0.4);
+        // darknessPressure only tracks dead ceiling fixtures nearby (LumenGrid.update sums
+        // `isDead` lights in range) -- it has no idea the player is carrying their own light.
+        // Kill the breaker in a maintenance tunnel and click the flashlight on, and this ratio
+        // still saturates toward 1.0: both fog.color and scene.background get lerped to pure
+        // black, so the flashlight beam has nothing but void to scatter against. The "fog
+        // catching in the beam" read these sectors are going for never happens; it just looks
+        // like the fog switched off. Damping the ratio while the flashlight is actually lit lets
+        // fog stay visible in the beam instead of the whole scene collapsing to black.
+        const flashlightIsLit = this.player.flashlightActive && this.flashlight && this.flashlight.intensity > 0.1;
+        const darknessRatio = Math.min(1.0, darknessPressure * 0.4) * (flashlightIsLit ? 0.35 : 1.0);
         if (!this._finalFogColor) this._finalFogColor = new THREE.Color();
         const finalTargetColor = this._finalFogColor.copy(this._targetFogColor).lerp(this._blackColor, darknessRatio);
         const colorRate = this._targetFogColor.equals(this._baseFogColor) ? 0.25 : 0.15;
@@ -1314,13 +1299,11 @@ export default class Environment {
     // ==========================================
     // PROCEDURAL GENERATION PIPELINE
     // ==========================================
-
     /**
      * Triggers the procedural generation pipeline. Builds the environment, distributes light fixtures,
      * and spawns interactive elements.
      * @param {boolean} isWarp - True if the player is being warped across coordinates.
      */
-
     generate(isWarp = false) {
         const flash = document.getElementById('flash-overlay');
         if (flash) {
@@ -1394,16 +1377,13 @@ export default class Environment {
         MaterialLibrary.injectMaterials(this);
     }
 
-
     _generateSectorMaze(randomFn) {
         return this.setPieces.generateSectorMaze(randomFn);
     }
 
-
     async _compileInstances(hash, chunkGroup, stagingMeshes, randomFn) {
         let compileStartTime = performance.now();
         const instancedGroups = new Map();
-        
         for (let i = 0; i < stagingMeshes.length; i++) {
             const mesh = stagingMeshes[i];
             const matSig = Array.isArray(mesh.material) ? mesh.material.map(m => m.uuid).join('_') : mesh.material.uuid;
@@ -1416,19 +1396,21 @@ export default class Environment {
                 });
             }
             instancedGroups.get(sig).meshes.push(mesh);
-            
             if (performance.now() - compileStartTime > 5.0) {
                 await new Promise(resolve => setTimeout(resolve, 0));
                 compileStartTime = performance.now();
             }
         }
-        
         const dummyColor = new THREE.Color();
         const groups = Array.from(instancedGroups.values());
         for (let i = 0; i < groups.length; i++) {
+            if (performance.now() - compileStartTime > 5.0) {
+                await new Promise(resolve => setTimeout(resolve, 0));
+                compileStartTime = performance.now();
+            }
             const group = groups[i];
-            const isDecal = group.material === this.moldMat || group.material === this.ceilingStainMat || group.material === this.glowMat;
-            if (group.meshes.length > 1) {
+            const isDecal = !Array.isArray(group.material) && (group.material === this.moldMat || group.material === this.ceilingStainMat || group.material === this.glowMat);
+            if (group.meshes.length > 1 && !Array.isArray(group.material)) {
                 const iMesh = new THREE.InstancedMesh(group.geometry, group.material, group.meshes.length);
                 if (!isDecal) {
                     iMesh.castShadow = (group.material !== this.fenceMat);
@@ -1450,16 +1432,17 @@ export default class Environment {
                 chunkGroup.add(iMesh);
                 if (!isDecal) this.walls.push(iMesh);
             } else {
-                const mesh = group.meshes[0];
-                mesh.matrixWorld.decompose(mesh.position, mesh.quaternion, mesh.scale);
-                if (!isDecal) {
-                    mesh.castShadow = (group.material !== this.fenceMat);
-                    mesh.receiveShadow = true;
-                    this.walls.push(mesh);
+                for (let j = 0; j < group.meshes.length; j++) {
+                    const mesh = group.meshes[j];
+                    mesh.matrixWorld.decompose(mesh.position, mesh.quaternion, mesh.scale);
+                    if (!isDecal) {
+                        mesh.castShadow = (!Array.isArray(group.material) && group.material !== this.fenceMat);
+                        mesh.receiveShadow = true;
+                        this.walls.push(mesh);
+                    }
+                    chunkGroup.add(mesh);
                 }
-                chunkGroup.add(mesh);
             }
-            
             if (performance.now() - compileStartTime > 5.0) {
                 await new Promise(resolve => setTimeout(resolve, 0));
                 compileStartTime = performance.now();
@@ -1467,19 +1450,17 @@ export default class Environment {
         }
     }
 
-
     _createChunkHelpers(hash, chunkGroup, stagingMeshes, random) {
         return this.structureKit.createChunkHelpers(hash, chunkGroup, stagingMeshes, random);
     }
 
     getPooledLightMaterial(isBroken) {
         if (!this._pooledLightMats) {
-            this._pooledLightMats = { normal: [], broken: [] };
+            this._pooledLightMats = {normal: [], broken: []};
             for (let i = 0; i < 16; i++) {
                 const nMat = this.baseLightMat.clone();
                 if (this.sharedAssets) this.sharedAssets.add(nMat.uuid);
                 this._pooledLightMats.normal.push(nMat);
-                
                 const bMat = this.baseBrokenLightMat.clone();
                 if (this.sharedAssets) this.sharedAssets.add(bMat.uuid);
                 this._pooledLightMats.broken.push(bMat);
@@ -1493,32 +1474,25 @@ export default class Environment {
     // ==========================================
     // SECTOR GEOMETRY BUILDERS
     // ==========================================
-
-
     _buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling) {
         return this.setPieces.buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling);
     }
-
 
     _buildAirlock(chunkGroup, hash, dcx, dcz, spansX, sectorId, outSign) {
         return this.setPieces.buildAirlock(chunkGroup, hash, dcx, dcz, spansX, sectorId, outSign);
     }
 
-
     _buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId, buildWalls = true) {
         return this.setPieces.buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId, buildWalls);
     }
-
 
     _buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, ctx) {
         return this.setPieces.buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, ctx);
     }
 
-
     _buildCheckpointColumn(x, z, hash, ctx) {
         return this.setPieces.buildCheckpointColumn(x, z, hash, ctx);
     }
-
 
     _buildImpoundItem(px, pz, kind, ctx) {
         return this.setPieces.buildImpoundItem(px, pz, kind, ctx);
@@ -1527,27 +1501,21 @@ export default class Environment {
     // ==========================================
     // INTERACTIVE LOGIC
     // ==========================================
-
-
     _updateSliderDoor(door, playerPos, delta) {
         return this.interactionController.updateSliderDoor(door, playerPos, delta);
     }
-
 
     _updateAirlockDoor(doorObj, delta) {
         return this.interactionController.updateAirlockDoor(doorObj, delta);
     }
 
-
     _updateAirlock(airlock, playerPos, delta) {
         return this.interactionController.updateAirlock(airlock, playerPos, delta);
     }
 
-
     shatterFixture(fixture) {
         return this.interactionController.shatterFixture(fixture);
     }
-
 
     _rollHuntHops() {
         const r = Math.random();
@@ -1559,12 +1527,9 @@ export default class Environment {
     // ==========================================
     // MATH & UTILITIES
     // ==========================================
-
-
     _cacheGeo(key, make) {
         return this.structureKit.cacheGeo(key, make);
     }
-
 
     _buildPallet() {
         if (!this.palletWoodMat) {
@@ -1574,25 +1539,21 @@ export default class Environment {
         const pallet = new THREE.Group();
         const slatGeo = this._boxGeo(1.5, 0.025, 0.18);
         const runnerGeo = this._boxGeo(0.12, 0.12, 1.4);
-
-        for(let i=0; i<5; i++) {
+        for (let i = 0; i < 5; i++) {
             const topSlat = new THREE.Mesh(slatGeo, this.palletWoodMat);
             topSlat.position.set(0, 0.1575, -0.6 + (i * 0.3));
             pallet.add(topSlat);
         }
-        
-        for(let i=0; i<3; i++) {
+        for (let i = 0; i < 3; i++) {
             const botSlat = new THREE.Mesh(slatGeo, this.palletWoodMat);
             botSlat.position.set(0, 0.0125, -0.6 + (i * 0.6));
             pallet.add(botSlat);
         }
-
-        for(let i=0; i<3; i++) {
+        for (let i = 0; i < 3; i++) {
             const runner = new THREE.Mesh(runnerGeo, this.palletWoodMat);
-            runner.position.set(-0.6 + (i * 0.6), 0.085, 0); 
+            runner.position.set(-0.6 + (i * 0.6), 0.085, 0);
             pallet.add(runner);
         }
-        
         return pallet;
     }
 
@@ -1604,12 +1565,10 @@ export default class Environment {
         return this.structureKit.planeGeo(w, h);
     }
 
-
     _sectorFog(id) {
         const s = SECTORS[id];
         return (s && s.fog !== undefined) ? s.fog : 0.05;
     }
-
 
     captureAsset() {
         this.engine.render();
@@ -1619,5 +1578,4 @@ export default class Environment {
         link.href = dataURL;
         link.click();
     }
-
 }
