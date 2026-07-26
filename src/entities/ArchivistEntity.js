@@ -48,10 +48,27 @@ export default class ArchivistEntity {
         this.isActive = true;
         this.graceTimer = 10.0;
         this.droppedDoc = false;
-        this.group.position.set(x, y, z);
+        // Re-leash to the Archive sector's current geometry on every (re)spawn -- its wander
+        // target can drift up to 40 units, easily enough to drift out through an open door.
+        this._bounds = this.env && this.env.getSectorBounds ? this.env.getSectorBounds('ARCHIVE') : null;
+        const clamped = this._clampToBounds(x, z);
+        this.group.position.set(clamped.x, y, clamped.z);
         this.target.copy(this.group.position);
         this.group.visible = true;
         this.observeTimer = 0;
+    }
+
+    /**
+     * Clamps a world-space (x, z) into the Archivist's home sector, if bounds are known.
+     * Called on every reset and every wander tick.
+     */
+    _clampToBounds(x, z) {
+        if (!this._bounds) return {x, z};
+        const margin = 1.5;
+        return {
+            x: Math.max(this._bounds.minX + margin, Math.min(this._bounds.maxX - margin, x)),
+            z: Math.max(this._bounds.minZ + margin, Math.min(this._bounds.maxZ - margin, z))
+        };
     }
 
     /**
@@ -117,10 +134,17 @@ export default class ArchivistEntity {
         }
         if (!isObserved) {
             if (Math.random() < 0.02) {
-                this.target.x = playerPos.x + (Math.random() - 0.5) * 40.0;
-                this.target.z = playerPos.z + (Math.random() - 0.5) * 40.0;
+                const clampedTarget = this._clampToBounds(
+                    playerPos.x + (Math.random() - 0.5) * 40.0,
+                    playerPos.z + (Math.random() - 0.5) * 40.0
+                );
+                this.target.x = clampedTarget.x;
+                this.target.z = clampedTarget.z;
             }
             this.group.position.lerp(this.target, 0.015);
+            const clampedPos = this._clampToBounds(this.group.position.x, this.group.position.z);
+            this.group.position.x = clampedPos.x;
+            this.group.position.z = clampedPos.z;
         }
         return null;
     }

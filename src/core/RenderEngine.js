@@ -40,7 +40,14 @@ export default class RenderEngine {
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
         this.camera.position.y = 1.6;
 
-        const logDepth = new URLSearchParams(window.location.search).has('logdepth');
+        // Far/near ratio here is 100/0.1 = 1000:1. A standard depth buffer spends most of its
+        // precision within the first few units of the camera and runs out fast after that --
+        // which is exactly what shows up as coplanar textures fighting for the same pixel once
+        // you back away from them. A logarithmic depth buffer spreads that precision evenly
+        // across the whole range instead of front-loading it. Defaults on now; `?nologdepth`
+        // is left as an escape hatch for perf comparisons, since it's marginally more expensive
+        // on low-end GPUs.
+        const logDepth = !new URLSearchParams(window.location.search).has('nologdepth');
         this.renderer = new THREE.WebGLRenderer({
             antialias: false,
             powerPreference: "high-performance",
@@ -175,8 +182,22 @@ export default class RenderEngine {
                     vec2 offset = vec2(caShift, 0.0); 
                     
                     // Sector Environmental Distortion
-                    float heatWave = heat > 0.01 ? sin(uv.x * 30.0 + time * 10.0) * sin(uv.y * 15.0 - time * 5.0) : 0.0;
-                    vec2 heatOffset = vec2(heatWave * 0.005, heatWave * 0.015) * heat;
+                    vec2 heatOffset = vec2(0.0);
+                    if (heat > 0.01) {
+                        // Domain warp: bend the sampling direction before we lay waves onto it,
+                        // so the plume swirls and curls instead of scrolling in a straight grid.
+                        float swirlAngle = sin(uv.y * 8.0 + time * 0.6) * 0.6 + cos(uv.x * 6.0 - time * 0.4) * 0.6;
+                        vec2 swirlUv = uv + vec2(cos(swirlAngle), sin(swirlAngle)) * 0.015 * heat;
+
+                        // Layered turbulence: a broad base wave plus two smaller, faster waves
+                        // stacked on top for a granular, boiling shimmer rather than one smooth ripple.
+                        float wave1 = sin(swirlUv.x * 22.0 + time * 6.0) * sin(swirlUv.y * 18.0 - time * 4.0);
+                        float wave2 = sin(swirlUv.x * 55.0 - time * 9.0 + wave1 * 2.0) * sin(swirlUv.y * 47.0 + time * 7.0);
+                        float wave3 = sin(swirlUv.x * 90.0 + time * 13.0) * cos(swirlUv.y * 80.0 - time * 11.0);
+                        float heatWave = wave1 * 0.55 + wave2 * 0.30 + wave3 * 0.15;
+
+                        heatOffset = vec2(heatWave * 0.004, heatWave * 0.011) * heat;
+                    }
                     vec2 sampleUv = uv + heatOffset;
                     
                     vec3 col;

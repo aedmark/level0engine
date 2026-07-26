@@ -85,10 +85,29 @@ export default class IncineratorEntity {
         this.graceTimer = 3.0;
         this.heatLevel = 0.0;
         this.stuckTimer = 0;
-        this.group.position.set(x, y, z);
+        // Re-leash to the Incinerator sector's current geometry every time it (re)spawns --
+        // EntityManager's generic 40-55 unit spawn offset doesn't know how big this room
+        // actually is, so without this a fresh spawn could land past the doorway entirely.
+        this._bounds = this.env && this.env.getSectorBounds ? this.env.getSectorBounds('INCINERATOR') : null;
+        const clamped = this._clampToBounds(x, z);
+        this.group.position.set(clamped.x, y, clamped.z);
         this.target.copy(this.group.position);
         this.group.visible = true;
         this.light.intensity = 2.0;
+    }
+
+    /**
+     * Clamps a world-space (x, z) into the Ember's home sector, if bounds are known.
+     * Called on every reset and every locomotion tick so it can never wander -- or be
+     * chased -- out through an open door into the hallway.
+     */
+    _clampToBounds(x, z) {
+        if (!this._bounds) return {x, z};
+        const margin = 1.5;
+        return {
+            x: Math.max(this._bounds.minX + margin, Math.min(this._bounds.maxX - margin, x)),
+            z: Math.max(this._bounds.minZ + margin, Math.min(this._bounds.maxZ - margin, z))
+        };
     }
 
     /**
@@ -295,6 +314,11 @@ export default class IncineratorEntity {
                 }
             }
         }
+        // Unconditional re-leash: whatever branch above moved (or teleported) it, this is the
+        // one guarantee it never ends up standing in the hallway.
+        const clamped = this._clampToBounds(this.group.position.x, this.group.position.z);
+        this.group.position.x = clamped.x;
+        this.group.position.z = clamped.z;
     }
 
     _animate(time) {

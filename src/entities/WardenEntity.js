@@ -60,10 +60,28 @@ export default class WardenEntity {
         this.isActive = true;
         this.graceTimer = 2.0;
         this.stepTimer = 0;
-        this.group.position.set(x, y, z);
+        // Re-leash to the Impound sector's current geometry on every (re)spawn -- the generic
+        // 40-50 unit spawn offset from EntityManager doesn't know this room's actual footprint.
+        this._bounds = this.env && this.env.getSectorBounds ? this.env.getSectorBounds('IMPOUND') : null;
+        const clamped = this._clampToBounds(x, z);
+        this.group.position.set(clamped.x, y, clamped.z);
         this.target.copy(this.group.position);
         this.group.visible = true;
         this.light.color.setHex(0xffffff);
+    }
+
+    /**
+     * Clamps a world-space (x, z) into the Warden's home sector, if bounds are known.
+     * Called on every reset and every locomotion tick so a spotlight chase can't walk it
+     * out through an open door into the hallway.
+     */
+    _clampToBounds(x, z) {
+        if (!this._bounds) return {x, z};
+        const margin = 1.5;
+        return {
+            x: Math.max(this._bounds.minX + margin, Math.min(this._bounds.maxX - margin, x)),
+            z: Math.max(this._bounds.minZ + margin, Math.min(this._bounds.maxZ - margin, z))
+        };
     }
 
     /**
@@ -220,6 +238,10 @@ export default class WardenEntity {
                 }
             }
         }
+        // Unconditional re-leash so a spotlight chase can never end with it standing outside.
+        const clamped = this._clampToBounds(this.group.position.x, this.group.position.z);
+        this.group.position.x = clamped.x;
+        this.group.position.z = clamped.z;
     }
 
     _animate(time) {

@@ -1073,9 +1073,57 @@ export default class Environment {
     }
 
     /**
+     * Determines which macro zone the player currently occupies, applying the +/-10 unit
+     * hysteresis buffer against `_stickySectorId` so the sector doesn't flicker right at a
+     * boundary. Also resolves any pending door-forced sector and flags first Annex entry.
+     *
+     * This used to be computed inline inside `updateLights`, which runs after `updateEntity`
+     * each frame -- so entity routing (which entity is active, e.g. the Anomaly vs. the Warden)
+     * was always working off the *previous* frame's sector. Resolving it once here, up front,
+     * lets both `updateEntity` and `updateLights` agree on the same, current-frame answer.
+     * @param {THREE.Vector3} cameraPos - The current camera position.
+     * @returns {{activeSector: string, targetFog: number}}
+     */
+    _resolveActiveSector(cameraPos) {
+        let activeSector = "NORMAL";
+        let targetFog = 0.05;
+        for (const zone of this.macroZones.values()) {
+            if (cameraPos.x > zone.minX && cameraPos.x < zone.maxX &&
+                cameraPos.z > zone.minZ && cameraPos.z < zone.maxZ) {
+                activeSector = zone.id;
+                targetFog = zone.fog;
+                break;
+            }
+        }
+        if (activeSector === "NORMAL" && this._stickySectorId) {
+            for (const zone of this.macroZones.values()) {
+                if (zone.id === this._stickySectorId &&
+                    cameraPos.x > zone.minX - 10 && cameraPos.x < zone.maxX + 10 &&
+                    cameraPos.z > zone.minZ - 10 && cameraPos.z < zone.maxZ + 10) {
+                    activeSector = zone.id;
+                    targetFog = zone.fog;
+                    break;
+                }
+            }
+        }
+        if (this._doorSectorForce) {
+            activeSector = this._doorSectorForce;
+            targetFog = this._sectorFog(activeSector);
+            this._doorSectorForce = null;
+        }
+        this._stickySectorId = activeSector === "NORMAL" ? null : activeSector;
+        if (activeSector === "ANNEX" && this.player && !this.player.hasVisitedAnnex) {
+            this.player.hasVisitedAnnex = true;
+            this.player.updateObjectives();
+        }
+        return {activeSector, targetFog};
+    }
+
+    /**
      * Routes entity tick commands to the EntityManager based on the sticky sector.
      */
     updateEntity(playerPos, delta, time) {
+        this._sectorFrame = this._resolveActiveSector(playerPos);
         return this.entityManager.update(delta, time, this._stickySectorId || 'NORMAL');
     }
 
@@ -1187,37 +1235,10 @@ export default class Environment {
             this.currentOcclusionState = false;
         }
         let isOccluded = this.currentOcclusionState;
-        let activeSector = "NORMAL";
-        let targetFog = 0.05;
-        for (const zone of this.macroZones.values()) {
-            if (cameraPos.x > zone.minX && cameraPos.x < zone.maxX &&
-                cameraPos.z > zone.minZ && cameraPos.z < zone.maxZ) {
-                activeSector = zone.id;
-                targetFog = zone.fog;
-                break;
-            }
-        }
-        if (activeSector === "NORMAL" && this._stickySectorId) {
-            for (const zone of this.macroZones.values()) {
-                if (zone.id === this._stickySectorId &&
-                    cameraPos.x > zone.minX - 10 && cameraPos.x < zone.maxX + 10 &&
-                    cameraPos.z > zone.minZ - 10 && cameraPos.z < zone.maxZ + 10) {
-                    activeSector = zone.id;
-                    targetFog = zone.fog;
-                    break;
-                }
-            }
-        }
-        if (this._doorSectorForce) {
-            activeSector = this._doorSectorForce;
-            targetFog = this._sectorFog(activeSector);
-            this._doorSectorForce = null;
-        }
-        this._stickySectorId = activeSector === "NORMAL" ? null : activeSector;
-        if (activeSector === "ANNEX" && this.player && !this.player.hasVisitedAnnex) {
-            this.player.hasVisitedAnnex = true;
-            this.player.updateObjectives();
-        }
+        // Reuse this frame's sector resolution from updateEntity (called earlier this frame in
+        // main.js) so fog/ambient and entity routing never disagree about "the" current sector.
+        // The fallback only matters if updateLights is ever called without a preceding updateEntity.
+        const {activeSector, targetFog} = this._sectorFrame || this._resolveActiveSector(cameraPos);
         if (this.baseFogDensity !== undefined) {
             if (this.currentFogDensity === undefined) this.currentFogDensity = targetFog;
             const userMultiplier = this.baseFogDensity / 0.05;
@@ -1701,6 +1722,30 @@ export default class Environment {
     _sectorFog(id) {
         const s = SECTORS[id];
         return (s && s.fog !== undefined) ? s.fog : 0.05;
+    }
+
+    /**
+     * Computes the union bounding box of every generated macro-zone tagged with the given
+     * sector id. Sector-locked hazards (the Warden, the Archivist, the Ember) use this to
+     * leash themselves to their home sector, so an aggressive pursuit -- or an open door --
+     * can't walk them out into the hallway where they'd collide with whatever hazard owns
+     * that territory instead.
+     * @param {string} sectorId
+     * @returns {{minX: number, maxX: number, minZ: number, maxZ: number}|null} Null if no
+     * generated zone currently carries that sector id (e.g. called before the world exists).
+     */
+    getSectorBounds(sectorId) {
+        let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+        let found = false;
+        for (const zone of this.macroZones.values()) {
+            if (zone.id !== sectorId) continue;
+            found = true;
+            if (zone.minX < minX) minX = zone.minX;
+            if (zone.maxX > maxX) maxX = zone.maxX;
+            if (zone.minZ < minZ) minZ = zone.minZ;
+            if (zone.maxZ > maxZ) maxZ = zone.maxZ;
+        }
+        return found ? {minX, maxX, minZ, maxZ} : null;
     }
 
     captureAsset() {

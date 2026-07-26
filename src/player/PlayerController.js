@@ -388,14 +388,25 @@ export default class PlayerController {
             normalizedDarkness *= (1.0 - (0.85 * safetyFactor));
         }
         this.perceivedDarkness = normalizedDarkness;
-        let baseDrain = (externalPressure * 0.12) + (this.perceivedDarkness * 0.05);
+
+        // Coherence should only fray in genuine darkness, not merely while standing off to the
+        // side of a working light. `darkThreshold` marks where perceivedDarkness counts as
+        // "actually dark" -- below it there's no darkness drain at all. `darkSignal` then eases
+        // in quadratically above that floor, so the drain ramps up gently instead of snapping on
+        // the moment perceivedDarkness ticks up. Critically, there is no longer any perceivedDarkness
+        // value where recovery becomes permanently unreachable: the old code went straight from
+        // "recovering" to "draining forever with no way back" at a hard 0.3 cutoff, which is what
+        // produced the runaway drain when standing still.
+        const darkThreshold = 0.4;
+        const darkSignal = Math.max(0.0, (this.perceivedDarkness - darkThreshold) / (1.0 - darkThreshold));
+        let baseDrain = (externalPressure * 0.12) + (darkSignal * darkSignal * 0.04);
         if (this.exhaustion > 0.5) baseDrain *= 1.5;
 
         if (state.isReading) {
             baseDrain = 0.0; // The mind focuses, halting passive drain.
         } else if (this.isBlindFolded) {
             baseDrain = -0.15;
-        } else if (externalPressure === 0.0 && this.perceivedDarkness < 0.3) {
+        } else if (externalPressure === 0.0 && darkSignal <= 0.0) {
             const recoveryMultiplier = isMoving ? 1.0 : 3.0;
             baseDrain = -0.08 * recoveryMultiplier * (1.0 - this.perceivedDarkness);
         }

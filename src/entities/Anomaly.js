@@ -21,6 +21,9 @@ export default class Anomaly {
         this.backtrackTimer = 0;
         this.breadcrumbTimer = 0;
         this.graceTimer = 0;
+        // Seconds since the anomaly last actually sensed the player (sight or sound).
+        // Long droughts ease its passive search in tighter -- see _updateSenses.
+        this.timeSinceContact = 0;
         this._dir = new Vec3();
         this._toPlayer = new Vec3();
         this._lookDir = new Vec3();
@@ -47,6 +50,7 @@ export default class Anomaly {
             this.target.x += (Math.random() - 0.5) * 8.0;
             this.target.z += (Math.random() - 0.5) * 8.0;
             this.backtrackTimer = 0;
+            this.timeSinceContact = 0;
         }
     }
 
@@ -80,8 +84,10 @@ export default class Anomaly {
         this.backtrackTimer = 0;
         this.breadcrumbTimer = 0;
         this.graceTimer = 12.0;
+        this.timeSinceContact = 0;
         this.group.position.set(x, y, z);
         this.target.copy(this.group.position);
+        this.group.visible = true;
     }
 
     /**
@@ -151,6 +157,13 @@ export default class Anomaly {
     }
 
     _updateSenses(playerPos, distToPlayerSq, delta, time) {
+        // Tracks how long it's been since the anomaly actually sensed the player (sight or
+        // sound), independent of distance or LOS blockers. Ramps a "catch-up" push into the
+        // passive search below so a long drought doesn't turn into an indefinite one -- it still
+        // has to physically path to you, it's just no longer drifting at a glacial 0.5% lerp with
+        // no way to close the gap if walls or bad luck keep breaking its line of sight.
+        this.timeSinceContact = (this.timeSinceContact || 0) + delta;
+        const catchUp = Math.min(1.0, this.timeSinceContact / 45.0);
         this.breadcrumbTimer = (this.breadcrumbTimer || 0) + delta;
         if (this.breadcrumbTimer > 0.5 && this.backtrackTimer <= 0) {
             this.breadcrumbTimer = 0;
@@ -209,6 +222,7 @@ export default class Anomaly {
         } else if (distToPlayerSq < perceptionThresholdSq && hasLOS) {
             this.target.copy(playerPos);
             this.player.isChased = distToPlayerSq < 225.0;
+            this.timeSinceContact = 0;
         } else {
             this.player.isChased = false;
             let distracted = false;
@@ -236,10 +250,12 @@ export default class Anomaly {
                     this.target.x += (Math.random() - 0.5) * 15.0;
                     this.target.z += (Math.random() - 0.5) * 15.0;
                 }
-                this.target.lerp(playerPos, 0.005);
+                // Passive tracking eases in from 0.005 (barely a guess) up to 0.05 (a real pull
+                // toward your actual position) the longer it's gone without contact.
+                this.target.lerp(playerPos, 0.005 + catchUp * 0.045);
             }
         }
-        const baseSpeed = distToPlayerSq < 225.0 ? 4.2 : 1.8;
+        const baseSpeed = (distToPlayerSq < 225.0 ? 4.2 : 1.8) + catchUp * 1.2;
         this.rage = this.rage || 0.0;
         let speed = baseSpeed + (this.rage * 2.0);
         let isObserved = false;
