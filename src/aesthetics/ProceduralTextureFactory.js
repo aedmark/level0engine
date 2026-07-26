@@ -209,7 +209,7 @@ export default class ProceduralTextureFactory {
         const tileTexture = this._createWrappedTexture(tileCanvas, 16, 16);
         const tileMat = new THREE.MeshStandardMaterial({
             map: tileTexture,
-            roughness: 0.1,
+            roughness: 0.4,
             metalness: 0.6,
             shadowSide: THREE.DoubleSide
         });
@@ -234,7 +234,7 @@ export default class ProceduralTextureFactory {
             map: clinicTex,
             bumpMap: clinicBumpTex,
             bumpScale: 0.015,
-            roughness: 0.1,
+            roughness: 0.4,
             metalness: 0.15,
             shadowSide: THREE.DoubleSide
         });
@@ -636,7 +636,7 @@ export default class ProceduralTextureFactory {
         const voidTexture = this._createWrappedTexture(masterNoise);
         const voidMat = new THREE.MeshStandardMaterial({
             color: 0x020202,
-            roughness: 0.15,
+            roughness: 0.4,
             metalness: 0.8,
             bumpMap: voidTexture,
             bumpScale: 0.08
@@ -898,8 +898,8 @@ export default class ProceduralTextureFactory {
         const annexFloorTexture = this._createWrappedTexture(annexFloorCanvas, 14, 14);
         const annexFloorMat = new THREE.MeshStandardMaterial({
             map: annexFloorTexture,
-            roughness: 0.5,
-            metalness: 0.08,
+            roughness: 0.7,
+            metalness: 0.05,
             bumpMap: annexFloorTexture,
             bumpScale: 0.01
         });
@@ -1189,7 +1189,7 @@ export default class ProceduralTextureFactory {
         const archiveFloorTexture = this._createWrappedTexture(floorCanvas, 16, 16);
         const archiveFloorMat = new THREE.MeshStandardMaterial({
             map: archiveFloorTexture,
-            roughness: 0.35,
+            roughness: 0.65,
             metalness: 0.02,
             bumpMap: archiveFloorTexture,
             bumpScale: 0.006
@@ -1383,7 +1383,7 @@ export default class ProceduralTextureFactory {
         const btTex = new THREE.CanvasTexture(btc);
         btTex.wrapS = btTex.wrapT = THREE.RepeatWrapping;
         btTex.repeat.set(14, 14);
-        const boardTileMat = new THREE.MeshStandardMaterial({map: btTex, roughness: 0.35, metalness: 0.1});
+        const boardTileMat = new THREE.MeshStandardMaterial({map: btTex, roughness: 0.6, metalness: 0.1});
         const glassMat = new THREE.MeshStandardMaterial({
             color: 0xbfe3ef, transparent: true, opacity: 0.22,
             roughness: 0.08, metalness: 0.1, depthWrite: false

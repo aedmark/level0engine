@@ -99,7 +99,7 @@ export default class LumenGrid {
         this._activeFixtures.fill(null);
         
         // Base culling distance: we discard lights beyond this distance to save CPU cycles
-        const baseCullingLimit = this.maxActiveLights > 12 ? 35.0 : 22.0;
+        const baseCullingLimit = this.maxActiveLights > 12 ? 55.0 : 35.0;
         
         // --- PHASE 1: Distance Sorting and Culling ---
         for (let i = 0, len = fixtureData.length; i < len; i++) {
@@ -118,7 +118,7 @@ export default class LumenGrid {
             if (dy > cullLimit || dy < -cullLimit) { fixture.hasShadow = false; continue; }
             
             const distSq = (dx * dx) + (dy * dy) + (dz * dz);
-            const maxDistSq = isLH ? 14400.0 : 900.0;
+            const maxDistSq = isLH ? 14400.0 : 3025.0;
             
             if (distSq < maxDistSq) {
                 // Accumulate darkness pressure from dead lights nearby (used for sanity/paranoia mechanics)
