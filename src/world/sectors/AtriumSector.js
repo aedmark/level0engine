@@ -31,8 +31,12 @@ export const AtriumSector = (env, ctx) => {
                 id: "ATRIUM",
                 foundationMat: env.dirtMat,
                 build: (x, z, localX, localZ, maze) => {
+                    const edge = env.chunkSize - 1;
+                    const isDoorwayNS = localX === 7 && (localZ === 0 || localZ === edge);
+                    const isDoorwayEW = localZ === 7 && (localX === 0 || localX === edge);
+                    const isDoorway = isDoorwayNS || isDoorwayEW;
                     if (ctx.buildPerimeter(x, z, localX, localZ, env.sharedWallMat, "ATRIUM")) {
-                        if (env.farVoidMat) {
+                        if (env.farVoidMat && !isDoorway) {
                             if (!env.fieldPlaneGeo) {
                                 env.fieldPlaneGeo = new THREE.PlaneGeometry(env.cellSize + 0.02, 3.0);
                                 env.geoCache.set(env.fieldPlaneGeo.uuid, true);

@@ -247,11 +247,9 @@ export const ArchiveSector = (env, ctx) => {
                             env.walls.push(bowl);
                             const bulbRadius = 0.08;
                             const bulbGeo = env._cacheGeo('archiveBulb', () => new THREE.SphereGeometry(bulbRadius, 8, 6));
-                            const bulbMat = env.baseLightMat.clone();
+                            const bulbMat = ctx.getLightMaterial(0xd8b276, 0xc89858, false);
                             bulbMat.map = null;
                             bulbMat.emissiveMap = null;
-                            bulbMat.color.setHex(0xd8b276);
-                            bulbMat.emissive.setHex(0xc89858);
                             const bulbY = domeTopY - bulbRadius;
                             const bulb = new THREE.Mesh(bulbGeo, bulbMat);
                             bulb.position.set(x * env.cellSize, bulbY, z * env.cellSize);

@@ -514,26 +514,20 @@ export default class Environment {
         }
         this.processChunkQueue().catch(err => console.error('Chunk queue processing failed:', err));
         const deadHashes = new Set();
+        const chunksToDispose = [];
         for (const [hash, chunkGroup] of this.activeChunks.entries()) {
             if (!chunksToKeep.has(hash)) {
                 deadHashes.add(hash);
                 this.scene.remove(chunkGroup);
-                chunkGroup.traverse((child) => {
-                    if (child.isInstancedMesh) child.dispose();
-                    if (child.geometry && !this.sharedAssets.has(child.geometry.uuid) && !this.geoCache.has(child.geometry.uuid)) {
-                        child.geometry.dispose();
-                    }
-                    if (child.material) {
-                        const materials = Array.isArray(child.material) ? child.material : [child.material];
-                        materials.forEach(m => {
-                            if (!this.sharedAssets.has(m.uuid)) m.dispose();
-                        });
-                    }
-                });
+                chunksToDispose.push(chunkGroup);
                 this.activeChunks.delete(hash);
                 this.blackoutChunks.delete(hash);
                 this.spatialGrid.removeByChunk(hash);
             }
+        }
+        
+        if (chunksToDispose.length > 0) {
+            this._asyncDisposeChunks(chunksToDispose).catch(console.error);
         }
         if (deadHashes.size > 0) {
             deadHashes.forEach(h => {
@@ -600,6 +594,33 @@ export default class Environment {
         }
     }
 
+    async _asyncDisposeChunks(chunks) {
+        let disposeStartTime = performance.now();
+        for (let i = 0; i < chunks.length; i++) {
+            const chunkGroup = chunks[i];
+            const meshes = [];
+            chunkGroup.traverse((child) => meshes.push(child));
+            
+            for (let j = 0; j < meshes.length; j++) {
+                const child = meshes[j];
+                if (child.isInstancedMesh) child.dispose();
+                if (child.geometry && !this.sharedAssets.has(child.geometry.uuid) && !this.geoCache.has(child.geometry.uuid)) {
+                    child.geometry.dispose();
+                }
+                if (child.material) {
+                    const materials = Array.isArray(child.material) ? child.material : [child.material];
+                    materials.forEach(m => {
+                        if (!this.sharedAssets.has(m.uuid)) m.dispose();
+                    });
+                }
+                
+                if (performance.now() - disposeStartTime > 3.0) {
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                    disposeStartTime = performance.now();
+                }
+            }
+        }
+    }
 
     async buildChunk(chunkX, chunkZ, hash) {
         const chunkGroup = new THREE.Group();
@@ -751,7 +772,7 @@ export default class Environment {
         ctx.isOccupied = (ox, oz) => occupied.has(`${ox},${oz}`);
         if (isMacroStructure && activeSector) {
             const hallwayNeedsFloor = activeSector.id === "CHASM";
-            const hallwayNeedsCeiling = activeSector.id === "CHASM" || activeSector.id === "ATRIUM" || activeSector.id === "ARCHIVE";
+            const hallwayNeedsCeiling = true;
             this._buildEntranceHallways(chunkGroup, hash, startX, startZ, activeSector.id, ctx, hallwayNeedsFloor, hallwayNeedsCeiling);
         }
         for (let x = startX; x < startX + this.chunkSize; x++) {
@@ -840,7 +861,7 @@ export default class Environment {
                         const isRotated = random() > 0.5;
                         const posX = (x * this.cellSize);
                         const posZ = (z * this.cellSize);
-                        const activeMat = isBroken ? this.baseBrokenLightMat.clone() : this.baseLightMat.clone();
+                        const activeMat = this.getPooledLightMaterial(isBroken);
                         const matArray = [
                             this.baseHousingMat, this.baseHousingMat, this.baseHousingMat,
                             activeMat, this.baseHousingMat, this.baseHousingMat
@@ -913,14 +934,17 @@ export default class Environment {
                             this.spatialGrid.insert(pBox);
                         }
                     }
+                    if (performance.now() - chunkStartTime > 5.0) {
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                        chunkStartTime = performance.now();
+                    }
                 }
             }
-            if (performance.now() - chunkStartTime > 8.0) {
-                await new Promise(resolve => requestAnimationFrame(resolve));
-                chunkStartTime = performance.now();
-            }
         }
-        this._compileInstances(hash, chunkGroup, stagingMeshes, random);
+        if (performance.now() - chunkStartTime > 5.0) {
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+        await this._compileInstances(hash, chunkGroup, stagingMeshes, random);
     }
 
 
@@ -1376,9 +1400,12 @@ export default class Environment {
     }
 
 
-    _compileInstances(hash, chunkGroup, stagingMeshes, randomFn) {
+    async _compileInstances(hash, chunkGroup, stagingMeshes, randomFn) {
+        let compileStartTime = performance.now();
         const instancedGroups = new Map();
-        stagingMeshes.forEach(mesh => {
+        
+        for (let i = 0; i < stagingMeshes.length; i++) {
+            const mesh = stagingMeshes[i];
             const matSig = Array.isArray(mesh.material) ? mesh.material.map(m => m.uuid).join('_') : mesh.material.uuid;
             const sig = `${mesh.geometry.uuid}_${matSig}`;
             if (!instancedGroups.has(sig)) {
@@ -1389,9 +1416,17 @@ export default class Environment {
                 });
             }
             instancedGroups.get(sig).meshes.push(mesh);
-        });
+            
+            if (performance.now() - compileStartTime > 5.0) {
+                await new Promise(resolve => setTimeout(resolve, 0));
+                compileStartTime = performance.now();
+            }
+        }
+        
         const dummyColor = new THREE.Color();
-        instancedGroups.forEach(group => {
+        const groups = Array.from(instancedGroups.values());
+        for (let i = 0; i < groups.length; i++) {
+            const group = groups[i];
             const isDecal = group.material === this.moldMat || group.material === this.ceilingStainMat || group.material === this.glowMat;
             if (group.meshes.length > 1) {
                 const iMesh = new THREE.InstancedMesh(group.geometry, group.material, group.meshes.length);
@@ -1424,12 +1459,35 @@ export default class Environment {
                 }
                 chunkGroup.add(mesh);
             }
-        });
+            
+            if (performance.now() - compileStartTime > 5.0) {
+                await new Promise(resolve => setTimeout(resolve, 0));
+                compileStartTime = performance.now();
+            }
+        }
     }
 
 
     _createChunkHelpers(hash, chunkGroup, stagingMeshes, random) {
         return this.structureKit.createChunkHelpers(hash, chunkGroup, stagingMeshes, random);
+    }
+
+    getPooledLightMaterial(isBroken) {
+        if (!this._pooledLightMats) {
+            this._pooledLightMats = { normal: [], broken: [] };
+            for (let i = 0; i < 16; i++) {
+                const nMat = this.baseLightMat.clone();
+                if (this.sharedAssets) this.sharedAssets.add(nMat.uuid);
+                this._pooledLightMats.normal.push(nMat);
+                
+                const bMat = this.baseBrokenLightMat.clone();
+                if (this.sharedAssets) this.sharedAssets.add(bMat.uuid);
+                this._pooledLightMats.broken.push(bMat);
+            }
+            this._poolIndex = 0;
+        }
+        this._poolIndex = (this._poolIndex + 1) % 16;
+        return isBroken ? this._pooledLightMats.broken[this._poolIndex] : this._pooledLightMats.normal[this._poolIndex];
     }
 
     // ==========================================

@@ -274,9 +274,8 @@ export default class StructureKit {
                     box.isEntityBlocker = true;
                     env.spatialGrid.insert(box);
                     stagingMeshes.push(wall);
-                    return true;
                 }
-                return false;
+                return true;
             }
         };
         return helpers;

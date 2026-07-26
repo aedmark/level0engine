@@ -64,9 +64,7 @@ export const IncineratorSector = (env, ctx) => {
                             const dcx = x * env.cellSize;
                             const dcz = z * env.cellSize;
                             const outSign = (localZ === 0 || localX === 0) ? -1 : 1;
-                            const lampMat = env.baseLightMat.clone();
-                            lampMat.color.setHex(0xff3300);
-                            lampMat.emissive.setHex(0xff1100);
+                            const lampMat = ctx.getLightMaterial(0xff3300, 0xff1100, false);
                             const lamp = new THREE.Mesh(env._boxGeo(0.3, 0.12, 0.18), lampMat);
                             if (spansX) lamp.position.set(dcx, 2.5, dcz + outSign * 0.5);
                             else lamp.position.set(dcx + outSign * 0.5, 2.5, dcz);

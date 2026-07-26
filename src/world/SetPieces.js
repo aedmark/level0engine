@@ -184,7 +184,7 @@ export default class SetPieces {
         }
 
         if (lit) {
-            const activeMat = env.baseLightMat.clone();
+            const activeMat = env.getPooledLightMaterial ? env.getPooledLightMaterial(false) : env.baseLightMat;
             const panel = new THREE.Mesh(env.sharedPanelGeo, [env.baseHousingMat, env.baseHousingMat, env.baseHousingMat, activeMat, env.baseHousingMat, env.baseHousingMat]);
             panel.position.set(cx0, 2.98, cz0);
             chunkGroup.add(panel);
@@ -479,6 +479,24 @@ export default class SetPieces {
                         }
                         lineMesh.position.set((startX + lx) * env.cellSize, 0.03, (startZ + lz) * env.cellSize);
                         chunkGroup.add(lineMesh);
+                    } else if (sectorId === "MAINTENANCE") {
+                        const len = env.cellSize;
+                        const tOff = (env.cellSize / 2) - 0.2;
+                        if (spansX) {
+                            const trim1 = new THREE.Mesh(env._boxGeo(len, 0.1, 0.4), env.hazardMat);
+                            trim1.position.set((startX + lx) * env.cellSize, 0.050, (startZ + lz) * env.cellSize - tOff);
+                            const trim2 = new THREE.Mesh(env._boxGeo(len, 0.1, 0.4), env.hazardMat);
+                            trim2.position.set((startX + lx) * env.cellSize, 0.050, (startZ + lz) * env.cellSize + tOff);
+                            env.addGeometry ? env.addGeometry(trim1) : chunkGroup.add(trim1);
+                            env.addGeometry ? env.addGeometry(trim2) : chunkGroup.add(trim2);
+                        } else {
+                            const trim1 = new THREE.Mesh(env._boxGeo(0.4, 0.1, len), env.hazardMat);
+                            trim1.position.set((startX + lx) * env.cellSize - tOff, 0.050, (startZ + lz) * env.cellSize);
+                            const trim2 = new THREE.Mesh(env._boxGeo(0.4, 0.1, len), env.hazardMat);
+                            trim2.position.set((startX + lx) * env.cellSize + tOff, 0.050, (startZ + lz) * env.cellSize);
+                            env.addGeometry ? env.addGeometry(trim1) : chunkGroup.add(trim1);
+                            env.addGeometry ? env.addGeometry(trim2) : chunkGroup.add(trim2);
+                        }
                     }
                 }
             }
@@ -641,7 +659,7 @@ export default class SetPieces {
                 : getDoorGeo('doorRib', 0.28, 0.08, 1.58);
 
             const mkPanel = (side) => {
-                const p = new THREE.Mesh(panelGeo, env.metalMat);
+                const p = new THREE.Mesh(panelGeo, env.titaniumMat || env.metalMat);
                 if (spansX) p.position.set(side * 0.76, 1.3, 0);
                 else p.position.set(0, 1.3, side * 0.76);
                 const stripe = new THREE.Mesh(stripeGeo, env.hazardMat);
@@ -649,7 +667,7 @@ export default class SetPieces {
                 else stripe.position.set(0, 0, -side * 0.72);
                 p.add(stripe);
                 for (let ry = -1; ry <= 1; ry += 2) {
-                    const rib = new THREE.Mesh(ribGeo, env.structMat);
+                    const rib = new THREE.Mesh(ribGeo, env.titaniumMat || env.metalMat);
                     rib.position.set(0, ry * 0.75, 0);
                     p.add(rib);
                 }

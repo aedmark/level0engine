@@ -140,6 +140,8 @@ export default class SaveManager {
                     await caches.delete(key);
                 }
             }
+            const seedInput = document.getElementById('seedInput');
+            if (seedInput) seedInput.value = '';
             window.location.href = window.location.href.split('?')[0];
         });
     }

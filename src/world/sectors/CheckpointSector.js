@@ -86,7 +86,7 @@ export const CheckpointSector = (env, ctx) => {
                         env._buildCheckpointColumn(x, z, hash, {addGeometry, stagingMeshes});
                     } else {
                         if ((localX % 3 === 0 || localZ % 3 === 0) && random() > 0.5) {
-                            const activeMat = env.baseLightMat.clone();
+                            const activeMat = env.getPooledLightMaterial ? env.getPooledLightMaterial(false) : env.baseLightMat;
                             const panel = new THREE.Mesh(env.sharedPanelGeo, [env.baseHousingMat, env.baseHousingMat, env.baseHousingMat, activeMat, env.baseHousingMat, env.baseHousingMat]);
                             panel.position.set(x * env.cellSize, 2.98, z * env.cellSize);
                             chunkGroup.add(panel);

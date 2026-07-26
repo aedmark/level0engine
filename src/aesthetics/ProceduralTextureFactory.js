@@ -579,23 +579,14 @@ export default class ProceduralTextureFactory {
             alphaTest: 0.5,
             side: THREE.DoubleSide
         });
-        const {canvas: hazardCanvas, ctx: hazCtx} = this._createContext(256, 256);
-        hazCtx.fillStyle = '#ffcc00';
-        hazCtx.fillRect(0, 0, 256, 256);
-        hazCtx.fillStyle = '#111111';
-        hazCtx.beginPath();
-        for (let i = -256; i < 512; i += 64) {
-            hazCtx.moveTo(i, 0);
-            hazCtx.lineTo(i + 128, 256);
-            hazCtx.lineTo(i + 160, 256);
-            hazCtx.lineTo(i + 32, 0);
-        }
-        hazCtx.fill();
-        hazCtx.globalAlpha = 0.6;
-        hazCtx.drawImage(masterNoise, 0, 0, 256, 256);
-        hazCtx.globalAlpha = 1.0;
-        const hazardTexture = this._createWrappedTexture(hazardCanvas, 2, 2);
-        const hazardMat = new THREE.MeshStandardMaterial({map: hazardTexture, roughness: 0.8});
+        const hazardBumpTexture = this._createWrappedTexture(masterNoise, 2, 2);
+        const hazardMat = new THREE.MeshStandardMaterial({
+            color: 0xffcc00,
+            bumpMap: hazardBumpTexture,
+            bumpScale: 0.05,
+            roughness: 0.8,
+            metalness: 0.2
+        });
         const {canvas: glowCanvas, ctx: glowCtx} = this._createContext(256, 256, false);
         const glowGrad = glowCtx.createRadialGradient(128, 128, 0, 128, 128, 128);
         glowGrad.addColorStop(0, 'rgba(255, 255, 220, 0.035)');
@@ -667,7 +658,43 @@ export default class ProceduralTextureFactory {
         aCtx.globalAlpha = 1.0;
         const almondTexture = new THREE.CanvasTexture(almondCanvas);
         const almondMat = new THREE.MeshStandardMaterial({map: almondTexture, roughness: 0.8});
-        return {fenceMat, hazardMat, glowMat, glowGeo, tagMat, tagGeo, voidMat, rustMat, metalMat, almondMat};
+        const {canvas: tiCanvas, ctx: tiCtx} = this._createContext(256, 512);
+        const tiGrad = tiCtx.createLinearGradient(0, 0, 0, 512);
+        tiGrad.addColorStop(0, '#c0c8d0');
+        tiGrad.addColorStop(1, '#808a94');
+        tiCtx.fillStyle = tiGrad;
+        tiCtx.fillRect(0, 0, 256, 512);
+        tiCtx.lineWidth = 1;
+        for (let y = 0; y < 512; y += 2) {
+            tiCtx.strokeStyle = `rgba(255,255,255,${Math.random() * 0.05})`;
+            tiCtx.beginPath(); tiCtx.moveTo(0, y); tiCtx.lineTo(256, y); tiCtx.stroke();
+            tiCtx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.05})`;
+            tiCtx.beginPath(); tiCtx.moveTo(0, y + 1); tiCtx.lineTo(256, y + 1); tiCtx.stroke();
+        }
+        tiCtx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        tiCtx.beginPath();
+        tiCtx.moveTo(128, 150);
+        tiCtx.lineTo(200, 270);
+        tiCtx.lineTo(56, 270);
+        tiCtx.closePath();
+        tiCtx.fill();
+        tiCtx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        tiCtx.fillRect(0, 300, 256, 20);
+        tiCtx.globalAlpha = 0.3;
+        tiCtx.globalCompositeOperation = 'multiply';
+        tiCtx.drawImage(masterNoise, 0, 0, 256, 512);
+        tiCtx.globalAlpha = 1.0;
+        tiCtx.globalCompositeOperation = 'source-over';
+        const tiTex = this._createWrappedTexture(tiCanvas, 1, 1);
+        const titaniumMat = new THREE.MeshStandardMaterial({
+            map: tiTex,
+            roughness: 0.25,
+            metalness: 0.9,
+            bumpMap: tiTex,
+            bumpScale: 0.005
+        });
+
+        return {fenceMat, hazardMat, glowMat, glowGeo, tagMat, tagGeo, voidMat, rustMat, metalMat, almondMat, titaniumMat};
     }
 
     static _buildAnnexAssets(masterNoise) {
