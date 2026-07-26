@@ -1,5 +1,16 @@
 # Level 0 Engine Changelog
 
+## [v0.5.8] - 2026-07-26
+
+_The Threshold Update_
+
+### Added
+- **[PERFORMANCE] Airlock-Gated Sector Loading:** Macro-structure sectors (CHASM, ARCHIVE, BOARDROOM, INCINERATOR, and other airlock-accessed sectors) no longer generate their full interior geometry the moment the player walks within render distance. Only the entrance shell — walls, floor/ceiling, and the airlock itself — builds on approach. The expensive interior (CHASM's catwalks and pillars, for example) now generates only once the player commits by pressing that airlock's switch, and the inner door won't open until it's finished loading. A sector's full generation cost is paid once, at the one moment the game can plausibly hide it behind an in-fiction loading beat, instead of landing silently mid-exploration.
+
+### Fixed
+- **[PERFORMANCE] CHASM Lighthouse Shader Recompiles:** CHASM lighthouse fixtures were instantiating a redundant raw `THREE.PointLight` in addition to registering with the engine's pooled lighting system (`LumenGrid`). Because that extra light entered and left the scene graph with every CHASM chunk load/unload, WebGL had to recompile shader programs across every standard-lit material in the scene each time the active light count changed — the actual cause of the hard stutter reported when traversing CHASM. Removed; the pooled fixture already lights the bulb.
+- **[WORLD] Missing/Invisible Macro-Sector Perimeter Walls:** Macro-structure chunks could show a gap in their boundary wall, or a wall that was solid to collide with but invisible, before the sector had ever been entered. Both were side effects of deferring a sector's interior generation; the perimeter wall and entrance module are now fully built and rendered as part of the eager entrance shell described above.
+
 ## [v0.5.7] - 2026-07-25
 
 _The Maintenance Update_

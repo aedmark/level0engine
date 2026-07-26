@@ -396,12 +396,20 @@ export default class InteractionController {
     }
     /**
      * State machine for airlock sequences.
-     * 
+     *
      * Airlocks serve as hidden loading zones and sector transitions.
-     * By locking the player inside a small chamber while "cycling", the engine has time to 
-     * load/unload sector assets, swap audio profiles, and change global fog settings 
+     * By locking the player inside a small chamber while "cycling", the engine has time to
+     * load/unload sector assets, swap audio profiles, and change global fog settings
      * without the player seeing the geometry pop in or out.
-     * 
+     *
+     * Educational Note: `CYCLING`'s fixed `cycleDuration` alone only ever guaranteed a minimum
+     * wait, not a maximum -- it had no idea whether the room on the other side of the door
+     * actually existed yet. Entering a sector (`openedFrom === 'OUTSIDE'`) now also requires
+     * `env.isMacroChunkContentReady(airlock.chunkHash)`, which mirrors the moment
+     * `env.beginMacroChunkContent` was fired back in `AWAITING_SWITCH`. So the chamber holds the
+     * player for however long is longer: the scripted cycle, or the actual build. See
+     * `Environment.buildChunk` for why a sector's interior is built lazily in the first place.
+     *
      * @param {Object} airlock - The airlock data structure.
      * @param {THREE.Vector3} playerPos - The player's position.
      * @param {number} delta - Time elapsed since last frame.
@@ -476,6 +484,14 @@ export default class InteractionController {
 
             case 'AWAITING_SWITCH':
                 if (switchPressed) {
+                    // Committing to enter is what unlocks the sector's interior (see
+                    // Environment.buildChunk / beginMacroChunkContent). Kicking it off here,
+                    // rather than at the start of CYCLING, gives it the door-closing animation
+                    // plus the full cycle duration to finish in the background before the inner
+                    // door is allowed to open.
+                    if (airlock.openedFrom === 'OUTSIDE') {
+                        env.beginMacroChunkContent(airlock.chunkHash);
+                    }
                     airlock.state = 'WAIT_IN_CHAMBER';
                 } else if (!isPlayerInChamber) {
                     if (airlock.openedFrom === 'OUTSIDE' && pDistOuterSq > 30.0) {
@@ -510,8 +526,16 @@ export default class InteractionController {
                 env._doorSectorForce = targetSector;
 
                 airlock.cycleTimer -= delta;
-                if (airlock.cycleTimer <= 0) {
-                    if (airlock.openedFrom === 'OUTSIDE') {
+                // Entering a sector (OUTSIDE) additionally requires its deferred interior to have
+                // actually finished building -- the doors don't open until everything is loaded.
+                // Exiting back out (INSIDE) never waits on this: "outside" is ordinary maze
+                // territory that's never gated. If content takes longer than cycleDuration, the
+                // player simply waits an extra beat in the chamber instead of walking into a
+                // half-built (or still-empty) room.
+                const enteringSector = airlock.openedFrom === 'OUTSIDE';
+                const contentReady = !enteringSector || env.isMacroChunkContentReady(airlock.chunkHash);
+                if (airlock.cycleTimer <= 0 && contentReady) {
+                    if (enteringSector) {
                         airlock.state = 'EXIT_INNER';
                         env._doorSectorForce = airlock.sectorId;
                     } else {

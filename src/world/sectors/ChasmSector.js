@@ -325,10 +325,26 @@ export const ChasmSector = (env, ctx) => {
                                 env._lhBulbMat = new THREE.MeshBasicMaterial({ color: 0xffffee });
                                 env.sharedAssets.add(env._lhBulbMat.uuid);
                             }
+                            // NOTE: no raw THREE.PointLight here. Every other lit fixture in the
+                            // engine (see ArchiveSector, MaintenanceSector's tow beacon, etc.) only
+                            // ever pushes into `env.fixtureData` and lets LumenGrid drive one of its
+                            // 32 pre-allocated, never-added-or-removed pool lights toward it each
+                            // frame -- that's the whole point of the pool (see LumenGrid's header
+                            // comment): a fixed light count means WebGL's shader light-count uniforms
+                            // never change, so the renderer never has to recompile program
+                            // permutations. This lighthouse used to also instantiate its own
+                            // `new THREE.PointLight(...)` and parent it directly to the bulb mesh,
+                            // in addition to the fixtureData registration below. That second light
+                            // lived in `chunkGroup` and entered/left the live scene graph on every
+                            // CHASM chunk load/unload -- up to 5 of them per chunk, changing the
+                            // active point-light count almost every time a chunk rolled. Three.js
+                            // keys its compiled shader programs off the current light counts, so
+                            // each new count forced a fresh compile across every standard-lit
+                            // material in the scene: a genuine "whole system chokes" hard stutter,
+                            // independent of the chunk-build yielding and cross-brace fixes elsewhere
+                            // in this file. The pooled fixture already lights this bulb (see the
+                            // `fixtureData.push` below); this was pure duplication.
                             const bulb = new THREE.Mesh(env._cacheGeo('lhBulb', () => new THREE.SphereGeometry(0.15, 8, 8)), env._lhBulbMat);
-                            const glowPoint = new THREE.PointLight(0xffeedd, 2.0, 10.0);
-                            glowPoint.castShadow = false;
-                            bulb.add(glowPoint);
                             bulb.position.set(gx, poleEnd + sign * 0.7, gz);
                             chunkGroup.add(bulb);
                             

@@ -69,6 +69,10 @@ export default class Environment {
         this._breakerHuntHops = undefined;
         this._macroChunkHashes = new Set();
         this._sectorBags = null;
+        // Macro-structure chunks (CHASM, ARCHIVE, BOARDROOM, ...) that have had their entrance
+        // shell built but whose expensive interior is deliberately held back until the player
+        // commits by pressing that entrance's airlock switch. See buildChunk / beginMacroChunkContent.
+        this._pendingMacroContent = new Map();
         this.structureKit = new StructureKit(this);
         this.setPieces = new SetPieces(this);
         this.interactionController = new InteractionController(this);
@@ -518,6 +522,11 @@ export default class Environment {
                 this.activeChunks.delete(hash);
                 this.blackoutChunks.delete(hash);
                 this.spatialGrid.removeByChunk(hash);
+                // Drop a still-pending macro interior if the player walked away from it before
+                // ever pressing its airlock switch. `_buildChunkInterior` also self-aborts via
+                // `activeChunks.has(hash)` checks if it's already mid-flight (switch was pressed,
+                // then the chunk got unloaded before it finished, e.g. a warp or reset).
+                this._pendingMacroContent.delete(hash);
             }
         }
         if (chunksToDispose.length > 0) {
@@ -613,6 +622,29 @@ export default class Environment {
         }
     }
 
+    /**
+     * Generates one 16x16-cell chunk's geometry from scratch: floor/ceiling, walls, furniture,
+     * lighting, and (for the ~40% of chunks chosen as a macro structure) an entire hand-authored
+     * sector like CHASM or ARCHIVE.
+     *
+     * Educational Note: This method is split into two phases, a "shell" and an "interior," and
+     * only macro-structure chunks ever pause between them. The shell -- floor/ceiling, the
+     * sector's perimeter wall, and its entrance airlock(s) -- always finishes in this same call,
+     * because the player needs to be able to see and walk up to a sector from outside before
+     * they've chosen to enter it. The interior -- the hundreds of sector-specific meshes that
+     * make, say, CHASM's catwalks and pillars -- is handed off to `_buildChunkInterior` instead
+     * of running immediately. For an ordinary maze chunk that happens immediately, in the same
+     * call. For a macro chunk, the arguments are parked in `_pendingMacroContent` and this method
+     * returns early; the interior only actually runs once the player presses that sector's
+     * airlock switch (`beginMacroChunkContent`), and the airlock's inner door is held shut until
+     * it finishes (`isMacroChunkContentReady`, checked in InteractionController.updateAirlock).
+     * The effect: a sector's full cost is paid once, at the one moment the game can plausibly
+     * hide it behind an in-fiction loading beat, instead of silently during ordinary exploration.
+     * @param {number} chunkX - Chunk-space X coordinate (world X divided by chunkSize*cellSize).
+     * @param {number} chunkZ - Chunk-space Z coordinate.
+     * @param {string} hash - This chunk's unique key, e.g. `"3,-1"`, used everywhere (spatial
+     * grid, fixture/wall arrays, airlocks) to tag which chunk an object belongs to for cleanup.
+     */
     async buildChunk(chunkX, chunkZ, hash) {
         const chunkGroup = new THREE.Group();
         this.scene.add(chunkGroup);
@@ -626,8 +658,6 @@ export default class Environment {
             prngSeed = (prngSeed * 1664525 + 1013904223) >>> 0;
             return prngSeed / 4294967296.0;
         };
-        const cx = Math.sin(this.baseSeed) * 0.8;
-        const cy = Math.cos(this.baseSeed * 0.5) * 0.8;
         const stagingMeshes = [];
         const ctx = this._createChunkHelpers(hash, chunkGroup, stagingMeshes, random);
         const structuralMatrix = TheArchitect.getStructuralMatrix.call(this, ctx);
@@ -757,7 +787,6 @@ export default class Environment {
                 chunkGroup.add(skirt);
             }
         }
-        let chunkStartTime = performance.now();
         const occupied = new Set();
         ctx.markOccupied = (ox, oz) => occupied.add(`${ox},${oz}`);
         ctx.isOccupied = (ox, oz) => occupied.has(`${ox},${oz}`);
@@ -765,12 +794,86 @@ export default class Environment {
             const hallwayNeedsFloor = activeSector.id === "CHASM";
             const hallwayNeedsCeiling = true;
             this._buildEntranceHallways(chunkGroup, hash, startX, startZ, activeSector.id, ctx, hallwayNeedsFloor, hallwayNeedsCeiling);
+            // The rest of the macro chunk's perimeter -- the wall it shares with whatever's
+            // outside -- has to be part of the eager shell too, not just the entrance module
+            // itself. Every sector's `build()` calls `ctx.buildPerimeter(...)` as its very first
+            // statement and returns immediately once a cell is on the boundary ring, only
+            // falling through to the sector's actual (deferred) interior logic for non-boundary
+            // cells -- so calling `activeSector.build` here, restricted to just the ring, only
+            // ever exercises that wall-building path. It's cheap (~60 cells, not 256) and safe to
+            // run unconditionally. `buildPerimeter` also self-marks each cell `occupied`, so the
+            // deferred interior pass in `_buildChunkInterior` naturally skips these cells instead
+            // of rebuilding them once content loads. Without this, the boundary was a hole until
+            // the airlock was actually triggered -- the door module would exist, floating in open
+            // air, with no wall around it to be a door *in*.
+            const edge = this.chunkSize - 1;
+            for (let x = startX; x < startX + this.chunkSize; x++) {
+                for (let z = startZ; z < startZ + this.chunkSize; z++) {
+                    const localX = x - startX;
+                    const localZ = z - startZ;
+                    if (localX !== 0 && localX !== edge && localZ !== 0 && localZ !== edge) continue;
+                    if (ctx.isOccupied(x, z)) continue;
+                    activeSector.build(x, z, localX, localZ, typeof sectorMaze !== 'undefined' ? sectorMaze : null);
+                }
+            }
+            // `ctx.buildPerimeter` (and every helper built on top of it, like `ctx.addGeometry`)
+            // doesn't add meshes to `chunkGroup` directly -- it only builds geometry, registers
+            // collision in the spatial grid, and pushes the mesh into `stagingMeshes`. The actual
+            // `chunkGroup.add(...)` happens in `_compileInstances`, which batches same-geometry
+            // meshes into `InstancedMesh`es for far fewer draw calls. That compile step normally
+            // runs once, at the very end of a chunk's build. But we've split that build in two:
+            // the perimeter walls above just staged themselves as part of the eager *shell*, while
+            // `_compileInstances` only gets called from the deferred *interior* pass. Left alone,
+            // that means a macro chunk's boundary wall would have working collision (you can't
+            // walk through it) but no visible mesh at all until the sector's airlock is triggered
+            // -- solid, invisible walls. So we compile the shell's own staged meshes here, right
+            // away, then empty `stagingMeshes` before handing the rest off to
+            // `_pendingMacroContent`. Without that reset, the deferred interior's own
+            // `_compileInstances` call would find these same mesh objects still sitting in the
+            // (shared) array and add every one of them to the scene a second time.
+            if (stagingMeshes.length > 0) {
+                await this._compileInstances(hash, chunkGroup, stagingMeshes, random);
+                stagingMeshes.length = 0;
+            }
         }
+        const interiorArgs = {
+            hash, chunkGroup, stagingMeshes, ctx, random, chunkX, chunkZ, startX, startZ,
+            isMacroStructure, activeSector, sectorMaze, structuralMatrix
+        };
+        // This is the shell/interior boundary described in this method's doc comment above.
+        // Ordinary maze chunks fall through and build their interior immediately, below.
+        if (isMacroStructure && activeSector) {
+            chunkGroup.userData.contentReady = false;
+            this._pendingMacroContent.set(hash, interiorArgs);
+            return;
+        }
+        await this._buildChunkInterior(interiorArgs);
+    }
+
+    /**
+     * Runs the per-cell interior generation pass for a chunk -- the expensive part of
+     * `buildChunk` that macro-structure chunks defer until their airlock is activated (see
+     * `beginMacroChunkContent`). Ordinary maze chunks call this immediately from `buildChunk`.
+     * Bails out early if the chunk gets unloaded mid-build (e.g. the player walked away from a
+     * still-pending macro chunk, or wandered back out of an airlock before it finished loading).
+     */
+    async _buildChunkInterior(args) {
+        const {
+            hash, chunkGroup, stagingMeshes, ctx, random, chunkX, chunkZ, startX, startZ,
+            isMacroStructure, activeSector, sectorMaze, structuralMatrix
+        } = args;
+        const cx = Math.sin(this.baseSeed) * 0.8;
+        const cy = Math.cos(this.baseSeed * 0.5) * 0.8;
+        let chunkBreakerCount = 0;
+        const breakerPositions = [];
+        let chunkStartTime = performance.now();
         for (let x = startX; x < startX + this.chunkSize; x++) {
             for (let z = startZ; z < startZ + this.chunkSize; z++) {
+                if (!this.activeChunks.has(hash)) return;
                 if (performance.now() - chunkStartTime > 5.0) {
                     await new Promise(resolve => setTimeout(resolve, 0));
                     chunkStartTime = performance.now();
+                    if (!this.activeChunks.has(hash)) return;
                 }
                 if (!isMacroStructure && Math.abs(x) < 2 && Math.abs(z) < 2) continue;
                 const localX = x - startX;
@@ -932,8 +1035,37 @@ export default class Environment {
         }
         if (performance.now() - chunkStartTime > 5.0) {
             await new Promise(resolve => setTimeout(resolve, 0));
+            if (!this.activeChunks.has(hash)) return;
         }
         await this._compileInstances(hash, chunkGroup, stagingMeshes, random);
+        if (this.activeChunks.has(hash)) chunkGroup.userData.contentReady = true;
+    }
+
+    /**
+     * Kicks off the deferred interior build for a macro-structure chunk (see `buildChunk`).
+     * Called from InteractionController.updateAirlock the moment the player presses an
+     * entrance airlock's switch from outside. A no-op if the chunk was never gated, its content
+     * is already building/built, or it's since been unloaded.
+     * @param {string} hash - The chunk hash to begin building content for.
+     */
+    beginMacroChunkContent(hash) {
+        const args = this._pendingMacroContent.get(hash);
+        if (!args) return;
+        this._pendingMacroContent.delete(hash);
+        this._buildChunkInterior(args).catch(err => console.error('Macro chunk content build failed:', err));
+    }
+
+    /**
+     * @param {string} hash - The chunk hash to check.
+     * @returns {boolean} False only while a gated macro chunk's interior is still queued or
+     * actively building. True for ordinary (never-gated) chunks, completed macro interiors, and
+     * chunks that no longer exist (so a stale airlock never blocks forever).
+     */
+    isMacroChunkContentReady(hash) {
+        if (this._pendingMacroContent.has(hash)) return false;
+        const chunkGroup = this.activeChunks.get(hash);
+        if (!chunkGroup) return true;
+        return chunkGroup.userData.contentReady !== false;
     }
 
     updateInteractives(playerPos, delta) {
@@ -1347,6 +1479,7 @@ export default class Environment {
         this._runSalt32 = (Math.random() * 4294967296) >>> 0;
         this._macroChunkHashes = new Set();
         this._sectorBags = null;
+        this._pendingMacroContent.clear();
         if (this.tagPool) {
             this.tagPool.forEach(tag => tag.visible = false);
             this.tagIndex = 0;
