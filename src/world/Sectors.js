@@ -47,7 +47,7 @@ export const DEFAULT_FOLEY = {oscFreq: 60, filterType: 'lowpass', filterFreq: 60
  */
 const SECTORS = {
     NORMAL: {
-        fog: 0.04,
+        fog: 0.00, fogColor: 0x353535,
         ambience: {noise: 0.0, peace: 0.0, rumble: 60, freq: 250, freqOcc: 120, whine: 0.0005, whineOcc: 0.0001, dynamicWhine: true},
         delay: 0.15, feedback: 0.2
     },

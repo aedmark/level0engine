@@ -1,5 +1,12 @@
 # Level 0 Engine Changelog
 
+## [v0.5.10] - 2026-07-27
+
+_The Wreckage Update_
+
+### Fixed
+- **[WORLD] Floating Furniture Pile:** The rare NORMAL-sector "pile of furniture" set piece (three tables plus six chairs, ~2% spawn chance per POI cell) stacked its tables at fixed height offsets (`i * 0.8`) with only a 0-11 degree tilt on the X/Z axes, so instead of a toppled heap it read as a neat, barely-tilted column of tables hovering in place. A first pass at fixing this over-corrected by giving the tables fully random rotation on every axis — visually chaotic, but since the pivot for that rotation was the table's own center rather than a point actually touching the ground, tipping it any real amount just sent half the geometry through the floor. Rebuilt as a single hand-composed prop instead: one table gets an exact 180-degree flip about its own base so it rests tabletop-down with its pedestal sticking up like legs, a second table leans against it by pivoting around its own pedestal edge (not its center) so that contact point stays glued to the floor while the rest tips up, capped well under the angle where its tabletop overhang would dip below ground, and three chairs are scattered around it with the same edge-pivot trick used on one of them. Also caught along the way: `addFurniture` silently drops any object whose bounding box overlaps one already registered, so building the pile piece-by-piece (as the original code did) would have discarded most of the wreckage that's supposed to be touching — the whole pile is now assembled as one group and registered with a single call. Verified live in-engine by spawning the piece via the console and confirming it rests fully grounded from multiple angles.
+
 ## [v0.5.9] - 2026-07-26
 
 _The Line of Sight Update_

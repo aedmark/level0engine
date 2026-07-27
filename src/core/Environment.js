@@ -69,6 +69,22 @@ export default class Environment {
         this._breakerHuntHops = undefined;
         this._macroChunkHashes = new Set();
         this._sectorBags = null;
+        // Macro sector (ARCHIVE, BOARDROOM, IMPOUND, ...) placement rules -- both distances are
+        // in chunk units (chunkSize * cellSize = 64 world units each) and measured as Chebyshev
+        // (max-axis) distance, i.e. a square exclusion zone rather than a circular one, to match
+        // how chunks themselves are laid out on a grid.
+        // Player spawns at chunk (0,0). Previously only that single chunk was excluded from macro
+        // placement, so a macro sector could show up one chunk over (as close as 64 units,
+        // sometimes inside the player's very first loaded render-distance ring). This pushes the
+        // nearest possible macro chunk out to a full renderDistance-plus-one ring away, so nothing
+        // macro is visible or reachable in the first few steps out of spawn.
+        this.macroSpawnExclusionRadius = 3;
+        // Previously two macro chunks were only barred from being orthogonally adjacent (the four
+        // N/E/S/W neighbors), so they could still land diagonally touching or with just one
+        // ordinary maze chunk of breathing room between them. This widens that check to a full
+        // square neighborhood so macro sectors end up meaningfully spread across the map instead
+        // of clustering.
+        this.macroMinSpacingChunks = 2;
         // Macro-structure chunks (CHASM, ARCHIVE, BOARDROOM, ...) that have had their entrance
         // shell built but whose expensive interior is deliberately held back until the player
         // commits by pressing that entrance's airlock switch. See buildChunk / beginMacroChunkContent.
@@ -665,13 +681,21 @@ export default class Environment {
         const sectorMatrix = TheArchitect.getSectorMatrix.call(this, ctx);
         const startX = chunkX * this.chunkSize;
         const startZ = chunkZ * this.chunkSize;
-        let isMacroStructure = random() > 0.60 && (Math.abs(chunkX) > 0 || Math.abs(chunkZ) > 0);
+        let isMacroStructure = random() > 0.60 &&
+            Math.max(Math.abs(chunkX), Math.abs(chunkZ)) >= this.macroSpawnExclusionRadius;
         if (isMacroStructure) {
-            const neighborHashes = [
-                `${chunkX - 1},${chunkZ}`, `${chunkX + 1},${chunkZ}`,
-                `${chunkX},${chunkZ - 1}`, `${chunkX},${chunkZ + 1}`
-            ];
-            if (neighborHashes.some(h => this._macroChunkHashes.has(h))) {
+            const spacing = this.macroMinSpacingChunks;
+            let tooCloseToAnotherMacro = false;
+            for (let dx = -spacing; dx <= spacing && !tooCloseToAnotherMacro; dx++) {
+                for (let dz = -spacing; dz <= spacing; dz++) {
+                    if (dx === 0 && dz === 0) continue;
+                    if (this._macroChunkHashes.has(`${chunkX + dx},${chunkZ + dz}`)) {
+                        tooCloseToAnotherMacro = true;
+                        break;
+                    }
+                }
+            }
+            if (tooCloseToAnotherMacro) {
                 isMacroStructure = false;
             } else {
                 this._macroChunkHashes.add(hash);

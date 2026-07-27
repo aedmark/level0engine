@@ -309,7 +309,16 @@ export default class StructuralBlueprints {
                             blockBox.isInvisibleBlocker = true;
                             blockBox.chunkHash = hash;
                             this.spatialGrid.insert(blockBox);
-                            const grateOffset = (this.cellSize / 2) - 0.025;
+                            // These grates sit right where this tunnel's own structure ends and
+                            // hands off to whatever wall the ordinary maze generation independently
+                            // builds in the neighboring cell. That handoff boundary is nominally
+                            // the same plane from both sides, but each side gets there through a
+                            // different buildWall() call with its own rounding/padding, so the two
+                            // "meeting" surfaces land only ~0.01-0.02 units apart instead of exactly
+                            // coincident -- close enough to z-fight, but not by a consistent amount,
+                            // which is why only some of these grates visibly flicker. 0.025 of inset
+                            // wasn't enough clearance to reliably sit in front of both; 0.07 is.
+                            const grateOffset = (this.cellSize / 2) - 0.07;
                             ctx.addGrate(x * this.cellSize, 0.35, z * this.cellSize - (flipZ * grateOffset), false);
                             ctx.addGrate(x * this.cellSize - (flipX * grateOffset), 0.35, z * this.cellSize, true);
                         } else {
@@ -358,7 +367,16 @@ export default class StructuralBlueprints {
                                 blockBox.isInvisibleBlocker = true;
                                 blockBox.chunkHash = hash;
                                 this.spatialGrid.insert(blockBox);
-                                const grateOffset = (this.cellSize / 2) - 0.025;
+                                // These grates sit right where this tunnel's own structure ends and
+                            // hands off to whatever wall the ordinary maze generation independently
+                            // builds in the neighboring cell. That handoff boundary is nominally
+                            // the same plane from both sides, but each side gets there through a
+                            // different buildWall() call with its own rounding/padding, so the two
+                            // "meeting" surfaces land only ~0.01-0.02 units apart instead of exactly
+                            // coincident -- close enough to z-fight, but not by a consistent amount,
+                            // which is why only some of these grates visibly flicker. 0.025 of inset
+                            // wasn't enough clearance to reliably sit in front of both; 0.07 is.
+                            const grateOffset = (this.cellSize / 2) - 0.07;
                                 if (i === 0) {
                                     if (tunnelOnZ) ctx.addGrate(segX * this.cellSize, 0.35, segZ * this.cellSize - grateOffset, false);
                                     else ctx.addGrate(segX * this.cellSize - grateOffset, 0.35, segZ * this.cellSize, true);
@@ -500,7 +518,16 @@ export default class StructuralBlueprints {
                             blockBox.isInvisibleBlocker = true;
                             blockBox.chunkHash = hash;
                             this.spatialGrid.insert(blockBox);
-                            const grateOffset = (this.cellSize / 2) - 0.025;
+                            // These grates sit right where this tunnel's own structure ends and
+                            // hands off to whatever wall the ordinary maze generation independently
+                            // builds in the neighboring cell. That handoff boundary is nominally
+                            // the same plane from both sides, but each side gets there through a
+                            // different buildWall() call with its own rounding/padding, so the two
+                            // "meeting" surfaces land only ~0.01-0.02 units apart instead of exactly
+                            // coincident -- close enough to z-fight, but not by a consistent amount,
+                            // which is why only some of these grates visibly flicker. 0.025 of inset
+                            // wasn't enough clearance to reliably sit in front of both; 0.07 is.
+                            const grateOffset = (this.cellSize / 2) - 0.07;
                             if (i === 0) {
                                 if (dirZ) ctx.addGrate(segX * this.cellSize, 0.35, segZ * this.cellSize - grateOffset, false);
                                 else ctx.addGrate(segX * this.cellSize - grateOffset, 0.35, segZ * this.cellSize, true);
@@ -889,19 +916,66 @@ export default class StructuralBlueprints {
                 }
             },
             {
+                name: "THE WRECKED FURNITURE PILE",
                 prob: 0.0215, build: (x, z) => {
                     const cx = x * this.cellSize;
                     const cz = z * this.cellSize;
+
+                    // A single hand-built "pile" prop rather than randomly-transformed loose
+                    // furniture: every tilt below pivots around a real floor-contact edge
+                    // (not the object's own center), so pieces lean and topple against each
+                    // other instead of floating or sinking through the floor. The whole thing
+                    // is assembled as one group and registered with addFurniture a single time,
+                    // since addFurniture drops anything whose bounding box overlaps another
+                    // registered box - calling it per-piece would silently discard the pieces
+                    // that are supposed to be touching.
+                    const pile = new THREE.Group();
+
+                    // Base: a table flipped fully upside-down (an exact 180 degree flip about
+                    // its own bottom-center pivot, translated up by its own height) so it rests
+                    // tabletop-down on the floor with its pedestal sticking up like legs.
+                    const base = buildTable(0, 0, 0);
+                    base.rotation.x = Math.PI;
+                    base.rotation.y = random() * Math.PI * 2;
+                    base.position.y = 0.825;
+                    pile.add(base);
+
+                    // A second table toppled and leaning at an angle against the first, pivoted
+                    // about its own pedestal edge (shifted so that edge sits at the tilt group's
+                    // local origin) and capped well under the ~67 degree point where its
+                    // tabletop overhang would dip below the floor.
+                    const leaner = buildTable(-0.25, 0, 0);
+                    const leanTip = new THREE.Group();
+                    leanTip.add(leaner);
+                    leanTip.rotation.z = -(0.55 + random() * 0.3);
+                    const leanYaw = new THREE.Group();
+                    leanYaw.add(leanTip);
+                    leanYaw.rotation.y = random() * Math.PI * 2;
+                    leanYaw.position.set((random() - 0.5) * 0.35, 0, (random() - 0.5) * 0.35);
+                    pile.add(leanYaw);
+
+                    // A few chairs shoved into the wreckage: one knocked onto a rear leg edge
+                    // (same safe pivot trick, smaller angle), the rest upright but scattered
+                    // around the base at odd facings.
                     for (let i = 0; i < 3; i++) {
-                        const t = buildTable(cx + (random() * 0.4 - 0.2), i * 0.8, cz + (random() * 0.4 - 0.2));
-                        t.rotation.set(random() * 0.2, random() * Math.PI, random() * 0.2);
-                        addFurniture(t);
+                        const ang = (i / 3) * Math.PI * 2 + random() * 0.7;
+                        const r = 0.7 + random() * 0.4;
+                        const px = Math.cos(ang) * r, pz = Math.sin(ang) * r;
+                        if (i === 0) {
+                            const chair = buildChair(-0.3, 0, 0, random() * Math.PI * 2);
+                            const chairTip = new THREE.Group();
+                            chairTip.add(chair);
+                            chairTip.rotation.z = -(0.45 + random() * 0.25);
+                            chairTip.position.set(px, 0, pz);
+                            pile.add(chairTip);
+                        } else {
+                            pile.add(buildChair(px, 0, pz, random() * Math.PI * 2));
+                        }
                     }
-                    for (let i = 0; i < 6; i++) {
-                        const c = buildChair(cx + (random() * 1.2 - 0.6), i * 0.4, cz + (random() * 1.2 - 0.6), random() * Math.PI * 2);
-                        c.rotation.set(random() * Math.PI, random() * Math.PI, random() * Math.PI);
-                        addFurniture(c);
-                    }
+
+                    pile.position.set(cx, 0, cz);
+                    addFurniture(pile);
+
                     const batGroup = new THREE.Group();
                     const batMesh = this.batteryPrefab.clone();
                     batGroup.add(batMesh);
