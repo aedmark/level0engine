@@ -287,8 +287,8 @@ export default class LumenGrid {
                     light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
                     if (fixture.material) fixture.material.emissiveIntensity = Math.max(0.05, fixture.currentIntensity * 0.6);
                 } else {
-                    // Normal light applies a subtle, slow sine-wave pulse for ambient atmosphere
-                    light.intensity = (fixture.baseIntensity + (Math.sin(time * 120.0 + fixture.flickerOffset) * 0.02)) * fadeEnvelope * intensityScalar;
+                    const normalIntensity = fixture.currentIntensity !== undefined ? fixture.currentIntensity : fixture.baseIntensity;
+                    light.intensity = (normalIntensity + (Math.sin(time * 120.0 + fixture.flickerOffset) * 0.02)) * fadeEnvelope * intensityScalar;
                     if (fixture.material) fixture.material.emissiveIntensity = fixture.isLighthouse ? 5.0 : 0.4;
                 }
             } else {

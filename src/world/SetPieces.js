@@ -502,8 +502,8 @@ export default class SetPieces {
             }
             env._buildAirlock(chunkGroup, hash, outer.x * env.cellSize, outer.z * env.cellSize, spansX, sectorId, outSign);
             if (needsFloor || needsCeiling) {
-                env._buildHallwaySegment(chunkGroup, hash, innerCellX * env.cellSize, innerCellZ * env.cellSize, spansX, needsFloor, needsCeiling, sectorId, true);
-                env._buildHallwaySegment(chunkGroup, hash, outer.x * env.cellSize, outer.z * env.cellSize, spansX, needsFloor, needsCeiling, sectorId, false);
+                env._buildHallwaySegment(chunkGroup, hash, innerCellX * env.cellSize, innerCellZ * env.cellSize, spansX, needsFloor, needsCeiling, sectorId, false);
+                env._buildHallwaySegment(chunkGroup, hash, outer.x * env.cellSize, outer.z * env.cellSize, spansX, needsFloor, needsCeiling, sectorId, true);
             }
         }
     }
@@ -518,32 +518,6 @@ export default class SetPieces {
      * @param {boolean} spansX - If true, the airlock spans the X axis; otherwise it spans the Z axis.
      * @param {string} sectorId - The ID of the sector.
      * @param {number} outSign - Direction multiplier indicating which way is "out" (1 or -1).
-     */
-    /**
-     * GROUND-UP REBUILD (see git history for the previous, iteratively-patched version).
-     *
-     * The old version built the door's sliding-pocket recess (jamb + four pocket plates) TWICE
-     * per airlock -- once per door -- plus a separate "side wall" spanning the same footprint
-     * again. That's 12+ near-overlapping boxes per side before the sector's own perimeter wall
-     * even entered the picture, all assuming they'd recess invisibly into solid mass that nothing
-     * actually guaranteed was there. In sectors with a tight corridor it silently overlapped the
-     * perimeter wall; in sectors with an open foyer (boardroom) it just stood there exposed --
-     * an unintentional-looking cluster of boxes instead of a doorframe.
-     *
-     * This version separates two concerns that used to be tangled together:
-     *   1. The DOOR (buildDoor) -- header, lamp, sliding panels. Untouched: same geometry, same
-     *      materials, same userData contract that InteractionController.updateAirlockDoor and
-     *      Environment's interact handler read from. This is "the door texture" the rework was
-     *      told to keep.
-     *   2. The SHELL -- one solid pillar per side (not per door) spanning the airlock's full
-     *      depth, plus an "outer cap" that explicitly closes the gap to the sector's ordinary
-     *      perimeter wall. StructureKit.buildPerimeter now simply steps aside for this doorway's
-     *      three cells instead of trying to narrow its own wall around the airlock's geometry --
-     *      the airlock owns its whole footprint outright, so there's no seam left for the two
-     *      systems to fight over.
-     *
-     * PILLAR_REACH and the perimeter's doorway-shoulder exemption in StructureKit.js are the one
-     * pair of numbers that must agree; see the comment on isDoorwayNS/isDoorwayEW there.
      */
     buildAirlock(chunkGroup, hash, dcx, dcz, spansX, sectorId, outSign) {
         const env = this.env;
@@ -561,15 +535,6 @@ export default class SetPieces {
         const innerZ = dcz + (spansX ? inSign * halfDepth : 0);
         const midX = dcx;
         const midZ = dcz;
-
-        // Cross-axis geometry, all in one place so the numbers can't drift apart:
-        //  - CORRIDOR_HALF matches every ordinary hallway wall in the engine (buildHallwaySegment,
-        //    buildPerimeter's default cell width) -- the pillar's inner face sits flush with it.
-        //  - PILLAR_REACH must comfortably clear the door panel's fully-open position. The panel
-        //    travels to baseOffset(0.76) + slideDist(1.55) = 2.31, with half-width 0.79, so its
-        //    outer edge reaches ~3.10. 3.5 leaves a real margin instead of a hairline fit.
-        //  - SHOULDER_OUTER is where the next untouched perimeter cell's inner face naturally
-        //    falls (one cell over from the doorway core, cellSize=4, half-width ~2.0 -> 4+2=6).
         const CORRIDOR_HALF = 1.75;
         const PILLAR_REACH = 2.2;
         const SHOULDER_OUTER = 2.0;
@@ -594,9 +559,6 @@ export default class SetPieces {
             return new THREE.Mesh(geo, mat);
         };
 
-        // A single door: header, status lamp, and the two sliding panels -- unchanged from the
-        // previous build. No jamb/pocket geometry here anymore; the shell pillars (below) now
-        // provide that framing for both doors at once instead of each door building its own.
         const buildDoor = (cx, cz) => {
             const header = bWall(spansX ? 4.0 : 0.7, 0.8, spansX ? 0.7 : 4.0, env.metalMat);
             header.position.set(cx, 3.0, cz);
@@ -701,24 +663,6 @@ export default class SetPieces {
 
         const outerDoor = buildDoor(outerX, outerZ);
         const innerDoor = buildDoor(innerX, innerZ);
-
-        // buildPerimeter builds its blocks at geometry height (height_param + 2.0) = 5.0, centered
-        // at y=1.5 -- i.e. a vertical span of [-1.0, 4.0], a full 2 units taller than the 3.0-tall
-        // (0 to 3) convention every interior/hallway wall in the engine uses. That extra height is
-        // presumably deliberate over-build so the sector's true boundary never shows a peek-through
-        // at any camera angle or terrain height. Every previous airlock piece (jamb, pocket, the old
-        // sideWall/housing, and this rebuild's pillar/cap) used the ordinary 3.0-tall convention
-        // instead, which sat flush with the perimeter in X/Z but fell 1 unit short of it on top and
-        // 1 unit short underneath -- a real seam, just one that used to be hidden by how many
-        // overlapping, differently-sized boxes were stacked in that area. Consolidating down to one
-        // clean box per side finally made that seam visible instead of accidentally papering over
-        // it. Matching the perimeter's own height here (not the interior-wall height) closes it for
-        // good, since these pieces now sit directly against the perimeter with nothing in between.
-        // The door pockets (jambs) and over-door header are now dynamically generated by
-        // StructureKit.buildPerimeter using the sector's native wall material and height.
-        // This ensures a seamless texture blend, so we no longer build generic structural
-        // pillars here.
-
         const roofSpan = SHOULDER_OUTER * 2 + 0.2;
         const capMat = env.blackIronMat || env.structMat;
         const ceilBase = bWall(4.2, 0.4, 4.2, capMat);
@@ -738,12 +682,14 @@ export default class SetPieces {
         const switchButtonMat = new THREE.MeshBasicMaterial({color: 0x00ffcc});
         const switchButtonGeo = new THREE.BoxGeometry(spansX ? 0.06 : 0.1, 0.1, spansX ? 0.1 : 0.06);
         const switchButton = new THREE.Mesh(switchButtonGeo, switchButtonMat);
+        const WALL_HALF_THICKNESS = 0.2;
+        const SWITCH_OFFSET = CORRIDOR_HALF - WALL_HALF_THICKNESS - 0.025;
         if (spansX) {
             switchButton.position.set(-0.03, 0, 0);
-            switchGroup.position.set(midX + 1.725, 1.3, midZ);
+            switchGroup.position.set(midX + SWITCH_OFFSET, 1.3, midZ);
         } else {
             switchButton.position.set(0, 0, -0.03);
-            switchGroup.position.set(midX, 1.3, midZ + 1.725);
+            switchGroup.position.set(midX, 1.3, midZ + SWITCH_OFFSET);
         }
         switchGroup.add(switchBase, switchButton);
         switchGroup.userData = { isAirlockSwitch: true, entityOpen: false, chunkHash: hash };

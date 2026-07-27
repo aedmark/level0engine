@@ -98,7 +98,23 @@ export const BoardroomSector = (env, ctx) => {
                         addGeometry(p);
                     };
                     const pane = (alongX, px, pz, len) => {
-                        if (len < 0.2) return;
+                        // `len` comes out of each caller's own corner/door-clearance math (see
+                        // glassFace below), and in at least the forced-glass foyer case that math
+                        // can legitimately collapse to near-zero or negative for a given cell --
+                        // silently returning here meant the two flanking corner posts and the top
+                        // /bottom rails still went up (they're built unconditionally, before this
+                        // call) but the actual pane connecting them never did. From the room, that
+                        // reads as a fully-framed window with the glass missing entirely: bare
+                        // carpet visible straight through where a wall should be. A window that's
+                        // too narrow to glaze is still supposed to be a wall -- fall back to a
+                        // solid panel at the same footprint instead of leaving the gap open.
+                        if (len < 0.2) {
+                            if (Math.abs(len) < 0.02) return;
+                            const w = buildWall(alongX ? Math.abs(len) : 0.2, alongX ? 0.2 : Math.abs(len), env.boardWallMat || env.sharedWallMat, 3.0);
+                            w.position.set(px, 1.5, pz);
+                            addGeometry(w);
+                            return;
+                        }
                         const g = buildWall(alongX ? len : 0.06, alongX ? 0.06 : len, glass, 2.6);
                         g.position.set(px, 1.42, pz);
                         addGeometry(g);
@@ -229,11 +245,21 @@ export const BoardroomSector = (env, ctx) => {
                             const adjLen = len - (extNeg === 0 ? 0.1 : 0) - (extPos === 0 ? 0.1 : 0);
                             const adjLatC = latC + (extNeg === 0 ? 0.05 : 0) - (extPos === 0 ? 0.05 : 0);
                             const isDoorFace = myEgress.door && myEgress.door[0] === dx && myEgress.door[1] === dz;
+                            // The airlock's own approach vestibule (isFoyer -- 2 cells deep, 1 cell
+                            // either side of the doorway column) is separate from the ordinary
+                            // corridor grid (isC). Cells bordering it used to get the same 18%-glass/
+                            // 82%-solid roll as any other interior partition, which meant walking out
+                            // of the airlock had a strong chance of finding a flat concrete wall
+                            // immediately to both the left and right -- reported as walls "intruding
+                            // into the sector space" right at the exit. Forcing glass here doesn't
+                            // touch that randomness anywhere else in the suite; it just guarantees
+                            // the one stretch of wall a player can't route around (the airlock exit
+                            // itself) is never the one that got unlucky.
                             if (bowlHere) {
                                 glassFace(alongX, faceC, adjLatC, adjLen, false);
                             } else if (isDoorFace) {
                                 glassFace(alongX, faceC, adjLatC, adjLen, true);
-                            } else if (random() < 0.18) {
+                            } else if (isFoyer(nlx, nlz) || random() < 0.18) {
                                 glassFace(alongX, faceC, adjLatC, adjLen, false);
                             } else {
                                 const wall = buildWall(alongX ? adjLen : 0.2, alongX ? 0.2 : adjLen, env.boardWallMat || env.sharedWallMat, 3.0);

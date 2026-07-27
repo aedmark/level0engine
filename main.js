@@ -68,6 +68,18 @@ function triggerAscension() {
     seedInput.value = parts[0] + " FL-" + floor;
 }
 
+function ensurePendingContentAtPlayer() {
+    if (!environment._pendingMacroContent || environment._pendingMacroContent.size === 0) return;
+    const px = engine.camera.position.x, pz = engine.camera.position.z;
+    for (const [hash, zone] of environment.macroZones.entries()) {
+        if (!environment._pendingMacroContent.has(hash)) continue;
+        if (px >= zone.minX && px <= zone.maxX && pz >= zone.minZ && pz <= zone.maxZ) {
+            environment.beginMacroChunkContent(hash);
+            break;
+        }
+    }
+}
+
 // ==========================================
 // CONTROLLER REGISTRATION
 // ==========================================
@@ -100,6 +112,7 @@ if (savedState) {
     if (savedState.bestDepth !== undefined) player.bestDepth = savedState.bestDepth;
     player.updateObjectives();
     environment.baseFogDensity = (Number(savedState.fog) || 5) / 100;
+    environment.updateChunks(engine.camera.position);
 }
 
 // Bind all UI & System Events
@@ -115,50 +128,60 @@ UIManager.startVHSTimer();
 // DEBUG & TOOLS
 // ==========================================
 
-/**
- * Development hook: Allows jumping to specific sectors by brute-forcing
- * seeds until the environment generator naturally spawns the requested zone.
- */
 document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e) => {
     const targetSector = e.target.value;
     if (!targetSector) return;
-    
-    let attempts = 0;
-    const baseSeedStr = document.getElementById('seedInput').value.split('-F')[0];
-    const originalSeed = document.getElementById('seedInput').value;
-    
+
     const uiLayer = document.getElementById('ui-layer');
     if (uiLayer) uiLayer.style.opacity = '0.5';
-    
-    while(attempts < 150) {
-        const testSeed = baseSeedStr + "-F" + attempts;
-        document.getElementById('seedInput').value = testSeed;
-        environment.generate();
-        environment.updateChunks(new THREE.Vector3(0, 1.6, 0));
-        
+
+    const originalPos = engine.camera.position.clone();
+    const chunkWorldSize = environment.chunkSize * environment.cellSize;
+    const maxSteps = 200;
+
+    let step = 0;
+    let foundHash = null;
+    let foundZone = null;
+
+    while (step < maxSteps) {
+        environment.updateChunks(new THREE.Vector3(step * chunkWorldSize, 1.6, 0));
+
         while (environment.isBuildingChunk || environment.chunkQueue.length > 0) {
             await new Promise(r => setTimeout(r, 5));
         }
-        
-        const zones = Array.from(environment.macroZones.values());
-        const target = zones.find(z => z.id === targetSector);
-        
-        if (target) {
-            const tx = (target.startX + 7) * environment.cellSize;
-            const tz = (target.startZ + 3) * environment.cellSize;
-            engine.camera.position.set(tx, 1.6, tz);
-            console.log(`[SectorHunt] Found ${targetSector} on seed ${testSeed}`);
-            e.target.value = "";
-            if (uiLayer) uiLayer.style.opacity = '1';
-            return;
+
+        for (const [hash, zone] of environment.macroZones.entries()) {
+            if (zone.id === targetSector) {
+                foundHash = hash;
+                foundZone = zone;
+                break;
+            }
         }
-        attempts++;
-        if (attempts % 5 === 0) await new Promise(r => setTimeout(r, 0));
+        if (foundZone) break;
+        step++;
+        if (step % 5 === 0) await new Promise(r => setTimeout(r, 0));
     }
-    
-    console.log(`[SectorHunt] Could not find ${targetSector} after 150 attempts.`);
-    document.getElementById('seedInput').value = originalSeed;
-    environment.generate();
+
+    if (!foundZone) {
+        console.log(`[SectorHunt] Could not find ${targetSector} within ${maxSteps} chunk steps on the current seed.`);
+        environment.updateChunks(originalPos);
+        e.target.value = "";
+        if (uiLayer) uiLayer.style.opacity = '1';
+        return;
+    }
+
+    // Mirror pressing the airlock switch, then wait for the deferred interior to actually build.
+    environment.beginMacroChunkContent(foundHash);
+    let waited = 0;
+    while (!environment.isMacroChunkContentReady(foundHash) && waited < 4000) {
+        await new Promise(r => setTimeout(r, 20));
+        waited += 20;
+    }
+
+    const tx = (foundZone.startX + 7) * environment.cellSize;
+    const tz = (foundZone.startZ + 3) * environment.cellSize;
+    engine.camera.position.set(tx, 1.6, tz);
+    console.log(`[SectorHunt] Found ${targetSector} at chunk ${foundHash} after ${step} chunk step(s), same seed.`);
     e.target.value = "";
     if (uiLayer) uiLayer.style.opacity = '1';
 });
@@ -184,6 +207,7 @@ function animate() {
     
     // Environment Tick
     environment.updateChunks(engine.camera.position);
+    ensurePendingContentAtPlayer();
     environment.updateInteractives(engine.camera.position, delta);
     
     // Fall Detection (OOB bounds check)

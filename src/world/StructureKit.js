@@ -4,7 +4,7 @@
 /**
  * A utility class providing common geometry-building helpers passed via `ctx` to all sectors.
  * 
- * Educational Note: This class is vital for performance. Notice the `cacheGeo` and `buildWall` 
+ * This class is vital for performance. Notice the `cacheGeo` and `buildWall`
  * functions. Instead of creating a new `THREE.BoxGeometry` for every wall in the maze (which 
  * would destroy memory and crash the browser), we hash the dimensions (`w_h_d_yOffset`) and 
  * re-use the exact same geometry reference. This allows Three.js to render thousands of walls 
@@ -251,19 +251,11 @@ export default class StructureKit {
                 if (!isPerimeter) return false;
                 if (sectorId && helpers.markOccupied) helpers.markOccupied(x, z);
                 const edge = env.chunkSize - 1;
-                // SetPieces.buildAirlock now owns its entire footprint outright -- door, structural
-                // pillars, AND the outer cap that closes the seam to the rest of the envelope --
-                // instead of this helper trying to narrow its own wall around the airlock's
-                // geometry from the outside. That narrowing math is what caused the previous
-                // overlap/gap bugs (walls "coming away a full block" on one side, exposed interior
-                // texture on the other): two systems independently computing where the boundary
-                // between them should fall, and disagreeing. Now there's only one owner, so this
-                // just steps aside for the doorway's three cells (the core plus both shoulders).
-                // The airlock's doorframe now sits completely flush inside the 1-cell doorway opening.
-                // We use the sector's native wall material to build the door pockets (jambs) and the
-                // header above the door, ensuring a seamless aesthetic transition.
                 const isDoorwayNS = (localZ === 0 || localZ === edge) && localX === 7;
                 const isDoorwayEW = (localX === 0 || localX === edge) && localZ === 7;
+                const isShoulderNS = (localZ === 0 || localZ === edge) && (localX === 6 || localX === 8);
+                const isShoulderEW = (localX === 0 || localX === edge) && (localZ === 6 || localZ === 8);
+                const isShoulder = isShoulderNS || isShoulderEW;
                 if (isDoorwayNS || isDoorwayEW) {
                     const wMat = wallMat || env.sharedWallMat;
                     const aMat = env.metalMat || env.structMat; // Airlock texture
@@ -333,13 +325,7 @@ export default class StructureKit {
                 const d = env.cellSize + 0.02;
                 const cx = x * env.cellSize;
                 const cz = z * env.cellSize;
-                const key = `${env.cellSize}_${height + 2.0}_${env.cellSize}_0`;
-                let geo = env.geoCache.get(key);
-                if (!geo) {
-                    geo = new THREE.BoxGeometry(w, height + 2.0, d);
-                    env.geoCache.set(key, geo);
-                    env.geoCache.set(geo.uuid, true);
-                }
+                const wallHeight = isShoulder ? height : height + 2.0;
                 const multiMat = [
                     localX === edge ? env.sharedWallMat : wMat, // +X
                     localX === 0 ? env.sharedWallMat : wMat,    // -X
@@ -348,18 +334,65 @@ export default class StructureKit {
                     localZ === edge ? env.sharedWallMat : wMat, // +Z
                     localZ === 0 ? env.sharedWallMat : wMat     // -Z
                 ];
-                const wall = new THREE.Mesh(geo, multiMat);
-                wall.position.set(cx, height / 2, cz);
-                wall.castShadow = true;
-                wall.receiveShadow = true;
-                wall.userData.chunkHash = hash;
-                wall.updateMatrixWorld(true);
-                if (!wall.geometry.boundingBox) wall.geometry.computeBoundingBox();
-                const box = wall.geometry.boundingBox.clone().applyMatrix4(wall.matrixWorld);
-                box.chunkHash = hash;
-                box.isEntityBlocker = true;
-                env.spatialGrid.insert(box);
-                stagingMeshes.push(wall);
+                const pushWallSegment = (segW, segH, segD, segCx, segCz) => {
+                    const key = `perim_${segW}_${segH}_${segD}`;
+                    let geo = env.geoCache.get(key);
+                    if (!geo) {
+                        geo = new THREE.BoxGeometry(segW, segH, segD);
+                        // The wallpaper/wall textures are tuned assuming a full-size cell (w x d).
+                        // A narrower segment (e.g. the shoulder's near/far split) still gets the
+                        // default 0..1 UV range from BoxGeometry, which squeezes that same full
+                        // texture into less physical space -- the "scrunched" look on the narrow
+                        // piece next to the doorway. Scale the UVs down to match how much of the
+                        // reference cell this segment actually covers, so texture density (and
+                        // the pattern's scale) stays consistent across differently-sized segments.
+                        const uv = geo.attributes.uv;
+                        for (let i = 0; i < 8; i++) uv.setX(i, uv.getX(i) * (segD / d));
+                        for (let i = 16; i < 24; i++) uv.setX(i, uv.getX(i) * (segW / w));
+                        env.geoCache.set(key, geo);
+                        env.geoCache.set(geo.uuid, true);
+                    }
+                    const wall = new THREE.Mesh(geo, multiMat);
+                    wall.position.set(segCx, segH / 2, segCz);
+                    wall.castShadow = true;
+                    wall.receiveShadow = true;
+                    wall.userData.chunkHash = hash;
+                    wall.updateMatrixWorld(true);
+                    if (!wall.geometry.boundingBox) wall.geometry.computeBoundingBox();
+                    const box = wall.geometry.boundingBox.clone().applyMatrix4(wall.matrixWorld);
+                    box.chunkHash = hash;
+                    box.isEntityBlocker = true;
+                    env.spatialGrid.insert(box);
+                    stagingMeshes.push(wall);
+                };
+                if (!isShoulder) {
+                    pushWallSegment(w, wallHeight, d, cx, cz);
+                } else {
+                    // These shoulder cells still need to read as solid perimeter wall (flush with
+                    // every neighboring full-block cell) -- they're only split in two along the
+                    // width so the pieces closest to the doorway can be swapped for a recessed
+                    // pocket later without touching the outer piece. Both pieces must keep the
+                    // *full* cell depth/width on their thickness axis; previously that axis used a
+                    // fixed 0.4 "SHOULDER_THICKNESS" instead, which left the wall only 0.4 units
+                    // deep in the middle of a 4-unit cell -- a gap on both the corridor-facing and
+                    // outward-facing sides that exposed the floor and the backside of the airlock
+                    // structure through the missing wall mass.
+                    const NEAR_WIDTH = 0.8;
+                    const FAR_WIDTH = (isShoulderNS ? w : d) - NEAR_WIDTH;
+                    if (isShoulderNS) {
+                        const doorSign = Math.sign(7 - localX) || 1;
+                        const nearCx = cx + doorSign * (w / 2 - NEAR_WIDTH / 2);
+                        const farCx = cx - doorSign * (w / 2 - FAR_WIDTH / 2);
+                        pushWallSegment(NEAR_WIDTH, wallHeight, d, nearCx, cz);
+                        pushWallSegment(FAR_WIDTH, wallHeight, d, farCx, cz);
+                    } else {
+                        const doorSign = Math.sign(7 - localZ) || 1;
+                        const nearCz = cz + doorSign * (d / 2 - NEAR_WIDTH / 2);
+                        const farCz = cz - doorSign * (d / 2 - FAR_WIDTH / 2);
+                        pushWallSegment(w, wallHeight, NEAR_WIDTH, cx, nearCz);
+                        pushWallSegment(w, wallHeight, FAR_WIDTH, cx, farCz);
+                    }
+                }
                 return true;
             }
         };
