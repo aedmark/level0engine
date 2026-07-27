@@ -75,6 +75,8 @@ export default class MaterialLibrary {
         env.breakerBaseGeo = new THREE.BoxGeometry(0.6, 0.8, 0.20);
         env.breakerDoorGeo = new THREE.BoxGeometry(0.6, 0.8, 0.05);
         env.breakerDoorGeo.translate(0.3, 0, 0);
+        env.breakerHandleGeo = new THREE.BoxGeometry(0.05, 0.2, 0.05);
+        env.breakerHandleMat = new THREE.MeshStandardMaterial({color: 0x2b2b2b, roughness: 0.4, metalness: 0.8});
         env.crtScreenMat = new THREE.MeshStandardMaterial({
             color: 0xffb000,
             emissive: 0xffb000,

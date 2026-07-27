@@ -339,16 +339,15 @@ export default class StructureKit {
                     let geo = env.geoCache.get(key);
                     if (!geo) {
                         geo = new THREE.BoxGeometry(segW, segH, segD);
-                        // The wallpaper/wall textures are tuned assuming a full-size cell (w x d).
-                        // A narrower segment (e.g. the shoulder's near/far split) still gets the
-                        // default 0..1 UV range from BoxGeometry, which squeezes that same full
-                        // texture into less physical space -- the "scrunched" look on the narrow
-                        // piece next to the doorway. Scale the UVs down to match how much of the
-                        // reference cell this segment actually covers, so texture density (and
-                        // the pattern's scale) stays consistent across differently-sized segments.
                         const uv = geo.attributes.uv;
                         for (let i = 0; i < 8; i++) uv.setX(i, uv.getX(i) * (segD / d));
                         for (let i = 16; i < 24; i++) uv.setX(i, uv.getX(i) * (segW / w));
+                        if (segH !== 3.0) {
+                            const vRange = segH / 3.0;
+                            for (let i = 0; i < 8; i++) uv.setY(i, uv.getY(i) * vRange);
+                            for (let i = 16; i < 24; i++) uv.setY(i, uv.getY(i) * vRange);
+                            for (let i = 8; i < 16; i++) uv.setY(i, uv.getY(i) * vRange);
+                        }
                         env.geoCache.set(key, geo);
                         env.geoCache.set(geo.uuid, true);
                     }
@@ -368,15 +367,6 @@ export default class StructureKit {
                 if (!isShoulder) {
                     pushWallSegment(w, wallHeight, d, cx, cz);
                 } else {
-                    // These shoulder cells still need to read as solid perimeter wall (flush with
-                    // every neighboring full-block cell) -- they're only split in two along the
-                    // width so the pieces closest to the doorway can be swapped for a recessed
-                    // pocket later without touching the outer piece. Both pieces must keep the
-                    // *full* cell depth/width on their thickness axis; previously that axis used a
-                    // fixed 0.4 "SHOULDER_THICKNESS" instead, which left the wall only 0.4 units
-                    // deep in the middle of a 4-unit cell -- a gap on both the corridor-facing and
-                    // outward-facing sides that exposed the floor and the backside of the airlock
-                    // structure through the missing wall mass.
                     const NEAR_WIDTH = 0.8;
                     const FAR_WIDTH = (isShoulderNS ? w : d) - NEAR_WIDTH;
                     if (isShoulderNS) {

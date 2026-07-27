@@ -609,7 +609,7 @@ export default class SetPieces {
                 else stripe.position.set(0, 0, -side * 0.92);
                 p.add(stripe);
                 for (let ry = -1; ry <= 1; ry += 2) {
-                    const rib = new THREE.Mesh(ribGeo, env.titaniumMat || env.metalMat);
+                    const rib = new THREE.Mesh(ribGeo, env.pittedMetalMat || env.titaniumMat || env.metalMat);
                     rib.position.set(0, ry * 0.75, 0);
                     p.add(rib);
                 }

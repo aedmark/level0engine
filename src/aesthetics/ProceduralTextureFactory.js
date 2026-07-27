@@ -552,7 +552,13 @@ export default class ProceduralTextureFactory {
             roughness: 0.8
         });
         const baseHousingMat = new THREE.MeshStandardMaterial({color: 0x1a1a1a, roughness: 0.9});
-        return {ventMat, ductMat, serverMat, baseLightMat, baseBrokenLightMat, baseHousingMat};
+        const matteLightMat = baseLightMat.clone();
+        matteLightMat.metalness = 0;
+        matteLightMat.roughness = 0.95;
+        const matteBrokenLightMat = baseBrokenLightMat.clone();
+        matteBrokenLightMat.metalness = 0;
+        matteBrokenLightMat.roughness = 0.95;
+        return {ventMat, ductMat, serverMat, baseLightMat, baseBrokenLightMat, baseHousingMat, matteLightMat, matteBrokenLightMat};
     }
 
     static _buildHazardAndMiscAssets(masterNoise) {
@@ -643,6 +649,58 @@ export default class ProceduralTextureFactory {
         });
         const rustMat = new THREE.MeshStandardMaterial({color: 0x3a1c14, roughness: 1.0, metalness: 0.3});
         const metalMat = new THREE.MeshStandardMaterial({color: 0x999999, roughness: 0.35, metalness: 0.95});
+        const {canvas: pittedCanvas, ctx: pittedCtx} = this._createContext(256, 256);
+        pittedCtx.fillStyle = '#6e6d68';
+        pittedCtx.fillRect(0, 0, 256, 256);
+        pittedCtx.strokeStyle = 'rgba(255,255,255,0.05)';
+        pittedCtx.lineWidth = 1;
+        for (let i = 0; i < 256; i += 3) {
+            pittedCtx.beginPath();
+            pittedCtx.moveTo(0, i + (Math.random() * 1.5 - 0.75));
+            pittedCtx.lineTo(256, i + (Math.random() * 1.5 - 0.75));
+            pittedCtx.stroke();
+        }
+        for (let i = 0; i < 260; i++) {
+            const px = Math.random() * 256;
+            const py = Math.random() * 256;
+            const pr = Math.random() * 2.2 + 0.4;
+            const pitGrad = pittedCtx.createRadialGradient(px, py, 0, px, py, pr);
+            pitGrad.addColorStop(0, 'rgba(10,10,8,0.6)');
+            pitGrad.addColorStop(0.7, 'rgba(10,10,8,0.25)');
+            pitGrad.addColorStop(1, 'rgba(10,10,8,0)');
+            pittedCtx.fillStyle = pitGrad;
+            pittedCtx.beginPath();
+            pittedCtx.arc(px, py, pr, 0, Math.PI * 2);
+            pittedCtx.fill();
+            pittedCtx.fillStyle = `rgba(255,255,255,${Math.random() * 0.06})`;
+            pittedCtx.beginPath();
+            pittedCtx.arc(px - pr * 0.35, py - pr * 0.35, pr * 0.4, 0, Math.PI * 2);
+            pittedCtx.fill();
+        }
+        for (let i = 0; i < 14; i++) {
+            const px = Math.random() * 256;
+            const py = Math.random() * 256;
+            const pr = Math.random() * 9 + 4;
+            const rustGrad = pittedCtx.createRadialGradient(px, py, 0, px, py, pr);
+            rustGrad.addColorStop(0, 'rgba(110,58,28,0.16)');
+            rustGrad.addColorStop(1, 'rgba(110,58,28,0)');
+            pittedCtx.fillStyle = rustGrad;
+            pittedCtx.beginPath();
+            pittedCtx.arc(px, py, pr, 0, Math.PI * 2);
+            pittedCtx.fill();
+        }
+        pittedCtx.globalAlpha = 0.3;
+        pittedCtx.drawImage(masterNoise, 0, 0, 256, 256);
+        pittedCtx.globalAlpha = 1.0;
+        const pittedMetalTexture = this._createWrappedTexture(pittedCanvas, 2, 2);
+        const pittedMetalMat = new THREE.MeshStandardMaterial({
+            map: pittedMetalTexture,
+            color: 0xffffff,
+            bumpMap: pittedMetalTexture,
+            bumpScale: 0.025,
+            roughness: 0.55,
+            metalness: 0.75
+        });
         const {canvas: almondCanvas, ctx: aCtx} = this._createContext(256, 256);
         aCtx.fillStyle = '#e8ddcb';
         aCtx.fillRect(0, 0, 256, 256);
@@ -694,7 +752,7 @@ export default class ProceduralTextureFactory {
             bumpScale: 0.005
         });
 
-        return {fenceMat, hazardMat, glowMat, glowGeo, tagMat, tagGeo, voidMat, rustMat, metalMat, almondMat, titaniumMat};
+        return {fenceMat, hazardMat, glowMat, glowGeo, tagMat, tagGeo, voidMat, rustMat, metalMat, pittedMetalMat, almondMat, titaniumMat};
     }
 
     static _buildAnnexAssets(masterNoise) {

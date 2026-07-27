@@ -792,20 +792,8 @@ export default class Environment {
         ctx.isOccupied = (ox, oz) => occupied.has(`${ox},${oz}`);
         if (isMacroStructure && activeSector) {
             const hallwayNeedsFloor = activeSector.id === "CHASM";
-            const hallwayNeedsCeiling = true;
+            const hallwayNeedsCeiling = activeSector.id !== "ARCHIVE";
             this._buildEntranceHallways(chunkGroup, hash, startX, startZ, activeSector.id, ctx, hallwayNeedsFloor, hallwayNeedsCeiling);
-            // The rest of the macro chunk's perimeter -- the wall it shares with whatever's
-            // outside -- has to be part of the eager shell too, not just the entrance module
-            // itself. Every sector's `build()` calls `ctx.buildPerimeter(...)` as its very first
-            // statement and returns immediately once a cell is on the boundary ring, only
-            // falling through to the sector's actual (deferred) interior logic for non-boundary
-            // cells -- so calling `activeSector.build` here, restricted to just the ring, only
-            // ever exercises that wall-building path. It's cheap (~60 cells, not 256) and safe to
-            // run unconditionally. `buildPerimeter` also self-marks each cell `occupied`, so the
-            // deferred interior pass in `_buildChunkInterior` naturally skips these cells instead
-            // of rebuilding them once content loads. Without this, the boundary was a hole until
-            // the airlock was actually triggered -- the door module would exist, floating in open
-            // air, with no wall around it to be a door *in*.
             const edge = this.chunkSize - 1;
             for (let x = startX; x < startX + this.chunkSize; x++) {
                 for (let z = startZ; z < startZ + this.chunkSize; z++) {
@@ -816,21 +804,6 @@ export default class Environment {
                     activeSector.build(x, z, localX, localZ, typeof sectorMaze !== 'undefined' ? sectorMaze : null);
                 }
             }
-            // `ctx.buildPerimeter` (and every helper built on top of it, like `ctx.addGeometry`)
-            // doesn't add meshes to `chunkGroup` directly -- it only builds geometry, registers
-            // collision in the spatial grid, and pushes the mesh into `stagingMeshes`. The actual
-            // `chunkGroup.add(...)` happens in `_compileInstances`, which batches same-geometry
-            // meshes into `InstancedMesh`es for far fewer draw calls. That compile step normally
-            // runs once, at the very end of a chunk's build. But we've split that build in two:
-            // the perimeter walls above just staged themselves as part of the eager *shell*, while
-            // `_compileInstances` only gets called from the deferred *interior* pass. Left alone,
-            // that means a macro chunk's boundary wall would have working collision (you can't
-            // walk through it) but no visible mesh at all until the sector's airlock is triggered
-            // -- solid, invisible walls. So we compile the shell's own staged meshes here, right
-            // away, then empty `stagingMeshes` before handing the rest off to
-            // `_pendingMacroContent`. Without that reset, the deferred interior's own
-            // `_compileInstances` call would find these same mesh objects still sitting in the
-            // (shared) array and add every one of them to the scene a second time.
             if (stagingMeshes.length > 0) {
                 await this._compileInstances(hash, chunkGroup, stagingMeshes, random);
                 stagingMeshes.length = 0;
@@ -840,8 +813,6 @@ export default class Environment {
             hash, chunkGroup, stagingMeshes, ctx, random, chunkX, chunkZ, startX, startZ,
             isMacroStructure, activeSector, sectorMaze, structuralMatrix
         };
-        // This is the shell/interior boundary described in this method's doc comment above.
-        // Ordinary maze chunks fall through and build their interior immediately, below.
         if (isMacroStructure && activeSector) {
             chunkGroup.userData.contentReady = false;
             this._pendingMacroContent.set(hash, interiorArgs);
@@ -957,7 +928,7 @@ export default class Environment {
                         const isRotated = random() > 0.5;
                         const posX = (x * this.cellSize);
                         const posZ = (z * this.cellSize);
-                        const activeMat = this.getPooledLightMaterial(isBroken);
+                        const activeMat = this.getPooledMazeLightMaterial(isBroken);
                         const matArray = [
                             this.baseHousingMat, this.baseHousingMat, this.baseHousingMat,
                             activeMat, this.baseHousingMat, this.baseHousingMat
@@ -1016,11 +987,14 @@ export default class Environment {
                             chunkGroup.add(pillar);
                             const breakerGroup = new THREE.Group();
                             breakerGroup.position.set(px, 1.5, pz + 0.525);
-                            const breakerBase = new THREE.Mesh(this.breakerBaseGeo, this.rustMat);
+                            const breakerBase = new THREE.Mesh(this.breakerBaseGeo, this.pittedMetalMat);
                             breakerBase.position.set(0, 0, -0.025);
                             breakerGroup.add(breakerBase);
-                            const breakerDoor = new THREE.Mesh(this.breakerDoorGeo, this.hazardMat);
+                            const breakerDoor = new THREE.Mesh(this.breakerDoorGeo, this.pittedMetalMat);
                             breakerDoor.position.set(-0.3, 0, 0.102);
+                            const breakerHandle = new THREE.Mesh(this.breakerHandleGeo, this.breakerHandleMat);
+                            breakerHandle.position.set(0.5, 0, 0.05);
+                            breakerDoor.add(breakerHandle);
                             breakerGroup.add(breakerDoor);
                             breakerGroup.userData = {type: 'breaker', chunkHash: hash, active: true, door: breakerDoor};
                             chunkGroup.add(breakerGroup);
@@ -1623,6 +1597,23 @@ export default class Environment {
         }
         this._poolIndex = (this._poolIndex + 1) % 16;
         return isBroken ? this._pooledLightMats.broken[this._poolIndex] : this._pooledLightMats.normal[this._poolIndex];
+    }
+
+    getPooledMazeLightMaterial(isBroken) {
+        if (!this._pooledMazeLightMats) {
+            this._pooledMazeLightMats = {normal: [], broken: []};
+            for (let i = 0; i < 16; i++) {
+                const nMat = this.matteLightMat.clone();
+                if (this.sharedAssets) this.sharedAssets.add(nMat.uuid);
+                this._pooledMazeLightMats.normal.push(nMat);
+                const bMat = this.matteBrokenLightMat.clone();
+                if (this.sharedAssets) this.sharedAssets.add(bMat.uuid);
+                this._pooledMazeLightMats.broken.push(bMat);
+            }
+            this._mazePoolIndex = 0;
+        }
+        this._mazePoolIndex = (this._mazePoolIndex + 1) % 16;
+        return isBroken ? this._pooledMazeLightMats.broken[this._mazePoolIndex] : this._pooledMazeLightMats.normal[this._mazePoolIndex];
     }
 
     // ==========================================
