@@ -30,7 +30,7 @@ export default class RenderEngine {
 
         // Viewport Constraints
         this.aspectRatio = 1.3333333333; // 4:3 VHS aspect
-        this.resolutionScale = 2.0;
+        this.resolutionScale = RenderEngine.getSavedResolutionScale();
 
         // Scene Graph Setup
         this.scene = new THREE.Scene();
@@ -40,13 +40,6 @@ export default class RenderEngine {
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
         this.camera.position.y = 1.6;
 
-        // Far/near ratio here is 100/0.1 = 1000:1. A standard depth buffer spends most of its
-        // precision within the first few units of the camera and runs out fast after that --
-        // which is exactly what shows up as coplanar textures fighting for the same pixel once
-        // you back away from them. A logarithmic depth buffer spreads that precision evenly
-        // across the whole range instead of front-loading it. Defaults on now; `?nologdepth`
-        // is left as an escape hatch for perf comparisons, since it's marginally more expensive
-        // on low-end GPUs.
         const logDepth = !new URLSearchParams(window.location.search).has('nologdepth');
         this.renderer = new THREE.WebGLRenderer({
             antialias: false,
@@ -270,6 +263,35 @@ export default class RenderEngine {
 
         window.addEventListener('resize', () => this.resize(), false);
         setTimeout(() => this.resize(), 0);
+    }
+
+    // ==========================================
+    // SETTINGS PERSISTENCE
+    // ==========================================
+
+    /**
+     * Reads the internal resolution scale the player last explicitly chose via the
+     * settings menu, persisted by SaveManager as `res` inside the `level0_state`
+     * localStorage blob. Falls back to 1.0 (native) whenever no saved state exists yet,
+     * storage is unavailable (e.g. private browsing), or the stored value is malformed --
+     * mirroring the `parseFloat(state.res) || 1.0` fallback SaveManager.loadState() uses.
+     *
+     * Read directly from localStorage (rather than waiting on SaveManager) because
+     * RenderEngine is constructed before SaveManager exists, and the render target/canvas
+     * need the correct size on the very first frame instead of being resized a moment later.
+     *
+     * @returns {number} The resolution scale to boot with.
+     */
+    static getSavedResolutionScale() {
+        try {
+            const raw = localStorage.getItem('level0_state');
+            if (!raw) return 1.0;
+            const state = JSON.parse(raw);
+            const parsed = parseFloat(state.res);
+            return Number.isFinite(parsed) ? parsed : 1.0;
+        } catch (e) {
+            return 1.0;
+        }
     }
 
     // ==========================================

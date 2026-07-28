@@ -3,10 +3,10 @@
 
 /**
  * The dynamic light management subsystem for Level 0.
- * 
+ *
  * Browsers struggle to render more than a few shadow-casting lights at once.
- * This class solves that by maintaining a fixed pool of lights (`maxActiveLights`) and 
- * continuously repositioning them near the player based on proximity (`distSq`). It uses 
+ * This class solves that by maintaining a fixed pool of lights (`maxActiveLights`) and
+ * continuously repositioning them near the player based on proximity (`distSq`). It uses
  * an insertion sort to prioritize the absolute closest lights for the rare shadow-casting slots.
  */
 export default class LumenGrid {
@@ -26,16 +26,18 @@ export default class LumenGrid {
         this.maxActiveLights = 32;
         // Maximum number of lights allowed to cast expensive shadows
         this.maxShadowLights = 8;
-        
+
         this.lightPool = [];
         this._activeFixtures = new Array(this.maxActiveLights).fill(null);
         this._shadowSlotFixtures = new Array(this.maxShadowLights).fill(null);
-        
+
         // Round-robin index for updating shadow maps, spreading the GPU cost over multiple frames
         this._shadowRR = 0;
         this.shadowsDirty = false;
         this._lastShadowRefresh = -Infinity;
         this.shadowDirtyInterval = 0.08;
+        this.maxForcedShadowUpdatesPerFrame = 2;
+        this._pendingShadowSlots = new Set();
 
         // Initialize the light pool with PointLight and SpotLight pairs
         for (let i = 0; i < this.maxActiveLights; i++) {
@@ -43,11 +45,8 @@ export default class LumenGrid {
             const radius = i < this.maxShadowLights ? 20.0 : 10.0;
             const pointLight = new THREE.PointLight(0xffebd6, 0, radius, 2.0);
             const spotLight = new THREE.SpotLight(0xffebd6, 0, radius, Math.PI / 8, 0.4, 2.0);
-            
-            // Only configure shadows for the first `maxShadowLights` instances
             if (i < this.maxShadowLights) {
                 const setupShadow = (l) => {
-                    l.castShadow = true;
                     l.shadow.mapSize.width = 512;
                     l.shadow.mapSize.height = 512;
                     l.shadow.camera.near = 0.5;
@@ -62,7 +61,7 @@ export default class LumenGrid {
             this.scene.add(pointLight);
             this.scene.add(spotLight);
             this.scene.add(spotLight.target);
-            
+
             // Store both light types in a wrapper object, letting us swap between them dynamically
             this.lightPool.push({
                 point: pointLight,
@@ -89,7 +88,7 @@ export default class LumenGrid {
      */
     update(cameraPos, fixtureData, time) {
         let darknessPressure = 0;
-        
+
         // Track which fixtures were active in the previous frame to apply temporal coherence (hysteresis)
         if (!this._prevActive) this._prevActive = new Set();
         this._prevActive.clear();
@@ -97,43 +96,43 @@ export default class LumenGrid {
             if (this._activeFixtures[i]) this._prevActive.add(this._activeFixtures[i]);
         }
         this._activeFixtures.fill(null);
-        
+
         // Base culling distance: we discard lights beyond this distance to save CPU cycles
         const baseCullingLimit = this.maxActiveLights > 12 ? 55.0 : 35.0;
-        
+
         // --- PHASE 1: Distance Sorting and Culling ---
         for (let i = 0, len = fixtureData.length; i < len; i++) {
             const fixture = fixtureData[i];
             const isLH = fixture.isLighthouse;
             const cullLimit = isLH ? 120.0 : baseCullingLimit;
-            
+
             // Perform a fast AABB-style distance check before doing a full squared distance calculation
             const dx = cameraPos.x - fixture.position.x;
             if (dx > cullLimit || dx < -cullLimit) { fixture.hasShadow = false; continue; }
-            
+
             const dz = cameraPos.z - fixture.position.z;
             if (dz > cullLimit || dz < -cullLimit) { fixture.hasShadow = false; continue; }
-            
+
             const dy = cameraPos.y - fixture.position.y;
             if (dy > cullLimit || dy < -cullLimit) { fixture.hasShadow = false; continue; }
-            
+
             const distSq = (dx * dx) + (dy * dy) + (dz * dz);
             const maxDistSq = isLH ? 14400.0 : 3025.0;
-            
+
             if (distSq < maxDistSq) {
                 // Accumulate darkness pressure from dead lights nearby (used for sanity/paranoia mechanics)
                 if (fixture.isDead) {
                     darknessPressure += 1.0 - (distSq * 0.00111);
                 }
-                
+
                 if (!fixture.isFake) {
                     fixture.distSq = distSq;
-                    
+
                     // Apply a negative distance bias to lights that already have shadows or were active last frame.
                     // This prevents lights from rapidly swapping in and out of the shadow pool.
                     fixture._biasedDistSq = fixture.hasShadow ? distSq - 40.0 : distSq;
                     if (this._prevActive.has(fixture)) fixture._biasedDistSq -= 30.0;
-                    
+
                     let targetToInsert = fixture;
                     if (!targetToInsert.noShadow) {
                         // Insertion sort into the elite shadow-casting slots (closest lights get these)
@@ -154,7 +153,7 @@ export default class LumenGrid {
                             targetToInsert = pushedOut; // The pushed out light becomes a candidate for non-shadow slots
                         }
                     }
-                    
+
                     // Insertion sort into the remaining non-shadow active slots
                     if (targetToInsert) {
                         let insertPos2 = -1;
@@ -176,17 +175,18 @@ export default class LumenGrid {
                 fixture.hasShadow = false;
             }
         }
-        
+
         // --- PHASE 2: Apply State to Light Pool ---
         let nearestFixture = null;
         let minLightDistSq = Infinity;
         const shadowRefreshDue = this.shadowsDirty && (time - this._lastShadowRefresh >= this.shadowDirtyInterval);
         if (shadowRefreshDue) this._lastShadowRefresh = time;
-        
+        let forcedShadowUpdatesThisFrame = 0;
+
         for (let i = 0; i < this.maxActiveLights; i++) {
             const wrapper = this.lightPool[i];
             const fixture = this._activeFixtures[i];
-            
+
             if (fixture) {
                 // Determine whether this fixture uses a SpotLight or PointLight
                 const isShadowSlot = i < this.maxShadowLights;
@@ -198,30 +198,41 @@ export default class LumenGrid {
                 const light = wrapper.active;
                 const inactiveLight = wrapper.isSpot ? wrapper.point : wrapper.spot;
                 inactiveLight.intensity = 0; // Turn off the unused light type
-                
+
                 const isLH = fixture.isLighthouse;
                 const isShadowCaster = i < this.maxShadowLights;
                 fixture.hasShadow = isShadowCaster;
-                
+
                 if (isShadowCaster) {
+                    // Only the light type currently in use for this slot should cast a
+                    // shadow -- otherwise both point and spot stay flagged as shadow
+                    // casters and double the texture units needed at shader compile time.
+                    light.castShadow = true;
+                    inactiveLight.castShadow = false;
+
                     const reqFar = isLH ? 150.0 : 20.0;
                     if (light.shadow.camera.far !== reqFar) {
                         light.shadow.camera.far = reqFar;
                         light.shadow.camera.updateProjectionMatrix();
                         light.shadow.needsUpdate = true;
                     }
-                    // Update the shadow map if a new fixture took this slot, or if a periodic refresh is due
                     if (this._shadowSlotFixtures[i] !== fixture || shadowRefreshDue) {
                         this._shadowSlotFixtures[i] = fixture;
-                        light.shadow.needsUpdate = true;
+                        if (forcedShadowUpdatesThisFrame < this.maxForcedShadowUpdatesPerFrame) {
+                            light.shadow.needsUpdate = true;
+                            forcedShadowUpdatesThisFrame++;
+                            this._pendingShadowSlots.delete(i);
+                        } else {
+                            this._pendingShadowSlots.add(i);
+                        }
                     }
                 }
-                
+
                 if (fixture.distSq < minLightDistSq) {
                     minLightDistSq = fixture.distSq;
                     nearestFixture = fixture;
                 }
-                
+
                 // Position the Three.js light at the fixture's coordinates
                 light.position.copy(fixture.position);
                 if (wrapper.isSpot && fixture.targetPos) {
@@ -230,17 +241,17 @@ export default class LumenGrid {
                     light.penumbra = fixture.spotPenumbra !== undefined ? fixture.spotPenumbra : 0.4;
                 }
                 light.distance = isLH ? 150.0 : (isShadowCaster ? 20.0 : 10.0);
-                
+
                 // Calculate a smooth fade out as the player moves away from the light
                 const dist = Math.sqrt(fixture.distSq);
                 const activeRadius = isLH ? 120.0 : (isShadowCaster ? 20.0 : 10.0);
                 const fadeEnvelope = Math.max(0, Math.min(1, (activeRadius - dist) / 4.0));
                 const intensityScalar = isShadowCaster ? 0.65 : 0.35;
-                
+
                 if (fixture.material && fixture.material.emissive) {
                     light.color.copy(fixture.material.emissive);
                 }
-                
+
                 // Process behavioral states: dead, flickering, strobe, pulse, or normal
                 if (fixture.isDead) {
                     light.intensity = 0.0;
@@ -295,18 +306,30 @@ export default class LumenGrid {
                 // If no fixture is assigned to this slot, turn off the lights
                 wrapper.point.intensity = 0;
                 wrapper.spot.intensity = 0;
-                if (i < this.maxShadowLights) this._shadowSlotFixtures[i] = null;
+                if (i < this.maxShadowLights) {
+                    wrapper.point.castShadow = false;
+                    wrapper.spot.castShadow = false;
+                }
+                if (i < this.maxShadowLights) {
+                    this._shadowSlotFixtures[i] = null;
+                    this._pendingShadowSlots.delete(i);
+                }
             }
         }
-        
+
         // --- PHASE 3: Shadow Map Round-Robin ---
-        // Force update one shadow map per frame to keep dynamic shadows looking alive, cheaply
-        if (this._activeFixtures[this._shadowRR]) {
+        if (this._pendingShadowSlots.size > 0) {
+            const nextPending = this._pendingShadowSlots.values().next().value;
+            this._pendingShadowSlots.delete(nextPending);
+            if (this._activeFixtures[nextPending]) {
+                this.lightPool[nextPending].active.shadow.needsUpdate = true;
+            }
+        } else if (this._activeFixtures[this._shadowRR]) {
             this.lightPool[this._shadowRR].active.shadow.needsUpdate = true;
         }
         this._shadowRR = (this._shadowRR + 1) % this.maxShadowLights;
         this.shadowsDirty = false;
-        
+
         return {darknessPressure, nearestFixture, minLightDistSq};
     }
 }

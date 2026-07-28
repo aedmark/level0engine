@@ -69,33 +69,24 @@ export default class Environment {
         this._breakerHuntHops = undefined;
         this._macroChunkHashes = new Set();
         this._sectorBags = null;
-        // Macro sector (ARCHIVE, BOARDROOM, IMPOUND, ...) placement rules -- both distances are
-        // in chunk units (chunkSize * cellSize = 64 world units each) and measured as Chebyshev
-        // (max-axis) distance, i.e. a square exclusion zone rather than a circular one, to match
-        // how chunks themselves are laid out on a grid.
-        // Player spawns at chunk (0,0). Previously only that single chunk was excluded from macro
-        // placement, so a macro sector could show up one chunk over (as close as 64 units,
-        // sometimes inside the player's very first loaded render-distance ring). This pushes the
-        // nearest possible macro chunk out to a full renderDistance-plus-one ring away, so nothing
-        // macro is visible or reachable in the first few steps out of spawn.
         this.macroSpawnExclusionRadius = 3;
-        // Previously two macro chunks were only barred from being orthogonally adjacent (the four
-        // N/E/S/W neighbors), so they could still land diagonally touching or with just one
-        // ordinary maze chunk of breathing room between them. This widens that check to a full
-        // square neighborhood so macro sectors end up meaningfully spread across the map instead
-        // of clustering.
         this.macroMinSpacingChunks = 2;
-        // Macro-structure chunks (CHASM, ARCHIVE, BOARDROOM, ...) that have had their entrance
-        // shell built but whose expensive interior is deliberately held back until the player
-        // commits by pressing that entrance's airlock switch. See buildChunk / beginMacroChunkContent.
         this._pendingMacroContent = new Map();
         this.structureKit = new StructureKit(this);
         this.setPieces = new SetPieces(this);
         this.interactionController = new InteractionController(this);
     }
 
-    setup() {
-        const assets = ProceduralTextureFactory.generateAssets();
+    async setup() {
+        const bootFlash = document.getElementById('flash-overlay');
+        if (bootFlash) {
+            bootFlash.style.transition = 'none';
+            bootFlash.style.backgroundColor = '#000';
+            bootFlash.style.opacity = '1';
+        }
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        const assets = await ProceduralTextureFactory.generateAssets();
         Object.assign(this, assets);
         const {carpetTexture, ceilingTexture} = assets;
         carpetTexture.repeat.set(16, 16);
@@ -582,8 +573,8 @@ export default class Environment {
             while (this.chunkQueue.length > 0) {
                 const chunk = this.chunkQueue.shift();
                 this.queuedHashes.delete(chunk.hash);
-                const currentX = Math.floor(this.camera.position.x / (this.chunkSize * 4));
-                const currentZ = Math.floor(this.camera.position.z / (this.chunkSize * 4));
+                const currentX = this.currentChunkCoords.x;
+                const currentZ = this.currentChunkCoords.z;
                 if (Math.abs(chunk.x - currentX) <= this.renderDistance && Math.abs(chunk.z - currentZ) <= this.renderDistance) {
                     const genT0 = performance.now();
                     await this.buildChunk(chunk.x, chunk.z, chunk.hash);

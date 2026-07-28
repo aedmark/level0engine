@@ -98,7 +98,10 @@ if (!document.getElementById('seedInput').value) {
 }
 
 // Build World
-environment.setup();
+// setup() now yields between texture-generation batches (and between chunks/macro interiors,
+// as before) instead of blocking the main thread in one synchronous burst -- top-level await
+// here just makes sure nothing below runs against a half-initialized environment.
+await environment.setup();
 
 // Hydrate Player & Camera
 if (savedState) {

@@ -1801,18 +1801,39 @@ export default class ProceduralTextureFactory {
         };
     }
 
-    static generateAssets() {
+    /**
+     * Yields a single tick back to the browser's event loop. Used to break up the long chain
+     * of synchronous canvas drawing in `generateAssets` so a slow boot doesn't present as one
+     * unbroken multi-hundred-millisecond freeze -- the browser gets a chance to paint (e.g. the
+     * spawn flash-overlay `Environment.setup()` raises before calling this) and stay responsive
+     * to input between asset groups, the same way `processChunkQueue` yields between chunks.
+     */
+    static _yield() {
+        return new Promise(resolve => setTimeout(resolve, 0));
+    }
+
+    static async generateAssets() {
         const masterNoise = this._generateMasterNoise();
         const structAssets = this._buildStructuralAssets(masterNoise);
+        await this._yield();
         const surfaceAssets = this._buildSurfaceAssets(masterNoise);
+        await this._yield();
         const organicAssets = this._buildOrganicAssets(masterNoise);
+        await this._yield();
         const techAssets = this._buildTechAssets(masterNoise);
+        await this._yield();
         const hazardAssets = this._buildHazardAndMiscAssets(masterNoise);
+        await this._yield();
         const annexAssets = this._buildAnnexAssets(masterNoise);
+        await this._yield();
         const impoundAssets = this._buildImpoundAssets(masterNoise);
+        await this._yield();
         const boardroomAssets = this._buildBoardroomAssets(masterNoise);
+        await this._yield();
         const maintenanceAssets = this._buildMaintenanceAssets(masterNoise);
+        await this._yield();
         const archiveAssets = this._buildArchiveAssets(masterNoise);
+        await this._yield();
         const extendedAssets = this._buildExtendedAssets(masterNoise);
         const assets = {
             ...structAssets,
