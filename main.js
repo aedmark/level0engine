@@ -28,6 +28,14 @@ const player = new PlayerController(engine.camera, engine.renderer.domElement);
 const environment = new Environment(engine, player);
 window.environment = environment;
 
+// Guards the render loop's own environment.updateChunks(camera.position) call (see animate()
+// below) from firing while SectorHunt is walking a simulated position through the same
+// environment state. Both call sites share environment.currentChunkCoords / chunkQueue /
+// activeChunks / macroZones -- without this guard, every animation frame during a hunt would
+// re-center the load window on the real (stationary) camera and dispose the far-away chunk the
+// hunt just built, deleting its macroZones entry before the hunt's own check ever sees it.
+let sectorHuntActive = false;
+
 const saveManager = new SaveManager(engine, player, environment, acoustics);
 const somatic = new SomaticController(acoustics);
 
@@ -146,6 +154,7 @@ document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e
     let foundHash = null;
     let foundZone = null;
 
+    sectorHuntActive = true;
     while (step < maxSteps) {
         environment.updateChunks(new THREE.Vector3(step * chunkWorldSize, 1.6, 0));
 
@@ -164,6 +173,8 @@ document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e
         step++;
         if (step % 5 === 0) await new Promise(r => setTimeout(r, 0));
     }
+
+    sectorHuntActive = false;
 
     if (!foundZone) {
         console.log(`[SectorHunt] Could not find ${targetSector} within ${maxSteps} chunk steps on the current seed.`);
@@ -209,7 +220,7 @@ function animate() {
     }
     
     // Environment Tick
-    environment.updateChunks(engine.camera.position);
+    if (!sectorHuntActive) environment.updateChunks(engine.camera.position);
     ensurePendingContentAtPlayer();
     environment.updateInteractives(engine.camera.position, delta);
     
