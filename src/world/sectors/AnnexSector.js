@@ -32,21 +32,7 @@ export const AnnexSector = (env, ctx) => {
                 (lx === 7 || lz === 3 || lz === 7 || lz === 11);
             if (isCorr(localX, localZ)) {
                 if ((localX + localZ) % 2 === 0 && random() > 0.1) {
-                    const activeMat = ctx.getLightMaterial(0xffffff, 0xffffff, false);
-                    const panel = new THREE.Mesh(env.sharedPanelGeo, [env.baseHousingMat, env.baseHousingMat, env.baseHousingMat, activeMat, env.baseHousingMat, env.baseHousingMat]);
-                    panel.position.set(ox, 2.98, oz);
-                    chunkGroup.add(panel);
-                    env.walls.push(panel);
-                    env.fixtureData.push({
-                        chunkHash: hash,
-                        position: new THREE.Vector3(ox, 2.8, oz),
-                        flickerOffset: random() * 500,
-                        material: activeMat,
-                        isFaulty: random() > 0.8,
-                        baseIntensity: 0.5,
-                        targetIntensity: 0.5,
-                        currentIntensity: 0.5
-                    });
+                    env._buildCeilingPanelLight(chunkGroup, hash, ox, oz, random, ctx.getLightMaterial, 0xffffff, 0xffffff, 0.5, 0.8);
                 }
                 return;
             }
@@ -197,11 +183,7 @@ export const AnnexSector = (env, ctx) => {
                     docId: 'FINALE_' + Math.floor(random() * 999)
                 };
                 chunkGroup.add(fin);
-                env.interactables.push(fin);
-                const finBox = new THREE.Box3().setFromObject(fin);
-                finBox.chunkHash = hash;
-                fin.userData.box = finBox;
-                env.spatialGrid.insert(finBox);
+                env._registerInteractable(fin, hash);
                 return;
             }
             if (!isOpenable) return;
@@ -236,12 +218,7 @@ export const AnnexSector = (env, ctx) => {
                     };
                     chunkGroup.add(lap);
                     lap.updateMatrixWorld(true);
-                    if (!env.interactables) env.interactables = [];
-                    env.interactables.push(lap);
-                    const lBox = new THREE.Box3().setFromObject(lap);
-                    lBox.chunkHash = hash;
-                    lap.userData.box = lBox;
-                    env.spatialGrid.insert(lBox);
+                    env._registerInteractable(lap, hash);
                 } else if (spawnRoll < 0.75) {
                     const tapeGroup = new THREE.Group();
                     if (!env.tapeGeo) {
@@ -265,12 +242,7 @@ export const AnnexSector = (env, ctx) => {
                         docId: 'TAPE_' + Math.floor(random() * 9999)
                     };
                     chunkGroup.add(tapeGroup);
-                    if (!env.interactables) env.interactables = [];
-                    env.interactables.push(tapeGroup);
-                    const tBox = new THREE.Box3().setFromObject(tapeGroup);
-                    tBox.chunkHash = hash;
-                    tapeGroup.userData.box = tBox;
-                    env.spatialGrid.insert(tBox);
+                    env._registerInteractable(tapeGroup, hash);
                 }
             } else if (contentRoll < 0.75) {
                 const doc = new THREE.Mesh(env.documentGeo, env.documentMat);
@@ -284,12 +256,7 @@ export const AnnexSector = (env, ctx) => {
                     docId: 'LOG_' + Math.floor(random() * 9999)
                 };
                 chunkGroup.add(doc);
-                if (!env.interactables) env.interactables = [];
-                env.interactables.push(doc);
-                const nBox = new THREE.Box3().setFromObject(doc);
-                nBox.chunkHash = hash;
-                doc.userData.box = nBox;
-                env.spatialGrid.insert(nBox);
+                env._registerInteractable(doc, hash);
             } else if (contentRoll < 0.9 && env.cartonGeo) {
                 const cartonPool = env.cartonMats || [env.fileBoxMat];
                 const cbx = ox + (random() - 0.5) * 1.4;

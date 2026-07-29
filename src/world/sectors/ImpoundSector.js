@@ -178,12 +178,7 @@ export const ImpoundSector = (env, ctx) => {
                                 docId: 'TAG_' + Math.floor(random() * 9999)
                             };
                             chunkGroup.add(tag);
-                            if (!env.interactables) env.interactables = [];
-                            env.interactables.push(tag);
-                            const tBox = new THREE.Box3().setFromObject(tag);
-                            tBox.chunkHash = hash;
-                            tag.userData.box = tBox;
-                            env.spatialGrid.insert(tBox);
+                            env._registerInteractable(tag, hash);
                         }
                     } else if (hoard < 0.75) {
                         addFurniture(buildTable(px, 0, pz));

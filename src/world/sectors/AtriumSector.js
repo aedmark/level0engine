@@ -75,53 +75,9 @@ export const AtriumSector = (env, ctx) => {
             chunkGroup.add(group);
         }
     };
-    const buildHangingLight = (cx, cz) => {
-        const bowlRadius = 0.4;
-        const rimY = 2.65;
-        const domeTopY = rimY + bowlRadius;
-        const wireLen = 3.0;
-        const wireGeo = env._cacheGeo('archiveWire', () => new THREE.CylinderGeometry(0.012, 0.012, wireLen, 5));
-        const wire = new THREE.Mesh(wireGeo, env.metalMat);
-        wire.position.set(cx, domeTopY + wireLen / 2, cz);
-        chunkGroup.add(wire);
-        wire.updateMatrixWorld(true);
-        env.walls.push(wire);
-        const bowlGeo = env._cacheGeo('archiveBowl', () => new THREE.SphereGeometry(bowlRadius, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2));
-        if (!env.archiveBowlMat) {
-            env.archiveBowlMat = env.rustMat.clone();
-            env.archiveBowlMat.side = THREE.DoubleSide;
-            env.sharedAssets.add(env.archiveBowlMat.uuid);
-        }
-        const bowl = new THREE.Mesh(bowlGeo, env.archiveBowlMat);
-        bowl.position.set(cx, rimY, cz);
-        chunkGroup.add(bowl);
-        bowl.updateMatrixWorld(true);
-        env.walls.push(bowl);
-        const bulbRadius = 0.08;
-        const bulbGeo = env._cacheGeo('archiveBulb', () => new THREE.SphereGeometry(bulbRadius, 8, 6));
-        const bulbMat = ctx.getLightMaterial(0xd8b276, 0xc89858, false);
-        bulbMat.map = null;
-        bulbMat.emissiveMap = null;
-        const bulbY = domeTopY - bulbRadius;
-        const bulb = new THREE.Mesh(bulbGeo, bulbMat);
-        bulb.position.set(cx, bulbY, cz);
-        bulb.userData.chunkHash = hash;
-        chunkGroup.add(bulb);
-        bulb.updateMatrixWorld(true);
-        env.walls.push(bulb);
-        env.fixtureData.push({
-            chunkHash: hash,
-            position: new THREE.Vector3(cx, bulbY, cz),
-            flickerOffset: random() * 500,
-            material: bulbMat,
-            isFaulty: true,
-            isArchiveLight: true,
-            isShadowCaster: true,
-            baseIntensity: 1.5,
-            targetIntensity: 1.5,
-            currentIntensity: 1.5
-        });
-    };
+    // Identical fixture to ArchiveSector's hanging bowl light -- consolidated into
+    // Environment._buildHangingBowlLight() (see that method for the full implementation).
+    const buildHangingLight = (cx, cz) => env._buildHangingBowlLight(chunkGroup, hash, cx, cz, random, ctx.getLightMaterial);
     const inAisleMaze = (maze, nx, nz) => nx >= 0 && nx < env.chunkSize && nz >= 0 && nz < env.chunkSize && maze[nx][nz];
     const aisleRunOrientation = (maze, lx, lz) => {
         const zR = inAisleMaze(maze, lx, lz - 1) || inAisleMaze(maze, lx, lz + 1);

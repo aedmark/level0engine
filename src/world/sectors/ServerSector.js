@@ -151,30 +151,10 @@ export const ServerSector = (env, ctx) => {
                 const openN = localZ > 0 ? !maze[localX][localZ - 1] : !maze[localX][localZ];
                 const openW = localX > 0 ? !maze[localX - 1][localZ] : !maze[localX][localZ];
                 const offset = 0.9;
-                let hasPipes = false;
-                if (openE) {
-                    const pipeE = new THREE.Mesh(env.pipeGeo, env.rustMat);
-                    pipeE.position.set(x * env.cellSize + (env.cellSize / 2) + offset, 2.75, z * env.cellSize + offset);
-                    addGeometry(pipeE);
-                    hasPipes = true;
-                }
-                if (openS) {
-                    const pipeS = new THREE.Mesh(env.pipeGeo, env.rustMat);
-                    pipeS.rotation.y = Math.PI / 2;
-                    pipeS.position.set(x * env.cellSize + offset, 2.75, z * env.cellSize + (env.cellSize / 2) + offset);
-                    addGeometry(pipeS);
-                    hasPipes = true;
-                }
-                if (hasPipes || openN || openW) {
-                    const mount = new THREE.Mesh(env.pipeMountGeo, env.rustMat);
-                    mount.position.set(x * env.cellSize + offset, 2.9, z * env.cellSize + offset);
-                    addGeometry(mount);
-                    if (random() > 0.1) {
-                        const junction = new THREE.Mesh(env.pipeJunctionGeo, env.rustMat);
-                        junction.position.set(x * env.cellSize + offset, 2.75, z * env.cellSize + offset);
-                        addGeometry(junction);
-                    }
-                }
+                // Shared pipe/mount/junction dressing (also used by MaintenanceSector, at
+                // different heights/offset and with its own valve/leak-stain extras) -- see
+                // Environment._buildPipeCornerDressing().
+                env._buildPipeCornerDressing(chunkGroup, addGeometry, random, x, z, openE, openS, openN, openW, offset, 2.75, 2.9, 2.75);
                 if (random() > 0.85) {
                     const propType = random();
                     const ox = x * env.cellSize;

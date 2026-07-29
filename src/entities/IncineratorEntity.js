@@ -1,5 +1,6 @@
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
+import {isRayPathBlocked, computeAxisBlocking} from './HazardUtils.js';
 
 /**
  * A highly aggressive, heat-based entity ("The Ember") found in the incinerator sector.
@@ -372,23 +373,11 @@ export default class IncineratorEntity {
         this.camera.getWorldDirection(this._camDir);
         const dot = this._camDir.dot(this._toPlayer);
         if (dot > 0.97) {
-            let isOccluded = false;
             const searchDist = Math.sqrt(distSq);
-            if (this.env && this.env.spatialGrid) {
-                const localBoxes = this.env.spatialGrid.getNearby(this.group.position.x, this.group.position.z, searchDist);
-                for (let i = 0; i < localBoxes.length; i++) {
-                    const box = localBoxes[i];
-                    if (box.isEntityBlocker && !box.isInvisibleBlocker) {
-                        if (AABB.rayIntersectsBox(playerPos, this._toPlayer, box, this._rayTarget)) {
-                            if (playerPos.distanceToSquared(this._rayTarget) < distSq) {
-                                isOccluded = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            hasLOS = !isOccluded;
+            hasLOS = !isRayPathBlocked(
+                this.env, this.group.position.x, this.group.position.z, searchDist,
+                playerPos, this._toPlayer, distSq, this._rayTarget
+            );
         }
         return hasLOS;
     }
@@ -424,20 +413,9 @@ export default class IncineratorEntity {
             if (!blocked) {
                 this.group.position.add(moveVec);
             } else {
-                let blockedX = false;
-                let blockedZ = false;
-                this._boxX.copy(this._box);
-                this._boxX.min.z = this.group.position.z - 0.5;
-                this._boxX.max.z = this.group.position.z + 0.5;
-                this._boxZ.copy(this._box);
-                this._boxZ.min.x = this.group.position.x - 0.5;
-                this._boxZ.max.x = this.group.position.x + 0.5;
-                for (let i = 0; i < localBoxes.length; i++) {
-                    if (localBoxes[i].isEntityBlocker) {
-                        if (!blockedX && this._boxX.intersectsBox(localBoxes[i])) blockedX = true;
-                        if (!blockedZ && this._boxZ.intersectsBox(localBoxes[i])) blockedZ = true;
-                    }
-                }
+                const {blockedX, blockedZ} = computeAxisBlocking(
+                    this._boxX, this._boxZ, this._box, this.group.position.x, this.group.position.z, localBoxes
+                );
                 if (!blockedX && !blockedZ) {
                     if (Math.abs(moveVec.x) > Math.abs(moveVec.z)) this.group.position.x += moveVec.x;
                     else this.group.position.z += moveVec.z;

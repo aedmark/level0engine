@@ -199,12 +199,7 @@ export const ArchiveSector = (env, ctx) => {
                                 docId: 'REC_' + Math.floor(random() * 9999)
                             };
                             chunkGroup.add(sheet);
-                            if (!env.interactables) env.interactables = [];
-                            env.interactables.push(sheet);
-                            const sBox = new THREE.Box3().setFromObject(sheet);
-                            sBox.chunkHash = hash;
-                            sheet.userData.box = sBox;
-                            env.spatialGrid.insert(sBox);
+                            env._registerInteractable(sheet, hash);
                         } else {
                             addGeometry(sheet);
                         }
@@ -216,51 +211,7 @@ export const ArchiveSector = (env, ctx) => {
                     spawnClutter(sx, 0.0, sz, 1.8);
                 }
                 if (random() > 0.85) {
-                    const bowlRadius = 0.4;
-                    const rimY = 2.65;
-                    const domeTopY = rimY + bowlRadius;
-                    const wireLen = 3.0;
-                    const wireGeo = env._cacheGeo('archiveWire', () => new THREE.CylinderGeometry(0.012, 0.012, wireLen, 5));
-                    const wire = new THREE.Mesh(wireGeo, env.metalMat);
-                    wire.position.set(x * env.cellSize, domeTopY + wireLen / 2, z * env.cellSize);
-                    chunkGroup.add(wire);
-                    wire.updateMatrixWorld(true);
-                    env.walls.push(wire);
-                    const bowlGeo = env._cacheGeo('archiveBowl', () => new THREE.SphereGeometry(bowlRadius, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2));
-                    if (!env.archiveBowlMat) {
-                        env.archiveBowlMat = env.rustMat.clone();
-                        env.archiveBowlMat.side = THREE.DoubleSide;
-                        env.sharedAssets.add(env.archiveBowlMat.uuid);
-                    }
-                    const bowl = new THREE.Mesh(bowlGeo, env.archiveBowlMat);
-                    bowl.position.set(x * env.cellSize, rimY, z * env.cellSize);
-                    chunkGroup.add(bowl);
-                    bowl.updateMatrixWorld(true);
-                    env.walls.push(bowl);
-                    const bulbRadius = 0.08;
-                    const bulbGeo = env._cacheGeo('archiveBulb', () => new THREE.SphereGeometry(bulbRadius, 8, 6));
-                    const bulbMat = ctx.getLightMaterial(0xd8b276, 0xc89858, false);
-                    bulbMat.map = null;
-                    bulbMat.emissiveMap = null;
-                    const bulbY = domeTopY - bulbRadius;
-                    const bulb = new THREE.Mesh(bulbGeo, bulbMat);
-                    bulb.position.set(x * env.cellSize, bulbY, z * env.cellSize);
-                    bulb.userData.chunkHash = hash;
-                    chunkGroup.add(bulb);
-                    bulb.updateMatrixWorld(true);
-                    env.walls.push(bulb);
-                    env.fixtureData.push({
-                        chunkHash: hash,
-                        position: new THREE.Vector3(x * env.cellSize, bulbY, z * env.cellSize),
-                        flickerOffset: random() * 500,
-                        material: bulbMat,
-                        isFaulty: true,
-                        isArchiveLight: true,
-                        isShadowCaster: true,
-                        baseIntensity: 1.5,
-                        targetIntensity: 1.5,
-                        currentIntensity: 1.5
-                    });
+                    env._buildHangingBowlLight(chunkGroup, hash, x * env.cellSize, z * env.cellSize, random, ctx.getLightMaterial);
                 }
             }
         }

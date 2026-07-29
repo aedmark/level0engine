@@ -1,5 +1,6 @@
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
+import {isRayPathBlocked, computeAxisBlocking} from './HazardUtils.js';
 
 /**
  * A patrol-based hazard ("The Warden") that roams the impound sector.
@@ -105,16 +106,9 @@ export default class WardenEntity {
 
     /**
      * Hides the Warden and silences its spotlight without removing either from the scene graph.
-     * Called by EntityManager when another entity type becomes active.
-     *
-     * Educational Note: The obvious way to "hide" an entity is `this.group.visible = false` --
-     * but `this.light` is a child of that group, and Three.js excludes an invisible object's
-     * entire subtree from the current frame's light list. A light popping in and out of that
-     * list changes the scene's active light count, which forces Three.js to recompile shader
-     * programs across every standard-lit material in the scene -- the exact mechanism behind the
-     * Incinerator/Maintenance chunk-streaming stutter fixed earlier. `group` now stays visible
-     * permanently; only the mesh children (which carry no such cost) and the light's own
-     * intensity toggle instead, so the light is always present in the scene -- just dark.
+     * Called by EntityManager when another entity type becomes active. See
+     * ArchivistEntity._setBodyVisible() for the full explanation of why `group` stays visible
+     * permanently here and only the mesh children + light intensity toggle instead.
      */
     deactivate() {
         this.isActive = false;
@@ -189,23 +183,11 @@ export default class WardenEntity {
                 if (!this._lightWorldPos) this._lightWorldPos = new THREE.Vector3();
                 this._lightWorldPos.copy(this.light.position).add(this.group.position);
                 const toPlayerDir = this._toPlayer.subVectors(playerPos, this._lightWorldPos).normalize();
-                let isOccluded = false;
                 const searchDist = Math.sqrt(distSq);
-                if (this.env && this.env.spatialGrid) {
-                    const localBoxes = this.env.spatialGrid.getNearby(this.group.position.x, this.group.position.z, searchDist);
-                    for (let i = 0; i < localBoxes.length; i++) {
-                        const box = localBoxes[i];
-                        if (box.isEntityBlocker && !box.isInvisibleBlocker) {
-                            if (AABB.rayIntersectsBox(this.group.position, toPlayerDir, box, this._rayTarget)) {
-                                if (this.group.position.distanceToSquared(this._rayTarget) < distSq) {
-                                    isOccluded = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-                hasLOS = !isOccluded;
+                hasLOS = !isRayPathBlocked(
+                    this.env, this.group.position.x, this.group.position.z, searchDist,
+                    this.group.position, toPlayerDir, distSq, this._rayTarget
+                );
                 this._lastLOSResult = hasLOS;
                 this._lastLOSTime = time;
             }
@@ -287,20 +269,9 @@ export default class WardenEntity {
             if (!blocked) {
                 this.group.position.add(moveVec);
             } else {
-                let blockedX = false;
-                let blockedZ = false;
-                this._boxX.copy(this._box);
-                this._boxX.min.z = this.group.position.z - 0.5;
-                this._boxX.max.z = this.group.position.z + 0.5;
-                this._boxZ.copy(this._box);
-                this._boxZ.min.x = this.group.position.x - 0.5;
-                this._boxZ.max.x = this.group.position.x + 0.5;
-                for (let i = 0; i < localBoxes.length; i++) {
-                    if (localBoxes[i].isEntityBlocker) {
-                        if (!blockedX && this._boxX.intersectsBox(localBoxes[i])) blockedX = true;
-                        if (!blockedZ && this._boxZ.intersectsBox(localBoxes[i])) blockedZ = true;
-                    }
-                }
+                const {blockedX, blockedZ} = computeAxisBlocking(
+                    this._boxX, this._boxZ, this._box, this.group.position.x, this.group.position.z, localBoxes
+                );
                 if (!blockedX && !blockedZ) {
                     if (Math.abs(moveVec.x) > Math.abs(moveVec.z)) this.group.position.x += moveVec.x;
                     else this.group.position.z += moveVec.z;

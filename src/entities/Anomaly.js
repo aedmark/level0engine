@@ -1,5 +1,6 @@
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
+import {isRayPathBlocked, computeAxisBlocking} from './HazardUtils.js';
 
 /**
  * The base predatory hazard in the engine. It handles core logic for tracking,
@@ -240,23 +241,11 @@ export default class Anomaly {
         if (distToPlayerSq < Math.max(perceptionThresholdSq, 625.0)) {
             if (time - this._lastLOSTime > 0.1) {
                 const toPlayerDir = this._toPlayer.subVectors(playerPos, this.group.position).normalize();
-                let isOccluded = false;
                 const searchDist = Math.sqrt(distToPlayerSq);
-                if (this.env && this.env.spatialGrid) {
-                    const localBoxes = this.env.spatialGrid.getNearby(this.group.position.x, this.group.position.z, searchDist);
-                    for (let i = 0; i < localBoxes.length; i++) {
-                        const box = localBoxes[i];
-                        if (box.isEntityBlocker && !box.isInvisibleBlocker) {
-                            if (AABB.rayIntersectsBox(this.group.position, toPlayerDir, box, this._rayTarget)) {
-                                if (this.group.position.distanceToSquared(this._rayTarget) < distToPlayerSq) {
-                                    isOccluded = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-                hasLOS = !isOccluded;
+                hasLOS = !isRayPathBlocked(
+                    this.env, this.group.position.x, this.group.position.z, searchDist,
+                    this.group.position, toPlayerDir, distToPlayerSq, this._rayTarget
+                );
                 if (darknessCloak > 0.6 && !this.player.flashlightActive) {
                     hasLOS = false;
                 }
@@ -376,20 +365,11 @@ export default class Anomaly {
             if (!blocked) {
                 this.group.position.add(moveVec);
             } else {
-                let blockedX = !!this._findForbiddenBounds(this._nextPos.x, this.group.position.z, 0.6);
-                let blockedZ = !!this._findForbiddenBounds(this.group.position.x, this._nextPos.z, 0.6);
-                this._boxX.copy(this._box);
-                this._boxX.min.z = this.group.position.z - 0.5;
-                this._boxX.max.z = this.group.position.z + 0.5;
-                this._boxZ.copy(this._box);
-                this._boxZ.min.x = this.group.position.x - 0.5;
-                this._boxZ.max.x = this.group.position.x + 0.5;
-                for (let i = 0; i < localBoxes.length; i++) {
-                    if (localBoxes[i].isEntityBlocker) {
-                        if (!blockedX && this._boxX.intersectsBox(localBoxes[i])) blockedX = true;
-                        if (!blockedZ && this._boxZ.intersectsBox(localBoxes[i])) blockedZ = true;
-                    }
-                }
+                const {blockedX, blockedZ} = computeAxisBlocking(
+                    this._boxX, this._boxZ, this._box, this.group.position.x, this.group.position.z, localBoxes,
+                    !!this._findForbiddenBounds(this._nextPos.x, this.group.position.z, 0.6),
+                    !!this._findForbiddenBounds(this.group.position.x, this._nextPos.z, 0.6)
+                );
                 if (!blockedX && !blockedZ) {
                     if (Math.abs(moveVec.x) > Math.abs(moveVec.z)) {
                         this.group.position.x += moveVec.x;

@@ -1055,7 +1055,24 @@ export default class Environment {
         }
         await this._compileInstances(hash, chunkGroup, stagingMeshes, random);
         if (this.activeChunks.has(hash)) {
-            this.engine.renderer.compile(chunkGroup, this.camera);
+            // `_compileInstances` just built fresh THREE.InstancedMesh objects for most of this
+            // chunk's repeated geometry -- each one needs its own shader variant distinct from a
+            // plain Mesh using the same material, so this is very often asking the driver to
+            // compile brand-new programs, not hitting a warm cache. `renderer.compile()` is a
+            // synchronous, main-thread-blocking call in older three.js builds: everything else in
+            // chunk generation yields on a 5ms wall-clock budget, but this one call doesn't,
+            // which is exactly what turns "compiling a shader" into a felt stutter -- worst at
+            // boot (a whole batch of first-ever materials at once) and any time a chunk introduces
+            // a material/instancing combo this session hasn't rendered yet. `compileAsync` (where
+            // the engine's three.js build supports it) lets the driver compile off the main
+            // thread instead of blocking it; fall back to the old synchronous call otherwise so
+            // behavior is unchanged on a build that doesn't have it.
+            if (typeof this.engine.renderer.compileAsync === 'function') {
+                await this.engine.renderer.compileAsync(chunkGroup, this.camera);
+                if (!this.activeChunks.has(hash)) return;
+            } else {
+                this.engine.renderer.compile(chunkGroup, this.camera);
+            }
             chunkGroup.userData.contentReady = true;
         }
     }
@@ -1739,6 +1756,178 @@ export default class Environment {
             pallet.add(runner);
         }
         return pallet;
+    }
+
+    /**
+     * Builds a hanging bowl light fixture: a wire dropping from the ceiling, an upward-facing
+     * rusted dome "bowl", and a bulb recessed at its peak, registered into `fixtureData` as an
+     * `isArchiveLight` fixture. Originally written for the Archive stacks and later copy-pasted
+     * verbatim into the Atrium's aisle maze (see AtriumSector.js's own `buildHangingLight`, which
+     * now just forwards here) -- consolidated since both call sites wanted the exact same
+     * fixture, just at different coordinates.
+     * @param {THREE.Group} chunkGroup - The chunk's scene group to add meshes into.
+     * @param {string} hash - The owning chunk's hash, stamped onto the bulb/fixture for cleanup.
+     * @param {number} cx - World-space X to center the fixture on.
+     * @param {number} cz - World-space Z to center the fixture on.
+     * @param {Function} random - The chunk's seeded PRNG, used for the fixture's flicker offset.
+     * @param {Function} getLightMaterial - The chunk ctx's light-material factory.
+     */
+    _buildHangingBowlLight(chunkGroup, hash, cx, cz, random, getLightMaterial) {
+        const bowlRadius = 0.4;
+        const rimY = 2.65;
+        const domeTopY = rimY + bowlRadius;
+        const wireLen = 3.0;
+        const wireGeo = this._cacheGeo('archiveWire', () => new THREE.CylinderGeometry(0.012, 0.012, wireLen, 5));
+        const wire = new THREE.Mesh(wireGeo, this.metalMat);
+        wire.position.set(cx, domeTopY + wireLen / 2, cz);
+        chunkGroup.add(wire);
+        wire.updateMatrixWorld(true);
+        this.walls.push(wire);
+        const bowlGeo = this._cacheGeo('archiveBowl', () => new THREE.SphereGeometry(bowlRadius, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2));
+        if (!this.archiveBowlMat) {
+            this.archiveBowlMat = this.rustMat.clone();
+            this.archiveBowlMat.side = THREE.DoubleSide;
+            this.sharedAssets.add(this.archiveBowlMat.uuid);
+        }
+        const bowl = new THREE.Mesh(bowlGeo, this.archiveBowlMat);
+        bowl.position.set(cx, rimY, cz);
+        chunkGroup.add(bowl);
+        bowl.updateMatrixWorld(true);
+        this.walls.push(bowl);
+        const bulbRadius = 0.08;
+        const bulbGeo = this._cacheGeo('archiveBulb', () => new THREE.SphereGeometry(bulbRadius, 8, 6));
+        const bulbMat = getLightMaterial(0xd8b276, 0xc89858, false);
+        bulbMat.map = null;
+        bulbMat.emissiveMap = null;
+        const bulbY = domeTopY - bulbRadius;
+        const bulb = new THREE.Mesh(bulbGeo, bulbMat);
+        bulb.position.set(cx, bulbY, cz);
+        bulb.userData.chunkHash = hash;
+        chunkGroup.add(bulb);
+        bulb.updateMatrixWorld(true);
+        this.walls.push(bulb);
+        this.fixtureData.push({
+            chunkHash: hash,
+            position: new THREE.Vector3(cx, bulbY, cz),
+            flickerOffset: random() * 500,
+            material: bulbMat,
+            isFaulty: true,
+            isArchiveLight: true,
+            isShadowCaster: true,
+            baseIntensity: 1.5,
+            targetIntensity: 1.5,
+            currentIntensity: 1.5
+        });
+    }
+
+    /**
+     * Builds a recessed ceiling light panel: a shared panel mesh with the active face swapped
+     * for a colored light material, registered into `fixtureData`. AnnexSector, BoardroomSector,
+     * and ClinicSector each hand-rolled this same fixture with only the color, base intensity,
+     * and faulty-chance varying -- those stay as parameters, everything else is identical.
+     * @param {THREE.Group} chunkGroup - The chunk's scene group to add the panel mesh into.
+     * @param {string} hash - The owning chunk's hash, stamped onto the fixture for cleanup.
+     * @param {number} px - World-space X to center the panel on.
+     * @param {number} pz - World-space Z to center the panel on.
+     * @param {Function} random - The chunk's seeded PRNG (consumed in the same order every
+     *   caller already used: flicker offset first, then faulty roll).
+     * @param {Function} getLightMaterial - The chunk ctx's light-material factory.
+     * @param {number} colorHex - The lit face's base color.
+     * @param {number} emissiveHex - The lit face's emissive color.
+     * @param {number} intensity - Base/target/current intensity while lit.
+     * @param {number} faultyThreshold - `random() > faultyThreshold` gates whether this fixture
+     *   starts out faulty (flickering) -- higher threshold means rarer.
+     */
+    _buildCeilingPanelLight(chunkGroup, hash, px, pz, random, getLightMaterial, colorHex, emissiveHex, intensity, faultyThreshold) {
+        const activeMat = getLightMaterial(colorHex, emissiveHex, false);
+        const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
+        panel.position.set(px, 2.98, pz);
+        chunkGroup.add(panel);
+        this.walls.push(panel);
+        this.fixtureData.push({
+            chunkHash: hash,
+            position: new THREE.Vector3(px, 2.8, pz),
+            flickerOffset: random() * 500,
+            material: activeMat,
+            isFaulty: random() > faultyThreshold,
+            baseIntensity: intensity,
+            targetIntensity: intensity,
+            currentIntensity: intensity
+        });
+    }
+
+    /**
+     * Registers an already-built, already-positioned mesh (or group) as a world interactable:
+     * pushes it onto `interactables`, computes its world-space bounding box, stamps the box with
+     * the owning chunk's hash for later cleanup, and inserts it into the spatial grid. This exact
+     * five-line tail was hand-rolled after nearly every document/prop spawn across the sector
+     * files -- consolidated here since none of it varies per call site except the mesh and hash.
+     * @param {THREE.Object3D} mesh - The already-added, already-positioned interactable.
+     * @param {string} hash - The owning chunk's hash.
+     * @returns {THREE.Box3} The box that was inserted into the spatial grid, in case a caller
+     *   needs it (mirrors what every inline version already stashed on `mesh.userData.box`).
+     */
+    _registerInteractable(mesh, hash) {
+        if (!this.interactables) this.interactables = [];
+        this.interactables.push(mesh);
+        const box = new THREE.Box3().setFromObject(mesh);
+        box.chunkHash = hash;
+        mesh.userData.box = box;
+        this.spatialGrid.insert(box);
+        return box;
+    }
+
+    /**
+     * Builds the "open corner has exposed pipework" dressing shared by MaintenanceSector and
+     * ServerSector: a horizontal pipe run along whichever of a cell's E/S faces are open, plus a
+     * mount + junction fitting anchored at the corner whenever any of the four faces are open.
+     * Both sectors run this at slightly different heights and a different corner offset, so those
+     * stay parameters; `onJunction` lets a caller layer sector-specific extras onto the junction
+     * (Maintenance rolls a chance of a valve wheel/leak stain/caution cone here; Server doesn't),
+     * invoked at the exact point in the sequence the original inline code invoked its own extras,
+     * so seeded-RNG call order is unaffected.
+     * @param {THREE.Group} chunkGroup - The chunk's scene group (unused directly here, kept for
+     *   parity with other StructureKit-style helpers/future extras).
+     * @param {Function} addGeometry - The chunk ctx's geometry-registration helper.
+     * @param {Function} random - The chunk's seeded PRNG.
+     * @param {number} x - Cell-space X of this corner.
+     * @param {number} z - Cell-space Z of this corner.
+     * @param {boolean} openE - Whether the cell's east face is open (spawns the east pipe run).
+     * @param {boolean} openS - Whether the south face is open (spawns the south pipe run).
+     * @param {boolean} openN - Whether the north face is open (contributes to the mount gate).
+     * @param {boolean} openW - Whether the west face is open (contributes to the mount gate).
+     * @param {number} offset - Corner anchor offset (differs per sector: Maintenance vs. Server).
+     * @param {number} pipeY - Y height for the E/S pipe runs.
+     * @param {number} mountY - Y height for the corner mount fitting.
+     * @param {number} junctionY - Y height for the junction fitting.
+     * @param {Function} [onJunction] - Optional callback invoked after the junction is built.
+     */
+    _buildPipeCornerDressing(chunkGroup, addGeometry, random, x, z, openE, openS, openN, openW, offset, pipeY, mountY, junctionY, onJunction) {
+        let hasPipes = false;
+        if (openE) {
+            const pipeE = new THREE.Mesh(this.pipeGeo, this.rustMat);
+            pipeE.position.set(x * this.cellSize + (this.cellSize / 2) + offset, pipeY, z * this.cellSize + offset);
+            addGeometry(pipeE);
+            hasPipes = true;
+        }
+        if (openS) {
+            const pipeS = new THREE.Mesh(this.pipeGeo, this.rustMat);
+            pipeS.rotation.y = Math.PI / 2;
+            pipeS.position.set(x * this.cellSize + offset, pipeY, z * this.cellSize + (this.cellSize / 2) + offset);
+            addGeometry(pipeS);
+            hasPipes = true;
+        }
+        if (hasPipes || openN || openW) {
+            const mount = new THREE.Mesh(this.pipeMountGeo, this.rustMat);
+            mount.position.set(x * this.cellSize + offset, mountY, z * this.cellSize + offset);
+            addGeometry(mount);
+            if (random() > 0.1) {
+                const junction = new THREE.Mesh(this.pipeJunctionGeo, this.rustMat);
+                junction.position.set(x * this.cellSize + offset, junctionY, z * this.cellSize + offset);
+                addGeometry(junction);
+                if (onJunction) onJunction();
+            }
+        }
     }
 
     _boxGeo(w, h, d) {

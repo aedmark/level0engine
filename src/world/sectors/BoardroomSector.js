@@ -48,23 +48,8 @@ export const BoardroomSector = (env, ctx) => {
             const isBowl = (gx, gz, lx, lz) =>
                 lx >= 1 && lx <= last && lz >= 1 && lz <= last &&
                 !isHallway(lx, lz) && cellHash(gx, gz) < 0.10;
-            const ceilingPanel = (px, pz) => {
-                const activeMat = ctx.getLightMaterial(0xe8f2ff, 0xd8e8ff, false);
-                const panel = new THREE.Mesh(env.sharedPanelGeo, [env.baseHousingMat, env.baseHousingMat, env.baseHousingMat, activeMat, env.baseHousingMat, env.baseHousingMat]);
-                panel.position.set(px, 2.98, pz);
-                chunkGroup.add(panel);
-                env.walls.push(panel);
-                env.fixtureData.push({
-                    chunkHash: hash,
-                    position: new THREE.Vector3(px, 2.8, pz),
-                    flickerOffset: random() * 500,
-                    material: activeMat,
-                    isFaulty: random() > 0.9,
-                    baseIntensity: 0.65,
-                    targetIntensity: 0.65,
-                    currentIntensity: 0.65
-                });
-            };
+            const ceilingPanel = (px, pz) =>
+                env._buildCeilingPanelLight(chunkGroup, hash, px, pz, random, ctx.getLightMaterial, 0xe8f2ff, 0xd8e8ff, 0.65, 0.9);
             if (isHallway(localX, localZ)) {
                 const junction = isC(localX) && isC(localZ);
                 if (!junction && (localX + localZ) % 2 === 0 && random() > 0.30) {

@@ -54,7 +54,21 @@ export default class BackupDaemonEntity {
         this.light = new THREE.PointLight(0x8ff2ff, 0.7, 4.5, 2.0);
         this.group.add(this.light);
         this.scene.add(this.group);
-        this.group.visible = false;
+    }
+
+    /**
+     * Shows or hides the daemon's visible body parts, leaving `group` (and therefore `this.light`,
+     * its child) untouched -- see ArchivistEntity._setBodyVisible() for the full explanation of
+     * why `group` stays visible permanently and only the mesh children + light intensity toggle
+     * instead. The daemon used to be the one hazard in this file that never got this fix: it hid
+     * via a plain `group.visible = false/true` in reset()/deactivate() despite a comment nearby
+     * claiming it already mirrored the others, which meant `this.light` popped in and out of the
+     * scene's active light list on every SERVER sector entry/exit -- the exact shader-recompile
+     * cost the other three hazards were specifically rewritten to avoid.
+     */
+    _setBodyVisible(visible) {
+        this.core.visible = visible;
+        for (const spark of this.sparks) spark.mesh.visible = visible;
     }
 
     /**
@@ -142,7 +156,7 @@ export default class BackupDaemonEntity {
         this._relightTimer = 0;
         this._unlightAll();
         this.group.position.set(x, this._ceilingY(), z);
-        this.group.visible = true;
+        this._setBodyVisible(true);
         this.light.intensity = 0.7;
     }
 
@@ -153,7 +167,7 @@ export default class BackupDaemonEntity {
      */
     deactivate() {
         this.isActive = false;
-        this.group.visible = false;
+        this._setBodyVisible(false);
         this.light.intensity = 0;
         this._unlightAll();
     }

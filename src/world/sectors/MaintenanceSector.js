@@ -89,101 +89,83 @@ export const MaintenanceSector = (env, ctx) => {
                 const openN = !wN;
                 const openW = !wW;
                 const offset = -1.1;
-                let hasPipes = false;
-                if (openE) {
-                    const pipeE = new THREE.Mesh(env.pipeGeo, env.rustMat);
-                    pipeE.position.set(x * env.cellSize + (env.cellSize / 2) + offset, 2.8, z * env.cellSize + offset);
-                    addGeometry(pipeE);
-                    hasPipes = true;
-                }
-                if (openS) {
-                    const pipeS = new THREE.Mesh(env.pipeGeo, env.rustMat);
-                    pipeS.rotation.y = Math.PI / 2;
-                    pipeS.position.set(x * env.cellSize + offset, 2.8, z * env.cellSize + (env.cellSize / 2) + offset);
-                    addGeometry(pipeS);
-                    hasPipes = true;
-                }
-                if (hasPipes || openN || openW) {
-                    const mount = new THREE.Mesh(env.pipeMountGeo, env.rustMat);
-                    mount.position.set(x * env.cellSize + offset, 2.925, z * env.cellSize + offset);
-                    addGeometry(mount);
-                    if (random() > 0.1) {
-                        const junction = new THREE.Mesh(env.pipeJunctionGeo, env.rustMat);
-                        junction.position.set(x * env.cellSize + offset, 2.8, z * env.cellSize + offset);
-                        addGeometry(junction);
-                        if (random() > 0.85) {
-                            const valveGroup = new THREE.Group();
-                            const stemGeo = env._cacheGeo('maintValveStem', () => new THREE.CylinderGeometry(0.04, 0.04, 0.2, 8));
-                            const stem = new THREE.Mesh(stemGeo, env.rustMat);
-                            stem.position.y = 0.1;
-                            const wheelGeo = env._cacheGeo('maintValveWheel', () => new THREE.TorusGeometry(0.22, 0.04, 12, 24));
-                            const wheel = new THREE.Mesh(wheelGeo, env.valveMat || env.rustMat);
-                            wheel.position.y = 0.2;
-                            wheel.rotation.x = Math.PI / 2;
-                            valveGroup.add(stem, wheel);
-                            valveGroup.position.set(x * env.cellSize + offset, 2.8, z * env.cellSize + offset);
-                            const validDirs = ['down'];
-                            if (!openE) validDirs.push('east');
-                            if (!openS) validDirs.push('south');
-                            const dir = validDirs[Math.floor(random() * validDirs.length)];
-                            if (dir === 'down') {
-                                valveGroup.rotation.x = Math.PI;
-                            } else if (dir === 'east') {
-                                valveGroup.rotation.z = -Math.PI * 0.75;
-                            } else if (dir === 'south') {
-                                valveGroup.rotation.x = Math.PI * 0.75;
-                            }
-                            valveGroup.translateY(0.1);
-                            valveGroup.userData = {type: 'valve', active: false, wheel: wheel, chunkHash: hash};
-                            if (env.interactables) env.interactables.push(valveGroup);
-                            chunkGroup.add(valveGroup);
+                // Shared pipe/mount/junction dressing (also used by ServerSector, at different
+                // heights/offset) -- see Environment._buildPipeCornerDressing(). Maintenance's own
+                // valve-wheel/leak-stain/caution-cone extras layer on top via the callback, since
+                // Server doesn't have them.
+                env._buildPipeCornerDressing(chunkGroup, addGeometry, random, x, z, openE, openS, openN, openW, offset, 2.8, 2.925, 2.8, () => {
+                    if (random() > 0.85) {
+                        const valveGroup = new THREE.Group();
+                        const stemGeo = env._cacheGeo('maintValveStem', () => new THREE.CylinderGeometry(0.04, 0.04, 0.2, 8));
+                        const stem = new THREE.Mesh(stemGeo, env.rustMat);
+                        stem.position.y = 0.1;
+                        const wheelGeo = env._cacheGeo('maintValveWheel', () => new THREE.TorusGeometry(0.22, 0.04, 12, 24));
+                        const wheel = new THREE.Mesh(wheelGeo, env.valveMat || env.rustMat);
+                        wheel.position.y = 0.2;
+                        wheel.rotation.x = Math.PI / 2;
+                        valveGroup.add(stem, wheel);
+                        valveGroup.position.set(x * env.cellSize + offset, 2.8, z * env.cellSize + offset);
+                        const validDirs = ['down'];
+                        if (!openE) validDirs.push('east');
+                        if (!openS) validDirs.push('south');
+                        const dir = validDirs[Math.floor(random() * validDirs.length)];
+                        if (dir === 'down') {
+                            valveGroup.rotation.x = Math.PI;
+                        } else if (dir === 'east') {
+                            valveGroup.rotation.z = -Math.PI * 0.75;
+                        } else if (dir === 'south') {
+                            valveGroup.rotation.x = Math.PI * 0.75;
                         }
-                        if (env.leakStainGeo && random() > 0.5) {
-                            const stain = new THREE.Mesh(env.leakStainGeo, env.leakStainMat);
-                            stain.position.set(x * env.cellSize + offset, 0.025, z * env.cellSize + offset);
-                            stain.rotation.y = random() * Math.PI * 2;
-                            const sc = 0.7 + random() * 0.6;
-                            stain.scale.set(sc, sc, sc);
-                            addGeometry(stain);
-                            if (random() > 0.3) {
-                                const coneGroup = new THREE.Group();
-                                const coneGeo = env._cacheGeo('maintCautionConeBody', () => {
-                                    const g = new THREE.CylinderGeometry(0.05, 0.25, 0.85, 16);
-                                    g.translate(0, 0.425, 0);
-                                    return g;
-                                });
-                                const baseGeo = env._cacheGeo('maintCautionConeBase', () => {
-                                    const g = new THREE.BoxGeometry(0.55, 0.05, 0.55);
-                                    g.translate(0, 0.025, 0);
-                                    return g;
-                                });
-                                const coneMat = env.cautionConeMat || env.hazardMat;
-                                const coneBaseMat = env.cautionConeBaseMat || coneMat;
-                                const coneBody = new THREE.Mesh(coneGeo, coneMat);
-                                const coneBase = new THREE.Mesh(baseGeo, coneBaseMat);
-                                coneGroup.add(coneBody, coneBase);
-                                const jx = (random() * 1.0) - 0.1;
-                                const jz = (random() * 1.0) - 0.1;
-                                coneGroup.position.set(x * env.cellSize + offset + jx, 0.0, z * env.cellSize + offset + jz);
-                                coneGroup.rotation.order = 'YXZ';
-                                coneGroup.rotation.y = random() * Math.PI * 2;
-                                const isTipped = random() > 0.8;
-                                if (isTipped) {
-                                    coneGroup.rotation.x = Math.PI / 2 + 0.258;
-                                    coneGroup.position.y = 0.266;
-                                }
-                                coneGroup.userData = {
-                                    type: 'cone',
-                                    tipped: isTipped,
-                                    fallProgress: isTipped ? 1.0 : 0.0,
-                                    active: true
-                                };
-                                if (env.animators) env.animators.push(coneGroup);
-                                chunkGroup.add(coneGroup);
+                        valveGroup.translateY(0.1);
+                        valveGroup.userData = {type: 'valve', active: false, wheel: wheel, chunkHash: hash};
+                        if (env.interactables) env.interactables.push(valveGroup);
+                        chunkGroup.add(valveGroup);
+                    }
+                    if (env.leakStainGeo && random() > 0.5) {
+                        const stain = new THREE.Mesh(env.leakStainGeo, env.leakStainMat);
+                        stain.position.set(x * env.cellSize + offset, 0.025, z * env.cellSize + offset);
+                        stain.rotation.y = random() * Math.PI * 2;
+                        const sc = 0.7 + random() * 0.6;
+                        stain.scale.set(sc, sc, sc);
+                        addGeometry(stain);
+                        if (random() > 0.3) {
+                            const coneGroup = new THREE.Group();
+                            const coneGeo = env._cacheGeo('maintCautionConeBody', () => {
+                                const g = new THREE.CylinderGeometry(0.05, 0.25, 0.85, 16);
+                                g.translate(0, 0.425, 0);
+                                return g;
+                            });
+                            const baseGeo = env._cacheGeo('maintCautionConeBase', () => {
+                                const g = new THREE.BoxGeometry(0.55, 0.05, 0.55);
+                                g.translate(0, 0.025, 0);
+                                return g;
+                            });
+                            const coneMat = env.cautionConeMat || env.hazardMat;
+                            const coneBaseMat = env.cautionConeBaseMat || coneMat;
+                            const coneBody = new THREE.Mesh(coneGeo, coneMat);
+                            const coneBase = new THREE.Mesh(baseGeo, coneBaseMat);
+                            coneGroup.add(coneBody, coneBase);
+                            const jx = (random() * 1.0) - 0.1;
+                            const jz = (random() * 1.0) - 0.1;
+                            coneGroup.position.set(x * env.cellSize + offset + jx, 0.0, z * env.cellSize + offset + jz);
+                            coneGroup.rotation.order = 'YXZ';
+                            coneGroup.rotation.y = random() * Math.PI * 2;
+                            const isTipped = random() > 0.8;
+                            if (isTipped) {
+                                coneGroup.rotation.x = Math.PI / 2 + 0.258;
+                                coneGroup.position.y = 0.266;
                             }
+                            coneGroup.userData = {
+                                type: 'cone',
+                                tipped: isTipped,
+                                fallProgress: isTipped ? 1.0 : 0.0,
+                                active: true
+                            };
+                            if (env.animators) env.animators.push(coneGroup);
+                            chunkGroup.add(coneGroup);
                         }
                     }
-                }
+                });
                 const wallSides = [];
                 if (wN) wallSides.push([0, -1]);
                 if (wS) wallSides.push([0, 1]);

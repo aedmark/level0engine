@@ -105,21 +105,7 @@ export const ClinicSector = (env, ctx) => {
             const obRoll = gateApproach ? 1.0 : random();
             const isCollapse = obRoll >= 0.12 && obRoll < 0.135;
             if (!isCollapse && (localX + localZ) % 2 === 0 && random() > 0.5) {
-                const activeMat = ctx.getLightMaterial(0xd0e8ff, 0xa0d0ff, false);
-                const panel = new THREE.Mesh(env.sharedPanelGeo, [env.baseHousingMat, env.baseHousingMat, env.baseHousingMat, activeMat, env.baseHousingMat, env.baseHousingMat]);
-                panel.position.set(cx0, 2.98, cz0);
-                chunkGroup.add(panel);
-                env.walls.push(panel);
-                env.fixtureData.push({
-                    chunkHash: hash,
-                    position: new THREE.Vector3(cx0, 2.8, cz0),
-                    flickerOffset: random() * 500,
-                    material: activeMat,
-                    isFaulty: random() > 0.6,
-                    baseIntensity: 0.5,
-                    targetIntensity: 0.5,
-                    currentIntensity: 0.5
-                });
+                env._buildCeilingPanelLight(chunkGroup, hash, cx0, cz0, random, ctx.getLightMaterial, 0xd0e8ff, 0xa0d0ff, 0.5, 0.6);
             }
             if (gateApproach) return;
             if (obRoll < 0.12) {
