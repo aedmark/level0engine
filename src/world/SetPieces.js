@@ -572,6 +572,47 @@ export default class SetPieces {
             lampLens.position.set(cx, 3.02, cz);
             chunkGroup.add(lampLens);
 
+            // A fluorescent bar tucked under the header, purely to wash light down across
+            // the door panels -- separate from the tiny red/green cycle-status lamp above,
+            // which reads state rather than illuminating anything. Reuses the same pooled
+            // light-material convention as every other fixture in the engine (baseLightMat
+            // clone keyed by color/emissive) so it slots into LumenGrid the normal way.
+            if (!env._lightMatPool) env._lightMatPool = new Map();
+            const barKey = '15007679_13495535_false';
+            if (!env._lightMatPool.has(barKey)) {
+                const mat = env.baseLightMat.clone();
+                mat.color.setHex(0xeaf6ff);
+                mat.emissive.setHex(0xcfe9ff);
+                env.sharedAssets.add(mat.uuid);
+                env._lightMatPool.set(barKey, mat);
+            }
+            const barMat = env._lightMatPool.get(barKey);
+            const barHousing = new THREE.Mesh(env._boxGeo(spansX ? 1.6 : 0.3, 0.14, spansX ? 0.3 : 1.6), env.baseHousingMat);
+            barHousing.position.set(cx, 2.56, cz);
+            chunkGroup.add(barHousing);
+            env.walls.push(barHousing);
+            const barLens = new THREE.Mesh(env._boxGeo(spansX ? 1.4 : 0.16, 0.04, spansX ? 0.16 : 1.4), barMat);
+            barLens.position.set(cx, 2.5, cz);
+            chunkGroup.add(barLens);
+            env.walls.push(barLens);
+            env.fixtureData.push({
+                chunkHash: hash,
+                position: new THREE.Vector3(cx, 2.5, cz),
+                isSpot: true,
+                targetPos: new THREE.Vector3(cx, 0.0, cz),
+                spotAngle: Math.PI / 5,
+                spotPenumbra: 0.5,
+                distance: 8.0,
+                // Deterministic desync between the two doors of an airlock instead of a
+                // random roll -- SetPieces builds are otherwise fully deterministic.
+                flickerOffset: Math.abs(cx * 37 + cz * 17) % 500,
+                material: barMat,
+                isFaulty: false,
+                baseIntensity: 2.2,
+                targetIntensity: 2.2,
+                currentIntensity: 2.2
+            });
+
             const doorGroup = new THREE.Group();
             doorGroup.position.set(cx, 0, cz);
 

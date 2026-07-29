@@ -1136,6 +1136,65 @@ export default class ProceduralTextureFactory {
         return {boardWallMat};
     }
 
+    /**
+     * A glossy, veined "food court marble" laminate for the Atrium's wall ring -- the kind
+     * of over-polished faux-stone a mall developer picks because it photographs well, not
+     * because it's tasteful. Cream base, grey veining, a couple of thin gold accent veins,
+     * and a soft diagonal sheen standing in for the over-buffed gloss coat.
+     */
+    static _buildAtriumAssets(masterNoise) {
+        const {canvas: marbleCanvas, ctx: marbleCtx} = this._createContext(512, 512);
+        marbleCtx.fillStyle = '#efe7d8';
+        marbleCtx.fillRect(0, 0, 512, 512);
+        marbleCtx.globalAlpha = 0.4;
+        marbleCtx.drawImage(masterNoise, 0, 0, 512, 512);
+        marbleCtx.globalAlpha = 1.0;
+
+        const drawVein = (color, width, alpha) => {
+            marbleCtx.strokeStyle = color;
+            marbleCtx.lineWidth = width;
+            marbleCtx.globalAlpha = alpha;
+            marbleCtx.beginPath();
+            let vx = Math.random() * 512;
+            let vy = 0;
+            marbleCtx.moveTo(vx, vy);
+            while (vy < 512) {
+                vx += (Math.random() - 0.5) * 140;
+                vy += 40 + Math.random() * 60;
+                marbleCtx.lineTo(vx, vy);
+            }
+            marbleCtx.stroke();
+        };
+        for (let i = 0; i < 9; i++) {
+            drawVein('rgba(150, 138, 118, 1)', 1 + Math.random() * 2, 0.25 + Math.random() * 0.2);
+        }
+        for (let i = 0; i < 3; i++) {
+            drawVein('rgba(197, 163, 74, 1)', 1 + Math.random() * 1.5, 0.35);
+        }
+        marbleCtx.globalAlpha = 1.0;
+
+        // A cheap, uneven gloss band rather than a true reflection -- laminate catching
+        // light unevenly, not a real polished-stone specular response.
+        const sheen = marbleCtx.createLinearGradient(0, 0, 512, 512);
+        sheen.addColorStop(0.0, 'rgba(255,255,255,0.0)');
+        sheen.addColorStop(0.45, 'rgba(255,255,255,0.12)');
+        sheen.addColorStop(0.55, 'rgba(255,255,255,0.0)');
+        sheen.addColorStop(1.0, 'rgba(255,255,255,0.0)');
+        marbleCtx.fillStyle = sheen;
+        marbleCtx.fillRect(0, 0, 512, 512);
+
+        const marbleTexture = this._createWrappedTexture(marbleCanvas, 2, 1);
+        const marbleMat = new THREE.MeshStandardMaterial({
+            map: marbleTexture,
+            color: 0xffffff,
+            bumpMap: marbleTexture,
+            bumpScale: 0.015,
+            roughness: 0.18,
+            metalness: 0.15
+        });
+        return {marbleMat};
+    }
+
     static _buildMaintenanceAssets(masterNoise) {
         const {canvas: leakCanvas, ctx: leakCtx} = this._createContext(256, 256, false);
         for (let i = 0; i < 10; i++) {
@@ -1830,6 +1889,8 @@ export default class ProceduralTextureFactory {
         await this._yield();
         const boardroomAssets = this._buildBoardroomAssets(masterNoise);
         await this._yield();
+        const atriumAssets = this._buildAtriumAssets(masterNoise);
+        await this._yield();
         const maintenanceAssets = this._buildMaintenanceAssets(masterNoise);
         await this._yield();
         const archiveAssets = this._buildArchiveAssets(masterNoise);
@@ -1844,6 +1905,7 @@ export default class ProceduralTextureFactory {
             ...annexAssets,
             ...impoundAssets,
             ...boardroomAssets,
+            ...atriumAssets,
             ...maintenanceAssets,
             ...archiveAssets,
             ...extendedAssets

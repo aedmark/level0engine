@@ -280,14 +280,23 @@ export const BoardroomSector = (env, ctx) => {
                                 const forcedOpen =
                                     (myEgress.open && myEgress.open[0] === dx && myEgress.open[1] === dz) ||
                                     (nbEgress.open && nbEgress.open[0] === -dx && nbEgress.open[1] === -dz);
-                                const roll = random();
-                                if (forcedOpen || roll < 0.35) {
-                                } else if (roll < 0.78) {
-                                    glassFace(alongX, faceC, adjLatC, adjLen, false);
+                                if (forcedOpen) {
+                                    // Intentional connectivity opening between suites (part of the
+                                    // egress graph) -- left fully open at full cell width, so it's
+                                    // unambiguously a walkable doorway rather than a wall that
+                                    // happens to be missing.
                                 } else {
-                                    const wall = buildWall(alongX ? adjLen : 0.15, alongX ? 0.15 : adjLen, env.boardWallMat || env.sharedWallMat, 3.0);
-                                    wall.position.set(alongX ? adjLatC : faceC, 1.5, alongX ? faceC : adjLatC);
-                                    addGeometry(wall);
+                                    // Every other interior partition commits to one of two states:
+                                    // see-through-but-solid glass, or a fully sealed wall. No random
+                                    // chance of leaving an unintentional, unwalkable-width gap.
+                                    const roll = random();
+                                    if (roll < 0.65) {
+                                        glassFace(alongX, faceC, adjLatC, adjLen, false);
+                                    } else {
+                                        const wall = buildWall(alongX ? adjLen : 0.15, alongX ? 0.15 : adjLen, env.boardWallMat || env.sharedWallMat, 3.0);
+                                        wall.position.set(alongX ? adjLatC : faceC, 1.5, alongX ? faceC : adjLatC);
+                                        addGeometry(wall);
+                                    }
                                 }
                             }
                         }
@@ -315,13 +324,18 @@ export const BoardroomSector = (env, ctx) => {
                     if (dress < 0.45) {
                         const longX = random() > 0.5;
                         const confTable = new THREE.Group();
+                        const legH = 0.88; // match StructureKit.buildTable's four-leg design
                         const top = new THREE.Mesh(env._boxGeo(longX ? 3.2 : 1.4, 0.08, longX ? 1.4 : 3.2), env.woodMat);
-                        top.position.y = 0.82;
+                        top.position.y = legH + 0.04;
                         confTable.add(top);
-                        for (let e = -1; e <= 1; e += 2) {
-                            const ped = new THREE.Mesh(env.tableBaseGeo, env.structMat);
-                            ped.position.set(longX ? e * 1.1 : 0, 0.4, longX ? 0 : e * 1.1);
-                            confTable.add(ped);
+                        const legX = (longX ? 3.2 : 1.4) / 2 - 0.2;
+                        const legZ = (longX ? 1.4 : 3.2) / 2 - 0.2;
+                        for (const lx of [legX, -legX]) {
+                            for (const lz of [legZ, -legZ]) {
+                                const leg = new THREE.Mesh(env.tableLegGeo, env.woodMat);
+                                leg.position.set(lx, legH / 2, lz);
+                                confTable.add(leg);
+                            }
                         }
                         confTable.position.set(bx, 0, bz);
                         addFurniture(confTable);

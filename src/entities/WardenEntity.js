@@ -32,13 +32,64 @@ export default class WardenEntity {
     }
 
     _buildMesh() {
-        const mat = new THREE.MeshBasicMaterial({color: 0x111111});
-        const geo = new THREE.BoxGeometry(0.8, 4.0, 0.8);
-        this.core = new THREE.Mesh(geo, mat);
-        this.core.position.y = 2.0;
-        this.group.add(this.core);
+        // MeshBasicMaterial on a plain box is exactly why it read as a flat black cutout instead
+        // of a physical threat -- unlit materials don't shade, so it never picked up rim light
+        // from its own spotlight or the yard's floodlights, no matter how dramatic the lighting
+        // around it got. MeshStandardMaterial with real roughness/metalness lets it actually catch
+        // and hold light like everything else in the scene.
+        const mat = new THREE.MeshStandardMaterial({color: 0x14161a, roughness: 0.55, metalness: 0.35});
+
+        // Planted legs, deliberately NOT part of the swiveling upper body below -- a figure that's
+        // rooted in place but turning to track a sound reads as far more alert (and more
+        // unsettling) than one that pivots as a single rigid pole.
+        const legGeo = new THREE.CylinderGeometry(0.32, 0.4, 1.6, 8);
+        this.legs = new THREE.Mesh(legGeo, mat);
+        this.legs.position.y = 0.8;
+        this.legs.castShadow = true;
+        this.group.add(this.legs);
+
+        // Torso, shoulders, head, and eyes all ride together so the whole upper body can turn as
+        // one unit -- see _animate(). Kept as a sibling of the light/lightTarget below, not a
+        // parent of them, so this cosmetic sway can never compound with the actual spotlight-aim
+        // math (SWEEP_RADIUS etc.) that was just fixed.
+        this.upperBody = new THREE.Group();
+        this.group.add(this.upperBody);
+
+        const torsoGeo = new THREE.CylinderGeometry(0.58, 0.32, 1.4, 8);
+        this.torso = new THREE.Mesh(torsoGeo, mat);
+        this.torso.position.y = 2.3;
+        this.torso.castShadow = true;
+        this.upperBody.add(this.torso);
+
+        // Shoulder ridges break up the silhouette from the side so it doesn't read as a smooth
+        // pole even in profile.
+        const shoulderGeo = new THREE.BoxGeometry(0.26, 0.26, 0.5);
+        for (const side of [-1, 1]) {
+            const shoulder = new THREE.Mesh(shoulderGeo, mat);
+            shoulder.position.set(side * 0.58, 2.85, 0);
+            shoulder.castShadow = true;
+            this.upperBody.add(shoulder);
+        }
+
+        const headGeo = new THREE.BoxGeometry(0.4, 0.38, 0.4);
+        this.head = new THREE.Mesh(headGeo, mat);
+        this.head.position.y = 3.3;
+        this.head.castShadow = true;
+        this.upperBody.add(this.head);
+        this.core = this.head; // Kept as `core` for anything reading it as this entity's "face".
+
+        // A pair of sensor eyes -- dim at rest, flare red in _updateSenses the instant it spots
+        // the player. This is what makes the body itself look alert, not just the beam it carries.
+        this.eyeMat = new THREE.MeshBasicMaterial({color: 0xdadada, transparent: true, opacity: 0.55});
+        const eyeGeo = new THREE.SphereGeometry(0.045, 6, 6);
+        for (const side of [-1, 1]) {
+            const eye = new THREE.Mesh(eyeGeo, this.eyeMat);
+            eye.position.set(side * 0.11, 3.32, 0.2);
+            this.upperBody.add(eye);
+        }
+
         this.light = new THREE.SpotLight(0xffffff, 2.0, 30.0, Math.PI / 6, 0.3, 1.0);
-        this.light.position.set(0, 3.8, 0);
+        this.light.position.set(0, 3.6, 0);
         this.light.castShadow = true;
         this.light.shadow.mapSize.width = 256;
         this.light.shadow.mapSize.height = 256;
@@ -60,6 +111,8 @@ export default class WardenEntity {
         this.isActive = true;
         this.graceTimer = 2.0;
         this.stepTimer = 0;
+        this._lastLOSTime = 0;
+        this._lastLOSResult = false;
         // Re-leash to the Impound sector's current geometry on every (re)spawn -- the generic
         // 40-50 unit spawn offset from EntityManager doesn't know this room's actual footprint.
         this._bounds = this.env && this.env.getSectorBounds ? this.env.getSectorBounds('IMPOUND') : null;
@@ -68,6 +121,10 @@ export default class WardenEntity {
         this.target.copy(this.group.position);
         this.group.visible = true;
         this.light.color.setHex(0xffffff);
+        if (this.eyeMat) {
+            this.eyeMat.color.setHex(0xdadada);
+            this.eyeMat.opacity = 0.55;
+        }
     }
 
     /**
@@ -129,26 +186,46 @@ export default class WardenEntity {
     }
 
     _updateSenses(playerPos, distSq, delta, time) {
-        let hasLOS = false;
+        // The occlusion check below queries the spatial grid at up to a 30-unit radius (sqrt of
+        // the 900.0 threshold) and ray-tests every isEntityBlocker box it finds -- and Impound is
+        // by far the densest sector for that box type (fence segments on nearly every perimeter
+        // cell, plus cars/machines/tire stacks), so that query's candidate set is much larger
+        // there than in a typical corridor. Anomaly.js already solved this exact cost by only
+        // re-running its LOS raycast a few times a second and reusing the cached result on the
+        // frames in between (see _lastLOSTime there); the Warden never got the same treatment and
+        // was paying the full query+raycast cost every single frame, unthrottled. That's the hard
+        // spike: not a one-time cost, a recurring one, worst in the one sector with the most
+        // blockers to test against.
+        if (this._lastLOSTime === undefined) this._lastLOSTime = 0;
+        let hasLOS = this._lastLOSResult || false;
         if (distSq < 900.0) {
-            const toPlayerDir = this._toPlayer.subVectors(playerPos, this.light.position.clone().add(this.group.position)).normalize();
-            let isOccluded = false;
-            const searchDist = Math.sqrt(distSq);
-            if (this.env && this.env.spatialGrid) {
-                const localBoxes = this.env.spatialGrid.getNearby(this.group.position.x, this.group.position.z, searchDist);
-                for (let i = 0; i < localBoxes.length; i++) {
-                    const box = localBoxes[i];
-                    if (box.isEntityBlocker && !box.isInvisibleBlocker) {
-                        if (AABB.rayIntersectsBox(this.group.position, toPlayerDir, box, this._rayTarget)) {
-                            if (this.group.position.distanceToSquared(this._rayTarget) < distSq) {
-                                isOccluded = true;
-                                break;
+            if (time - this._lastLOSTime > 0.1) {
+                if (!this._lightWorldPos) this._lightWorldPos = new THREE.Vector3();
+                this._lightWorldPos.copy(this.light.position).add(this.group.position);
+                const toPlayerDir = this._toPlayer.subVectors(playerPos, this._lightWorldPos).normalize();
+                let isOccluded = false;
+                const searchDist = Math.sqrt(distSq);
+                if (this.env && this.env.spatialGrid) {
+                    const localBoxes = this.env.spatialGrid.getNearby(this.group.position.x, this.group.position.z, searchDist);
+                    for (let i = 0; i < localBoxes.length; i++) {
+                        const box = localBoxes[i];
+                        if (box.isEntityBlocker && !box.isInvisibleBlocker) {
+                            if (AABB.rayIntersectsBox(this.group.position, toPlayerDir, box, this._rayTarget)) {
+                                if (this.group.position.distanceToSquared(this._rayTarget) < distSq) {
+                                    isOccluded = true;
+                                    break;
+                                }
                             }
                         }
                     }
                 }
+                hasLOS = !isOccluded;
+                this._lastLOSResult = hasLOS;
+                this._lastLOSTime = time;
             }
-            hasLOS = !isOccluded;
+        } else {
+            hasLOS = false;
+            this._lastLOSResult = false;
         }
         let isSpotted = false;
         if (hasLOS) {
@@ -164,6 +241,10 @@ export default class WardenEntity {
         if (isSpotted) {
             this.light.color.setHex(0xff0000);
             this.light.intensity = 4.0;
+            if (this.eyeMat) {
+                this.eyeMat.color.setHex(0xff0000);
+                this.eyeMat.opacity = 1.0;
+            }
             this.player.stamina = 0.0;
             this.player.exhaustion = Math.min(this.player.exhaustion + delta * 2.0, 1.0);
             this.player.coherence = Math.max(0.0, this.player.coherence - (delta * 0.02));
@@ -171,6 +252,10 @@ export default class WardenEntity {
         } else {
             this.light.color.setHex(0xffffff);
             this.light.intensity = 2.0;
+            if (this.eyeMat) {
+                this.eyeMat.color.setHex(0xdadada);
+                this.eyeMat.opacity = 0.55;
+            }
             if (Math.random() < 0.02) {
                 this.target.x = playerPos.x + (Math.random() - 0.5) * 15.0;
                 this.target.z = playerPos.z + (Math.random() - 0.5) * 15.0;
@@ -235,6 +320,15 @@ export default class WardenEntity {
                     this.group.position.x += moveVec.x;
                 } else if (!blockedZ) {
                     this.group.position.z += moveVec.z;
+                } else {
+                    // Wedged on both axes at once -- Impound's fence segments make this far more
+                    // likely than in an open corridor. There was no fallback here at all, so
+                    // hitting this case meant the position update was simply skipped for the
+                    // frame, every frame, forever: it just freezes in place. Anomaly.js has the
+                    // same "both blocked" case and escapes it with a small random nudge; mirroring
+                    // that here instead of leaving it a dead end.
+                    this.group.position.x += (Math.random() - 0.5) * speed * delta;
+                    this.group.position.z += (Math.random() - 0.5) * speed * delta;
                 }
             }
         }
@@ -246,7 +340,18 @@ export default class WardenEntity {
 
     _animate(time) {
         const yaw = Math.sin(time * 0.8) * (Math.PI / 3);
-        this.lightTarget.position.set(Math.sin(yaw), 0, Math.cos(yaw));
+        // The light sits at local y=3.6; a horizontal target radius of 1 (the old value) put the
+        // aim vector at ~15 degrees off straight down no matter what yaw was -- the "sweep" was
+        // real but far too small to ever pull the beam off the Warden's own feet, which is what
+        // "pointing its searchlight straight at the ground" actually looks like. A wider radius
+        // aims it out across the floor at a much shallower, genuinely scanning angle instead.
+        const SWEEP_RADIUS = 10.0;
+        this.lightTarget.position.set(Math.sin(yaw) * SWEEP_RADIUS, 0, Math.cos(yaw) * SWEEP_RADIUS);
         this.group.position.y = Math.sin(time * 4.0) * 0.05;
+        // Purely cosmetic torso/head swivel, timed to the same yaw wave as the light sweep so it
+        // reads as "the beam moves because the body is turning" -- but it only rotates upperBody
+        // (torso/shoulders/head/eyes), never light or lightTarget, so it can't feed back into the
+        // aim math above.
+        if (this.upperBody) this.upperBody.rotation.y = yaw * 0.6;
     }
 }

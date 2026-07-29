@@ -92,13 +92,13 @@ const SECTORS = {
         delay: 0.02, feedback: 0.15
     },
     CHASM: {
-        fog: 0.21, fogColor: 0x052047,
+        fog: 0.20, fogColor: 0x052047,
         ambience: {noise: 0.25, peace: 0.0, rumble: 30, freq: 40, freqOcc: 40, whine: 0.0, whineOcc: 0.0, dynamicWhine: false},
         foley: {oscFreq: 240, filterType: 'bandpass', filterFreq: 1600, gain: 0.18, attack: 0.005, decay: 0.3},
         delay: 0.8, feedback: 0.7
     },
     ATRIUM: {
-        fog: 0.19, fogColor: 0x020202,
+        fog: 0.08, fogColor: 0x000000,
         ambience: {noise: 0.09, peace: 0.0, rumble: 35, freq: 130, freqOcc: 80, whine: 0.0, whineOcc: 0.0, dynamicWhine: false},
         foley: {oscFreq: 70, filterType: 'lowpass', filterFreq: 700, gain: 0.09, attack: 0.04, decay: 0.22},
         delay: 0.4, feedback: 0.3

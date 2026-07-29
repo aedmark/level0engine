@@ -406,9 +406,23 @@ export default class PlayerController {
             baseDrain = 0.0; // The mind focuses, halting passive drain.
         } else if (this.isBlindFolded) {
             baseDrain = -0.15;
-        } else if (externalPressure === 0.0 && darkSignal <= 0.0) {
+        } else {
+            // Recovery used to require externalPressure === 0.0 *and* darkSignal <= 0.0 -- an
+            // all-or-nothing gate that is the exact same cliff the darkness fix above eliminated,
+            // just left standing on the anomaly-pressure axis. Once the anomaly had ever gotten
+            // within its 15-unit pressure radius, `externalPressure` stayed nonzero for as long as
+            // it lingered anywhere in that radius -- wandering, distracted, no LOS, doesn't matter
+            // -- and recovery was fully locked out the entire time, regardless of what the player
+            // did. That reads as "no matter what I do, it keeps plummeting," because it was:
+            // baseDrain had no recovery term to offset it at all whenever pressure was nonzero,
+            // however slightly. `clarity` replaces the hard gate with a continuous one: recovery
+            // scales down smoothly as pressure/darkness rise instead of vanishing outright, so a
+            // distant or disengaged anomaly no longer permanently forecloses regeneration -- only
+            // a genuinely close/engaged one (high externalPressure) outweighs it.
+            const clarity = Math.max(0.0, 1.0 - externalPressure - darkSignal);
             const recoveryMultiplier = isMoving ? 1.0 : 3.0;
-            baseDrain = -0.08 * recoveryMultiplier * (1.0 - this.perceivedDarkness);
+            const recovery = 0.08 * recoveryMultiplier * (1.0 - this.perceivedDarkness) * clarity;
+            baseDrain -= recovery;
         }
         this.coherence = Math.max(0.0, Math.min(1.0, this.coherence - (baseDrain * delta)));
 

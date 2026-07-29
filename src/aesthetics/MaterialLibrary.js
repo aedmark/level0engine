@@ -66,6 +66,7 @@ export default class MaterialLibrary {
         env.couchArmGeo = new THREE.BoxGeometry(0.18, 0.55, 0.85);
         env.tableTopGeo = new THREE.BoxGeometry(1.2, 0.05, 1.2);
         env.tableBaseGeo = new THREE.BoxGeometry(0.5, 0.8, 0.5);
+        env.tableLegGeo = new THREE.BoxGeometry(0.1, 0.88, 0.1); // four-leg table design (StructureKit.buildTable)
         env.wallVentMat = env.ventMat.clone();
         env.wallVentMat.map = env.ventMat.map.clone();
         env.wallVentMat.map.repeat.set(1, 1);

@@ -174,9 +174,8 @@ document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e
         if (step % 5 === 0) await new Promise(r => setTimeout(r, 0));
     }
 
-    sectorHuntActive = false;
-
     if (!foundZone) {
+        sectorHuntActive = false;
         console.log(`[SectorHunt] Could not find ${targetSector} within ${maxSteps} chunk steps on the current seed.`);
         environment.updateChunks(originalPos);
         e.target.value = "";
@@ -185,6 +184,16 @@ document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e
     }
 
     // Mirror pressing the airlock switch, then wait for the deferred interior to actually build.
+    // sectorHuntActive stays true through this whole section: the found chunk is still parked at
+    // its far-away hash and the camera hasn't moved there yet, so if the render loop's own
+    // updateChunks(camera.position) ran now it would (correctly, by its own logic) find that
+    // chunk outside the spawn-centered window and dispose it -- deleting its macroZones entry and
+    // its _pendingMacroContent entry out from under beginMacroChunkContent. Worse,
+    // isMacroChunkContentReady() treats "chunk no longer exists" as ready (`if (!chunkGroup) return
+    // true`), so the wait loop below would report success on a chunk that was actually destroyed,
+    // and the *next* legitimate build of that same coordinate pops a different id off the shared
+    // sector bag -- e.g. selecting ARCHIVE but landing in CHECKPOINT. Keeping the guard up until
+    // the camera is actually standing in the target chunk avoids all of that.
     environment.beginMacroChunkContent(foundHash);
     let waited = 0;
     while (!environment.isMacroChunkContentReady(foundHash) && waited < 4000) {
@@ -195,6 +204,7 @@ document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e
     const tx = (foundZone.startX + 7) * environment.cellSize;
     const tz = (foundZone.startZ + 3) * environment.cellSize;
     engine.camera.position.set(tx, 1.6, tz);
+    sectorHuntActive = false;
     console.log(`[SectorHunt] Found ${targetSector} at chunk ${foundHash} after ${step} chunk step(s), same seed.`);
     e.target.value = "";
     if (uiLayer) uiLayer.style.opacity = '1';

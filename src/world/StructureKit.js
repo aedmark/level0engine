@@ -211,12 +211,18 @@ export default class StructureKit {
             },
             buildTable: (x, y, z) => {
                 const group = new THREE.Group();
+                const legH = 0.88; // ~3in taller than the old center-column table
                 const top = new THREE.Mesh(env.tableTopGeo, env.woodMat);
-                top.position.set(0, 0.8, 0);
+                top.position.set(0, legH + 0.025, 0);
                 group.add(top);
-                const base = new THREE.Mesh(env.tableBaseGeo, env.structMat);
-                base.position.set(0, 0.4, 0);
-                group.add(base);
+                const legInset = 0.45;
+                for (const lx of [legInset, -legInset]) {
+                    for (const lz of [legInset, -legInset]) {
+                        const leg = new THREE.Mesh(env.tableLegGeo, env.woodMat);
+                        leg.position.set(lx, legH / 2, lz);
+                        group.add(leg);
+                    }
+                }
                 group.position.set(x, y, z);
                 return group;
             },
@@ -258,16 +264,24 @@ export default class StructureKit {
                 const isShoulder = isShoulderNS || isShoulderEW;
                 if (isDoorwayNS || isDoorwayEW) {
                     const wMat = wallMat || env.sharedWallMat;
-                    const aMat = env.metalMat || env.structMat; // Airlock texture
-                    
+                    // The airlock jamb/header always used the lit metal + sharedWallMat combo
+                    // here, regardless of what the sector passed in as wallMat. That's fine
+                    // everywhere there's ambient light to catch it, but the Atrium void has no
+                    // fixtures out there to light a PBR material -- it just renders black. Since
+                    // Atrium's own wallMat is already the unlit white void material, reuse it for
+                    // the jamb/header too so the whole doorway pocket stays lit-independent white.
+                    const isVoidSector = sectorId === "ATRIUM" && env.matrixVoidMat;
+                    const aMat = isVoidSector ? env.matrixVoidMat : (env.metalMat || env.structMat); // Airlock texture
+                    const outerMat = isVoidSector ? env.matrixVoidMat : env.sharedWallMat;
+
                     const buildMat = (isNS) => {
                         return [
-                            isNS ? aMat : (localX === edge ? env.sharedWallMat : wMat),
-                            isNS ? aMat : (localX === 0 ? env.sharedWallMat : wMat),
+                            isNS ? aMat : (localX === edge ? outerMat : wMat),
+                            isNS ? aMat : (localX === 0 ? outerMat : wMat),
                             wMat,
                             aMat, // always airlock texture on the ceiling of the pocket
-                            !isNS ? aMat : (localZ === edge ? env.sharedWallMat : wMat),
-                            !isNS ? aMat : (localZ === 0 ? env.sharedWallMat : wMat)
+                            !isNS ? aMat : (localZ === edge ? outerMat : wMat),
+                            !isNS ? aMat : (localZ === 0 ? outerMat : wMat)
                         ];
                     };
                     
@@ -321,18 +335,23 @@ export default class StructureKit {
                     return true;
                 }
                 const wMat = wallMat || env.sharedWallMat;
+                // Same lit-material problem as the doorway jamb above: the outward-facing side
+                // of every perimeter segment always got env.sharedWallMat regardless of wallMat,
+                // which goes black with no light out past the wall. Atrium has nothing out there
+                // to light it, so route it to the unlit white void material too.
+                const outerWMat = (sectorId === "ATRIUM" && env.matrixVoidMat) ? env.matrixVoidMat : env.sharedWallMat;
                 const w = env.cellSize + 0.02;
                 const d = env.cellSize + 0.02;
                 const cx = x * env.cellSize;
                 const cz = z * env.cellSize;
                 const wallHeight = isShoulder ? height : height + 2.0;
                 const multiMat = [
-                    localX === edge ? env.sharedWallMat : wMat, // +X
-                    localX === 0 ? env.sharedWallMat : wMat,    // -X
+                    localX === edge ? outerWMat : wMat, // +X
+                    localX === 0 ? outerWMat : wMat,    // -X
                     wMat,                                       // +Y
                     wMat,                                       // -Y
-                    localZ === edge ? env.sharedWallMat : wMat, // +Z
-                    localZ === 0 ? env.sharedWallMat : wMat     // -Z
+                    localZ === edge ? outerWMat : wMat, // +Z
+                    localZ === 0 ? outerWMat : wMat     // -Z
                 ];
                 const pushWallSegment = (segW, segH, segD, segCx, segCz) => {
                     const key = `perim_${segW}_${segH}_${segD}`;

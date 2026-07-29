@@ -777,25 +777,61 @@ export default class Environment {
                 this.voidShroudMat = new THREE.MeshBasicMaterial({color: 0x000000, side: THREE.DoubleSide});
                 this.sharedAssets.add(this.voidShroudMat.uuid);
             }
+            if (!this.voidShroudWhiteMat) {
+                // Same reasoning as env.matrixVoidMat in AtriumSector.js: this used to be
+                // `fog: false` to stop a gradient against a near-white fog. Atrium's fog is
+                // dark now, and this canopy sits at the very top of the balcony stack -- it's
+                // supposed to be the thing that disappears into the dark, not the thing that
+                // stays lit white above it. Fog defaults to enabled.
+                this.voidShroudWhiteMat = new THREE.MeshBasicMaterial({color: 0xffffff, side: THREE.DoubleSide});
+                this.sharedAssets.add(this.voidShroudWhiteMat.uuid);
+            }
+            // Chasm and Archive want this canopy/skirt geometry to read as a bottomless
+            // black abyss above their low ceilings -- that's correct for them. Atrium's
+            // whole point is now an unbroken white void, so the same extended-height wall
+            // geometry needs to match white instead of leaving a band of black hanging
+            // over its walls.
+            const isAtriumVoid = activeSector && activeSector.id === "ATRIUM";
+            const shroudMat = isAtriumVoid ? this.voidShroudWhiteMat : this.voidShroudMat;
+            // Chasm/Archive's canopy sits right above their normal ~3-unit ceiling -- 9.0 is
+            // plenty. Atrium now stacks real balcony tiers up past y=40 (AtriumSector.js) that
+            // are meant to fog out gradually rather than hit a lid; leaving this at 9.0 would
+            // plant a flat white plane through the middle of that stack. Match its cap height
+            // instead so the shared shroud geometry sits above everything Atrium actually built.
+            const canopyY = isAtriumVoid ? 66.0 : 9.0;
             const span = this.chunkSize * this.cellSize;
-            const canopy = new THREE.Mesh(this._planeGeo(span, span), this.voidShroudMat);
+            const canopy = new THREE.Mesh(this._planeGeo(span, span), shroudMat);
             canopy.rotation.x = Math.PI / 2;
-            canopy.position.set(startX * this.cellSize + centerOffset, 9.0, startZ * this.cellSize + centerOffset);
+            canopy.position.set(startX * this.cellSize + centerOffset, canopyY, startZ * this.cellSize + centerOffset);
             canopy.castShadow = true;
             chunkGroup.add(canopy);
-            const skirtGeo = this._planeGeo(span, 6.3);
+            // Bridges from just above the wall up to just past the canopy, so there's no gap
+            // between the wall top and the shroud regardless of how tall the canopy ended up.
+            // Chasm/Archive have no real geometry filling that gap, so 2.85 (just above their
+            // shoulder-height wall segments) is correct for them. Atrium is different now: its
+            // own marble wall and stacked bands (AtriumSector.js, STRUCTURE_TOP_Y = 55.6) are
+            // real geometry occupying that entire range, not empty space waiting to be bridged.
+            // Starting the skirt at 2.85 there meant this flat, untextured plane sat directly
+            // behind/through the marble for its whole height -- the two surfaces z-fighting is
+            // exactly the "white bleeding through" symptom. Start the skirt where the real wall
+            // actually stops instead of where a different sector's wall stops.
+            const skirtBottom = isAtriumVoid ? 55.6 : 2.85;
+            const skirtTop = canopyY + 0.15;
+            const skirtCenterY = (skirtBottom + skirtTop) / 2;
+            const skirtHeight = skirtTop - skirtBottom;
+            const skirtGeo = this._planeGeo(span, skirtHeight);
             const cxw0 = startX * this.cellSize + centerOffset;
             const czw0 = startZ * this.cellSize + centerOffset;
             const skirtInset = centerOffset - (this.cellSize / 2) - 0.05;
             for (let side = 0; side < 4; side++) {
-                const skirt = new THREE.Mesh(skirtGeo, this.voidShroudMat);
-                if (side === 0) skirt.position.set(cxw0, 6.0, czw0 - skirtInset);
-                else if (side === 1) skirt.position.set(cxw0, 6.0, czw0 + skirtInset);
+                const skirt = new THREE.Mesh(skirtGeo, shroudMat);
+                if (side === 0) skirt.position.set(cxw0, skirtCenterY, czw0 - skirtInset);
+                else if (side === 1) skirt.position.set(cxw0, skirtCenterY, czw0 + skirtInset);
                 else if (side === 2) {
-                    skirt.position.set(cxw0 - skirtInset, 6.0, czw0);
+                    skirt.position.set(cxw0 - skirtInset, skirtCenterY, czw0);
                     skirt.rotation.y = Math.PI / 2;
                 } else {
-                    skirt.position.set(cxw0 + skirtInset, 6.0, czw0);
+                    skirt.position.set(cxw0 + skirtInset, skirtCenterY, czw0);
                     skirt.rotation.y = Math.PI / 2;
                 }
                 skirt.castShadow = true;
@@ -807,7 +843,15 @@ export default class Environment {
         ctx.isOccupied = (ox, oz) => occupied.has(`${ox},${oz}`);
         if (isMacroStructure && activeSector) {
             const hallwayNeedsFloor = activeSector.id === "CHASM";
-            const hallwayNeedsCeiling = activeSector.id !== "ARCHIVE";
+            // Impound's ceiling is 20 units up; capping its entrance with the standard ~3-unit
+            // hallway ceiling (and Impound's own corrugated-metal material on top of that) reads
+            // as a giant sheet of corrugated metal hung like an awning right over the airlock,
+            // instead of the entrance opening up into the yard's actual height like it should.
+            // Atrium has the same problem now that it's an open, multi-story plaza: the
+            // standard hallway cap was pinning a low white ceiling patch right in front of
+            // the airlock doors instead of letting the space open straight up past the
+            // balconies into the void.
+            const hallwayNeedsCeiling = activeSector.id !== "ARCHIVE" && activeSector.id !== "IMPOUND" && activeSector.id !== "ATRIUM";
             this._buildEntranceHallways(chunkGroup, hash, startX, startZ, activeSector.id, ctx, hallwayNeedsFloor, hallwayNeedsCeiling);
             const edge = this.chunkSize - 1;
             for (let x = startX; x < startX + this.chunkSize; x++) {
@@ -1181,18 +1225,34 @@ export default class Environment {
             const dot = this._camDir.dot(this._glareDir);
             if (dot > 0.95) { // Staring directly at the light
                 let beamAlign = 1.0;
+                let distFactor = 1.0 / (1.0 + minLightDist * 0.2);
                 if (nearestFixture.targetPos) {
                     if (!this._lightBeamDir) this._lightBeamDir = new THREE.Vector3();
                     this._lightBeamDir.subVectors(nearestFixture.targetPos, nearestFixture.position).normalize();
                     if (!this._playerFromLight) this._playerFromLight = new THREE.Vector3();
                     this._playerFromLight.subVectors(cameraPos, nearestFixture.position).normalize();
                     beamAlign = this._lightBeamDir.dot(this._playerFromLight);
+                } else if (nearestFixture.isArchiveLight) {
+                    // Archive bulbs sit recessed at the top of an upward-domed shroud that only
+                    // opens downward -- the bulb itself is only actually visible to someone
+                    // standing roughly underneath it looking up into the dome, not to someone
+                    // sighting along the shroud from across the room. Reuses the same
+                    // "is the viewer inside the fixture's real visibility cone" check the sweeping
+                    // spotlights use above, just against a fixed straight-down cone instead of a
+                    // moving targetPos. The ambient 1/(1+dist*0.2) falloff never actually reaches
+                    // zero, which is how a recessed, shrouded bulb was still causing glare from
+                    // clear across the room -- replaced here with a hard few-unit cutoff instead.
+                    if (!this._archiveGlareDownDir) this._archiveGlareDownDir = new THREE.Vector3(0, -1, 0);
+                    if (!this._playerFromLight) this._playerFromLight = new THREE.Vector3();
+                    this._playerFromLight.subVectors(cameraPos, nearestFixture.position).normalize();
+                    beamAlign = this._archiveGlareDownDir.dot(this._playerFromLight);
+                    distFactor = Math.max(0.0, 1.0 - (minLightDist / 5.0));
                 }
-                if (beamAlign > 0.3) { // Beam is roughly pointing at the player (cone)
+                if (beamAlign > 0.3) { // Light's real visibility cone roughly includes the player
                     const intensity = nearestFixture.currentIntensity || nearestFixture.baseIntensity || 1.0;
-                    const distFactor = 1.0 / (1.0 + minLightDist * 0.2);
                     const angleFactor = (dot - 0.95) * 20.0;
-                    const directionalFactor = nearestFixture.targetPos ? Math.max(0, (beamAlign - 0.3) * 1.42) : 1.0;
+                    const directionalFactor = (nearestFixture.targetPos || nearestFixture.isArchiveLight)
+                        ? Math.max(0, (beamAlign - 0.3) * 1.42) : 1.0;
                     glareTarget = intensity * distFactor * angleFactor * directionalFactor * 0.2;
                 }
             }

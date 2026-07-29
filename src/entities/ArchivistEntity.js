@@ -22,18 +22,61 @@ export default class ArchivistEntity {
     }
 
     _buildMesh() {
-        const mat = new THREE.MeshBasicMaterial({color: 0xaa55ff, transparent: true, opacity: 0.5, wireframe: true});
-        const geo = new THREE.CylinderGeometry(0.5, 0.5, 3.0, 8, 1, true);
-        this.core = new THREE.Mesh(geo, mat);
-        this.core.position.y = 1.5;
+        // The body: a small warm mote of light. This is the entity's "face" -- the observation
+        // logic in update() scales and dims it directly, so it stays named `core` and stays the
+        // primary read at a glance.
+        const coreMat = new THREE.MeshBasicMaterial({color: 0xfff2d6, transparent: true, opacity: 0.95});
+        const coreGeo = new THREE.IcosahedronGeometry(0.14, 1);
+        this.core = new THREE.Mesh(coreGeo, coreMat);
+        this.core.position.y = 1.2;
         this.group.add(this.core);
-        const innerMat = new THREE.MeshBasicMaterial({color: 0xffffff, transparent: true, opacity: 0.9});
-        const innerGeo = new THREE.BoxGeometry(0.2, 2.5, 0.2);
-        this.inner = new THREE.Mesh(innerGeo, innerMat);
-        this.inner.position.y = 1.5;
-        this.group.add(this.inner);
-        this.light = new THREE.PointLight(0xaa55ff, 1.5, 10.0);
-        this.light.position.y = 1.5;
+
+        // A pair of gossamer wings flanking the body. Thin, additive, double-sided so they read
+        // from any angle -- flapped in _animate() rather than sitting rigid.
+        const wingMat = new THREE.MeshBasicMaterial({
+            color: 0xaa55ff,
+            transparent: true,
+            opacity: 0.4,
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const wingGeo = new THREE.PlaneGeometry(0.6, 0.92);
+        this.wingL = new THREE.Mesh(wingGeo, wingMat);
+        this.wingL.position.set(-0.1, 1.24, 0);
+        this.wingL.rotation.y = Math.PI / 2.4;
+        this.group.add(this.wingL);
+        this.wingR = new THREE.Mesh(wingGeo, wingMat);
+        this.wingR.position.set(0.1, 1.24, 0);
+        this.wingR.rotation.y = -Math.PI / 2.4;
+        this.group.add(this.wingR);
+
+        // Fairy dust: a handful of tiny motes looping around the body at staggered radii/speeds,
+        // the same "orbiting debris" trick IncineratorEntity uses for its slag chunks, just
+        // smaller and warmer.
+        this.motes = [];
+        const moteMat = new THREE.MeshBasicMaterial({
+            color: 0xffe9b0,
+            transparent: true,
+            opacity: 0.85,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const moteGeo = new THREE.IcosahedronGeometry(0.035, 0);
+        for (let i = 0; i < 5; i++) {
+            const mote = new THREE.Mesh(moteGeo, moteMat);
+            mote.userData = {
+                radius: 0.22 + Math.random() * 0.3,
+                speed: 1.5 + Math.random() * 2.5,
+                offsetY: 1.2 + (Math.random() - 0.5) * 0.4,
+                phase: Math.random() * Math.PI * 2
+            };
+            this.motes.push(mote);
+            this.group.add(mote);
+        }
+
+        this.light = new THREE.PointLight(0xc9a6ff, 1.1, 6.0);
+        this.light.position.y = 1.2;
         this.group.add(this.light);
         this.scene.add(this.group);
     }
@@ -50,6 +93,7 @@ export default class ArchivistEntity {
         this.fleeTimer = 0;
         this.hideTimer = 0;
         this.droppedDoc = false;
+        this._curiousRetargetCooldown = 0;
         // Re-leash to the Archive sector's current geometry on every (re)spawn -- its wander
         // target can drift up to 40 units, easily enough to drift out through an open door.
         this._bounds = this.env && this.env.getSectorBounds ? this.env.getSectorBounds('ARCHIVE') : null;
@@ -142,9 +186,10 @@ export default class ArchivistEntity {
             }
             return null;
         }
-        // Scatter if player sprints near it, or gets too close -- run off and hide rather than
-        // despawning outright.
-        if ((distSq < 100.0 && this.player.isRunning) || distSq < 25.0) {
+        // Scatter only if the player sprints near it -- calm proximity (walking, not observing)
+        // is what makes it curious rather than anxious, so it no longer bolts just for being
+        // approached on foot.
+        if (distSq < 100.0 && this.player.isRunning) {
             this.fleeTimer = 0.6;
             document.dispatchEvent(new CustomEvent('somatic-lost', { detail: { distSq: distSq, intensity: 1.0, isLaugh: false } }));
             return null;
@@ -161,7 +206,7 @@ export default class ArchivistEntity {
         if (isObserved) {
             this.observeTimer = (this.observeTimer || 0) + delta;
             this.core.scale.setScalar(1.0 - Math.min(0.8, this.observeTimer * 0.4));
-            this.light.intensity = 1.5 - Math.min(1.0, this.observeTimer * 0.5);
+            this.light.intensity = 1.1 - Math.min(0.8, this.observeTimer * 0.4);
             if (this.observeTimer > 2.0 && !this.droppedDoc) {
                 this.dropDocument();
                 // Give the drop a beat to register (still visible, still spinning) before it
@@ -175,24 +220,29 @@ export default class ArchivistEntity {
         } else {
             this.observeTimer = Math.max(0, (this.observeTimer || 0) - delta);
             this.core.scale.setScalar(1.0);
-            this.light.intensity = 1.5;
+            this.light.intensity = 1.1;
         }
         if (!isObserved) {
-            const ARCHIVIST_COMFORT_DIST_SQ = 81.0; // 9 units
-            if (Math.random() < 0.02 || distSq < ARCHIVIST_COMFORT_DIST_SQ) {
-                const awayAngle = distSq > 1.0
-                    ? Math.atan2(this.group.position.z - playerPos.z, this.group.position.x - playerPos.x)
-                    : Math.random() * Math.PI * 2;
-                const angle = awayAngle + (Math.random() - 0.5) * (Math.PI * 0.7);
-                const dist = 12.0 + Math.random() * 23.0;
+            // Curious, not anxious, not clingy: it wants to be somewhere in this comfortable
+            // ring around the player, but it only picks a new perch on a cooldown rather than
+            // every frame proximity holds -- re-rolling a random point every tick is what made
+            // it read as a bee track-hovering you. Between retargets it just glides where it was
+            // last told to go, so it can lag behind a moving player instead of laser-following.
+            const ARCHIVIST_CURIOUS_NEAR = 6.0;
+            const ARCHIVIST_CURIOUS_FAR = 13.0;
+            this._curiousRetargetCooldown = (this._curiousRetargetCooldown || 0) - delta;
+            if (this._curiousRetargetCooldown <= 0) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = ARCHIVIST_CURIOUS_NEAR + Math.random() * (ARCHIVIST_CURIOUS_FAR - ARCHIVIST_CURIOUS_NEAR);
                 const clampedTarget = this._clampToBounds(
                     playerPos.x + Math.cos(angle) * dist,
                     playerPos.z + Math.sin(angle) * dist
                 );
                 this.target.x = clampedTarget.x;
                 this.target.z = clampedTarget.z;
+                this._curiousRetargetCooldown = 2.0 + Math.random() * 2.5;
             }
-            this.group.position.lerp(this.target, 0.015);
+            this.group.position.lerp(this.target, 0.01);
             const clampedPos = this._clampToBounds(this.group.position.x, this.group.position.z);
             this.group.position.x = clampedPos.x;
             this.group.position.z = clampedPos.z;
@@ -224,11 +274,25 @@ export default class ArchivistEntity {
     }
 
     _animate(time) {
-        this.core.rotation.y = time;
-        this.inner.rotation.y = -time * 2.0;
-        this.inner.rotation.x = time * 0.5;
-        const pulse = 1.0 + Math.sin(time * 5.0) * 0.1;
-        this.inner.scale.setScalar(pulse);
-        this.group.position.y = Math.sin(time * 2.0) * 0.2;
+        this.core.rotation.y = time * 1.2;
+
+        // Fast, slightly uneven wingbeats -- two overlapping frequencies so it doesn't read as
+        // a metronome. Rotation only, so this never fights the observation-scale logic in
+        // update(), which owns this.core.scale directly.
+        const flap = Math.sin(time * 16.0) * 0.55 + Math.sin(time * 23.0) * 0.15;
+        this.wingL.rotation.z = flap;
+        this.wingR.rotation.z = -flap;
+
+        // Fairy dust looping around the body in loose, staggered orbits.
+        for (const mote of this.motes) {
+            const {radius, speed, offsetY, phase} = mote.userData;
+            const a = time * speed + phase;
+            mote.position.set(Math.cos(a) * radius, offsetY + Math.sin(a * 1.7) * 0.06, Math.sin(a) * radius);
+        }
+
+        // Erratic, insect-like drift in place of the old slow hover -- group.position.x/z are
+        // owned by the wander/flee logic in update(), so only y and yaw move here.
+        this.group.position.y = Math.sin(time * 3.2) * 0.08 + Math.sin(time * 7.3) * 0.03;
+        this.group.rotation.y = Math.sin(time * 1.1) * 0.4;
     }
 }

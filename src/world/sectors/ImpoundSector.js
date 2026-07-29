@@ -146,7 +146,21 @@ export const ImpoundSector = (env, ctx) => {
                                 baseIntensity: 5.5,
                                 targetIntensity: 5.5,
                                 currentIntensity: 5.5,
-                                distance: 35.0
+                                distance: 35.0,
+                                // These masts spawn on ~12% of interior cells -- roughly 15-20 per
+                                // chunk, far denser than any other sector's fixtures, and every one
+                                // is shadow-eligible (isSpot: true). LumenGrid only has 8 real
+                                // shadow slots and re-picks the 8 closest every frame; running
+                                // through a cluster this dense makes those slots reassign rapidly,
+                                // and because reassignment can flip a slot between representing a
+                                // SpotLight and a PointLight, it changes the scene's active
+                                // shadow-light-type counts -- which forces WebGL shader program
+                                // recompilation. That recompile, not the light count itself, is the
+                                // hard stop. `noShadow` (an existing LumenGrid flag, previously
+                                // unused anywhere) keeps these out of the shadow-slot competition
+                                // entirely -- they still light the yard as bright spots, just
+                                // without casting their own dynamic shadow.
+                                noShadow: true
                             });
                             return;
                         }
