@@ -64,7 +64,7 @@ const SECTORS = {
         delay: 0.25, feedback: 0.35
     },
     SERVER: {
-        fog: 0.08, fogColor: 0x5f2fc2,
+        fog: 0.05, fogColor: 0x803838,
         ambience: {noise: 0.1, peace: 0.0, rumble: 35, freq: 250, freqOcc: 120, whine: 0.002, whineOcc: 0.0005, dynamicWhine: false},
         foley: {oscFreq: 620, filterType: 'bandpass', filterFreq: 1800, gain: 0.14, attack: 0.005, decay: 0.14},
         delay: 0.06, feedback: 0.08
@@ -87,7 +87,7 @@ const SECTORS = {
         delay: 0.05, feedback: 0.1
     },
     INCINERATOR: {
-        fog: 0.28, fogColor: 0x441100,
+        fog: 0.25, fogColor: 0xFF6B00,
         ambience: {noise: 0.65, peace: 0.01, rumble: 269, freq: 60, freqOcc: 60, whine: 0.0, whineOcc: 0.0, dynamicWhine: false},
         delay: 0.02, feedback: 0.15
     },
@@ -111,7 +111,7 @@ const SECTORS = {
     },
     EXIT: {fog: 0.05},
     CHECKPOINT: {
-        fog: 0.05,
+        fog: 0.07, fogColor: 0x4E3E5E,
         ambience: {noise: 0.2, peace: 0.0, rumble: 80, freq: 1000, freqOcc: 500, whine: 0.05, whineOcc: 0.01, dynamicWhine: true},
         foley: {oscFreq: 800, filterType: 'bandpass', filterFreq: 2000, gain: 0.1, attack: 0.01, decay: 0.1}
     }

@@ -29,7 +29,7 @@ export const CheckpointSector = (env, ctx) => {
     return {
                 id: "CHECKPOINT",
                 foundationMat: env.checkpointFloorMat,
-                ceilingMat: env.structMat,
+                ceilingMat: env.checkpointCeilingMat || env.structMat,
                 build: (x, z, localX, localZ) => {
                     const edge = env.chunkSize - 1;
                     const isPathN = localX === 7 && localZ > 0 && localZ <= 7;
@@ -37,17 +37,10 @@ export const CheckpointSector = (env, ctx) => {
                     const isPathW = localZ === 7 && localX > 0 && localX <= 7;
                     const isPathE = localZ === 7 && localX >= 7 && localX < edge;
                     const isPath = isPathN || isPathS || isPathW || isPathE;
-                    if (isPath) {
-                        const lineGeo = new THREE.PlaneGeometry(env.cellSize, env.cellSize);
-                        const isCenter = localX === 7 && localZ === 7;
-                        const lineMesh = new THREE.Mesh(lineGeo, isCenter ? env.checkpointLineCrossMat : env.checkpointLineMat);
-                        lineMesh.rotation.x = -Math.PI / 2;
-                        if (!isCenter && (isPathN || isPathS)) {
-                            lineMesh.rotation.z = Math.PI / 2;
-                        }
-                        lineMesh.position.set(x * env.cellSize, 0.03, z * env.cellSize);
-                        chunkGroup.add(lineMesh);
-                    }
+                    // The red/yellow/blue queue-line floor decals that used to mark this path
+                    // were removed -- they clashed against the new hardwood parquet floor.
+                    // `isPath` (and the N/S/W/E breakdown) is still load-bearing below: it's what
+                    // keeps this lane clear of rooms/walls, just no longer painted.
                     if (ctx.buildPerimeter(x, z, localX, localZ, env.structMat, "CHECKPOINT")) return;
                     const ckHash = (a, b, salt) => {
                         let h = (hash ^ Math.imul(a + 64, 73856093) ^ Math.imul(b + 64, 19349663) ^ Math.imul(salt + 1, 83492791)) >>> 0;
@@ -74,7 +67,10 @@ export const CheckpointSector = (env, ctx) => {
                     if (!isPath) {
                         if (isBuiltRoom(localX, localZ)) {
                             const flankV = (localX === 6 || localX === 8) && localZ !== 6 && localZ !== 8;
-                            env._buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, {buildWall, addGeometry, addFurniture, chunkGroup, hash});
+                            env._buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, {
+                                buildWall, addGeometry, addFurniture, chunkGroup, hash,
+                                stagingMeshes, getLightMaterial: ctx.getLightMaterial
+                            });
                             return;
                         }
                         const block = buildWall(env.cellSize, env.cellSize, env.structMat);
@@ -86,27 +82,28 @@ export const CheckpointSector = (env, ctx) => {
                     if (localX === 7 && localZ === 7) {
                         env._buildCheckpointColumn(x, z, hash, {addGeometry, stagingMeshes});
                     } else {
-                        if ((localX % 3 === 0 || localZ % 3 === 0) && random() > 0.5) {
-                            const activeMat = env.getPooledLightMaterial ? env.getPooledLightMaterial(false) : env.baseLightMat;
-                            const panel = new THREE.Mesh(env.sharedPanelGeo, [env.baseHousingMat, env.baseHousingMat, env.baseHousingMat, activeMat, env.baseHousingMat, env.baseHousingMat]);
-                            panel.position.set(x * env.cellSize, 2.98, z * env.cellSize);
-                            chunkGroup.add(panel);
-                            env.walls.push(panel);
-                            env.fixtureData.push({
-                                chunkHash: hash,
-                                position: new THREE.Vector3(x * env.cellSize, 2.8, z * env.cellSize),
-                                flickerOffset: random() * 500,
-                                material: activeMat,
-                                isFaulty: random() > 0.8,
-                                baseIntensity: 0.7,
-                                targetIntensity: 0.7,
-                                currentIntensity: 0.7
-                            });
+                        const alongZ = localX === 7;
+                        const travelCoord = alongZ ? localZ : localX;
+                        // Checkpoint only ever forms as a cross-tee (a straight hallway arm on
+                        // each of the four sides plus the built rooms flanking it -- see
+                        // isBuiltRoom above), so `travelCoord` walking every-other-cell down an
+                        // arm is guaranteed to stay inside the hallway itself; it can never land
+                        // on a room or the solid filler block, since those are handled by the
+                        // separate `!isPath` branch above and never reach this code at all.
+                        // Every 2 cells instead of every 3, and an 85% instead of 50% chance,
+                        // corrects corridors that were reading as underlit with the old spacing.
+                        if (travelCoord % 2 === 0 && random() > 0.15) {
+                            env._buildCheckpointCageLight(
+                                chunkGroup, hash, stagingMeshes,
+                                x * env.cellSize, z * env.cellSize,
+                                alongZ ? Math.PI / 2 : 0,
+                                random() * 500,
+                                random() > 0.8,
+                                ctx.getLightMaterial
+                            );
                         }
                         const cx0 = x * env.cellSize, cz0 = z * env.cellSize;
                         if (Math.hypot(cx0, cz0) < env.cellSize * 2) return;
-                        const alongZ = localX === 7;
-                        const travelCoord = alongZ ? localZ : localX;
                         const nearGate = travelCoord <= 1 || travelCoord >= 14;
                         const nearChoke = Math.abs(travelCoord - 7) === 1;
                         const lat = (side, off) => alongZ
@@ -137,7 +134,7 @@ export const CheckpointSector = (env, ctx) => {
                             });
                             env.sharedAssets.add(env.deconSheetMat.uuid);
                         }
-                        const hazmatSuit = (px, pz, faceYaw) => {
+                        const hazmatSuit = (px, pz, faceYaw, hangY) => {
                             const suit = new THREE.Group();
                             const torso = new THREE.Mesh(env._boxGeo(0.4, 0.55, 0.24), env.hazmatMat);
                             torso.position.y = 1.55;
@@ -146,11 +143,23 @@ export const CheckpointSector = (env, ctx) => {
                             const visor = new THREE.Mesh(env._boxGeo(0.16, 0.12, 0.02), env.crtScreenMat);
                             visor.position.set(0, 1.96, 0.13);
                             suit.add(torso, hood, visor);
+                            // Hood top sits at 1.94 + 0.12 = 2.06; a thin hanger bridges that up to
+                            // the rack rail (hangY) so the suit reads as hanging from the rail
+                            // rather than floating in front of it.
+                            if (hangY) {
+                                const hookLen = Math.max(hangY - 2.06, 0.05);
+                                const hook = new THREE.Mesh(env._boxGeo(0.05, hookLen, 0.05), env.metalMat);
+                                hook.position.y = 2.06 + hookLen / 2;
+                                suit.add(hook);
+                            }
                             for (let a = -1; a <= 1; a += 2) {
                                 const arm = new THREE.Mesh(env._boxGeo(0.11, 0.5, 0.11), env.hazmatMat);
                                 arm.position.set(a * 0.24, 1.32, 0);
                                 const leg = new THREE.Mesh(env._boxGeo(0.14, 0.55, 0.14), env.hazmatMat);
-                                leg.position.set(a * 0.11, 0.92, 0);
+                                // Leg top must reach the torso's bottom (1.55 - 0.275 = 1.275) or the
+                                // legs read as disconnected robot parts. Center at 1.05 puts the top
+                                // at 1.325, a small overlap into the torso instead of a 0.08 gap below it.
+                                leg.position.set(a * 0.11, 1.05, 0);
                                 suit.add(arm, leg);
                             }
                             suit.position.set(px, 0, pz);
@@ -171,12 +180,20 @@ export const CheckpointSector = (env, ctx) => {
                                 post.position.set(ppx, 1.17, ppz);
                                 decalMesh(post);
                             }
-                            const faceYaw = alongZ ? (side < 0 ? Math.PI / 2 : -Math.PI / 2) : (side < 0 ? Math.PI : 0);
+                            // faceYaw must point each suit away from the wall behind it, toward
+                            // the hallway center. For alongZ racks the wall runs along Z and the
+                            // offset is in X, so side<0 (west wall) faces +X and side>0 (east
+                            // wall) faces -X. For non-alongZ racks the wall runs along X and the
+                            // offset is in Z, so the same relationship holds with side<0 (north
+                            // wall, negative Z offset) facing +Z and side>0 facing -Z. This branch
+                            // was previously inverted, which pointed suits on the E/W corridor
+                            // arms back into the wall instead of out into the hallway.
+                            const faceYaw = alongZ ? (side < 0 ? Math.PI / 2 : -Math.PI / 2) : (side < 0 ? 0 : Math.PI);
                             const n = 2 + Math.floor(random() * 2);
                             for (let i = 0; i < n; i++) {
                                 const t = (n === 1) ? 0 : (i / (n - 1) - 0.5) * 2.4;
                                 const [sx, sz] = alongZ ? [rx, rz + t] : [rx + t, rz];
-                                if (random() > 0.15) hazmatSuit(sx, sz, faceYaw);
+                                if (random() > 0.15) hazmatSuit(sx, sz, faceYaw, rail.position.y);
                             }
                         };
                         const crateStack = (side) => {

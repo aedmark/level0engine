@@ -39,6 +39,14 @@ export default class LumenGrid {
         this.maxForcedShadowUpdatesPerFrame = 2;
         this._pendingShadowSlots = new Set();
 
+        // How long, in seconds, a fixture takes to ramp from 0 to full brightness the first time
+        // it ever wins an active pool slot. See the `spawnRamp` comment in update() for why this
+        // exists -- without it, a fixture spawned already deep inside its activation radius (the
+        // common case: a new chunk's hallway fixtures a few units past a doorway that just came
+        // into render distance) jumps straight to full intensity in a single frame instead of
+        // fading up, reading as a light switching on because the player walked past it.
+        this.spawnFadeInDuration = 0.6;
+
         // Initialize the light pool with PointLight and SpotLight pairs
         for (let i = 0; i < this.maxActiveLights; i++) {
             // Shadow-casting lights have a larger radius to cover more area
@@ -84,9 +92,14 @@ export default class LumenGrid {
      * @param {THREE.Vector3} cameraPos - The current camera position.
      * @param {Array} fixtureData - Array of light fixture data objects.
      * @param {number} time - Current elapsed time for flicker calculations.
+     * @param {string} [currentChunkHash] - The chunkHash of the chunk/sector the camera is
+     *   currently standing in. Fixtures tagged with any other chunkHash are on the far side
+     *   of a sector's perimeter wall and are excluded from the pool entirely (see the isLH
+     *   check below for the one deliberate exception). If omitted, no sector filtering is
+     *   applied.
      * @returns {Object} State containing darknessPressure, nearestFixture, and minLightDistSq.
      */
-    update(cameraPos, fixtureData, time) {
+    update(cameraPos, fixtureData, time, currentChunkHash) {
         let darknessPressure = 0;
 
         // Track which fixtures were active in the previous frame to apply temporal coherence (hysteresis)
@@ -104,6 +117,20 @@ export default class LumenGrid {
         for (let i = 0, len = fixtureData.length; i < len; i++) {
             const fixture = fixtureData[i];
             const isLH = fixture.isLighthouse;
+
+            // Sector gate: a fixture belongs to whichever chunk built it (every fixture push
+            // site tags `chunkHash`), and each chunk is a sector sealed behind its own
+            // perimeter wall. None of these lights actually cast real-time shadows outside
+            // the 8 elite shadow-casting slots, so without this check distance is the *only*
+            // thing keeping a light from shining through a wall it has no idea is there.
+            // Lighthouse beacons are the deliberate exception -- they're landmarks meant to
+            // be seen from well outside their own sector (e.g. across the open Chasm).
+            if (!isLH && currentChunkHash !== undefined && fixture.chunkHash !== undefined
+                && fixture.chunkHash !== currentChunkHash) {
+                fixture.hasShadow = false;
+                continue;
+            }
+
             const cullLimit = isLH ? 120.0 : baseCullingLimit;
 
             // Perform a fast AABB-style distance check before doing a full squared distance calculation
@@ -245,7 +272,27 @@ export default class LumenGrid {
                 // Calculate a smooth fade out as the player moves away from the light
                 const dist = Math.sqrt(fixture.distSq);
                 const activeRadius = isLH ? 120.0 : (isShadowCaster ? 20.0 : 10.0);
-                const fadeEnvelope = Math.max(0, Math.min(1, (activeRadius - dist) / 4.0));
+                const distanceEnvelope = Math.max(0, Math.min(1, (activeRadius - dist) / 4.0));
+
+                // `distanceEnvelope` only fades a light out near the edge of its activation
+                // radius -- it says nothing about *when* this fixture first won a pool slot. A
+                // fixture built as part of a chunk that just entered render distance can easily
+                // already sit well inside that radius (e.g. a hallway light a few units past a
+                // doorway), so without this, the very first frame it exists it jumps straight to
+                // `distanceEnvelope`'s full value: a light instantaneously switching on right as
+                // the player rounds a corner, reported as looking "like a motion sensor." Ramping
+                // every fixture's own first activation over `spawnFadeInDuration` regardless of
+                // its distance fixes that -- `_activatedAt` is stamped once, the first time this
+                // fixture is ever seen active, and never reset for its lifetime (chunk unload
+                // destroys the fixture object entirely, so a genuinely new appearance always
+                // starts from a fresh `undefined`; briefly losing and re-winning a pool slot
+                // within the same chunk's lifetime intentionally does NOT re-trigger the ramp --
+                // that's pool competition, not the light coming into existence).
+                if (fixture._activatedAt === undefined) fixture._activatedAt = time;
+                const sinceActivation = time - fixture._activatedAt;
+                const spawnRamp = sinceActivation >= this.spawnFadeInDuration
+                    ? 1.0 : Math.max(0, sinceActivation / this.spawnFadeInDuration);
+                const fadeEnvelope = distanceEnvelope * spawnRamp;
                 const intensityScalar = isShadowCaster ? 0.65 : 0.35;
 
                 if (fixture.material && fixture.material.emissive) {

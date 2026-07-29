@@ -47,6 +47,10 @@ export default class Environment {
         this.walls = [];
         this.fixtureData = [];
         this.idlingCars = [];
+        // Registry of Server sector's hanging cable props (see ServerSector.js), so the Backup
+        // Daemon has something concrete to pick from and light up, and so player-contact with a
+        // lit cable can be checked without re-deriving cable placement from scratch.
+        this.hangingCables = [];
         this.spatialGrid = new SpatialHashGrid(4);
         this.wallBoxes = [];
         this.chunkSize = 16;
@@ -107,8 +111,14 @@ export default class Environment {
             bumpScale: 0.005
         });
         if (this.serverMat) {
-            this.serverMat.metalness = 0.3;
-            this.serverMat.roughness = 0.2;
+            // Was metalness 0.3 / roughness 0.2 -- shiny enough to catch a sharp specular
+            // hotspot off every nearby point light, which doesn't match a painted sheet-metal
+            // rack and reads as a glare artifact rather than a real reflection. Flattened to
+            // fully matte instead of just toning it down, per the "no reflective glare at all"
+            // call -- see serverCeilingMat in MaterialLibrary.js for the same treatment on the
+            // ceiling above these racks.
+            this.serverMat.metalness = 0.0;
+            this.serverMat.roughness = 0.95;
         }
         if (this.ventMat) {
             this.ventMat.metalness = 0.4;
@@ -556,6 +566,7 @@ export default class Environment {
             this._pruneDeadChunkEntries(this.walls, deadHashes, w => w.userData.chunkHash);
             this._pruneDeadChunkEntries(this.fixtureData, deadHashes, f => f.chunkHash);
             this._pruneDeadChunkEntries(this.idlingCars, deadHashes, c => c.chunkHash);
+            this._pruneDeadChunkEntries(this.hangingCables, deadHashes, c => c.chunkHash);
             this._pruneDeadChunkEntries(this.interactiveDoors, deadHashes, d => d.userData.chunkHash);
             if (this.airlocks) {
                 this._pruneDeadChunkEntries(this.airlocks, deadHashes, a => a.chunkHash);
@@ -1278,7 +1289,14 @@ export default class Environment {
             this.audioRaycaster = new THREE.Raycaster();
             this.audioDirection = new THREE.Vector3();
         }
-        const lumenData = this.lumenGrid.update(cameraPos, this.fixtureData, time);
+        // Each chunk hosts exactly one sector, walled off from its neighbors (see
+        // buildPerimeter and the chunkHash-scoped blackout logic above), so the chunk the
+        // camera currently occupies doubles as "the sector the player can actually see out
+        // of." LumenGrid uses this to refuse to light any fixture tagged with a different
+        // chunkHash -- otherwise a fixture near a shared wall has no notion of that wall
+        // and shines straight through it onto the neighboring sector's floor.
+        const currentChunkHash = `${this.currentChunkCoords.x},${this.currentChunkCoords.z}`;
+        const lumenData = this.lumenGrid.update(cameraPos, this.fixtureData, time, currentChunkHash);
         const darknessPressure = lumenData.darknessPressure;
         const nearestFixture = lumenData.nearestFixture;
         const minLightDistSq = lumenData.minLightDistSq;
@@ -1530,6 +1548,13 @@ export default class Environment {
             else if (this._stickySectorId === "ARCHIVE") targetAmbient = 0.28;
             else if (this._stickySectorId === "INCINERATOR") targetAmbient = 0.15;
             else if (this._stickySectorId === "MAINTENANCE") targetAmbient = 0.18;
+            // CHECKPOINT was missing from this list entirely, so it defaulted to the same 0.80
+            // base ambient as an ordinary neutral-zone corridor -- a flat hemisphere wash bright
+            // enough that the sector's own cage lights (see buildCheckpointCageLight) barely
+            // registered as the thing actually lighting the hallway. Dropped to the same range
+            // Incinerator uses so those fixtures -- now denser and more reliable along the
+            // corridors -- read as the dominant light source instead of competing with ambient.
+            else if (this._stickySectorId === "CHECKPOINT") targetAmbient = 0.15;
             this.engine.ambientLight.intensity += (targetAmbient - this.engine.ambientLight.intensity) * 0.05;
             if (this.glowMat) {
                 let targetGlowOpacity = Math.max(0.0, 1.0 - (darknessPressure * 0.4));
@@ -1602,6 +1627,7 @@ export default class Environment {
         this.walls = [];
         this.fixtureData = [];
         this.idlingCars = [];
+        this.hangingCables = [];
         this.interactables = [];
         this.animators = [];
         this.steamClouds = [];
@@ -1792,6 +1818,10 @@ export default class Environment {
 
     _buildCheckpointColumn(x, z, hash, ctx) {
         return this.setPieces.buildCheckpointColumn(x, z, hash, ctx);
+    }
+
+    _buildCheckpointCageLight(chunkGroup, hash, stagingMeshes, px, pz, rotY, flickerOffset, isFaulty, getLightMaterial, colorHex, emissiveHex, intensity) {
+        return this.setPieces.buildCheckpointCageLight(chunkGroup, hash, stagingMeshes, px, pz, rotY, flickerOffset, isFaulty, getLightMaterial, colorHex, emissiveHex, intensity);
     }
 
     _buildImpoundItem(px, pz, kind, ctx) {

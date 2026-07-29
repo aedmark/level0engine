@@ -73,6 +73,32 @@ export default class MaterialLibrary {
         env.serverFloorMat = env.ventMat.clone();
         env.serverFloorMat.map = env.ventMat.map.clone();
         env.serverFloorMat.map.repeat.set(64, 32);
+        // Server room's ceiling gets its own clone rather than reusing serverFloorMat directly:
+        // MaintenanceSector also uses serverFloorMat for its own floor, so detuning the shared
+        // material in place would flatten Maintenance's floor along with it. Same "kill the
+        // specular hotspot" treatment as boardCeilingMat below -- metalness to zero and roughness
+        // pushed close to fully matte, since a dielectric surface still reflects ~4% at metalness 0
+        // if roughness stays low enough to concentrate that into a visible highlight under a
+        // point light directly overhead.
+        env.serverCeilingMat = env.serverFloorMat.clone();
+        env.serverCeilingMat.metalness = 0.0;
+        env.serverCeilingMat.roughness = 0.95;
+        // Boardroom's overhead ceiling plane borrowed clinicMat wholesale (see BoardroomSector's
+        // ceilingMat), including its 0.15 metalness -- an accurate touch on Clinic's own walls and
+        // ceiling, where it's meant to pick up that sector's own fixtures, but on Boardroom's
+        // ceiling that same specular response has nothing to do with Boardroom's actual light
+        // placement and just reads as an inaccurate, misplaced sheen. Cloned instead of mutated in
+        // place so ClinicSector (and Atrium/Annex/Impound's ceiling fallbacks) keep the original,
+        // reflective clinicMat exactly as before.
+        env.boardCeilingMat = env.clinicMat.clone();
+        env.boardCeilingMat.metalness = 0.0;
+        // metalness alone wasn't enough: MeshStandardMaterial still gives a dielectric surface a
+        // ~4% specular reflectance regardless of metalness, and clinicMat's roughness (0.4, tuned
+        // for Clinic's glossier tile look) is low enough for that reflectance to concentrate into
+        // a visible specular hotspot under nearby fixture lights -- still read as "glare" even
+        // with the reflection's metal-like tint gone. Pushed close to fully matte instead, which
+        // is what actually kills a visible highlight.
+        env.boardCeilingMat.roughness = 0.95;
         env.breakerBaseGeo = new THREE.BoxGeometry(0.6, 0.8, 0.20);
         env.breakerDoorGeo = new THREE.BoxGeometry(0.6, 0.8, 0.05);
         env.breakerDoorGeo.translate(0.3, 0, 0);

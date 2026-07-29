@@ -68,18 +68,21 @@ export const IncineratorSector = (env, ctx) => {
                             const lamp = new THREE.Mesh(env._boxGeo(0.3, 0.12, 0.18), lampMat);
                             if (spansX) lamp.position.set(dcx, 2.5, dcz + outSign * 0.5);
                             else lamp.position.set(dcx + outSign * 0.5, 2.5, dcz);
-                            const lampLight = new THREE.PointLight(0xff2200, 1.2, 6.0, 2.0);
-                            lampLight.position.set(0, -0.2, 0);
-                            lamp.add(lampLight);
                             lamp.userData.chunkHash = hash;
                             chunkGroup.add(lamp);
                             env.walls.push(lamp);
+                            // No raw THREE.PointLight here -- see ChasmSector's lighthouse fix
+                            // (v0.5.11) for why: a real light parented into chunkGroup enters/leaves
+                            // the scene graph every time this chunk loads/unloads, changing Three.js's
+                            // active light count and forcing a shader recompile across every
+                            // standard-lit material in the scene. Registering with fixtureData alone
+                            // lets LumenGrid drive one of its 32 fixed pool lights toward this
+                            // position instead -- the fixed count never changes.
                             env.fixtureData.push({
                                 chunkHash: hash,
                                 position: lamp.position.clone(),
                                 flickerOffset: random() * 500,
                                 material: lampMat,
-                                lightObj: lampLight,
                                 isFaulty: true,
                                 baseIntensity: 1.0,
                                 targetIntensity: 1.0,
@@ -122,18 +125,19 @@ export const IncineratorSector = (env, ctx) => {
                             const plate = buildWall(nx !== 0 ? 0.1 : 0.55, nz !== 0 ? 0.1 : 0.55, activeMat, 0.32);
                             plate.position.set(fx + nx * 0.21, 1.5, fz + nz * 0.21);
                             plate.userData.chunkHash = hash;
-                            const pLight = new THREE.PointLight(0xff2200, 1.5, 8.0, 2.0);
-                            pLight.position.set(nx * 0.4, 0, nz * 0.4);
-                            plate.add(pLight);
                             chunkGroup.add(plate);
                             plate.updateMatrixWorld(true);
                             env.walls.push(plate);
+                            // No raw THREE.PointLight -- up to 4 of these sconces can spawn per
+                            // interior wall cell, so this was the single largest source of
+                            // scene light-count churn in the game (see the doorway lamp fix above
+                            // and ChasmSector's lighthouse fix for the full mechanism). fixtureData
+                            // alone lets LumenGrid's fixed 32-light pool cover it.
                             env.fixtureData.push({
                                 chunkHash: hash,
                                 position: new THREE.Vector3(fx + nx * 0.4, 1.5, fz + nz * 0.4),
                                 flickerOffset: random() * 500,
                                 material: activeMat,
-                                lightObj: pLight,
                                 isFaulty: random() > 0.8,
                                 baseIntensity: 1.2,
                                 targetIntensity: 1.2,
@@ -152,31 +156,67 @@ export const IncineratorSector = (env, ctx) => {
                     const wW = isW(localX - 1, localZ);
                     const throughNS = !wN || !wS;
                     const throughEW = !wE || !wW;
+                    if (!env.ventCollarMat) {
+                        env.ventCollarMat = new THREE.MeshStandardMaterial({
+                            color: 0x1f1c19, roughness: 0.6, metalness: 0.55
+                        });
+                        env.sharedAssets.add(env.ventCollarMat.uuid);
+                    }
+                    // Grilles hang a clean 0.02 below the duct spine (never overlapping it) --
+                    // the old version had the grille poking 0.02 up INTO the spine's solid
+                    // volume, which is exactly the kind of razor-thin coincident-surface overlap
+                    // that z-fights.
                     if (throughNS) {
                         const spine = buildWall(1.1, env.cellSize, ductMat, 0.4);
                         spine.position.set(cxw, 2.78, czw);
                         addGeometry(spine);
                         if ((localX + localZ) % 2 === 0) {
-                            const grille = buildWall(0.5, 0.5, env.emberGrilleMat, 0.06);
-                            grille.position.set(cxw, 2.57, czw);
+                            const grille = buildWall(0.5, 0.5, env.emberGrilleMat, 0.12);
+                            grille.position.set(cxw, 2.50, czw);
                             addGeometry(grille);
                         }
                     }
                     if (throughEW) {
+                        // Offset 0.02 above the NS spine's height on purpose: at true 4-way
+                        // intersections both spines are built and would otherwise be two
+                        // perfectly coplanar boxes crossing through the same point -- a
+                        // guaranteed z-fight across their entire overlap square. This tiny,
+                        // visually-imperceptible offset breaks the tie.
                         const spine = buildWall(env.cellSize, 1.1, ductMat, 0.4);
-                        spine.position.set(cxw, 2.78, czw);
+                        spine.position.set(cxw, 2.80, czw);
                         addGeometry(spine);
                         if ((localX + localZ) % 2 === 1) {
-                            const grille = buildWall(0.5, 0.5, env.emberGrilleMat, 0.06);
-                            grille.position.set(cxw, 2.57, czw);
+                            const grille = buildWall(0.5, 0.5, env.emberGrilleMat, 0.12);
+                            grille.position.set(cxw, 2.50, czw);
                             addGeometry(grille);
                         }
                     }
                     if (throughNS && throughEW) {
+                        // Ceiling vent, rebuilt as an actual vent instead of a bare metal stub:
+                        // a shaft, a flanged collar where it meets the bridge (a distinct joint
+                        // line so it doesn't read as one plain column), and a wide ember-lit
+                        // grille cap at the bottom (the actual "vent" cue). Every joint below
+                        // overlaps its neighbor by a real amount (0.07-0.22 units) rather than
+                        // the old 0.025 hairline, so nothing sits close enough to its neighbor
+                        // to z-fight.
                         for (let as = -1; as <= 1; as += 2) {
-                            const riser = buildWall(0.7, 0.7, ductMat, 1.15);
-                            riser.position.set(cxw + as * 1.65, 2.0, czw);
+                            // Each riser hangs 1.65 off-center with a 0.43 half-width (the
+                            // collar), reaching 2.08 -- past the 2.0 cell boundary. That's fine
+                            // when the neighboring cell is open corridor, but if it's a solid
+                            // maze wall block the vent pokes straight into it. Skip whichever
+                            // side actually has a wall; throughEW guarantees at least one side
+                            // is clear, so this never zeroes out both risers.
+                            if ((as < 0 && wW) || (as > 0 && wE)) continue;
+                            const rx = cxw + as * 1.65;
+                            const riser = buildWall(0.62, 0.62, ductMat, 1.3);
+                            riser.position.set(rx, 2.05, czw);
                             addGeometry(riser);
+                            const collar = buildWall(0.86, 0.86, env.ventCollarMat, 0.22);
+                            collar.position.set(rx, 2.58, czw);
+                            addGeometry(collar);
+                            const cap = buildWall(0.7, 0.7, env.emberGrilleMat, 0.1);
+                            cap.position.set(rx, 1.42, czw);
+                            addGeometry(cap);
                         }
                         const bridge = buildWall(env.cellSize, 0.7, ductMat, 0.4);
                         bridge.position.set(cxw, 2.75, czw);

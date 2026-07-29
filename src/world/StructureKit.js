@@ -51,13 +51,26 @@ export default class StructureKit {
                 }
                 return false;
             },
-            getLightMaterial: (colorHex, emissiveHex, isBroken = false) => {
+            getLightMaterial: (colorHex, emissiveHex, isBroken = false, plain = false) => {
                 if (!env._lightMatPool) env._lightMatPool = new Map();
-                const key = `${colorHex}_${emissiveHex}_${isBroken}`;
+                const key = `${colorHex}_${emissiveHex}_${isBroken}_${plain}`;
                 if (!env._lightMatPool.has(key)) {
                     const mat = (isBroken ? env.baseBrokenLightMat : env.baseLightMat).clone();
                     mat.color.setHex(colorHex);
                     mat.emissive.setHex(emissiveHex);
+                    // `baseLightMat`/`baseBrokenLightMat` carry a flat rectangular panel texture
+                    // (map/emissiveMap) baked for a box's flat face -- fine for every existing
+                    // caller, which all apply it to flat panels/plates. Wrapped around a
+                    // non-flat shape like a cylinder instead, that same texture's cylindrical UV
+                    // unwrap samples mostly the panel's dark border/background, so the surface
+                    // reads as barely lit rather than glowing. `plain` strips both maps so the
+                    // whole surface glows evenly at `emissiveIntensity` -- still driven by the
+                    // same per-frame flicker/blackout system in LumenGrid/Environment.js, just a
+                    // solid emissive color instead of a masked-off panel print.
+                    if (plain) {
+                        mat.map = null;
+                        mat.emissiveMap = null;
+                    }
                     env.sharedAssets.add(mat.uuid);
                     env._lightMatPool.set(key, mat);
                 }

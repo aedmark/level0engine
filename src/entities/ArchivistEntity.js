@@ -82,6 +82,39 @@ export default class ArchivistEntity {
     }
 
     /**
+     * Shows or hides the Archivist's visible body parts, leaving `group` (and therefore
+     * `this.light`, its child) untouched.
+     *
+     * Educational Note: This used to be a plain `this.group.visible = true/false`, toggled not
+     * just on sector entry/exit but constantly during ordinary ARCHIVE play -- every hide/flee
+     * cycle (`hideTimer`/`fleeTimer` in update()) hid the whole group, `this.light` included.
+     * Three.js excludes an invisible object's entire subtree from the current frame's light list,
+     * so every one of those cycles changed the scene's active light count and forced a shader
+     * recompile across every standard-lit material in the scene -- the same mechanism the
+     * Incinerator/Maintenance chunk-streaming stutter and the Warden/Impound entity-switch
+     * stutter turned out to share, just firing far more often here since it's tied to routine
+     * behavior instead of a rarer sector transition. `group` now stays visible permanently;
+     * only the meshes toggle, so the light is always present in the scene -- just dark when
+     * `intensity` is zeroed alongside it.
+     */
+    _setBodyVisible(visible) {
+        this.core.visible = visible;
+        this.wingL.visible = visible;
+        this.wingR.visible = visible;
+        for (const mote of this.motes) mote.visible = visible;
+    }
+
+    /**
+     * Hides the Archivist and silences its light without removing either from the scene graph.
+     * Called by EntityManager when another entity type becomes active.
+     */
+    deactivate() {
+        this.isActive = false;
+        this._setBodyVisible(false);
+        this.light.intensity = 0;
+    }
+
+    /**
      * Resets the entity and spawns it at the given coordinates.
      * @param {number} x - The X coordinate to spawn at.
      * @param {number} y - The Y coordinate to spawn at.
@@ -100,7 +133,8 @@ export default class ArchivistEntity {
         const clamped = this._clampToBounds(x, z);
         this.group.position.set(clamped.x, y, clamped.z);
         this.target.copy(this.group.position);
-        this.group.visible = true;
+        this._setBodyVisible(true);
+        this.light.intensity = 1.1;
         this.observeTimer = 0;
     }
 
@@ -124,15 +158,16 @@ export default class ArchivistEntity {
      * @returns {Object|null} Returns null; the archivist does not attack or consume the player.
      */
     update(delta, time) {
+        // EntityManager only ever calls update() on whichever entity is currently active, and
+        // already called deactivate() the moment this one stopped being it -- this check is just
+        // a defensive no-op guard, not the actual hide/show path (see deactivate()).
         if (!this.isActive) {
-            this.group.visible = false;
             return null;
         }
         // Tucked away after a scare. Stays invisible for a bit, then slips back in near the
         // player with a fresh grace period -- it went into hiding, it didn't cease to exist.
         if (this.hideTimer > 0) {
             this.hideTimer -= delta;
-            this.group.visible = false;
             if (this.hideTimer <= 0) {
                 const playerPos = this.camera.position;
                 const spawnAngle = Math.random() * Math.PI * 2;
@@ -143,7 +178,8 @@ export default class ArchivistEntity {
                 );
                 this.group.position.set(clamped.x, 0, clamped.z);
                 this.target.copy(this.group.position);
-                this.group.visible = true;
+                this._setBodyVisible(true);
+                this.light.intensity = 1.1;
                 this.graceTimer = 3.0;
                 this.observeTimer = 0;
             }
@@ -182,7 +218,8 @@ export default class ArchivistEntity {
             this._animate(time * 4.0);
             if (this.fleeTimer <= 0) {
                 this.hideTimer = 5.0 + Math.random() * 4.0;
-                this.group.visible = false;
+                this._setBodyVisible(false);
+                this.light.intensity = 0;
             }
             return null;
         }

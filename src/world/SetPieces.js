@@ -29,7 +29,7 @@ export default class SetPieces {
      */
     buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, ctx) {
         const env = this.env;
-        const {buildWall, addGeometry, addFurniture, chunkGroup, hash} = ctx;
+        const {buildWall, addGeometry, addFurniture, chunkGroup, hash, stagingMeshes, getLightMaterial} = ctx;
         const cs = env.cellSize;
         const cx0 = x * cs, cz0 = z * cs;
         const dir = flankV ? (localX === 6 ? 1 : -1) : (localZ === 6 ? 1 : -1);
@@ -184,21 +184,13 @@ export default class SetPieces {
         }
 
         if (lit) {
-            const activeMat = env.getPooledLightMaterial ? env.getPooledLightMaterial(false) : env.baseLightMat;
-            const panel = new THREE.Mesh(env.sharedPanelGeo, [env.baseHousingMat, env.baseHousingMat, env.baseHousingMat, activeMat, env.baseHousingMat, env.baseHousingMat]);
-            panel.position.set(cx0, 2.98, cz0);
-            chunkGroup.add(panel);
-            env.walls.push(panel);
-            env.fixtureData.push({
-                chunkHash: hash,
-                position: new THREE.Vector3(cx0, 2.8, cz0),
-                flickerOffset: ckHash(localX, localZ, 5) * 500,
-                material: activeMat,
-                isFaulty: ckHash(localX, localZ, 8) > 0.75,
-                baseIntensity: 0.6,
-                targetIntensity: 0.6,
-                currentIntensity: 0.6
-            });
+            this.buildCheckpointCageLight(
+                chunkGroup, hash, stagingMeshes, cx0, cz0,
+                flankV ? Math.PI / 2 : 0,
+                ckHash(localX, localZ, 5) * 500,
+                ckHash(localX, localZ, 8) > 0.75,
+                getLightMaterial
+            );
         }
     }
 
@@ -290,6 +282,110 @@ export default class SetPieces {
             loop.rotation.x = Math.PI / 2;
             decor(loop);
         }
+    }
+
+    /**
+     * Checkpoint's own ceiling fixture: a caged fluorescent tube, the "under surveillance"
+     * cold-white security-corridor light this sector uses instead of the generic recessed panel
+     * every other sector's hallways share (the same panel Checkpoint itself used to borrow) --
+     * a wire guard cage over a long tube reads as a security/institutional fixture at a glance,
+     * distinct from the flush square panel everywhere else. Used for both Checkpoint's hallway
+     * cells (`CheckpointSector.js`) and its side rooms (`buildCheckpointRoom` below), so both
+     * share one fixture design.
+     *
+     * Fully self-contained: registers its own meshes (via `stagingMeshes`, so identical parts
+     * across every fixture in the chunk merge into a handful of `InstancedMesh`es the same way
+     * ordinary wall geometry does) and its own `fixtureData` entry, so call sites only need to
+     * supply a position, orientation, and a bit of per-fixture variance.
+     *
+     * @param {THREE.Group} chunkGroup - The root mesh group for the chunk.
+     * @param {number} hash - The deterministic hash ID of the chunk.
+     * @param {Array} stagingMeshes - This chunk's pre-instancing mesh buffer.
+     * @param {number} px - World X position (fixture center).
+     * @param {number} pz - World Z position (fixture center).
+     * @param {number} rotY - Y rotation in radians; 0 runs the tube along X, PI/2 along Z --
+     * callers pass whichever matches the hallway/room's own long axis.
+     * @param {number} flickerOffset - Per-fixture flicker phase, for LumenGrid.
+     * @param {boolean} isFaulty - Whether this fixture flickers/dims like a failing tube.
+     * @param {Function} getLightMaterial - The chunk-cached `(colorHex, emissiveHex, isBroken)`
+     * emissive-material pool from `StructureKit.createChunkHelpers` (`ctx.getLightMaterial`).
+     * @param {number} [colorHex=0xd8e6ff] - Base color of the tube, overridable so other sectors
+     * can borrow this fixture's geometry with their own light color (e.g. Server's red).
+     * @param {number} [emissiveHex=0xc8ddff] - Emissive color of the tube.
+     * @param {number} [intensity=0.975] - Base/target/current light intensity for this fixture.
+     */
+    buildCheckpointCageLight(chunkGroup, hash, stagingMeshes, px, pz, rotY, flickerOffset, isFaulty, getLightMaterial, colorHex = 0xd8e6ff, emissiveHex = 0xc8ddff, intensity = 0.975) {
+        const env = this.env;
+        const cageMat = env.pittedMetalMat || env.metalMat;
+        // `plain: true` -- see getLightMaterial's own comment (StructureKit.js) for why: the
+        // default light material's map/emissiveMap is baked for a flat panel face, and wrapped
+        // around this tube's cylindrical UVs it mostly sampled dark background instead of
+        // glowing, leaving the fixture looking unlit from the inside. Plain strips both maps so
+        // the whole tube glows evenly.
+        const activeMat = getLightMaterial(colorHex, emissiveHex, isFaulty, true);
+
+        const group = new THREE.Group();
+        group.position.set(px, 2.96, pz);
+        group.rotation.y = rotY;
+
+        const housing = new THREE.Mesh(env._boxGeo(1.6, 0.06, 0.32), env.baseHousingMat);
+        group.add(housing);
+
+        const tubeGeo = env._cacheGeo('ckCageTube', () => {
+            const g = new THREE.CylinderGeometry(0.05, 0.05, 1.4, 10);
+            g.rotateZ(Math.PI / 2);
+            return g;
+        });
+        const tube = new THREE.Mesh(tubeGeo, activeMat);
+        tube.position.y = -0.02;
+        group.add(tube);
+
+        // End brackets and a wire guard cage -- bars crossing the tube plus rails tying them
+        // together -- the protective detail that reads as "security fixture" rather than a bare
+        // tube light.
+        const endCapGeo = env._boxGeo(0.08, 0.14, 0.36);
+        for (const side of [-1, 1]) {
+            const cap = new THREE.Mesh(endCapGeo, cageMat);
+            cap.position.set(side * 0.76, -0.01, 0);
+            group.add(cap);
+        }
+        const barGeo = env._boxGeo(0.03, 0.03, 0.34);
+        const barCount = 5;
+        for (let i = 0; i < barCount; i++) {
+            const t = (i / (barCount - 1) - 0.5) * 1.3;
+            const bar = new THREE.Mesh(barGeo, cageMat);
+            bar.position.set(t, -0.06, 0);
+            group.add(bar);
+        }
+        const railGeo = env._boxGeo(1.5, 0.03, 0.03);
+        for (const side of [-1, 1]) {
+            const rail = new THREE.Mesh(railGeo, cageMat);
+            rail.position.set(0, -0.06, side * 0.16);
+            group.add(rail);
+        }
+
+        group.updateMatrixWorld(true);
+        group.traverse(child => {
+            if (child.isMesh) {
+                child.userData.chunkHash = hash;
+                child.updateMatrixWorld(true);
+                stagingMeshes.push(child);
+            }
+        });
+
+        // 0.975 = 0.75 * 1.3 -- 30% brighter than the original tuning. Callers borrowing this
+        // fixture for a dimmer mood (e.g. Server's emergency lighting) pass their own `intensity`.
+        const brightIntensity = intensity;
+        env.fixtureData.push({
+            chunkHash: hash,
+            position: new THREE.Vector3(px, 2.9, pz),
+            flickerOffset: flickerOffset,
+            material: activeMat,
+            isFaulty: isFaulty,
+            baseIntensity: brightIntensity,
+            targetIntensity: brightIntensity,
+            currentIntensity: brightIntensity
+        });
     }
 
     /**
@@ -470,16 +566,10 @@ export default class SetPieces {
                         innerCellX = startX + lx;
                         innerCellZ = startZ + lz;
                     }
-                    if (sectorId === "CHECKPOINT") {
-                        const lineGeo = new THREE.PlaneGeometry(env.cellSize, env.cellSize);
-                        const lineMesh = new THREE.Mesh(lineGeo, env.checkpointLineMat);
-                        lineMesh.rotation.x = -Math.PI / 2;
-                        if (spansX) {
-                            lineMesh.rotation.z = Math.PI / 2;
-                        }
-                        lineMesh.position.set((startX + lx) * env.cellSize, 0.03, (startZ + lz) * env.cellSize);
-                        chunkGroup.add(lineMesh);
-                    } else if (sectorId === "MAINTENANCE") {
+                    // The CHECKPOINT queue-line floor decal that used to continue out here into
+                    // the entrance hallway was removed along with its interior counterpart (see
+                    // CheckpointSector.js) -- it clashed against the new hardwood parquet floor.
+                    if (sectorId === "MAINTENANCE") {
                         const len = env.cellSize;
                         const tOff = (env.cellSize / 2) - 0.2;
                         if (spansX) {

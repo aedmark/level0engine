@@ -90,9 +90,13 @@ export default class WardenEntity {
 
         this.light = new THREE.SpotLight(0xffffff, 2.0, 30.0, Math.PI / 6, 0.3, 1.0);
         this.light.position.set(0, 3.6, 0);
+        // castShadow is set once, here, and never toggled again -- see deactivate() below for why.
         this.light.castShadow = true;
         this.light.shadow.mapSize.width = 256;
         this.light.shadow.mapSize.height = 256;
+        // Only re-rendered on demand (see reset()/deactivate()) instead of every frame regardless
+        // of whether the Warden is even the active entity right now.
+        this.light.shadow.autoUpdate = false;
         this.lightTarget = new THREE.Object3D();
         this.lightTarget.position.set(0, 0, 1);
         this.group.add(this.lightTarget);
@@ -119,12 +123,41 @@ export default class WardenEntity {
         const clamped = this._clampToBounds(x, z);
         this.group.position.set(clamped.x, y, clamped.z);
         this.target.copy(this.group.position);
-        this.group.visible = true;
+        // `group` itself is never hidden (see deactivate()) -- only the body meshes and the
+        // light's own intensity/shadow updates toggle. Restore both here.
+        this.legs.visible = true;
+        this.upperBody.visible = true;
+        this.light.intensity = 2.0;
+        this.light.shadow.autoUpdate = true;
         this.light.color.setHex(0xffffff);
         if (this.eyeMat) {
             this.eyeMat.color.setHex(0xdadada);
             this.eyeMat.opacity = 0.55;
         }
+    }
+
+    /**
+     * Hides the Warden and silences its spotlight without removing either from the scene graph.
+     * Called by EntityManager when another entity type becomes active.
+     *
+     * Educational Note: The obvious way to "hide" an entity is `this.group.visible = false` --
+     * but `this.light` is a child of that group, and Three.js excludes an invisible object's
+     * entire subtree from the current frame's light list. A light popping in and out of that
+     * list changes the scene's active light count, which forces Three.js to recompile shader
+     * programs across every standard-lit material in the scene -- the exact mechanism behind the
+     * Incinerator/Maintenance chunk-streaming stutter fixed earlier. `group` now stays visible
+     * permanently; only the mesh children (which carry no such cost) and the light's own
+     * intensity toggle instead, so the light is always present in the scene -- just dark.
+     */
+    deactivate() {
+        this.isActive = false;
+        this.legs.visible = false;
+        this.upperBody.visible = false;
+        this.light.intensity = 0;
+        // Shadow-casting stays on permanently (see constructor) so the shadow-light count never
+        // changes either; autoUpdate=false just stops it spending a render pass on a shadow map
+        // nobody can see while inactive.
+        this.light.shadow.autoUpdate = false;
     }
 
     /**
@@ -148,8 +181,10 @@ export default class WardenEntity {
      * @returns {Object|null} Returns a state object (e.g., {consumed: true}) if the player is caught, otherwise null.
      */
     update(delta, time) {
+        // EntityManager only ever calls update() on whichever entity is currently active, and
+        // already called deactivate() the moment this one stopped being it -- this check is just
+        // a defensive no-op guard, not the actual hide/show path (see deactivate()).
         if (!this.isActive) {
-            this.group.visible = false;
             return null;
         }
         if (this.graceTimer > 0) {

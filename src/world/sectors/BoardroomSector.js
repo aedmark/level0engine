@@ -29,7 +29,7 @@ export const BoardroomSector = (env, ctx) => {
     return {
                 id: "BOARDROOM",
                 foundationMat: env.boardTileMat || env.tileMat,
-                ceilingMat: env.clinicMat,
+                ceilingMat: env.boardCeilingMat || env.clinicMat,
                 build: (x, z, localX, localZ) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, env.boardWallMat || env.sharedWallMat, "BOARDROOM")) return;
                     const bx = x * env.cellSize, bz = z * env.cellSize;

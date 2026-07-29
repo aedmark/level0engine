@@ -27,13 +27,6 @@ window.acoustics = acoustics;
 const player = new PlayerController(engine.camera, engine.renderer.domElement);
 const environment = new Environment(engine, player);
 window.environment = environment;
-
-// Guards the render loop's own environment.updateChunks(camera.position) call (see animate()
-// below) from firing while SectorHunt is walking a simulated position through the same
-// environment state. Both call sites share environment.currentChunkCoords / chunkQueue /
-// activeChunks / macroZones -- without this guard, every animation frame during a hunt would
-// re-center the load window on the real (stationary) camera and dispose the far-away chunk the
-// hunt just built, deleting its macroZones entry before the hunt's own check ever sees it.
 let sectorHuntActive = false;
 
 const saveManager = new SaveManager(engine, player, environment, acoustics);
@@ -106,9 +99,6 @@ if (!document.getElementById('seedInput').value) {
 }
 
 // Build World
-// setup() now yields between texture-generation batches (and between chunks/macro interiors,
-// as before) instead of blocking the main thread in one synchronous burst -- top-level await
-// here just makes sure nothing below runs against a half-initialized environment.
 await environment.setup();
 
 // Hydrate Player & Camera
@@ -183,17 +173,6 @@ document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e
         return;
     }
 
-    // Mirror pressing the airlock switch, then wait for the deferred interior to actually build.
-    // sectorHuntActive stays true through this whole section: the found chunk is still parked at
-    // its far-away hash and the camera hasn't moved there yet, so if the render loop's own
-    // updateChunks(camera.position) ran now it would (correctly, by its own logic) find that
-    // chunk outside the spawn-centered window and dispose it -- deleting its macroZones entry and
-    // its _pendingMacroContent entry out from under beginMacroChunkContent. Worse,
-    // isMacroChunkContentReady() treats "chunk no longer exists" as ready (`if (!chunkGroup) return
-    // true`), so the wait loop below would report success on a chunk that was actually destroyed,
-    // and the *next* legitimate build of that same coordinate pops a different id off the shared
-    // sector bag -- e.g. selecting ARCHIVE but landing in CHECKPOINT. Keeping the guard up until
-    // the camera is actually standing in the target chunk avoids all of that.
     environment.beginMacroChunkContent(foundHash);
     let waited = 0;
     while (!environment.isMacroChunkContentReady(foundHash) && waited < 4000) {

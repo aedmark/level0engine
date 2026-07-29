@@ -272,10 +272,19 @@ export const MaintenanceSector = (env, ctx) => {
                                         }
                                         grilleGroup.position.z = 0.11;
 
-                                        const internalLight = new THREE.PointLight(0x77aaff, 1.0, 1.5);
-                                        internalLight.position.set(0, 0, -0.3);
-                                        
-                                        ventGroup.add(frameGroup, duct, fanGroup, grilleGroup, internalLight);
+                                        // No raw THREE.PointLight here -- vent fans like this one
+                                        // spawn on ~15% of interior wall cells (see the random()
+                                        // check above), and each raw light entering/leaving the
+                                        // scene graph with its chunk forces a shader recompile
+                                        // across every standard-lit material in the scene (see
+                                        // IncineratorSector's sconce/lamp fix and ChasmSector's
+                                        // lighthouse fix for the full mechanism). This light's
+                                        // 1.5-unit reach barely extended past the vent's own grille
+                                        // anyway, so it's dropped rather than routed through
+                                        // LumenGrid's pool, which only offers fixed 10/20-unit
+                                        // reaches that would make a tiny accent light suddenly
+                                        // read as a real room light.
+                                        ventGroup.add(frameGroup, duct, fanGroup, grilleGroup);
                                         ventGroup.position.set(clx, 1.8, clz);
                                         ventGroup.rotation.y = facing;
                                         ventGroup.userData = {type: 'ventFan', active: true, fanMesh: fanGroup, spinSpeed: 2.0 + random() * 4.0};

@@ -1409,6 +1409,187 @@ export default class ProceduralTextureFactory {
         return {archiveWallMat, archiveFloorMat, paperMat, paperGeo, coffeeStainMat, coffeeStainGeo, bookMatSets};
     }
 
+    /**
+     * Checkpoint's own floor and ceiling treatment -- previously a flat gray noise-speckle
+     * "concrete" floor and the generic `structMat` borrowed for its ceiling, neither of which
+     * belonged to the sector specifically. Replaced with an aged basket-weave hardwood parquet
+     * floor and a Victorian-style pressed tin ceiling (embossed square panels, each with its own
+     * rosette medallion) -- the "old government building" look the checkpoint's hazmat-and-forms
+     * dressing already implies but its surfaces didn't back up.
+     */
+    static _buildCheckpointAssets(masterNoise) {
+        // --- Hardwood Parquet Floor ---
+        // Classic basket-weave parquet: a grid of blocks, each made of a few parallel planks,
+        // alternating horizontal/vertical from one block to the next so adjoining blocks read as
+        // interlocking rather than one continuous grain direction.
+        const {canvas: ckFloorCanvas, ctx: ckFloorCtx} = this._createContext(256, 256);
+        ckFloorCtx.fillStyle = '#5c4224';
+        ckFloorCtx.fillRect(0, 0, 256, 256);
+        const parquetBlocks = 4;
+        const blockSize = 256 / parquetBlocks;
+        const plankTones = ['#6b4c28', '#5c4224', '#7a5830', '#4f3a1f'];
+        for (let by = 0; by < parquetBlocks; by++) {
+            for (let bx = 0; bx < parquetBlocks; bx++) {
+                const bxp = bx * blockSize, byp = by * blockSize;
+                const horizontal = (bx + by) % 2 === 0;
+                const planks = 4;
+                const plankSize = blockSize / planks;
+                for (let p = 0; p < planks; p++) {
+                    ckFloorCtx.fillStyle = plankTones[(bx * 3 + by * 5 + p) % plankTones.length];
+                    if (horizontal) {
+                        ckFloorCtx.fillRect(bxp, byp + p * plankSize, blockSize, plankSize - 1);
+                    } else {
+                        ckFloorCtx.fillRect(bxp + p * plankSize, byp, plankSize - 1, blockSize);
+                    }
+                    // Grain streaks running along each plank's own length.
+                    ckFloorCtx.strokeStyle = 'rgba(0,0,0,0.15)';
+                    ckFloorCtx.lineWidth = 1;
+                    for (let g = 0; g < 3; g++) {
+                        ckFloorCtx.beginPath();
+                        if (horizontal) {
+                            const gy = byp + p * plankSize + 2 + Math.random() * (plankSize - 4);
+                            ckFloorCtx.moveTo(bxp, gy);
+                            ckFloorCtx.lineTo(bxp + blockSize, gy + (Math.random() - 0.5) * 3);
+                        } else {
+                            const gx = bxp + p * plankSize + 2 + Math.random() * (plankSize - 4);
+                            ckFloorCtx.moveTo(gx, byp);
+                            ckFloorCtx.lineTo(gx + (Math.random() - 0.5) * 3, byp + blockSize);
+                        }
+                        ckFloorCtx.stroke();
+                    }
+                }
+                // The block's own border reads as the basket-weave seam between blocks.
+                ckFloorCtx.strokeStyle = 'rgba(0,0,0,0.35)';
+                ckFloorCtx.lineWidth = 2;
+                ckFloorCtx.strokeRect(bxp, byp, blockSize, blockSize);
+            }
+        }
+        // Aged, grimy overlay plus a handful of darker worn/scuffed patches -- an "old" floor
+        // reads through wear, not just a wood-tone palette.
+        ckFloorCtx.globalAlpha = 0.14;
+        ckFloorCtx.drawImage(masterNoise, 0, 0, 256, 256);
+        ckFloorCtx.globalAlpha = 1.0;
+        for (let i = 0; i < 10; i++) {
+            const wx = Math.random() * 256, wy = Math.random() * 256, wr = 8 + Math.random() * 22;
+            const grad = ckFloorCtx.createRadialGradient(wx, wy, 0, wx, wy, wr);
+            grad.addColorStop(0, 'rgba(0,0,0,0.16)');
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            ckFloorCtx.fillStyle = grad;
+            ckFloorCtx.fillRect(wx - wr, wy - wr, wr * 2, wr * 2);
+        }
+        const checkpointFloorTexture = this._createWrappedTexture(ckFloorCanvas, 12, 12);
+        const checkpointFloorMat = new THREE.MeshStandardMaterial({
+            map: checkpointFloorTexture,
+            roughness: 0.88,
+            metalness: 0.02,
+            bumpMap: checkpointFloorTexture,
+            bumpScale: 0.012
+        });
+
+        // --- Pressed Tin Ceiling ---
+        const {canvas: ckCeilCanvas, ctx: ckCeilCtx} = this._createContext(256, 256);
+        ckCeilCtx.fillStyle = '#a79c86';
+        ckCeilCtx.fillRect(0, 0, 256, 256);
+        ckCeilCtx.globalAlpha = 0.10;
+        ckCeilCtx.drawImage(masterNoise, 0, 0, 256, 256);
+        ckCeilCtx.globalAlpha = 1.0;
+        // Patina: patches of oxidation bleeding across a couple of panels, like an old tin
+        // ceiling nobody's repainted in decades.
+        for (let i = 0; i < 6; i++) {
+            const px = Math.random() * 256, py = Math.random() * 256, pr = 14 + Math.random() * 26;
+            const grad = ckCeilCtx.createRadialGradient(px, py, 0, px, py, pr);
+            grad.addColorStop(0, 'rgba(120, 90, 40, 0.18)');
+            grad.addColorStop(1, 'rgba(120, 90, 40, 0)');
+            ckCeilCtx.fillStyle = grad;
+            ckCeilCtx.fillRect(px - pr, py - pr, pr * 2, pr * 2);
+        }
+        // A dedicated bump canvas for the embossed relief -- flat mid-gray base so bumpScale
+        // reads as neutral everywhere there's no relief, with the bevels and medallion drawn in
+        // actual light/dark strokes so the "pressed" look survives regardless of the color map's
+        // own patina noise (same split-color/bump-canvas technique as clinicMat's bump pass).
+        const {canvas: ckCeilBumpCanvas, ctx: ckCeilBumpCtx} = this._createContext(256, 256);
+        ckCeilBumpCtx.fillStyle = '#808080';
+        ckCeilBumpCtx.fillRect(0, 0, 256, 256);
+        const drawTinTile = (colorCtx, bumpCtx, tx, ty, size) => {
+            const inset = size * 0.08;
+            // Beveled border: a light stroke and a dark stroke offset a couple pixels apart fake
+            // a pressed-metal lip catching light from one side.
+            colorCtx.strokeStyle = 'rgba(255,255,255,0.35)';
+            colorCtx.lineWidth = 2;
+            colorCtx.strokeRect(tx + inset, ty + inset, size - inset * 2, size - inset * 2);
+            colorCtx.strokeStyle = 'rgba(0,0,0,0.3)';
+            colorCtx.strokeRect(tx + inset + 2, ty + inset + 2, size - inset * 2 - 4, size - inset * 2 - 4);
+            bumpCtx.strokeStyle = '#ffffff';
+            bumpCtx.lineWidth = 3;
+            bumpCtx.strokeRect(tx + inset, ty + inset, size - inset * 2, size - inset * 2);
+            bumpCtx.strokeStyle = '#000000';
+            bumpCtx.lineWidth = 2;
+            bumpCtx.strokeRect(tx + inset + 3, ty + inset + 3, size - inset * 2 - 6, size - inset * 2 - 6);
+            // Central rosette medallion -- the classic motif stamped into real Victorian
+            // pressed-tin ceiling panels.
+            const cx = tx + size / 2, cy = ty + size / 2;
+            const petals = 8;
+            const petalLen = size * 0.28;
+            for (let p = 0; p < petals; p++) {
+                const angle = (p / petals) * Math.PI * 2;
+                const ex = cx + Math.cos(angle) * petalLen;
+                const ey = cy + Math.sin(angle) * petalLen;
+                colorCtx.strokeStyle = 'rgba(0,0,0,0.25)';
+                colorCtx.lineWidth = 3;
+                colorCtx.beginPath();
+                colorCtx.moveTo(cx, cy);
+                colorCtx.lineTo(ex, ey);
+                colorCtx.stroke();
+                colorCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+                colorCtx.lineWidth = 1;
+                colorCtx.beginPath();
+                colorCtx.moveTo(cx, cy);
+                colorCtx.lineTo(ex, ey);
+                colorCtx.stroke();
+                bumpCtx.strokeStyle = '#e8e8e8';
+                bumpCtx.lineWidth = 3;
+                bumpCtx.beginPath();
+                bumpCtx.moveTo(cx, cy);
+                bumpCtx.lineTo(ex, ey);
+                bumpCtx.stroke();
+            }
+            colorCtx.fillStyle = 'rgba(255,255,255,0.4)';
+            colorCtx.beginPath();
+            colorCtx.arc(cx, cy, size * 0.07, 0, Math.PI * 2);
+            colorCtx.fill();
+            bumpCtx.fillStyle = '#ffffff';
+            bumpCtx.beginPath();
+            bumpCtx.arc(cx, cy, size * 0.07, 0, Math.PI * 2);
+            bumpCtx.fill();
+        };
+        const tinTiles = 2;
+        const tinTileSize = 256 / tinTiles;
+        for (let ty = 0; ty < tinTiles; ty++) {
+            for (let tx = 0; tx < tinTiles; tx++) {
+                drawTinTile(ckCeilCtx, ckCeilBumpCtx, tx * tinTileSize, ty * tinTileSize, tinTileSize);
+            }
+        }
+        // 32x instead of 8x: each physical tile a quarter the linear size (4x as many packed
+        // into the same span) -- the original repeat count read as oversized and stretched
+        // once seen at actual ceiling scale.
+        const checkpointCeilingTexture = this._createWrappedTexture(ckCeilCanvas, 32, 32);
+        const checkpointCeilingBumpTexture = this._createWrappedTexture(ckCeilBumpCanvas, 32, 32);
+        const checkpointCeilingMat = new THREE.MeshStandardMaterial({
+            map: checkpointCeilingTexture,
+            bumpMap: checkpointCeilingBumpTexture,
+            bumpScale: 0.05,
+            // roughness alone is what kills a visible specular hotspot (see the Boardroom
+            // ceiling fix for the same lesson) -- metalness is left at 0.65 so the surface still
+            // reads as tin rather than painted plaster, it just scatters that reflectance
+            // diffusely across an aged, oxidized surface instead of concentrating it into a
+            // glare under the new, denser hallway lighting.
+            roughness: 0.92,
+            metalness: 0.65
+        });
+
+        return {checkpointFloorMat, checkpointCeilingMat};
+    }
+
     static _buildExtendedAssets(masterNoise) {
         const dpCanvas = document.createElement('canvas');
         dpCanvas.width = dpCanvas.height = 256;
@@ -1756,92 +1937,15 @@ export default class ProceduralTextureFactory {
         const fvTex = new THREE.CanvasTexture(fvc);
         fvTex.wrapS = fvTex.wrapT = THREE.RepeatWrapping;
         const farVoidMat = new THREE.MeshBasicMaterial({map: fvTex});
-        const cpCanvas = document.createElement('canvas');
-        cpCanvas.width = cpCanvas.height = 256;
-        const cpc = cpCanvas.getContext('2d');
-        cpc.fillStyle = '#8a8d8f';
-        cpc.fillRect(0, 0, 256, 256);
-        for (let i = 0; i < 400; i++) {
-            cpc.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)';
-            cpc.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 2, 1 + Math.random() * 2);
-        }
-        const cpTex = new THREE.CanvasTexture(cpCanvas);
-        cpTex.wrapS = cpTex.wrapT = THREE.RepeatWrapping;
-        cpTex.repeat.set(15, 15);
-        const checkpointFloorMat = new THREE.MeshStandardMaterial({
-            map: cpTex,
-            roughness: 0.85,
-            metalness: 0.1,
-            color: 0xbbbbbb
-        });
-        const lineCanvas = document.createElement('canvas');
-        lineCanvas.width = lineCanvas.height = 128;
-        const lc = lineCanvas.getContext('2d');
-        lc.clearRect(0, 0, 128, 128);
-        lc.lineWidth = 12;
-        lc.strokeStyle = '#d32f2f';
-        lc.beginPath();
-        lc.moveTo(0, 48);
-        lc.lineTo(128, 48);
-        lc.stroke();
-        lc.strokeStyle = '#fbc02d';
-        lc.beginPath();
-        lc.moveTo(0, 64);
-        lc.lineTo(128, 64);
-        lc.stroke();
-        lc.strokeStyle = '#1976d2';
-        lc.beginPath();
-        lc.moveTo(0, 80);
-        lc.lineTo(128, 80);
-        lc.stroke();
-        const lineTex = new THREE.CanvasTexture(lineCanvas);
-        const checkpointLineMat = new THREE.MeshStandardMaterial({
-            map: lineTex,
-            transparent: true,
-            roughness: 0.9,
-            metalness: 0.0,
-            depthWrite: false,
-            polygonOffset: true,
-            polygonOffsetFactor: -1,
-            polygonOffsetUnits: -1
-        });
-        const crossCanvas = document.createElement('canvas');
-        crossCanvas.width = crossCanvas.height = 128;
-        const cc = crossCanvas.getContext('2d');
-        cc.clearRect(0, 0, 128, 128);
-        cc.lineWidth = 12;
-        cc.strokeStyle = '#d32f2f';
-        cc.beginPath();
-        cc.moveTo(0, 48);
-        cc.lineTo(128, 48);
-        cc.moveTo(48, 0);
-        cc.lineTo(48, 128);
-        cc.stroke();
-        cc.strokeStyle = '#fbc02d';
-        cc.beginPath();
-        cc.moveTo(0, 64);
-        cc.lineTo(128, 64);
-        cc.moveTo(64, 0);
-        cc.lineTo(64, 128);
-        cc.stroke();
-        cc.strokeStyle = '#1976d2';
-        cc.beginPath();
-        cc.moveTo(0, 80);
-        cc.lineTo(128, 80);
-        cc.moveTo(80, 0);
-        cc.lineTo(80, 128);
-        cc.stroke();
-        const crossTex = new THREE.CanvasTexture(crossCanvas);
-        const checkpointLineCrossMat = new THREE.MeshStandardMaterial({
-            map: crossTex,
-            transparent: true,
-            roughness: 0.9,
-            metalness: 0.0,
-            depthWrite: false,
-            polygonOffset: true,
-            polygonOffsetFactor: -1,
-            polygonOffsetUnits: -1
-        });
+        // checkpointFloorMat and checkpointCeilingMat used to live here as a flat gray
+        // noise-speckle concrete texture -- moved to their own dedicated `_buildCheckpointAssets`
+        // (see below) along with a new pressed-tin ceiling, so Checkpoint gets the same
+        // per-sector floor/ceiling treatment Annex, Impound, and Archive already have instead of
+        // borrowing a generic surface.
+        // checkpointLineMat/checkpointLineCrossMat (the red/yellow/blue queue-line floor decals)
+        // used to be generated here -- removed along with the meshes that used them
+        // (CheckpointSector.js, SetPieces.js buildEntranceHallways) once they started clashing
+        // against the new hardwood parquet floor.
         const coneCanvas = document.createElement('canvas');
         coneCanvas.width = 256; coneCanvas.height = 256;
         const cCtx = coneCanvas.getContext('2d');
@@ -1896,7 +2000,7 @@ export default class ProceduralTextureFactory {
             diamondPlateMat, incinCeilingMat, boardTileMat, glassMat, bookRowMat,
             fileBoxMat, movingBoxMat, bananaBoxMat, parcelBoxMat, cartonMats,
             foliageMat, farVoidMat,
-            checkpointFloorMat, checkpointLineMat, checkpointLineCrossMat, cautionConeMat, cautionConeBaseMat, valveMat
+            cautionConeMat, cautionConeBaseMat, valveMat
         };
     }
 
@@ -1935,6 +2039,8 @@ export default class ProceduralTextureFactory {
         await this._yield();
         const archiveAssets = this._buildArchiveAssets(masterNoise);
         await this._yield();
+        const checkpointAssets = this._buildCheckpointAssets(masterNoise);
+        await this._yield();
         const extendedAssets = this._buildExtendedAssets(masterNoise);
         const assets = {
             ...structAssets,
@@ -1948,6 +2054,7 @@ export default class ProceduralTextureFactory {
             ...atriumAssets,
             ...maintenanceAssets,
             ...archiveAssets,
+            ...checkpointAssets,
             ...extendedAssets
         };
         const applyOpt = (item) => {

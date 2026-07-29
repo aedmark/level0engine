@@ -152,15 +152,32 @@ export default class Anomaly {
      * Updates the anomaly's state, AI logic, and position.
      * @param {number} delta - Time elapsed since the last frame.
      * @param {number} time - Total elapsed time.
+     * @param {string} [activeSector] - The player's current sector id, or "NORMAL" while out in
+     * the plain connecting maze/hallways. See the sector-gate check just below for why this matters.
      * @returns {Object|null} A state object (e.g., {consumed: true}) if the player is caught, otherwise null.
      */
-    update(delta, time) {
+    update(delta, time, activeSector) {
         if (!this.isActive) {
             if (this.player.anomalyPressure > 0) this.player.anomalyPressure = 0;
             return null;
         }
         if (this.graceTimer > 0) {
             this.graceTimer -= delta;
+            this._animate(time, delta);
+            if (this.player.anomalyPressure > 0) this.player.anomalyPressure = 0;
+            return null;
+        }
+        // Archive/Impound/Incinerator each get their own dedicated hazard the instant the player
+        // steps inside, via EntityManager swapping the active entity entirely -- but every other
+        // sector still leaves the Anomaly as the active entity, and `anomalyPressure` below is a
+        // pure distance check with no idea a solid perimeter wall might be sitting between it and
+        // the player. Without this, it can be wandering the connecting hallway on the other side
+        // of a sector's own wall and still trigger the proximity distortion effect, reading as
+        // stalking through a wall it has no actual line of sight through. Suppressed the same way
+        // the grace period above is: it keeps existing and animating in place, just doesn't sense,
+        // chase, or push any pressure onto the player, and picks back up the instant you step back
+        // out into the plain "NORMAL" maze.
+        if (activeSector && activeSector !== 'NORMAL') {
             this._animate(time, delta);
             if (this.player.anomalyPressure > 0) this.player.anomalyPressure = 0;
             return null;
