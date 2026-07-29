@@ -587,17 +587,31 @@ export default class SetPieces {
                 env._lightMatPool.set(barKey, mat);
             }
             const barMat = env._lightMatPool.get(barKey);
+            // Mounted on the header, directly above the door panel top (y=2.6) but below
+            // the ceiling cap trim (bezel bottom at y=2.8, shared across the whole airlock
+            // chamber). y=2.6-3.4 is nominally "header", but 2.8-3.4 of that is already
+            // occupied by the bezel/ceilBase cap geometry, so the only clear slot on the
+            // header's face is the 0.2-unit band right above the doorway opening.
+            //
+            // The header itself is 0.7 deep along the travel axis (cx/cz alone is its
+            // *center*), so mounting the bar at cx,cz buries it inside the header's own
+            // solid volume -- invisible, occluded by the header's face. Push it out along
+            // that depth axis, toward the side facing away from the chamber center, so it
+            // sits proud on the header's front face instead of inside the block.
+            const depthSign = spansX ? (Math.sign(cz - midZ) || outSign) : (Math.sign(cx - midX) || outSign);
+            const barCx = spansX ? cx : cx + depthSign * 0.4;
+            const barCz = spansX ? cz + depthSign * 0.4 : cz;
             const barHousing = new THREE.Mesh(env._boxGeo(spansX ? 1.6 : 0.3, 0.14, spansX ? 0.3 : 1.6), env.baseHousingMat);
-            barHousing.position.set(cx, 2.56, cz);
+            barHousing.position.set(barCx, 2.73, barCz);
             chunkGroup.add(barHousing);
             env.walls.push(barHousing);
             const barLens = new THREE.Mesh(env._boxGeo(spansX ? 1.4 : 0.16, 0.04, spansX ? 0.16 : 1.4), barMat);
-            barLens.position.set(cx, 2.5, cz);
+            barLens.position.set(barCx, 2.64, barCz);
             chunkGroup.add(barLens);
             env.walls.push(barLens);
             env.fixtureData.push({
                 chunkHash: hash,
-                position: new THREE.Vector3(cx, 2.5, cz),
+                position: new THREE.Vector3(barCx, 2.64, barCz),
                 isSpot: true,
                 targetPos: new THREE.Vector3(cx, 0.0, cz),
                 spotAngle: Math.PI / 5,
@@ -852,7 +866,26 @@ export default class SetPieces {
     }
     /**
      * Uses a recursive backtracker algorithm to carve out a maze pattern within a chunk.
-     * Ensures paths always connect to the 7x7 cross in the center.
+     *
+     * Used to also force the entire center row/column open -- a literal plus-shaped
+     * clearing -- and punch 20 extra random single-cell holes on top of that, to guarantee
+     * every consumer got an entrance path without having to reason about the maze's own
+     * connectivity. In practice that meant every sector built on this generator (Archive,
+     * Server, Maintenance, Impound, Chasm, Clinic, Incinerator) showed the exact same giant
+     * open cross in the same spot every time -- boring and predictable well before anyone
+     * would notice it's structurally identical between chunks. Checkpoint is the one place a
+     * literal crossroads is actually the intended design (see CheckpointSector.js's own
+     * hand-built corridor-and-rooms layout, generated independently of this function
+     * entirely); everywhere else should read as an actual maze.
+     *
+     * Connectivity doesn't need the cross at all: a recursive backtracker visits every
+     * reachable cell of matching parity from its start by construction, so (7,7) and every
+     * odd/odd room cell out to the edge of its search space are already guaranteed connected
+     * to each other. The only genuine gap is the one-cell distance between the outermost
+     * odd/odd room cell and the boundary-adjacent even cell that the algorithm's fixed step
+     * size never reaches on two of the four sides -- bridged with four single-width spurs
+     * below, one drilled straight in from each possible doorway approach until it merges with
+     * the carved interior, instead of blowing the whole center open.
      *
      * @param {Function} randomFn - A deterministic random number generator.
      * @returns {boolean[][]} A 2D array representing the maze grid, where false is a path and true is a wall.
@@ -873,15 +906,19 @@ export default class SetPieces {
             }
         };
         carve(7, 7);
-        for (let i = 0; i < 20; i++) {
-            let rx = Math.floor(randomFn() * (env.chunkSize - 4)) + 2;
-            let rz = Math.floor(randomFn() * (env.chunkSize - 4)) + 2;
-            maze[rx][rz] = false;
-        }
-        for (let i = 0; i < env.chunkSize; i++) {
-            maze[7][i] = false;
-            maze[i][7] = false;
-        }
+        const drillToCarved = (x0, z0, dx, dz) => {
+            let x = x0, z = z0;
+            while (x > 0 && x < env.chunkSize - 1 && z > 0 && z < env.chunkSize - 1) {
+                const alreadyOpen = !maze[x][z];
+                maze[x][z] = false;
+                if (alreadyOpen) return;
+                x += dx; z += dz;
+            }
+        };
+        drillToCarved(7, 1, 0, 1);
+        drillToCarved(7, env.chunkSize - 2, 0, -1);
+        drillToCarved(1, 7, 1, 0);
+        drillToCarved(env.chunkSize - 2, 7, -1, 0);
         return maze;
     }
 }

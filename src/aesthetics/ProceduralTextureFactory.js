@@ -1192,7 +1192,47 @@ export default class ProceduralTextureFactory {
             roughness: 0.18,
             metalness: 0.15
         });
-        return {marbleMat};
+
+        // Gondola-shelving steel for the aisle racks -- a flat, inoffensive powder-coat beige
+        // (the same "almond"-ish tone real store fixtures like Lozier shelving ship in) rather
+        // than anything overtly industrial. Bump-only (no printed map) so it tiles cleanly
+        // across the wildly different proportions this material gets stretched over -- thin
+        // uprights, wide shelf boards, tall filler bands -- without any baked imagery smearing.
+        //
+        // First pass used raw masterNoise as the bump map directly (the same shortcut
+        // hazardMat/voidMat use). That noise is sparse, hard-edged single-pixel speckle --
+        // fine for grungy pitted/concrete surfaces, but at shelf scale it read as coarse
+        // random pockmarking, i.e. stucco, not painted sheet steel. Building a proper
+        // brushed-metal bump texture instead (fine horizontal streak pairs, the same approach
+        // titaniumMat/pittedMetalMat use) plus a much lower bumpScale gives a smooth painted
+        // panel with just a whisper of grain instead.
+        const {canvas: shelfBumpCanvas, ctx: shelfBumpCtx} = this._createContext(256, 256);
+        shelfBumpCtx.fillStyle = '#808080';
+        shelfBumpCtx.fillRect(0, 0, 256, 256);
+        for (let y = 0; y < 256; y += 2) {
+            shelfBumpCtx.strokeStyle = `rgba(255,255,255,${0.06 + Math.random() * 0.04})`;
+            shelfBumpCtx.beginPath();
+            shelfBumpCtx.moveTo(0, y);
+            shelfBumpCtx.lineTo(256, y);
+            shelfBumpCtx.stroke();
+            shelfBumpCtx.strokeStyle = `rgba(0,0,0,${0.06 + Math.random() * 0.04})`;
+            shelfBumpCtx.beginPath();
+            shelfBumpCtx.moveTo(0, y + 1);
+            shelfBumpCtx.lineTo(256, y + 1);
+            shelfBumpCtx.stroke();
+        }
+        shelfBumpCtx.globalAlpha = 0.08;
+        shelfBumpCtx.drawImage(masterNoise, 0, 0, 256, 256);
+        shelfBumpCtx.globalAlpha = 1.0;
+        const shelfBumpTexture = this._createWrappedTexture(shelfBumpCanvas, 2, 2);
+        const shelfMat = new THREE.MeshStandardMaterial({
+            color: 0xc9bd9e,
+            bumpMap: shelfBumpTexture,
+            bumpScale: 0.006,
+            roughness: 0.6,
+            metalness: 0.2
+        });
+        return {marbleMat, shelfMat};
     }
 
     static _buildMaintenanceAssets(masterNoise) {

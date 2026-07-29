@@ -9,19 +9,20 @@ import AABB from '../../math/AABB.js';
  * A procedural sector generator for the atrium: the interior of a shopping mall, built on
  * top of the sector's blank-white-void groundwork rather than discarding it.
  *
- * The floor is one structurally open plaza -- nothing here blocks the center cross or the
- * doorway approaches, since the maze generator guarantees those stay clear -- but every
- * interior cell the maze marks as a wall now gets a retail shelving unit instead of standing
- * empty, giving the player actual aisles to navigate instead of a bare box. The wall ring is
- * glossy marble (see
- * env.marbleMat / ProceduralTextureFactory._buildAtriumAssets) with a repeating storefront
- * module per non-doorway boundary cell, stretched all the way up to STRUCTURE_TOP_Y so the
- * texture climbs with the building instead of handing off to flat void partway up. Fourteen
- * cantilevered balcony tiers wrap the room above head height, and a central fountain/
- * light-column landmark anchors the plaza. Fog (now dark, see Sectors.js) is what actually
- * sells the illusion: the balconies and the marble both keep climbing past the point where
- * fog has already erased them, so the building reads as going up forever because nothing
- * ever gives the eye a ceiling to land on -- it's swallowed by dark, not capped by white.
+ * The floor is a genuine forced-navigation maze of grocery aisles now, not an open plaza with
+ * scattered shelf islands -- built straight off the shared `maze` parameter `build()` receives
+ * (see SetPieces.js's `generateSectorMaze`), which no longer forces a giant open cross down the
+ * center the way it originally did. Wall cells get a continuous run of shelving -- frame,
+ * boards, and product boxes near the floor, then a few cheap stacked bands climbing well past
+ * head height -- so aisles read as endless, not just tall. The wall ring is bare glossy marble
+ * (see env.marbleMat / ProceduralTextureFactory._buildAtriumAssets) with no storefront dressing
+ * at ground level, stretched all the way up to STRUCTURE_TOP_Y so the texture climbs with the
+ * building instead of handing off to flat void partway up. Fourteen cantilevered balcony tiers
+ * wrap the room above head height. Fog (now dark, see Sectors.js)
+ * is what actually sells the illusion: the balconies, the marble, and the aisles themselves
+ * all keep climbing past the point where fog has already erased them, so everything reads as
+ * going up forever because nothing ever gives the eye a ceiling to land on -- it's swallowed
+ * by dark, not capped by white.
  */
 export const AtriumSector = (env, ctx) => {
     const {
@@ -76,39 +77,10 @@ export const AtriumSector = (env, ctx) => {
         ];
     }
 
-    // A storefront module: a recessed glass window in a dark frame with a lit sign band on
-    // top, sized to one boundary cell (env.cellSize wide). Built once per non-doorway
-    // perimeter cell, so it tiles around the whole ring automatically.
-    const buildStorefront = (faceX, faceZ, rotY) => {
-        const group = new THREE.Group();
-        const glass = new THREE.Mesh(env._boxGeo(3.2, 2.3, 0.06), env.glassMat || env.matrixVoidMat);
-        glass.position.set(0, 1.35, 0.03);
-        group.add(glass);
-        const railGeo = env._boxGeo(3.4, 0.14, 0.1);
-        const railTop = new THREE.Mesh(railGeo, env.blackIronMat);
-        railTop.position.set(0, 2.57, 0.03);
-        group.add(railTop);
-        const railBottom = new THREE.Mesh(railGeo, env.blackIronMat);
-        railBottom.position.set(0, 0.13, 0.03);
-        group.add(railBottom);
-        const postGeo = env._boxGeo(0.14, 2.5, 0.1);
-        for (const sx of [-1.68, 1.68]) {
-            const post = new THREE.Mesh(postGeo, env.blackIronMat);
-            post.position.set(sx, 1.32, 0.03);
-            group.add(post);
-        }
-        // Static emissive sign band -- not registered with LumenGrid. A storefront ring this
-        // size (roughly one module per 4m of wall) would be 30-40 modules per chunk; giving
-        // each one a real dynamic light would blow through LumenGrid's 32-light budget on
-        // its own. The pooled emissive material still reads as lit without costing a slot.
-        const signMat = ctx.getLightMaterial(0xfff2cc, 0xffe9b0, false);
-        const sign = new THREE.Mesh(env._boxGeo(3.2, 0.35, 0.08), signMat);
-        sign.position.set(0, 2.95, 0.02);
-        group.add(sign);
-        group.position.set(faceX, 0, faceZ);
-        group.rotation.y = rotY;
-        chunkGroup.add(group);
-    };
+    // The ground-floor ring used to get a repeating storefront module (recessed glass, dark
+    // frame, lit sign band) per non-doorway perimeter cell -- see buildStorefront, removed.
+    // Ground level is bare marble now, same as the rest of the wall ring above it; the
+    // balcony tiers (buildBalconyTier, still below) are unaffected.
 
     // One cantilevered balcony tier: a floor-slab edge plus a handrail, wrapped around all
     // four sides of the room at height `y`. `simple` swaps the individually-placed balusters
@@ -151,88 +123,164 @@ export const AtriumSector = (env, ctx) => {
         }
     };
 
-    // The plaza's centerpiece: a low fountain ring at ground level and a slender light
-    // column rising out of it, as tall as the balcony stack, into the void above -- the one
-    // real dynamic fixture in the sector, since it's singular rather than repeated dozens
-    // of times per chunk. Fog fades it out at the top exactly like the balconies; it's not
-    // artificially capped shorter than they are.
-    const buildAtriumCore = (cx0, cz0, columnTop) => {
-        const ringGeo = env._cacheGeo('atriumFountainRing', () => new THREE.CylinderGeometry(2.4, 2.5, 0.5, 24, 1, true));
-        const ring = new THREE.Mesh(ringGeo, env.structMat);
-        ring.position.set(cx0, 0.25, cz0);
-        addGeometry(ring);
-        const capGeo = env._cacheGeo('atriumFountainCap', () => new THREE.CylinderGeometry(2.45, 2.45, 0.06, 24));
-        const cap = new THREE.Mesh(capGeo, env.glassMat || env.matrixVoidMat);
-        cap.position.set(cx0, 0.51, cz0);
-        chunkGroup.add(cap);
-
-        const coreMat = ctx.getLightMaterial(0xf5faff, 0xdcefff, false);
-        const coreGeo = env._cacheGeo(`atriumCoreColumn_${columnTop}`, () => new THREE.CylinderGeometry(0.35, 0.35, columnTop, 16));
-        const core = new THREE.Mesh(coreGeo, coreMat);
-        core.position.set(cx0, columnTop / 2, cz0);
-        chunkGroup.add(core);
+    // A hanging bowl light, reused wholesale from ArchiveSector.js's own light fixture --
+    // same wire/rust-bowl-shroud/bulb geometry, same materials, same LumenGrid registration
+    // (including `isArchiveLight`, which just flags "recessed dome that only opens downward"
+    // for the glare/falloff logic in Environment.js -- it's a shape descriptor, not a
+    // sector check). Standing in for real Atrium-specific lighting for now.
+    const buildHangingLight = (cx, cz) => {
+        const bowlRadius = 0.4;
+        const rimY = 2.65;
+        const domeTopY = rimY + bowlRadius;
+        const wireLen = 3.0;
+        const wireGeo = env._cacheGeo('archiveWire', () => new THREE.CylinderGeometry(0.012, 0.012, wireLen, 5));
+        const wire = new THREE.Mesh(wireGeo, env.metalMat);
+        wire.position.set(cx, domeTopY + wireLen / 2, cz);
+        chunkGroup.add(wire);
+        wire.updateMatrixWorld(true);
+        env.walls.push(wire);
+        const bowlGeo = env._cacheGeo('archiveBowl', () => new THREE.SphereGeometry(bowlRadius, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2));
+        if (!env.archiveBowlMat) {
+            env.archiveBowlMat = env.rustMat.clone();
+            env.archiveBowlMat.side = THREE.DoubleSide;
+            env.sharedAssets.add(env.archiveBowlMat.uuid);
+        }
+        const bowl = new THREE.Mesh(bowlGeo, env.archiveBowlMat);
+        bowl.position.set(cx, rimY, cz);
+        chunkGroup.add(bowl);
+        bowl.updateMatrixWorld(true);
+        env.walls.push(bowl);
+        const bulbRadius = 0.08;
+        const bulbGeo = env._cacheGeo('archiveBulb', () => new THREE.SphereGeometry(bulbRadius, 8, 6));
+        const bulbMat = ctx.getLightMaterial(0xd8b276, 0xc89858, false);
+        bulbMat.map = null;
+        bulbMat.emissiveMap = null;
+        const bulbY = domeTopY - bulbRadius;
+        const bulb = new THREE.Mesh(bulbGeo, bulbMat);
+        bulb.position.set(cx, bulbY, cz);
+        bulb.userData.chunkHash = hash;
+        chunkGroup.add(bulb);
+        bulb.updateMatrixWorld(true);
+        env.walls.push(bulb);
         env.fixtureData.push({
             chunkHash: hash,
-            position: new THREE.Vector3(cx0, 4.0, cz0),
-            flickerOffset: 0,
-            material: coreMat,
-            isFaulty: false,
-            baseIntensity: 1.6,
-            targetIntensity: 1.6,
-            currentIntensity: 1.6,
-            noShadow: true
+            position: new THREE.Vector3(cx, bulbY, cz),
+            flickerOffset: random() * 500,
+            material: bulbMat,
+            isFaulty: true,
+            isArchiveLight: true,
+            isShadowCaster: true,
+            baseIntensity: 1.5,
+            targetIntensity: 1.5,
+            currentIntensity: 1.5
         });
     };
 
-    // One shelving unit filling an interior maze "wall" cell. Collision is a single cheap
-    // invisible box sized to the whole cell -- the same proven approach the old cornfield
-    // used for its stalks (one blocker per wall cell, decoration layered on top with no
-    // collision of its own). That keeps the racks reliably solid without needing every post
-    // and shelf board to be individually registered in the spatial grid, which matters here
-    // since a dense maze can put several dozen of these in a single chunk.
-    const buildAisleUnit = (gx, gz, alongX) => {
-        const blockerGeo = env._cacheGeo('atriumAisleBlocker', () => new THREE.BoxGeometry(env.cellSize - 0.3, 2.6, env.cellSize - 0.3));
-        if (!env._invisibleMat) env._invisibleMat = new THREE.MeshBasicMaterial({visible: false});
-        const blocker = new THREE.Mesh(blockerGeo, env._invisibleMat);
-        blocker.position.set(gx, 1.3, gz);
-        blocker.userData.isEntityBlocker = true;
-        addGeometry(blocker);
-
-        const rackLen = env.cellSize - 0.6;
-        const rackDepth = 1.1;
-        const frameMat = env.hazardMat || env.metalMat;
-        const group = new THREE.Group();
-
-        const shelfGeo = env._cacheGeo('aisleShelfBoard', () => new THREE.BoxGeometry(rackLen, 0.05, rackDepth));
+    // Grocery aisle shelving for one `maze` wall cell (the shared per-chunk maze `build()`
+    // receives -- see SetPieces.js's `generateSectorMaze`). Unlike the old freestanding-rack
+    // version, this follows ArchiveSector's continuous-spine approach: run direction and
+    // continuation are read off neighboring wall cells so consecutive cells along a run share
+    // a single unbroken wall face (full cellSize width, no gap) instead of each rendering as
+    // its own independent island, and end caps only appear where a run genuinely terminates.
+    const inAisleMaze = (maze, nx, nz) => nx >= 0 && nx < env.chunkSize && nz >= 0 && nz < env.chunkSize && maze[nx][nz];
+    const aisleRunOrientation = (maze, lx, lz) => {
+        const zR = inAisleMaze(maze, lx, lz - 1) || inAisleMaze(maze, lx, lz + 1);
+        const xR = inAisleMaze(maze, lx - 1, lz) || inAisleMaze(maze, lx + 1, lz);
+        return zR && !xR ? true : (xR && !zR ? false : ((lx + lz) % 2 === 0));
+    };
+    const AISLE_DETAIL_TOP_Y = 2.92;
+    const AISLE_HEIGHT = 14.0;
+    const AISLE_BAND_STEP = 3.2;
+    const buildAisleWallSegment = (maze, localX, localZ, acx, acz) => {
+        // No full-cell invisible blocker here -- that was blocking the entire cellSize x
+        // cellSize footprint of the maze wall cell regardless of how much of it the actual
+        // shelf geometry below fills, which is only a couple of thin spines a bit either side
+        // of center. It read as walking into an invisible wall a foot or two out from the
+        // visible shelf. ArchiveSector's identical shelf-spine pattern has no such blocker: the
+        // `spine` mesh below carries `isEntityBlocker` and its own real geometry (via
+        // `addGeometry`, which derives the collider straight from `mesh.geometry.boundingBox`)
+        // is the collider. Matching that here makes the hitbox track the visible shelf exactly.
+        const alongZ = aisleRunOrientation(maze, localX, localZ);
+        const runSpan = env.cellSize;
+        const continuesNeg = alongZ
+            ? (inAisleMaze(maze, localX, localZ - 1) && aisleRunOrientation(maze, localX, localZ - 1) === true)
+            : (inAisleMaze(maze, localX - 1, localZ) && aisleRunOrientation(maze, localX - 1, localZ) === false);
+        const continuesPos = alongZ
+            ? (inAisleMaze(maze, localX, localZ + 1) && aisleRunOrientation(maze, localX, localZ + 1) === true)
+            : (inAisleMaze(maze, localX + 1, localZ) && aisleRunOrientation(maze, localX + 1, localZ) === false);
+        const openNeg = !continuesNeg;
+        const openPos = !continuesPos;
+        const capOffset = runSpan / 2 - 0.03;
+        // Corporate beige gondola-shelving steel (see env.shelfMat / _buildAtriumAssets) --
+        // these are meant to read as impossibly tall, mundane store racks, not industrial
+        // fixtures, so this deliberately isn't the hazard-yellow/gunmetal frameMat used
+        // elsewhere in the game.
+        const frameMat = env.shelfMat || env.metalMat;
         const heights = [0.05, 0.85, 1.6, 2.3];
-        for (const h of heights) {
-            const shelf = new THREE.Mesh(shelfGeo, frameMat);
-            shelf.position.set(0, h, 0);
-            group.add(shelf);
-        }
-        const postGeo = env._cacheGeo('aislePost', () => new THREE.BoxGeometry(0.08, 2.3, 0.08));
-        const hw = rackLen / 2 - 0.06, hd = rackDepth / 2 - 0.06;
-        for (const ox of [-hw, hw]) {
-            for (const oz of [-hd, hd]) {
-                const post = new THREE.Mesh(postGeo, frameMat);
-                post.position.set(ox, 1.15, oz);
-                group.add(post);
+
+        for (let side = -1; side <= 1; side += 2) {
+            const sx = acx + (alongZ ? side * 0.7 : 0);
+            const sz = acz + (alongZ ? 0 : side * 0.7);
+
+            for (let e = -1; e <= 1; e += 2) {
+                if (e < 0 ? !openNeg : !openPos) continue;
+                const upright = buildWall(alongZ ? 1.0 : 0.12, alongZ ? 0.12 : 1.0, frameMat, 3.0);
+                upright.position.set(sx + (alongZ ? 0 : e * capOffset), 1.5, sz + (alongZ ? e * capOffset : 0));
+                addGeometry(upright);
+            }
+            const spine = buildWall(alongZ ? 0.08 : runSpan, alongZ ? runSpan : 0.08, frameMat, 3.0);
+            spine.position.set(sx, 1.5, sz);
+            spine.userData.isEntityBlocker = true;
+            addGeometry(spine);
+
+            for (const shelfY of heights) {
+                const board = buildWall(alongZ ? 0.96 : runSpan, alongZ ? runSpan : 0.96, frameMat, 0.06);
+                board.position.set(sx, shelfY, sz);
+                addGeometry(board);
+                const boxCount = 2 + Math.floor(random() * 3);
+                // Each box gets its own slot along the board instead of a fully independent
+                // random slide. With box footprints of 0.34 (more once rotated to a diagonal)
+                // and up to 4 of them scattered across the same board, naive uniform-random
+                // placement let boxes land close enough to intersect, which read as flickering
+                // z-fighting where their faces overlapped. Slotting plus a capped jitter keeps
+                // a minimum ~0.5 unit gap between any two box centers -- comfortably more than
+                // a box's worst-case diagonal half-width -- while still looking scattered.
+                const slotSpan = runSpan - 0.6;
+                const slotWidth = slotSpan / boxCount;
+                const jitterRange = Math.max(0, slotWidth - 0.5);
+                for (let i = 0; i < boxCount; i++) {
+                    const mat = env.productBoxMats[Math.floor(random() * env.productBoxMats.length)];
+                    const box = new THREE.Mesh(env._cacheGeo('aisleProductBox', () => new THREE.BoxGeometry(0.34, 0.28, 0.34)), mat);
+                    const slide = -slotSpan / 2 + slotWidth * (i + 0.5) + (random() - 0.5) * jitterRange;
+                    box.position.set(
+                        sx + (alongZ ? side * 0.2 : slide),
+                        shelfY + 0.18,
+                        sz + (alongZ ? slide : side * 0.2)
+                    );
+                    box.rotation.y = random() * Math.PI * 2;
+                    addGeometry(box);
+                }
+            }
+            const cap = buildWall(alongZ ? 0.96 : runSpan, alongZ ? runSpan : 0.96, frameMat, 0.06);
+            cap.position.set(sx, AISLE_DETAIL_TOP_Y, sz);
+            addGeometry(cap);
+
+            // Past head height the aisle stops needing real shelf detail -- it already reads
+            // as shelving by now, and the sector's dark fog erases anything a few units out
+            // regardless (same logic the perimeter marble bands and upper balcony tiers lean
+            // on). A handful of cheap stacked slabs sells "this keeps going" for a fraction of
+            // the cost of repeating the full board-and-product pattern all the way up, and is
+            // what actually makes the aisles read as endless rather than just "tall for a
+            // shelf."
+            let bandY = AISLE_DETAIL_TOP_Y;
+            while (bandY < AISLE_HEIGHT) {
+                const segH = Math.min(AISLE_BAND_STEP, AISLE_HEIGHT - bandY);
+                const band = buildWall(alongZ ? 0.9 : runSpan, alongZ ? runSpan : 0.9, frameMat, segH);
+                band.position.set(sx, bandY + segH / 2, sz);
+                addGeometry(band);
+                bandY += segH;
             }
         }
-        const boxGeo = env._cacheGeo('aisleProductBox', () => new THREE.BoxGeometry(0.34, 0.28, 0.34));
-        for (let level = 0; level < 3; level++) {
-            const boxCount = 3 + Math.floor(random() * 3);
-            for (let i = 0; i < boxCount; i++) {
-                const mat = env.productBoxMats[Math.floor(random() * env.productBoxMats.length)];
-                const box = new THREE.Mesh(boxGeo, mat);
-                box.position.set((random() - 0.5) * (rackLen - 0.4), heights[level] + 0.18, (random() - 0.5) * (rackDepth - 0.4));
-                box.rotation.y = random() * Math.PI * 2;
-                group.add(box);
-            }
-        }
-        group.position.set(gx, 0, gz);
-        group.rotation.y = alongX ? 0 : Math.PI / 2;
-        chunkGroup.add(group);
     };
 
     return {
@@ -242,7 +290,6 @@ export const AtriumSector = (env, ctx) => {
                     const edge = env.chunkSize - 1;
                     const isDoorwayNS = (localZ === 0 || localZ === edge) && localX === 7;
                     const isDoorwayEW = (localX === 0 || localX === edge) && localZ === 7;
-                    const isCorner = (localX === 0 || localX === edge) && (localZ === 0 || localZ === edge);
                     const isShoulderNS = (localZ === 0 || localZ === edge) && (localX === 6 || localX === 8);
                     const isShoulderEW = (localX === 0 || localX === edge) && (localZ === 6 || localZ === 8);
 
@@ -267,16 +314,6 @@ export const AtriumSector = (env, ctx) => {
                     if (ctx.buildPerimeter(x, z, localX, localZ, env.marbleMat || env.matrixVoidMat, "ATRIUM")) {
                         const gx = x * env.cellSize, gz = z * env.cellSize;
                         const isShoulder = isShoulderNS || isShoulderEW;
-                        const isPlainWall = !isDoorwayCell && !isCorner && !isShoulder;
-                        if (isPlainWall) {
-                            const half = env.cellSize / 2;
-                            let faceX = gx, faceZ = gz, nx = 0, nz = 0;
-                            if (localZ === 0) { nz = 1; faceZ = gz + half; }
-                            else if (localZ === edge) { nz = -1; faceZ = gz - half; }
-                            else if (localX === 0) { nx = 1; faceX = gx + half; }
-                            else if (localX === edge) { nx = -1; faceX = gx - half; }
-                            buildStorefront(faceX, faceZ, Math.atan2(nx, nz));
-                        }
                         if (!isDoorwayCell) {
                             // buildPerimeter's own box tops out at 5.0 (non-shoulder) or 3.0
                             // (shoulder, the two cells flanking each doorway). Pick up exactly
@@ -314,8 +351,6 @@ export const AtriumSector = (env, ctx) => {
                             buildBalconyTier(cx0, cz0, roomHalf, TIER_BASE + i * TIER_STEP, i >= DETAIL_TIERS);
                         }
 
-                        buildAtriumCore(cx0, cz0, STRUCTURE_TOP_Y);
-
                         // The cap plane still exists structurally (it's what the void-ceiling
                         // skip in Environment.js is keying off of existing), but it now sits
                         // well past the point fog has already erased everything -- it's a
@@ -328,22 +363,16 @@ export const AtriumSector = (env, ctx) => {
                         ctx.chunkGroup.add(sky);
                     }
 
-                    // Retail shelving on every interior cell the maze marks as a wall --
-                    // the plaza is still one open floor structurally (nothing here blocks
-                    // the center cross or the doorway approaches, since the maze generator
-                    // guarantees those stay clear), but it's no longer an empty box to walk
-                    // across. Orientation follows whichever axis the cell has wall-neighbors
-                    // on, so runs of adjacent wall cells read as one continuous aisle of
-                    // shelving instead of independently-rotated islands.
-                    if (maze && maze[localX] && maze[localX][localZ]) {
-                        const gx = x * env.cellSize, gz = z * env.cellSize;
-                        const hasWallX = (localX > 0 && maze[localX - 1][localZ]) || (localX < edge && maze[localX + 1][localZ]);
-                        const hasWallZ = (localZ > 0 && maze[localX][localZ - 1]) || (localZ < edge && maze[localX][localZ + 1]);
-                        let alongX;
-                        if (hasWallX && !hasWallZ) alongX = true;
-                        else if (hasWallZ && !hasWallX) alongX = false;
-                        else alongX = (localX + localZ) % 2 === 0;
-                        buildAisleUnit(gx, gz, alongX);
+                    // Forced-navigation grocery aisles on every `maze` wall cell. Continuous
+                    // runs read as one unbroken wall of shelving rather than independent
+                    // islands; see `buildAisleWallSegment`.
+                    if (maze && maze[localX][localZ]) {
+                        buildAisleWallSegment(maze, localX, localZ, x * env.cellSize, z * env.cellSize);
+                    } else if (random() > 0.85) {
+                        // Same density Archive uses for its own hanging bulbs -- scattered
+                        // across the open aisle floor now that the single center pillar (and
+                        // the fountain it rose out of) are gone.
+                        buildHangingLight(x * env.cellSize, z * env.cellSize);
                     }
                 }
             };

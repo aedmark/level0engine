@@ -85,9 +85,67 @@ export default class Anomaly {
         this.breadcrumbTimer = 0;
         this.graceTimer = 12.0;
         this.timeSinceContact = 0;
-        this.group.position.set(x, y, z);
+        this._refreshForbiddenBounds(0, true);
+        const spawn = this._pushOutsideBounds(x, z);
+        this.group.position.set(spawn.x, y, spawn.z);
         this.target.copy(this.group.position);
         this.group.visible = true;
+    }
+
+    /**
+     * ARCHIVE, IMPOUND, and INCINERATOR each have their own dedicated hazard (the Archivist,
+     * the Warden, the Ember) that leashes itself inside its home sector via
+     * `Environment.getSectorBounds`. The Anomaly is EntityManager's fallback for every other
+     * sector, but nothing stopped it from physically wandering into one of those three sectors'
+     * territory while roaming or pursuing -- `EntityManager` only swaps *which* entity is
+     * active based on the player's own current sector, it has no idea where the Anomaly itself
+     * is standing. Refreshed on a slow throttle (sector geometry streams in over time, so a
+     * one-shot fetch at construction could stay permanently empty for a sector not yet built).
+     * @param {number} time - Current elapsed game time, used to throttle the refresh.
+     * @param {boolean} [force] - Bypass the throttle (used on reset, so a respawn never lands inside).
+     */
+    _refreshForbiddenBounds(time, force) {
+        if (this._nextBoundsCheck === undefined) this._nextBoundsCheck = 0;
+        if (!force && time < this._nextBoundsCheck) return;
+        this._nextBoundsCheck = time + 3.0;
+        if (!this.env || !this.env.getSectorBounds) return;
+        this._forbiddenBounds = ['ARCHIVE', 'IMPOUND', 'INCINERATOR']
+            .map(id => this.env.getSectorBounds(id))
+            .filter(Boolean);
+    }
+
+    /**
+     * Returns the forbidden-sector bounds box containing (x, z), if any, expanded by `margin`.
+     */
+    _findForbiddenBounds(x, z, margin = 0) {
+        if (!this._forbiddenBounds) return null;
+        for (let i = 0; i < this._forbiddenBounds.length; i++) {
+            const b = this._forbiddenBounds[i];
+            if (x > b.minX - margin && x < b.maxX + margin && z > b.minZ - margin && z < b.maxZ + margin) {
+                return b;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * If (x, z) falls inside a forbidden sector's bounds, pushes it back out to the nearest edge.
+     * Used as a hard safety net -- movement is already blocked from walking in, but a spawn or
+     * far-distance recovery teleport picks a position without any awareness of these zones.
+     */
+    _pushOutsideBounds(x, z) {
+        const b = this._findForbiddenBounds(x, z);
+        if (!b) return {x, z};
+        const margin = 1.5;
+        const distLeft = x - b.minX;
+        const distRight = b.maxX - x;
+        const distBottom = z - b.minZ;
+        const distTop = b.maxZ - z;
+        const min = Math.min(distLeft, distRight, distBottom, distTop);
+        if (min === distLeft) return {x: b.minX - margin, z};
+        if (min === distRight) return {x: b.maxX + margin, z};
+        if (min === distBottom) return {x, z: b.minZ - margin};
+        return {x, z: b.maxZ + margin};
     }
 
     /**
@@ -107,16 +165,17 @@ export default class Anomaly {
             if (this.player.anomalyPressure > 0) this.player.anomalyPressure = 0;
             return null;
         }
+        this._refreshForbiddenBounds(time);
         const playerPos = this.camera.position;
         const distToPlayerSq = this.group.position.distanceToSquared(playerPos);
         if (distToPlayerSq > 6400.0) {
             const spawnAngle = Math.random() * Math.PI * 2;
             const spawnDist = 40.0 + (Math.random() * 15.0);
-            this.group.position.set(
+            const respawn = this._pushOutsideBounds(
                 playerPos.x + Math.cos(spawnAngle) * spawnDist,
-                1.5,
                 playerPos.z + Math.sin(spawnAngle) * spawnDist
             );
+            this.group.position.set(respawn.x, 1.5, respawn.z);
             this.target.copy(this.group.position);
             this.breadcrumbs = [];
             return null;
@@ -308,19 +367,21 @@ export default class Anomaly {
             this._min.set(this._nextPos.x - 0.6, 0.0, this._nextPos.z - 0.6);
             this._max.set(this._nextPos.x + 0.6, 3.0, this._nextPos.z + 0.6);
             this._box.set(this._min, this._max);
-            let blocked = false;
+            let blocked = !!this._findForbiddenBounds(this._nextPos.x, this._nextPos.z, 0.6);
             const localBoxes = this.env.spatialGrid.getNearby(this._nextPos.x, this._nextPos.z, 2.0);
-            for (let i = 0; i < localBoxes.length; i++) {
-                if (localBoxes[i].isEntityBlocker && this._box.intersectsBox(localBoxes[i])) {
-                    blocked = true;
-                    break;
+            if (!blocked) {
+                for (let i = 0; i < localBoxes.length; i++) {
+                    if (localBoxes[i].isEntityBlocker && this._box.intersectsBox(localBoxes[i])) {
+                        blocked = true;
+                        break;
+                    }
                 }
             }
             if (!blocked) {
                 this.group.position.add(moveVec);
             } else {
-                let blockedX = false;
-                let blockedZ = false;
+                let blockedX = !!this._findForbiddenBounds(this._nextPos.x, this.group.position.z, 0.6);
+                let blockedZ = !!this._findForbiddenBounds(this.group.position.x, this._nextPos.z, 0.6);
                 this._boxX.copy(this._box);
                 this._boxX.min.z = this.group.position.z - 0.5;
                 this._boxX.max.z = this.group.position.z + 0.5;
@@ -352,6 +413,12 @@ export default class Anomaly {
                 }
             }
         }
+        // Unconditional re-leash, same as the containment clamp the sector-locked hazards run
+        // every tick -- movement is already blocked from walking in above, this just catches the
+        // random escape-jitter nudge a few lines up, which isn't checked against these bounds.
+        const pushed = this._pushOutsideBounds(this.group.position.x, this.group.position.z);
+        this.group.position.x = pushed.x;
+        this.group.position.z = pushed.z;
         this.group.position.y = 1.5 + Math.sin(time * 2.0) * 0.2;
     }
 }

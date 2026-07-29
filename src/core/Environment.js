@@ -544,26 +544,55 @@ export default class Environment {
                 this.macroZones.delete(h);
                 if (this._annexKeypadChunks) this._annexKeypadChunks.delete(h);
             });
-            this.walls = this.walls.filter(w => !deadHashes.has(w.userData.chunkHash));
-            this.fixtureData = this.fixtureData.filter(f => !deadHashes.has(f.chunkHash));
-            this.idlingCars = this.idlingCars.filter(c => !deadHashes.has(c.chunkHash));
-            this.interactiveDoors = this.interactiveDoors.filter(d => !deadHashes.has(d.userData.chunkHash));
+            // In-place compaction instead of .filter(): this runs on every chunk-boundary
+            // crossing during ordinary movement, not just when a heavy sector unloads, so it's
+            // one of the most frequently-hit spots in the whole streaming path. .filter()
+            // allocates and returns a brand new array every single call regardless of how many
+            // (if any) entries actually got dropped -- across 9 separate arrays, every boundary
+            // crossing, for the life of a session, that's a steady stream of garbage that has to
+            // get collected sometime, and a GC sweep doesn't announce which frame it lands on.
+            // _pruneDeadChunkEntries does the same O(n) traversal but mutates the existing array
+            // instead, so nothing new needs collecting.
+            this._pruneDeadChunkEntries(this.walls, deadHashes, w => w.userData.chunkHash);
+            this._pruneDeadChunkEntries(this.fixtureData, deadHashes, f => f.chunkHash);
+            this._pruneDeadChunkEntries(this.idlingCars, deadHashes, c => c.chunkHash);
+            this._pruneDeadChunkEntries(this.interactiveDoors, deadHashes, d => d.userData.chunkHash);
             if (this.airlocks) {
-                this.airlocks = this.airlocks.filter(a => !deadHashes.has(a.chunkHash));
+                this._pruneDeadChunkEntries(this.airlocks, deadHashes, a => a.chunkHash);
             }
             if (this.interactables) {
-                this.interactables = this.interactables.filter(i => !deadHashes.has(i.userData.chunkHash));
+                this._pruneDeadChunkEntries(this.interactables, deadHashes, i => i.userData.chunkHash);
             }
             if (this.animators) {
-                this.animators = this.animators.filter(i => !deadHashes.has(i.userData.chunkHash));
+                this._pruneDeadChunkEntries(this.animators, deadHashes, i => i.userData.chunkHash);
             }
             if (this.observers) {
-                this.observers = this.observers.filter(o => !deadHashes.has(o.userData.chunkHash));
+                this._pruneDeadChunkEntries(this.observers, deadHashes, o => o.userData.chunkHash);
             }
             if (this.pointsOfInterest) {
-                this.pointsOfInterest = this.pointsOfInterest.filter(p => !deadHashes.has(p.chunkHash));
+                this._pruneDeadChunkEntries(this.pointsOfInterest, deadHashes, p => p.chunkHash);
             }
         }
+    }
+
+    /**
+     * Removes every entry belonging to a dead chunk from `arr`, in place. Functionally
+     * equivalent to `arr = arr.filter(item => !deadHashes.has(getHash(item)))`, but reuses
+     * `arr`'s existing backing storage instead of allocating a new array every call -- see the
+     * call site in `updateChunks` for why that matters here specifically.
+     * @param {Array} arr - The array to prune, mutated in place.
+     * @param {Set<string>} deadHashes - Chunk hashes that were just unloaded.
+     * @param {Function} getHash - Extracts an item's owning chunk hash.
+     */
+    _pruneDeadChunkEntries(arr, deadHashes, getHash) {
+        let write = 0;
+        for (let read = 0; read < arr.length; read++) {
+            const item = arr[read];
+            if (!deadHashes.has(getHash(item))) {
+                arr[write++] = item;
+            }
+        }
+        arr.length = write;
     }
 
     async processChunkQueue() {
@@ -605,9 +634,14 @@ export default class Environment {
 
     async _asyncDisposeChunks(chunks) {
         let disposeStartTime = performance.now();
+        // Reused across every chunk in this batch instead of allocating a fresh `[]` per chunk
+        // -- `.length = 0` truncates without releasing the backing storage, so this scratch
+        // array's capacity just grows to whatever the largest chunk needed and gets reused from
+        // then on.
+        const meshes = [];
         for (let i = 0; i < chunks.length; i++) {
             const chunkGroup = chunks[i];
-            const meshes = [];
+            meshes.length = 0;
             chunkGroup.traverse((child) => meshes.push(child));
             for (let j = 0; j < meshes.length; j++) {
                 const child = meshes[j];
@@ -615,11 +649,17 @@ export default class Environment {
                 if (child.geometry && !this.sharedAssets.has(child.geometry.uuid) && !this.geoCache.has(child.geometry.uuid)) {
                     child.geometry.dispose();
                 }
-                if (child.material) {
-                    const materials = Array.isArray(child.material) ? child.material : [child.material];
-                    materials.forEach(m => {
-                        if (!this.sharedAssets.has(m.uuid)) m.dispose();
-                    });
+                // Was wrapping every non-array material in a fresh single-element array just to
+                // call .forEach on it once -- a throwaway allocation on the single most common
+                // case (nearly every mesh has one material, not an array of them), for every
+                // mesh, on every dispose. Branch instead.
+                if (Array.isArray(child.material)) {
+                    for (let m = 0; m < child.material.length; m++) {
+                        const mat = child.material[m];
+                        if (!this.sharedAssets.has(mat.uuid)) mat.dispose();
+                    }
+                } else if (child.material && !this.sharedAssets.has(child.material.uuid)) {
+                    child.material.dispose();
                 }
                 if (performance.now() - disposeStartTime > 3.0) {
                     await new Promise(resolve => setTimeout(resolve, 0));
@@ -854,12 +894,28 @@ export default class Environment {
             const hallwayNeedsCeiling = activeSector.id !== "ARCHIVE" && activeSector.id !== "IMPOUND" && activeSector.id !== "ATRIUM";
             this._buildEntranceHallways(chunkGroup, hash, startX, startZ, activeSector.id, ctx, hallwayNeedsFloor, hallwayNeedsCeiling);
             const edge = this.chunkSize - 1;
+            // Unlike _buildChunkInterior (which has carried a 5ms frame-budget yield since the
+            // v0.5.11 frame budget work) and _compileInstances below, this loop never got the
+            // same treatment when the v0.5.8 airlock-gating change made it run eagerly on
+            // approach instead of deferred. It only touches perimeter-ring cells (~60 of them),
+            // but each one calls straight into the sector's own `build()` -- for sectors whose
+            // perimeter got heavier since (Atrium's stacked marble bands climbing to ~55 units,
+            // plus a storefront module, per ring cell), that's several hundred synchronous mesh
+            // creations with no yield point at all, firing in a single frame the instant a new
+            // macro chunk enters render distance. Same fix as everywhere else this pattern
+            // already exists.
+            let shellStartTime = performance.now();
             for (let x = startX; x < startX + this.chunkSize; x++) {
                 for (let z = startZ; z < startZ + this.chunkSize; z++) {
                     const localX = x - startX;
                     const localZ = z - startZ;
                     if (localX !== 0 && localX !== edge && localZ !== 0 && localZ !== edge) continue;
                     if (ctx.isOccupied(x, z)) continue;
+                    if (performance.now() - shellStartTime > 5.0) {
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                        shellStartTime = performance.now();
+                        if (!this.activeChunks.has(hash)) return;
+                    }
                     activeSector.build(x, z, localX, localZ, typeof sectorMaze !== 'undefined' ? sectorMaze : null);
                 }
             }
@@ -1071,14 +1127,27 @@ export default class Environment {
             if (!this.activeChunks.has(hash)) return;
         }
         await this._compileInstances(hash, chunkGroup, stagingMeshes, random);
-        if (this.activeChunks.has(hash)) chunkGroup.userData.contentReady = true;
+        if (this.activeChunks.has(hash)) {
+            // Pre-warm GPU shader programs for everything this sector's interior just built.
+            // Three.js compiles a material's shader lazily the first time it actually appears
+            // in a render() call -- without this, that compile stall lands on the exact frame
+            // the airlock's inner door swings open and the new room becomes visible for the
+            // first time, which reads as a hard freeze right at the reveal. Paying that cost
+            // here instead spends it while the player is still sealed in the airlock chamber
+            // (already a designed pause -- see InteractionController's WAIT_IN_CHAMBER/CYCLING
+            // states), so it's invisible rather than landing on the payoff moment.
+            this.engine.renderer.compile(chunkGroup, this.camera);
+            chunkGroup.userData.contentReady = true;
+        }
     }
 
     /**
      * Kicks off the deferred interior build for a macro-structure chunk (see `buildChunk`).
-     * Called from InteractionController.updateAirlock the moment the player presses an
-     * entrance airlock's switch from outside. A no-op if the chunk was never gated, its content
-     * is already building/built, or it's since been unloaded.
+     * Called from InteractionController.updateAirlock the moment an entrance airlock's outer
+     * door starts opening from outside (OUTER_OPENING) -- as early as possible, so the build has
+     * the most wall-clock time to finish before the player reaches the inner door. A no-op if
+     * the chunk was never gated, its content is already building/built, or it's since been
+     * unloaded -- so it's safe to call repeatedly (e.g. every frame OUTER_OPENING is active).
      * @param {string} hash - The chunk hash to begin building content for.
      */
     beginMacroChunkContent(hash) {
@@ -1620,7 +1689,18 @@ export default class Environment {
                     iMesh.receiveShadow = true;
                 }
                 iMesh.userData.chunkHash = hash;
-                const isStructural = group.material === this.sharedWallMat || group.material === this.headerMat;
+                // marbleMat needs to sit alongside sharedWallMat/headerMat here too: Atrium's
+                // ground-floor wall ring (built directly by buildPerimeter, one mesh per cell)
+                // almost never repeats the exact same box dimensions twice, so it stays a plain
+                // Mesh and never goes through this per-instance tinting at all. The marble bands
+                // stacked above it (AtriumSector's build(), all identical cellSize boxes) do
+                // repeat and so were the only part of the same continuous wall getting the
+                // random 0.85-1.0 per-instance darkening below -- which reads as a real seam,
+                // a visibly darker band starting exactly where the wall becomes instanced,
+                // not intentional per-instance variety. Excluding it keeps the whole wall one
+                // consistent shade top to bottom.
+                const isStructural = group.material === this.sharedWallMat || group.material === this.headerMat
+                    || group.material === this.marbleMat;
                 const needsColor = !isStructural && !isDecal;
                 group.meshes.forEach((mesh, index) => {
                     iMesh.setMatrixAt(index, mesh.matrixWorld);

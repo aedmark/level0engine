@@ -406,7 +406,8 @@ export default class InteractionController {
      * wait, not a maximum -- it had no idea whether the room on the other side of the door
      * actually existed yet. Entering a sector (`openedFrom === 'OUTSIDE'`) now also requires
      * `env.isMacroChunkContentReady(airlock.chunkHash)`, which mirrors the moment
-     * `env.beginMacroChunkContent` was fired back in `AWAITING_SWITCH`. So the chamber holds the
+     * `env.beginMacroChunkContent` was fired back in `OUTER_OPENING` -- as early as possible, so
+     * the build gets maximum wall-clock time before it's needed. So the chamber holds the
      * player for however long is longer: the scripted cycle, or the actual build. See
      * `Environment.buildChunk` for why a sector's interior is built lazily in the first place.
      *
@@ -465,6 +466,17 @@ export default class InteractionController {
             case 'OUTER_OPENING':
                 airlock.outerDoor.data.target = 1.0;
                 airlock.innerDoor.data.target = 0.0;
+                // Kick off the sector's deferred interior build the moment the outer door
+                // starts opening, rather than waiting for the switch press. This is the
+                // earliest possible moment (before AWAITING_SWITCH even exists) that we know
+                // the player is committing to enter -- it gives the build the door-opening
+                // animation, however long the player takes to walk to and press the switch,
+                // plus the full airlock cycle to finish in the background. beginMacroChunkContent
+                // is a no-op once the content is already building/built, so this is safe to
+                // call every frame here.
+                if (airlock.openedFrom === 'OUTSIDE') {
+                    env.beginMacroChunkContent(airlock.chunkHash);
+                }
                 if (isPlayerInChamber) {
                     airlock.state = 'AWAITING_SWITCH';
                 } else if (!isPlayerInChamber && pDistOuterSq > 30.0) {
@@ -484,14 +496,8 @@ export default class InteractionController {
 
             case 'AWAITING_SWITCH':
                 if (switchPressed) {
-                    // Committing to enter is what unlocks the sector's interior (see
-                    // Environment.buildChunk / beginMacroChunkContent). Kicking it off here,
-                    // rather than at the start of CYCLING, gives it the door-closing animation
-                    // plus the full cycle duration to finish in the background before the inner
-                    // door is allowed to open.
-                    if (airlock.openedFrom === 'OUTSIDE') {
-                        env.beginMacroChunkContent(airlock.chunkHash);
-                    }
+                    // The interior build was already kicked off back in OUTER_OPENING (see
+                    // comment there); nothing to start here.
                     airlock.state = 'WAIT_IN_CHAMBER';
                 } else if (!isPlayerInChamber) {
                     if (airlock.openedFrom === 'OUTSIDE' && pDistOuterSq > 30.0) {
