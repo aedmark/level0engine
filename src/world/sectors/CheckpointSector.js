@@ -1,15 +1,12 @@
-// CheckpointSector.js
-// LEVEL 0 ENGINE SECTOR DATA
-
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
 /**
  * A procedural sector generator characterized by decontamination showers, hazmat gear, and security gates.
- * 
+ *
  * Notice the heavy use of deterministic RNG here (using `ckHash` and `hash`).
- * Because chunks are generated and destroyed dynamically as the player moves, a chunk MUST 
- * generate identically every time the player walks into it. We seed the RNG with the chunk's 
+ * Because chunks are generated and destroyed dynamically as the player moves, a chunk MUST
+ * generate identically every time the player walks into it. We seed the RNG with the chunk's
  * global X/Z coordinates so that a hazmat suit placed here will always be placed here.
  */
 export const CheckpointSector = (env, ctx) => {
@@ -25,299 +22,274 @@ export const CheckpointSector = (env, ctx) => {
         hash,
         stagingMeshes
     } = ctx;
-
     return {
-                id: "CHECKPOINT",
-                foundationMat: env.checkpointFloorMat,
-                ceilingMat: env.checkpointCeilingMat || env.structMat,
-                build: (x, z, localX, localZ) => {
-                    const edge = env.chunkSize - 1;
-                    const isPathN = localX === 7 && localZ > 0 && localZ <= 7;
-                    const isPathS = localX === 7 && localZ >= 7 && localZ < edge;
-                    const isPathW = localZ === 7 && localX > 0 && localX <= 7;
-                    const isPathE = localZ === 7 && localX >= 7 && localX < edge;
-                    const isPath = isPathN || isPathS || isPathW || isPathE;
-                    // The red/yellow/blue queue-line floor decals that used to mark this path
-                    // were removed -- they clashed against the new hardwood parquet floor.
-                    // `isPath` (and the N/S/W/E breakdown) is still load-bearing below: it's what
-                    // keeps this lane clear of rooms/walls, just no longer painted.
-                    if (ctx.buildPerimeter(x, z, localX, localZ, env.structMat, "CHECKPOINT")) return;
-                    const ckHash = (a, b, salt) => {
-                        let h = (hash ^ Math.imul(a + 64, 73856093) ^ Math.imul(b + 64, 19349663) ^ Math.imul(salt + 1, 83492791)) >>> 0;
-                        h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;
-                        h = Math.imul(h ^ (h >>> 13), 3266489917) >>> 0;
-                        return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-                    };
-                    const roomCandidate = (lx, lz) => {
-                        if (lx === 7 || lz === 7) return false;
-                        const fV = (lx === 6 || lx === 8) && lz !== 6 && lz !== 8;
-                        const fH = (lz === 6 || lz === 8) && lx !== 6 && lx !== 8;
-                        if (!fV && !fH) return false;
-                        const t = fV ? lz : lx;
-                        if (t < 3 || t > 12) return false;
-                        if (Math.abs(t - 7) < 2) return false;
-                        return ckHash(lx, lz, 11) < 0.14;
-                    };
-                    const isBuiltRoom = (lx, lz) => {
-                        if (!roomCandidate(lx, lz)) return false;
-                        const fV = (lx === 6 || lx === 8) && lz !== 6 && lz !== 8;
-                        const prev = fV ? roomCandidate(lx, lz - 1) : roomCandidate(lx - 1, lz);
-                        return !prev;
-                    };
-                    if (!isPath) {
-                        if (isBuiltRoom(localX, localZ)) {
-                            const flankV = (localX === 6 || localX === 8) && localZ !== 6 && localZ !== 8;
-                            env._buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, {
-                                buildWall, addGeometry, addFurniture, chunkGroup, hash,
-                                stagingMeshes, getLightMaterial: ctx.getLightMaterial
-                            });
-                            return;
-                        }
-                        const block = buildWall(env.cellSize, env.cellSize, env.structMat);
-                        block.position.set(x * env.cellSize, 1.5, z * env.cellSize);
-                        block.userData.isEntityBlocker = true;
-                        addGeometry(block);
-                        return;
-                    }
-                    if (localX === 7 && localZ === 7) {
-                        env._buildCheckpointColumn(x, z, hash, {addGeometry, stagingMeshes});
-                    } else {
-                        const alongZ = localX === 7;
-                        const travelCoord = alongZ ? localZ : localX;
-                        // Checkpoint only ever forms as a cross-tee (a straight hallway arm on
-                        // each of the four sides plus the built rooms flanking it -- see
-                        // isBuiltRoom above), so `travelCoord` walking every-other-cell down an
-                        // arm is guaranteed to stay inside the hallway itself; it can never land
-                        // on a room or the solid filler block, since those are handled by the
-                        // separate `!isPath` branch above and never reach this code at all.
-                        // Every 2 cells instead of every 3, and an 85% instead of 50% chance,
-                        // corrects corridors that were reading as underlit with the old spacing.
-                        if (travelCoord % 2 === 0 && random() > 0.15) {
-                            env._buildCheckpointCageLight(
-                                chunkGroup, hash, stagingMeshes,
-                                x * env.cellSize, z * env.cellSize,
-                                alongZ ? Math.PI / 2 : 0,
-                                random() * 500,
-                                random() > 0.8,
-                                ctx.getLightMaterial
-                            );
-                        }
-                        const cx0 = x * env.cellSize, cz0 = z * env.cellSize;
-                        if (Math.hypot(cx0, cz0) < env.cellSize * 2) return;
-                        const nearGate = travelCoord <= 1 || travelCoord >= 14;
-                        const nearChoke = Math.abs(travelCoord - 7) === 1;
-                        const lat = (side, off) => alongZ
-                            ? [cx0 + side * off, cz0]
-                            : [cx0, cz0 + side * off];
-                        const doorMinus = alongZ ? isBuiltRoom(6, localZ) : isBuiltRoom(localX, 6);
-                        const doorPlus = alongZ ? isBuiltRoom(8, localZ) : isBuiltRoom(localX, 8);
-                        const anyDoor = doorMinus || doorPlus;
-                        const clearSide = (pref) => {
-                            const blocked = (s) => (s < 0 ? doorMinus : doorPlus);
-                            if (!blocked(pref)) return pref;
-                            if (!blocked(-pref)) return -pref;
-                            return 0;
-                        };
-                        const decalMesh = (mesh) => {
-                            mesh.userData.chunkHash = hash;
-                            mesh.updateMatrixWorld(true);
-                            stagingMeshes.push(mesh);
-                        };
-                        if (!env.hazmatMat) {
-                            env.hazmatMat = new THREE.MeshStandardMaterial({color: 0xc9b83a, roughness: 0.85});
-                            env.sharedAssets.add(env.hazmatMat.uuid);
-                        }
-                        if (!env.deconSheetMat) {
-                            env.deconSheetMat = new THREE.MeshStandardMaterial({
-                                color: 0xbfd8d0, transparent: true, opacity: 0.28,
-                                roughness: 0.6, side: THREE.DoubleSide
-                            });
-                            env.sharedAssets.add(env.deconSheetMat.uuid);
-                        }
-                        const hazmatSuit = (px, pz, faceYaw, hangY) => {
-                            const suit = new THREE.Group();
-                            const torso = new THREE.Mesh(env._boxGeo(0.4, 0.55, 0.24), env.hazmatMat);
-                            torso.position.y = 1.55;
-                            const hood = new THREE.Mesh(env._boxGeo(0.24, 0.24, 0.24), env.hazmatMat);
-                            hood.position.y = 1.94;
-                            const visor = new THREE.Mesh(env._boxGeo(0.16, 0.12, 0.02), env.crtScreenMat);
-                            visor.position.set(0, 1.96, 0.13);
-                            suit.add(torso, hood, visor);
-                            // Hood top sits at 1.94 + 0.12 = 2.06; a thin hanger bridges that up to
-                            // the rack rail (hangY) so the suit reads as hanging from the rail
-                            // rather than floating in front of it.
-                            if (hangY) {
-                                const hookLen = Math.max(hangY - 2.06, 0.05);
-                                const hook = new THREE.Mesh(env._boxGeo(0.05, hookLen, 0.05), env.metalMat);
-                                hook.position.y = 2.06 + hookLen / 2;
-                                suit.add(hook);
-                            }
-                            for (let a = -1; a <= 1; a += 2) {
-                                const arm = new THREE.Mesh(env._boxGeo(0.11, 0.5, 0.11), env.hazmatMat);
-                                arm.position.set(a * 0.24, 1.32, 0);
-                                const leg = new THREE.Mesh(env._boxGeo(0.14, 0.55, 0.14), env.hazmatMat);
-                                // Leg top must reach the torso's bottom (1.55 - 0.275 = 1.275) or the
-                                // legs read as disconnected robot parts. Center at 1.05 puts the top
-                                // at 1.325, a small overlap into the torso instead of a 0.08 gap below it.
-                                leg.position.set(a * 0.11, 1.05, 0);
-                                suit.add(arm, leg);
-                            }
-                            suit.position.set(px, 0, pz);
-                            suit.rotation.y = faceYaw + (random() - 0.5) * 0.25;
-                            suit.updateMatrixWorld(true);
-                            suit.traverse(m => { if (m.isMesh) decalMesh(m); });
-                        };
-                        const suitRack = (side) => {
-                            const railLen = 3.2;
-                            const [rx, rz] = lat(side, 1.5);
-                            const rail = new THREE.Mesh(
-                                env._boxGeo(alongZ ? 0.06 : railLen, 0.06, alongZ ? railLen : 0.06), env.metalMat);
-                            rail.position.set(rx, 2.35, rz);
-                            addGeometry(rail);
-                            for (let p = -1; p <= 1; p += 2) {
-                                const post = new THREE.Mesh(env._boxGeo(0.06, 2.35, 0.06), env.metalMat);
-                                const [ppx, ppz] = alongZ ? [rx, rz + p * 1.5] : [rx + p * 1.5, rz];
-                                post.position.set(ppx, 1.17, ppz);
-                                decalMesh(post);
-                            }
-                            // faceYaw must point each suit away from the wall behind it, toward
-                            // the hallway center. For alongZ racks the wall runs along Z and the
-                            // offset is in X, so side<0 (west wall) faces +X and side>0 (east
-                            // wall) faces -X. For non-alongZ racks the wall runs along X and the
-                            // offset is in Z, so the same relationship holds with side<0 (north
-                            // wall, negative Z offset) facing +Z and side>0 facing -Z. This branch
-                            // was previously inverted, which pointed suits on the E/W corridor
-                            // arms back into the wall instead of out into the hallway.
-                            const faceYaw = alongZ ? (side < 0 ? Math.PI / 2 : -Math.PI / 2) : (side < 0 ? 0 : Math.PI);
-                            const n = 2 + Math.floor(random() * 2);
-                            for (let i = 0; i < n; i++) {
-                                const t = (n === 1) ? 0 : (i / (n - 1) - 0.5) * 2.4;
-                                const [sx, sz] = alongZ ? [rx, rz + t] : [rx + t, rz];
-                                if (random() > 0.15) hazmatSuit(sx, sz, faceYaw, rail.position.y);
-                            }
-                        };
-                        const crateStack = (side) => {
-                            if (!env.cartonGeo) {
-                                env.cartonGeo = new THREE.BoxGeometry(0.6, 0.5, 0.6);
-                                env.geoCache.set(env.cartonGeo.uuid, true);
-                            }
-                            const cartonPool = env.cartonMats || [env.fileBoxMat];
-                            const [bx0, bz0] = lat(side, 1.45);
-                            const pallet = env._buildPallet();
-                            pallet.position.set(bx0, 0, bz0);
-                            addFurniture(pallet);
-                            const cols = 1 + Math.floor(random() * 2);
-                            for (let c = 0; c < cols; c++) {
-                                const ox = (c - (cols - 1) / 2) * 0.62;
-                                const stack = 1 + Math.floor(random() * 3);
-                                for (let s = 0; s < stack; s++) {
-                                    const mBox = new THREE.Mesh(env.cartonGeo, cartonPool[Math.floor(random() * cartonPool.length)]);
-                                    const jitter = (random() - 0.5) * 0.12;
-                                    mBox.rotation.y = (random() - 0.5) * 0.3;
-                                    const [mx, mz] = alongZ ? [bx0 + jitter, bz0 + ox] : [bx0 + ox, bz0 + jitter];
-                                    mBox.position.set(mx, 0.37 + s * 0.5, mz);
-                                    addGeometry(mBox);
-                                }
-                            }
-                        };
-                        const drumCluster = (side) => {
-                            const drumGeo = env._cacheGeo('ckDrum', () => new THREE.CylinderGeometry(0.29, 0.29, 0.92, 10));
-                            const n = 2 + Math.floor(random() * 2);
-                            const [dx0, dz0] = lat(side, 1.5);
-                            for (let i = 0; i < n; i++) {
-                                const drum = new THREE.Mesh(drumGeo, random() > 0.5 ? env.rustMat : env.hazmatMat);
-                                const off = (i - (n - 1) / 2) * 0.64;
-                                const [ddx, ddz] = alongZ ? [dx0 + (random() - 0.5) * 0.2, dz0 + off] : [dx0 + off, dz0 + (random() - 0.5) * 0.2];
-                                drum.position.set(ddx, 0.46, ddz);
-                                addGeometry(drum);
-                                const ring = new THREE.Mesh(env._boxGeo(0.6, 0.05, 0.6), env.hazardMat);
-                                ring.position.set(ddx, 0.7, ddz);
-                                decalMesh(ring);
-                            }
-                        };
-                        const avCart = (side) => {
-                            const cart = new THREE.Group();
-                            const shelf = new THREE.Mesh(env._boxGeo(0.9, 0.05, 0.6), env.metalMat);
-                            shelf.position.y = 0.78;
-                            const lower = new THREE.Mesh(env._boxGeo(0.9, 0.05, 0.6), env.metalMat);
-                            lower.position.y = 0.4;
-                            cart.add(shelf, lower);
-                            for (let lx2 = -1; lx2 <= 1; lx2 += 2) for (let lz2 = -1; lz2 <= 1; lz2 += 2) {
-                                const leg = new THREE.Mesh(env._boxGeo(0.05, 0.78, 0.05), env.metalMat);
-                                leg.position.set(lx2 * 0.4, 0.39, lz2 * 0.26);
-                                cart.add(leg);
-                            }
-                            const body = new THREE.Mesh(env.terminalBodyGeo, env.baseHousingMat);
-                            body.position.set(0, 1.0, 0);
-                            const screen = new THREE.Mesh(env._boxGeo(0.45, 0.35, 0.05), env.crtScreenMat);
-                            screen.position.set(0, 1.0, 0.26);
-                            cart.add(body, screen);
-                            const [ax, az] = lat(side, 1.5);
-                            cart.position.set(ax, 0, az);
-                            cart.rotation.y = (alongZ ? 0 : Math.PI / 2) + (random() - 0.5) * 0.4;
-                            addFurniture(cart);
-                        };
-                        const deconSheet = () => {
-                            const strips = 5;
-                            for (let i = 0; i < strips; i++) {
-                                const t = (i / (strips - 1) - 0.5) * 3.4;
-                                const strip = new THREE.Mesh(
-                                    env._boxGeo(alongZ ? 0.62 : 0.03, 2.3, alongZ ? 0.03 : 0.62), env.deconSheetMat);
-                                const [spx, spz] = alongZ ? [cx0 + t, cz0] : [cx0, cz0 + t];
-                                strip.position.set(spx, 1.3, spz);
-                                strip.rotation.y = (random() - 0.5) * 0.05;
-                                decalMesh(strip);
-                            }
-                            const track = new THREE.Mesh(
-                                env._boxGeo(alongZ ? 3.6 : 0.06, 0.08, alongZ ? 0.06 : 3.6), env.metalMat);
-                            track.position.set(cx0, 2.48, cz0);
-                            decalMesh(track);
-                        };
-                        if (nearChoke && env._ckDeskHash !== hash) {
-                            env._ckDeskHash = hash;
-                            const side = random() > 0.5 ? 1 : -1;
-                            const [dx0, dz0] = lat(side, 1.15);
-                            const desk = new THREE.Group();
-                            const top = new THREE.Mesh(env._boxGeo(alongZ ? 1.0 : 2.0, 0.08, alongZ ? 2.0 : 1.0), env.woodMat);
-                            top.position.y = 0.78;
-                            const skirt = new THREE.Mesh(env._boxGeo(alongZ ? 0.9 : 1.9, 0.68, alongZ ? 1.9 : 0.9), env.structMat);
-                            skirt.position.y = 0.38;
-                            desk.add(top, skirt);
-                            const body = new THREE.Mesh(env.terminalBodyGeo, env.baseHousingMat);
-                            body.position.set(0, 1.0, 0);
-                            const screen = new THREE.Mesh(env._boxGeo(0.45, 0.35, 0.05), env.crtScreenMat);
-                            screen.position.set(0, 1.0, alongZ ? 0.26 : 0.26);
-                            desk.add(body, screen);
-                            desk.position.set(dx0, 0, dz0);
-                            desk.rotation.y = alongZ ? (side < 0 ? -Math.PI / 2 : Math.PI / 2) : (side < 0 ? 0 : Math.PI);
-                            addFurniture(desk);
-                            return;
-                        }
-                        if (nearGate) return;
-                        const dress = random();
-                        if (dress < 0.16) {
-                            const s = clearSide(random() > 0.5 ? 1 : -1);
-                            if (s) suitRack(s);
-                        } else if (dress < 0.34) {
-                            const s = clearSide(random() > 0.5 ? 1 : -1);
-                            if (s) crateStack(s);
-                            if (random() > 0.6) {
-                                const s2 = clearSide(random() > 0.5 ? 1 : -1);
-                                if (s2) drumCluster(s2);
-                            }
-                        } else if (dress < 0.46) {
-                            const s = clearSide(random() > 0.5 ? 1 : -1);
-                            if (s) drumCluster(s);
-                        } else if (dress < 0.58) {
-                            const s = clearSide(random() > 0.5 ? 1 : -1);
-                            if (s) avCart(s);
-                        } else if (dress < 0.66) {
-                            if (!anyDoor) deconSheet();
-                        } else if (dress < 0.80) {
-                            if (!doorPlus) crateStack(1);
-                            if (!doorMinus) crateStack(-1);
-                        }
-                    }
-                }
+        id: "CHECKPOINT",
+        foundationMat: env.checkpointFloorMat,
+        ceilingMat: env.checkpointCeilingMat || env.structMat,
+        build: (x, z, localX, localZ) => {
+            const edge = env.chunkSize - 1;
+            const isPathN = localX === 7 && localZ > 0 && localZ <= 7;
+            const isPathS = localX === 7 && localZ >= 7 && localZ < edge;
+            const isPathW = localZ === 7 && localX > 0 && localX <= 7;
+            const isPathE = localZ === 7 && localX >= 7 && localX < edge;
+            const isPath = isPathN || isPathS || isPathW || isPathE;
+            if (ctx.buildPerimeter(x, z, localX, localZ, env.structMat, "CHECKPOINT")) return;
+            const ckHash = (a, b, salt) => {
+                let h = (hash ^ Math.imul(a + 64, 73856093) ^ Math.imul(b + 64, 19349663) ^ Math.imul(salt + 1, 83492791)) >>> 0;
+                h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;
+                h = Math.imul(h ^ (h >>> 13), 3266489917) >>> 0;
+                return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
             };
+            const roomCandidate = (lx, lz) => {
+                if (lx === 7 || lz === 7) return false;
+                const fV = (lx === 6 || lx === 8) && lz !== 6 && lz !== 8;
+                const fH = (lz === 6 || lz === 8) && lx !== 6 && lx !== 8;
+                if (!fV && !fH) return false;
+                const t = fV ? lz : lx;
+                if (t < 3 || t > 12) return false;
+                if (Math.abs(t - 7) < 2) return false;
+                return ckHash(lx, lz, 11) < 0.14;
+            };
+            const isBuiltRoom = (lx, lz) => {
+                if (!roomCandidate(lx, lz)) return false;
+                const fV = (lx === 6 || lx === 8) && lz !== 6 && lz !== 8;
+                const prev = fV ? roomCandidate(lx, lz - 1) : roomCandidate(lx - 1, lz);
+                return !prev;
+            };
+            if (!isPath) {
+                if (isBuiltRoom(localX, localZ)) {
+                    const flankV = (localX === 6 || localX === 8) && localZ !== 6 && localZ !== 8;
+                    env._buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, {
+                        buildWall, addGeometry, addFurniture, chunkGroup, hash,
+                        stagingMeshes, getLightMaterial: ctx.getLightMaterial
+                    });
+                    return;
+                }
+                const block = buildWall(env.cellSize, env.cellSize, env.structMat);
+                block.position.set(x * env.cellSize, 1.5, z * env.cellSize);
+                block.userData.isEntityBlocker = true;
+                addGeometry(block);
+                return;
+            }
+            if (localX === 7 && localZ === 7) {
+                env._buildCheckpointColumn(x, z, hash, {addGeometry, stagingMeshes});
+            } else {
+                const alongZ = localX === 7;
+                const travelCoord = alongZ ? localZ : localX;
+                if (travelCoord % 2 === 0 && random() > 0.15) {
+                    env._buildCheckpointCageLight(
+                        chunkGroup, hash, stagingMeshes,
+                        x * env.cellSize, z * env.cellSize,
+                        alongZ ? Math.PI / 2 : 0,
+                        random() * 500,
+                        random() > 0.8,
+                        ctx.getLightMaterial
+                    );
+                }
+                const cx0 = x * env.cellSize, cz0 = z * env.cellSize;
+                if (Math.hypot(cx0, cz0) < env.cellSize * 2) return;
+                const nearGate = travelCoord <= 1 || travelCoord >= 14;
+                const nearChoke = Math.abs(travelCoord - 7) === 1;
+                const lat = (side, off) => alongZ
+                    ? [cx0 + side * off, cz0]
+                    : [cx0, cz0 + side * off];
+                const doorMinus = alongZ ? isBuiltRoom(6, localZ) : isBuiltRoom(localX, 6);
+                const doorPlus = alongZ ? isBuiltRoom(8, localZ) : isBuiltRoom(localX, 8);
+                const anyDoor = doorMinus || doorPlus;
+                const clearSide = (pref) => {
+                    const blocked = (s) => (s < 0 ? doorMinus : doorPlus);
+                    if (!blocked(pref)) return pref;
+                    if (!blocked(-pref)) return -pref;
+                    return 0;
+                };
+                const decalMesh = (mesh) => {
+                    mesh.userData.chunkHash = hash;
+                    mesh.updateMatrixWorld(true);
+                    stagingMeshes.push(mesh);
+                };
+                if (!env.hazmatMat) {
+                    env.hazmatMat = new THREE.MeshStandardMaterial({color: 0xc9b83a, roughness: 0.85});
+                    env.sharedAssets.add(env.hazmatMat.uuid);
+                }
+                if (!env.deconSheetMat) {
+                    env.deconSheetMat = new THREE.MeshStandardMaterial({
+                        color: 0xbfd8d0, transparent: true, opacity: 0.28,
+                        roughness: 0.6, side: THREE.DoubleSide
+                    });
+                    env.sharedAssets.add(env.deconSheetMat.uuid);
+                }
+                const hazmatSuit = (px, pz, faceYaw, hangY) => {
+                    const suit = new THREE.Group();
+                    const torso = new THREE.Mesh(env._boxGeo(0.4, 0.55, 0.24), env.hazmatMat);
+                    torso.position.y = 1.55;
+                    const hood = new THREE.Mesh(env._boxGeo(0.24, 0.24, 0.24), env.hazmatMat);
+                    hood.position.y = 1.94;
+                    const visor = new THREE.Mesh(env._boxGeo(0.16, 0.12, 0.02), env.crtScreenMat);
+                    visor.position.set(0, 1.96, 0.13);
+                    suit.add(torso, hood, visor);
+                    if (hangY) {
+                        const hookLen = Math.max(hangY - 2.06, 0.05);
+                        const hook = new THREE.Mesh(env._boxGeo(0.05, hookLen, 0.05), env.metalMat);
+                        hook.position.y = 2.06 + hookLen / 2;
+                        suit.add(hook);
+                    }
+                    for (let a = -1; a <= 1; a += 2) {
+                        const arm = new THREE.Mesh(env._boxGeo(0.11, 0.5, 0.11), env.hazmatMat);
+                        arm.position.set(a * 0.24, 1.32, 0);
+                        const leg = new THREE.Mesh(env._boxGeo(0.14, 0.55, 0.14), env.hazmatMat);
+                        leg.position.set(a * 0.11, 1.05, 0);
+                        suit.add(arm, leg);
+                    }
+                    suit.position.set(px, 0, pz);
+                    suit.rotation.y = faceYaw + (random() - 0.5) * 0.25;
+                    suit.updateMatrixWorld(true);
+                    suit.traverse(m => {
+                        if (m.isMesh) decalMesh(m);
+                    });
+                };
+                const suitRack = (side) => {
+                    const railLen = 3.2;
+                    const [rx, rz] = lat(side, 1.5);
+                    const rail = new THREE.Mesh(
+                        env._boxGeo(alongZ ? 0.06 : railLen, 0.06, alongZ ? railLen : 0.06), env.metalMat);
+                    rail.position.set(rx, 2.35, rz);
+                    addGeometry(rail);
+                    for (let p = -1; p <= 1; p += 2) {
+                        const post = new THREE.Mesh(env._boxGeo(0.06, 2.35, 0.06), env.metalMat);
+                        const [ppx, ppz] = alongZ ? [rx, rz + p * 1.5] : [rx + p * 1.5, rz];
+                        post.position.set(ppx, 1.17, ppz);
+                        decalMesh(post);
+                    }
+                    const faceYaw = alongZ ? (side < 0 ? Math.PI / 2 : -Math.PI / 2) : (side < 0 ? 0 : Math.PI);
+                    const n = 2 + Math.floor(random() * 2);
+                    for (let i = 0; i < n; i++) {
+                        const t = (n === 1) ? 0 : (i / (n - 1) - 0.5) * 2.4;
+                        const [sx, sz] = alongZ ? [rx, rz + t] : [rx + t, rz];
+                        if (random() > 0.15) hazmatSuit(sx, sz, faceYaw, rail.position.y);
+                    }
+                };
+                const crateStack = (side) => {
+                    if (!env.cartonGeo) {
+                        env.cartonGeo = new THREE.BoxGeometry(0.6, 0.5, 0.6);
+                        env.geoCache.set(env.cartonGeo.uuid, true);
+                    }
+                    const cartonPool = env.cartonMats || [env.fileBoxMat];
+                    const [bx0, bz0] = lat(side, 1.45);
+                    const pallet = env._buildPallet();
+                    pallet.position.set(bx0, 0, bz0);
+                    addFurniture(pallet);
+                    const cols = 1 + Math.floor(random() * 2);
+                    for (let c = 0; c < cols; c++) {
+                        const ox = (c - (cols - 1) / 2) * 0.62;
+                        const stack = 1 + Math.floor(random() * 3);
+                        for (let s = 0; s < stack; s++) {
+                            const mBox = new THREE.Mesh(env.cartonGeo, cartonPool[Math.floor(random() * cartonPool.length)]);
+                            const jitter = (random() - 0.5) * 0.12;
+                            mBox.rotation.y = (random() - 0.5) * 0.3;
+                            const [mx, mz] = alongZ ? [bx0 + jitter, bz0 + ox] : [bx0 + ox, bz0 + jitter];
+                            mBox.position.set(mx, 0.37 + s * 0.5, mz);
+                            addGeometry(mBox);
+                        }
+                    }
+                };
+                const drumCluster = (side) => {
+                    const drumGeo = env._cacheGeo('ckDrum', () => new THREE.CylinderGeometry(0.29, 0.29, 0.92, 10));
+                    const n = 2 + Math.floor(random() * 2);
+                    const [dx0, dz0] = lat(side, 1.5);
+                    for (let i = 0; i < n; i++) {
+                        const drum = new THREE.Mesh(drumGeo, random() > 0.5 ? env.rustMat : env.hazmatMat);
+                        const off = (i - (n - 1) / 2) * 0.64;
+                        const [ddx, ddz] = alongZ ? [dx0 + (random() - 0.5) * 0.2, dz0 + off] : [dx0 + off, dz0 + (random() - 0.5) * 0.2];
+                        drum.position.set(ddx, 0.46, ddz);
+                        addGeometry(drum);
+                        const ring = new THREE.Mesh(env._boxGeo(0.6, 0.05, 0.6), env.hazardMat);
+                        ring.position.set(ddx, 0.7, ddz);
+                        decalMesh(ring);
+                    }
+                };
+                const avCart = (side) => {
+                    const cart = new THREE.Group();
+                    const shelf = new THREE.Mesh(env._boxGeo(0.9, 0.05, 0.6), env.metalMat);
+                    shelf.position.y = 0.78;
+                    const lower = new THREE.Mesh(env._boxGeo(0.9, 0.05, 0.6), env.metalMat);
+                    lower.position.y = 0.4;
+                    cart.add(shelf, lower);
+                    for (let lx2 = -1; lx2 <= 1; lx2 += 2) for (let lz2 = -1; lz2 <= 1; lz2 += 2) {
+                        const leg = new THREE.Mesh(env._boxGeo(0.05, 0.78, 0.05), env.metalMat);
+                        leg.position.set(lx2 * 0.4, 0.39, lz2 * 0.26);
+                        cart.add(leg);
+                    }
+                    const body = new THREE.Mesh(env.terminalBodyGeo, env.baseHousingMat);
+                    body.position.set(0, 1.0, 0);
+                    const screen = new THREE.Mesh(env._boxGeo(0.45, 0.35, 0.05), env.crtScreenMat);
+                    screen.position.set(0, 1.0, 0.26);
+                    cart.add(body, screen);
+                    const [ax, az] = lat(side, 1.5);
+                    cart.position.set(ax, 0, az);
+                    cart.rotation.y = (alongZ ? 0 : Math.PI / 2) + (random() - 0.5) * 0.4;
+                    addFurniture(cart);
+                };
+                const deconSheet = () => {
+                    const strips = 5;
+                    for (let i = 0; i < strips; i++) {
+                        const t = (i / (strips - 1) - 0.5) * 3.4;
+                        const strip = new THREE.Mesh(
+                            env._boxGeo(alongZ ? 0.62 : 0.03, 2.3, alongZ ? 0.03 : 0.62), env.deconSheetMat);
+                        const [spx, spz] = alongZ ? [cx0 + t, cz0] : [cx0, cz0 + t];
+                        strip.position.set(spx, 1.3, spz);
+                        strip.rotation.y = (random() - 0.5) * 0.05;
+                        decalMesh(strip);
+                    }
+                    const track = new THREE.Mesh(
+                        env._boxGeo(alongZ ? 3.6 : 0.06, 0.08, alongZ ? 0.06 : 3.6), env.metalMat);
+                    track.position.set(cx0, 2.48, cz0);
+                    decalMesh(track);
+                };
+                if (nearChoke && env._ckDeskHash !== hash) {
+                    env._ckDeskHash = hash;
+                    const side = random() > 0.5 ? 1 : -1;
+                    const [dx0, dz0] = lat(side, 1.15);
+                    const desk = new THREE.Group();
+                    const top = new THREE.Mesh(env._boxGeo(alongZ ? 1.0 : 2.0, 0.08, alongZ ? 2.0 : 1.0), env.woodMat);
+                    top.position.y = 0.78;
+                    const skirt = new THREE.Mesh(env._boxGeo(alongZ ? 0.9 : 1.9, 0.68, alongZ ? 1.9 : 0.9), env.structMat);
+                    skirt.position.y = 0.38;
+                    desk.add(top, skirt);
+                    const body = new THREE.Mesh(env.terminalBodyGeo, env.baseHousingMat);
+                    body.position.set(0, 1.0, 0);
+                    const screen = new THREE.Mesh(env._boxGeo(0.45, 0.35, 0.05), env.crtScreenMat);
+                    screen.position.set(0, 1.0, alongZ ? 0.26 : 0.26);
+                    desk.add(body, screen);
+                    desk.position.set(dx0, 0, dz0);
+                    desk.rotation.y = alongZ ? (side < 0 ? -Math.PI / 2 : Math.PI / 2) : (side < 0 ? 0 : Math.PI);
+                    addFurniture(desk);
+                    return;
+                }
+                if (nearGate) return;
+                const dress = random();
+                if (dress < 0.16) {
+                    const s = clearSide(random() > 0.5 ? 1 : -1);
+                    if (s) suitRack(s);
+                } else if (dress < 0.34) {
+                    const s = clearSide(random() > 0.5 ? 1 : -1);
+                    if (s) crateStack(s);
+                    if (random() > 0.6) {
+                        const s2 = clearSide(random() > 0.5 ? 1 : -1);
+                        if (s2) drumCluster(s2);
+                    }
+                } else if (dress < 0.46) {
+                    const s = clearSide(random() > 0.5 ? 1 : -1);
+                    if (s) drumCluster(s);
+                } else if (dress < 0.58) {
+                    const s = clearSide(random() > 0.5 ? 1 : -1);
+                    if (s) avCart(s);
+                } else if (dress < 0.66) {
+                    if (!anyDoor) deconSheet();
+                } else if (dress < 0.80) {
+                    if (!doorPlus) crateStack(1);
+                    if (!doorMinus) crateStack(-1);
+                }
+            }
+        }
+    };
 };

@@ -1,25 +1,17 @@
-// RenderEngine.js
-// LEVEL 0 CORE RENDER ENGINE
-
 /**
  * Wraps Three.js to provide the core graphics pipeline, post-processing, and viewport scaling.
- * 
- * Educational Note: This engine utilizes a "deferred" or "post-processing" style pipeline. 
- * Instead of drawing directly to the screen, we draw the 3D scene into an off-screen buffer 
- * (`this.target`). We then map that buffer onto a 2D plane (`postPlane`) and run a custom 
+ *
+ * Educational Note: This engine utilizes a "deferred" or "post-processing" style pipeline.
+ * Instead of drawing directly to the screen, we draw the 3D scene into an off-screen buffer
+ * (`this.target`). We then map that buffer onto a 2D plane (`postPlane`) and run a custom
  * GLSL fragment shader over it to apply CRT curves, chromatic aberration, and paranoia tearing.
  */
 export default class RenderEngine {
-    // ==========================================
-    // LIFECYCLE & INITIALIZATION
-    // ==========================================
-
     /**
      * Bootstraps the WebGL pipeline, establishes the Three.js scene, configures
      * the volumetric fog patch, and compiles the post-processing shader stack.
      */
     constructor() {
-        // Core Engine Patching
         if (!THREE.__radialFogPatched) {
             THREE.ShaderChunk.fog_vertex = THREE.ShaderChunk.fog_vertex.replace(
                 /vFogDepth\s*=\s*-\s*mvPosition\.z\s*;/,
@@ -27,26 +19,19 @@ export default class RenderEngine {
             );
             THREE.__radialFogPatched = true;
         }
-
-        // Viewport Constraints
-        this.aspectRatio = 1.3333333333; // 4:3 VHS aspect
+        this.aspectRatio = 1.3333333333;
         this.resolutionScale = RenderEngine.getSavedResolutionScale();
-
-        // Scene Graph Setup
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0xa89f68);
         this.scene.fog = new THREE.FogExp2(0xa89f68, 0.05);
-
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
         this.camera.position.y = 1.6;
-
         const logDepth = !new URLSearchParams(window.location.search).has('nologdepth');
         this.renderer = new THREE.WebGLRenderer({
             antialias: false,
             powerPreference: "high-performance",
             logarithmicDepthBuffer: logDepth
         });
-        
         this.renderer.setPixelRatio(1.0);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = true;
@@ -54,38 +39,27 @@ export default class RenderEngine {
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.2;
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-        
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
-
-        // Base Lighting
         this.ambientLight = new THREE.HemisphereLight(0xfff5c2, 0x3d3520, 0.85);
         this.scene.add(this.ambientLight);
-
-        // ==========================================
-        // POST-PROCESSING PIPELINE
-        // ==========================================
         this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
             minFilter: THREE.LinearFilter,
             magFilter: THREE.LinearFilter,
             samples: 0
         });
-
         this.postScene = new THREE.Scene();
         this.postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-        
-        // Render Telemetry
         this.exhaustion = 0.0;
         this.currentHeat = 0.0;
-
         /**
          * The Somatic Shader. Handles all post-processing effects including:
-         * CRT curvature, chromatic aberration, exhaustion vignettes, paranoia tearing, 
+         * CRT curvature, chromatic aberration, exhaustion vignettes, paranoia tearing,
          * blink state, heat waves, and anomalous visual corruption.
-         * 
-         * Educational Note: A ShaderMaterial lets us write raw WebGL (GLSL) code. 
-         * `uniforms` are variables passed from the CPU (JavaScript) to the GPU (GLSL) 
-         * every frame. By feeding our player's metabolic stats (panic, exhaustion) 
-         * into these uniforms, the shader mathematically warps the pixels on the GPU, 
+         *
+         * Educational Note: A ShaderMaterial lets us write raw WebGL (GLSL) code.
+         * `uniforms` are variables passed from the CPU (JavaScript) to the GPU (GLSL)
+         * every frame. By feeding our player's metabolic stats (panic, exhaustion)
+         * into these uniforms, the shader mathematically warps the pixels on the GPU,
          * which is vastly faster than trying to calculate screen-distortion on the CPU.
          */
         this.postMaterial = new THREE.ShaderMaterial({
@@ -123,11 +97,9 @@ export default class RenderEngine {
                 uniform float heat;
                 uniform float glare;
                 varying vec2 vUv;
-                
                 float random(vec2 st) {
                     return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
                 }
-                
                 vec2 curve(vec2 uv) {
                     vec2 coord = uv * 2.0 - 1.0;
                     coord *= 1.1;
@@ -135,12 +107,10 @@ export default class RenderEngine {
                     coord.y *= 1.0 + (coord.x * coord.x) * 0.0625;
                     return coord * 0.46 + 0.5;
                 }
-                
                 void main() {
                     vec2 uv = curve(vUv);
                     vec2 centerUv = uv - 0.5;
                     float distSq = dot(centerUv, centerUv);
-                    
                     // Screen Border Cutoff
                     float border = smoothstep(0.0, 0.03, uv.x) * smoothstep(1.0, 0.97, uv.x) * 
                                    smoothstep(0.0, 0.03, uv.y) * smoothstep(1.0, 0.97, uv.y);
@@ -148,13 +118,11 @@ export default class RenderEngine {
                         gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
                         return;
                     }
-                    
                     float phasePos = fract(time * 0.05);
                     float phaseBand = 1.0 - smoothstep(0.0, 0.02, abs(uv.y - phasePos));
                     float pCurve = panic * panic * panic;
                     float stressLevel = max(squeeze, max(anomaly, max(exhaustion, max(panic, adrenaline))));
                     float stressGate = smoothstep(0.0, 0.2, stressLevel);
-                    
                     // Paranoia / Anomaly Tearing
                     if (anomaly > 0.01 || panic > 0.01) {
                         float gpuSeed = random(uv + time);
@@ -164,16 +132,13 @@ export default class RenderEngine {
                         uv.x += tear * (gpuSeed - 0.5) * intensity * 0.3;
                         uv.y += tear * (gpuSeed - 0.5) * intensity * 0.05;
                     }
-                    
                     // VHS Tracking Error
                     uv.x += phaseBand * 0.0002 * sin(time * 50.0) * stressGate;
-                    
                     // Chromatic Aberration
                     float heartbeatCA = exhaustion > 0.3 ? sin(time * (10.0 + exhaustion * 5.0)) * 0.004 * exhaustion : 0.0;
                     float panicTear = panic > 0.3 ? (sin(time * 25.0) * 0.02 * pCurve) : 0.0;
                     float caShift = (0.0005 + (distSq * 0.0015)) * stressGate + (squeeze * 0.003) + (anomaly * anomaly * sqrt(anomaly)) * 0.05 + (exhaustion * exhaustion) * 0.01 + heartbeatCA + panicTear;
                     vec2 offset = vec2(caShift, 0.0); 
-                    
                     // Sector Environmental Distortion
                     vec2 heatOffset = vec2(0.0);
                     if (heat > 0.01) {
@@ -181,18 +146,15 @@ export default class RenderEngine {
                         // so the plume swirls and curls instead of scrolling in a straight grid.
                         float swirlAngle = sin(uv.y * 8.0 + time * 0.6) * 0.6 + cos(uv.x * 6.0 - time * 0.4) * 0.6;
                         vec2 swirlUv = uv + vec2(cos(swirlAngle), sin(swirlAngle)) * 0.015 * heat;
-
                         // Layered turbulence: a broad base wave plus two smaller, faster waves
                         // stacked on top for a granular, boiling shimmer rather than one smooth ripple.
                         float wave1 = sin(swirlUv.x * 22.0 + time * 6.0) * sin(swirlUv.y * 18.0 - time * 4.0);
                         float wave2 = sin(swirlUv.x * 55.0 - time * 9.0 + wave1 * 2.0) * sin(swirlUv.y * 47.0 + time * 7.0);
                         float wave3 = sin(swirlUv.x * 90.0 + time * 13.0) * cos(swirlUv.y * 80.0 - time * 11.0);
                         float heatWave = wave1 * 0.55 + wave2 * 0.30 + wave3 * 0.15;
-
                         heatOffset = vec2(heatWave * 0.004, heatWave * 0.011) * heat;
                     }
                     vec2 sampleUv = uv + heatOffset;
-                    
                     vec3 col;
                     vec3 fauxHalation;
                     if (caShift < 0.0001) {
@@ -206,7 +168,6 @@ export default class RenderEngine {
                         col = vec3(texR.r, texG.g, texB.b);
                         fauxHalation = (texR.rgb + texB.rgb) * 0.3;
                     }
-                    
                     if (glare > 0.01) {
                         float gBlur = glare * 0.03;
                         vec3 blurCol = vec3(0.0);
@@ -221,53 +182,39 @@ export default class RenderEngine {
                         col = mix(col, blurCol * 0.125, clamp(glare * 2.5, 0.0, 1.0));
                         col += vec3(glare * 0.9);
                     }
-                    
                     // Image Adjustments
                     float luminance = dot(col, vec3(0.299, 0.587, 0.114));
                     col += max(vec3(0.0), fauxHalation - 0.5) * 0.15;
-                    
                     float noise = random(uv + mod(time, 10.0));
                     col -= (noise * (0.015 + darkness * 0.15 + anomaly * 0.9)) * (1.0 - luminance);
-                    
                     float scanline = sin((uv.y - time * 0.02) * 800.0) * (0.015 + exhaustion * 0.05); 
                     col -= scanline * luminance;
                     col += phaseBand * 0.004 * (1.0 + noise);
-                    
                     // Adrenaline Overlay
                     col += vec3(adrenaline * 0.25, 0.0, 0.0) * distSq;
                     col += max(vec3(0.0), col - 0.5) * adrenaline * 1.2;
-                    
                     // Somatic Vignettes
                     float vignettePulse = sin(time * (8.0 + adrenaline * 10.0)) * (exhaustion * 0.05 + adrenaline * 0.05); 
                     float vignetteRadius = 0.35 - (exhaustion * 0.12) - (anomaly * 0.15) - (darkness * 0.15) + vignettePulse;
                     vignetteRadius = max(0.02, vignetteRadius);
                     col *= smoothstep(0.9, vignetteRadius, distSq + 0.15); 
-                    
                     float lateralDist = abs(centerUv.x);
                     col *= mix(1.0, smoothstep(0.45, 0.15, lateralDist), squeeze);
-                    
                     // Desaturation / Blackout
                     col = mix(col, vec3(luminance * 0.6), anomaly * 0.85);
                     col = mix(col, vec3(luminance * 0.15), darkness * 0.8 * smoothstep(0.0, 0.5, distSq));
                     col = mix(col, vec3(0.02) * noise, eyesClosed);
-                    
                     col *= border;
                     col = smoothstep(0.0, 1.0, col);
                     gl_FragColor = vec4(col, 1.0);
                 }
             `
         });
-
         const postPlane = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.postMaterial);
         this.postScene.add(postPlane);
-
         window.addEventListener('resize', () => this.resize(), false);
         setTimeout(() => this.resize(), 0);
     }
-
-    // ==========================================
-    // SETTINGS PERSISTENCE
-    // ==========================================
 
     /**
      * Reads the internal resolution scale the player last explicitly chose via the
@@ -294,10 +241,6 @@ export default class RenderEngine {
         }
     }
 
-    // ==========================================
-    // VIEWPORT & SCALING
-    // ==========================================
-
     /**
      * Calculates the canvas dimensions while enforcing the target aspect ratio.
      * Scales the internal render target to match pixel ratios.
@@ -305,7 +248,6 @@ export default class RenderEngine {
     resize() {
         let w = window.innerWidth;
         let h = window.innerHeight;
-        
         if (this.aspectRatio !== 'auto') {
             const windowAspect = w / h;
             if (windowAspect > this.aspectRatio) {
@@ -314,32 +256,23 @@ export default class RenderEngine {
                 h = w / this.aspectRatio;
             }
         }
-        
         w = Math.floor(w);
         h = Math.floor(h);
         if (w % 2 !== 0) w -= 1;
         if (h % 2 !== 0) h -= 1;
-        
         const wrapper = document.getElementById('screen-wrapper');
         if (wrapper) {
             wrapper.style.width = `${w}px`;
             wrapper.style.height = `${h}px`;
         }
-        
         this.camera.aspect = w / h;
         this.camera.updateProjectionMatrix();
-        
         const scale = this.resolutionScale;
         const renderW = Math.floor(w * scale);
         const renderH = Math.floor(h * scale);
-        
         this.renderer.setSize(renderW, renderH, false);
         this.target.setSize(renderW, renderH);
     }
-
-    // ==========================================
-    // TIME & METRICS
-    // ==========================================
 
     /**
      * @returns {number} The time delta in seconds since the last frame, capped at 0.1s.
@@ -360,10 +293,6 @@ export default class RenderEngine {
         return (performance.now() - this._startTime) / 1000;
     }
 
-    // ==========================================
-    // PIPELINE EXECUTION
-    // ==========================================
-
     /**
      * The core rendering pipeline execution.
      * 1. Renders the main scene into a raw diffuse texture.
@@ -371,11 +300,8 @@ export default class RenderEngine {
      * 3. Renders the final post-processed composition to the screen.
      */
     render() {
-        // Pass 1: Raw Render
         this.renderer.setRenderTarget(this.target);
         this.renderer.render(this.scene, this.camera);
-        
-        // Push Telemetry to Shader
         this.postMaterial.uniforms.time.value = this.time;
         this.postMaterial.uniforms.exhaustion.value = this.exhaustion;
         this.postMaterial.uniforms.squeeze.value = this.squeeze || 0.0;
@@ -385,15 +311,11 @@ export default class RenderEngine {
         this.postMaterial.uniforms.adrenaline.value = this.adrenaline || 0.0;
         this.postMaterial.uniforms.eyesClosed.value = this.eyesClosed || 0.0;
         this.postMaterial.uniforms.glare.value = this.glare || 0.0;
-        
-        // Heat Map Smoothing
         if (this.heatTarget !== undefined) {
             if (this.currentHeat === undefined) this.currentHeat = 0.0;
             this.currentHeat += (this.heatTarget - this.currentHeat) * 0.016 * 2.0;
             this.postMaterial.uniforms.heat.value = this.currentHeat;
         }
-        
-        // Pass 2: Post-Processing Composition
         this.renderer.setRenderTarget(null);
         this.renderer.render(this.postScene, this.postCamera);
     }

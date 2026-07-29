@@ -1,11 +1,8 @@
-// DebugHUD.js
-// LEVEL 0 DEBUG HUD
-
 /**
  * An on-screen developer console for tracking performance and game state.
- * 
+ *
  * This overlay is critical for profiling performance in a browser environment.
- * It specifically tracks frame "hitches" (drops below 20 FPS) and correlates them with 
+ * It specifically tracks frame "hitches" (drops below 20 FPS) and correlates them with
  * chunk generation, allowing developers to see if procedural generation is causing stuttering.
  */
 export const DebugHUD = {
@@ -16,14 +13,13 @@ export const DebugHUD = {
     _hitches: 0,
     _genHitches: 0,
     _worstHitch: 0,
-    
     /**
      * Records anomalous frame times to identify stuttering ("hitches").
-     * 
+     *
      * A delta of `> 0.05` means the frame took longer than 50 milliseconds
-     * to render (less than 20 FPS). This usually means the garbage collector ran or a heavy 
+     * to render (less than 20 FPS). This usually means the garbage collector ran or a heavy
      * procedural chunk was just built.
-     * 
+     *
      * @param {number} delta - The time in seconds the last frame took to render.
      * @param {Object} environment - The environment instance (to check generation state).
      */
@@ -33,14 +29,12 @@ export const DebugHUD = {
         if (environment.isBuildingChunk) this._genHitches++;
         if (delta > this._worstHitch) this._worstHitch = delta;
     },
-    
     toggle() {
         if (!this.el) this.el = document.getElementById('debug-hud');
         if (!this.el) return;
         this.visible = !this.visible;
         this.el.style.display = this.visible ? 'block' : 'none';
     },
-    
     update(time, delta, telemetry, engine, player, environment) {
         if (!this.visible || !this.el) return;
         if (delta > 0) this._fps = this._fps * 0.95 + (1.0 / delta) * 0.05;
@@ -68,7 +62,6 @@ export const DebugHUD = {
             `PERF  hitch ${this._hitches} (${this._genHitches} gen) worst ${(this._worstHitch * 1000).toFixed(0)}ms` +
             (environment.genStats ? `  chunk avg ${(environment.genStats.totalMs / environment.genStats.count).toFixed(1)}ms worst ${environment.genStats.worstMs.toFixed(1)}ms` : '');
     },
-    
     bindEvents() {
         document.addEventListener('keydown', (e) => {
             if (e.code !== 'Backquote') return;

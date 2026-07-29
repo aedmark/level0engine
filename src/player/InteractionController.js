@@ -1,9 +1,8 @@
 // InteractionController.js
 // LEVEL 0 INTERACTION & DOOR STATE MACHINES
-
 /**
  * Manages all physical interactions between the player, entities, and the environment.
- * 
+ *
  * Decoupling interaction logic (like doors, lights, and airlocks) from
  * the main Environment/Player classes prevents those classes from becoming massive "God Objects".
  * This controller acts as a state machine orchestrator for moving parts in the level.
@@ -34,12 +33,13 @@ export default class InteractionController {
             document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: pDistSq, intensity: 1.2}}));
         }
     }
+
     /**
      * Updates the state and animation of a standard sliding door (e.g., blast doors, elevator doors).
-     * 
+     *
      * We use easing functions (`t * t * (3 - 2 * t)`) to give the doors weight
      * and momentum, rather than just snapping them open linearly.
-     * 
+     *
      * @param {THREE.Group} door - The door group.
      * @param {THREE.Vector3} playerPos - The player's current position.
      * @param {number} delta - Time elapsed since last frame.
@@ -102,14 +102,15 @@ export default class InteractionController {
             }));
         }
     }
+
     /**
      * Master update loop for all interactable objects in the environment.
-     * 
+     *
      * This handles raycast-less "look at" detection by taking the dot product
      * between the camera's forward vector and the vector pointing from the player to the object.
-     * If the dot product is close to 1.0, the player is looking directly at it. This is significantly 
+     * If the dot product is close to 1.0, the player is looking directly at it. This is significantly
      * faster than firing raycasts every frame.
-     * 
+     *
      * @param {THREE.Vector3} playerPos - The player's position.
      * @param {number} delta - Time elapsed since last frame.
      */
@@ -119,7 +120,6 @@ export default class InteractionController {
         env._playerMoveX = playerPos.x - env._prevPlayerPos.x;
         env._playerMoveZ = playerPos.z - env._prevPlayerPos.z;
         env._prevPlayerPos.copy(playerPos);
-        
         let lookingAtHit = false;
         let closestDistSq = 9.0;
         if (env.camera) env.camera.getWorldDirection(this._camDir);
@@ -137,7 +137,6 @@ export default class InteractionController {
         if (env.interactables) env.interactables.forEach(checkObj);
         if (env.interactiveDoors) env.interactiveDoors.forEach(checkObj);
         env.isLookingAtInteractable = lookingAtHit;
-
         if (env.airlocks) {
             env.airlocks.forEach(airlock => env._updateAirlock(airlock, playerPos, delta));
         }
@@ -260,7 +259,12 @@ export default class InteractionController {
                                 anim.userData.tipped = true;
                                 anim.userData.fallDir = anim.position.clone().sub(playerPos).normalize();
                                 // Trigger a heavy thud sound/shake
-                                document.dispatchEvent(new CustomEvent('somatic-step', {detail: {distSq: 0.1, intensity: 2.0}}));
+                                document.dispatchEvent(new CustomEvent('somatic-step', {
+                                    detail: {
+                                        distSq: 0.1,
+                                        intensity: 2.0
+                                    }
+                                }));
                                 document.dispatchEvent(new CustomEvent('somatic-trip'));
                             }
                         }
@@ -353,6 +357,7 @@ export default class InteractionController {
             }
         }
     }
+
     /**
      * Updates an individual door belonging to an airlock sequence.
      * @param {Object} doorObj - The airlock door data wrapper.
@@ -394,6 +399,7 @@ export default class InteractionController {
         }
         ud.entityOpen = false;
     }
+
     /**
      * State machine for airlock sequences.
      *
@@ -419,37 +425,28 @@ export default class InteractionController {
         const env = this.env;
         const axis = airlock.spansX ? 'z' : 'x';
         const crossAxis = airlock.spansX ? 'x' : 'z';
-
         const pDistOuterSq = playerPos.distanceToSquared(airlock.outerPos);
         const pDistInnerSq = playerPos.distanceToSquared(airlock.innerPos);
         const pDistChamberSq = playerPos.distanceToSquared(airlock.chamberCenter);
-
         if (pDistChamberSq > 1200.0 && airlock.state === 'IDLE') return;
-
         const inChamberCross = Math.abs(playerPos[crossAxis] - airlock.chamberCenter[crossAxis]) < 1.65;
         const outerCoord = airlock.outerPos[axis];
         const innerCoord = airlock.innerPos[axis];
         const minCoord = Math.min(outerCoord, innerCoord) - 0.2;
         const maxCoord = Math.max(outerCoord, innerCoord) + 0.2;
         const isPlayerInChamber = inChamberCross && (playerPos[axis] >= minCoord && playerPos[axis] <= maxCoord);
-
         const playerNearOuter = airlock.outerDoor.data.playerOpen === true;
         const playerNearInner = airlock.innerDoor.data.playerOpen === true;
         const switchPressed = airlock.switchGrp && airlock.switchGrp.userData.playerOpen === true;
-
         airlock.outerDoor.data.playerOpen = false;
         airlock.innerDoor.data.playerOpen = false;
         if (airlock.switchGrp) airlock.switchGrp.userData.playerOpen = false;
-
         const entityNearOuter = airlock.outerDoor.data.entityOpen === true;
         const entityNearInner = airlock.innerDoor.data.entityOpen === true;
-        
         airlock.outerDoor.data.entityOpen = false;
         airlock.innerDoor.data.entityOpen = false;
-
         const openOuter = playerNearOuter || entityNearOuter;
         const openInner = playerNearInner || entityNearInner;
-
         switch (airlock.state) {
             case 'IDLE':
                 airlock.outerDoor.data.target = 0.0;
@@ -462,7 +459,6 @@ export default class InteractionController {
                     airlock.openedFrom = 'INSIDE';
                 }
                 break;
-
             case 'OUTER_OPENING':
                 airlock.outerDoor.data.target = 1.0;
                 airlock.innerDoor.data.target = 0.0;
@@ -483,7 +479,6 @@ export default class InteractionController {
                     airlock.state = 'CLOSING_AFTER_EXIT';
                 }
                 break;
-
             case 'INNER_OPENING':
                 airlock.innerDoor.data.target = 1.0;
                 airlock.outerDoor.data.target = 0.0;
@@ -493,7 +488,6 @@ export default class InteractionController {
                     airlock.state = 'CLOSING_AFTER_EXIT';
                 }
                 break;
-
             case 'AWAITING_SWITCH':
                 if (switchPressed) {
                     // The interior build was already kicked off back in OUTER_OPENING (see
@@ -507,7 +501,6 @@ export default class InteractionController {
                     }
                 }
                 break;
-
             case 'WAIT_IN_CHAMBER':
                 airlock.outerDoor.data.target = 0.0;
                 airlock.innerDoor.data.target = 0.0;
@@ -523,14 +516,11 @@ export default class InteractionController {
                     }));
                 }
                 break;
-
             case 'CYCLING':
                 airlock.outerDoor.data.target = 0.0;
                 airlock.innerDoor.data.target = 0.0;
-
                 const targetSector = (airlock.openedFrom === 'OUTSIDE') ? airlock.sectorId : 'NORMAL';
                 env._doorSectorForce = targetSector;
-
                 airlock.cycleTimer -= delta;
                 // Entering a sector (OUTSIDE) additionally requires its deferred interior to have
                 // actually finished building -- the doors don't open until everything is loaded.
@@ -550,7 +540,6 @@ export default class InteractionController {
                     }
                 }
                 break;
-
             case 'EXIT_INNER':
                 airlock.innerDoor.data.target = 1.0;
                 airlock.outerDoor.data.target = 0.0;
@@ -561,7 +550,6 @@ export default class InteractionController {
                     airlock.state = 'CLOSING_AFTER_EXIT';
                 }
                 break;
-
             case 'EXIT_OUTER':
                 airlock.outerDoor.data.target = 1.0;
                 airlock.innerDoor.data.target = 0.0;
@@ -572,7 +560,6 @@ export default class InteractionController {
                     airlock.state = 'CLOSING_AFTER_EXIT';
                 }
                 break;
-
             case 'CLOSING_AFTER_EXIT':
                 airlock.outerDoor.data.target = 0.0;
                 airlock.innerDoor.data.target = 0.0;
@@ -581,14 +568,12 @@ export default class InteractionController {
                 }
                 break;
         }
-
         const isReadyToPass = airlock.state === 'EXIT_INNER' || airlock.state === 'EXIT_OUTER' || airlock.state === 'OUTER_OPENING' || airlock.state === 'INNER_OPENING';
         const targetMat = isReadyToPass ? env.airlockGreenMat : env.airlockRedMat;
         if (airlock.outerDoor.lamp.material !== targetMat) {
             airlock.outerDoor.lamp.material = targetMat;
             airlock.innerDoor.lamp.material = targetMat;
         }
-
         env._updateAirlockDoor(airlock.outerDoor, delta);
         env._updateAirlockDoor(airlock.innerDoor, delta);
     }

@@ -1,12 +1,9 @@
-// SetPieces.js
-// LEVEL 0 SET-PIECE BUILDERS
-
 /**
  * A collection of highly detailed, deterministic, multi-mesh prefabs (like Airlocks and Checkpoint Rooms).
- * 
+ *
  * While most of the maze is generated via simple `buildWall` calls,
- * sometimes we want complex interactive set pieces. This file handles assembling those 
- * complex prefabs (like `doorGroup` assemblies) and correctly registering them with the 
+ * sometimes we want complex interactive set pieces. This file handles assembling those
+ * complex prefabs (like `doorGroup` assemblies) and correctly registering them with the
  * physics system (`spatialGrid`) and interactivity manager (`interactiveDoors`, `airlocks`).
  */
 export default class SetPieces {
@@ -16,7 +13,7 @@ export default class SetPieces {
 
     /**
      * Constructs a highly detailed checkpoint room (often used at sector boundaries).
-     * This set piece includes a door frame, a functional hinged door, shelving, cartons, 
+     * This set piece includes a door frame, a functional hinged door, shelving, cartons,
      * and sometimes interactable items (batteries, almond water).
      *
      * @param {number} x - Global chunk X coordinate.
@@ -38,7 +35,6 @@ export default class SetPieces {
         const doorW = 1.4, doorT = 0.1;
         const frameMat = env.annexFrameMat || env.metalMat;
         const leafMat = env.annexDoorMat || env.doorMat;
-
         if (flankV) {
             for (let s = -1; s <= 1; s += 2) {
                 const stub = buildWall(0.25, 1.2, env.structMat);
@@ -76,7 +72,6 @@ export default class SetPieces {
             mark.position.set(cx0, 2.5, bz + dir * 0.15);
             addGeometry(mark);
         }
-
         let doorMesh;
         if (flankV) {
             const g = env._cacheGeo('hingedDoor:Z', () => {
@@ -106,11 +101,13 @@ export default class SetPieces {
         dBox.chunkHash = hash;
         doorMesh.userData.box = dBox;
         env.spatialGrid.insert(dBox);
-
         const nx = flankV ? -dir : 0, nz = flankV ? 0 : -dir;
         const tx = flankV ? 0 : 1, tz = flankV ? 1 : 0;
         const at = (fwd, lat) => [cx0 + nx * fwd + tx * lat, cz0 + nz * fwd + tz * lat];
-        const place = (mesh, px, py, pz) => { mesh.position.set(px, py, pz); addGeometry(mesh); };
+        const place = (mesh, px, py, pz) => {
+            mesh.position.set(px, py, pz);
+            addGeometry(mesh);
+        };
         const cartonGeo = env._cacheGeo('ckRoomCarton', () => new THREE.BoxGeometry(0.5, 0.42, 0.5));
         const cartons = env.cartonMats || [env.fileBoxMat];
         const carton = (fwd, lat, y) => {
@@ -118,7 +115,6 @@ export default class SetPieces {
             const m = new THREE.Mesh(cartonGeo, cartons[Math.floor(ckHash(localX + fwd, localZ + lat, 9) * cartons.length)]);
             place(m, px, y, pz);
         };
-
         const roll = ckHash(localX, localZ, 7);
         let lit = true;
         if (roll < 0.45) {
@@ -164,7 +160,9 @@ export default class SetPieces {
                 grp.add(glow);
                 grp.position.set(px, 0.85, pz);
                 grp.userData = {type, chunkHash: hash, active: true};
-                grp.traverse(ch => { ch.userData.chunkHash = hash; });
+                grp.traverse(ch => {
+                    ch.userData.chunkHash = hash;
+                });
                 chunkGroup.add(grp);
                 env.interactables.push(grp);
             };
@@ -182,7 +180,6 @@ export default class SetPieces {
                 place(leg, sx + lxs * 0.18, 0.22, sz + lzs * 0.18);
             }
         }
-
         if (lit) {
             this.buildCheckpointCageLight(
                 chunkGroup, hash, stagingMeshes, cx0, cz0,
@@ -195,9 +192,9 @@ export default class SetPieces {
     }
 
     /**
-     * Constructs a central, decorative column for checkpoint areas, complete with 
+     * Constructs a central, decorative column for checkpoint areas, complete with
      * computer screens, cables, and structural supports.
-     * 
+     *
      * @param {number} x - Global chunk X coordinate.
      * @param {number} z - Global chunk Z coordinate.
      * @param {number} hash - The deterministic hash ID of the chunk.
@@ -208,7 +205,11 @@ export default class SetPieces {
         const {addGeometry, stagingMeshes} = ctx;
         const cs = env.cellSize;
         const cx = x * cs, cz = z * cs;
-        const decor = (m) => { m.userData.chunkHash = hash; m.updateMatrixWorld(true); stagingMeshes.push(m); };
+        const decor = (m) => {
+            m.userData.chunkHash = hash;
+            m.updateMatrixWorld(true);
+            stagingMeshes.push(m);
+        };
         const sHash = (i) => {
             let h = (hash ^ Math.imul(i + 1, 2654435761)) >>> 0;
             h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;
@@ -218,7 +219,6 @@ export default class SetPieces {
             env.laptopScreenMat = new THREE.MeshBasicMaterial({color: 0xa8ffd0});
             env.sharedAssets.add(env.laptopScreenMat.uuid);
         }
-
         const coreW = 1.3;
         const core = new THREE.Mesh(env._boxGeo(coreW, 3.0, coreW), env.baseHousingMat);
         core.position.set(cx, 1.5, cz);
@@ -230,7 +230,6 @@ export default class SetPieces {
         const cap = new THREE.Mesh(env._boxGeo(1.5, 0.2, 1.5), env.metalMat);
         cap.position.set(cx, 2.9, cz);
         decor(cap);
-
         const faces = [[0, 1], [0, -1], [1, 0], [-1, 0]];
         const rows = [0.8, 1.4, 2.0, 2.55];
         const colsOff = [-0.32, 0.32];
@@ -259,11 +258,9 @@ export default class SetPieces {
                 }
             }
         }
-
         const trunk = new THREE.Mesh(env._boxGeo(0.22, 3.2, 0.22), env.metalMat);
         trunk.position.set(cx + 0.55, 1.6, cz + 0.55);
         decor(trunk);
-
         const cableGeo = env._cacheGeo('ckColCable', () => new THREE.CylinderGeometry(0.035, 0.035, 1.0, 6));
         for (let i = 0; i < 6; i++) {
             const len = 1.2 + sHash(100 + i) * 1.6;
@@ -274,7 +271,6 @@ export default class SetPieces {
             cable.scale.y = len;
             decor(cable);
         }
-
         const loopGeo = env._cacheGeo('ckColLoop', () => new THREE.TorusGeometry(0.4, 0.04, 6, 12));
         for (let i = 0; i < 3; i++) {
             const loop = new THREE.Mesh(loopGeo, env.rustMat);
@@ -317,20 +313,12 @@ export default class SetPieces {
     buildCheckpointCageLight(chunkGroup, hash, stagingMeshes, px, pz, rotY, flickerOffset, isFaulty, getLightMaterial, colorHex = 0xd8e6ff, emissiveHex = 0xc8ddff, intensity = 0.975) {
         const env = this.env;
         const cageMat = env.pittedMetalMat || env.metalMat;
-        // `plain: true` -- see getLightMaterial's own comment (StructureKit.js) for why: the
-        // default light material's map/emissiveMap is baked for a flat panel face, and wrapped
-        // around this tube's cylindrical UVs it mostly sampled dark background instead of
-        // glowing, leaving the fixture looking unlit from the inside. Plain strips both maps so
-        // the whole tube glows evenly.
         const activeMat = getLightMaterial(colorHex, emissiveHex, isFaulty, true);
-
         const group = new THREE.Group();
         group.position.set(px, 2.96, pz);
         group.rotation.y = rotY;
-
         const housing = new THREE.Mesh(env._boxGeo(1.6, 0.06, 0.32), env.baseHousingMat);
         group.add(housing);
-
         const tubeGeo = env._cacheGeo('ckCageTube', () => {
             const g = new THREE.CylinderGeometry(0.05, 0.05, 1.4, 10);
             g.rotateZ(Math.PI / 2);
@@ -339,10 +327,6 @@ export default class SetPieces {
         const tube = new THREE.Mesh(tubeGeo, activeMat);
         tube.position.y = -0.02;
         group.add(tube);
-
-        // End brackets and a wire guard cage -- bars crossing the tube plus rails tying them
-        // together -- the protective detail that reads as "security fixture" rather than a bare
-        // tube light.
         const endCapGeo = env._boxGeo(0.08, 0.14, 0.36);
         for (const side of [-1, 1]) {
             const cap = new THREE.Mesh(endCapGeo, cageMat);
@@ -363,7 +347,6 @@ export default class SetPieces {
             rail.position.set(0, -0.06, side * 0.16);
             group.add(rail);
         }
-
         group.updateMatrixWorld(true);
         group.traverse(child => {
             if (child.isMesh) {
@@ -372,9 +355,6 @@ export default class SetPieces {
                 stagingMeshes.push(child);
             }
         });
-
-        // 0.975 = 0.75 * 1.3 -- 30% brighter than the original tuning. Callers borrowing this
-        // fixture for a dimmer mood (e.g. Server's emergency lighting) pass their own `intensity`.
         const brightIntensity = intensity;
         env.fixtureData.push({
             chunkHash: hash,
@@ -416,7 +396,6 @@ export default class SetPieces {
         const glass = env.glassMat || env.crtScreenMat;
         const wheelGeo = env._cacheGeo('impWheel', () => new THREE.CylinderGeometry(0.36, 0.36, 0.26, 14));
         const g = new THREE.Group();
-
         if (kind === 'car') {
             const paint = env._impPaintMats[Math.floor(random() * env._impPaintMats.length)];
             const along = random() > 0.5;
@@ -448,19 +427,15 @@ export default class SetPieces {
             g.position.set(px + (random() - 0.5) * 0.2, 0, pz + (random() - 0.5) * 0.2);
             g.rotation.y = (random() - 0.5) * 0.15;
             addFurniture(g);
-            
             if (!env._impoundIdleCarsInChunk) env._impoundIdleCarsInChunk = {};
             if (env._impoundIdleCarsInChunk[hash] === undefined) env._impoundIdleCarsInChunk[hash] = 0;
-
             const currentIdling = env._impoundIdleCarsInChunk[hash];
             let shouldIdle = false;
-
             if (currentIdling === 0) {
                 shouldIdle = true;
             } else if (currentIdling < 3 && random() > 0.85) {
                 shouldIdle = true;
             }
-
             if (shouldIdle) {
                 if (!env.idlingCars) env.idlingCars = [];
                 env._impoundIdleCarsInChunk[hash]++;
@@ -469,7 +444,6 @@ export default class SetPieces {
                     position: g.position.clone()
                 });
             }
-            
             if (random() > 0.4) {
                 const tag = new THREE.Mesh(env.documentGeo, env.documentMat);
                 const hoodSide = random() > 0.5 ? 1 : -1;
@@ -480,7 +454,13 @@ export default class SetPieces {
                 const tagZ = g.position.z + (-hoodLocalX * sinR + hoodLocalZ * cosR);
                 tag.position.set(tagX, 0.93, tagZ);
                 tag.rotation.y = random() * Math.PI;
-                tag.userData = {type: 'document', chunkHash: hash, active: true, zone: 'IMPOUND', docId: 'TAG_' + Math.floor(random() * 9999)};
+                tag.userData = {
+                    type: 'document',
+                    chunkHash: hash,
+                    active: true,
+                    zone: 'IMPOUND',
+                    docId: 'TAG_' + Math.floor(random() * 9999)
+                };
                 chunkGroup.add(tag);
                 if (!env.interactables) env.interactables = [];
                 env.interactables.push(tag);
@@ -491,7 +471,6 @@ export default class SetPieces {
             }
             return true;
         }
-
         if (kind === 'machine') {
             const skid = new THREE.Mesh(env._boxGeo(1.7, 0.16, 1.1), env.rustMat);
             skid.position.y = 0.08;
@@ -510,7 +489,6 @@ export default class SetPieces {
             addFurniture(g);
             return true;
         }
-
         const tGeo = env._cacheGeo('impTireStack', () => new THREE.CylinderGeometry(0.42, 0.42, 0.24, 16));
         const n = 3 + Math.floor(random() * 4);
         const bx = (random() - 0.5) * 1.2, bz = (random() - 0.5) * 1.2;
@@ -566,9 +544,6 @@ export default class SetPieces {
                         innerCellX = startX + lx;
                         innerCellZ = startZ + lz;
                     }
-                    // The CHECKPOINT queue-line floor decal that used to continue out here into
-                    // the entrance hallway was removed along with its interior counterpart (see
-                    // CheckpointSector.js) -- it clashed against the new hardwood parquet floor.
                     if (sectorId === "MAINTENANCE") {
                         const len = env.cellSize;
                         const tOff = (env.cellSize / 2) - 0.2;
@@ -597,6 +572,7 @@ export default class SetPieces {
             }
         }
     }
+
     /**
      * Assembles a complex airlock structure with two sliding doors and an interaction switch.
      * The airlock logic manages cycling between sectors.
@@ -628,7 +604,6 @@ export default class SetPieces {
         const CORRIDOR_HALF = 1.75;
         const PILLAR_REACH = 2.2;
         const SHOULDER_OUTER = 2.0;
-
         const addGeometry = (mesh) => {
             mesh.castShadow = true;
             mesh.receiveShadow = true;
@@ -637,7 +612,6 @@ export default class SetPieces {
             chunkGroup.add(mesh);
             env.walls.push(mesh);
         };
-
         const bWall = (w, h, d, mat) => {
             const key = `door_${w}_${h}_${d}`;
             let geo = env.geoCache.get(key);
@@ -648,25 +622,16 @@ export default class SetPieces {
             }
             return new THREE.Mesh(geo, mat);
         };
-
         const buildDoor = (cx, cz) => {
             const header = bWall(spansX ? 4.0 : 0.7, 0.8, spansX ? 0.7 : 4.0, env.metalMat);
             header.position.set(cx, 3.0, cz);
             addGeometry(header);
-
             const lampHousing = bWall(spansX ? 0.4 : 0.2, 0.15, spansX ? 0.2 : 0.4, env.metalMat);
             lampHousing.position.set(cx, 3.05, cz);
             chunkGroup.add(lampHousing);
-
             const lampLens = new THREE.Mesh(env._boxGeo(spansX ? 0.3 : 0.12, 0.1, spansX ? 0.12 : 0.3), env.airlockRedMat);
             lampLens.position.set(cx, 3.02, cz);
             chunkGroup.add(lampLens);
-
-            // A fluorescent bar tucked under the header, purely to wash light down across
-            // the door panels -- separate from the tiny red/green cycle-status lamp above,
-            // which reads state rather than illuminating anything. Reuses the same pooled
-            // light-material convention as every other fixture in the engine (baseLightMat
-            // clone keyed by color/emissive) so it slots into LumenGrid the normal way.
             if (!env._lightMatPool) env._lightMatPool = new Map();
             const barKey = '15007679_13495535_false';
             if (!env._lightMatPool.has(barKey)) {
@@ -677,17 +642,6 @@ export default class SetPieces {
                 env._lightMatPool.set(barKey, mat);
             }
             const barMat = env._lightMatPool.get(barKey);
-            // Mounted on the header, directly above the door panel top (y=2.6) but below
-            // the ceiling cap trim (bezel bottom at y=2.8, shared across the whole airlock
-            // chamber). y=2.6-3.4 is nominally "header", but 2.8-3.4 of that is already
-            // occupied by the bezel/ceilBase cap geometry, so the only clear slot on the
-            // header's face is the 0.2-unit band right above the doorway opening.
-            //
-            // The header itself is 0.7 deep along the travel axis (cx/cz alone is its
-            // *center*), so mounting the bar at cx,cz buries it inside the header's own
-            // solid volume -- invisible, occluded by the header's face. Push it out along
-            // that depth axis, toward the side facing away from the chamber center, so it
-            // sits proud on the header's front face instead of inside the block.
             const depthSign = spansX ? (Math.sign(cz - midZ) || outSign) : (Math.sign(cx - midX) || outSign);
             const barCx = spansX ? cx : cx + depthSign * 0.4;
             const barCz = spansX ? cz + depthSign * 0.4 : cz;
@@ -707,8 +661,6 @@ export default class SetPieces {
                 spotAngle: Math.PI / 5,
                 spotPenumbra: 0.5,
                 distance: 8.0,
-                // Deterministic desync between the two doors of an airlock instead of a
-                // random roll -- SetPieces builds are otherwise fully deterministic.
                 flickerOffset: Math.abs(cx * 37 + cz * 17) % 500,
                 material: barMat,
                 isFaulty: false,
@@ -716,10 +668,8 @@ export default class SetPieces {
                 targetIntensity: 2.2,
                 currentIntensity: 2.2
             });
-
             const doorGroup = new THREE.Group();
             doorGroup.position.set(cx, 0, cz);
-
             const getDoorGeo = (name, w, h, d) => {
                 const key = `${name}_${spansX}_${w}_${h}_${d}`;
                 let geo = env.geoCache.get(key);
@@ -739,7 +689,6 @@ export default class SetPieces {
             const ribGeo = spansX
                 ? getDoorGeo('doorRib', 1.98, 0.08, 0.28)
                 : getDoorGeo('doorRib', 0.28, 0.08, 1.98);
-
             const mkPanel = (side) => {
                 const edgeMat = env.blackIronMat || env.metalMat;
                 const faceMat = env.titaniumMat || env.metalMat;
@@ -768,7 +717,6 @@ export default class SetPieces {
             chunkGroup.add(doorGroup);
             doorGroup.updateMatrixWorld(true);
             env.walls.push(panelL, panelR);
-
             const doorBox = new THREE.Box3();
             if (spansX) {
                 doorBox.min.set(cx - 1.55, 0.0, cz - 0.25);
@@ -780,7 +728,6 @@ export default class SetPieces {
             doorBox.chunkHash = hash;
             doorBox.isEntityBlocker = true;
             env.spatialGrid.insert(doorBox);
-
             const slideAxis = spansX ? 'x' : 'z';
             doorGroup.userData = {
                 chunkHash: hash,
@@ -805,7 +752,6 @@ export default class SetPieces {
             });
             return {group: doorGroup, data: doorGroup.userData, position: new THREE.Vector3(cx, 0, cz), lamp: lampLens};
         };
-
         const outerDoor = buildDoor(outerX, outerZ);
         const innerDoor = buildDoor(innerX, innerZ);
         const roofSpan = SHOULDER_OUTER * 2 + 0.2;
@@ -813,15 +759,12 @@ export default class SetPieces {
         const ceilBase = bWall(4.2, 0.4, 4.2, capMat);
         ceilBase.position.set(midX, 3.2, midZ);
         addGeometry(ceilBase);
-
         const bezel = bWall(3.2, 0.2, 3.2, capMat);
         bezel.position.set(midX, 2.9, midZ);
         addGeometry(bezel);
-
         const floorPlate = bWall(4.0, 0.04, 4.0, env.metalMat);
         floorPlate.position.set(midX, 0.02, midZ);
         addGeometry(floorPlate);
-
         const switchGroup = new THREE.Group();
         const switchBase = bWall(spansX ? 0.05 : 0.3, 0.4, spansX ? 0.3 : 0.05, env.metalMat);
         const switchButtonMat = new THREE.MeshBasicMaterial({color: 0x00ffcc});
@@ -837,11 +780,10 @@ export default class SetPieces {
             switchGroup.position.set(midX, 1.3, midZ + SWITCH_OFFSET);
         }
         switchGroup.add(switchBase, switchButton);
-        switchGroup.userData = { isAirlockSwitch: true, entityOpen: false, chunkHash: hash };
+        switchGroup.userData = {isAirlockSwitch: true, entityOpen: false, chunkHash: hash};
         chunkGroup.add(switchGroup);
         if (!env.interactables) env.interactables = [];
         env.interactables.push(switchGroup);
-
         const airlock = {
             chunkHash: hash,
             spansX: spansX,
@@ -858,13 +800,13 @@ export default class SetPieces {
             cycleDuration: 2.5,
             openedFrom: null
         };
-
         if (!env.airlocks) env.airlocks = [];
         env.airlocks.push(airlock);
     }
+
     /**
      * Generates a simple modular hallway segment, including walls, floor, and ceiling.
-     * 
+     *
      * @param {THREE.Group} chunkGroup - The root mesh group for the chunk.
      * @param {number} hash - The deterministic hash ID of the chunk.
      * @param {number} cx - Center X position.
@@ -926,7 +868,6 @@ export default class SetPieces {
                 else if (sectorId === "IMPOUND") mat = env.impoundCeilingMat || env.structMat;
                 else if (sectorId === "INCINERATOR") mat = env.incinCeilingMat || env.structMat;
                 else if (sectorId === "ANNEX") mat = env.annexCeilingMat || env.structMat;
-                
                 if (isChasm) {
                     const ceilGeo = new THREE.BoxGeometry(
                         spansX ? 3.9 : env.cellSize,
@@ -936,7 +877,6 @@ export default class SetPieces {
                     const ceil = new THREE.Mesh(ceilGeo, mat);
                     ceil.position.set(cx, 3.2, cz);
                     addGeometry(ceil);
-                    
                     const bezelGeo = new THREE.BoxGeometry(
                         spansX ? 2.8 : env.cellSize,
                         0.2,
@@ -954,6 +894,7 @@ export default class SetPieces {
             }
         }
     }
+
     /**
      * Uses a recursive backtracker algorithm to carve out a maze pattern within a chunk.
      *
@@ -1002,7 +943,8 @@ export default class SetPieces {
                 const alreadyOpen = !maze[x][z];
                 maze[x][z] = false;
                 if (alreadyOpen) return;
-                x += dx; z += dz;
+                x += dx;
+                z += dz;
             }
         };
         drillToCarved(7, 1, 0, 1);

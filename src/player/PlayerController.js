@@ -1,18 +1,7 @@
-// PlayerController.js
-// LEVEL 0 PLAYER CONTROLLER
-
 import SomaticInput from './SomaticInput.js';
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 
-/**
- * The core physical and metabolic controller for the player.
- * 
- * Educational Note: This class manages not just movement, but the player's physical and 
- * mental state (stamina, exhaustion, coherence, paranoia). By tying movement speeds, FOV, 
- * and head-bob to these metabolic states, the controls naturally feel more sluggish and 
- * erratic as the player panics or gets exhausted.
- */
 export default class PlayerController {
     constructor(camera, domElement) {
         this.camera = camera;
@@ -106,8 +95,13 @@ export default class PlayerController {
         return this.input.state.flashlightActive;
     }
 
-    get paranoia() { return 1.0 - this.coherence; }
-    set paranoia(val) { this.coherence = Math.max(0.0, Math.min(1.0, 1.0 - val)); }
+    get paranoia() {
+        return 1.0 - this.coherence;
+    }
+
+    set paranoia(val) {
+        this.coherence = Math.max(0.0, Math.min(1.0, 1.0 - val));
+    }
 
     resetMetabolism() {
         this.stamina = this.maxStamina;
@@ -177,16 +171,6 @@ export default class PlayerController {
         });
     }
 
-    /**
-     * Main physics and logic tick for the player.
-     * 
-     * Educational Note: We use a custom AABB collision sweep instead of a heavy physics engine
-     * like Cannon.js or Ammo.js. By expanding the player's bounding box and checking against 
-     * the Spatial Hash Grid, we can do fast, sliding wall-collisions in just a few lines of math.
-     * 
-     * @param {number} delta - Time elapsed since last frame.
-     * @param {SpatialHashGrid} spatialGrid - The world's spatial partition grid for collision.
-     */
     update(delta, spatialGrid) {
         delta = Math.min(delta, 0.05);
         if (this.isGodMode) {
@@ -388,47 +372,23 @@ export default class PlayerController {
             normalizedDarkness *= (1.0 - (0.85 * safetyFactor));
         }
         this.perceivedDarkness = normalizedDarkness;
-
-        // Coherence should only fray in genuine darkness, not merely while standing off to the
-        // side of a working light. `darkThreshold` marks where perceivedDarkness counts as
-        // "actually dark" -- below it there's no darkness drain at all. `darkSignal` then eases
-        // in quadratically above that floor, so the drain ramps up gently instead of snapping on
-        // the moment perceivedDarkness ticks up. Critically, there is no longer any perceivedDarkness
-        // value where recovery becomes permanently unreachable: the old code went straight from
-        // "recovering" to "draining forever with no way back" at a hard 0.3 cutoff, which is what
-        // produced the runaway drain when standing still.
         const darkThreshold = 0.4;
         const darkSignal = Math.max(0.0, (this.perceivedDarkness - darkThreshold) / (1.0 - darkThreshold));
         let baseDrain = (externalPressure * 0.12) + (darkSignal * darkSignal * 0.04);
         if (this.exhaustion > 0.5) baseDrain *= 1.5;
-
         if (state.isReading) {
-            baseDrain = 0.0; // The mind focuses, halting passive drain.
+            baseDrain = 0.0;
         } else if (this.isBlindFolded) {
             baseDrain = -0.15;
         } else {
-            // Recovery used to require externalPressure === 0.0 *and* darkSignal <= 0.0 -- an
-            // all-or-nothing gate that is the exact same cliff the darkness fix above eliminated,
-            // just left standing on the anomaly-pressure axis. Once the anomaly had ever gotten
-            // within its 15-unit pressure radius, `externalPressure` stayed nonzero for as long as
-            // it lingered anywhere in that radius -- wandering, distracted, no LOS, doesn't matter
-            // -- and recovery was fully locked out the entire time, regardless of what the player
-            // did. That reads as "no matter what I do, it keeps plummeting," because it was:
-            // baseDrain had no recovery term to offset it at all whenever pressure was nonzero,
-            // however slightly. `clarity` replaces the hard gate with a continuous one: recovery
-            // scales down smoothly as pressure/darkness rise instead of vanishing outright, so a
-            // distant or disengaged anomaly no longer permanently forecloses regeneration -- only
-            // a genuinely close/engaged one (high externalPressure) outweighs it.
             const clarity = Math.max(0.0, 1.0 - externalPressure - darkSignal);
             const recoveryMultiplier = isMoving ? 1.0 : 3.0;
             const recovery = 0.08 * recoveryMultiplier * (1.0 - this.perceivedDarkness) * clarity;
             baseDrain -= recovery;
         }
         this.coherence = Math.max(0.0, Math.min(1.0, this.coherence - (baseDrain * delta)));
-
         const visiblePanic = Math.max(0.0, ((1.0 - this.coherence) - 0.5) * 2.0);
         targetFov -= (externalPressure * 15.0) + (this.perceivedDarkness * 15.0) + (visiblePanic * 15.0);
-
         if (this.coherence < 0.2 && Math.random() < (0.5 * delta)) {
             const fakeEvent = Math.random() > 0.6 ? 'somatic-shuffle' : 'somatic-step';
             document.dispatchEvent(new CustomEvent(fakeEvent, {detail: {intensity: 0.5 * visiblePanic}}));
@@ -538,16 +498,6 @@ export default class PlayerController {
         this._applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes);
     }
 
-    /**
-     * Applies camera shake, head-bob, FOV warping, and leaning based on physical state.
-     * 
-     * Educational Note: Camera movement is crucial for first-person horror. Instead of 
-     * static animations, the head-bob frequency and amplitude are driven dynamically by 
-     * the player's speed, exhaustion, and panic levels. This creates an emergent, 
-     * breathing camera that feels alive.
-     * 
-     * @private
-     */
     _applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes) {
         const state = this.input.state;
         const baseBobFreq = state.isRunning ? 3.5 : 2.0;
@@ -562,12 +512,10 @@ export default class PlayerController {
                 const prevBob = Math.sin(this.headBobPhase - (timerDelta * breathFreq)) * bobAmp;
                 bobOffset = Math.sin(this.headBobPhase) * bobAmp;
                 const crossedDown = prevBob > 0 && bobOffset <= 0;
-
                 if (this.isSqueezing || state.isCrawling || state.isCrouching) {
                     const shufflePhase = this.headBobPhase * 2.5;
                     const prevShuffleBob = Math.sin(shufflePhase - (timerDelta * breathFreq * 2.5)) * bobAmp;
                     const currShuffleBob = Math.sin(shufflePhase) * bobAmp;
-
                     if ((prevShuffleBob > 0 && currShuffleBob <= 0) || (prevShuffleBob < 0 && currShuffleBob >= 0)) {
                         const shuffleWeight = this.isSqueezing ? 1.5 : (state.isCrawling ? 1.0 : 0.6);
                         document.dispatchEvent(new CustomEvent('somatic-shuffle', {detail: {intensity: shuffleWeight}}));
@@ -582,7 +530,6 @@ export default class PlayerController {
                 swayRoll = Math.cos(this.headBobPhase * 0.2) * (this.exhaustion * 0.015);
             }
         }
-        
         if (this._tripStagger > 0) {
             this._tripStagger = Math.max(0, this._tripStagger - delta * 2.5);
             const staggerEased = this._tripStagger * this._tripStagger;
@@ -599,11 +546,9 @@ export default class PlayerController {
         const leanDrop = (1.0 - Math.cos(this.currentLean)) * 0.8;
         const cosY = Math.cos(this.camera.rotation.y);
         const sinY = Math.sin(this.camera.rotation.y);
-        
         let leanMag = Math.abs(leanLateral);
         let leanDirX = leanMag > 0 ? (leanLateral > 0 ? cosY : -cosY) : 0;
         let leanDirZ = leanMag > 0 ? (leanLateral > 0 ? -sinY : sinY) : 0;
-        
         if (leanMag > 0 && localBoxes) {
             const origin = this.camera.position;
             const dir = {x: leanDirX, y: 0, z: leanDirZ};
@@ -615,7 +560,7 @@ export default class PlayerController {
                     if (AABB.rayIntersectsBox(origin, dir, box, camTarget)) {
                         const dx = camTarget.x - origin.x;
                         const dz = camTarget.z - origin.z;
-                        const dist = Math.sqrt(dx*dx + dz*dz);
+                        const dist = Math.sqrt(dx * dx + dz * dz);
                         if (dist < maxLean + 0.15) {
                             maxLean = Math.max(0, dist - 0.15);
                         }
@@ -624,7 +569,6 @@ export default class PlayerController {
             }
             leanMag = maxLean;
         }
-        
         this._leanOffset.set(leanDirX * leanMag, 0, leanDirZ * leanMag);
         this.camera.position.x += this._leanOffset.x;
         this.camera.position.z += this._leanOffset.z;

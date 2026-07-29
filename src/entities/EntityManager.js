@@ -1,6 +1,3 @@
-// EntityManager.js
-// Level 0 Engine: The Entity Manager
-
 import Anomaly from './Anomaly.js';
 import ArchivistEntity from './ArchivistEntity.js';
 import WardenEntity from './WardenEntity.js';
@@ -31,12 +28,6 @@ export default class EntityManager {
             'INCINERATOR': new IncineratorEntity(scene, camera, player, environment),
             'SERVER': new BackupDaemonEntity(scene, camera, player, environment)
         };
-        // Deactivate every entity up front so their initial hidden state matches whatever
-        // update() will do later. Prefer each entity's own deactivate() (Warden/Archivist/
-        // Incinerator: hides body meshes + zeroes light intensity, but leaves `group` and its
-        // light permanently in the scene graph -- see WardenEntity.deactivate() for why) and
-        // fall back to hiding the whole group for anything that doesn't define one (Anomaly has
-        // no light of its own, so there's no shader-recompile cost to hiding its group outright).
         for (let key in this.entities) {
             const entity = this.entities[key];
             if (typeof entity.deactivate === 'function') {
@@ -69,11 +60,6 @@ export default class EntityManager {
         }
         if (this.activeType !== targetType) {
             if (this.activeEntity) {
-                // See the constructor's comment above: deactivate() (where defined) hides the
-                // entity without touching `group`, so its light stays in the scene's active
-                // light list -- just dark -- instead of popping out and forcing a shader
-                // recompile across every standard-lit material in the scene the instant the
-                // player crosses into or out of a sector like Impound or Archive.
                 if (typeof this.activeEntity.deactivate === 'function') {
                     this.activeEntity.deactivate();
                 } else {
@@ -94,9 +80,6 @@ export default class EntityManager {
             }
         }
         if (this.activeEntity) {
-            // Only Anomaly actually reads this 3rd argument (to suppress itself while the player
-            // is inside any sector it doesn't own); Warden/Archivist/Incinerator's own update()
-            // signatures just ignore it.
             return this.activeEntity.update(delta, time, activeSector);
         }
         return null;

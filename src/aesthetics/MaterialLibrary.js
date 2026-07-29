@@ -1,29 +1,19 @@
-// MaterialLibrary.js
-// LEVEL 0 MATERIAL & GEOMETRY FACTORY
-
 /**
  * A centralized factory for generating and caching Three.js materials and geometries.
- * 
+ *
  * To keep the game bundle extremely small and avoid loading external image files,
- * this engine procedurally generates its textures at runtime using the HTML5 2D Canvas API. 
- * (e.g. `dpCanvas` for diamond plate, `ccv` for soot-stained ceilings). These canvases are 
+ * this engine procedurally generates its textures at runtime using the HTML5 2D Canvas API.
+ * (e.g. `dpCanvas` for diamond plate, `ccv` for soot-stained ceilings). These canvases are
  * then converted into `THREE.CanvasTexture` objects.
  */
 export default class MaterialLibrary {
-    // ==========================================
-    // LIFECYCLE & INITIALIZATION
-    // ==========================================
-
     /**
-     * Injects dynamically generated geometries, materials, and procedural textures 
+     * Injects dynamically generated geometries, materials, and procedural textures
      * into the provided environment instance. Initializes shared assets used across the world.
      * @param {Object} env - The target Environment instance to inject materials into.
      */
     static injectMaterials(env) {
         if (env.sharedWallGeo) return;
-        
-        // --- BASE STRUCTURES ---
-        // Define fundamental geometries used widely across sectors
         env.sharedWallGeo = new THREE.BoxGeometry(env.cellSize + 0.02, 3, env.cellSize + 0.02);
         env.sharedWallMat = new THREE.MeshStandardMaterial({
             map: env.wallTexture,
@@ -41,12 +31,6 @@ export default class MaterialLibrary {
         env.pipeJunctionGeo = new THREE.BoxGeometry(0.28, 0.28, 0.28);
         env.pipeMountGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8);
         env.vPipeGeo = new THREE.CylinderGeometry(0.06, 0.06, 3.0, 8);
-        
-        // --- PROCEDURAL TEXTURES ---
-        // We use the HTML5 2D Canvas API to procedurally generate textures at runtime.
-        // This keeps the game bundle size extremely small and eliminates load times for image assets.
-        // It also fits perfectly with the liminal, slightly surreal aesthetic of Level 0.
-        
         env.rustMat = new THREE.MeshStandardMaterial({
             color: 0x4a433a,
             emissive: 0x111111,
@@ -55,9 +39,6 @@ export default class MaterialLibrary {
             bumpMap: env.structMat.map,
             bumpScale: 0.03
         });
-        
-        // --- FURNITURE & PROP PRIMITIVES ---
-        // Building blocks used by the context-aware generation in Environment.js
         env.cushionGeo = new THREE.BoxGeometry(0.8, 0.15, 0.8);
         env.backrestGeo = new THREE.BoxGeometry(0.8, 0.8, 0.15);
         env.legGeo = new THREE.BoxGeometry(0.1, 0.4, 0.1);
@@ -66,38 +47,18 @@ export default class MaterialLibrary {
         env.couchArmGeo = new THREE.BoxGeometry(0.18, 0.55, 0.85);
         env.tableTopGeo = new THREE.BoxGeometry(1.2, 0.05, 1.2);
         env.tableBaseGeo = new THREE.BoxGeometry(0.5, 0.8, 0.5);
-        env.tableLegGeo = new THREE.BoxGeometry(0.1, 0.88, 0.1); // four-leg table design (StructureKit.buildTable)
+        env.tableLegGeo = new THREE.BoxGeometry(0.1, 0.88, 0.1);
         env.wallVentMat = env.ventMat.clone();
         env.wallVentMat.map = env.ventMat.map.clone();
         env.wallVentMat.map.repeat.set(1, 1);
         env.serverFloorMat = env.ventMat.clone();
         env.serverFloorMat.map = env.ventMat.map.clone();
         env.serverFloorMat.map.repeat.set(64, 32);
-        // Server room's ceiling gets its own clone rather than reusing serverFloorMat directly:
-        // MaintenanceSector also uses serverFloorMat for its own floor, so detuning the shared
-        // material in place would flatten Maintenance's floor along with it. Same "kill the
-        // specular hotspot" treatment as boardCeilingMat below -- metalness to zero and roughness
-        // pushed close to fully matte, since a dielectric surface still reflects ~4% at metalness 0
-        // if roughness stays low enough to concentrate that into a visible highlight under a
-        // point light directly overhead.
         env.serverCeilingMat = env.serverFloorMat.clone();
         env.serverCeilingMat.metalness = 0.0;
         env.serverCeilingMat.roughness = 0.95;
-        // Boardroom's overhead ceiling plane borrowed clinicMat wholesale (see BoardroomSector's
-        // ceilingMat), including its 0.15 metalness -- an accurate touch on Clinic's own walls and
-        // ceiling, where it's meant to pick up that sector's own fixtures, but on Boardroom's
-        // ceiling that same specular response has nothing to do with Boardroom's actual light
-        // placement and just reads as an inaccurate, misplaced sheen. Cloned instead of mutated in
-        // place so ClinicSector (and Atrium/Annex/Impound's ceiling fallbacks) keep the original,
-        // reflective clinicMat exactly as before.
         env.boardCeilingMat = env.clinicMat.clone();
         env.boardCeilingMat.metalness = 0.0;
-        // metalness alone wasn't enough: MeshStandardMaterial still gives a dielectric surface a
-        // ~4% specular reflectance regardless of metalness, and clinicMat's roughness (0.4, tuned
-        // for Clinic's glossier tile look) is low enough for that reflectance to concentrate into
-        // a visible specular hotspot under nearby fixture lights -- still read as "glare" even
-        // with the reflection's metal-like tint gone. Pushed close to fully matte instead, which
-        // is what actually kills a visible highlight.
         env.boardCeilingMat.roughness = 0.95;
         env.breakerBaseGeo = new THREE.BoxGeometry(0.6, 0.8, 0.20);
         env.breakerDoorGeo = new THREE.BoxGeometry(0.6, 0.8, 0.05);
@@ -118,14 +79,7 @@ export default class MaterialLibrary {
         env.terminalBodyGeo = new THREE.BoxGeometry(0.5, 0.4, 0.5);
         env.documentGeo = new THREE.PlaneGeometry(0.2, 0.3);
         env.documentGeo.rotateX(-Math.PI / 2);
-        
-        // Cache used by chunk generation to avoid duplicating complex meshes
         env.geoCache = new Map();
-        
-        // --- PREFABS ---
-        // Pre-assembled hierarchical groups for interactable items.
-        
-        // Almond Water
         env.almondPrefab = new THREE.Group();
         const aBodyGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.12, 16);
         const aNeckGeo = new THREE.CylinderGeometry(0.012, 0.035, 0.05, 16);
@@ -137,8 +91,6 @@ export default class MaterialLibrary {
         const aCap = new THREE.Mesh(aCapGeo, env.metalMat);
         aCap.position.y = 0.12 + 0.05 + 0.0075;
         env.almondPrefab.add(aBody, aNeck, aCap);
-        
-        // Battery
         env.batteryPrefab = new THREE.Group();
         const bBodyGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.16, 16);
         const bRimGeo = new THREE.CylinderGeometry(0.052, 0.052, 0.015, 16);
@@ -152,17 +104,9 @@ export default class MaterialLibrary {
         const bTerm = new THREE.Mesh(bTermGeo, env.metalMat);
         bTerm.position.y = 0.16 + 0.01;
         env.batteryPrefab.add(bBody, bTopRim, bBotRim, bTerm);
-        
-        // --- ENTITIES & DECALS ---
-        
-        // The Observer Entity (Stalker)
         env.observerMat = new THREE.MeshBasicMaterial({color: 0x010101, transparent: true, opacity: 0.85});
         env.observerGeo = new THREE.CylinderGeometry(0.15, 0.1, 1.9, 8);
         env.observers = [];
-        
-        // --- ASSET REGISTRATION ---
-        // Collect all geometries and materials so they can be properly disposed of later
-        // preventing memory leaks when chunks are loaded and unloaded dynamically.
         env.sharedAssets = new Set();
         Object.values(env).forEach(v => {
             if (v && v.isGeometry) env.sharedAssets.add(v.uuid);

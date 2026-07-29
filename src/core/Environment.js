@@ -1,6 +1,3 @@
-// Environment.js
-// LEVEL 0 ENVIRONMENT & MEMORY MANAGER
-
 import ProceduralTextureFactory from '../aesthetics/ProceduralTextureFactory.js';
 import EntityManager from '../entities/EntityManager.js';
 import SpatialHashGrid from '../math/SpatialHashGrid.js';
@@ -22,9 +19,6 @@ import InteractionController from '../player/InteractionController.js';
  * memory footprint tiny even in an infinite world.
  */
 export default class Environment {
-    // ==========================================
-    // LIFECYCLE & INITIALIZATION
-    // ==========================================
     get anomaly() {
         return this.entityManager ? this.entityManager.activeEntity : null;
     }
@@ -47,9 +41,6 @@ export default class Environment {
         this.walls = [];
         this.fixtureData = [];
         this.idlingCars = [];
-        // Registry of Server sector's hanging cable props (see ServerSector.js), so the Backup
-        // Daemon has something concrete to pick from and light up, and so player-contact with a
-        // lit cable can be checked without re-deriving cable placement from scratch.
         this.hangingCables = [];
         this.spatialGrid = new SpatialHashGrid(4);
         this.wallBoxes = [];
@@ -89,7 +80,6 @@ export default class Environment {
             bootFlash.style.opacity = '1';
         }
         await new Promise(resolve => setTimeout(resolve, 0));
-
         const assets = await ProceduralTextureFactory.generateAssets();
         Object.assign(this, assets);
         const {carpetTexture, ceilingTexture} = assets;
@@ -111,12 +101,6 @@ export default class Environment {
             bumpScale: 0.005
         });
         if (this.serverMat) {
-            // Was metalness 0.3 / roughness 0.2 -- shiny enough to catch a sharp specular
-            // hotspot off every nearby point light, which doesn't match a painted sheet-metal
-            // rack and reads as a glare artifact rather than a real reflection. Flattened to
-            // fully matte instead of just toning it down, per the "no reflective glare at all"
-            // call -- see serverCeilingMat in MaterialLibrary.js for the same treatment on the
-            // ceiling above these racks.
             this.serverMat.metalness = 0.0;
             this.serverMat.roughness = 0.95;
         }
@@ -500,9 +484,6 @@ export default class Environment {
         });
     }
 
-    // ==========================================
-    // CORE LOOPS & STATE
-    // ==========================================
     /**
      * The core spatial-hashing update loop. Triggers chunk loading/unloading dynamically
      * based on player proximity. Discards stale chunks to maintain 60fps.
@@ -539,10 +520,6 @@ export default class Environment {
                 this.activeChunks.delete(hash);
                 this.blackoutChunks.delete(hash);
                 this.spatialGrid.removeByChunk(hash);
-                // Drop a still-pending macro interior if the player walked away from it before
-                // ever pressing its airlock switch. `_buildChunkInterior` also self-aborts via
-                // `activeChunks.has(hash)` checks if it's already mid-flight (switch was pressed,
-                // then the chunk got unloaded before it finished, e.g. a warp or reset).
                 this._pendingMacroContent.delete(hash);
             }
         }
@@ -554,15 +531,6 @@ export default class Environment {
                 this.macroZones.delete(h);
                 if (this._annexKeypadChunks) this._annexKeypadChunks.delete(h);
             });
-            // In-place compaction instead of .filter(): this runs on every chunk-boundary
-            // crossing during ordinary movement, not just when a heavy sector unloads, so it's
-            // one of the most frequently-hit spots in the whole streaming path. .filter()
-            // allocates and returns a brand new array every single call regardless of how many
-            // (if any) entries actually got dropped -- across 9 separate arrays, every boundary
-            // crossing, for the life of a session, that's a steady stream of garbage that has to
-            // get collected sometime, and a GC sweep doesn't announce which frame it lands on.
-            // _pruneDeadChunkEntries does the same O(n) traversal but mutates the existing array
-            // instead, so nothing new needs collecting.
             this._pruneDeadChunkEntries(this.walls, deadHashes, w => w.userData.chunkHash);
             this._pruneDeadChunkEntries(this.fixtureData, deadHashes, f => f.chunkHash);
             this._pruneDeadChunkEntries(this.idlingCars, deadHashes, c => c.chunkHash);
@@ -645,10 +613,6 @@ export default class Environment {
 
     async _asyncDisposeChunks(chunks) {
         let disposeStartTime = performance.now();
-        // Reused across every chunk in this batch instead of allocating a fresh `[]` per chunk
-        // -- `.length = 0` truncates without releasing the backing storage, so this scratch
-        // array's capacity just grows to whatever the largest chunk needed and gets reused from
-        // then on.
         const meshes = [];
         for (let i = 0; i < chunks.length; i++) {
             const chunkGroup = chunks[i];
@@ -660,10 +624,6 @@ export default class Environment {
                 if (child.geometry && !this.sharedAssets.has(child.geometry.uuid) && !this.geoCache.has(child.geometry.uuid)) {
                     child.geometry.dispose();
                 }
-                // Was wrapping every non-array material in a fresh single-element array just to
-                // call .forEach on it once -- a throwaway allocation on the single most common
-                // case (nearly every mesh has one material, not an array of them), for every
-                // mesh, on every dispose. Branch instead.
                 if (Array.isArray(child.material)) {
                     for (let m = 0; m < child.material.length; m++) {
                         const mat = child.material[m];
@@ -718,9 +678,6 @@ export default class Environment {
         };
         const stagingMeshes = [];
         const ctx = this._createChunkHelpers(hash, chunkGroup, stagingMeshes, random);
-        const structuralMatrix = TheArchitect.getStructuralMatrix.call(this, ctx);
-        structuralMatrix.sort((a, b) => b.prob - a.prob);
-        const sectorMatrix = TheArchitect.getSectorMatrix.call(this, ctx);
         const startX = chunkX * this.chunkSize;
         const startZ = chunkZ * this.chunkSize;
         let isMacroStructure = random() > 0.60 &&
@@ -743,6 +700,8 @@ export default class Environment {
                 this._macroChunkHashes.add(hash);
             }
         }
+        const structuralMatrix = isMacroStructure ? null : TheArchitect.getStructuralMatrix.call(this, ctx);
+        const sectorMatrix = isMacroStructure ? TheArchitect.getSectorMatrix.call(this, ctx) : null;
         let activeSector = null;
         let sectorMaze = null;
         let chunkBreakerCount = 0;
@@ -829,26 +788,11 @@ export default class Environment {
                 this.sharedAssets.add(this.voidShroudMat.uuid);
             }
             if (!this.voidShroudWhiteMat) {
-                // Same reasoning as env.matrixVoidMat in AtriumSector.js: this used to be
-                // `fog: false` to stop a gradient against a near-white fog. Atrium's fog is
-                // dark now, and this canopy sits at the very top of the balcony stack -- it's
-                // supposed to be the thing that disappears into the dark, not the thing that
-                // stays lit white above it. Fog defaults to enabled.
                 this.voidShroudWhiteMat = new THREE.MeshBasicMaterial({color: 0xffffff, side: THREE.DoubleSide});
                 this.sharedAssets.add(this.voidShroudWhiteMat.uuid);
             }
-            // Chasm and Archive want this canopy/skirt geometry to read as a bottomless
-            // black abyss above their low ceilings -- that's correct for them. Atrium's
-            // whole point is now an unbroken white void, so the same extended-height wall
-            // geometry needs to match white instead of leaving a band of black hanging
-            // over its walls.
             const isAtriumVoid = activeSector && activeSector.id === "ATRIUM";
             const shroudMat = isAtriumVoid ? this.voidShroudWhiteMat : this.voidShroudMat;
-            // Chasm/Archive's canopy sits right above their normal ~3-unit ceiling -- 9.0 is
-            // plenty. Atrium now stacks real balcony tiers up past y=40 (AtriumSector.js) that
-            // are meant to fog out gradually rather than hit a lid; leaving this at 9.0 would
-            // plant a flat white plane through the middle of that stack. Match its cap height
-            // instead so the shared shroud geometry sits above everything Atrium actually built.
             const canopyY = isAtriumVoid ? 66.0 : 9.0;
             const span = this.chunkSize * this.cellSize;
             const canopy = new THREE.Mesh(this._planeGeo(span, span), shroudMat);
@@ -856,16 +800,6 @@ export default class Environment {
             canopy.position.set(startX * this.cellSize + centerOffset, canopyY, startZ * this.cellSize + centerOffset);
             canopy.castShadow = true;
             chunkGroup.add(canopy);
-            // Bridges from just above the wall up to just past the canopy, so there's no gap
-            // between the wall top and the shroud regardless of how tall the canopy ended up.
-            // Chasm/Archive have no real geometry filling that gap, so 2.85 (just above their
-            // shoulder-height wall segments) is correct for them. Atrium is different now: its
-            // own marble wall and stacked bands (AtriumSector.js, STRUCTURE_TOP_Y = 55.6) are
-            // real geometry occupying that entire range, not empty space waiting to be bridged.
-            // Starting the skirt at 2.85 there meant this flat, untextured plane sat directly
-            // behind/through the marble for its whole height -- the two surfaces z-fighting is
-            // exactly the "white bleeding through" symptom. Start the skirt where the real wall
-            // actually stops instead of where a different sector's wall stops.
             const skirtBottom = isAtriumVoid ? 55.6 : 2.85;
             const skirtTop = canopyY + 0.15;
             const skirtCenterY = (skirtBottom + skirtTop) / 2;
@@ -894,27 +828,9 @@ export default class Environment {
         ctx.isOccupied = (ox, oz) => occupied.has(`${ox},${oz}`);
         if (isMacroStructure && activeSector) {
             const hallwayNeedsFloor = activeSector.id === "CHASM";
-            // Impound's ceiling is 20 units up; capping its entrance with the standard ~3-unit
-            // hallway ceiling (and Impound's own corrugated-metal material on top of that) reads
-            // as a giant sheet of corrugated metal hung like an awning right over the airlock,
-            // instead of the entrance opening up into the yard's actual height like it should.
-            // Atrium has the same problem now that it's an open, multi-story plaza: the
-            // standard hallway cap was pinning a low white ceiling patch right in front of
-            // the airlock doors instead of letting the space open straight up past the
-            // balconies into the void.
             const hallwayNeedsCeiling = activeSector.id !== "ARCHIVE" && activeSector.id !== "IMPOUND" && activeSector.id !== "ATRIUM";
             this._buildEntranceHallways(chunkGroup, hash, startX, startZ, activeSector.id, ctx, hallwayNeedsFloor, hallwayNeedsCeiling);
             const edge = this.chunkSize - 1;
-            // Unlike _buildChunkInterior (which has carried a 5ms frame-budget yield since the
-            // v0.5.11 frame budget work) and _compileInstances below, this loop never got the
-            // same treatment when the v0.5.8 airlock-gating change made it run eagerly on
-            // approach instead of deferred. It only touches perimeter-ring cells (~60 of them),
-            // but each one calls straight into the sector's own `build()` -- for sectors whose
-            // perimeter got heavier since (Atrium's stacked marble bands climbing to ~55 units,
-            // plus a storefront module, per ring cell), that's several hundred synchronous mesh
-            // creations with no yield point at all, firing in a single frame the instant a new
-            // macro chunk enters render distance. Same fix as everywhere else this pattern
-            // already exists.
             let shellStartTime = performance.now();
             for (let x = startX; x < startX + this.chunkSize; x++) {
                 for (let z = startZ; z < startZ + this.chunkSize; z++) {
@@ -1139,14 +1055,6 @@ export default class Environment {
         }
         await this._compileInstances(hash, chunkGroup, stagingMeshes, random);
         if (this.activeChunks.has(hash)) {
-            // Pre-warm GPU shader programs for everything this sector's interior just built.
-            // Three.js compiles a material's shader lazily the first time it actually appears
-            // in a render() call -- without this, that compile stall lands on the exact frame
-            // the airlock's inner door swings open and the new room becomes visible for the
-            // first time, which reads as a hard freeze right at the reveal. Paying that cost
-            // here instead spends it while the player is still sealed in the airlock chamber
-            // (already a designed pause -- see InteractionController's WAIT_IN_CHAMBER/CYCLING
-            // states), so it's invisible rather than landing on the payoff moment.
             this.engine.renderer.compile(chunkGroup, this.camera);
             chunkGroup.userData.contentReady = true;
         }
@@ -1289,12 +1197,6 @@ export default class Environment {
             this.audioRaycaster = new THREE.Raycaster();
             this.audioDirection = new THREE.Vector3();
         }
-        // Each chunk hosts exactly one sector, walled off from its neighbors (see
-        // buildPerimeter and the chunkHash-scoped blackout logic above), so the chunk the
-        // camera currently occupies doubles as "the sector the player can actually see out
-        // of." LumenGrid uses this to refuse to light any fixture tagged with a different
-        // chunkHash -- otherwise a fixture near a shared wall has no notion of that wall
-        // and shines straight through it onto the neighboring sector's floor.
         const currentChunkHash = `${this.currentChunkCoords.x},${this.currentChunkCoords.z}`;
         const lumenData = this.lumenGrid.update(cameraPos, this.fixtureData, time, currentChunkHash);
         const darknessPressure = lumenData.darknessPressure;
@@ -1310,7 +1212,7 @@ export default class Environment {
             if (!this._glareDir) this._glareDir = new THREE.Vector3();
             this._glareDir.subVectors(nearestFixture.position, cameraPos).normalize();
             const dot = this._camDir.dot(this._glareDir);
-            if (dot > 0.95) { // Staring directly at the light
+            if (dot > 0.95) {
                 let beamAlign = 1.0;
                 let distFactor = 1.0 / (1.0 + minLightDist * 0.2);
                 if (nearestFixture.targetPos) {
@@ -1320,22 +1222,13 @@ export default class Environment {
                     this._playerFromLight.subVectors(cameraPos, nearestFixture.position).normalize();
                     beamAlign = this._lightBeamDir.dot(this._playerFromLight);
                 } else if (nearestFixture.isArchiveLight) {
-                    // Archive bulbs sit recessed at the top of an upward-domed shroud that only
-                    // opens downward -- the bulb itself is only actually visible to someone
-                    // standing roughly underneath it looking up into the dome, not to someone
-                    // sighting along the shroud from across the room. Reuses the same
-                    // "is the viewer inside the fixture's real visibility cone" check the sweeping
-                    // spotlights use above, just against a fixed straight-down cone instead of a
-                    // moving targetPos. The ambient 1/(1+dist*0.2) falloff never actually reaches
-                    // zero, which is how a recessed, shrouded bulb was still causing glare from
-                    // clear across the room -- replaced here with a hard few-unit cutoff instead.
                     if (!this._archiveGlareDownDir) this._archiveGlareDownDir = new THREE.Vector3(0, -1, 0);
                     if (!this._playerFromLight) this._playerFromLight = new THREE.Vector3();
                     this._playerFromLight.subVectors(cameraPos, nearestFixture.position).normalize();
                     beamAlign = this._archiveGlareDownDir.dot(this._playerFromLight);
                     distFactor = Math.max(0.0, 1.0 - (minLightDist / 5.0));
                 }
-                if (beamAlign > 0.3) { // Light's real visibility cone roughly includes the player
+                if (beamAlign > 0.3) {
                     const intensity = nearestFixture.currentIntensity || nearestFixture.baseIntensity || 1.0;
                     const angleFactor = (dot - 0.95) * 20.0;
                     const directionalFactor = (nearestFixture.targetPos || nearestFixture.isArchiveLight)
@@ -1371,9 +1264,6 @@ export default class Environment {
             this.currentOcclusionState = false;
         }
         let isOccluded = this.currentOcclusionState;
-        // Reuse this frame's sector resolution from updateEntity (called earlier this frame in
-        // main.js) so fog/ambient and entity routing never disagree about "the" current sector.
-        // The fallback only matters if updateLights is ever called without a preceding updateEntity.
         const {activeSector, targetFog} = this._sectorFrame || this._resolveActiveSector(cameraPos);
         if (this.baseFogDensity !== undefined) {
             if (this.currentFogDensity === undefined) this.currentFogDensity = targetFog;
@@ -1393,14 +1283,6 @@ export default class Environment {
             this._targetFogColor.copy(this._baseFogColor);
         }
         if (!this._blackColor) this._blackColor = new THREE.Color(0x000000);
-        // darknessPressure only tracks dead ceiling fixtures nearby (LumenGrid.update sums
-        // `isDead` lights in range) -- it has no idea the player is carrying their own light.
-        // Kill the breaker in a maintenance tunnel and click the flashlight on, and this ratio
-        // still saturates toward 1.0: both fog.color and scene.background get lerped to pure
-        // black, so the flashlight beam has nothing but void to scatter against. The "fog
-        // catching in the beam" read these sectors are going for never happens; it just looks
-        // like the fog switched off. Damping the ratio while the flashlight is actually lit lets
-        // fog stay visible in the beam instead of the whole scene collapsing to black.
         const flashlightIsLit = this.player.flashlightActive && this.flashlight && this.flashlight.intensity > 0.1;
         const darknessRatio = Math.min(1.0, darknessPressure * 0.4) * (flashlightIsLit ? 0.35 : 1.0);
         if (!this._finalFogColor) this._finalFogColor = new THREE.Color();
@@ -1548,12 +1430,6 @@ export default class Environment {
             else if (this._stickySectorId === "ARCHIVE") targetAmbient = 0.28;
             else if (this._stickySectorId === "INCINERATOR") targetAmbient = 0.15;
             else if (this._stickySectorId === "MAINTENANCE") targetAmbient = 0.18;
-            // CHECKPOINT was missing from this list entirely, so it defaulted to the same 0.80
-            // base ambient as an ordinary neutral-zone corridor -- a flat hemisphere wash bright
-            // enough that the sector's own cage lights (see buildCheckpointCageLight) barely
-            // registered as the thing actually lighting the hallway. Dropped to the same range
-            // Incinerator uses so those fixtures -- now denser and more reliable along the
-            // corridors -- read as the dominant light source instead of competing with ambient.
             else if (this._stickySectorId === "CHECKPOINT") targetAmbient = 0.15;
             this.engine.ambientLight.intensity += (targetAmbient - this.engine.ambientLight.intensity) * 0.05;
             if (this.glowMat) {
@@ -1592,9 +1468,6 @@ export default class Environment {
         };
     }
 
-    // ==========================================
-    // PROCEDURAL GENERATION PIPELINE
-    // ==========================================
     /**
      * Triggers the procedural generation pipeline. Builds the environment, distributes light fixtures,
      * and spawns interactive elements.
@@ -1715,16 +1588,6 @@ export default class Environment {
                     iMesh.receiveShadow = true;
                 }
                 iMesh.userData.chunkHash = hash;
-                // marbleMat needs to sit alongside sharedWallMat/headerMat here too: Atrium's
-                // ground-floor wall ring (built directly by buildPerimeter, one mesh per cell)
-                // almost never repeats the exact same box dimensions twice, so it stays a plain
-                // Mesh and never goes through this per-instance tinting at all. The marble bands
-                // stacked above it (AtriumSector's build(), all identical cellSize boxes) do
-                // repeat and so were the only part of the same continuous wall getting the
-                // random 0.85-1.0 per-instance darkening below -- which reads as a real seam,
-                // a visibly darker band starting exactly where the wall becomes instanced,
-                // not intentional per-instance variety. Excluding it keeps the whole wall one
-                // consistent shade top to bottom.
                 const isStructural = group.material === this.sharedWallMat || group.material === this.headerMat
                     || group.material === this.marbleMat;
                 const needsColor = !isStructural && !isDecal;
@@ -1797,9 +1660,6 @@ export default class Environment {
         return isBroken ? this._pooledMazeLightMats.broken[this._mazePoolIndex] : this._pooledMazeLightMats.normal[this._mazePoolIndex];
     }
 
-    // ==========================================
-    // SECTOR GEOMETRY BUILDERS
-    // ==========================================
     _buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling) {
         return this.setPieces.buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling);
     }
@@ -1828,9 +1688,6 @@ export default class Environment {
         return this.setPieces.buildImpoundItem(px, pz, kind, ctx);
     }
 
-    // ==========================================
-    // INTERACTIVE LOGIC
-    // ==========================================
     _updateSliderDoor(door, playerPos, delta) {
         return this.interactionController.updateSliderDoor(door, playerPos, delta);
     }
@@ -1854,9 +1711,6 @@ export default class Environment {
         return 2;
     }
 
-    // ==========================================
-    // MATH & UTILITIES
-    // ==========================================
     _cacheGeo(key, make) {
         return this.structureKit.cacheGeo(key, make);
     }

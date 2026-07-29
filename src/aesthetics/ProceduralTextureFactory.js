@@ -1,22 +1,18 @@
-// ProceduralTextureFactory.js
-// LEVEL 0 TEXTURE & MATERIAL PIPELINE
-
 /**
  * The core generator for all procedural textures used in the game.
- * 
+ *
  * This file is responsible for keeping the game bundle so incredibly small.
- * Instead of loading dozens of MBs of .png files for walls, floors, ceilings, and props, 
- * this class uses the HTML5 `CanvasRenderingContext2D` API to draw every texture from scratch 
- * when the game loads. It combines simple shapes, procedural noise (`_generateMasterNoise`), 
+ * Instead of loading dozens of MBs of .png files for walls, floors, ceilings, and props,
+ * this class uses the HTML5 `CanvasRenderingContext2D` API to draw every texture from scratch
+ * when the game loads. It combines simple shapes, procedural noise (`_generateMasterNoise`),
  * and gradients to create all the materials used by the `MaterialLibrary`.
  */
-
 export default class ProceduralTextureFactory {
     static _createContext(width, height, opaque = true) {
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
-        return {canvas, ctx: canvas.getContext('2d', opaque ? { alpha: false } : undefined)};
+        return {canvas, ctx: canvas.getContext('2d', opaque ? {alpha: false} : undefined)};
     }
 
     static _createWrappedTexture(canvas, repeatX = 1, repeatY = 1, clampT = false) {
@@ -558,7 +554,16 @@ export default class ProceduralTextureFactory {
         const matteBrokenLightMat = baseBrokenLightMat.clone();
         matteBrokenLightMat.metalness = 0;
         matteBrokenLightMat.roughness = 0.95;
-        return {ventMat, ductMat, serverMat, baseLightMat, baseBrokenLightMat, baseHousingMat, matteLightMat, matteBrokenLightMat};
+        return {
+            ventMat,
+            ductMat,
+            serverMat,
+            baseLightMat,
+            baseBrokenLightMat,
+            baseHousingMat,
+            matteLightMat,
+            matteBrokenLightMat
+        };
     }
 
     static _buildHazardAndMiscAssets(masterNoise) {
@@ -725,9 +730,15 @@ export default class ProceduralTextureFactory {
         tiCtx.lineWidth = 1;
         for (let y = 0; y < 512; y += 2) {
             tiCtx.strokeStyle = `rgba(255,255,255,${Math.random() * 0.05})`;
-            tiCtx.beginPath(); tiCtx.moveTo(0, y); tiCtx.lineTo(256, y); tiCtx.stroke();
+            tiCtx.beginPath();
+            tiCtx.moveTo(0, y);
+            tiCtx.lineTo(256, y);
+            tiCtx.stroke();
             tiCtx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.05})`;
-            tiCtx.beginPath(); tiCtx.moveTo(0, y + 1); tiCtx.lineTo(256, y + 1); tiCtx.stroke();
+            tiCtx.beginPath();
+            tiCtx.moveTo(0, y + 1);
+            tiCtx.lineTo(256, y + 1);
+            tiCtx.stroke();
         }
         tiCtx.fillStyle = 'rgba(0, 0, 0, 0.4)';
         tiCtx.beginPath();
@@ -751,8 +762,20 @@ export default class ProceduralTextureFactory {
             bumpMap: tiTex,
             bumpScale: 0.005
         });
-
-        return {fenceMat, hazardMat, glowMat, glowGeo, tagMat, tagGeo, voidMat, rustMat, metalMat, pittedMetalMat, almondMat, titaniumMat};
+        return {
+            fenceMat,
+            hazardMat,
+            glowMat,
+            glowGeo,
+            tagMat,
+            tagGeo,
+            voidMat,
+            rustMat,
+            metalMat,
+            pittedMetalMat,
+            almondMat,
+            titaniumMat
+        };
     }
 
     static _buildAnnexAssets(masterNoise) {
@@ -1149,7 +1172,6 @@ export default class ProceduralTextureFactory {
         marbleCtx.globalAlpha = 0.4;
         marbleCtx.drawImage(masterNoise, 0, 0, 512, 512);
         marbleCtx.globalAlpha = 1.0;
-
         const drawVein = (color, width, alpha) => {
             marbleCtx.strokeStyle = color;
             marbleCtx.lineWidth = width;
@@ -1172,9 +1194,6 @@ export default class ProceduralTextureFactory {
             drawVein('rgba(197, 163, 74, 1)', 1 + Math.random() * 1.5, 0.35);
         }
         marbleCtx.globalAlpha = 1.0;
-
-        // A cheap, uneven gloss band rather than a true reflection -- laminate catching
-        // light unevenly, not a real polished-stone specular response.
         const sheen = marbleCtx.createLinearGradient(0, 0, 512, 512);
         sheen.addColorStop(0.0, 'rgba(255,255,255,0.0)');
         sheen.addColorStop(0.45, 'rgba(255,255,255,0.12)');
@@ -1182,7 +1201,6 @@ export default class ProceduralTextureFactory {
         sheen.addColorStop(1.0, 'rgba(255,255,255,0.0)');
         marbleCtx.fillStyle = sheen;
         marbleCtx.fillRect(0, 0, 512, 512);
-
         const marbleTexture = this._createWrappedTexture(marbleCanvas, 2, 1);
         const marbleMat = new THREE.MeshStandardMaterial({
             map: marbleTexture,
@@ -1192,20 +1210,6 @@ export default class ProceduralTextureFactory {
             roughness: 0.18,
             metalness: 0.15
         });
-
-        // Gondola-shelving steel for the aisle racks -- a flat, inoffensive powder-coat beige
-        // (the same "almond"-ish tone real store fixtures like Lozier shelving ship in) rather
-        // than anything overtly industrial. Bump-only (no printed map) so it tiles cleanly
-        // across the wildly different proportions this material gets stretched over -- thin
-        // uprights, wide shelf boards, tall filler bands -- without any baked imagery smearing.
-        //
-        // First pass used raw masterNoise as the bump map directly (the same shortcut
-        // hazardMat/voidMat use). That noise is sparse, hard-edged single-pixel speckle --
-        // fine for grungy pitted/concrete surfaces, but at shelf scale it read as coarse
-        // random pockmarking, i.e. stucco, not painted sheet steel. Building a proper
-        // brushed-metal bump texture instead (fine horizontal streak pairs, the same approach
-        // titaniumMat/pittedMetalMat use) plus a much lower bumpScale gives a smooth painted
-        // panel with just a whisper of grain instead.
         const {canvas: shelfBumpCanvas, ctx: shelfBumpCtx} = this._createContext(256, 256);
         shelfBumpCtx.fillStyle = '#808080';
         shelfBumpCtx.fillRect(0, 0, 256, 256);
@@ -1418,10 +1422,6 @@ export default class ProceduralTextureFactory {
      * dressing already implies but its surfaces didn't back up.
      */
     static _buildCheckpointAssets(masterNoise) {
-        // --- Hardwood Parquet Floor ---
-        // Classic basket-weave parquet: a grid of blocks, each made of a few parallel planks,
-        // alternating horizontal/vertical from one block to the next so adjoining blocks read as
-        // interlocking rather than one continuous grain direction.
         const {canvas: ckFloorCanvas, ctx: ckFloorCtx} = this._createContext(256, 256);
         ckFloorCtx.fillStyle = '#5c4224';
         ckFloorCtx.fillRect(0, 0, 256, 256);
@@ -1441,7 +1441,6 @@ export default class ProceduralTextureFactory {
                     } else {
                         ckFloorCtx.fillRect(bxp + p * plankSize, byp, plankSize - 1, blockSize);
                     }
-                    // Grain streaks running along each plank's own length.
                     ckFloorCtx.strokeStyle = 'rgba(0,0,0,0.15)';
                     ckFloorCtx.lineWidth = 1;
                     for (let g = 0; g < 3; g++) {
@@ -1458,14 +1457,11 @@ export default class ProceduralTextureFactory {
                         ckFloorCtx.stroke();
                     }
                 }
-                // The block's own border reads as the basket-weave seam between blocks.
                 ckFloorCtx.strokeStyle = 'rgba(0,0,0,0.35)';
                 ckFloorCtx.lineWidth = 2;
                 ckFloorCtx.strokeRect(bxp, byp, blockSize, blockSize);
             }
         }
-        // Aged, grimy overlay plus a handful of darker worn/scuffed patches -- an "old" floor
-        // reads through wear, not just a wood-tone palette.
         ckFloorCtx.globalAlpha = 0.14;
         ckFloorCtx.drawImage(masterNoise, 0, 0, 256, 256);
         ckFloorCtx.globalAlpha = 1.0;
@@ -1485,16 +1481,12 @@ export default class ProceduralTextureFactory {
             bumpMap: checkpointFloorTexture,
             bumpScale: 0.012
         });
-
-        // --- Pressed Tin Ceiling ---
         const {canvas: ckCeilCanvas, ctx: ckCeilCtx} = this._createContext(256, 256);
         ckCeilCtx.fillStyle = '#a79c86';
         ckCeilCtx.fillRect(0, 0, 256, 256);
         ckCeilCtx.globalAlpha = 0.10;
         ckCeilCtx.drawImage(masterNoise, 0, 0, 256, 256);
         ckCeilCtx.globalAlpha = 1.0;
-        // Patina: patches of oxidation bleeding across a couple of panels, like an old tin
-        // ceiling nobody's repainted in decades.
         for (let i = 0; i < 6; i++) {
             const px = Math.random() * 256, py = Math.random() * 256, pr = 14 + Math.random() * 26;
             const grad = ckCeilCtx.createRadialGradient(px, py, 0, px, py, pr);
@@ -1503,17 +1495,11 @@ export default class ProceduralTextureFactory {
             ckCeilCtx.fillStyle = grad;
             ckCeilCtx.fillRect(px - pr, py - pr, pr * 2, pr * 2);
         }
-        // A dedicated bump canvas for the embossed relief -- flat mid-gray base so bumpScale
-        // reads as neutral everywhere there's no relief, with the bevels and medallion drawn in
-        // actual light/dark strokes so the "pressed" look survives regardless of the color map's
-        // own patina noise (same split-color/bump-canvas technique as clinicMat's bump pass).
         const {canvas: ckCeilBumpCanvas, ctx: ckCeilBumpCtx} = this._createContext(256, 256);
         ckCeilBumpCtx.fillStyle = '#808080';
         ckCeilBumpCtx.fillRect(0, 0, 256, 256);
         const drawTinTile = (colorCtx, bumpCtx, tx, ty, size) => {
             const inset = size * 0.08;
-            // Beveled border: a light stroke and a dark stroke offset a couple pixels apart fake
-            // a pressed-metal lip catching light from one side.
             colorCtx.strokeStyle = 'rgba(255,255,255,0.35)';
             colorCtx.lineWidth = 2;
             colorCtx.strokeRect(tx + inset, ty + inset, size - inset * 2, size - inset * 2);
@@ -1525,8 +1511,6 @@ export default class ProceduralTextureFactory {
             bumpCtx.strokeStyle = '#000000';
             bumpCtx.lineWidth = 2;
             bumpCtx.strokeRect(tx + inset + 3, ty + inset + 3, size - inset * 2 - 6, size - inset * 2 - 6);
-            // Central rosette medallion -- the classic motif stamped into real Victorian
-            // pressed-tin ceiling panels.
             const cx = tx + size / 2, cy = ty + size / 2;
             const petals = 8;
             const petalLen = size * 0.28;
@@ -1569,24 +1553,15 @@ export default class ProceduralTextureFactory {
                 drawTinTile(ckCeilCtx, ckCeilBumpCtx, tx * tinTileSize, ty * tinTileSize, tinTileSize);
             }
         }
-        // 32x instead of 8x: each physical tile a quarter the linear size (4x as many packed
-        // into the same span) -- the original repeat count read as oversized and stretched
-        // once seen at actual ceiling scale.
         const checkpointCeilingTexture = this._createWrappedTexture(ckCeilCanvas, 32, 32);
         const checkpointCeilingBumpTexture = this._createWrappedTexture(ckCeilBumpCanvas, 32, 32);
         const checkpointCeilingMat = new THREE.MeshStandardMaterial({
             map: checkpointCeilingTexture,
             bumpMap: checkpointCeilingBumpTexture,
             bumpScale: 0.05,
-            // roughness alone is what kills a visible specular hotspot (see the Boardroom
-            // ceiling fix for the same lesson) -- metalness is left at 0.65 so the surface still
-            // reads as tin rather than painted plaster, it just scatters that reflectance
-            // diffusely across an aged, oxidized surface instead of concentrating it into a
-            // glare under the new, denser hallway lighting.
             roughness: 0.92,
             metalness: 0.65
         });
-
         return {checkpointFloorMat, checkpointCeilingMat};
     }
 
@@ -1624,8 +1599,6 @@ export default class ProceduralTextureFactory {
         const diamondPlateMat = new THREE.MeshStandardMaterial({
             map: dpTex, bumpMap: dpTex, bumpScale: 0.05, metalness: 0.25, roughness: 0.75
         });
-        
-        // 2. Incinerator Ceiling Panels (Dark, soot-stained industrial ceiling)
         const ccv = document.createElement('canvas');
         ccv.width = ccv.height = 256;
         const cpx = ccv.getContext('2d');
@@ -1689,8 +1662,6 @@ export default class ProceduralTextureFactory {
         const incinCeilingMat = new THREE.MeshStandardMaterial({
             map: ceilTex, bumpMap: ceilTex, bumpScale: 0.03, metalness: 0.3, roughness: 0.9
         });
-        
-        // 3. Office Drop Ceiling Tiles (Board Tile)
         const btc = document.createElement('canvas');
         btc.width = btc.height = 256;
         const btx = btc.getContext('2d');
@@ -1726,8 +1697,6 @@ export default class ProceduralTextureFactory {
             color: 0xbfe3ef, transparent: true, opacity: 0.22,
             roughness: 0.08, metalness: 0.1, depthWrite: false
         });
-        
-        // 4. Bookshelf Spines (Procedurally generated random book widths/colors)
         const bkc = document.createElement('canvas');
         bkc.width = 256;
         bkc.height = 128;
@@ -1757,8 +1726,6 @@ export default class ProceduralTextureFactory {
         bkTex.wrapS = bkTex.wrapT = THREE.RepeatWrapping;
         bkTex.repeat.set(3, 1);
         const bookRowMat = new THREE.MeshStandardMaterial({map: bkTex, roughness: 0.9, metalness: 0.0});
-        
-        // 5. Cardboard Box Textures (File Box, Moving Box, Banana Box, Parcel)
         const fbc = document.createElement('canvas');
         fbc.width = fbc.height = 128;
         const fbx = fbc.getContext('2d');
@@ -1883,8 +1850,6 @@ export default class ProceduralTextureFactory {
         const pcTex = new THREE.CanvasTexture(pcc);
         const parcelBoxMat = new THREE.MeshStandardMaterial({map: pcTex, roughness: 0.85, metalness: 0.0});
         const cartonMats = [fileBoxMat, movingBoxMat, bananaBoxMat, parcelBoxMat];
-        
-        // 6. Foliage (Procedural leaf blobs used for potted plants)
         const flc = document.createElement('canvas');
         flc.width = flc.height = 128;
         const flx = flc.getContext('2d');
@@ -1904,8 +1869,6 @@ export default class ProceduralTextureFactory {
         const flTex = new THREE.CanvasTexture(flc);
         flTex.wrapS = flTex.wrapT = THREE.RepeatWrapping;
         const foliageMat = new THREE.MeshStandardMaterial({map: flTex, roughness: 0.95, metalness: 0.0});
-        
-        // 7. Far Void (The endless abyss outside the playable area, implemented as a dark gradient with faint vertical streaks)
         const fvc = document.createElement('canvas');
         fvc.width = 256;
         fvc.height = 128;
@@ -1937,17 +1900,9 @@ export default class ProceduralTextureFactory {
         const fvTex = new THREE.CanvasTexture(fvc);
         fvTex.wrapS = fvTex.wrapT = THREE.RepeatWrapping;
         const farVoidMat = new THREE.MeshBasicMaterial({map: fvTex});
-        // checkpointFloorMat and checkpointCeilingMat used to live here as a flat gray
-        // noise-speckle concrete texture -- moved to their own dedicated `_buildCheckpointAssets`
-        // (see below) along with a new pressed-tin ceiling, so Checkpoint gets the same
-        // per-sector floor/ceiling treatment Annex, Impound, and Archive already have instead of
-        // borrowing a generic surface.
-        // checkpointLineMat/checkpointLineCrossMat (the red/yellow/blue queue-line floor decals)
-        // used to be generated here -- removed along with the meshes that used them
-        // (CheckpointSector.js, SetPieces.js buildEntranceHallways) once they started clashing
-        // against the new hardwood parquet floor.
         const coneCanvas = document.createElement('canvas');
-        coneCanvas.width = 256; coneCanvas.height = 256;
+        coneCanvas.width = 256;
+        coneCanvas.height = 256;
         const cCtx = coneCanvas.getContext('2d');
         cCtx.fillStyle = '#ff5500';
         cCtx.fillRect(0, 0, 256, 256);
@@ -1957,11 +1912,10 @@ export default class ProceduralTextureFactory {
             cCtx.arc(Math.random() * 256, Math.random() * 256, Math.random() * 4, 0, Math.PI * 2);
             cCtx.fill();
         }
-        
         const coneBaseCanvas = document.createElement('canvas');
-        coneBaseCanvas.width = 256; coneBaseCanvas.height = 256;
+        coneBaseCanvas.width = 256;
+        coneBaseCanvas.height = 256;
         coneBaseCanvas.getContext('2d').drawImage(coneCanvas, 0, 0);
-
         cCtx.fillStyle = '#eeeeee';
         cCtx.fillRect(0, 60, 256, 35);
         cCtx.fillRect(0, 115, 256, 35);
@@ -1973,14 +1927,13 @@ export default class ProceduralTextureFactory {
         const cautionConeMat = new THREE.MeshStandardMaterial({
             map: coneTex, roughness: 0.9, metalness: 0.1
         });
-        
         const coneBaseTex = new THREE.CanvasTexture(coneBaseCanvas);
         const cautionConeBaseMat = new THREE.MeshStandardMaterial({
             map: coneBaseTex, roughness: 0.9, metalness: 0.1
         });
-
         const valveCanvas = document.createElement('canvas');
-        valveCanvas.width = 256; valveCanvas.height = 256;
+        valveCanvas.width = 256;
+        valveCanvas.height = 256;
         const vCtx = valveCanvas.getContext('2d');
         vCtx.fillStyle = '#992211';
         vCtx.fillRect(0, 0, 256, 256);
@@ -1995,7 +1948,6 @@ export default class ProceduralTextureFactory {
         const valveMat = new THREE.MeshStandardMaterial({
             map: valveTex, roughness: 0.7, metalness: 0.3
         });
-
         return {
             diamondPlateMat, incinCeilingMat, boardTileMat, glassMat, bookRowMat,
             fileBoxMat, movingBoxMat, bananaBoxMat, parcelBoxMat, cartonMats,

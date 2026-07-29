@@ -1,26 +1,16 @@
-// main.js
-// LEVEL 0 SYSTEM BOOTSTRAP
-
-// ==========================================
-// IMPORTS
-// ==========================================
 import RenderEngine from './src/core/RenderEngine.js';
 import PlayerController from './src/player/PlayerController.js';
 import Environment from './src/core/Environment.js';
 import AcousticEngine from './src/audio/AcousticEngine.js';
 import StoryEngine from './src/narrative/StoryEngine.js';
-
 import SaveManager from './src/system/SaveManager.js';
 import SomaticController from './src/system/SomaticController.js';
 import DocumentViewer from './src/ui/DocumentViewer.js';
 import KeypadController from './src/ui/KeypadController.js';
 import InquestController from './src/ui/InquestController.js';
 import UIManager from './src/ui/UIManager.js';
-import { DebugHUD } from './src/ui/DebugHUD.js';
+import {DebugHUD} from './src/ui/DebugHUD.js';
 
-// ==========================================
-// SYSTEM INITIALIZATION
-// ==========================================
 const engine = new RenderEngine();
 const acoustics = new AcousticEngine();
 window.acoustics = acoustics;
@@ -28,13 +18,8 @@ const player = new PlayerController(engine.camera, engine.renderer.domElement);
 const environment = new Environment(engine, player);
 window.environment = environment;
 let sectorHuntActive = false;
-
 const saveManager = new SaveManager(engine, player, environment, acoustics);
 const somatic = new SomaticController(acoustics);
-
-// ==========================================
-// GLOBALS & HELPERS
-// ==========================================
 
 /**
  * Lazy loads or retrieves the cached StoryEngine instance.
@@ -81,27 +66,14 @@ function ensurePendingContentAtPlayer() {
     }
 }
 
-// ==========================================
-// CONTROLLER REGISTRATION
-// ==========================================
 const docViewer = new DocumentViewer(player, acoustics, getStory);
 const keypad = new KeypadController(player, acoustics, getStory);
 const inquest = new InquestController(player, acoustics, engine, environment, getStory, triggerAscension, triggerBlackout);
-
-// ==========================================
-// STATE HYDRATION & BOOT
-// ==========================================
-
-// Seed Management
 const savedState = saveManager.loadState();
 if (!document.getElementById('seedInput').value) {
     document.getElementById('seedInput').value = saveManager.generateCardSeed();
 }
-
-// Build World
 await environment.setup();
-
-// Hydrate Player & Camera
 if (savedState) {
     engine.camera.position.set(savedState.px, savedState.py, savedState.pz);
     engine.camera.rotation.set(savedState.rx, savedState.ry, 0, 'YXZ');
@@ -115,8 +87,6 @@ if (savedState) {
     environment.baseFogDensity = (Number(savedState.fog) || 5) / 100;
     environment.updateChunks(engine.camera.position);
 }
-
-// Bind all UI & System Events
 somatic.bindEvents();
 docViewer.bindEvents();
 keypad.bindEvents();
@@ -124,34 +94,23 @@ inquest.bindEvents();
 DebugHUD.bindEvents();
 saveManager.startAutoSave();
 UIManager.startVHSTimer();
-
-// ==========================================
-// DEBUG & TOOLS
-// ==========================================
-
 document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e) => {
     const targetSector = e.target.value;
     if (!targetSector) return;
-
     const uiLayer = document.getElementById('ui-layer');
     if (uiLayer) uiLayer.style.opacity = '0.5';
-
     const originalPos = engine.camera.position.clone();
     const chunkWorldSize = environment.chunkSize * environment.cellSize;
     const maxSteps = 200;
-
     let step = 0;
     let foundHash = null;
     let foundZone = null;
-
     sectorHuntActive = true;
     while (step < maxSteps) {
         environment.updateChunks(new THREE.Vector3(step * chunkWorldSize, 1.6, 0));
-
         while (environment.isBuildingChunk || environment.chunkQueue.length > 0) {
             await new Promise(r => setTimeout(r, 5));
         }
-
         for (const [hash, zone] of environment.macroZones.entries()) {
             if (zone.id === targetSector) {
                 foundHash = hash;
@@ -163,7 +122,6 @@ document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e
         step++;
         if (step % 5 === 0) await new Promise(r => setTimeout(r, 0));
     }
-
     if (!foundZone) {
         sectorHuntActive = false;
         console.log(`[SectorHunt] Could not find ${targetSector} within ${maxSteps} chunk steps on the current seed.`);
@@ -172,14 +130,12 @@ document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e
         if (uiLayer) uiLayer.style.opacity = '1';
         return;
     }
-
     environment.beginMacroChunkContent(foundHash);
     let waited = 0;
     while (!environment.isMacroChunkContentReady(foundHash) && waited < 4000) {
         await new Promise(r => setTimeout(r, 20));
         waited += 20;
     }
-
     const tx = (foundZone.startX + 7) * environment.cellSize;
     const tz = (foundZone.startZ + 3) * environment.cellSize;
     engine.camera.position.set(tx, 1.6, tz);
@@ -188,10 +144,6 @@ document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e
     e.target.value = "";
     if (uiLayer) uiLayer.style.opacity = '1';
 });
-
-// ==========================================
-// MAIN GAME LOOP
-// ==========================================
 
 /**
  * The primary render loop. Orchestrates WebGL rendering, physics/collision hashing,
@@ -202,18 +154,13 @@ function animate() {
     const delta = engine.delta;
     const time = engine.time;
     DebugHUD.recordFrame(delta, environment);
-    
     if (player.isDead) {
         engine.render();
         return;
     }
-    
-    // Environment Tick
     if (!sectorHuntActive) environment.updateChunks(engine.camera.position);
     ensurePendingContentAtPlayer();
     environment.updateInteractives(engine.camera.position, delta);
-    
-    // Fall Detection (OOB bounds check)
     if (engine.camera.position.y < -15.0 && player.isGodMode) {
         engine.camera.position.y = 3.0;
         player.velocity.set(0, 0, 0);
@@ -228,8 +175,6 @@ function animate() {
         }, 400);
         return;
     }
-    
-    // Entity Processing
     const entityState = environment.updateEntity(engine.camera.position, delta, time);
     if (entityState && entityState.consumed) {
         player.isDead = true;
@@ -243,49 +188,32 @@ function animate() {
         }, 1500);
         return;
     }
-    
-    // Player Kinematics
     player.update(delta, environment.spatialGrid);
-    
-    // Warp-Zone Spawning (Staircase triggers)
     if (engine.camera.position.y > 2.8 && player.onWarpZone && !environment.isSpawning) {
         environment.generate(true);
         return;
     }
-    
-    // Render Variables & Telemetry
     engine.exhaustion = player.exhaustion;
     const squeezeFactor = (player.baseRadius - player.playerRadius) / (player.baseRadius - player.squeezeRadius);
     engine.squeeze = Math.max(0.0, Math.min(1.0, squeezeFactor));
-    
     const telemetry = environment.updateLights(time);
     telemetry.paranoia = player.paranoia || 0.0;
     telemetry.adrenaline = engine.adrenaline;
     telemetry.eyesClosed = engine.eyesClosed;
     telemetry.closestActiveValveDistSq = environment.closestActiveValveDistSq || 9999.0;
-    
-    // Update Acoustic Mix
     acoustics.update(telemetry);
-    
-    // Post-Processing Params
     engine.anomaly = telemetry.anomalyPressure + (telemetry.paranoia * 0.5);
     engine.darkness = player.perceivedDarkness || 0.0;
     engine.paranoia = telemetry.paranoia;
     engine.heatTarget = telemetry.activeSector === "INCINERATOR" ? 1.0 : 0.0;
     engine.adrenaline = player.adrenalineTimer > 0 ? (player.adrenalineTimer / 2.5) : 0.0;
     engine.eyesClosed = player.input.state.isClosingEyes ? 1.0 : 0.0;
-    
-    // Paranoia Hallucinations (Audio)
     if (engine.paranoia > 0.4 && Math.random() < (engine.paranoia * delta * 0.3)) {
         const fakeDistSq = Math.pow(10.0 + (Math.random() * 20.0), 2);
         acoustics.triggerSomaticEvent(Math.random() > 0.7 ? 'door' : 'step', fakeDistSq, 0.3 + Math.random() * 0.5);
     }
-    
-    // UI Ticks
     UIManager.update(time, engine, player, environment);
     DebugHUD.update(time, delta, telemetry, engine, player, environment);
-    
-    // Final Pass
     engine.render();
 }
 

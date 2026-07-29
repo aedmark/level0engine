@@ -1,15 +1,12 @@
-// StructuralBlueprints.js
-// LEVEL 0 PROCEDURAL BLUEPRINT FACTORY - STRUCTURAL
-
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 
 /**
  * A weighted factory for generating the "NORMAL" sector's architectural variations.
- * 
+ *
  * When the base maze generation says "build a wall here", this matrix
- * is queried. Instead of just building a flat block every time, it uses `random()` thresholds 
- * (like `prob: 0.95`, `prob: 0.86`) to occasionally build archways, half-walls, pillared 
+ * is queried. Instead of just building a flat block every time, it uses `random()` thresholds
+ * (like `prob: 0.95`, `prob: 0.86`) to occasionally build archways, half-walls, pillared
  * supports, or collapsed ceilings. This breaks up the monotony of the maze.
  */
 export default class StructuralBlueprints {
@@ -25,7 +22,7 @@ export default class StructuralBlueprints {
             hash,
             stagingMeshes
         } = ctx;
-        return [
+        const matrix = [
             {
                 prob: 0.95, build: (x, z) => {
                     const pillar = buildWall(0.5 + (random() * 2.0), 0.5 + (random() * 2.0), this.sharedWallMat);
@@ -309,15 +306,6 @@ export default class StructuralBlueprints {
                             blockBox.isInvisibleBlocker = true;
                             blockBox.chunkHash = hash;
                             this.spatialGrid.insert(blockBox);
-                            // These grates sit right where this tunnel's own structure ends and
-                            // hands off to whatever wall the ordinary maze generation independently
-                            // builds in the neighboring cell. That handoff boundary is nominally
-                            // the same plane from both sides, but each side gets there through a
-                            // different buildWall() call with its own rounding/padding, so the two
-                            // "meeting" surfaces land only ~0.01-0.02 units apart instead of exactly
-                            // coincident -- close enough to z-fight, but not by a consistent amount,
-                            // which is why only some of these grates visibly flicker. 0.025 of inset
-                            // wasn't enough clearance to reliably sit in front of both; 0.07 is.
                             const grateOffset = (this.cellSize / 2) - 0.07;
                             ctx.addGrate(x * this.cellSize, 0.35, z * this.cellSize - (flipZ * grateOffset), false);
                             ctx.addGrate(x * this.cellSize - (flipX * grateOffset), 0.35, z * this.cellSize, true);
@@ -367,16 +355,7 @@ export default class StructuralBlueprints {
                                 blockBox.isInvisibleBlocker = true;
                                 blockBox.chunkHash = hash;
                                 this.spatialGrid.insert(blockBox);
-                                // These grates sit right where this tunnel's own structure ends and
-                            // hands off to whatever wall the ordinary maze generation independently
-                            // builds in the neighboring cell. That handoff boundary is nominally
-                            // the same plane from both sides, but each side gets there through a
-                            // different buildWall() call with its own rounding/padding, so the two
-                            // "meeting" surfaces land only ~0.01-0.02 units apart instead of exactly
-                            // coincident -- close enough to z-fight, but not by a consistent amount,
-                            // which is why only some of these grates visibly flicker. 0.025 of inset
-                            // wasn't enough clearance to reliably sit in front of both; 0.07 is.
-                            const grateOffset = (this.cellSize / 2) - 0.07;
+                                const grateOffset = (this.cellSize / 2) - 0.07;
                                 if (i === 0) {
                                     if (tunnelOnZ) ctx.addGrate(segX * this.cellSize, 0.35, segZ * this.cellSize - grateOffset, false);
                                     else ctx.addGrate(segX * this.cellSize - grateOffset, 0.35, segZ * this.cellSize, true);
@@ -518,15 +497,6 @@ export default class StructuralBlueprints {
                             blockBox.isInvisibleBlocker = true;
                             blockBox.chunkHash = hash;
                             this.spatialGrid.insert(blockBox);
-                            // These grates sit right where this tunnel's own structure ends and
-                            // hands off to whatever wall the ordinary maze generation independently
-                            // builds in the neighboring cell. That handoff boundary is nominally
-                            // the same plane from both sides, but each side gets there through a
-                            // different buildWall() call with its own rounding/padding, so the two
-                            // "meeting" surfaces land only ~0.01-0.02 units apart instead of exactly
-                            // coincident -- close enough to z-fight, but not by a consistent amount,
-                            // which is why only some of these grates visibly flicker. 0.025 of inset
-                            // wasn't enough clearance to reliably sit in front of both; 0.07 is.
                             const grateOffset = (this.cellSize / 2) - 0.07;
                             if (i === 0) {
                                 if (dirZ) ctx.addGrate(segX * this.cellSize, 0.35, segZ * this.cellSize - grateOffset, false);
@@ -920,30 +890,12 @@ export default class StructuralBlueprints {
                 prob: 0.0215, build: (x, z) => {
                     const cx = x * this.cellSize;
                     const cz = z * this.cellSize;
-
-                    // A single hand-built "pile" prop rather than randomly-transformed loose
-                    // furniture: every tilt below pivots around a real floor-contact edge
-                    // (not the object's own center), so pieces lean and topple against each
-                    // other instead of floating or sinking through the floor. The whole thing
-                    // is assembled as one group and registered with addFurniture a single time,
-                    // since addFurniture drops anything whose bounding box overlaps another
-                    // registered box - calling it per-piece would silently discard the pieces
-                    // that are supposed to be touching.
                     const pile = new THREE.Group();
-
-                    // Base: a table flipped fully upside-down (an exact 180 degree flip about
-                    // its own bottom-center pivot, translated up by its own height) so it rests
-                    // tabletop-down on the floor with its pedestal sticking up like legs.
                     const base = buildTable(0, 0, 0);
                     base.rotation.x = Math.PI;
                     base.rotation.y = random() * Math.PI * 2;
                     base.position.y = 0.825;
                     pile.add(base);
-
-                    // A second table toppled and leaning at an angle against the first, pivoted
-                    // about its own pedestal edge (shifted so that edge sits at the tilt group's
-                    // local origin) and capped well under the ~67 degree point where its
-                    // tabletop overhang would dip below the floor.
                     const leaner = buildTable(-0.25, 0, 0);
                     const leanTip = new THREE.Group();
                     leanTip.add(leaner);
@@ -953,10 +905,6 @@ export default class StructuralBlueprints {
                     leanYaw.rotation.y = random() * Math.PI * 2;
                     leanYaw.position.set((random() - 0.5) * 0.35, 0, (random() - 0.5) * 0.35);
                     pile.add(leanYaw);
-
-                    // A few chairs shoved into the wreckage: one knocked onto a rear leg edge
-                    // (same safe pivot trick, smaller angle), the rest upright but scattered
-                    // around the base at odd facings.
                     for (let i = 0; i < 3; i++) {
                         const ang = (i / 3) * Math.PI * 2 + random() * 0.7;
                         const r = 0.7 + random() * 0.4;
@@ -972,10 +920,8 @@ export default class StructuralBlueprints {
                             pile.add(buildChair(px, 0, pz, random() * Math.PI * 2));
                         }
                     }
-
                     pile.position.set(cx, 0, cz);
                     addFurniture(pile);
-
                     const batGroup = new THREE.Group();
                     const batMesh = this.batteryPrefab.clone();
                     batGroup.add(batMesh);
@@ -1159,5 +1105,11 @@ export default class StructuralBlueprints {
                 }
             }
         ];
+        if (!StructuralBlueprints._sortedIndices) {
+            StructuralBlueprints._sortedIndices = matrix
+                .map((_, i) => i)
+                .sort((a, b) => matrix[b].prob - matrix[a].prob);
+        }
+        return StructuralBlueprints._sortedIndices.map(i => matrix[i]);
     }
 }

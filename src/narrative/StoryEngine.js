@@ -1,53 +1,46 @@
-// StoryEngine.js
-// LEVEL 0 STORY ENGINE.
-
 /**
  * A procedural narrative generator that constructs a coherent lore state per playthrough.
- * 
+ *
  * Instead of static text, this engine uses a seeded random number generator (PRNG).
  * When the player starts a run, the seed dictates the names of the cast, the access codes,
- * and the ultimate "truth" of the mystery. This ensures that every note, terminal, and tape 
+ * and the ultimate "truth" of the mystery. This ensures that every note, terminal, and tape
  * points toward a consistent conclusion for that specific seed, making each run unique but solvable.
  */
 export default class StoryEngine {
     constructor(seed) {
         this.seed = (seed || 1) >>> 0;
         let s = (this.seed ^ 0x9e3779b9) >>> 0;
-
         this.rand = () => {
             s = (s * 1664525 + 1013904223) >>> 0;
             return s / 4294967296.0;
         };
         const pick = (arr) => arr[Math.floor(this.rand() * arr.length)];
-
         const FIRST = ['Marion', 'Edward', 'Hollis', 'Petra', 'Vernon', 'Gordon', 'Cassandra', 'Ada', 'Ruth', 'Kai', 'Andrew', 'Jess', 'Emile', 'Casper', 'Lena', 'Howard', 'Iris', 'Salvador'];
         const LAST = ['Vance', 'Okafor', 'Lindqvist', 'Marsh', 'Delacroix', 'Edmark', "Edwards", 'Crownover', 'Bloom', 'Pleimart', 'Kessler', 'Antoun', 'Reyes', 'Whitlock'];
         const used = new Set();
         const mkName = () => {
             let n;
-            do { n = pick(FIRST) + ' ' + pick(LAST); } while (used.has(n));
+            do {
+                n = pick(FIRST) + ' ' + pick(LAST);
+            } while (used.has(n));
             used.add(n);
             return n;
         };
-
         const lead = mkName();
         const custodian = mkName();
         const archivist = mkName();
         const lost = mkName();
         this.cast = {lead, custodian, archivist, lost};
-
         this.projectName = pick(['THRESHOLD', 'LONG HALLWAY', 'WALLPAPER', 'EVENING SHIFT', 'HUM', 'PATIENT DOOR', 'YELLOW FIELD']);
         this.accessCode = String(1000 + Math.floor(this.rand() * 9000));
         this.truth = Math.floor(this.rand() * 3);
         this.penNumber = 3 + Math.floor(this.rand() * 19);
         this.hours = 300 + Math.floor(this.rand() * 900);
-
         this.readTemplates = new Set();
-        this.trackers = { AUDIO: 0, ANNEX: 0, ARCHIVE: 0, IMPOUND: 0, DEFAULT: 0 };
+        this.trackers = {AUDIO: 0, ANNEX: 0, ARCHIVE: 0, IMPOUND: 0, DEFAULT: 0};
         this.assignments = new Map();
         this.collected = [];
         this.cycleIndex = new Map();
-
         this._buildLibrary();
         this._shuffleLibrary();
         this._anchorCodeFragments();
@@ -55,11 +48,11 @@ export default class StoryEngine {
 
     /**
      * Builds the library of narrative fragments (tapes, reports, memos).
-     * 
+     *
      * We inject the randomly generated names (c.lead, c.lost) and codes (code, pen, hrs)
      * directly into template literals. One of three possible "foreshadowing" threads is also injected
      * based on `this.truth`, planting seeds for the final revelation.
-     * 
+     *
      * @private
      */
     _buildLibrary() {
@@ -68,7 +61,6 @@ export default class StoryEngine {
         const code = this.accessCode;
         const pen = this.penNumber;
         const hrs = this.hours;
-
         this.library = {
             AUDIO: [
                 `TAPE 01: [LOUD STATIC] ...${c.lead} here. The corridor walls are absorbing sound. I yelled for ${c.custodian} earlier and the echo... didn't come back. It just stopped. [CLICK]`,
@@ -102,13 +94,11 @@ export default class StoryEngine {
                 `CAFETERIA NOTICE\n\nThe almond water is not a beverage. The almond water is a countermeasure. Ration accordingly. — FACILITIES`
             ]
         };
-
         this.finales = [
             `RECORDS ROOM — SEALED FILE\nPROJECT ${P} — FINDING OF FACT\n\nThere was no breach. Review every log: it never came IN. The entity predates the facility. The facility predates the level. We did not build a laboratory around a specimen. It grew a specimen around a laboratory.\n\n${c.lead}'s final margin note: "We are the note it left for itself."`,
             `RECORDS ROOM — SEALED FILE\nPROJECT ${P} — FINDING OF FACT\n\n${c.lost} is alive. That is the finding. Every door that will not open has been locked FROM THE INSIDE, by hand, in ${c.lost}'s handwriting, in chalk, on the side we cannot see. ${c.lost} is not trapped in here with it.\n\nIt is trapped in here with ${c.lost}.`,
             `RECORDS ROOM — SEALED FILE\nPROJECT ${P} — FINDING OF FACT\n\nThe hum is a carrier wave. ${c.archivist} proved it in the stacks: the documents rearrange along it. The building is not haunted. The building is TRANSMITTING — inventory, floor plans, personnel files — somewhere. We are not test subjects.\n\nWe are the payload.`
         ];
-
         const foreshadow = [
             {
                 AUDIO: `TAPE 00: [DEAD AIR, THEN A SINGLE WORD, TOO LOW TO BE ${c.lost.toUpperCase()}'S VOICE] ...already... [SEVERAL MINUTES OF SILENCE, THEN CLICK]`,
@@ -130,7 +120,6 @@ export default class StoryEngine {
         this.library.AUDIO.push(tell.AUDIO);
         this.library.ANNEX.push(tell.ANNEX);
         this.library.ARCHIVE.push(tell.ARCHIVE);
-
         this.totalTemplates =
             this.library.AUDIO.length +
             this.library.ANNEX.length +
@@ -141,11 +130,11 @@ export default class StoryEngine {
 
     /**
      * Shuffles the document arrays to ensure random discovery order.
-     * 
+     *
      * Uses the Fisher-Yates shuffle algorithm alongside our seeded PRNG.
-     * This guarantees that the order in which documents are found is randomized, but will 
+     * This guarantees that the order in which documents are found is randomized, but will
      * always be exactly the same if the same seed is used.
-     * 
+     *
      * @private
      */
     _shuffleLibrary() {
@@ -175,19 +164,18 @@ export default class StoryEngine {
 
     /**
      * Retrieves the next available story fragment for a specific object (document/terminal/tape).
-     * 
+     *
      * Once an object (docId) is interacted with, the engine permanently maps
-     * that ID to a specific piece of text in `this.assignments`. If the player drops a document 
-     * and picks it up again later, it will still say the same thing. Terminals cycle through 
+     * that ID to a specific piece of text in `this.assignments`. If the player drops a document
+     * and picks it up again later, it will still say the same thing. Terminals cycle through
      * all previously collected documents.
-     * 
+     *
      * @param {string} docId - The unique identifier of the interactable object.
      * @param {string} [zone] - The sector the object was found in (determines document category).
      * @returns {Object} An object containing the text and the player's collection progress.
      */
     getFragment(docId, zone) {
         const idStr = String(docId || 'X');
-
         if (idStr.startsWith('FINALE')) {
             if (!this.readTemplates.has('FINALE')) {
                 this.readTemplates.add('FINALE');
@@ -195,7 +183,6 @@ export default class StoryEngine {
             }
             return {text: this.finales[this.truth], progress: this.progress()};
         }
-
         const isTerminal = idStr.startsWith('PC_');
         const assignKey = idStr + '|' + (zone || '');
         if (this.assignments.has(assignKey)) {
@@ -209,7 +196,6 @@ export default class StoryEngine {
             }
             return {text: this.assignments.get(assignKey), progress: this.progress()};
         }
-
         let category = 'DEFAULT';
         if (idStr.startsWith('TAPE')) {
             category = 'AUDIO';

@@ -1,9 +1,6 @@
-// UIManager.js
-// LEVEL 0 UI Manager
-
 /**
  * Handles updating the DOM-based heads-up display (HUD).
- * 
+ *
  *  While Three.js can render UI in 3D (WebGL), it is almost always better
  * for performance and accessibility to overlay standard HTML/CSS elements on top of the canvas.
  * This class maps the player's internal state (stamina, battery, coherence) to those HTML elements.
@@ -11,12 +8,12 @@
 export default class UIManager {
     /**
      * Ticks the UI logic, updating progress bars and counters.
-     * 
+     *
      * DOM updates are notoriously slow. To prevent the UI from bottlenecking
-     * the 60FPS WebGL render loop, we aggressively throttle DOM updates. We only tick the UI 
-     * 10 times a second (`< 0.1` return), and we cache the last written values (`_last`) so we 
+     * the 60FPS WebGL render loop, we aggressively throttle DOM updates. We only tick the UI
+     * 10 times a second (`< 0.1` return), and we cache the last written values (`_last`) so we
      * never write to `innerHTML` or `style` unless the value actually changed.
-     * 
+     *
      * @param {number} time - Total elapsed time.
      * @param {Object} engine - The core engine instance.
      * @param {Object} player - The player controller instance.
@@ -30,7 +27,6 @@ export default class UIManager {
         if (!this.stamLevel) this.stamLevel = document.getElementById('stamina-level');
         if (!this.invBat) this.invBat = document.getElementById('inv-bat');
         if (!this.invH2o) this.invH2o = document.getElementById('inv-h2o');
-        
         if (this.coordsEl) {
             const cohInt = Math.round((player.coherence !== undefined ? player.coherence : 1.0) * 100);
             const newCoords = `X: ${engine.camera.position.x.toFixed(1)} | Z: ${engine.camera.position.z.toFixed(1)} | COH: ${cohInt.toString().padStart(2, '0')}%`;
@@ -42,7 +38,6 @@ export default class UIManager {
                 this.coordsEl._last = newCoords;
             }
         }
-        
         if (!this.crosshair) this.crosshair = document.getElementById('crosshair');
         if (this.crosshair && environment) {
             const active = environment.isLookingAtInteractable === true;
@@ -51,7 +46,6 @@ export default class UIManager {
                 this.crosshair._lastActive = active;
             }
         }
-        
         if (this.batLevel) {
             const batInt = Math.round(player.flashlightBattery);
             if (this.batLevel._last !== batInt) {
@@ -60,7 +54,6 @@ export default class UIManager {
                 this.batLevel._last = batInt;
             }
         }
-        
         if (this.stamLevel) {
             const stamInt = Math.round(player.stamina);
             if (this.stamLevel._last !== stamInt) {
@@ -69,7 +62,6 @@ export default class UIManager {
                 this.stamLevel._last = stamInt;
             }
         }
-        
         if (this.invBat && this.invH2o) {
             if (this.invBat._last !== player.inventory.batteries) {
                 this.invBat.innerText = player.inventory.batteries;

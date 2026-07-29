@@ -1,11 +1,8 @@
-// Vec3.js
-// LEVEL 0 HOMEGROWN MATH
-
 /**
- * A lightweight, homegrown 3D vector math class. 
- * Educational Note: While Three.js provides THREE.Vector3, using a custom, minimal 
- * vector class for high-frequency internal engine calculations (like physics, AI, or grid checks) 
- * reduces memory footprint and garbage collection (GC) pauses since it lacks the massive 
+ * A lightweight, homegrown 3D vector math class.
+ * Educational Note: While Three.js provides THREE.Vector3, using a custom, minimal
+ * vector class for high-frequency internal engine calculations (like physics, AI, or grid checks)
+ * reduces memory footprint and garbage collection (GC) pauses since it lacks the massive
  * prototype chain of Three.js objects.
  */
 export default class Vec3 {
@@ -103,19 +100,13 @@ export default class Vec3 {
     applyQuaternion(q) {
         const {x, y, z} = this;
         const qx = q.x, qy = q.y, qz = q.z, qw = q.w;
-        
-        // Calculate quaternion * vector
         const ix = qw * x + qy * z - qz * y;
         const iy = qw * y + qz * x - qx * z;
         const iz = qw * z + qx * y - qy * x;
         const iw = -qx * x - qy * y - qz * z;
-        
-        // Calculate (quaternion * vector) * quaternion^-1
         this.x = ix * qw + iw * -qx + iy * -qz - iz * -qy;
         this.y = iy * qw + iw * -qy + iz * -qx - ix * -qz;
         this.z = iz * qw + iw * -qz + ix * -qy - iy * -qx;
-        
         return this;
     }
-
 }

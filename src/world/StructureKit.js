@@ -1,15 +1,3 @@
-// StructureKit.js
-// LEVEL 0 STRUCTURAL BUILD TOOLKIT
-
-/**
- * A utility class providing common geometry-building helpers passed via `ctx` to all sectors.
- * 
- * This class is vital for performance. Notice the `cacheGeo` and `buildWall`
- * functions. Instead of creating a new `THREE.BoxGeometry` for every wall in the maze (which 
- * would destroy memory and crash the browser), we hash the dimensions (`w_h_d_yOffset`) and 
- * re-use the exact same geometry reference. This allows Three.js to render thousands of walls 
- * with minimal overhead.
- */
 export default class StructureKit {
     constructor(env) {
         this.env = env;
@@ -58,15 +46,6 @@ export default class StructureKit {
                     const mat = (isBroken ? env.baseBrokenLightMat : env.baseLightMat).clone();
                     mat.color.setHex(colorHex);
                     mat.emissive.setHex(emissiveHex);
-                    // `baseLightMat`/`baseBrokenLightMat` carry a flat rectangular panel texture
-                    // (map/emissiveMap) baked for a box's flat face -- fine for every existing
-                    // caller, which all apply it to flat panels/plates. Wrapped around a
-                    // non-flat shape like a cylinder instead, that same texture's cylindrical UV
-                    // unwrap samples mostly the panel's dark border/background, so the surface
-                    // reads as barely lit rather than glowing. `plain` strips both maps so the
-                    // whole surface glows evenly at `emissiveIntensity` -- still driven by the
-                    // same per-frame flicker/blackout system in LumenGrid/Environment.js, just a
-                    // solid emissive color instead of a masked-off panel print.
                     if (plain) {
                         mat.map = null;
                         mat.emissiveMap = null;
@@ -224,7 +203,7 @@ export default class StructureKit {
             },
             buildTable: (x, y, z) => {
                 const group = new THREE.Group();
-                const legH = 0.88; // ~3in taller than the old center-column table
+                const legH = 0.88;
                 const top = new THREE.Mesh(env.tableTopGeo, env.woodMat);
                 top.position.set(0, legH + 0.025, 0);
                 group.add(top);
@@ -245,22 +224,17 @@ export default class StructureKit {
                 const top = new THREE.Mesh(topGeo, env.woodMat);
                 top.position.set(0, 1.125, 0);
                 group.add(top);
-                
                 const pedGeo = env._cacheGeo('deskPed15', () => new THREE.BoxGeometry(0.6, 1.08, 1.14));
-                
                 const pedL = new THREE.Mesh(pedGeo, env.metalMat);
                 pedL.position.set(-0.87, 0.54, 0);
                 group.add(pedL);
-                
                 const pedR = new THREE.Mesh(pedGeo, env.metalMat);
                 pedR.position.set(0.87, 0.54, 0);
                 group.add(pedR);
-                
                 const modGeo = env._cacheGeo('deskMod15', () => new THREE.BoxGeometry(2.25, 0.75, 0.075));
                 const modPanel = new THREE.Mesh(modGeo, env.metalMat);
                 modPanel.position.set(0, 0.675, -0.525);
                 group.add(modPanel);
-                
                 group.position.set(x, y, z);
                 group.rotation.y = rotY;
                 return group;
@@ -277,27 +251,19 @@ export default class StructureKit {
                 const isShoulder = isShoulderNS || isShoulderEW;
                 if (isDoorwayNS || isDoorwayEW) {
                     const wMat = wallMat || env.sharedWallMat;
-                    // The airlock jamb/header always used the lit metal + sharedWallMat combo
-                    // here, regardless of what the sector passed in as wallMat. That's fine
-                    // everywhere there's ambient light to catch it, but the Atrium void has no
-                    // fixtures out there to light a PBR material -- it just renders black. Since
-                    // Atrium's own wallMat is already the unlit white void material, reuse it for
-                    // the jamb/header too so the whole doorway pocket stays lit-independent white.
                     const isVoidSector = sectorId === "ATRIUM" && env.matrixVoidMat;
-                    const aMat = isVoidSector ? env.matrixVoidMat : (env.metalMat || env.structMat); // Airlock texture
+                    const aMat = isVoidSector ? env.matrixVoidMat : (env.metalMat || env.structMat);
                     const outerMat = isVoidSector ? env.matrixVoidMat : env.sharedWallMat;
-
                     const buildMat = (isNS) => {
                         return [
                             isNS ? aMat : (localX === edge ? outerMat : wMat),
                             isNS ? aMat : (localX === 0 ? outerMat : wMat),
                             wMat,
-                            aMat, // always airlock texture on the ceiling of the pocket
+                            aMat,
                             !isNS ? aMat : (localZ === edge ? outerMat : wMat),
                             !isNS ? aMat : (localZ === 0 ? outerMat : wMat)
                         ];
                     };
-                    
                     const jambW = 0.25;
                     const jambH = height + 2.0;
                     const keyJ = `jamb_${jambW}_${jambH}_${isDoorwayNS}`;
@@ -307,7 +273,6 @@ export default class StructureKit {
                         env.geoCache.set(keyJ, jGeo);
                         env.geoCache.set(jGeo.uuid, true);
                     }
-                    
                     for (let s = -1; s <= 1; s += 2) {
                         const jMesh = new THREE.Mesh(jGeo, buildMat(isDoorwayNS));
                         const offset = 1.875 * s;
@@ -322,7 +287,6 @@ export default class StructureKit {
                         env.spatialGrid.insert(box);
                         stagingMeshes.push(jMesh);
                     }
-                    
                     const headerH = height - 2.4;
                     if (headerH > 0) {
                         const headY = 3.4 + headerH / 2;
@@ -348,10 +312,6 @@ export default class StructureKit {
                     return true;
                 }
                 const wMat = wallMat || env.sharedWallMat;
-                // Same lit-material problem as the doorway jamb above: the outward-facing side
-                // of every perimeter segment always got env.sharedWallMat regardless of wallMat,
-                // which goes black with no light out past the wall. Atrium has nothing out there
-                // to light it, so route it to the unlit white void material too.
                 const outerWMat = (sectorId === "ATRIUM" && env.matrixVoidMat) ? env.matrixVoidMat : env.sharedWallMat;
                 const w = env.cellSize + 0.02;
                 const d = env.cellSize + 0.02;
@@ -359,12 +319,12 @@ export default class StructureKit {
                 const cz = z * env.cellSize;
                 const wallHeight = isShoulder ? height : height + 2.0;
                 const multiMat = [
-                    localX === edge ? outerWMat : wMat, // +X
-                    localX === 0 ? outerWMat : wMat,    // -X
-                    wMat,                                       // +Y
-                    wMat,                                       // -Y
-                    localZ === edge ? outerWMat : wMat, // +Z
-                    localZ === 0 ? outerWMat : wMat     // -Z
+                    localX === edge ? outerWMat : wMat,
+                    localX === 0 ? outerWMat : wMat,
+                    wMat,
+                    wMat,
+                    localZ === edge ? outerWMat : wMat,
+                    localZ === 0 ? outerWMat : wMat
                 ];
                 const pushWallSegment = (segW, segH, segD, segCx, segCz) => {
                     const key = `perim_${segW}_${segH}_${segD}`;

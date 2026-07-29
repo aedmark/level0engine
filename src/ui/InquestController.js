@@ -1,11 +1,8 @@
-// InquestController.js
-// LEVEL 0 Quest Controller
-
 /**
  * Manages the final "Inquest" terminal UI where the player must guess the truth.
- * 
+ *
  * This acts as the win/loss condition logic handler for a level.
- * If the player chooses the option that matches the `StoryEngine`'s seeded truth, 
+ * If the player chooses the option that matches the `StoryEngine`'s seeded truth,
  * they advance to the next layer (`onAscension`). If they fail, the facility kills them (`onBlackout`).
  */
 export default class InquestController {
@@ -17,18 +14,17 @@ export default class InquestController {
         this.getStory = getStoryFn;
         this.onAscension = onAscension;
         this.onBlackout = onBlackout;
-        
         this.pendingExit = null;
         this.inquestLocked = false;
     }
-    
+
     /**
      * Evaluates the player's choice against the true outcome of the narrative.
-     * 
+     *
      * Notice the tight coupling to the metabolic and engine state here.
-     * On success, we bump the `ambientLight` intensity to blind the player with white light, 
+     * On success, we bump the `ambientLight` intensity to blind the player with white light,
      * and increment the `player.depth`. On failure, we trigger `onBlackout()`.
-     * 
+     *
      * @param {number} choice - The index (0, 1, or 2) of the player's selected answer.
      */
     handleInquest(choice) {
@@ -83,7 +79,7 @@ export default class InquestController {
             }, 2000);
         }
     }
-    
+
     bindEvents() {
         document.addEventListener('somatic-inquest', (e) => {
             if (this.player.input.state.isReading) return;
@@ -109,7 +105,6 @@ export default class InquestController {
             document.getElementById('inquest-overlay').style.display = 'block';
             this.acoustics.triggerSomaticEvent('item', 1.0, 0.4);
         });
-
         document.addEventListener('keydown', (e) => {
             const ov = document.getElementById('inquest-overlay');
             if (!ov || ov.style.display !== 'block') return;
@@ -117,8 +112,6 @@ export default class InquestController {
             else if (e.code === 'Digit2') this.handleInquest(1);
             else if (e.code === 'Digit3') this.handleInquest(2);
         });
-        
-        // Expose to window for the HTML inline onclick handlers
         window.handleInquest = (choice) => this.handleInquest(choice);
     }
 }

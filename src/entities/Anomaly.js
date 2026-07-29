@@ -1,6 +1,3 @@
-// Anomaly.js
-// LEVEL 0 PREDATORY HAZARD
-
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 
@@ -21,8 +18,6 @@ export default class Anomaly {
         this.backtrackTimer = 0;
         this.breadcrumbTimer = 0;
         this.graceTimer = 0;
-        // Seconds since the anomaly last actually sensed the player (sight or sound).
-        // Long droughts ease its passive search in tighter -- see _updateSenses.
         this.timeSinceContact = 0;
         this._dir = new Vec3();
         this._toPlayer = new Vec3();
@@ -167,16 +162,6 @@ export default class Anomaly {
             if (this.player.anomalyPressure > 0) this.player.anomalyPressure = 0;
             return null;
         }
-        // Archive/Impound/Incinerator each get their own dedicated hazard the instant the player
-        // steps inside, via EntityManager swapping the active entity entirely -- but every other
-        // sector still leaves the Anomaly as the active entity, and `anomalyPressure` below is a
-        // pure distance check with no idea a solid perimeter wall might be sitting between it and
-        // the player. Without this, it can be wandering the connecting hallway on the other side
-        // of a sector's own wall and still trigger the proximity distortion effect, reading as
-        // stalking through a wall it has no actual line of sight through. Suppressed the same way
-        // the grace period above is: it keeps existing and animating in place, just doesn't sense,
-        // chase, or push any pressure onto the player, and picks back up the instant you step back
-        // out into the plain "NORMAL" maze.
         if (activeSector && activeSector !== 'NORMAL') {
             this._animate(time, delta);
             if (this.player.anomalyPressure > 0) this.player.anomalyPressure = 0;
@@ -219,7 +204,8 @@ export default class Anomaly {
         this.core.rotation.x = time * 0.5;
         const pulse = 1.0 + Math.sin(time * 4.0) * 0.15;
         this.core.scale.set(pulse, pulse, pulse);
-        this.shards.forEach((shardData, i) => {
+        for (let i = 0; i < this.shards.length; i++) {
+            const shardData = this.shards[i];
             const panicJitter = this.player.exhaustion > 0.2 ? (Math.random() - 0.5) * this.player.exhaustion * 0.4 : 0;
             const angle = time * shardData.speed + shardData.offset;
             shardData.mesh.position.set(
@@ -229,15 +215,10 @@ export default class Anomaly {
             );
             shardData.mesh.rotation.x += delta * (2.0 + panicJitter * 10);
             shardData.mesh.rotation.y += delta * (3.0 + panicJitter * 10);
-        });
+        }
     }
 
     _updateSenses(playerPos, distToPlayerSq, delta, time) {
-        // Tracks how long it's been since the anomaly actually sensed the player (sight or
-        // sound), independent of distance or LOS blockers. Ramps a "catch-up" push into the
-        // passive search below so a long drought doesn't turn into an indefinite one -- it still
-        // has to physically path to you, it's just no longer drifting at a glacial 0.5% lerp with
-        // no way to close the gap if walls or bad luck keep breaking its line of sight.
         this.timeSinceContact = (this.timeSinceContact || 0) + delta;
         const catchUp = Math.min(1.0, this.timeSinceContact / 45.0);
         this.breadcrumbTimer = (this.breadcrumbTimer || 0) + delta;
@@ -326,8 +307,6 @@ export default class Anomaly {
                     this.target.x += (Math.random() - 0.5) * 15.0;
                     this.target.z += (Math.random() - 0.5) * 15.0;
                 }
-                // Passive tracking eases in from 0.005 (barely a guess) up to 0.05 (a real pull
-                // toward your actual position) the longer it's gone without contact.
                 this.target.lerp(playerPos, 0.005 + catchUp * 0.045);
             }
         }
@@ -430,9 +409,6 @@ export default class Anomaly {
                 }
             }
         }
-        // Unconditional re-leash, same as the containment clamp the sector-locked hazards run
-        // every tick -- movement is already blocked from walking in above, this just catches the
-        // random escape-jitter nudge a few lines up, which isn't checked against these bounds.
         const pushed = this._pushOutsideBounds(this.group.position.x, this.group.position.z);
         this.group.position.x = pushed.x;
         this.group.position.z = pushed.z;

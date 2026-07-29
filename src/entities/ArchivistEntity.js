@@ -1,6 +1,3 @@
-// ArchivistEntity.js
-// Level 0 Engine: The Archivist
-
 import Vec3 from '../math/Vec3.js';
 
 /**
@@ -18,21 +15,18 @@ export default class ArchivistEntity {
         this.target = new Vec3();
         this.graceTimer = 0;
         this.droppedDoc = false;
+        this._away = new Vec3();
+        this._toEntity = new Vec3();
+        this._lookDir = new Vec3();
         this._buildMesh();
     }
 
     _buildMesh() {
-        // The body: a small warm mote of light. This is the entity's "face" -- the observation
-        // logic in update() scales and dims it directly, so it stays named `core` and stays the
-        // primary read at a glance.
         const coreMat = new THREE.MeshBasicMaterial({color: 0xfff2d6, transparent: true, opacity: 0.95});
         const coreGeo = new THREE.IcosahedronGeometry(0.14, 1);
         this.core = new THREE.Mesh(coreGeo, coreMat);
         this.core.position.y = 1.2;
         this.group.add(this.core);
-
-        // A pair of gossamer wings flanking the body. Thin, additive, double-sided so they read
-        // from any angle -- flapped in _animate() rather than sitting rigid.
         const wingMat = new THREE.MeshBasicMaterial({
             color: 0xaa55ff,
             transparent: true,
@@ -50,10 +44,6 @@ export default class ArchivistEntity {
         this.wingR.position.set(0.1, 1.24, 0);
         this.wingR.rotation.y = -Math.PI / 2.4;
         this.group.add(this.wingR);
-
-        // Fairy dust: a handful of tiny motes looping around the body at staggered radii/speeds,
-        // the same "orbiting debris" trick IncineratorEntity uses for its slag chunks, just
-        // smaller and warmer.
         this.motes = [];
         const moteMat = new THREE.MeshBasicMaterial({
             color: 0xffe9b0,
@@ -74,7 +64,6 @@ export default class ArchivistEntity {
             this.motes.push(mote);
             this.group.add(mote);
         }
-
         this.light = new THREE.PointLight(0xc9a6ff, 1.1, 6.0);
         this.light.position.y = 1.2;
         this.group.add(this.light);
@@ -85,7 +74,7 @@ export default class ArchivistEntity {
      * Shows or hides the Archivist's visible body parts, leaving `group` (and therefore
      * `this.light`, its child) untouched.
      *
-     * Educational Note: This used to be a plain `this.group.visible = true/false`, toggled not
+     * This used to be a plain `this.group.visible = true/false`, toggled not
      * just on sector entry/exit but constantly during ordinary ARCHIVE play -- every hide/flee
      * cycle (`hideTimer`/`fleeTimer` in update()) hid the whole group, `this.light` included.
      * Three.js excludes an invisible object's entire subtree from the current frame's light list,
@@ -127,8 +116,6 @@ export default class ArchivistEntity {
         this.hideTimer = 0;
         this.droppedDoc = false;
         this._curiousRetargetCooldown = 0;
-        // Re-leash to the Archive sector's current geometry on every (re)spawn -- its wander
-        // target can drift up to 40 units, easily enough to drift out through an open door.
         this._bounds = this.env && this.env.getSectorBounds ? this.env.getSectorBounds('ARCHIVE') : null;
         const clamped = this._clampToBounds(x, z);
         this.group.position.set(clamped.x, y, clamped.z);
@@ -158,14 +145,9 @@ export default class ArchivistEntity {
      * @returns {Object|null} Returns null; the archivist does not attack or consume the player.
      */
     update(delta, time) {
-        // EntityManager only ever calls update() on whichever entity is currently active, and
-        // already called deactivate() the moment this one stopped being it -- this check is just
-        // a defensive no-op guard, not the actual hide/show path (see deactivate()).
         if (!this.isActive) {
             return null;
         }
-        // Tucked away after a scare. Stays invisible for a bit, then slips back in near the
-        // player with a fresh grace period -- it went into hiding, it didn't cease to exist.
         if (this.hideTimer > 0) {
             this.hideTimer -= delta;
             if (this.hideTimer <= 0) {
@@ -202,12 +184,9 @@ export default class ArchivistEntity {
             );
             return null;
         }
-        // Caught mid-scurry: still visible, but sprinting for cover and spinning like it means
-        // it. This is the "show" -- a beat the player can actually see -- before it ducks out via
-        // hideTimer below, instead of just winking out of existence on the spot.
         if (this.fleeTimer > 0) {
             this.fleeTimer -= delta;
-            const away = new Vec3().subVectors(this.group.position, playerPos);
+            const away = this._away.subVectors(this.group.position, playerPos);
             away.y = 0;
             if (away.lengthSq() > 0.0001) away.normalize();
             this.group.position.x += away.x * delta * 9.0;
@@ -223,19 +202,22 @@ export default class ArchivistEntity {
             }
             return null;
         }
-        // Scatter only if the player sprints near it -- calm proximity (walking, not observing)
-        // is what makes it curious rather than anxious, so it no longer bolts just for being
-        // approached on foot.
         if (distSq < 100.0 && this.player.isRunning) {
             this.fleeTimer = 0.6;
-            document.dispatchEvent(new CustomEvent('somatic-lost', { detail: { distSq: distSq, intensity: 1.0, isLaugh: false } }));
+            document.dispatchEvent(new CustomEvent('somatic-lost', {
+                detail: {
+                    distSq: distSq,
+                    intensity: 1.0,
+                    isLaugh: false
+                }
+            }));
             return null;
         }
         this._animate(time);
         let isObserved = false;
         if (this.player.flashlightActive && distSq < 400.0) {
-            const toEntity = new Vec3().subVectors(this.group.position, playerPos).normalize();
-            const lookDir = new Vec3().set(0, 0, -1).applyQuaternion(this.camera.quaternion);
+            const toEntity = this._toEntity.subVectors(this.group.position, playerPos).normalize();
+            const lookDir = this._lookDir.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
             if (lookDir.dot(toEntity) > 0.85) {
                 isObserved = true;
             }
@@ -246,12 +228,9 @@ export default class ArchivistEntity {
             this.light.intensity = 1.1 - Math.min(0.8, this.observeTimer * 0.4);
             if (this.observeTimer > 2.0 && !this.droppedDoc) {
                 this.dropDocument();
-                // Give the drop a beat to register (still visible, still spinning) before it
-                // scurries off the same way a scare would send it -- no need to be caught out to
-                // get the document, but it doesn't just vanish the instant it lets go of it either.
                 this.fleeTimer = 0.6;
                 this.observeTimer = 0;
-                document.dispatchEvent(new CustomEvent('somatic-item', { detail: { distSq: distSq, intensity: 1.5 } }));
+                document.dispatchEvent(new CustomEvent('somatic-item', {detail: {distSq: distSq, intensity: 1.5}}));
                 return null;
             }
         } else {
@@ -260,11 +239,6 @@ export default class ArchivistEntity {
             this.light.intensity = 1.1;
         }
         if (!isObserved) {
-            // Curious, not anxious, not clingy: it wants to be somewhere in this comfortable
-            // ring around the player, but it only picks a new perch on a cooldown rather than
-            // every frame proximity holds -- re-rolling a random point every tick is what made
-            // it read as a bee track-hovering you. Between retargets it just glides where it was
-            // last told to go, so it can lag behind a moving player instead of laser-following.
             const ARCHIVIST_CURIOUS_NEAR = 6.0;
             const ARCHIVIST_CURIOUS_FAR = 13.0;
             this._curiousRetargetCooldown = (this._curiousRetargetCooldown || 0) - delta;
@@ -312,23 +286,14 @@ export default class ArchivistEntity {
 
     _animate(time) {
         this.core.rotation.y = time * 1.2;
-
-        // Fast, slightly uneven wingbeats -- two overlapping frequencies so it doesn't read as
-        // a metronome. Rotation only, so this never fights the observation-scale logic in
-        // update(), which owns this.core.scale directly.
         const flap = Math.sin(time * 16.0) * 0.55 + Math.sin(time * 23.0) * 0.15;
         this.wingL.rotation.z = flap;
         this.wingR.rotation.z = -flap;
-
-        // Fairy dust looping around the body in loose, staggered orbits.
         for (const mote of this.motes) {
             const {radius, speed, offsetY, phase} = mote.userData;
             const a = time * speed + phase;
             mote.position.set(Math.cos(a) * radius, offsetY + Math.sin(a * 1.7) * 0.06, Math.sin(a) * radius);
         }
-
-        // Erratic, insect-like drift in place of the old slow hover -- group.position.x/z are
-        // owned by the wander/flee logic in update(), so only y and yaw move here.
         this.group.position.y = Math.sin(time * 3.2) * 0.08 + Math.sin(time * 7.3) * 0.03;
         this.group.rotation.y = Math.sin(time * 1.1) * 0.4;
     }

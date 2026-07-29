@@ -1,13 +1,3 @@
-// SaveManager.js
-// LEVEL 0 SAVE STATE MANAGER
-
-/**
- * Handles persisting and restoring the player's session and configuration state.
- * 
- * Because the engine does not have a backend server, all progress
- * and configuration data is stored locally in the browser using `localStorage`. 
- * This ensures the player can close the tab and return exactly where they left off.
- */
 export default class SaveManager {
     constructor(engine, player, environment, acoustics) {
         this.engine = engine;
@@ -17,15 +7,6 @@ export default class SaveManager {
         this.saveInterval = null;
     }
 
-    /**
-     * Generates a random seed formatted as a 5-card poker hand (e.g., "A♥|10♠|2♣|K♦|5♥").
-     * 
-     * We use a deck of cards as a seed format because it is memorable,
-     * aesthetically fitting, and visually distinct from standard numeric hashes. It makes 
-     * sharing "seeds" with friends feel like sharing a hand of cards.
-     * 
-     * @returns {string} The formatted seed string.
-     */
     generateCardSeed() {
         const suits = ['♥', '♦', '♣', '♠'];
         const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
@@ -56,7 +37,6 @@ export default class SaveManager {
             document.getElementById('volumeSlider').value = state.vol !== undefined ? state.vol : "100";
             document.getElementById('gammaSlider').value = state.gamma || "120";
             document.getElementById('headBobToggle').checked = state.headBob !== false;
-            
             this.engine.aspectRatio = state.aspect === 'auto' ? 'auto' : parseFloat(state.aspect || 1.3333333333);
             this.engine.resolutionScale = parseFloat(state.res) || 1.0;
             this.engine.camera.fov = Number(state.fov) || 75;
@@ -65,7 +45,6 @@ export default class SaveManager {
             this.engine.camera.updateProjectionMatrix();
             this.player.speedMultiplier = (Number(state.speed) || 100) / 100;
             this.player.enableHeadBob = state.headBob !== false;
-            
             return state;
         } catch (e) {
             console.warn("Mnemonic Arcade corrupted. Pruning state.");
@@ -99,14 +78,6 @@ export default class SaveManager {
         localStorage.setItem('level0_state', JSON.stringify(state));
     }
 
-    /**
-     * Safely executes a save state using the browser's `requestIdleCallback`.
-     * 
-     * Serializing data to JSON and writing to `localStorage` is a synchronous,
-     * blocking operation. Doing this in the middle of a frame can cause a stutter. 
-     * `requestIdleCallback` tells the browser to only perform the save when the CPU is completely 
-     * idle between frame renders, ensuring autosaves are invisible and stutter-free.
-     */
     idleSaveState() {
         if (window.requestIdleCallback) {
             requestIdleCallback(() => this.saveState());
