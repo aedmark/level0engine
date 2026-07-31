@@ -32,8 +32,13 @@ export default class StructureKit {
             chunkGroup,
             stagingMeshes,
             playerPos: env.camera.position,
-            claimOasis: () => {
+            claimOasis: (x, z) => {
                 if (hasOasis) {
+                    if (x !== undefined && z !== undefined) {
+                        const localZ = ((z % env.chunkSize) + env.chunkSize) % env.chunkSize;
+                        if (localZ === env.chunkSize - 1) return false;
+                        if (helpers.markOccupied) helpers.markOccupied(x, z + 1);
+                    }
                     hasOasis = false;
                     return true;
                 }
@@ -63,7 +68,7 @@ export default class StructureKit {
                 const key = `${w}_${h}_${d}_${yOffset}`;
                 let geo = env.geoCache.get(key);
                 if (!geo) {
-                    geo = new THREE.BoxGeometry(w + 0.02, h, d + 0.02);
+                    geo = new THREE.BoxGeometry(w + 0.02, h + 0.02, d + 0.02);
                     const uv = geo.attributes.uv;
                     for (let i = 0; i < 8; i++) uv.setX(i, uv.getX(i) * (d / env.cellSize));
                     for (let i = 16; i < 24; i++) uv.setX(i, uv.getX(i) * (w / env.cellSize));
@@ -251,9 +256,8 @@ export default class StructureKit {
                 const isShoulder = isShoulderNS || isShoulderEW;
                 if (isDoorwayNS || isDoorwayEW) {
                     const wMat = wallMat || env.sharedWallMat;
-                    const isVoidSector = sectorId === "ATRIUM" && env.matrixVoidMat;
-                    const aMat = isVoidSector ? env.matrixVoidMat : (env.metalMat || env.structMat);
-                    const outerMat = isVoidSector ? env.matrixVoidMat : env.sharedWallMat;
+                    const aMat = env.metalMat || env.structMat;
+                    const outerMat = env.sharedWallMat;
                     const buildMat = (isNS) => {
                         return [
                             isNS ? aMat : (localX === edge ? outerMat : wMat),
@@ -312,7 +316,7 @@ export default class StructureKit {
                     return true;
                 }
                 const wMat = wallMat || env.sharedWallMat;
-                const outerWMat = (sectorId === "ATRIUM" && env.matrixVoidMat) ? env.matrixVoidMat : env.sharedWallMat;
+                const outerWMat = env.sharedWallMat;
                 const w = env.cellSize + 0.02;
                 const d = env.cellSize + 0.02;
                 const cx = x * env.cellSize;

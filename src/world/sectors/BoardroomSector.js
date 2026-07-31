@@ -49,7 +49,7 @@ export const BoardroomSector = (env, ctx) => {
                 lx >= 1 && lx <= last && lz >= 1 && lz <= last &&
                 !isHallway(lx, lz) && cellHash(gx, gz) < 0.10;
             const ceilingPanel = (px, pz) =>
-                env._buildCeilingPanelLight(chunkGroup, hash, px, pz, random, ctx.getLightMaterial, 0xe8f2ff, 0xd8e8ff, 0.65, 0.9);
+                env._buildCeilingPanelLight(chunkGroup, hash, px, pz, random, ctx.getLightMaterial, 0xe8f2ff, 0xd8e8ff, 0.25, 0.9);
             if (isHallway(localX, localZ)) {
                 const junction = isC(localX) && isC(localZ);
                 if (!junction && (localX + localZ) % 2 === 0 && random() > 0.30) {

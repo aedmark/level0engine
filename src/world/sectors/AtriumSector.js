@@ -17,7 +17,8 @@ export const AtriumSector = (env, ctx) => {
         addFurniture,
         chunkGroup,
         hash,
-        stagingMeshes
+        stagingMeshes,
+        getLightMaterial
     } = ctx;
     const TIER_STEP = 2.8;
     const TIER_BASE = 4.2;
@@ -75,9 +76,6 @@ export const AtriumSector = (env, ctx) => {
             chunkGroup.add(group);
         }
     };
-    // Identical fixture to ArchiveSector's hanging bowl light -- consolidated into
-    // Environment._buildHangingBowlLight() (see that method for the full implementation).
-    const buildHangingLight = (cx, cz) => env._buildHangingBowlLight(chunkGroup, hash, cx, cz, random, ctx.getLightMaterial);
     const inAisleMaze = (maze, nx, nz) => nx >= 0 && nx < env.chunkSize && nz >= 0 && nz < env.chunkSize && maze[nx][nz];
     const aisleRunOrientation = (maze, lx, lz) => {
         const zR = inAisleMaze(maze, lx, lz - 1) || inAisleMaze(maze, lx, lz + 1);
@@ -148,6 +146,82 @@ export const AtriumSector = (env, ctx) => {
             }
         }
     };
+    const buildVendingMachine = (cx, cz) => {
+        const bodyGeo = env._cacheGeo('vendingBody', () => new THREE.BoxGeometry(1.2, 2.0, 1.0));
+        const body = new THREE.Mesh(bodyGeo, env.blackIronMat);
+        body.position.set(cx, 1.0, cz);
+        const rotY = Math.floor(random() * 4) * (Math.PI / 2);
+        body.rotation.y = rotY;
+        body.userData.isEntityBlocker = true;
+        
+        if (!env.vendingPanelMat) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 512;
+            const ctx2d = canvas.getContext('2d', {alpha: false});
+            ctx2d.fillStyle = '#ccffff';
+            ctx2d.fillRect(0, 0, 256, 512);
+            ctx2d.fillStyle = '#ff3333';
+            ctx2d.font = 'bold 50px monospace';
+            ctx2d.textAlign = 'center';
+            ctx2d.fillText('SODA', 128, 80);
+            ctx2d.fillStyle = '#1155cc';
+            ctx2d.fillRect(80, 150, 96, 160);
+            ctx2d.fillStyle = '#aaaaaa';
+            ctx2d.beginPath();
+            ctx2d.ellipse(128, 150, 48, 16, 0, 0, Math.PI * 2);
+            ctx2d.fill();
+            ctx2d.beginPath();
+            ctx2d.ellipse(128, 310, 48, 16, 0, 0, Math.PI * 2);
+            ctx2d.fill();
+            ctx2d.fillStyle = '#ffffff';
+            ctx2d.font = 'bold 24px monospace';
+            ctx2d.fillText('COLA', 128, 240);
+            ctx2d.fillStyle = '#111111';
+            ctx2d.fillRect(200, 100, 40, 300); 
+            for(let i=0; i<6; i++) {
+                ctx2d.fillStyle = '#555555';
+                ctx2d.fillRect(208, 120 + i*40, 24, 20); 
+            }
+            ctx2d.fillStyle = '#000000';
+            ctx2d.fillRect(216, 380, 8, 24); 
+            ctx2d.fillStyle = '#0a0a0a';
+            ctx2d.fillRect(20, 400, 216, 80);
+            const tex = new THREE.CanvasTexture(canvas);
+            env.vendingPanelMat = new THREE.MeshStandardMaterial({
+                map: tex,
+                emissiveMap: tex,
+                color: 0xffffff,
+                emissive: 0xcccccc,
+                emissiveIntensity: 1.0,
+                roughness: 0.2
+            });
+        }
+        
+        const panelGeo = env._cacheGeo('vendingPanel', () => new THREE.PlaneGeometry(1.2, 2.0));
+        const panel = new THREE.Mesh(panelGeo, env.vendingPanelMat);
+        panel.position.set(0, 0, 0.51); 
+        body.add(panel);
+        
+        chunkGroup.add(body);
+        addGeometry(body);
+        
+        const lx = cx + Math.sin(rotY) * 0.65;
+        const lz = cz + Math.cos(rotY) * 0.65;
+        
+        if (env.fixtureData) {
+            env.fixtureData.push({
+                chunkHash: hash,
+                position: new THREE.Vector3(lx, 1.5, lz),
+                flickerOffset: random() * 500,
+                material: env.vendingPanelMat,
+                isFaulty: random() > 0.85,
+                baseIntensity: 1.0,
+                targetIntensity: 1.0,
+                currentIntensity: 1.0
+            });
+        }
+    };
     return {
         id: "ATRIUM",
         foundationMat: env.clinicMat || env.matrixVoidMat,
@@ -191,8 +265,8 @@ export const AtriumSector = (env, ctx) => {
             }
             if (maze && maze[localX][localZ]) {
                 buildAisleWallSegment(maze, localX, localZ, x * env.cellSize, z * env.cellSize);
-            } else if (random() > 0.85) {
-                buildHangingLight(x * env.cellSize, z * env.cellSize);
+            } else if (random() > 0.90) {
+                buildVendingMachine(x * env.cellSize, z * env.cellSize);
             }
         }
     };

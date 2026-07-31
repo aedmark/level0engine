@@ -620,6 +620,26 @@
             transition: opacity 0.8s ease-out;
         }
 
+        #loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 25%;
+            transform: translate(-50%, -50%);
+            color: #d4c382;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.5rem;
+            letter-spacing: 0.1em;
+            animation: pulse 1.5s infinite;
+            display: none;
+            text-shadow: 0 0 5px rgba(212, 195, 130, 0.3);
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+
         input[type=text] {
             width: 100%;
             background: #111;
@@ -685,7 +705,9 @@
 <body>
 <div id="screen-wrapper">
     <div id="canvas-container"></div>
-    <div id="flash-overlay"></div>
+    <div id="flash-overlay">
+        <div id="loading-indicator">INITIALIZING SIMULATION...</div>
+    </div>
     <div id="document-overlay">
         <div id="document-content"></div>
         <div class="document-footer">[ PRESS 'E' TO CLOSE ]</div>
@@ -747,7 +769,7 @@
 <div id="ui-layer">
     <button id="menuToggleBtn" class="btn">MENU</button>
     <div class="control-panel">
-        <h1>LEVEL 0 ENGINE v0.5.15</h1>
+        <h1>LEVEL 0 ENGINE v0.6.1</h1>
         <div class="instructions">
             <p align="center">WASD to Move | Shift to Run<br>'E' to Interact | 'C' to Crouch<br>'Q' to Squeeze | 'V' to Blink<br>'F' for
                 Flashlight | '1' Use Battery<br>'2' Use Water | LMB to Look<br>RMB to Lean</p><br>
@@ -795,15 +817,36 @@
             <option value="0.5" >50% (Retro / Performance)</option>
             <option value="0.25">25% (PS1 / Extreme Performance)</option>
         </select>
+        <label>Shadow Quality (Requires Refresh)</label>
+        <select id="shadowSelect">
+            <option value="high" selected>High (1024x1024)</option>
+            <option value="low">Low (512x512)</option>
+            <option value="off">Off (Max Performance)</option>
+        </select>
+        <label>Draw Distance (Chunks)</label>
+        <select id="renderDistSelect">
+            <option value="2">High (5x5 Chunks)</option>
+            <option value="1" selected>Normal (3x3 Chunks)</option>
+            <option value="0">Low (2x2 Chunks, Max Performance)</option>
+        </select>
         <label>Master Volume (%)</label>
         <input type="range" id="volumeSlider" min="0" max="100" value="100">
         <label>Gamma (Exposure)</label>
         <input type="range" id="gammaSlider" min="10" max="300" value="120">
         <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; cursor: pointer;">
+            <input type="checkbox" id="aaToggle" style="width: auto; margin: 0;">
+            Enable Anti-Aliasing (Requires Refresh)
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; cursor: pointer;">
+            <input type="checkbox" id="postToggle" checked style="width: auto; margin: 0;">
+            Enable VHS/CRT Post-Processing (Requires Refresh)
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; cursor: pointer;">
             <input type="checkbox" id="headBobToggle" checked style="width: auto; margin: 0;">
-            Enable Somatic Head Bob
+            Enable Head Bob
         </label>
         <div class="btn-container">
+            <button id="saveApplyBtn" class="btn" style="border-color: #55ff55; color: #55ff55; margin-bottom: 1rem;">SAVE & APPLY SETTINGS</button>
             <button id="generateBtn" class="btn">Rebuild Geometry</button>
             <button id="captureBtn" class="btn">Capture Asset</button>
             <button id="clearSaveBtn" class="btn" style="border-color: #8a3333; color: #ff5555; margin-top: 1rem;">PURGE

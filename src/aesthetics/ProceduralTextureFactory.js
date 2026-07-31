@@ -73,15 +73,15 @@ export default class ProceduralTextureFactory {
             bumpMap: headerTexture,
             bumpScale: 0.01
         });
-        wallCtx.fillStyle = '#4a3d24';
+        wallCtx.fillStyle = '#6d5a35';
         wallCtx.fillRect(0, 480, 512, 32);
-        wallCtx.fillStyle = '#3a2d14';
+        wallCtx.fillStyle = '#5a4724';
         wallCtx.fillRect(0, 476, 512, 4);
         wallCtx.fillStyle = 'rgba(0,0,0,0.15)';
         wallCtx.fillRect(255, 0, 2, 512);
         const wallTexture = this._createWrappedTexture(wallCanvas, 4, 1, true);
         const {canvas: structCanvas, ctx: structCtx} = this._createContext(512, 512);
-        structCtx.fillStyle = '#5c5441';
+        structCtx.fillStyle = '#7e7664';
         structCtx.fillRect(0, 0, 512, 512);
         structCtx.fillStyle = 'rgba(0, 0, 0, 0.15)';
         for (let y = 0; y < 512; y += (Math.random() * 30 + 20)) structCtx.fillRect(0, y, 512, Math.random() * 8 + 2);
@@ -109,7 +109,7 @@ export default class ProceduralTextureFactory {
             bumpScale: 0.02
         });
         const {canvas: woodCanvas, ctx: woodCtx} = this._createContext(256, 512);
-        woodCtx.fillStyle = '#4a3219';
+        woodCtx.fillStyle = '#6f4b26';
         woodCtx.fillRect(0, 0, 256, 512);
         woodCtx.lineWidth = 1.5;
         woodCtx.beginPath();
@@ -179,11 +179,11 @@ export default class ProceduralTextureFactory {
         carpetTexture.magFilter = THREE.LinearFilter;
         carpetTexture.minFilter = THREE.LinearMipmapLinearFilter;
         const {canvas: ceilingCanvas, ctx: ceilCtx} = this._createContext(512, 512);
-        ceilCtx.fillStyle = '#e0dbcf';
+        ceilCtx.fillStyle = '#FFDD00';
         ceilCtx.fillRect(0, 0, 512, 512);
         ceilCtx.fillStyle = 'rgba(0,0,0,0.08)';
         for (let i = 0; i < 2000; i++) ceilCtx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
-        ceilCtx.strokeStyle = '#b5b1a5';
+        ceilCtx.strokeStyle = '#594C00';
         ceilCtx.lineWidth = 4;
         ceilCtx.strokeRect(0, 0, 256, 256);
         ceilCtx.strokeRect(256, 0, 256, 256);
@@ -287,7 +287,7 @@ export default class ProceduralTextureFactory {
         const ceilingStainGeo = new THREE.PlaneGeometry(3, 3);
         ceilingStainGeo.rotateX(Math.PI / 2);
         const {canvas: fabricCanvas, ctx: fCtx} = this._createContext(256, 256);
-        fCtx.fillStyle = '#3a4a58';
+        fCtx.fillStyle = '#5d7285';
         fCtx.fillRect(0, 0, 256, 256);
         fCtx.lineWidth = 1;
         for (let i = 0; i < 256; i += 4) {
@@ -600,7 +600,9 @@ export default class ProceduralTextureFactory {
         });
         const {canvas: glowCanvas, ctx: glowCtx} = this._createContext(256, 256, false);
         const glowGrad = glowCtx.createRadialGradient(128, 128, 0, 128, 128, 128);
-        glowGrad.addColorStop(0, 'rgba(255, 255, 220, 0.035)');
+        glowGrad.addColorStop(0, 'rgba(255, 255, 220, 0.15)');
+        glowGrad.addColorStop(0.15, 'rgba(255, 255, 220, 0.04)');
+        glowGrad.addColorStop(0.4, 'rgba(255, 255, 220, 0.01)');
         glowGrad.addColorStop(1, 'rgba(255, 255, 220, 0)');
         glowCtx.fillStyle = glowGrad;
         glowCtx.fillRect(0, 0, 256, 256);
@@ -612,6 +614,12 @@ export default class ProceduralTextureFactory {
             blending: THREE.AdditiveBlending,
             polygonOffset: true,
             polygonOffsetFactor: -2
+        });
+        const flareMat = new THREE.SpriteMaterial({
+            map: glowTexture,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
         });
         const glowGeo = new THREE.PlaneGeometry(3.8, 3.8);
         glowGeo.rotateX(-Math.PI / 2);
@@ -766,6 +774,7 @@ export default class ProceduralTextureFactory {
             fenceMat,
             hazardMat,
             glowMat,
+            flareMat,
             glowGeo,
             tagMat,
             tagGeo,
@@ -874,19 +883,20 @@ export default class ProceduralTextureFactory {
         doorBackCtx.scale(-1, 1);
         doorBackCtx.drawImage(doorCanvas, 0, 0);
         const doorBackTexture = new THREE.CanvasTexture(doorBackCanvas);
-        const annexDoorMatFront = new THREE.MeshStandardMaterial({map: doorTexture, roughness: 0.45, metalness: 0.65});
+        const annexDoorMatFront = new THREE.MeshStandardMaterial({map: doorTexture, roughness: 0.7, metalness: 0.1});
         const annexDoorMatBack = new THREE.MeshStandardMaterial({
             map: doorBackTexture,
-            roughness: 0.45,
-            metalness: 0.65
+            roughness: 0.7,
+            metalness: 0.1
         });
         const annexDoorMat = [annexEdgeMat, annexEdgeMat, annexEdgeMat, annexEdgeMat, annexDoorMatFront, annexDoorMatBack];
-        const annexFrameMat = new THREE.MeshStandardMaterial({color: 0x53585c, roughness: 0.4, metalness: 0.8});
+        const annexFrameMat = new THREE.MeshStandardMaterial({color: 0x53585c, roughness: 0.7, metalness: 0.2});
         const {canvas: annexWallCanvas, ctx: annexWallCtx} = this._createContext(512, 512);
-        annexWallCtx.fillStyle = '#968c72';
+        annexWallCtx.fillStyle = '#cccccc';
         annexWallCtx.fillRect(0, 0, 512, 512);
-        const padCols = 4, padRows = 3, padMargin = 5;
-        const padW = 512 / padCols, padH = 480 / padRows;
+        const padCols = 4, padRows = 9, padMargin = 2;
+        const trimY = 480;
+        const padW = 512 / padCols, padH = trimY / padRows;
         for (let r = 0; r < padRows; r++) {
             for (let c = 0; c < padCols; c++) {
                 const x0 = c * padW + padMargin, y0 = r * padH + padMargin;
@@ -896,13 +906,13 @@ export default class ProceduralTextureFactory {
                 const steps = 16;
                 for (let i = steps; i >= 0; i--) {
                     const t = i / steps;
-                    const shade = -26 * t;
-                    annexWallCtx.fillStyle = `rgb(${182 + shade}, ${171 + shade}, ${146 + shade})`;
+                    const shade = -40 * t;
+                    annexWallCtx.fillStyle = `rgb(${240 + shade}, ${240 + shade}, ${240 + shade})`;
                     annexWallCtx.beginPath();
                     annexWallCtx.ellipse(pcx, pcy, maxRx * t, maxRy * t, 0, 0, Math.PI * 2);
                     annexWallCtx.fill();
                 }
-                annexWallCtx.strokeStyle = 'rgba(90, 80, 58, 0.55)';
+                annexWallCtx.strokeStyle = 'rgba(150, 150, 150, 0.55)';
                 annexWallCtx.lineWidth = 1;
                 [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([dx, dy]) => {
                     annexWallCtx.beginPath();
@@ -910,7 +920,7 @@ export default class ProceduralTextureFactory {
                     annexWallCtx.lineTo(pcx + dx * maxRx * 0.92, pcy + dy * maxRy * 0.92);
                     annexWallCtx.stroke();
                 });
-                annexWallCtx.strokeStyle = 'rgba(70, 62, 46, 0.6)';
+                annexWallCtx.strokeStyle = 'rgba(120, 120, 120, 0.6)';
                 annexWallCtx.lineWidth = 2;
                 annexWallCtx.strokeRect(x0, y0, x1 - x0, y1 - y0);
             }
@@ -918,23 +928,23 @@ export default class ProceduralTextureFactory {
         for (let r = 0; r <= padRows; r++) {
             for (let c = 0; c <= padCols; c++) {
                 const x = c * padW, y = r * padH;
-                annexWallCtx.fillStyle = '#4e4632';
+                annexWallCtx.fillStyle = '#666666';
                 annexWallCtx.beginPath();
                 annexWallCtx.arc(x, y, 5, 0, Math.PI * 2);
                 annexWallCtx.fill();
-                annexWallCtx.fillStyle = 'rgba(200, 188, 160, 0.55)';
+                annexWallCtx.fillStyle = 'rgba(255, 255, 255, 0.8)';
                 annexWallCtx.beginPath();
                 annexWallCtx.arc(x - 1.5, y - 2, 2.2, 0, Math.PI * 2);
                 annexWallCtx.fill();
             }
         }
-        annexWallCtx.globalAlpha = 0.22;
+        annexWallCtx.globalAlpha = 0.1;
         annexWallCtx.drawImage(masterNoise, 0, 0);
         annexWallCtx.globalAlpha = 1.0;
-        annexWallCtx.fillStyle = '#443f30';
-        annexWallCtx.fillRect(0, 480, 512, 32);
-        annexWallCtx.fillStyle = '#302c20';
-        annexWallCtx.fillRect(0, 476, 512, 4);
+        annexWallCtx.fillStyle = '#222222';
+        annexWallCtx.fillRect(0, trimY, 512, 512 - trimY);
+        annexWallCtx.fillStyle = '#111111';
+        annexWallCtx.fillRect(0, trimY - 4, 512, 4);
         const annexWallTexture = new THREE.CanvasTexture(annexWallCanvas);
         annexWallTexture.wrapS = THREE.RepeatWrapping;
         annexWallTexture.wrapT = THREE.ClampToEdgeWrapping;
@@ -942,14 +952,68 @@ export default class ProceduralTextureFactory {
         const annexWallMat = new THREE.MeshStandardMaterial({
             map: annexWallTexture,
             color: 0xffffff,
-            roughness: 0.88,
-            metalness: 0.0,
+            roughness: 0.7,
+            metalness: 0.02,
             bumpMap: annexWallTexture,
-            bumpScale: 0.02
+            bumpScale: 0.04
         });
-        const {canvas: annexFloorCanvas, ctx: annexFloorCtx} = this._createContext(256, 256);
-        annexFloorCtx.fillStyle = '#c9c2ac';
-        annexFloorCtx.fillRect(0, 0, 256, 256);
+        const {canvas: annexFloorCanvas, ctx: annexFloorCtx} = this._createContext(512, 512);
+        annexFloorCtx.fillStyle = '#cccccc';
+        annexFloorCtx.fillRect(0, 0, 512, 512);
+        const fPadCols = 4, fPadRows = 4, fPadMargin = 2;
+        const fPadW = 512 / fPadCols, fPadH = 512 / fPadRows;
+        for (let r = 0; r < fPadRows; r++) {
+            for (let c = 0; c < fPadCols; c++) {
+                const x0 = c * fPadW + fPadMargin, y0 = r * fPadH + fPadMargin;
+                const x1 = (c + 1) * fPadW - fPadMargin, y1 = (r + 1) * fPadH - fPadMargin;
+                const pcx = (x0 + x1) / 2, pcy = (y0 + y1) / 2;
+                const maxRx = (x1 - x0) / 2, maxRy = (y1 - y0) / 2;
+                const steps = 16;
+                for (let i = steps; i >= 0; i--) {
+                    const t = i / steps;
+                    const shade = -40 * t;
+                    annexFloorCtx.fillStyle = `rgb(${240 + shade}, ${240 + shade}, ${240 + shade})`;
+                    annexFloorCtx.beginPath();
+                    annexFloorCtx.ellipse(pcx, pcy, maxRx * t, maxRy * t, 0, 0, Math.PI * 2);
+                    annexFloorCtx.fill();
+                }
+                annexFloorCtx.strokeStyle = 'rgba(150, 150, 150, 0.55)';
+                annexFloorCtx.lineWidth = 1;
+                [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([dx, dy]) => {
+                    annexFloorCtx.beginPath();
+                    annexFloorCtx.moveTo(pcx, pcy);
+                    annexFloorCtx.lineTo(pcx + dx * maxRx * 0.92, pcy + dy * maxRy * 0.92);
+                    annexFloorCtx.stroke();
+                });
+                annexFloorCtx.strokeStyle = 'rgba(120, 120, 120, 0.6)';
+                annexFloorCtx.lineWidth = 2;
+                annexFloorCtx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+            }
+        }
+        for (let r = 0; r <= fPadRows; r++) {
+            for (let c = 0; c <= fPadCols; c++) {
+                const x = c * fPadW, y = r * fPadH;
+                annexFloorCtx.fillStyle = '#666666';
+                annexFloorCtx.beginPath();
+                annexFloorCtx.arc(x, y, 5, 0, Math.PI * 2);
+                annexFloorCtx.fill();
+                annexFloorCtx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                annexFloorCtx.beginPath();
+                annexFloorCtx.arc(x - 1.5, y - 2, 2.2, 0, Math.PI * 2);
+                annexFloorCtx.fill();
+            }
+        }
+        annexFloorCtx.globalAlpha = 0.1;
+        annexFloorCtx.drawImage(masterNoise, 0, 0, 512, 512);
+        annexFloorCtx.globalAlpha = 1.0;
+        const annexFloorTexture = this._createWrappedTexture(annexFloorCanvas, 56, 56);
+        const annexFloorMat = new THREE.MeshStandardMaterial({
+            map: annexFloorTexture,
+            roughness: 0.7,
+            metalness: 0.02,
+            bumpMap: annexFloorTexture,
+            bumpScale: 0.03
+        });
         const drawSpiral = (ctx, startTheta, maxTheta, coilPx, width, style) => {
             ctx.strokeStyle = style;
             ctx.lineWidth = width;
@@ -968,51 +1032,12 @@ export default class ProceduralTextureFactory {
             }
             ctx.stroke();
         };
-        drawSpiral(annexFloorCtx, 0, 4 * Math.PI, 15.5, 5, '#78694e');
-        drawSpiral(annexFloorCtx, 0.35, 4 * Math.PI, 15.5, 2, '#968867');
-        annexFloorCtx.strokeStyle = '#96907a';
-        annexFloorCtx.lineWidth = 2;
-        annexFloorCtx.strokeRect(0, 0, 256, 256);
-        annexFloorCtx.globalAlpha = 0.15;
-        annexFloorCtx.drawImage(masterNoise, 0, 0, 256, 256);
-        annexFloorCtx.globalAlpha = 1.0;
-        const annexFloorTexture = this._createWrappedTexture(annexFloorCanvas, 14, 14);
-        const annexFloorMat = new THREE.MeshStandardMaterial({
-            map: annexFloorTexture,
-            roughness: 0.7,
-            metalness: 0.05,
-            bumpMap: annexFloorTexture,
-            bumpScale: 0.01
-        });
-        const {canvas: annexCeilCanvas, ctx: annexCeilCtx} = this._createContext(256, 256);
-        annexCeilCtx.fillStyle = '#dcdcd6';
-        annexCeilCtx.fillRect(0, 0, 256, 256);
-        annexCeilCtx.fillStyle = '#ffffff';
-        annexCeilCtx.fillRect(6, 6, 244, 244);
-        annexCeilCtx.strokeStyle = '#c4c4bd';
-        annexCeilCtx.lineWidth = 6;
-        annexCeilCtx.strokeRect(0, 0, 256, 256);
-        annexCeilCtx.strokeStyle = 'rgba(215, 215, 208, 0.8)';
-        annexCeilCtx.lineWidth = 1;
-        for (let x = 6; x < 250; x += 20) {
-            annexCeilCtx.beginPath();
-            annexCeilCtx.moveTo(x, 6);
-            annexCeilCtx.lineTo(x, 250);
-            annexCeilCtx.stroke();
-        }
-        drawSpiral(annexCeilCtx, 0, 4 * Math.PI, 15.5, 5, '#000000');
-        drawSpiral(annexCeilCtx, 0.35, 4 * Math.PI, 15.5, 2, '#1a1a1a');
-        annexCeilCtx.globalAlpha = 0.05;
-        annexCeilCtx.drawImage(masterNoise, 0, 0, 256, 256);
-        annexCeilCtx.globalAlpha = 1.0;
-        const annexCeilTexture = this._createWrappedTexture(annexCeilCanvas, 14, 14);
         const annexCeilingMat = new THREE.MeshStandardMaterial({
-            map: annexCeilTexture,
-            color: 0xffffff,
-            emissive: 0xffffff,
-            emissiveIntensity: 0.9,
-            roughness: 0.4,
-            metalness: 0.0
+            map: annexFloorTexture,
+            roughness: 1.0,
+            metalness: 0.0,
+            bumpMap: annexFloorTexture,
+            bumpScale: 0.03
         });
         return {annexDoorMat, annexFrameMat, annexWallMat, annexFloorMat, annexCeilingMat};
     }
@@ -1270,7 +1295,7 @@ export default class ProceduralTextureFactory {
 
     static _buildArchiveAssets(masterNoise) {
         const {canvas: wallCanvas, ctx: wallCtx} = this._createContext(512, 512);
-        wallCtx.fillStyle = '#2c4830';
+        wallCtx.fillStyle = '#546e58';
         wallCtx.fillRect(0, 0, 512, 384);
         wallCtx.lineWidth = 1;
         for (let i = 0; i < 512; i += 16) {
@@ -1280,26 +1305,26 @@ export default class ProceduralTextureFactory {
             wallCtx.lineTo(i, 384);
             wallCtx.stroke();
         }
-        wallCtx.fillStyle = '#3a2012';
+        wallCtx.fillStyle = '#6a4a34';
         wallCtx.fillRect(0, 384, 512, 128);
         for (let i = 0; i < 512; i += 4) {
             if (i % 64 === 0) {
-                wallCtx.fillStyle = '#1e0f06';
+                wallCtx.fillStyle = '#483020';
                 wallCtx.fillRect(i, 384, 4, 128);
-                wallCtx.fillStyle = '#4a2d1a';
+                wallCtx.fillStyle = '#74523c';
                 wallCtx.fillRect(i + 4, 384, 2, 128);
             } else if (Math.random() > 0.3) {
                 wallCtx.fillStyle = 'rgba(0, 0, 0, 0.15)';
                 wallCtx.fillRect(i, 384, 1 + Math.random(), 128);
             }
         }
-        wallCtx.fillStyle = '#1e0f06';
+        wallCtx.fillStyle = '#483020';
         wallCtx.fillRect(0, 380, 512, 4);
-        wallCtx.fillStyle = '#4a2d1a';
+        wallCtx.fillStyle = '#74523c';
         wallCtx.fillRect(0, 376, 512, 4);
-        wallCtx.fillStyle = '#221109';
+        wallCtx.fillStyle = '#4c3424';
         wallCtx.fillRect(0, 480, 512, 32);
-        wallCtx.fillStyle = '#110804';
+        wallCtx.fillStyle = '#382618';
         wallCtx.fillRect(0, 476, 512, 4);
         wallCtx.globalAlpha = 0.4;
         wallCtx.drawImage(masterNoise, 0, 0);
@@ -1395,7 +1420,7 @@ export default class ProceduralTextureFactory {
         for (let i = 0; i < 64; i += 2) pageCtx.fillRect(0, i, 64, 0.5);
         const pageTex = new THREE.CanvasTexture(pageCanvas);
         const pageMat = new THREE.MeshStandardMaterial({map: pageTex, roughness: 0.9});
-        const coverColors = ['#4a1a1a', '#1a2a4a', '#1a4a2a', '#4a3a1a', '#2a2a2a'];
+        const coverColors = ['#753434', '#344a75', '#34754a', '#756034', '#555555'];
         const bookMatSets = coverColors.map(color => {
             const {canvas: covCanvas, ctx: covCtx} = this._createContext(64, 64);
             covCtx.fillStyle = color;
@@ -1956,6 +1981,38 @@ export default class ProceduralTextureFactory {
         };
     }
 
+    static generatePegboardTexture() {
+        const {canvas, ctx} = this._createContext(512, 512);
+        
+        // Base wood color (MDF/particle board look)
+        ctx.fillStyle = '#b8a26a';
+        ctx.fillRect(0, 0, 512, 512);
+        
+        // Subtle noise for wood grain
+        ctx.fillStyle = '#000000';
+        for (let i = 0; i < 50000; i++) {
+            ctx.globalAlpha = Math.random() * 0.03;
+            ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+        }
+        
+        // Peg holes grid
+        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = '#111111';
+        
+        const spacing = 32; // 16 holes across (512 / 32)
+        const radius = 2.5; // Roughly 1/4" scale relative to the board
+        
+        for (let y = 0; y < 512; y += spacing) {
+            for (let x = 0; x < 512; x += spacing) {
+                ctx.beginPath();
+                ctx.arc(x + spacing/2, y + spacing/2, radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        return this._createWrappedTexture(canvas, 1, 1);
+    }
+
     /**
      * Yields a single tick back to the browser's event loop. Used to break up the long chain
      * of synchronous canvas drawing in `generateAssets` so a slow boot doesn't present as one
@@ -1969,6 +2026,9 @@ export default class ProceduralTextureFactory {
 
     static async generateAssets() {
         const masterNoise = this._generateMasterNoise();
+        const extras = {
+            pegboardTex: this.generatePegboardTexture(),
+        };
         const structAssets = this._buildStructuralAssets(masterNoise);
         await this._yield();
         const surfaceAssets = this._buildSurfaceAssets(masterNoise);
@@ -1995,6 +2055,7 @@ export default class ProceduralTextureFactory {
         await this._yield();
         const extendedAssets = this._buildExtendedAssets(masterNoise);
         const assets = {
+            ...extras,
             ...structAssets,
             ...surfaceAssets,
             ...organicAssets,
@@ -2009,18 +2070,28 @@ export default class ProceduralTextureFactory {
             ...checkpointAssets,
             ...extendedAssets
         };
+        // `colorSpace`/`THREE.SRGBColorSpace` don't exist on this build (three.js r128); feature-
+        // detect per-texture and fall back to the older `encoding`/`sRGBEncoding` API so this
+        // keeps working unchanged if the renderer is ever upgraded to a build that has the new one.
+        const markSRGB = (texture) => {
+            if ('colorSpace' in texture) {
+                texture.colorSpace = THREE.SRGBColorSpace;
+            } else {
+                texture.encoding = THREE.sRGBEncoding;
+            }
+        };
         const applyOpt = (item) => {
             if (item && item.isTexture) {
                 item.anisotropy = 16;
-                item.colorSpace = THREE.SRGBColorSpace;
+                markSRGB(item);
             }
             if (item && item.map && item.map.isTexture) {
                 item.map.anisotropy = 16;
-                item.map.colorSpace = THREE.SRGBColorSpace;
+                markSRGB(item.map);
             }
             if (item && item.emissiveMap && item.emissiveMap.isTexture) {
                 item.emissiveMap.anisotropy = 16;
-                item.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+                markSRGB(item.emissiveMap);
             }
         };
         Object.values(assets).forEach(item => {

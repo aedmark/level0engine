@@ -3,11 +3,12 @@ import EntityManager from '../entities/EntityManager.js';
 import SpatialHashGrid from '../math/SpatialHashGrid.js';
 import TheArchitect from './TheArchitect.js';
 import LumenGrid from '../aesthetics/LumenGrid.js';
-import SECTORS from '../world/Sectors.js';
+import SECTORS, {DEFAULT_DUST, DEFAULT_EXHAUST} from '../world/Sectors.js';
 import MaterialLibrary from '../aesthetics/MaterialLibrary.js';
 import StructureKit from '../world/StructureKit.js';
 import SetPieces from '../world/SetPieces.js';
 import InteractionController from '../player/InteractionController.js';
+import RenderEngine from './RenderEngine.js';
 
 /**
  * The god-class memory manager and procedural generation orchestrator.
@@ -45,9 +46,9 @@ export default class Environment {
         this.spatialGrid = new SpatialHashGrid(4);
         this.wallBoxes = [];
         this.chunkSize = 16;
-        this.renderDistance = 1;
+        this.renderDistance = RenderEngine.getSavedRenderDistance();
         this.activeChunks = new Map();
-        this.currentChunkCoords = {x: null, z: null};
+        this.currentChunkCoords = {x: null, z: null, qx: null, qz: null};
         this.interactiveDoors = [];
         this.airlocks = [];
         this.localFixtures = [];
@@ -58,6 +59,10 @@ export default class Environment {
         this.isBuildingChunk = false;
         this.isSpawning = false;
         this._lightSortCache = (a, b) => a.distSq - b.distSq;
+        // Scratch colors reused by the per-frame particle blend. Declared here, alongside the
+        // rest of the object's state, rather than lazily inside the render loop.
+        this._dustColor = new THREE.Color();
+        this._exhaustColor = new THREE.Color();
         this.blackoutChunks = new Set();
         this.macroZones = new Map();
         this.pointsOfInterest = [];
@@ -78,6 +83,8 @@ export default class Environment {
             bootFlash.style.transition = 'none';
             bootFlash.style.backgroundColor = '#000';
             bootFlash.style.opacity = '1';
+            const loadingInd = document.getElementById('loading-indicator');
+            if (loadingInd) loadingInd.style.display = 'block';
         }
         await new Promise(resolve => setTimeout(resolve, 0));
         const assets = await ProceduralTextureFactory.generateAssets();
@@ -116,15 +123,15 @@ export default class Environment {
             this.metalMat.bumpScale = 0.03;
         }
         const particleCanvas = document.createElement('canvas');
-        particleCanvas.width = 32;
-        particleCanvas.height = 32;
+        particleCanvas.width = 64;
+        particleCanvas.height = 64;
         const particleCtx = particleCanvas.getContext('2d');
-        const gradient = particleCtx.createRadialGradient(16, 16, 0, 16, 16, 16);
-        gradient.addColorStop(0, 'rgba(255,255,255,1)');
-        gradient.addColorStop(0.4, 'rgba(255,255,255,0.5)');
+        const gradient = particleCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
+        gradient.addColorStop(0, 'rgba(255,255,255,0.15)');
+        gradient.addColorStop(0.5, 'rgba(255,255,255,0.05)');
         gradient.addColorStop(1, 'rgba(255,255,255,0)');
         particleCtx.fillStyle = gradient;
-        particleCtx.fillRect(0, 0, 32, 32);
+        particleCtx.fillRect(0, 0, 64, 64);
         const particleTex = new THREE.CanvasTexture(particleCanvas);
         const dustGeo = new THREE.BufferGeometry();
         const dustCount = 2500;
@@ -135,12 +142,12 @@ export default class Environment {
         dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
         const dustMat = new THREE.PointsMaterial({
             color: 0xffffff,
-            size: 0.05,
+            size: 0.4,
             map: particleTex,
             transparent: true,
-            opacity: 0.10,
+            opacity: 0.25,
             depthWrite: false,
-            alphaTest: 0.01
+            alphaTest: 0.001
         });
         this.dustCloud = new THREE.Points(dustGeo, dustMat);
         this.scene.add(this.dustCloud);
@@ -176,12 +183,13 @@ export default class Environment {
         }
         this.scene.add(this.tagGroup);
         this.scene.add(this.camera);
+        const shadowQuality = RenderEngine.getSavedShadowQuality();
         this.flashlight = new THREE.SpotLight(0xffe8b3, 0.0, 45.0, Math.PI / 7, 0.5, 2.0);
         this.flashlight.position.set(0.3, -0.3, 0);
         this.flashlight.target.position.set(0.3, -0.3, -1);
-        this.flashlight.castShadow = true;
-        this.flashlight.shadow.mapSize.width = 512;
-        this.flashlight.shadow.mapSize.height = 512;
+        this.flashlight.castShadow = shadowQuality !== 'off';
+        this.flashlight.shadow.mapSize.width = shadowQuality === 'low' ? 256 : 512;
+        this.flashlight.shadow.mapSize.height = shadowQuality === 'low' ? 256 : 512;
         this.flashlight.shadow.camera.near = 0.1;
         this.flashlight.shadow.camera.far = 45;
         this.flashlight.shadow.bias = -0.002;
@@ -193,7 +201,8 @@ export default class Environment {
         const toggleMenu = (e) => {
             e.preventDefault();
             const panel = document.querySelector('.control-panel');
-            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            const isHidden = window.getComputedStyle(panel).display === 'none';
+            panel.style.display = isHidden ? 'block' : 'none';
         };
         toggleBtn.addEventListener('pointerdown', toggleMenu);
         document.addEventListener('keydown', (e) => {
@@ -491,24 +500,59 @@ export default class Environment {
      */
     updateChunks(playerPos) {
         const activeCellSize = this.cellSize || 4;
-        const chunkX = Math.floor(playerPos.x / (this.chunkSize * activeCellSize));
-        const chunkZ = Math.floor(playerPos.z / (this.chunkSize * activeCellSize));
-        if (this.currentChunkCoords.x === chunkX && this.currentChunkCoords.z === chunkZ) return;
+        const chunkW = this.chunkSize * activeCellSize;
+        const chunkX = Math.floor(playerPos.x / chunkW);
+        const chunkZ = Math.floor(playerPos.z / chunkW);
+        
+        let quadX = 0;
+        let quadZ = 0;
+        if (this.renderDistance === 0) {
+            const localX = playerPos.x - (chunkX * chunkW);
+            const localZ = playerPos.z - (chunkZ * chunkW);
+            quadX = localX > chunkW / 2 ? 1 : -1;
+            quadZ = localZ > chunkW / 2 ? 1 : -1;
+        }
+
+        if (this.currentChunkCoords.x === chunkX && 
+            this.currentChunkCoords.z === chunkZ &&
+            this.currentChunkCoords.qx === quadX &&
+            this.currentChunkCoords.qz === quadZ) return;
+            
         this.currentChunkCoords.x = chunkX;
         this.currentChunkCoords.z = chunkZ;
+        this.currentChunkCoords.qx = quadX;
+        this.currentChunkCoords.qz = quadZ;
+        
         const chunksToKeep = new Set();
-        for (let x = -this.renderDistance; x <= this.renderDistance; x++) {
-            for (let z = -this.renderDistance; z <= this.renderDistance; z++) {
-                const targetX = chunkX + x;
-                const targetZ = chunkZ + z;
-                const hash = `${targetX},${targetZ}`;
-                chunksToKeep.add(hash);
-                if (!this.activeChunks.has(hash) && !this.queuedHashes.has(hash)) {
-                    this.chunkQueue.push({x: targetX, z: targetZ, hash: hash});
-                    this.queuedHashes.add(hash);
+        
+        if (this.renderDistance === 0) {
+            for (let i = 0; i < 2; i++) {
+                for (let j = 0; j < 2; j++) {
+                    const targetX = chunkX + (i === 1 ? quadX : 0);
+                    const targetZ = chunkZ + (j === 1 ? quadZ : 0);
+                    const hash = `${targetX},${targetZ}`;
+                    chunksToKeep.add(hash);
+                    if (!this.activeChunks.has(hash) && !this.queuedHashes.has(hash)) {
+                        this.chunkQueue.push({x: targetX, z: targetZ, hash: hash});
+                        this.queuedHashes.add(hash);
+                    }
+                }
+            }
+        } else {
+            for (let x = -this.renderDistance; x <= this.renderDistance; x++) {
+                for (let z = -this.renderDistance; z <= this.renderDistance; z++) {
+                    const targetX = chunkX + x;
+                    const targetZ = chunkZ + z;
+                    const hash = `${targetX},${targetZ}`;
+                    chunksToKeep.add(hash);
+                    if (!this.activeChunks.has(hash) && !this.queuedHashes.has(hash)) {
+                        this.chunkQueue.push({x: targetX, z: targetZ, hash: hash});
+                        this.queuedHashes.add(hash);
+                    }
                 }
             }
         }
+        this.chunksToKeep = chunksToKeep;
         this.processChunkQueue().catch(err => console.error('Chunk queue processing failed:', err));
         const deadHashes = new Set();
         const chunksToDispose = [];
@@ -581,9 +625,7 @@ export default class Environment {
             while (this.chunkQueue.length > 0) {
                 const chunk = this.chunkQueue.shift();
                 this.queuedHashes.delete(chunk.hash);
-                const currentX = this.currentChunkCoords.x;
-                const currentZ = this.currentChunkCoords.z;
-                if (Math.abs(chunk.x - currentX) <= this.renderDistance && Math.abs(chunk.z - currentZ) <= this.renderDistance) {
+                if (this.chunksToKeep && this.chunksToKeep.has(chunk.hash)) {
                     const genT0 = performance.now();
                     await this.buildChunk(chunk.x, chunk.z, chunk.hash);
                     const genMs = performance.now() - genT0;
@@ -600,12 +642,56 @@ export default class Environment {
         }
         if (this.isSpawning) {
             this.isSpawning = false;
+            
+            if (this.needsSafeSpawn) {
+                this.needsSafeSpawn = false;
+                const chunkW = 64;
+                const cX = Math.floor(this.camera.position.x / chunkW);
+                const cZ = Math.floor(this.camera.position.z / chunkW);
+                const baseX = cX * chunkW;
+                const baseZ = cZ * chunkW;
+                
+                const testPoints = [{ x: this.camera.position.x, z: this.camera.position.z }];
+                for (let r = 1; r <= 6; r++) {
+                    for (let x = -r; x <= r; x++) {
+                        for (let z = -r; z <= r; z++) {
+                            if (Math.abs(x) === r || Math.abs(z) === r) {
+                                testPoints.push({ x: baseX + 32 + x * 4 + 2, z: baseZ + 32 + z * 4 + 2 });
+                            }
+                        }
+                    }
+                }
+                
+                for (const pt of testPoints) {
+                    const radius = 0.5;
+                    const nearby = this.spatialGrid.getNearby(pt.x, pt.z, radius);
+                    let overlap = false;
+                    for (let i = 0; i < nearby.length; i++) {
+                        const box = nearby[i];
+                        if (box.max.x > pt.x - radius && box.min.x < pt.x + radius &&
+                            box.max.y > 0.1 && box.min.y < 1.8 &&
+                            box.max.z > pt.z - radius && box.min.z < pt.z + radius) {
+                            overlap = true;
+                            break;
+                        }
+                    }
+                    if (!overlap) {
+                        this.camera.position.set(pt.x, 1.6, pt.z);
+                        break;
+                    }
+                }
+            }
+
             const flash = document.getElementById('flash-overlay');
             if (flash) {
                 flash.style.transition = 'opacity 2.0s ease-in';
                 flash.style.opacity = '0';
                 setTimeout(() => {
-                    if (flash.style.opacity === '0') flash.style.backgroundColor = '#fff';
+                    if (flash.style.opacity === '0') {
+                        flash.style.backgroundColor = '#fff';
+                        const loadingInd = document.getElementById('loading-indicator');
+                        if (loadingInd) loadingInd.style.display = 'none';
+                    }
                 }, 2050);
             }
         }
@@ -779,7 +865,7 @@ export default class Environment {
             const ceil = new THREE.Mesh(ceilGeo, this.ceilMat);
             ceil.rotation.x = Math.PI / 2;
             ceil.position.set(startX * this.cellSize + centerOffset, cHeight, startZ * this.cellSize + centerOffset);
-            ceil.castShadow = true;
+            ceil.castShadow = false;
             ceil.receiveShadow = true;
             chunkGroup.add(ceil);
         } else {
@@ -994,13 +1080,6 @@ export default class Environment {
                                 currentIntensity: isTracked ? 0.6 : 0.0,
                                 isFake: !isTracked
                             });
-                            if (!isTracked) {
-                                const glow = new THREE.Mesh(this.glowGeo, this.glowMat);
-                                glow.position.set(posX, 0.03, posZ);
-                                glow.userData.chunkHash = hash;
-                                glow.updateMatrixWorld(true);
-                                stagingMeshes.push(glow);
-                            }
                         }
                     } else if (!hasTallObstacle && random() > 0.95 && chunkBreakerCount < 3 && !isArtery) {
                         const px = x * this.cellSize;
@@ -1055,24 +1134,6 @@ export default class Environment {
         }
         await this._compileInstances(hash, chunkGroup, stagingMeshes, random);
         if (this.activeChunks.has(hash)) {
-            // `_compileInstances` just built fresh THREE.InstancedMesh objects for most of this
-            // chunk's repeated geometry -- each one needs its own shader variant distinct from a
-            // plain Mesh using the same material, so this is very often asking the driver to
-            // compile brand-new programs, not hitting a warm cache. `renderer.compile()` is a
-            // synchronous, main-thread-blocking call in older three.js builds: everything else in
-            // chunk generation yields on a 5ms wall-clock budget, but this one call doesn't,
-            // which is exactly what turns "compiling a shader" into a felt stutter -- worst at
-            // boot (a whole batch of first-ever materials at once) and any time a chunk introduces
-            // a material/instancing combo this session hasn't rendered yet. `compileAsync` (where
-            // the engine's three.js build supports it) lets the driver compile off the main
-            // thread instead of blocking it; fall back to the old synchronous call otherwise so
-            // behavior is unchanged on a build that doesn't have it.
-            if (typeof this.engine.renderer.compileAsync === 'function') {
-                await this.engine.renderer.compileAsync(chunkGroup, this.camera);
-                if (!this.activeChunks.has(hash)) return;
-            } else {
-                this.engine.renderer.compile(chunkGroup, this.camera);
-            }
             chunkGroup.userData.contentReady = true;
         }
     }
@@ -1124,7 +1185,7 @@ export default class Environment {
      */
     _resolveActiveSector(cameraPos) {
         let activeSector = "NORMAL";
-        let targetFog = 0.05;
+        let targetFog = this._sectorFog("NORMAL");
         for (const zone of this.macroZones.values()) {
             if (cameraPos.x > zone.minX && cameraPos.x < zone.maxX &&
                 cameraPos.z > zone.minZ && cameraPos.z < zone.maxZ) {
@@ -1222,7 +1283,10 @@ export default class Environment {
         this.player.darknessPressure = darknessPressure;
         const minLightDist = nearestFixture ? Math.sqrt(minLightDistSq) : Infinity;
         if (this.currentGlare === undefined) this.currentGlare = 0.0;
+        if (this.currentGlareColor === undefined) this.currentGlareColor = new THREE.Color(1, 1, 1);
+        if (!this.engine.glareColor) this.engine.glareColor = new THREE.Color(1, 1, 1);
         let glareTarget = 0.0;
+        let targetGlareColor = this.currentGlareColor;
         if (nearestFixture && minLightDist > 1.0) {
             if (!this._camDir) this._camDir = new THREE.Vector3();
             this.camera.getWorldDirection(this._camDir);
@@ -1250,12 +1314,41 @@ export default class Environment {
                     const angleFactor = (dot - 0.95) * 20.0;
                     const directionalFactor = (nearestFixture.targetPos || nearestFixture.isArchiveLight)
                         ? Math.max(0, (beamAlign - 0.3) * 1.42) : 1.0;
-                    glareTarget = intensity * distFactor * angleFactor * directionalFactor * 0.2;
+                    let targetVal = intensity * distFactor * angleFactor * directionalFactor * 0.2;
+                    
+                    if (targetVal > 0.0) {
+                        if (!this._glareRaycaster) this._glareRaycaster = new THREE.Raycaster();
+                        this._glareRaycaster.set(cameraPos, this._glareDir);
+                        const localBoxes = this.spatialGrid.getNearby(cameraPos.x, cameraPos.z, minLightDist);
+                        const ray = this._glareRaycaster.ray;
+                        const distSqLimit = minLightDistSq;
+                        let isHit = false;
+                        if (!this._glareHitTarget) this._glareHitTarget = new THREE.Vector3();
+                        for (let i = 0; i < localBoxes.length; i++) {
+                            if (localBoxes[i].isInvisibleBlocker) continue;
+                            if (ray.intersectBox(localBoxes[i], this._glareHitTarget)) {
+                                if (cameraPos.distanceToSquared(this._glareHitTarget) < distSqLimit) {
+                                    isHit = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (isHit) {
+                            targetVal = 0.0;
+                        } else {
+                            if (nearestFixture.material && nearestFixture.material.emissive) {
+                                targetGlareColor = nearestFixture.material.emissive;
+                            }
+                        }
+                    }
+                    glareTarget = targetVal;
                 }
             }
         }
         this.currentGlare += (glareTarget - this.currentGlare) * 0.1;
+        this.currentGlareColor.lerp(targetGlareColor, 0.1);
         this.engine.glare = this.currentGlare;
+        this.engine.glareColor.copy(this.currentGlareColor);
         if (nearestFixture && minLightDist > 1.0) {
             if (time - this.lastAudioOcclusionTime > 0.1) {
                 this.audioDirection.subVectors(nearestFixture.position, cameraPos).normalize();
@@ -1308,57 +1401,48 @@ export default class Environment {
         this.scene.fog.color.lerp(finalTargetColor, colorRate);
         this.scene.background.lerp(finalTargetColor, colorRate);
         if (this.dustCloud) {
+            const dust = (SECTORS[activeSector] && SECTORS[activeSector].dust) || DEFAULT_DUST;
             this.dustCloud.position.copy(cameraPos);
-            const inArchive = activeSector === "ARCHIVE";
-            const inImpound = activeSector === "IMPOUND";
-            const inAnnex = activeSector === "ANNEX";
-            const inServer = activeSector === "SERVER";
-            const inChasm = activeSector === "CHASM";
             this.dustCloud.rotation.y = time * 0.025;
             const positions = this.dustCloud.geometry.attributes.position.array;
-            const fallSpeed = inImpound ? 0.04 : (inAnnex ? -0.01 : (inChasm ? -0.02 : 0.0025));
-            for (let i = 0; i < positions.length; i += 3) {
-                if (inServer) {
+            // The drift mode is a per-sector constant, so it is branched once here rather than
+            // once per particle. Both loops wrap coordinates through the same 30-unit cube.
+            if (dust.drift === 'drift') {
+                for (let i = 0; i < positions.length; i += 3) {
                     positions[i] += 0.18;
                     if (positions[i] > 15.0) positions[i] -= 30.0;
                     positions[i + 2] += 0.05;
                     if (positions[i + 2] > 15.0) positions[i + 2] -= 30.0;
-                } else {
+                }
+            } else {
+                const fallSpeed = dust.fallSpeed;
+                for (let i = 0; i < positions.length; i += 3) {
                     positions[i + 1] -= fallSpeed;
                     if (positions[i + 1] < -15.0) positions[i + 1] += 30.0;
                     else if (positions[i + 1] > 15.0) positions[i + 1] -= 30.0;
                 }
             }
             this.dustCloud.geometry.attributes.position.needsUpdate = true;
-            const baseOpacity = inImpound ? 0.6 : (inArchive ? 0.30 : (inAnnex ? 0.45 : (inServer ? 0.35 : (inChasm ? 0.65 : 0.10))));
-            const crawlOpacity = inImpound ? 0.7 : (inArchive ? 0.45 : (inAnnex ? 0.55 : (inServer ? 0.45 : (inChasm ? 0.75 : 0.35))));
-            const targetDustOpacity = this.player.isCrawling ? crawlOpacity : baseOpacity;
-            const baseSize = inImpound ? 0.18 : (inArchive ? 0.07 : (inAnnex ? 0.45 : (inServer ? 0.12 : (inChasm ? 0.35 : 0.05))));
-            const crawlSize = inImpound ? 0.22 : (inArchive ? 0.09 : (inAnnex ? 0.50 : (inServer ? 0.16 : (inChasm ? 0.45 : 0.08))));
-            const targetDustSize = this.player.isCrawling ? crawlSize : baseSize;
+            const isCrawling = this.player.isCrawling;
+            const targetDustOpacity = isCrawling ? dust.crawlOpacity : dust.baseOpacity;
+            const targetDustSize = isCrawling ? dust.crawlSize : dust.baseSize;
             this.dustCloud.material.opacity += (targetDustOpacity - this.dustCloud.material.opacity) * 0.05;
             this.dustCloud.material.size += (targetDustSize - this.dustCloud.material.size) * 0.05;
-            if (!this._dustColor) this._dustColor = new THREE.Color();
-            const targetColor = inAnnex ? 0xe8ddc5 : (inChasm ? 0x2288ff : 0xffffff);
-            this._dustColor.setHex(targetColor);
+            this._dustColor.setHex(dust.color);
             this.dustCloud.material.color.lerp(this._dustColor, 0.05);
         }
         if (this.exhaustCloud) {
+            const exhaust = (SECTORS[activeSector] && SECTORS[activeSector].exhaust) || DEFAULT_EXHAUST;
             this.exhaustCloud.position.copy(cameraPos);
-            const isIncinerator = activeSector === "INCINERATOR";
-            this.exhaustCloud.rotation.y = time * (isIncinerator ? -0.18 : -0.07);
-            this.exhaustCloud.rotation.x = time * (isIncinerator ? 0.12 : 0.04);
-            const targetExhaustOpacity = isIncinerator ? 0.95 : ((activeSector === "SERVER") ? 0.35 : 0.0);
-            const exhaustRate = targetExhaustOpacity > this.exhaustMat.opacity ? 0.08 : 0.20;
-            this.exhaustMat.opacity += (targetExhaustOpacity - this.exhaustMat.opacity) * exhaustRate;
-            if (!this._exhaustColor) this._exhaustColor = new THREE.Color();
-            const targetColorEx = isIncinerator ? 0xff4400 : 0x00ffcc;
-            this._exhaustColor.setHex(targetColorEx);
+            this.exhaustCloud.rotation.y = time * exhaust.spinY;
+            this.exhaustCloud.rotation.x = time * exhaust.spinX;
+            // Fade in slowly, fade out fast, so leaving a hot sector clears the air quickly.
+            const exhaustRate = exhaust.opacity > this.exhaustMat.opacity ? 0.08 : 0.20;
+            this.exhaustMat.opacity += (exhaust.opacity - this.exhaustMat.opacity) * exhaustRate;
+            this._exhaustColor.setHex(exhaust.color);
             this.exhaustMat.color.lerp(this._exhaustColor, 0.05);
             if (this.exhaustMat.opacity > 0.01) {
-                const baseSize = isIncinerator ? 0.18 : 0.08;
-                const pulse = isIncinerator ? Math.sin(time * 24.0) * 0.05 : Math.sin(time * 12.0) * 0.02;
-                this.exhaustMat.size = baseSize + pulse;
+                this.exhaustMat.size = exhaust.baseSize + Math.sin(time * exhaust.pulseRate) * exhaust.pulseDepth;
             }
         }
         const anomalyPressure = this.player.anomalyPressure || 0;
@@ -1386,37 +1470,66 @@ export default class Environment {
             } else {
                 if (this._breakerHuntHops === undefined) this._breakerHuntHops = this._rollHuntHops();
                 let targetIsPoi = false;
+                
                 if (this._breakerHuntHops > 0 && this.pointsOfInterest && this.pointsOfInterest.length > 0) {
-                    let nearestPoi = null;
-                    let nearestPoiDistSq = Infinity;
-                    for (let i = 0; i < this.pointsOfInterest.length; i++) {
-                        const poi = this.pointsOfInterest[i];
-                        if (poi.active) continue;
-                        const dx = cameraPos.x - poi.x;
-                        const dz = cameraPos.z - poi.z;
-                        const dSq = dx * dx + dz * dz;
-                        if (dSq < nearestPoiDistSq) {
-                            nearestPoiDistSq = dSq;
-                            nearestPoi = poi;
+                    if (this._currentTargetPoi && this._currentTargetPoi.active) {
+                        this._currentTargetPoi = null;
+                    }
+                    
+                    if (!this._currentTargetPoi) {
+                        let nearestPoiDistSq = Infinity;
+                        for (let i = 0; i < this.pointsOfInterest.length; i++) {
+                            const poi = this.pointsOfInterest[i];
+                            if (poi.active) continue;
+                            const dx = cameraPos.x - poi.x;
+                            const dz = cameraPos.z - poi.z;
+                            const dSq = dx * dx + dz * dz;
+                            if (dSq < nearestPoiDistSq) {
+                                nearestPoiDistSq = dSq;
+                                this._currentTargetPoi = poi;
+                            }
                         }
                     }
-                    if (nearestPoi) {
-                        if (nearestPoiDistSq < 9.0) {
-                            nearestPoi.active = true;
+                    
+                    if (this._currentTargetPoi) {
+                        const dx = cameraPos.x - this._currentTargetPoi.x;
+                        const dz = cameraPos.z - this._currentTargetPoi.z;
+                        const distSq = dx * dx + dz * dz;
+                        
+                        if (distSq < 9.0) {
+                            this._currentTargetPoi.active = true;
+                            this._currentTargetPoi = null;
                             this._breakerHuntHops--;
                         } else {
-                            nearestDistSq = nearestPoiDistSq;
+                            nearestDistSq = distSq;
                             targetIsPoi = true;
                         }
                     }
+                } else {
+                    this._currentTargetPoi = null;
                 }
+                
                 if (!targetIsPoi) {
-                    for (let i = 0; i < this.interactables.length; i++) {
-                        const item = this.interactables[i];
-                        if (item.userData.type === 'exit_switch' && item.userData.active === false) {
-                            const dSq = cameraPos.distanceToSquared(item.position);
-                            if (dSq < nearestDistSq) nearestDistSq = dSq;
+                    if (this._currentTargetSwitch && this._currentTargetSwitch.userData.active) {
+                        this._currentTargetSwitch = null;
+                    }
+                    
+                    if (!this._currentTargetSwitch) {
+                        let minDSq = Infinity;
+                        for (let i = 0; i < this.interactables.length; i++) {
+                            const item = this.interactables[i];
+                            if (item.userData.type === 'exit_switch' && item.userData.active === false) {
+                                const dSq = cameraPos.distanceToSquared(item.position);
+                                if (dSq < minDSq) {
+                                    minDSq = dSq;
+                                    this._currentTargetSwitch = item;
+                                }
+                            }
                         }
+                    }
+                    
+                    if (this._currentTargetSwitch) {
+                        nearestDistSq = cameraPos.distanceToSquared(this._currentTargetSwitch.position);
                     }
                 }
             }
@@ -1444,14 +1557,23 @@ export default class Environment {
             const minAmbient = 0.005;
             let targetAmbient = Math.max(minAmbient, baseAmbient - (darknessPressure * 0.4));
             if (this._stickySectorId === "IMPOUND" || this._stickySectorId === "CHASM") targetAmbient = 0.02;
-            else if (this._stickySectorId === "ARCHIVE") targetAmbient = 0.28;
+            else if (this._stickySectorId === "ARCHIVE") targetAmbient = 0.40;
             else if (this._stickySectorId === "INCINERATOR") targetAmbient = 0.15;
             else if (this._stickySectorId === "MAINTENANCE") targetAmbient = 0.18;
             else if (this._stickySectorId === "CHECKPOINT") targetAmbient = 0.15;
+            else if (this._stickySectorId === "ANNEX") targetAmbient = 0.15;
+            else if (this._stickySectorId === "SERVER") targetAmbient = 0.08;
+            else if (this._stickySectorId === "ATRIUM") targetAmbient = 0.0;
             this.engine.ambientLight.intensity += (targetAmbient - this.engine.ambientLight.intensity) * 0.05;
+            if (this.engine.globalShadowLight) {
+                let targetShadow = this._stickySectorId === "SERVER" ? 0.05 : 0.40;
+                if (this._stickySectorId === "ATRIUM") targetShadow = 0.0;
+                targetShadow = Math.max(0.0, targetShadow - (darknessPressure * 0.4));
+                this.engine.globalShadowLight.intensity += (targetShadow - this.engine.globalShadowLight.intensity) * 0.05;
+            }
             if (this.glowMat) {
                 let targetGlowOpacity = Math.max(0.0, 1.0 - (darknessPressure * 0.4));
-                if (this._stickySectorId === "IMPOUND" || this._stickySectorId === "CHASM") targetGlowOpacity = 0.0;
+                if (this._stickySectorId === "IMPOUND" || this._stickySectorId === "CHASM" || this._stickySectorId === "ATRIUM") targetGlowOpacity = 0.0;
                 else if (this._stickySectorId === "ARCHIVE") targetGlowOpacity = 0.15;
                 else if (this._stickySectorId === "INCINERATOR") targetGlowOpacity = 0.1;
                 this.glowMat.opacity += (targetGlowOpacity - this.glowMat.opacity) * 0.1;
@@ -1525,7 +1647,7 @@ export default class Environment {
         this.airlocks = [];
         this.macroZones.clear();
         this.spatialGrid.clear();
-        this.currentChunkCoords = {x: null, z: null};
+        this.currentChunkCoords = {x: null, z: null, qx: null, qz: null};
         this.blackoutChunks.clear();
         this.observers = [];
         this._globalSwitches = [];
@@ -1554,6 +1676,11 @@ export default class Environment {
         } else {
             this.player.coherence = 1.0;
             if (this.anomaly) this.anomaly.reset(32, 1.5, 32);
+            const chunkW = 64;
+            const cX = Math.floor(this.camera.position.x / chunkW);
+            const cZ = Math.floor(this.camera.position.z / chunkW);
+            this.camera.position.set(cX * chunkW + 34, 1.6, cZ * chunkW + 34);
+            this.needsSafeSpawn = true;
         }
         const seedString = document.getElementById('seedInput').value || "ASYNC RESEARCH INSTITUTE";
         this.baseSeed = 0;
@@ -1591,6 +1718,9 @@ export default class Environment {
         }
         const dummyColor = new THREE.Color();
         const groups = Array.from(instancedGroups.values());
+        
+        const tempGroup = new THREE.Group();
+        
         for (let i = 0; i < groups.length; i++) {
             if (performance.now() - compileStartTime > 5.0) {
                 await new Promise(resolve => setTimeout(resolve, 0));
@@ -1618,7 +1748,7 @@ export default class Environment {
                 });
                 iMesh.instanceMatrix.needsUpdate = true;
                 if (needsColor && iMesh.instanceColor) iMesh.instanceColor.needsUpdate = true;
-                chunkGroup.add(iMesh);
+                tempGroup.add(iMesh);
                 if (!isDecal) this.walls.push(iMesh);
             } else {
                 for (let j = 0; j < group.meshes.length; j++) {
@@ -1629,12 +1759,37 @@ export default class Environment {
                         mesh.receiveShadow = true;
                         this.walls.push(mesh);
                     }
-                    chunkGroup.add(mesh);
+                    tempGroup.add(mesh);
                 }
             }
             if (performance.now() - compileStartTime > 5.0) {
                 await new Promise(resolve => setTimeout(resolve, 0));
                 compileStartTime = performance.now();
+            }
+        }
+        
+        if (this.activeChunks.has(hash)) {
+            // A program's cache key includes the scene's active light and shadow-caster counts,
+            // so a material must be compiled against the light state it will actually render
+            // under. `tempGroup` holds geometry and no lights. Compiling against it produces
+            // zero-light programs that miss the cache on first real draw and recompile then --
+            // which is the stutter this precompile exists to prevent.
+            if (typeof this.engine.renderer.compileAsync === 'function') {
+                // r152+: the third argument is the scene whose lights to compile against, so
+                // the group can stay detached (and therefore unrenderable) while we wait.
+                await this.engine.renderer.compileAsync(tempGroup, this.camera, this.scene);
+                if (!this.activeChunks.has(hash)) return;
+                while (tempGroup.children.length > 0) {
+                    chunkGroup.add(tempGroup.children[0]);
+                }
+            } else {
+                // r128 `compile()` has no such argument and reads lights only from the object it
+                // is handed, so the group has to be in the scene first. Nothing can render in
+                // between: `compile()` is synchronous and there is no `await` separating them.
+                while (tempGroup.children.length > 0) {
+                    chunkGroup.add(tempGroup.children[0]);
+                }
+                this.engine.renderer.compile(this.scene, this.camera);
             }
         }
     }
@@ -1817,6 +1972,51 @@ export default class Environment {
             baseIntensity: 1.5,
             targetIntensity: 1.5,
             currentIntensity: 1.5
+        });
+    }
+
+    /**
+     * Builds a massive frosted globe light fixture for the Atrium. A large 1.5m diameter
+     * emissive sphere suspended by a thick matte black pipe from the void canopy.
+     * @param {THREE.Group} chunkGroup - The chunk's scene group to add meshes into.
+     * @param {string} hash - The owning chunk's hash.
+     * @param {number} cx - World-space X.
+     * @param {number} cz - World-space Z.
+     * @param {Function} random - PRNG.
+     * @param {Function} getLightMaterial - Material factory.
+     */
+    _buildAtriumLight(chunkGroup, hash, cx, cz, random, getLightMaterial) {
+        const globeRadius = 0.75;
+        const pipeLen = 14.0; 
+        const pipeGeo = this._cacheGeo('atriumPipe', () => new THREE.CylinderGeometry(0.04, 0.04, pipeLen, 8));
+        
+        if (!this.atriumPipeMat) {
+            this.atriumPipeMat = new THREE.MeshStandardMaterial({color: 0x111111, roughness: 0.8, metalness: 0.5});
+            this.sharedAssets.add(this.atriumPipeMat.uuid);
+        }
+        
+        const pipe = new THREE.Mesh(pipeGeo, this.atriumPipeMat);
+        const globeY = 4.2 + globeRadius;
+        pipe.position.set(cx, globeY + pipeLen / 2, cz);
+        chunkGroup.add(pipe);
+        pipe.updateMatrixWorld(true);
+        this.walls.push(pipe);
+        
+        const globeGeo = this._cacheGeo('atriumGlobe', () => new THREE.SphereGeometry(globeRadius, 24, 16));
+        const activeMat = getLightMaterial(0xfff8ee, 0xffeebb, false);
+        const globe = new THREE.Mesh(globeGeo, activeMat);
+        globe.position.set(cx, globeY, cz);
+        chunkGroup.add(globe);
+        
+        this.fixtureData.push({
+            chunkHash: hash,
+            position: new THREE.Vector3(cx, globeY, cz),
+            flickerOffset: random() * 500,
+            material: activeMat,
+            isFaulty: random() > 0.95,
+            baseIntensity: 0.9,
+            targetIntensity: 0.9,
+            currentIntensity: 0.9
         });
     }
 

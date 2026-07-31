@@ -21,6 +21,7 @@ export default class RenderEngine {
         }
         this.aspectRatio = 1.3333333333;
         this.resolutionScale = RenderEngine.getSavedResolutionScale();
+        this.enablePostProcessing = RenderEngine.getSavedPostProcess();
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0xa89f68);
         this.scene.fog = new THREE.FogExp2(0xa89f68, 0.05);
@@ -28,24 +29,45 @@ export default class RenderEngine {
         this.camera.position.y = 1.6;
         const logDepth = !new URLSearchParams(window.location.search).has('nologdepth');
         this.renderer = new THREE.WebGLRenderer({
-            antialias: false,
+            antialias: RenderEngine.getSavedAA(),
             powerPreference: "high-performance",
             logarithmicDepthBuffer: logDepth
         });
         this.renderer.setPixelRatio(1.0);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.shadowMap.enabled = true;
+        const shadowQuality = RenderEngine.getSavedShadowQuality();
+        this.renderer.shadowMap.enabled = shadowQuality !== 'off';
         this.renderer.shadowMap.type = THREE.PCFShadowMap;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.2;
-        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+        // `outputColorSpace`/`THREE.SRGBColorSpace` don't exist on this build (three.js r128);
+        // feature-detect and fall back to the older `outputEncoding`/`sRGBEncoding` API so this
+        // keeps working unchanged if the renderer is ever upgraded to a build that has the new one.
+        if ('outputColorSpace' in this.renderer) {
+            this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+        } else {
+            this.renderer.outputEncoding = THREE.sRGBEncoding;
+        }
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
-        this.ambientLight = new THREE.HemisphereLight(0xfff5c2, 0x3d3520, 0.85);
+        this.ambientLight = new THREE.HemisphereLight(0xfff5c2, 0x3d3520, 0.45);
         this.scene.add(this.ambientLight);
+        this.globalShadowLight = new THREE.SpotLight(0xfff5c2, 0.40);
+        this.globalShadowLight.angle = 1.0;
+        this.globalShadowLight.penumbra = 0.8;
+        this.globalShadowLight.distance = 30.0;
+        this.globalShadowLight.decay = 0.5;
+        this.globalShadowLight.castShadow = shadowQuality !== 'off';
+        this.globalShadowLight.shadow.mapSize.width = shadowQuality === 'low' ? 512 : 1024;
+        this.globalShadowLight.shadow.mapSize.height = shadowQuality === 'low' ? 512 : 1024;
+        this.globalShadowLight.shadow.camera.near = 1.0;
+        this.globalShadowLight.shadow.camera.far = 30.0;
+        this.globalShadowLight.shadow.bias = -0.0005;
+        this.scene.add(this.globalShadowLight);
+        this.scene.add(this.globalShadowLight.target);
         this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
             minFilter: THREE.LinearFilter,
             magFilter: THREE.LinearFilter,
-            samples: 0
+            samples: RenderEngine.getSavedAA() ? 4 : 0
         });
         this.postScene = new THREE.Scene();
         this.postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -56,7 +78,7 @@ export default class RenderEngine {
          * CRT curvature, chromatic aberration, exhaustion vignettes, paranoia tearing,
          * blink state, heat waves, and anomalous visual corruption.
          *
-         * Educational Note: A ShaderMaterial lets us write raw WebGL (GLSL) code.
+         *  A ShaderMaterial lets us write raw WebGL (GLSL) code.
          * `uniforms` are variables passed from the CPU (JavaScript) to the GPU (GLSL)
          * every frame. By feeding our player's metabolic stats (panic, exhaustion)
          * into these uniforms, the shader mathematically warps the pixels on the GPU,
@@ -74,7 +96,9 @@ export default class RenderEngine {
                 adrenaline: {value: 0.0},
                 eyesClosed: {value: 0.0},
                 heat: {value: 0.0},
-                glare: {value: 0.0}
+                glare: {value: 0.0},
+                glareColor: {value: new THREE.Color(1, 1, 1)},
+                enableVHS: {value: 1.0}
             },
             vertexShader: `
                 varying vec2 vUv;
@@ -96,9 +120,16 @@ export default class RenderEngine {
                 uniform float eyesClosed;
                 uniform float heat;
                 uniform float glare;
+                uniform vec3 glareColor;
+                uniform float enableVHS;
                 varying vec2 vUv;
                 float random(vec2 st) {
                     return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+                }
+                vec3 linearToSRGB(vec3 value) {
+                    vec3 lo = value * 12.92;
+                    vec3 hi = pow(value, vec3(1.0 / 2.4)) * 1.055 - vec3(0.055);
+                    return mix(lo, hi, step(vec3(0.0031308), value));
                 }
                 vec2 curve(vec2 uv) {
                     vec2 coord = uv * 2.0 - 1.0;
@@ -108,12 +139,13 @@ export default class RenderEngine {
                     return coord * 0.46 + 0.5;
                 }
                 void main() {
-                    vec2 uv = curve(vUv);
+                    vec2 uv = mix(vUv, curve(vUv), enableVHS);
                     vec2 centerUv = uv - 0.5;
                     float distSq = dot(centerUv, centerUv);
                     // Screen Border Cutoff
                     float border = smoothstep(0.0, 0.03, uv.x) * smoothstep(1.0, 0.97, uv.x) * 
                                    smoothstep(0.0, 0.03, uv.y) * smoothstep(1.0, 0.97, uv.y);
+                    border = mix(1.0, border, enableVHS);
                     if (border <= 0.0) {
                         gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
                         return;
@@ -133,11 +165,11 @@ export default class RenderEngine {
                         uv.y += tear * (gpuSeed - 0.5) * intensity * 0.05;
                     }
                     // VHS Tracking Error
-                    uv.x += phaseBand * 0.0002 * sin(time * 50.0) * stressGate;
+                    uv.x += phaseBand * 0.0002 * sin(time * 50.0) * stressGate * enableVHS;
                     // Chromatic Aberration
                     float heartbeatCA = exhaustion > 0.3 ? sin(time * (10.0 + exhaustion * 5.0)) * 0.004 * exhaustion : 0.0;
                     float panicTear = panic > 0.3 ? (sin(time * 25.0) * 0.02 * pCurve) : 0.0;
-                    float caShift = (0.0005 + (distSq * 0.0015)) * stressGate + (squeeze * 0.003) + (anomaly * anomaly * sqrt(anomaly)) * 0.05 + (exhaustion * exhaustion) * 0.01 + heartbeatCA + panicTear;
+                    float caShift = (0.0005 + (distSq * 0.0015)) * stressGate * enableVHS + (squeeze * 0.003) + (anomaly * anomaly * sqrt(anomaly)) * 0.05 + (exhaustion * exhaustion) * 0.01 + heartbeatCA + panicTear;
                     vec2 offset = vec2(caShift, 0.0); 
                     // Sector Environmental Distortion
                     vec2 heatOffset = vec2(0.0);
@@ -180,16 +212,16 @@ export default class RenderEngine {
                         blurCol += texture2D(tDiffuse, sampleUv + vec2(gBlur * 1.5, 0.0)).rgb;
                         blurCol += texture2D(tDiffuse, sampleUv + vec2(-gBlur * 1.5, 0.0)).rgb;
                         col = mix(col, blurCol * 0.125, clamp(glare * 2.5, 0.0, 1.0));
-                        col += vec3(glare * 0.9);
+                        col += glareColor * (glare * 0.9);
                     }
                     // Image Adjustments
                     float luminance = dot(col, vec3(0.299, 0.587, 0.114));
-                    col += max(vec3(0.0), fauxHalation - 0.5) * 0.15;
+                    col += max(vec3(0.0), fauxHalation - 0.5) * 0.15 * enableVHS;
                     float noise = random(uv + mod(time, 10.0));
-                    col -= (noise * (0.015 + darkness * 0.15 + anomaly * 0.9)) * (1.0 - luminance);
-                    float scanline = sin((uv.y - time * 0.02) * 800.0) * (0.015 + exhaustion * 0.05); 
+                    col -= (noise * (0.015 * enableVHS + darkness * 0.15 + anomaly * 0.9)) * (1.0 - luminance);
+                    float scanline = sin((uv.y - time * 0.02) * 800.0) * (0.015 * enableVHS + exhaustion * 0.05); 
                     col -= scanline * luminance;
-                    col += phaseBand * 0.004 * (1.0 + noise);
+                    col += phaseBand * 0.004 * (1.0 + noise) * enableVHS;
                     // Adrenaline Overlay
                     col += vec3(adrenaline * 0.25, 0.0, 0.0) * distSq;
                     col += max(vec3(0.0), col - 0.5) * adrenaline * 1.2;
@@ -206,6 +238,10 @@ export default class RenderEngine {
                     col = mix(col, vec3(0.02) * noise, eyesClosed);
                     col *= border;
                     col = smoothstep(0.0, 1.0, col);
+                    // Final linear -> sRGB encode. Must be the last step (see linearToSRGB above) --
+                    // everything before this, including the smoothstep contrast curve, is grading
+                    // done in linear space.
+                    col = linearToSRGB(clamp(col, 0.0, 1.0));
                     gl_FragColor = vec4(col, 1.0);
                 }
             `
@@ -238,6 +274,60 @@ export default class RenderEngine {
             return Number.isFinite(parsed) ? parsed : 1.0;
         } catch (e) {
             return 1.0;
+        }
+    }
+
+    /**
+     * Reads the anti-aliasing preference from localStorage.
+     * Defaults to false for performance.
+     * @returns {boolean} Whether AA should be enabled.
+     */
+    static getSavedAA() {
+        try {
+            const raw = localStorage.getItem('level0_state');
+            if (!raw) return false;
+            const state = JSON.parse(raw);
+            return state.aa === true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
+     * Reads the post-processing preference from localStorage.
+     * Defaults to true for full fidelity.
+     * @returns {boolean} Whether post-processing should be enabled.
+     */
+    static getSavedPostProcess() {
+        try {
+            const raw = localStorage.getItem('level0_state');
+            if (!raw) return true;
+            const state = JSON.parse(raw);
+            return state.post !== false;
+        } catch (e) {
+            return true;
+        }
+    }
+
+    static getSavedShadowQuality() {
+        try {
+            const raw = localStorage.getItem('level0_state');
+            if (!raw) return 'high';
+            const state = JSON.parse(raw);
+            return state.shadows || 'high';
+        } catch (e) {
+            return 'high';
+        }
+    }
+
+    static getSavedRenderDistance() {
+        try {
+            const raw = localStorage.getItem('level0_state');
+            if (!raw) return 1;
+            const state = JSON.parse(raw);
+            return state.renderDist !== undefined ? parseInt(state.renderDist) : 1;
+        } catch (e) {
+            return 1;
         }
     }
 
@@ -300,23 +390,39 @@ export default class RenderEngine {
      * 3. Renders the final post-processed composition to the screen.
      */
     render() {
-        this.renderer.setRenderTarget(this.target);
-        this.renderer.render(this.scene, this.camera);
-        this.postMaterial.uniforms.time.value = this.time;
-        this.postMaterial.uniforms.exhaustion.value = this.exhaustion;
-        this.postMaterial.uniforms.squeeze.value = this.squeeze || 0.0;
-        this.postMaterial.uniforms.anomaly.value = this.anomaly || 0.0;
-        this.postMaterial.uniforms.darkness.value = this.darkness || 0.0;
-        this.postMaterial.uniforms.panic.value = this.paranoia || 0.0;
-        this.postMaterial.uniforms.adrenaline.value = this.adrenaline || 0.0;
-        this.postMaterial.uniforms.eyesClosed.value = this.eyesClosed || 0.0;
-        this.postMaterial.uniforms.glare.value = this.glare || 0.0;
-        if (this.heatTarget !== undefined) {
-            if (this.currentHeat === undefined) this.currentHeat = 0.0;
-            this.currentHeat += (this.heatTarget - this.currentHeat) * 0.016 * 2.0;
-            this.postMaterial.uniforms.heat.value = this.currentHeat;
+        if (this.globalShadowLight) {
+            this.globalShadowLight.position.set(this.camera.position.x, 15.0, this.camera.position.z);
+            this.globalShadowLight.target.position.set(this.camera.position.x, 0.0, this.camera.position.z);
         }
-        this.renderer.setRenderTarget(null);
-        this.renderer.render(this.postScene, this.postCamera);
+        
+        if (this.enablePostProcessing) {
+            this.renderer.setRenderTarget(this.target);
+            this.renderer.render(this.scene, this.camera);
+            this.postMaterial.uniforms.time.value = this.time;
+            this.postMaterial.uniforms.exhaustion.value = this.exhaustion;
+            this.postMaterial.uniforms.squeeze.value = this.squeeze || 0.0;
+            this.postMaterial.uniforms.anomaly.value = this.anomaly || 0.0;
+            this.postMaterial.uniforms.darkness.value = this.darkness || 0.0;
+            this.postMaterial.uniforms.panic.value = this.paranoia || 0.0;
+            this.postMaterial.uniforms.adrenaline.value = this.adrenaline || 0.0;
+            this.postMaterial.uniforms.eyesClosed.value = this.eyesClosed || 0.0;
+            this.postMaterial.uniforms.glare.value = this.glare || 0.0;
+            this.postMaterial.uniforms.enableVHS.value = 1.0;
+            if (this.glareColor) this.postMaterial.uniforms.glareColor.value.copy(this.glareColor);
+            if (this.heatTarget !== undefined) {
+                if (this.currentHeat === undefined) this.currentHeat = 0.0;
+                this.currentHeat += (this.heatTarget - this.currentHeat) * 0.016 * 2.0;
+                this.postMaterial.uniforms.heat.value = this.currentHeat;
+            }
+            this.renderer.setRenderTarget(null);
+            this.renderer.render(this.postScene, this.postCamera);
+        } else {
+            this.renderer.setRenderTarget(null);
+            this.renderer.render(this.scene, this.camera);
+            if (this.heatTarget !== undefined) {
+                if (this.currentHeat === undefined) this.currentHeat = 0.0;
+                this.currentHeat += (this.heatTarget - this.currentHeat) * 0.016 * 2.0;
+            }
+        }
     }
 }

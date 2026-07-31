@@ -2,7 +2,7 @@ import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
 /**
- * A procedural sector generator characterized by towering server racks and red emergency lighting.
+ * A procedural sector generator characterized by towering server racks.
  *
  * Here, the base maze walls are completely replaced. Instead of spawning
  * standard plaster walls, this module spawns `env.serverMat` (metallic server racks) anywhere
@@ -31,7 +31,12 @@ export const ServerSector = (env, ctx) => {
         if (env.sharedAssets) env.sharedAssets.add(env.cabinetMat.uuid);
     }
     if (!env.pegboardMat) {
-        env.pegboardMat = new THREE.MeshStandardMaterial({color: 0xb8a26a, roughness: 0.9});
+        env.pegboardMat = new THREE.MeshStandardMaterial({
+            map: env.pegboardTex,
+            roughness: 0.9,
+            bumpMap: env.pegboardTex,
+            bumpScale: 0.05
+        });
         if (env.sharedAssets) env.sharedAssets.add(env.pegboardMat.uuid);
     }
     const buildWorkbench = (px, pz, faceYaw) => {
@@ -329,7 +334,7 @@ export const ServerSector = (env, ctx) => {
                         random() * 500,
                         random() > 0.6,
                         ctx.getLightMaterial,
-                        0xff3333, 0xff0000, 0.4
+                        0xE273FF, 0xC963FF, 0.8
                     );
                 }
             }

@@ -1021,7 +1021,7 @@ export default class StructuralBlueprints {
             },
             {
                 prob: 0.00, build: (x, z) => {
-                    if (ctx.claimOasis && ctx.claimOasis()) {
+                    if (ctx.claimOasis && ctx.claimOasis(x, z)) {
                         const cx = x * this.cellSize;
                         const cz = z * this.cellSize;
                         const half = this.cellSize / 2;

@@ -14,7 +14,7 @@ export default class MaterialLibrary {
      */
     static injectMaterials(env) {
         if (env.sharedWallGeo) return;
-        env.sharedWallGeo = new THREE.BoxGeometry(env.cellSize + 0.02, 3, env.cellSize + 0.02);
+        env.sharedWallGeo = new THREE.BoxGeometry(env.cellSize + 0.02, 3.02, env.cellSize + 0.02);
         env.sharedWallMat = new THREE.MeshStandardMaterial({
             map: env.wallTexture,
             color: 0xffffff,
@@ -33,7 +33,6 @@ export default class MaterialLibrary {
         env.vPipeGeo = new THREE.CylinderGeometry(0.06, 0.06, 3.0, 8);
         env.rustMat = new THREE.MeshStandardMaterial({
             color: 0x4a433a,
-            emissive: 0x111111,
             roughness: 0.8,
             metalness: 0.3,
             bumpMap: env.structMat.map,
@@ -54,6 +53,8 @@ export default class MaterialLibrary {
         env.serverFloorMat = env.ventMat.clone();
         env.serverFloorMat.map = env.ventMat.map.clone();
         env.serverFloorMat.map.repeat.set(64, 32);
+        env.serverFloorMat.metalness = 0.2;
+        env.serverFloorMat.roughness = 0.85;
         env.serverCeilingMat = env.serverFloorMat.clone();
         env.serverCeilingMat.metalness = 0.0;
         env.serverCeilingMat.roughness = 0.95;

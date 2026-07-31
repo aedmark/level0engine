@@ -34,11 +34,16 @@ export default class SaveManager {
             document.getElementById('fovSlider').value = state.fov || "75";
             document.getElementById('speedSlider').value = state.speed || "100";
             document.getElementById('resolutionSelect').value = state.res || "1.0";
+            document.getElementById('shadowSelect').value = state.shadows || "high";
+            document.getElementById('renderDistSelect').value = state.renderDist !== undefined ? state.renderDist : "1";
             document.getElementById('volumeSlider').value = state.vol !== undefined ? state.vol : "100";
             document.getElementById('gammaSlider').value = state.gamma || "120";
+            document.getElementById('aaToggle').checked = state.aa === true;
+            document.getElementById('postToggle').checked = state.post !== false;
             document.getElementById('headBobToggle').checked = state.headBob !== false;
             this.engine.aspectRatio = state.aspect === 'auto' ? 'auto' : parseFloat(state.aspect || 1.3333333333);
             this.engine.resolutionScale = parseFloat(state.res) || 1.0;
+            this.engine.enablePostProcessing = state.post !== false;
             this.engine.camera.fov = Number(state.fov) || 75;
             this.engine.renderer.toneMappingExposure = (Number(state.gamma) || 120) / 100;
             this.acoustics.masterVolume = (state.vol !== undefined ? Number(state.vol) : 100) / 100;
@@ -71,8 +76,12 @@ export default class SaveManager {
             fov: document.getElementById('fovSlider').value,
             speed: document.getElementById('speedSlider').value,
             res: document.getElementById('resolutionSelect').value,
+            shadows: document.getElementById('shadowSelect').value,
+            renderDist: document.getElementById('renderDistSelect').value,
             vol: document.getElementById('volumeSlider').value,
             gamma: document.getElementById('gammaSlider').value,
+            aa: document.getElementById('aaToggle').checked,
+            post: document.getElementById('postToggle').checked,
             headBob: document.getElementById('headBobToggle').checked
         };
         localStorage.setItem('level0_state', JSON.stringify(state));
@@ -88,6 +97,10 @@ export default class SaveManager {
 
     startAutoSave() {
         this.saveInterval = setInterval(() => this.idleSaveState(), 2500);
+        document.getElementById('saveApplyBtn')?.addEventListener('click', () => {
+            this.saveState();
+            window.location.reload();
+        });
         document.getElementById('clearSaveBtn')?.addEventListener('click', async () => {
             this.player.isDead = true;
             const flash = document.getElementById('flash-overlay');

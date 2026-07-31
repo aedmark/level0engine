@@ -23,8 +23,8 @@ export const AnnexSector = (env, ctx) => {
     } = ctx;
     return {
         id: "ANNEX",
-        foundationMat: env.annexFloorMat || env.clinicMat,
-        ceilingMat: env.annexCeilingMat || env.clinicMat,
+        foundationMat: env.annexFloorMat || env.sharedWallMat,
+        ceilingMat: env.annexCeilingMat || env.sharedWallMat,
         build: (x, z, localX, localZ) => {
             if (ctx.buildPerimeter(x, z, localX, localZ, env.annexWallMat || env.sharedWallMat, "ANNEX")) return;
             const ox = x * env.cellSize, oz = z * env.cellSize;
@@ -32,7 +32,7 @@ export const AnnexSector = (env, ctx) => {
                 (lx === 7 || lz === 3 || lz === 7 || lz === 11);
             if (isCorr(localX, localZ)) {
                 if ((localX + localZ) % 2 === 0 && random() > 0.1) {
-                    env._buildCeilingPanelLight(chunkGroup, hash, ox, oz, random, ctx.getLightMaterial, 0xffffff, 0xffffff, 0.5, 0.8);
+                    env._buildCeilingPanelLight(chunkGroup, hash, ox, oz, random, ctx.getLightMaterial, 0xd6cc98, 0xffeebb, 0.32, 0.8);
                 }
                 return;
             }
@@ -60,9 +60,14 @@ export const AnnexSector = (env, ctx) => {
                 if (isCorr(nx, nz)) buildIt = true;
                 else if (isOffice(nx, nz)) buildIt = (ez === -1 || ex === -1);
                 else buildIt = false;
+                let shiftX = 0, shiftZ = 0;
+                if (ex === 0 && ez === -1) shiftX = 0.125;
+                if (ex === 1 && ez === 0) shiftZ = 0.125;
+                if (ex === 0 && ez === 1) shiftX = -0.125;
+                if (ex === -1 && ez === 0) shiftZ = -0.125;
                 if (buildIt) {
-                    const wallSeg = buildWall(ex === 0 ? env.cellSize + 0.27 : 0.25, ex === 0 ? 0.25 : env.cellSize + 0.23, env.annexWallMat || env.sharedWallMat);
-                    wallSeg.position.set(ox + ex * 2, 1.5, oz + ez * 2);
+                    const wallSeg = buildWall(ex === 0 ? env.cellSize : 0.25, ex === 0 ? 0.25 : env.cellSize, env.annexWallMat || env.sharedWallMat);
+                    wallSeg.position.set(ox + ex * 2 + shiftX, 1.5, oz + ez * 2 + shiftZ);
                     wallSeg.userData.isEntityBlocker = true;
                     addGeometry(wallSeg);
                 }
@@ -78,8 +83,16 @@ export const AnnexSector = (env, ctx) => {
                 env.sharedAssets.add(env.laptopScreenMat.uuid);
             }
             for (let s = -1; s <= 1; s += 2) {
-                const stub = buildWall(spansX ? 1.2 : 0.25, spansX ? 0.25 : 1.2, env.annexWallMat || env.sharedWallMat);
-                stub.position.set(wx + (spansX ? s * 1.4 : 0), 1.5, wz + (spansX ? 0 : s * 1.4));
+                let isLong = false;
+                if (spansX) {
+                    isLong = (s === 1 && dd[1] === -1) || (s === -1 && dd[1] === 1);
+                } else {
+                    isLong = (s === 1 && dd[0] === 1) || (s === -1 && dd[0] === -1);
+                }
+                const w = isLong ? 1.325 : 1.075;
+                const cDist = 0.8 + w / 2;
+                const stub = buildWall(spansX ? w : 0.25, spansX ? 0.25 : w, env.annexWallMat || env.sharedWallMat);
+                stub.position.set(wx + (spansX ? s * cDist : 0), 1.5, wz + (spansX ? 0 : s * cDist));
                 stub.userData.isEntityBlocker = true;
                 addGeometry(stub);
             }
