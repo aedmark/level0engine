@@ -15,6 +15,76 @@ export default class ProceduralTextureFactory {
         return {canvas, ctx: canvas.getContext('2d', opaque ? {alpha: false} : undefined)};
     }
 
+    /**
+     * A small deterministic PRNG (the same LCG used elsewhere in the engine).
+     *
+     * Surface generators use this rather than `Math.random` so a given floor is byte-identical
+     * on every boot -- a texture that reshuffles itself between sessions makes it impossible to
+     * tell a tuning change from noise when you are eyeballing the result.
+     *
+     * @param {number} seed - Any 32-bit integer.
+     * @returns {function(): number} Successive floats in [0, 1).
+     */
+    static _seededRandom(seed) {
+        let s = seed >>> 0;
+        return () => {
+            s = (s * 1664525 + 1013904223) >>> 0;
+            return s / 4294967296.0;
+        };
+    }
+
+    /**
+     * Runs `fn` up to four times, offset by +/- the canvas size, so a mark that crosses an edge
+     * reappears on the opposite side and the texture stays seamless when tiled.
+     *
+     * Only marks within `reach` of an edge pay for the extra draws; anything comfortably inside
+     * is drawn once.
+     *
+     * @param {number} size - Canvas dimension (assumed square).
+     * @param {number} x - Mark centre X.
+     * @param {number} y - Mark centre Y.
+     * @param {number} reach - How far the mark extends from its centre.
+     * @param {function(number, number): void} fn - Draws the mark at a given origin.
+     */
+    /**
+     * Adds per-pixel noise to break up 8-bit gradient banding.
+     *
+     * Canvas gradients quantise to 256 levels per channel. A ramp that only travels ~20 levels
+     * across 512 pixels therefore lands as ~20 flat bands roughly 25px tall, which is invisible
+     * on the canvas and glaringly obvious once the texture is magnified across a wall -- it
+     * reads as horizontal striping that swims as the camera moves and the mip level changes.
+     *
+     * A couple of levels of random noise per pixel destroys the banding while staying well
+     * below the threshold where it reads as grain. Applied after all gradient work, so it
+     * covers radial mottle and sag shading as well as linear ramps.
+     *
+     * @param {CanvasRenderingContext2D} ctx - Target context.
+     * @param {number} w - Canvas width.
+     * @param {number} h - Canvas height.
+     * @param {function(): number} rand - Deterministic source, so the dither is reproducible.
+     * @param {number} [amount] - Peak-to-peak spread in 8-bit levels.
+     */
+    static _ditherCanvas(ctx, w, h, rand, amount = 5) {
+        const img = ctx.getImageData(0, 0, w, h);
+        const px = img.data;
+        for (let i = 0; i < px.length; i += 4) {
+            const n = (rand() - 0.5) * amount;
+            px[i] += n;
+            px[i + 1] += n;
+            px[i + 2] += n;
+        }
+        ctx.putImageData(img, 0, 0);
+    }
+
+    static _wrapDraw(size, x, y, reach, fn) {
+        const ox = x < reach ? size : (x > size - reach ? -size : 0);
+        const oy = y < reach ? size : (y > size - reach ? -size : 0);
+        fn(x, y);
+        if (ox) fn(x + ox, y);
+        if (oy) fn(x, y + oy);
+        if (ox && oy) fn(x + ox, y + oy);
+    }
+
     static _createWrappedTexture(canvas, repeatX = 1, repeatY = 1, clampT = false) {
         const texture = new THREE.CanvasTexture(canvas);
         texture.wrapS = THREE.RepeatWrapping;
@@ -178,21 +248,9 @@ export default class ProceduralTextureFactory {
         const carpetTexture = this._createWrappedTexture(carpetCanvas);
         carpetTexture.magFilter = THREE.LinearFilter;
         carpetTexture.minFilter = THREE.LinearMipmapLinearFilter;
-        const {canvas: ceilingCanvas, ctx: ceilCtx} = this._createContext(512, 512);
-        ceilCtx.fillStyle = '#FFDD00';
-        ceilCtx.fillRect(0, 0, 512, 512);
-        ceilCtx.fillStyle = 'rgba(0,0,0,0.08)';
-        for (let i = 0; i < 2000; i++) ceilCtx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
-        ceilCtx.strokeStyle = '#594C00';
-        ceilCtx.lineWidth = 4;
-        ceilCtx.strokeRect(0, 0, 256, 256);
-        ceilCtx.strokeRect(256, 0, 256, 256);
-        ceilCtx.strokeRect(0, 256, 256, 256);
-        ceilCtx.strokeRect(256, 256, 256, 256);
-        ceilCtx.globalAlpha = 0.25;
-        ceilCtx.drawImage(masterNoise, 0, 0, 512, 512);
-        ceilCtx.globalAlpha = 1.0;
+        const {canvas: ceilingCanvas, bumpCanvas: ceilingBumpCanvas} = this._buildNormalCeiling(masterNoise);
         const ceilingTexture = this._createWrappedTexture(ceilingCanvas);
+        const ceilingBumpTexture = this._createWrappedTexture(ceilingBumpCanvas);
         const {canvas: tileCanvas, ctx: tileCtx} = this._createContext(256, 256);
         tileCtx.fillStyle = '#080808';
         tileCtx.fillRect(0, 0, 256, 256);
@@ -234,7 +292,1114 @@ export default class ProceduralTextureFactory {
             metalness: 0.15,
             shadowSide: THREE.DoubleSide
         });
-        return {carpetTexture, ceilingTexture, tileMat, clinicMat};
+        const atriumFloorMat = this._buildAtriumFloor(masterNoise);
+        const clinicFloorMat = this._buildClinicFloor(masterNoise);
+        const clinicCeilingMat = this._buildClinicCeiling(masterNoise);
+        const clinicWallMat = this._buildClinicWall(masterNoise);
+        const clinicRailMat = this._buildClinicRail(masterNoise);
+        return {
+            carpetTexture, ceilingTexture, ceilingBumpTexture, tileMat, clinicMat,
+            atriumFloorMat, clinicFloorMat, clinicCeilingMat, clinicWallMat, clinicRailMat
+        };
+    }
+
+    /**
+     * Builds the ceiling for the normal floors: a suspended lay-in grid of pinhole acoustic
+     * board, yellowed by the decades of light it has been sitting above.
+     *
+     * A laid tile is one world unit -- the size `fallenTileGeo` already assumes when a ceiling
+     * rots -- and the canvas carries a 4x4 block at 1024px, so the 15/16in T-bar flange lands
+     * at 6px. Sixteen tiles is the smallest field that survives a 16x repeat without the eye
+     * locking onto one distinctive tile, which is why the age bands are kept narrow.
+     *
+     * Perforated rather than fissured: `_buildClinicCeiling` owns fissured mineral fibre, and
+     * two ceilings sharing a surface signature read as one asset used twice. The perforation
+     * itself only resolves within a couple of metres; past that the grid carries the read,
+     * hence the dark line either side of every flange.
+     *
+     * Relief ships as its own canvas. Driving bump from the colour map inverts the grid -- the
+     * T-bar is the darkest thing on a yellow ceiling, so it read as a trench.
+     *
+     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
+     * @returns {{canvas: HTMLCanvasElement, bumpCanvas: HTMLCanvasElement}} Colour and relief.
+     */
+    static _buildNormalCeiling(masterNoise) {
+        const SIZE = 1024;
+        const MASK = SIZE - 1;
+        const COLS = 4, ROWS = 4;
+        const TW = SIZE / COLS, TH = SIZE / ROWS;
+        const GRID_W = 6, GRID_H = GRID_W / 2;
+        const rand = this._seededRandom(60540117);
+
+        const {canvas, ctx} = this._createContext(SIZE, SIZE);
+        const {canvas: bumpCanvas, ctx: bCtx} = this._createContext(SIZE, SIZE);
+        bCtx.fillStyle = '#b4b4b4';
+        bCtx.fillRect(0, 0, SIZE, SIZE);
+
+        const tiles = [];
+        for (let i = 0; i < COLS * ROWS; i++) {
+            const replaced = rand() > 0.84;
+            tiles.push({
+                replaced,
+                age: replaced ? 0.24 + rand() * 0.16 : 0.52 + rand() * 0.44,
+                stain: replaced ? 0 : (rand() > 0.72 ? 0.6 + rand() * 0.4 : 0),
+                chip: !replaced && rand() > 0.82,
+                chipCorner: Math.floor(rand() * 4)
+            });
+        }
+
+        for (let ty = 0; ty < ROWS; ty++) {
+            for (let tx = 0; tx < COLS; tx++) {
+                const t = tiles[ty * COLS + tx];
+                const r = 245 - t.age * 22;
+                const g = 241 - t.age * 32;
+                const b = 227 - t.age * 56;
+                ctx.fillStyle = `rgb(${r | 0}, ${g | 0}, ${b | 0})`;
+                ctx.fillRect(tx * TW, ty * TH, TW, TH);
+            }
+        }
+
+        for (let ty = 0; ty < ROWS; ty++) {
+            for (let tx = 0; tx < COLS; tx++) {
+                const t = tiles[ty * COLS + tx];
+                const ox = tx * TW, oy = ty * TH;
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(ox, oy, TW, TH);
+                ctx.clip();
+                const blobs = 10 + Math.floor(rand() * 8);
+                for (let i = 0; i < blobs; i++) {
+                    const bx = ox + rand() * TW, by = oy + rand() * TH;
+                    const br = TW * (0.15 + rand() * 0.35);
+                    const warm = rand() > 0.45;
+                    const tint = warm ? '176, 156, 106' : '255, 253, 244';
+                    const alpha = (0.03 + rand() * 0.06) * (0.35 + t.age);
+                    const g = ctx.createRadialGradient(bx, by, 0, bx, by, br);
+                    g.addColorStop(0, `rgba(${tint}, ${alpha})`);
+                    g.addColorStop(1, `rgba(${tint}, 0)`);
+                    ctx.fillStyle = g;
+                    ctx.fillRect(ox, oy, TW, TH);
+                }
+                ctx.restore();
+            }
+        }
+
+        const P = 4;
+        const img = ctx.getImageData(0, 0, SIZE, SIZE);
+        const bImg = bCtx.getImageData(0, 0, SIZE, SIZE);
+        const px = img.data, bpx = bImg.data;
+        const cells = SIZE / P;
+        for (let cy = 0; cy < cells; cy++) {
+            for (let cx = 0; cx < cells; cx++) {
+                let h = (Math.imul(cx, 374761393) + Math.imul(cy, 668265263)) >>> 0;
+                h = (h ^ (h >>> 13)) >>> 0;
+                h = Math.imul(h, 1274126177) >>> 0;
+                h = (h ^ (h >>> 16)) >>> 0;
+                if ((h & 255) > 206) continue;
+                const ox = cx * P + 1.3 + ((h >>> 8) & 255) / 255 * 1.4;
+                const oy = cy * P + 1.3 + ((h >>> 16) & 255) / 255 * 1.4;
+                const r = 0.7 + ((h >>> 24) & 255) / 255 * 0.7;
+                for (let dy = -2; dy <= 3; dy++) {
+                    const y = cy * P + dy;
+                    const vy = y + 0.5 - oy;
+                    for (let dx = -2; dx <= 3; dx++) {
+                        const x = cx * P + dx;
+                        const vx = x + 0.5 - ox;
+                        const cov = r + 0.45 - Math.sqrt(vx * vx + vy * vy);
+                        if (cov <= 0) continue;
+                        const a = cov > 1 ? 1 : cov;
+                        const i = (((y & MASK) * SIZE) + (x & MASK)) * 4;
+                        px[i] -= px[i] * 0.30 * a;
+                        px[i + 1] -= px[i + 1] * 0.32 * a;
+                        px[i + 2] -= px[i + 2] * 0.34 * a;
+                        const drop = 95 * a;
+                        bpx[i] -= drop;
+                        bpx[i + 1] -= drop;
+                        bpx[i + 2] -= drop;
+                    }
+                }
+            }
+        }
+        ctx.putImageData(img, 0, 0);
+        bCtx.putImageData(bImg, 0, 0);
+
+        const island = (cx, cy, r, wob, phase, lobes) => {
+            const pts = 20;
+            ctx.beginPath();
+            for (let i = 0; i <= pts; i++) {
+                const a = (i / pts) * Math.PI * 2;
+                const lobe = 0.5 + 0.5 * Math.sin(a * lobes + phase);
+                const lobe2 = 0.5 + 0.5 * Math.sin(a * (lobes + 2) - phase * 1.7);
+                const rr = r * (1 - wob + wob * (lobe * 0.65 + lobe2 * 0.35) + (rand() - 0.5) * 0.14);
+                const pxx = cx + Math.cos(a) * rr, pyy = cy + Math.sin(a) * rr;
+                if (i === 0) ctx.moveTo(pxx, pyy); else ctx.lineTo(pxx, pyy);
+            }
+            ctx.closePath();
+        };
+        for (let ty = 0; ty < ROWS; ty++) {
+            for (let tx = 0; tx < COLS; tx++) {
+                const t = tiles[ty * COLS + tx];
+                if (!t.stain) continue;
+                const ox = tx * TW, oy = ty * TH;
+                const cx = ox + TW * (0.28 + rand() * 0.44);
+                const cy = oy + TH * (0.28 + rand() * 0.44);
+                const r = Math.min(TW, TH) * (0.16 + rand() * 0.16) * t.stain;
+                island(cx, cy, r, 0.28, rand() * Math.PI * 2, 2 + Math.floor(rand() * 3));
+                ctx.fillStyle = `rgba(146, 106, 44, ${0.10 + rand() * 0.06})`;
+                ctx.fill();
+                ctx.strokeStyle = `rgba(118, 84, 34, ${0.20 + rand() * 0.08})`;
+                ctx.lineWidth = 1.1 + rand() * 1.2;
+                ctx.stroke();
+                island(cx + (rand() - 0.5) * r * 0.3, cy + (rand() - 0.5) * r * 0.3,
+                    r * 0.34, 0.34, rand() * Math.PI * 2, 2 + Math.floor(rand() * 3));
+                ctx.fillStyle = 'rgba(128, 92, 38, 0.13)';
+                ctx.fill();
+            }
+        }
+
+        for (let ty = 0; ty < ROWS; ty++) {
+            for (let tx = 0; tx < COLS; tx++) {
+                const t = tiles[ty * COLS + tx];
+                if (t.replaced) continue;
+                const cx = tx * TW + TW / 2, cy = ty * TH + TH / 2;
+                const r = Math.min(TW, TH) * 0.62;
+                const g = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r);
+                g.addColorStop(0, `rgba(104, 96, 74, ${0.07 * t.age})`);
+                g.addColorStop(1, 'rgba(104, 96, 74, 0)');
+                ctx.fillStyle = g;
+                ctx.fillRect(tx * TW, ty * TH, TW, TH);
+            }
+        }
+
+        for (let ty = 0; ty < ROWS; ty++) {
+            for (let tx = 0; tx < COLS; tx++) {
+                const t = tiles[ty * COLS + tx];
+                if (!t.chip) continue;
+                const cnx = (t.chipCorner & 1) ? tx * TW + TW - GRID_H : tx * TW + GRID_H;
+                const cny = (t.chipCorner & 2) ? ty * TH + TH - GRID_H : ty * TH + GRID_H;
+                const sx = (t.chipCorner & 1) ? -1 : 1;
+                const sy = (t.chipCorner & 2) ? -1 : 1;
+                const w = 10 + rand() * 22, hgt = 8 + rand() * 20;
+                ctx.beginPath();
+                ctx.moveTo(cnx, cny + sy * hgt);
+                ctx.lineTo(cnx + sx * w * 0.4, cny + sy * hgt * 0.55);
+                ctx.lineTo(cnx + sx * w, cny + sy * hgt * 0.15);
+                ctx.lineTo(cnx + sx * w, cny);
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(254, 252, 246, 0.8)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(112, 100, 74, 0.35)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+
+        for (let ty = 0; ty < ROWS; ty++) {
+            for (let tx = 0; tx < COLS; tx++) {
+                const ox = tx * TW, oy = ty * TH;
+                for (let step = 0; step < 4; step++) {
+                    const inset = GRID_H + step * 3;
+                    const a = [0.34, 0.20, 0.11, 0.05][step];
+                    ctx.fillStyle = `rgba(56, 48, 30, ${a})`;
+                    ctx.fillRect(ox + inset, oy + inset, TW - inset * 2, 3);
+                    ctx.fillRect(ox + inset, oy + TH - inset - 3, TW - inset * 2, 3);
+                    ctx.fillRect(ox + inset, oy + inset, 3, TH - inset * 2);
+                    ctx.fillRect(ox + TW - inset - 3, oy + inset, 3, TH - inset * 2);
+                }
+            }
+        }
+
+        const mains = [], crosses = [];
+        for (let i = 0; i < COLS; i++) mains.push(i * TW);
+        mains.push(SIZE);
+        for (let i = 0; i < ROWS; i++) crosses.push(i * TH);
+        crosses.push(SIZE);
+        for (const p of mains) {
+            ctx.fillStyle = 'rgba(38, 32, 18, 0.42)';
+            ctx.fillRect(p - GRID_H - 2, 0, 2, SIZE);
+            ctx.fillRect(p + GRID_H, 0, 2, SIZE);
+            ctx.fillStyle = 'rgb(243, 241, 233)';
+            ctx.fillRect(p - GRID_H, 0, GRID_W, SIZE);
+            ctx.fillStyle = 'rgba(255, 255, 250, 0.55)';
+            ctx.fillRect(p - GRID_H, 0, 2, SIZE);
+            bCtx.fillStyle = '#ffffff';
+            bCtx.fillRect(p - GRID_H, 0, GRID_W, SIZE);
+            bCtx.fillStyle = '#404040';
+            bCtx.fillRect(p - GRID_H - 2, 0, 2, SIZE);
+            bCtx.fillRect(p + GRID_H, 0, 2, SIZE);
+        }
+        for (const p of crosses) {
+            ctx.fillStyle = 'rgba(38, 32, 18, 0.42)';
+            ctx.fillRect(0, p - GRID_H - 2, SIZE, 2);
+            ctx.fillRect(0, p + GRID_H, SIZE, 2);
+            ctx.fillStyle = 'rgb(239, 237, 229)';
+            ctx.fillRect(0, p - GRID_H, SIZE, GRID_W);
+            ctx.fillStyle = 'rgba(255, 255, 250, 0.55)';
+            ctx.fillRect(0, p - GRID_H, SIZE, 2);
+            bCtx.fillStyle = '#ffffff';
+            bCtx.fillRect(0, p - GRID_H, SIZE, GRID_W);
+            bCtx.fillStyle = '#404040';
+            bCtx.fillRect(0, p - GRID_H - 2, SIZE, 2);
+            bCtx.fillRect(0, p + GRID_H, SIZE, 2);
+        }
+        for (const m of mains) {
+            ctx.fillStyle = 'rgba(56, 46, 22, 0.38)';
+            for (const c of crosses) {
+                ctx.fillRect(m - GRID_H, c - GRID_H, 1, GRID_W);
+                ctx.fillRect(m + GRID_H - 1, c - GRID_H, 1, GRID_W);
+            }
+            ctx.fillStyle = `rgba(150, 128, 68, ${0.12 + rand() * 0.14})`;
+            ctx.fillRect(m - GRID_H, 0, 1, SIZE);
+            ctx.fillRect(m + GRID_H - 1, 0, 1, SIZE);
+        }
+        for (const c of crosses) {
+            ctx.fillStyle = `rgba(150, 128, 68, ${0.12 + rand() * 0.14})`;
+            ctx.fillRect(0, c - GRID_H, SIZE, 1);
+            ctx.fillRect(0, c + GRID_H - 1, SIZE, 1);
+        }
+
+        ctx.globalAlpha = 0.06;
+        ctx.drawImage(masterNoise, 0, 0, SIZE, SIZE);
+        ctx.globalAlpha = 1.0;
+
+        this._ditherCanvas(ctx, SIZE, SIZE, rand, 4);
+
+        return {canvas, bumpCanvas};
+    }
+
+    /**
+     * Builds the Clinic's wall: corporate beige painted drywall, scuffed and chipped.
+     *
+     * Unlike the floor and ceiling, this texture is *height-aware*. It follows the engine's
+     * existing wall convention -- repeat (4, 1) with `clampT`, so the canvas does not tile
+     * vertically and its full height maps to the wall's full 3.0 units. Canvas bottom is floor
+     * level. That is what lets `sharedWallMat` put a skirting band at y=480, and it lets this
+     * one put damage where damage actually happens.
+     *
+     * Everything here is banded accordingly: a coved vinyl base along the bottom, a beaten
+     * strip at gurney height, chips concentrated low where castors and cart corners strike,
+     * and a comparatively clean upper wall nobody ever touches. The Clinic's bumper rail
+     * geometry sits at y=0.95, which lands at canvas y=350, so the heaviest wear is centred
+     * there -- in a real corridor the wall *around* the rail takes the abuse.
+     *
+     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
+     * @returns {THREE.MeshStandardMaterial} The Clinic wall material.
+     */
+    static _buildClinicWall(masterNoise) {
+        const W = 512, H = 512;
+        const UNITS = 3.0;
+        const yAt = (u) => H - (u / UNITS) * H;
+        const RAIL_Y = yAt(0.95);
+        const BASE_TOP = yAt(0.10);
+        const rand = this._seededRandom(66104923);
+        const wrapX = (x, reach, fn) => {
+            const ox = x < reach ? W : (x > W - reach ? -W : 0);
+            fn(x);
+            if (ox) fn(x + ox);
+        };
+
+        const {canvas, ctx} = this._createContext(W, H);
+        const {canvas: bumpCanvas, ctx: bCtx} = this._createContext(W, H);
+        bCtx.fillStyle = '#b4b4b4';
+        bCtx.fillRect(0, 0, W, H);
+
+        const field = ctx.createLinearGradient(0, 0, 0, H);
+        field.addColorStop(0.0, 'rgb(208, 200, 181)');
+        field.addColorStop(0.62, 'rgb(202, 194, 175)');
+        field.addColorStop(1.0, 'rgb(188, 180, 163)');
+        ctx.fillStyle = field;
+        ctx.fillRect(0, 0, W, H);
+
+        for (let i = 0; i < 40; i++) {
+            const x = rand() * W, y = rand() * H, r = 40 + rand() * 90;
+            wrapX(x, r, (px) => {
+                const g = ctx.createRadialGradient(px, y, 0, px, y, r);
+                const warm = rand() > 0.5;
+                g.addColorStop(0, warm
+                    ? `rgba(211, 208, 198, ${0.05 + rand() * 0.06})`
+                    : `rgba(174, 172, 165, ${0.05 + rand() * 0.06})`);
+                g.addColorStop(1, 'rgba(196, 193, 185, 0)');
+                ctx.fillStyle = g;
+                ctx.fillRect(px - r, y - r, r * 2, r * 2);
+            });
+        }
+
+        for (let i = 0; i < 14000; i++) {
+            const x = rand() * W, y = rand() * H, r = 0.6 + rand() * 1.5;
+            const up = rand() > 0.5;
+            ctx.fillStyle = up ? `rgba(213, 211, 203, 0.20)` : `rgba(178, 176, 169, 0.18)`;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+            bCtx.fillStyle = up ? 'rgba(210,210,210,0.30)' : 'rgba(140,140,140,0.30)';
+            bCtx.beginPath();
+            bCtx.arc(x, y, r, 0, Math.PI * 2);
+            bCtx.fill();
+        }
+
+        ctx.lineCap = 'round';
+        for (let i = 0; i < 150; i++) {
+            const spread = (rand() + rand() + rand() - 1.5) * 105;
+            const y = RAIL_Y + spread;
+            if (y < 10 || y > BASE_TOP) continue;
+            const x = rand() * W;
+            const len = 14 + rand() * 90;
+            const tilt = (rand() - 0.5) * 0.34;
+            const near = 1 - Math.min(1, Math.abs(y - RAIL_Y) / 150);
+            wrapX(x, len + 20, (px) => {
+                ctx.strokeStyle = `rgba(101, 98, 92, ${(0.04 + rand() * 0.09) * (0.45 + near)})`;
+                ctx.lineWidth = 0.8 + rand() * 2.6;
+                ctx.beginPath();
+                ctx.moveTo(px, y);
+                ctx.quadraticCurveTo(px + len * 0.5, y + Math.sin(tilt) * len * 0.35,
+                    px + Math.cos(tilt) * len, y + Math.sin(tilt) * len);
+                ctx.stroke();
+            });
+        }
+
+        for (let i = 0; i < 90; i++) {
+            const bias = rand();
+            const y = bias < 0.80
+                ? BASE_TOP - rand() * (BASE_TOP - RAIL_Y + 60)
+                : yAt(1.2 + rand() * 1.7);
+            const x = rand() * W;
+            const r = 1.6 + rand() * 5.2;
+            const pts = 5 + Math.floor(rand() * 4);
+            const phase = rand() * Math.PI * 2;
+            wrapX(x, r + 6, (px) => {
+                const path = () => {
+                    ctx.beginPath();
+                    for (let p = 0; p <= pts; p++) {
+                        const a = (p / pts) * Math.PI * 2 + phase;
+                        const rr = r * (0.55 + rand() * 0.65);
+                        const qx = px + Math.cos(a) * rr, qy = y + Math.sin(a) * rr;
+                        if (p === 0) ctx.moveTo(qx, qy); else ctx.lineTo(qx, qy);
+                    }
+                    ctx.closePath();
+                };
+                path();
+                ctx.fillStyle = `rgba(122, 112, 96, ${0.35 + rand() * 0.3})`;
+                ctx.fill();
+                ctx.beginPath();
+                for (let p = 0; p <= pts; p++) {
+                    const a = (p / pts) * Math.PI * 2 + phase;
+                    const rr = r * 0.78 * (0.82 + rand() * 0.26);
+                    const qx = px + Math.cos(a) * rr - 0.3, qy = y + Math.sin(a) * rr - 0.3;
+                    if (p === 0) ctx.moveTo(qx, qy); else ctx.lineTo(qx, qy);
+                }
+                ctx.closePath();
+                ctx.fillStyle = `rgba(228, 223, 210, ${0.55 + rand() * 0.35})`;
+                ctx.fill();
+                bCtx.fillStyle = `rgba(70,70,70,${0.5 + rand() * 0.35})`;
+                bCtx.beginPath();
+                bCtx.arc(px, y, r * 0.75, 0, Math.PI * 2);
+                bCtx.fill();
+            });
+        }
+
+        for (let i = 0; i < 26; i++) {
+            const y = RAIL_Y + (rand() + rand() - 1) * 130;
+            if (y < 20 || y > BASE_TOP) continue;
+            const x = rand() * W, len = 8 + rand() * 40;
+            wrapX(x, len + 10, (px) => {
+                ctx.strokeStyle = `rgba(219, 214, 201, ${0.06 + rand() * 0.09})`;
+                ctx.lineWidth = 0.4 + rand() * 0.5;
+                ctx.beginPath();
+                ctx.moveTo(px, y);
+                ctx.lineTo(px + len, y + (rand() - 0.5) * 5);
+                ctx.stroke();
+            });
+        }
+
+        ctx.fillStyle = 'rgb(78, 76, 71)';
+        ctx.fillRect(0, BASE_TOP, W, H - BASE_TOP);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.10)';
+        ctx.fillRect(0, BASE_TOP, W, 3);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+        ctx.fillRect(0, BASE_TOP - 2, W, 2);
+        for (let i = 0; i < 70; i++) {
+            const x = rand() * W, y = BASE_TOP + rand() * (H - BASE_TOP);
+            ctx.fillStyle = `rgba(28, 27, 25, ${0.06 + rand() * 0.16})`;
+            ctx.fillRect(x, y, 4 + rand() * 30, 1 + rand() * 2);
+        }
+        bCtx.fillStyle = '#8c8c8c';
+        bCtx.fillRect(0, BASE_TOP, W, H - BASE_TOP);
+        bCtx.fillStyle = '#ffffff';
+        bCtx.fillRect(0, BASE_TOP - 1, W, 3);
+
+        ctx.globalAlpha = 0.07;
+        ctx.drawImage(masterNoise, 0, 0, W, H);
+        ctx.globalAlpha = 1.0;
+
+        this._ditherCanvas(ctx, W, H, rand, 15);
+
+        const map = this._createWrappedTexture(canvas, 4, 1, true);
+        const bumpMap = this._createWrappedTexture(bumpCanvas, 4, 1, true);
+        return new THREE.MeshStandardMaterial({
+            map,
+            bumpMap,
+            bumpScale: 0.014,
+            roughness: 0.72,
+            metalness: 0.02
+            // No shadowSide override. DoubleSide writes this wall's own front faces into the
+            // shadow map, so the lit face tests against its own depth and breaks into acne --
+            // horizontal bands that crawl as the mip level changes when you walk toward it.
+            // Three's default already picks BackSide for a FrontSide material, which is the
+            // guard against exactly that. DoubleSide is only needed by single-plane geometry
+            // that would otherwise cast nothing.
+        });
+    }
+
+    /**
+     * Builds the Clinic's crash rail: extruded vinyl over an aluminium retainer, the thing the
+     * scuff band on `_buildClinicWall` is evidence of.
+     *
+     * `_buildClinicWall` centres its scuffing on `RAIL_Y = yAt(0.95)` and has done since it was
+     * written, so the wall has always been telling the story of a rail that was not in the scene
+     * -- gouges at gurney height with nothing there to be gurney height. This restores the
+     * object the damage belongs to.
+     *
+     * The canvas is one metre of rail at 512px, tiled along the run. Vinyl is semi-gloss where
+     * the wall is flat, which is most of what sells it: under a ceiling panel the rail catches a
+     * highlight the beige around it cannot.
+     *
+     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
+     * @returns {THREE.MeshStandardMaterial} The crash rail material.
+     */
+    static _buildClinicRail(masterNoise) {
+        const W = 512, H = 74;
+        const rand = this._seededRandom(31885402);
+        const wrapX = (x, reach, fn) => {
+            const ox = x < reach ? W : (x > W - reach ? -W : 0);
+            fn(x);
+            if (ox) fn(x + ox);
+        };
+
+        const {canvas, ctx} = this._createContext(W, H);
+        const {canvas: bumpCanvas, ctx: bCtx} = this._createContext(W, H);
+        bCtx.fillStyle = '#9a9a9a';
+        bCtx.fillRect(0, 0, W, H);
+
+        const BODY_TOP = 9, BODY_BOT = H - 9;
+
+        const body = ctx.createLinearGradient(0, BODY_TOP, 0, BODY_BOT);
+        body.addColorStop(0.0, 'rgb(150, 144, 135)');
+        body.addColorStop(0.30, 'rgb(140, 134, 125)');
+        body.addColorStop(0.72, 'rgb(126, 120, 112)');
+        body.addColorStop(1.0, 'rgb(116, 111, 104)');
+        ctx.fillStyle = body;
+        ctx.fillRect(0, 0, W, H);
+
+        for (let i = 0; i < 900; i++) {
+            const x = rand() * W, y = BODY_TOP + rand() * (BODY_BOT - BODY_TOP);
+            ctx.fillStyle = rand() > 0.5
+                ? `rgba(163, 157, 148, ${0.05 + rand() * 0.08})`
+                : `rgba(103, 98, 92, ${0.05 + rand() * 0.08})`;
+            ctx.fillRect(x, y, 1 + rand() * 2, 1);
+        }
+
+        const lip = (y, h, top) => {
+            ctx.fillStyle = top ? 'rgb(176, 174, 167)' : 'rgb(148, 146, 140)';
+            ctx.fillRect(0, y, W, h);
+            ctx.fillStyle = 'rgba(255, 255, 250, 0.35)';
+            ctx.fillRect(0, top ? y : y + h - 1, W, 1);
+            bCtx.fillStyle = '#e8e8e8';
+            bCtx.fillRect(0, y, W, h);
+        };
+        lip(0, 5, true);
+        lip(H - 5, 5, false);
+
+        ctx.fillStyle = 'rgba(38, 34, 30, 0.55)';
+        ctx.fillRect(0, 5, W, 4);
+        ctx.fillRect(0, H - 9, W, 4);
+        bCtx.fillStyle = '#3a3a3a';
+        bCtx.fillRect(0, 5, W, 4);
+        bCtx.fillRect(0, H - 9, W, 4);
+
+        // Scuffing. A crash rail takes its damage as long horizontal drags at bed-frame height
+        // rather than the scattered pocks a wall collects, because the thing hitting it is
+        // always travelling along the corridor.
+        ctx.lineCap = 'round';
+        for (let i = 0; i < 120; i++) {
+            const y = BODY_TOP + 3 + rand() * (BODY_BOT - BODY_TOP - 6);
+            const len = 20 + rand() * 150;
+            const x = rand() * W;
+            const dark = rand() > 0.4;
+            wrapX(x, len + 10, (px) => {
+                ctx.strokeStyle = dark
+                    ? `rgba(52, 48, 44, ${0.10 + rand() * 0.22})`
+                    : `rgba(196, 192, 184, ${0.10 + rand() * 0.20})`;
+                ctx.lineWidth = 0.5 + rand() * 1.6;
+                ctx.beginPath();
+                ctx.moveTo(px, y);
+                ctx.lineTo(px + len, y + (rand() - 0.5) * 3);
+                ctx.stroke();
+            });
+        }
+
+        // Deeper gouges cut past the colour into the paler substrate underneath.
+        for (let i = 0; i < 16; i++) {
+            const y = BODY_TOP + 6 + rand() * (BODY_BOT - BODY_TOP - 14);
+            const len = 12 + rand() * 60;
+            const x = rand() * W;
+            wrapX(x, len + 10, (px) => {
+                ctx.strokeStyle = `rgba(206, 202, 193, ${0.4 + rand() * 0.35})`;
+                ctx.lineWidth = 0.8 + rand() * 1.4;
+                ctx.beginPath();
+                ctx.moveTo(px, y);
+                ctx.lineTo(px + len, y + (rand() - 0.5) * 2);
+                ctx.stroke();
+                bCtx.strokeStyle = `rgba(60, 60, 60, ${0.35 + rand() * 0.3})`;
+                bCtx.lineWidth = 0.8 + rand() * 1.4;
+                bCtx.beginPath();
+                bCtx.moveTo(px, y);
+                bCtx.lineTo(px + len, y + (rand() - 0.5) * 2);
+                bCtx.stroke();
+            });
+        }
+
+        ctx.globalAlpha = 0.05;
+        ctx.drawImage(masterNoise, 0, 0, W, H);
+        ctx.globalAlpha = 1.0;
+        this._ditherCanvas(ctx, W, H, rand, 8);
+
+        const map = this._createWrappedTexture(canvas, 4, 1, true);
+        const bumpMap = this._createWrappedTexture(bumpCanvas, 4, 1, true);
+        return new THREE.MeshStandardMaterial({
+            map,
+            bumpMap,
+            bumpScale: 0.004,
+            roughness: 0.44,
+            metalness: 0.08
+        });
+    }
+
+    /**
+     * Builds the Clinic's ceiling: a suspended 2x4 mineral-fibre drop ceiling, water stained.
+     *
+     * Scale matters more here than anywhere else in the factory. A 2x4 ceiling tile is two
+     * feet by four feet -- 0.61 x 1.22 units at this engine's roughly one-unit-per-metre
+     * scale, not two units by four. Laying four columns by two rows of them fills exactly
+     * 2.44 units square, so the canvas stays square and the repeat stays isotropic.
+     *
+     * The T-bar grid is drawn at ~5px, which is the real 15/16in flange width at this scale.
+     *
+     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
+     * @returns {THREE.MeshStandardMaterial} The Clinic ceiling material.
+     */
+    static _buildClinicCeiling(masterNoise) {
+        const SIZE = 512;
+        const COLS = 4, ROWS = 2;
+        const TW = SIZE / COLS, TH = SIZE / ROWS;
+        const GRID_W = 5;
+        const rand = this._seededRandom(41207788);
+        const wrapped = (x, y, reach, fn) => this._wrapDraw(SIZE, x, y, reach, fn);
+
+        const {canvas, ctx} = this._createContext(SIZE, SIZE);
+        const {canvas: bumpCanvas, ctx: bCtx} = this._createContext(SIZE, SIZE);
+        bCtx.fillStyle = '#c8c8c8';
+        bCtx.fillRect(0, 0, SIZE, SIZE);
+
+        const tiles = [];
+        for (let i = 0; i < COLS * ROWS; i++) {
+            const replaced = rand() > 0.86;
+            tiles.push({
+                replaced,
+                age: replaced ? 0.05 + rand() * 0.12 : 0.35 + rand() * 0.65,
+                stain: replaced ? 0 : (rand() > 0.55 ? 1 + rand() : 0)
+            });
+        }
+
+        for (let ty = 0; ty < ROWS; ty++) {
+            for (let tx = 0; tx < COLS; tx++) {
+                const t = tiles[ty * COLS + tx];
+                const base = 232 - t.age * 26;
+                ctx.fillStyle = `rgb(${base | 0}, ${base - t.age * 7 | 0}, ${base - t.age * 20 | 0})`;
+                ctx.fillRect(tx * TW, ty * TH, TW, TH);
+            }
+        }
+
+        ctx.lineCap = 'round';
+        for (let ty = 0; ty < ROWS; ty++) {
+            for (let tx = 0; tx < COLS; tx++) {
+                const ox = tx * TW, oy = ty * TH;
+                const along = rand() > 0.5;
+                for (let f = 0; f < 150; f++) {
+                    const x = ox + rand() * TW, y = oy + rand() * TH;
+                    const len = 5 + rand() * 26;
+                    const drift = (rand() - 0.5) * 1.1;
+                    const ang = (along ? 0 : Math.PI / 2) + drift;
+                    const dark = 0.05 + rand() * 0.10;
+                    const w = 0.6 + rand() * 1.3;
+                    const cpx = x + Math.cos(ang) * len * 0.5 + (rand() - 0.5) * 5;
+                    const cpy = y + Math.sin(ang) * len * 0.5 + (rand() - 0.5) * 5;
+                    const ex = x + Math.cos(ang) * len, ey = y + Math.sin(ang) * len;
+                    ctx.strokeStyle = `rgba(120, 114, 102, ${dark})`;
+                    ctx.lineWidth = w;
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.quadraticCurveTo(cpx, cpy, ex, ey);
+                    ctx.stroke();
+                    // Same curve, same width. The bump used to run a straight line at more than
+                    // twice the colour's contrast, so the relief disagreed with the mark it was
+                    // supposed to belong to and read as debris lying on the tile.
+                    bCtx.strokeStyle = `rgba(70, 70, 70, ${dark * 0.85})`;
+                    bCtx.lineWidth = w;
+                    bCtx.beginPath();
+                    bCtx.moveTo(x, y);
+                    bCtx.quadraticCurveTo(cpx, cpy, ex, ey);
+                    bCtx.stroke();
+                }
+                for (let p = 0; p < 260; p++) {
+                    const x = ox + rand() * TW, y = oy + rand() * TH;
+                    const r = 0.5 + rand() * 0.9;
+                    const a = 0.10 + rand() * 0.16;
+                    ctx.fillStyle = `rgba(108, 102, 92, ${a})`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, r, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Pinholes carry the relief now. They are the finest thing on the tile, so
+                    // they survive as tooth where the fissures were only ever readable as scars.
+                    bCtx.fillStyle = `rgba(96, 96, 96, ${a * 1.1})`;
+                    bCtx.beginPath();
+                    bCtx.arc(x, y, r, 0, Math.PI * 2);
+                    bCtx.fill();
+                }
+            }
+        }
+
+        const island = (cx, cy, r, wob, phase, lobes) => {
+            const pts = 20;
+            ctx.beginPath();
+            for (let i = 0; i <= pts; i++) {
+                const a = (i / pts) * Math.PI * 2;
+                const lobe = 0.5 + 0.5 * Math.sin(a * lobes + phase);
+                const lobe2 = 0.5 + 0.5 * Math.sin(a * (lobes + 2) - phase * 1.7);
+                const rr = r * (1 - wob + wob * (lobe * 0.65 + lobe2 * 0.35) + (rand() - 0.5) * 0.14);
+                const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr;
+                if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+        };
+        for (let ty = 0; ty < ROWS; ty++) {
+            for (let tx = 0; tx < COLS; tx++) {
+                const t = tiles[ty * COLS + tx];
+                if (!t.stain) continue;
+                const ox = tx * TW, oy = ty * TH;
+                const blooms = 1 + Math.floor(rand() * 2);
+                for (let b = 0; b < blooms; b++) {
+                    const cx = ox + TW * (0.25 + rand() * 0.5);
+                    const cy = oy + TH * (0.2 + rand() * 0.6);
+                    const rMax = Math.min(TW, TH) * (0.22 + rand() * 0.22) * t.stain;
+                    let dx = 0, dy = 0;
+                    for (let ring = 3; ring >= 1; ring--) {
+                        const r = rMax * (ring / 3);
+                        dx += (rand() - 0.5) * r * 0.28;
+                        dy += (rand() - 0.5) * r * 0.28;
+                        island(cx + dx, cy + dy, r, 0.26, rand() * Math.PI * 2, 2 + Math.floor(rand() * 3));
+                        ctx.fillStyle = `rgba(163, 128, 84, ${0.07 + (3 - ring) * 0.05})`;
+                        ctx.fill();
+                        if (ring !== 2) {
+                            ctx.strokeStyle = `rgba(129, 96, 56, ${0.18 + (3 - ring) * 0.07})`;
+                            ctx.lineWidth = 0.9 + rand() * 1.1;
+                            ctx.stroke();
+                        }
+                    }
+                    island(cx + dx * 1.3, cy + dy * 1.3, rMax * 0.26, 0.34,
+                        rand() * Math.PI * 2, 2 + Math.floor(rand() * 3));
+                    ctx.fillStyle = `rgba(140, 104, 62, 0.15)`;
+                    ctx.fill();
+                }
+            }
+        }
+
+        for (let ty = 0; ty < ROWS; ty++) {
+            for (let tx = 0; tx < COLS; tx++) {
+                const t = tiles[ty * COLS + tx];
+                if (t.replaced) continue;
+                const cx = tx * TW + TW / 2, cy = ty * TH + TH / 2;
+                const r = Math.min(TW, TH) * 0.62;
+                const g = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r);
+                g.addColorStop(0, `rgba(96, 90, 78, ${0.05 * t.age})`);
+                g.addColorStop(1, 'rgba(96, 90, 78, 0)');
+                ctx.fillStyle = g;
+                ctx.fillRect(tx * TW, ty * TH, TW, TH);
+            }
+        }
+
+        for (let i = 0; i < COLS; i++) {
+            const p = i * TW;
+            ctx.fillStyle = 'rgba(30, 28, 24, 0.20)';
+            ctx.fillRect(p + GRID_W / 2, 0, 2, SIZE);
+            ctx.fillStyle = 'rgb(228, 226, 219)';
+            ctx.fillRect(p - GRID_W / 2, 0, GRID_W, SIZE);
+            bCtx.fillStyle = '#ffffff';
+            bCtx.fillRect(p - GRID_W / 2, 0, GRID_W, SIZE);
+        }
+        for (let i = 0; i < ROWS; i++) {
+            const p = i * TH;
+            ctx.fillStyle = 'rgba(30, 28, 24, 0.20)';
+            ctx.fillRect(0, p + GRID_W / 2, SIZE, 2);
+            ctx.fillStyle = 'rgb(228, 226, 219)';
+            ctx.fillRect(0, p - GRID_W / 2, SIZE, GRID_W);
+            bCtx.fillStyle = '#ffffff';
+            bCtx.fillRect(0, p - GRID_W / 2, SIZE, GRID_W);
+        }
+        for (let i = 0; i < COLS; i++) {
+            const p = i * TW;
+            ctx.fillStyle = `rgba(146, 134, 112, ${0.10 + rand() * 0.12})`;
+            ctx.fillRect(p - GRID_W / 2, 0, 1, SIZE);
+            ctx.fillRect(p + GRID_W / 2 - 1, 0, 1, SIZE);
+        }
+        for (let i = 0; i < ROWS; i++) {
+            const p = i * TH;
+            ctx.fillStyle = `rgba(146, 134, 112, ${0.10 + rand() * 0.12})`;
+            ctx.fillRect(0, p - GRID_W / 2, SIZE, 1);
+            ctx.fillRect(0, p + GRID_W / 2 - 1, SIZE, 1);
+        }
+
+        ctx.globalAlpha = 0.05;
+        ctx.drawImage(masterNoise, 0, 0, SIZE, SIZE);
+        ctx.globalAlpha = 1.0;
+
+        this._ditherCanvas(ctx, SIZE, SIZE, rand, 4);
+
+        const map = this._createWrappedTexture(canvas, 23, 23);
+        const bumpMap = this._createWrappedTexture(bumpCanvas, 23, 23);
+        return new THREE.MeshStandardMaterial({
+            map,
+            bumpMap,
+            // 0.02 put roughly two centimetres of apparent relief on a fissure that is a
+            // millimetre deep, which is what turned the surface into gouges.
+            bumpScale: 0.005,
+            roughness: 0.97,
+            metalness: 0.0,
+            // The Clinic's fixtures sit flush in this plane and throw their cone downward, so
+            // the ceiling was the one surface in the sector receiving almost no light -- near
+            // black against walls and floor reading close to white. This is the same bounce
+            // cheat `ceilMat` uses on the normal floors.
+            //
+            // Driven through the map rather than as a flat colour. A flat emissive lifts the
+            // water stains exactly as much as the clean board around them, which washes out
+            // the whole surface; routing it through the albedo means the stains stay dark and
+            // the lift lands where the tile is already pale.
+            emissiveMap: map,
+            emissive: 0x4e5458,
+            shadowSide: THREE.DoubleSide
+        });
+    }
+
+    /**
+     * Builds the Clinic's floor: sterile white tile that has been walked on for years.
+     *
+     * `clinicMat` stays untouched and continues to serve the Clinic *ceiling* (plus the
+     * Boardroom and Impound ceilings). Only the floor gets wear, because floor grime on a
+     * ceiling is the giveaway that a texture is being reused where it shouldn't be.
+     *
+     * The brief here is the opposite of the Atrium's. That floor is dead, matte and dirty.
+     * This one is still maintained -- still waxed, still bright, still clinical -- so the wear
+     * has to read as *use* rather than neglect: buffer swirls from a rotary polisher, castor
+     * tracks from gurneys, grime settled into the grout, and a faint yellowing where the wax
+     * has aged. The tile stays white.
+     *
+     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
+     * @returns {THREE.MeshStandardMaterial} The Clinic floor material.
+     */
+    static _buildClinicFloor(masterNoise) {
+        const SIZE = 512;
+        const TILES = 8;
+        const TILE = SIZE / TILES;
+        const rand = this._seededRandom(80512377);
+        const wrapped = (x, y, reach, fn) => this._wrapDraw(SIZE, x, y, reach, fn);
+
+        const {canvas, ctx} = this._createContext(SIZE, SIZE);
+
+        const {canvas: roughCanvas, ctx: rCtx} = this._createContext(SIZE, SIZE);
+        rCtx.fillStyle = 'rgb(107, 107, 107)';
+        rCtx.fillRect(0, 0, SIZE, SIZE);
+        rCtx.lineCap = 'round';
+
+        for (let ty = 0; ty < TILES; ty++) {
+            for (let tx = 0; tx < TILES; tx++) {
+                const shade = 231 + Math.floor(rand() * 7);
+                ctx.fillStyle = `rgb(${shade - 3}, ${shade}, ${shade + 2})`;
+                ctx.fillRect(tx * TILE, ty * TILE, TILE, TILE);
+            }
+        }
+
+        for (let i = 0; i < 16; i++) {
+            const x = rand() * SIZE, y = rand() * SIZE, r = 70 + rand() * 130;
+            wrapped(x, y, r, (px, py) => {
+                const g = ctx.createRadialGradient(px, py, 0, px, py, r);
+                g.addColorStop(0, `rgba(214, 202, 164, ${0.05 + rand() * 0.06})`);
+                g.addColorStop(1, 'rgba(214, 202, 164, 0)');
+                ctx.fillStyle = g;
+                ctx.fillRect(px - r, py - r, r * 2, r * 2);
+            });
+        }
+
+        ctx.lineCap = 'round';
+        for (let s = 0; s < 34; s++) {
+            const cx = rand() * SIZE, cy = rand() * SIZE;
+            const baseR = 16 + rand() * 46;
+            const arcs = 2 + Math.floor(rand() * 4);
+            for (let a = 0; a < arcs; a++) {
+                const r = baseR + a * (2.5 + rand() * 3.5);
+                const start = rand() * Math.PI * 2;
+                const sweep = 0.7 + rand() * 2.2;
+                wrapped(cx, cy, r + 6, (px, py) => {
+                    const w = 0.7 + rand() * 1.1;
+                    ctx.strokeStyle = `rgba(206, 210, 212, ${0.07 + rand() * 0.08})`;
+                    ctx.lineWidth = w;
+                    ctx.beginPath();
+                    ctx.arc(px, py, r, start, start + sweep);
+                    ctx.stroke();
+                    rCtx.strokeStyle = `rgba(58, 58, 58, ${0.30 + rand() * 0.35})`;
+                    rCtx.lineWidth = w + 0.6;
+                    rCtx.beginPath();
+                    rCtx.arc(px, py, r, start, start + sweep);
+                    rCtx.stroke();
+                });
+            }
+        }
+
+        for (let t = 0; t < 9; t++) {
+            const x = rand() * SIZE, y = rand() * SIZE;
+            const angle = rand() * Math.PI * 2;
+            const len = 60 + rand() * 150;
+            const gap = 12 + rand() * 16;
+            const nx = -Math.sin(angle) * gap, ny = Math.cos(angle) * gap;
+            for (const [sx, sy] of [[0, 0], [nx, ny]]) {
+                wrapped(x + sx, y + sy, len + 30, (px, py) => {
+                    ctx.strokeStyle = `rgba(122, 120, 116, ${0.06 + rand() * 0.07})`;
+                    ctx.lineWidth = 0.8 + rand() * 1.0;
+                    ctx.beginPath();
+                    ctx.moveTo(px, py);
+                    ctx.lineTo(px + Math.cos(angle) * len, py + Math.sin(angle) * len);
+                    ctx.stroke();
+                });
+            }
+        }
+
+        for (let c = 0; c < 10; c++) {
+            const cx = rand() * SIZE, cy = rand() * SIZE;
+            const marks = 1 + Math.floor(rand() * 2);
+            for (let m = 0; m < marks; m++) {
+                const x = cx + (rand() - 0.5) * 40, y = cy + (rand() - 0.5) * 40;
+                const len = 5 + rand() * 13;
+                const angle = rand() * Math.PI * 2;
+                const bow = (rand() - 0.5) * 9;
+                wrapped(x, y, len + 24, (px, py) => {
+                    ctx.strokeStyle = `rgba(96, 94, 92, ${0.06 + rand() * 0.09})`;
+                    ctx.lineWidth = 0.8 + rand() * 1.3;
+                    ctx.beginPath();
+                    ctx.moveTo(px, py);
+                    ctx.quadraticCurveTo(
+                        px + Math.cos(angle) * len * 0.5 - Math.sin(angle) * bow,
+                        py + Math.sin(angle) * len * 0.5 + Math.cos(angle) * bow,
+                        px + Math.cos(angle) * len,
+                        py + Math.sin(angle) * len
+                    );
+                    ctx.stroke();
+                });
+            }
+        }
+
+        for (let i = 0; i <= TILES; i++) {
+            const p = i * TILE;
+            for (let seg = 0; seg < TILES * 2; seg++) {
+                const a = seg * (SIZE / (TILES * 2));
+                const b = a + SIZE / (TILES * 2);
+                const grime = 0.30 + rand() * 0.38;
+                const gw = 1.1 + rand() * 0.5;
+                ctx.strokeStyle = `rgba(154, 152, 143, ${grime})`;
+                ctx.lineWidth = gw;
+                ctx.beginPath();
+                ctx.moveTo(p, a);
+                ctx.lineTo(p, b);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(a, p);
+                ctx.lineTo(b, p);
+                ctx.stroke();
+                rCtx.strokeStyle = `rgba(196, 196, 196, ${0.55 + grime * 0.4})`;
+                rCtx.lineWidth = gw + 0.4;
+                rCtx.beginPath();
+                rCtx.moveTo(p, a);
+                rCtx.lineTo(p, b);
+                rCtx.stroke();
+                rCtx.beginPath();
+                rCtx.moveTo(a, p);
+                rCtx.lineTo(b, p);
+                rCtx.stroke();
+            }
+        }
+
+        ctx.globalAlpha = 0.035;
+        ctx.drawImage(masterNoise, 0, 0, SIZE, SIZE);
+        ctx.globalAlpha = 1.0;
+
+        this._ditherCanvas(ctx, SIZE, SIZE, rand, 4);
+
+        const {canvas: bumpCanvas, ctx: bCtx} = this._createContext(SIZE, SIZE);
+        bCtx.fillStyle = '#ffffff';
+        bCtx.fillRect(0, 0, SIZE, SIZE);
+        bCtx.strokeStyle = '#9a9a9a';
+        bCtx.lineWidth = 2.0;
+        for (let i = 0; i <= TILES; i++) {
+            const p = i * TILE;
+            bCtx.beginPath();
+            bCtx.moveTo(p, 0);
+            bCtx.lineTo(p, SIZE);
+            bCtx.moveTo(0, p);
+            bCtx.lineTo(SIZE, p);
+            bCtx.stroke();
+        }
+
+        const map = this._createWrappedTexture(canvas, 20, 20);
+        const bumpMap = this._createWrappedTexture(bumpCanvas, 20, 20);
+        const roughnessMap = this._createWrappedTexture(roughCanvas, 20, 20);
+        return new THREE.MeshStandardMaterial({
+            map,
+            bumpMap,
+            bumpScale: 0.012,
+            roughnessMap,
+            roughness: 1.0,
+            metalness: 0.12,
+            shadowSide: THREE.DoubleSide
+        });
+    }
+
+    /**
+     * Builds the Atrium's vinyl-composition-tile floor: a scuffed, unwaxed mall surface.
+     *
+     * The Atrium previously borrowed the Clinic's tile, which reads as freshly polished
+     * hospital flooring. This is the opposite material -- warm, chalky, speckled, and marked
+     * by decades of foot traffic that nobody has buffed out.
+     *
+     * Everything is laid down in one 512px canvas holding a 4x4 grid of tiles, so adjacent
+     * tiles differ in tone and the repeat is hard to read on a large floor plane. All drawing
+     * wraps at the canvas edges, because the texture tiles in both axes.
+     *
+     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
+     * @returns {THREE.MeshStandardMaterial} The Atrium floor material.
+     */
+    static _buildAtriumFloor(masterNoise) {
+        const SIZE = 512;
+        const TILES = 4;
+        const TILE = SIZE / TILES;
+        const rand = this._seededRandom(20260731);
+        const wrapped = (ctx, x, y, reach, fn) => this._wrapDraw(SIZE, x, y, reach, fn);
+
+        const {canvas, ctx} = this._createContext(SIZE, SIZE);
+
+        for (let ty = 0; ty < TILES; ty++) {
+            for (let tx = 0; tx < TILES; tx++) {
+                const shade = 166 + Math.floor(rand() * 11);
+                const warmth = Math.floor(rand() * 5);
+                ctx.fillStyle = `rgb(${shade + warmth}, ${shade + Math.floor(warmth * 0.7)}, ${shade - 8})`;
+                ctx.fillRect(tx * TILE, ty * TILE, TILE, TILE);
+            }
+        }
+
+        for (let i = 0; i < 15000; i++) {
+            const x = rand() * SIZE;
+            const y = rand() * SIZE;
+            const r = 0.3 + rand() * 0.8;
+            ctx.fillStyle = rand() > 0.4
+                ? (() => { const v = 92 + Math.floor(rand() * 38); return `rgba(${v + 6}, ${v + 2}, ${v - 4}, ${0.16 + rand() * 0.18})`; })()
+                : `rgba(232, 229, 220, ${0.14 + rand() * 0.16})`;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        for (let i = 0; i < 14; i++) {
+            const x = rand() * SIZE;
+            const y = rand() * SIZE;
+            const r = 60 + rand() * 110;
+            wrapped(ctx, x, y, r, (px, py) => {
+                const g = ctx.createRadialGradient(px, py, 0, px, py, r);
+                g.addColorStop(0, `rgba(78, 72, 60, ${0.10 + rand() * 0.10})`);
+                g.addColorStop(1, 'rgba(96, 90, 78, 0)');
+                ctx.fillStyle = g;
+                ctx.fillRect(px - r, py - r, r * 2, r * 2);
+            });
+        }
+
+        ctx.lineCap = 'round';
+        for (let cluster = 0; cluster < 18; cluster++) {
+            const cx = rand() * SIZE;
+            const cy = rand() * SIZE;
+            const marks = 1 + Math.floor(rand() * 3);
+            for (let m = 0; m < marks; m++) {
+                const x = cx + (rand() - 0.5) * 54;
+                const y = cy + (rand() - 0.5) * 54;
+                const len = 6 + rand() * 18;
+                const angle = rand() * Math.PI * 2;
+                const bow = (rand() - 0.5) * 12;
+                wrapped(ctx, x, y, len + 30, (px, py) => {
+                    ctx.strokeStyle = `rgba(58, 54, 48, ${0.07 + rand() * 0.13})`;
+                    ctx.lineWidth = 0.9 + rand() * 1.8;
+                    ctx.beginPath();
+                    ctx.moveTo(px, py);
+                    ctx.quadraticCurveTo(
+                        px + Math.cos(angle) * len * 0.5 - Math.sin(angle) * bow,
+                        py + Math.sin(angle) * len * 0.5 + Math.cos(angle) * bow,
+                        px + Math.cos(angle) * len,
+                        py + Math.sin(angle) * len
+                    );
+                    ctx.stroke();
+                });
+            }
+        }
+
+        ctx.strokeStyle = 'rgba(126, 120, 106, 0.28)';
+        ctx.lineWidth = 1.0;
+        for (let i = 0; i <= TILES; i++) {
+            const p = i * TILE;
+            ctx.beginPath();
+            ctx.moveTo(p, 0);
+            ctx.lineTo(p, SIZE);
+            ctx.moveTo(0, p);
+            ctx.lineTo(SIZE, p);
+            ctx.stroke();
+        }
+
+        ctx.globalAlpha = 0.06;
+        ctx.drawImage(masterNoise, 0, 0, SIZE, SIZE);
+        ctx.globalAlpha = 1.0;
+
+        this._ditherCanvas(ctx, SIZE, SIZE, rand, 4);
+
+        const {canvas: bumpCanvas, ctx: bCtx} = this._createContext(SIZE, SIZE);
+        bCtx.fillStyle = '#ffffff';
+        bCtx.fillRect(0, 0, SIZE, SIZE);
+        bCtx.strokeStyle = '#b4b4b4';
+        bCtx.lineWidth = 1.5;
+        for (let i = 0; i <= TILES; i++) {
+            const p = i * TILE;
+            bCtx.beginPath();
+            bCtx.moveTo(p, 0);
+            bCtx.lineTo(p, SIZE);
+            bCtx.moveTo(0, p);
+            bCtx.lineTo(SIZE, p);
+            bCtx.stroke();
+        }
+        bCtx.globalAlpha = 0.18;
+        bCtx.drawImage(masterNoise, 0, 0, SIZE, SIZE);
+        bCtx.globalAlpha = 1.0;
+
+        const map = this._createWrappedTexture(canvas, 16, 16);
+        const bumpMap = this._createWrappedTexture(bumpCanvas, 16, 16);
+        return new THREE.MeshStandardMaterial({
+            map,
+            bumpMap,
+            bumpScale: 0.018,
+            roughness: 0.9,
+            metalness: 0.0,
+            shadowSide: THREE.DoubleSide
+        });
     }
 
     static _buildOrganicAssets(masterNoise) {
@@ -783,8 +1948,227 @@ export default class ProceduralTextureFactory {
             metalMat,
             pittedMetalMat,
             almondMat,
-            titaniumMat
+            titaniumMat,
+            pipeMat: this._buildPipeMaterial(masterNoise),
+            corrosionBumpTexture: this._buildCorrosionBump()
         };
+    }
+
+    /**
+     * Builds the overworld standpipe: institutional enamel over steel, chipped at the couplings
+     * with rust bleeding down from them.
+     *
+     * The pipes were running `rustMat`, whose bump map is `structMat.map` -- the structural
+     * concrete texture, dark horizontal bands and all. Wrapped round a cylinder at bumpScale
+     * 0.03 those bands read as stacked concrete rings, which is why a 12cm steel riser looked
+     * like a culvert section.
+     *
+     * Cylinder UVs put u around the circumference and v along the axis, so the canvas is
+     * 256 wide by 512 tall representing about a metre and a half of pipe, tiled twice up a 3m
+     * run. Coupling collars sit on the canvas edges, which lands them at floor, mid and
+     * ceiling. Nothing here is baked with directional shading -- eight radial segments with
+     * smooth normals already carry the roundness, and a painted-in highlight would fight it.
+     *
+     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
+     * @returns {THREE.MeshStandardMaterial} The standpipe material.
+     */
+    static _buildPipeMaterial(masterNoise) {
+        const W = 256, H = 512;
+        const rand = this._seededRandom(77410233);
+        const wrapY = (y, reach, fn) => {
+            const oy = y < reach ? H : (y > H - reach ? -H : 0);
+            fn(y);
+            if (oy) fn(y + oy);
+        };
+
+        const {canvas, ctx} = this._createContext(W, H);
+        const {canvas: bumpCanvas, ctx: bCtx} = this._createContext(W, H);
+        bCtx.fillStyle = '#9c9c9c';
+        bCtx.fillRect(0, 0, W, H);
+
+        ctx.fillStyle = 'rgb(156, 162, 150)';
+        ctx.fillRect(0, 0, W, H);
+
+        // Roller texture. Enamel on a riser goes on lengthwise, so the streaking runs with the
+        // axis -- vertical here. This is the grain the concrete map never had and the single
+        // biggest reason these read as pipe rather than post.
+        for (let i = 0; i < 620; i++) {
+            const x = rand() * W, y = rand() * H, len = 30 + rand() * 220;
+            ctx.strokeStyle = rand() > 0.5
+                ? `rgba(186, 192, 180, ${0.05 + rand() * 0.10})`
+                : `rgba(128, 134, 124, ${0.05 + rand() * 0.10})`;
+            ctx.lineWidth = 1 + rand() * 4;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + (rand() - 0.5) * 4, y + len);
+            ctx.stroke();
+        }
+
+        // The longitudinal weld seam: one line up the whole run, very slightly proud.
+        const seamX = rand() * W;
+        ctx.strokeStyle = 'rgba(126, 132, 122, 0.5)';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(seamX, 0);
+        ctx.lineTo(seamX, H);
+        ctx.stroke();
+        bCtx.strokeStyle = 'rgba(190, 190, 190, 0.8)';
+        bCtx.lineWidth = 2.5;
+        bCtx.beginPath();
+        bCtx.moveTo(seamX, 0);
+        bCtx.lineTo(seamX, H);
+        bCtx.stroke();
+
+        // Coupling collars, on the wrap so they land as complete rings.
+        const collar = (cy) => {
+            wrapY(cy, 26, (y) => {
+                ctx.fillStyle = 'rgba(46, 48, 44, 0.42)';
+                ctx.fillRect(0, y - 13, W, 3);
+                ctx.fillRect(0, y + 10, W, 3);
+                ctx.fillStyle = 'rgb(172, 178, 166)';
+                ctx.fillRect(0, y - 10, W, 20);
+                ctx.fillStyle = 'rgba(206, 212, 200, 0.5)';
+                ctx.fillRect(0, y - 10, W, 3);
+                bCtx.fillStyle = '#f0f0f0';
+                bCtx.fillRect(0, y - 10, W, 20);
+                bCtx.fillStyle = '#4a4a4a';
+                bCtx.fillRect(0, y - 13, W, 3);
+                bCtx.fillRect(0, y + 10, W, 3);
+            });
+        };
+        collar(0);
+        collar(H / 2);
+
+        // Chipped enamel, clustered at the collars where a wrench has been. The exposed steel
+        // underneath is cooler and lighter than the paint over it.
+        const chips = [];
+        for (let i = 0; i < 46; i++) {
+            const nearCollar = rand() > 0.35;
+            const y = nearCollar
+                ? (rand() > 0.5 ? 0 : H / 2) + (rand() - 0.5) * 54
+                : rand() * H;
+            const x = rand() * W;
+            const r = 2 + rand() * 7;
+            chips.push({x, y, r});
+            wrapY(y, r + 4, (yy) => {
+                ctx.beginPath();
+                const pts = 9;
+                for (let p = 0; p <= pts; p++) {
+                    const a = (p / pts) * Math.PI * 2;
+                    const rr = r * (0.55 + rand() * 0.7);
+                    const px = x + Math.cos(a) * rr, py = yy + Math.sin(a) * rr;
+                    if (p === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+                ctx.fillStyle = `rgba(200, 202, 196, ${0.6 + rand() * 0.3})`;
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(88, 92, 84, 0.45)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                bCtx.fillStyle = 'rgba(120, 120, 120, 0.55)';
+                bCtx.beginPath();
+                bCtx.arc(x, yy, r * 0.8, 0, Math.PI * 2);
+                bCtx.fill();
+            });
+        }
+
+        // Rust bleed. Water finds the break in the paint and carries oxide down the pipe, so
+        // every streak starts at a chip and runs one way only.
+        ctx.lineCap = 'round';
+        for (const c of chips) {
+            if (rand() > 0.62) continue;
+            const runs = 1 + Math.floor(rand() * 3);
+            for (let s = 0; s < runs; s++) {
+                const len = 20 + rand() * 150;
+                const x = c.x + (rand() - 0.5) * c.r * 1.6;
+                const g = ctx.createLinearGradient(0, c.y, 0, c.y + len);
+                g.addColorStop(0, `rgba(150, 90, 42, ${0.30 + rand() * 0.25})`);
+                g.addColorStop(1, 'rgba(150, 90, 42, 0)');
+                ctx.strokeStyle = g;
+                ctx.lineWidth = 0.8 + rand() * 2.4;
+                ctx.beginPath();
+                ctx.moveTo(x, c.y);
+                ctx.lineTo(x + (rand() - 0.5) * 6, c.y + len);
+                ctx.stroke();
+            }
+        }
+
+        // Grime settles toward the floor end of the run.
+        const dirt = ctx.createLinearGradient(0, H, 0, H * 0.55);
+        dirt.addColorStop(0, 'rgba(52, 50, 42, 0.20)');
+        dirt.addColorStop(1, 'rgba(52, 50, 42, 0)');
+        ctx.fillStyle = dirt;
+        ctx.fillRect(0, 0, W, H);
+
+        ctx.globalAlpha = 0.07;
+        ctx.drawImage(masterNoise, 0, 0, W, H);
+        ctx.globalAlpha = 1.0;
+        this._ditherCanvas(ctx, W, H, rand, 6);
+
+        const map = this._createWrappedTexture(canvas, 1, 2);
+        const bumpMap = this._createWrappedTexture(bumpCanvas, 1, 2);
+        return new THREE.MeshStandardMaterial({
+            map,
+            bumpMap,
+            bumpScale: 0.004,
+            roughness: 0.45,
+            // Near zero on purpose. There is no envMap in this scene, so the metallic
+            // fraction of a MeshStandardMaterial has nothing to reflect -- raising metalness
+            // only subtracts diffuse and hands back nothing, which is what turned these into
+            // black silhouettes under the hemisphere light. Enamel is dielectric anyway; the
+            // metal read comes from roughness and the texture, not from this channel.
+            metalness: 0.05
+        });
+    }
+
+    /**
+     * Builds a generic corrosion relief for `rustMat`.
+     *
+     * `rustMat` skins drums, cable loops, skids, 80-unit Chasm pillars and Incinerator walls,
+     * so this has to stay non-directional -- pitting and scale, no grain and no bands. Bands
+     * are what made the old `structMat.map` read as poured concrete on everything it touched.
+     *
+     * @returns {THREE.Texture} A tiling bump map of pitted, scaled metal.
+     */
+    static _buildCorrosionBump() {
+        const S = 512;
+        const rand = this._seededRandom(90218844);
+        const {canvas, ctx} = this._createContext(S, S);
+        const wrap = (x, y, reach, fn) => this._wrapDraw(S, x, y, reach, fn);
+
+        ctx.fillStyle = '#9a9a9a';
+        ctx.fillRect(0, 0, S, S);
+
+        // Scale plates: broad, soft, lifting areas of oxide.
+        for (let i = 0; i < 90; i++) {
+            const x = rand() * S, y = rand() * S, r = 14 + rand() * 52;
+            const up = rand() > 0.45;
+            wrap(x, y, r, (px, py) => {
+                const g = ctx.createRadialGradient(px, py, 0, px, py, r);
+                const a = 0.10 + rand() * 0.16;
+                g.addColorStop(0, up ? `rgba(210,210,210,${a})` : `rgba(96,96,96,${a})`);
+                g.addColorStop(1, up ? 'rgba(210,210,210,0)' : 'rgba(96,96,96,0)');
+                ctx.fillStyle = g;
+                ctx.fillRect(px - r, py - r, r * 2, r * 2);
+            });
+        }
+
+        // Pitting: the fine detail that actually reads as corroded metal at arm's length.
+        for (let i = 0; i < 5200; i++) {
+            const x = rand() * S, y = rand() * S, r = 0.6 + rand() * 2.6;
+            const deep = rand() > 0.3;
+            wrap(x, y, r + 1, (px, py) => {
+                ctx.fillStyle = deep
+                    ? `rgba(58, 58, 58, ${0.25 + rand() * 0.45})`
+                    : `rgba(216, 216, 216, ${0.15 + rand() * 0.3})`;
+                ctx.beginPath();
+                ctx.arc(px, py, r, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        this._ditherCanvas(ctx, S, S, rand, 5);
+        return this._createWrappedTexture(canvas, 2, 2);
     }
 
     static _buildAnnexAssets(masterNoise) {
@@ -1590,6 +2974,677 @@ export default class ProceduralTextureFactory {
         return {checkpointFloorMat, checkpointCeilingMat};
     }
 
+    /**
+     * Builds the Incinerator's floor: heavy steel plate that has been swept, scorched and walked
+     * on for decades.
+     *
+     * Scale was the whole problem with what this replaces. `diamondPlateMat` put its tread cell
+     * at 500mm -- checker plate pitch is 25 to 30mm, so it was nearly seventeen times oversize
+     * and read as tiled slabs rather than plate. True pitch is not the answer either: at 30mm
+     * the pattern dissolves past two metres and the floor goes flat grey. This sits at 125mm and
+     * calls itself heavy floor plate, which survives mipmapping and still reads as metal.
+     *
+     * 32 cells across a canvas covering 4 units, repeat 14 on the 56-unit foundation. The repeat
+     * stays an integer so the plate runs continuously across a chunk boundary instead of being
+     * cut mid-tread.
+     *
+     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
+     * @returns {THREE.MeshStandardMaterial} The Incinerator floor material.
+     */
+    static _buildIncineratorFloor(masterNoise) {
+        const S = 1024;
+        const CELLS = 32;
+        const C = S / CELLS;
+        const rand = this._seededRandom(52308871);
+        const wrap = (x, y, reach, fn) => this._wrapDraw(S, x, y, reach, fn);
+
+        const {canvas, ctx} = this._createContext(S, S);
+        const {canvas: bumpCanvas, ctx: bCtx} = this._createContext(S, S);
+        bCtx.fillStyle = '#8a8a8a';
+        bCtx.fillRect(0, 0, S, S);
+
+        ctx.fillStyle = 'rgb(104, 99, 95)';
+        ctx.fillRect(0, 0, S, S);
+
+        // Rolled-steel mottle under everything, so the plate is never a flat field.
+        for (let i = 0; i < 70; i++) {
+            const x = rand() * S, y = rand() * S, r = 40 + rand() * 130;
+            wrap(x, y, r, (px, py) => {
+                const g = ctx.createRadialGradient(px, py, 0, px, py, r);
+                const up = rand() > 0.5;
+                const a = 0.05 + rand() * 0.08;
+                g.addColorStop(0, up ? `rgba(140,134,128,${a})` : `rgba(72,68,64,${a})`);
+                g.addColorStop(1, up ? 'rgba(140,134,128,0)' : 'rgba(72,68,64,0)');
+                ctx.fillStyle = g;
+                ctx.fillRect(px - r, py - r, r * 2, r * 2);
+            });
+        }
+
+        // Traffic polish. Rolled up front because the tread pass needs to know where the plate
+        // has been walked smooth -- a worn bar is both flatter and brighter than a proud one,
+        // and it has to agree in the colour map and the relief.
+        const paths = [];
+        for (let i = 0; i < 5; i++) {
+            paths.push({x: rand() * S, y: rand() * S, r: 90 + rand() * 200});
+        }
+        const wearAt = (x, y) => {
+            let w = 0;
+            for (const p of paths) {
+                let dx = Math.abs(x - p.x), dy = Math.abs(y - p.y);
+                if (dx > S / 2) dx = S - dx;
+                if (dy > S / 2) dy = S - dy;
+                const d = Math.sqrt(dx * dx + dy * dy);
+                if (d < p.r) w = Math.max(w, 1 - d / p.r);
+            }
+            return w;
+        };
+
+        // The tread pattern. Two parallel bars per cell, alternating 90 degrees cell to cell,
+        // which is how floor plate is actually rolled.
+        const bar = (cx, cy, ang, len, wid, worn) => {
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(ang);
+            const top = 168 - worn * 34;
+            const bot = 60 + worn * 18;
+            const g = ctx.createLinearGradient(0, -wid / 2, 0, wid / 2);
+            g.addColorStop(0, `rgb(${top | 0}, ${top - 5 | 0}, ${top - 10 | 0})`);
+            g.addColorStop(0.55, `rgb(${118 - worn * 16 | 0}, ${113 - worn * 16 | 0}, ${107 - worn * 16 | 0})`);
+            g.addColorStop(1, `rgb(${bot | 0}, ${bot - 3 | 0}, ${bot - 6 | 0})`);
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.roundRect(-len / 2, -wid / 2, len, wid, wid / 2);
+            ctx.fill();
+            ctx.restore();
+
+            bCtx.save();
+            bCtx.translate(cx, cy);
+            bCtx.rotate(ang);
+            const h = 236 - worn * 90;
+            bCtx.fillStyle = `rgb(${h | 0},${h | 0},${h | 0})`;
+            bCtx.beginPath();
+            bCtx.roundRect(-len / 2, -wid / 2, len, wid, wid / 2);
+            bCtx.fill();
+            bCtx.restore();
+        };
+        for (let gy = 0; gy < CELLS; gy++) {
+            for (let gx = 0; gx < CELLS; gx++) {
+                const cx = gx * C + C / 2, cy = gy * C + C / 2;
+                const ang = ((gx + gy) % 2 === 0 ? 1 : -1) * Math.PI / 4 + (rand() - 0.5) * 0.05;
+                const worn = wearAt(cx, cy);
+                for (const k of [-1, 1]) {
+                    const ox = Math.cos(ang + Math.PI / 2) * C * 0.21 * k;
+                    const oy = Math.sin(ang + Math.PI / 2) * C * 0.21 * k;
+                    wrap(cx + ox, cy + oy, C, (px, py) =>
+                        bar(px, py, ang, C * 0.62, C * 0.20, worn));
+                }
+            }
+        }
+
+        // Plate seams. Sheets butt at two-unit intervals; the joint is a dark line with the
+        // next sheet standing a fraction proud of it.
+        for (const p of [S / 2, S]) {
+            ctx.fillStyle = 'rgba(28, 24, 22, 0.55)';
+            ctx.fillRect(p - 3, 0, 4, S);
+            ctx.fillRect(0, p - 3, S, 4);
+            ctx.fillStyle = 'rgba(158, 150, 142, 0.30)';
+            ctx.fillRect(p + 1, 0, 2, S);
+            ctx.fillRect(0, p + 1, S, 2);
+            bCtx.fillStyle = '#3c3c3c';
+            bCtx.fillRect(p - 3, 0, 4, S);
+            bCtx.fillRect(0, p - 3, S, 4);
+        }
+
+        // Ash. It collects in the valleys between bars, so it goes down after the treads and
+        // the bar crowns get relit over the top of it.
+        for (let i = 0; i < 150; i++) {
+            const x = rand() * S, y = rand() * S, r = 10 + rand() * 52;
+            wrap(x, y, r, (px, py) => {
+                const g = ctx.createRadialGradient(px, py, 0, px, py, r);
+                const a = 0.07 + rand() * 0.14;
+                g.addColorStop(0, `rgba(182, 176, 166, ${a})`);
+                g.addColorStop(1, 'rgba(182, 176, 166, 0)');
+                ctx.fillStyle = g;
+                ctx.fillRect(px - r, py - r, r * 2, r * 2);
+            });
+        }
+        for (let gy = 0; gy < CELLS; gy++) {
+            for (let gx = 0; gx < CELLS; gx++) {
+                const cx = gx * C + C / 2, cy = gy * C + C / 2;
+                const worn = wearAt(cx, cy);
+                const ang = ((gx + gy) % 2 === 0 ? 1 : -1) * Math.PI / 4;
+                for (const k of [-1, 1]) {
+                    const ox = Math.cos(ang + Math.PI / 2) * C * 0.21 * k;
+                    const oy = Math.sin(ang + Math.PI / 2) * C * 0.21 * k;
+                    wrap(cx + ox, cy + oy, C, (px, py) => {
+                        ctx.save();
+                        ctx.translate(px, py);
+                        ctx.rotate(ang);
+                        ctx.fillStyle = `rgba(196, 188, 178, ${0.30 - worn * 0.16})`;
+                        ctx.beginPath();
+                        ctx.roundRect(-C * 0.29, -C * 0.09, C * 0.58, C * 0.07, C * 0.035);
+                        ctx.fill();
+                        ctx.restore();
+                    });
+                }
+            }
+        }
+
+        // Scorch. Heat bloom near where the grilles sit, with an oxide rim where the steel got
+        // hot enough to colour.
+        for (let i = 0; i < 9; i++) {
+            const x = rand() * S, y = rand() * S, r = 40 + rand() * 90;
+            wrap(x, y, r, (px, py) => {
+                const g = ctx.createRadialGradient(px, py, r * 0.1, px, py, r);
+                g.addColorStop(0, `rgba(20, 14, 11, ${0.18 + rand() * 0.14})`);
+                g.addColorStop(0.62, `rgba(58, 30, 16, ${0.10 + rand() * 0.08})`);
+                g.addColorStop(0.86, `rgba(122, 62, 24, ${0.06 + rand() * 0.05})`);
+                g.addColorStop(1, 'rgba(122, 62, 24, 0)');
+                ctx.fillStyle = g;
+                ctx.fillRect(px - r, py - r, r * 2, r * 2);
+            });
+        }
+
+        // Pitting, in both channels, so the plate has tooth at arm's length.
+        for (let i = 0; i < 3600; i++) {
+            const x = rand() * S, y = rand() * S, r = 0.7 + rand() * 2.2;
+            wrap(x, y, r + 1, (px, py) => {
+                ctx.fillStyle = `rgba(46, 40, 36, ${0.18 + rand() * 0.30})`;
+                ctx.beginPath();
+                ctx.arc(px, py, r, 0, Math.PI * 2);
+                ctx.fill();
+                bCtx.fillStyle = `rgba(60, 60, 60, ${0.20 + rand() * 0.30})`;
+                bCtx.beginPath();
+                bCtx.arc(px, py, r, 0, Math.PI * 2);
+                bCtx.fill();
+            });
+        }
+
+        ctx.globalAlpha = 0.07;
+        ctx.drawImage(masterNoise, 0, 0, S, S);
+        ctx.globalAlpha = 1.0;
+        this._ditherCanvas(ctx, S, S, rand, 6);
+
+        const map = this._createWrappedTexture(canvas, 14, 14);
+        const bumpMap = this._createWrappedTexture(bumpCanvas, 14, 14);
+        return new THREE.MeshStandardMaterial({
+            map,
+            bumpMap,
+            // 0.05 on the old plate put five centimetres of relief on a tread that stands two
+            // millimetres proud. Scaled to match the plate's own 4x, not to the old number.
+            bumpScale: 0.006,
+            roughness: 0.6,
+            // Kept near dielectric for the same reason as the pipes: no envMap in this scene,
+            // so metalness only subtracts diffuse and returns nothing.
+            metalness: 0.1,
+            shadowSide: THREE.DoubleSide
+        });
+    }
+
+    /**
+     * Builds the Incinerator's walls: riveted steel plate, sooted, tempered by the fire it has
+     * been standing next to.
+     *
+     * What this replaces was `rustMat` -- a flat colour with no map at all and a generic pitting
+     * bump, which on a four-metre wall reads as stucco rather than metal. Pitting works on a
+     * drum because a drum is small and curved; a large flat surface needs structure, and on
+     * riveted plate the structure is the courses and the rivet lines.
+     *
+     * Height-aware, like `_buildClinicWall`. `buildWall` maps v across the full 3-unit wall and
+     * the texture is clamped vertically, so the canvas is an absolute elevation: base channel at
+     * the floor, three plate courses, a head angle at the ceiling. Nothing here tiles upward,
+     * which is the point -- a rivet line that drifted with the tiling would stop reading as a
+     * built thing.
+     *
+     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
+     * @returns {THREE.MeshStandardMaterial} The Incinerator wall material.
+     */
+    static _buildIncineratorWall(masterNoise) {
+        const W = 512, H = 768;
+        const UNITS_W = 2.0, UNITS_H = 3.0;
+        const PPU = W / UNITS_W;
+        const yAt = (u) => H - (u / UNITS_H) * H;
+        const rand = this._seededRandom(46113920);
+        const wrapX = (x, reach, fn) => {
+            const ox = x < reach ? W : (x > W - reach ? -W : 0);
+            fn(x);
+            if (ox) fn(x + ox);
+        };
+
+        const {canvas, ctx} = this._createContext(W, H);
+        const {canvas: bumpCanvas, ctx: bCtx} = this._createContext(W, H);
+        bCtx.fillStyle = '#8e8e8e';
+        bCtx.fillRect(0, 0, W, H);
+
+        ctx.fillStyle = 'rgb(104, 98, 93)';
+        ctx.fillRect(0, 0, W, H);
+
+        // Rolled mottle, so no course is a flat field.
+        for (let i = 0; i < 60; i++) {
+            const x = rand() * W, y = rand() * H, r = 40 + rand() * 120;
+            wrapX(x, r, (px) => {
+                const g = ctx.createRadialGradient(px, y, 0, px, y, r);
+                const up = rand() > 0.5;
+                const a = 0.05 + rand() * 0.09;
+                g.addColorStop(0, up ? `rgba(142,136,128,${a})` : `rgba(70,66,62,${a})`);
+                g.addColorStop(1, up ? 'rgba(142,136,128,0)' : 'rgba(70,66,62,0)');
+                ctx.fillStyle = g;
+                ctx.fillRect(px - r, y - r, r * 2, r * 2);
+            });
+        }
+
+        // Temper. Steel that has been near a fire colours by temperature: straw first, then
+        // brown, then purple and blue as it gets hotter. It is worst at the bottom because that
+        // is where the furnace is, so the bands climb from the floor and fade out by waist
+        // height. This is the one thing on the wall that is not grey, and it does most of the
+        // work of saying the room has been running.
+        const temper = [
+            {top: yAt(0.0), bot: yAt(0.5), col: '92, 104, 132', a: 0.10},
+            {top: yAt(0.3), bot: yAt(0.9), col: '108, 78, 122', a: 0.07},
+            {top: yAt(0.7), bot: yAt(1.3), col: '132, 92, 48', a: 0.09},
+            {top: yAt(1.1), bot: yAt(1.8), col: '158, 132, 62', a: 0.08}
+        ];
+        for (const t of temper) {
+            for (let i = 0; i < 13; i++) {
+                const x = rand() * W;
+                const cy = t.bot + rand() * (t.top - t.bot);
+                const r = 30 + rand() * 80;
+                wrapX(x, r, (px) => {
+                    const g = ctx.createRadialGradient(px, cy, 0, px, cy, r);
+                    g.addColorStop(0, `rgba(${t.col}, ${t.a * (0.5 + rand() * 0.6)})`);
+                    g.addColorStop(1, `rgba(${t.col}, 0)`);
+                    ctx.fillStyle = g;
+                    ctx.fillRect(px - r, cy - r, r * 2, r * 2);
+                });
+            }
+        }
+
+        // 25mm is the honest size for a boiler rivet and it dissolved by three metres, the
+        // same way the ceiling perforation did. Scaled to match the plate's own exaggeration:
+        // large structural rivets that still read as rivets across the room.
+        const RIVET_R = 0.020 * PPU;
+        const RIVET_PITCH = 0.16 * PPU;
+        const rivet = (x, y) => {
+            wrapX(x, RIVET_R + 3, (px) => {
+                const g = ctx.createRadialGradient(
+                    px - RIVET_R * 0.35, y - RIVET_R * 0.35, RIVET_R * 0.1, px, y, RIVET_R);
+                g.addColorStop(0, 'rgba(224, 216, 202, 0.95)');
+                g.addColorStop(0.55, 'rgba(132, 123, 114, 0.9)');
+                g.addColorStop(1, 'rgba(34, 29, 25, 0.92)');
+                ctx.fillStyle = g;
+                ctx.beginPath();
+                ctx.arc(px, y, RIVET_R, 0, Math.PI * 2);
+                ctx.fill();
+                bCtx.fillStyle = '#f4f4f4';
+                bCtx.beginPath();
+                bCtx.arc(px, y, RIVET_R * 0.86, 0, Math.PI * 2);
+                bCtx.fill();
+            });
+        };
+        const rivetRow = (y) => {
+            for (let x = RIVET_PITCH * 0.5; x < W; x += RIVET_PITCH) {
+                rivet(x + (rand() - 0.5) * 1.5, y + (rand() - 0.5) * 1.5);
+            }
+        };
+
+        // Course seams: lapped plate, so the upper course stands proud of the one below and
+        // throws a shadow onto it, with a double rivet row through the lap.
+        const courses = [yAt(0.34), yAt(1.22), yAt(2.10)];
+        for (const y of courses) {
+            ctx.fillStyle = 'rgba(24, 20, 17, 0.55)';
+            ctx.fillRect(0, y, W, 5);
+            ctx.fillStyle = 'rgba(158, 150, 140, 0.22)';
+            ctx.fillRect(0, y - 2, W, 2);
+            bCtx.fillStyle = '#c8c8c8';
+            bCtx.fillRect(0, y - 3, W, 3);
+            bCtx.fillStyle = '#4c4c4c';
+            bCtx.fillRect(0, y, W, 5);
+            rivetRow(y - 15);
+            rivetRow(y + 19);
+        }
+
+        // Vertical butt straps every metre, riveted both sides.
+        for (let sx = 0; sx < W; sx += PPU) {
+            const strapW = 0.20 * PPU;
+            ctx.fillStyle = 'rgba(150, 142, 133, 0.16)';
+            ctx.fillRect(sx - strapW / 2, 0, strapW, H);
+            ctx.fillStyle = 'rgba(24, 20, 17, 0.42)';
+            ctx.fillRect(sx - strapW / 2 - 2, 0, 2, H);
+            ctx.fillRect(sx + strapW / 2, 0, 2, H);
+            bCtx.fillStyle = '#bcbcbc';
+            bCtx.fillRect(sx - strapW / 2, 0, strapW, H);
+            for (let y = RIVET_PITCH * 0.6; y < H; y += RIVET_PITCH) {
+                rivet(sx - strapW * 0.28, y);
+                rivet(sx + strapW * 0.28, y);
+            }
+        }
+
+        // Base channel at the floor and a head angle at the ceiling.
+        const base = yAt(0.22);
+        ctx.fillStyle = 'rgba(38, 32, 27, 0.5)';
+        ctx.fillRect(0, base, W, H - base);
+        ctx.fillStyle = 'rgba(20, 16, 13, 0.6)';
+        ctx.fillRect(0, base, W, 4);
+        bCtx.fillStyle = '#d8d8d8';
+        bCtx.fillRect(0, base, W, H - base);
+        rivetRow(base + 22);
+        const head = yAt(2.82);
+        ctx.fillStyle = 'rgba(44, 38, 32, 0.42)';
+        ctx.fillRect(0, 0, W, head);
+        bCtx.fillStyle = '#d0d0d0';
+        bCtx.fillRect(0, 0, W, head);
+        rivetRow(head - 18);
+
+        // Soot. It leaves the seams and runs up the wall on the convection, so these taper
+        // upward rather than down the way water would.
+        ctx.lineCap = 'round';
+        for (let i = 0; i < 55; i++) {
+            const x = rand() * W;
+            const y0 = courses[Math.floor(rand() * courses.length)] + (rand() - 0.5) * 40;
+            const len = 25 + rand() * 130;
+            wrapX(x, 12, (px) => {
+                const g = ctx.createLinearGradient(0, y0, 0, y0 - len);
+                g.addColorStop(0, `rgba(26, 22, 19, ${0.09 + rand() * 0.15})`);
+                g.addColorStop(1, 'rgba(26, 22, 19, 0)');
+                ctx.strokeStyle = g;
+                ctx.lineWidth = 2 + rand() * 16;
+                ctx.beginPath();
+                ctx.moveTo(px, y0);
+                ctx.lineTo(px + (rand() - 0.5) * 34, y0 - len);
+                ctx.stroke();
+            });
+        }
+
+        // Rust bleeding down from rivet heads, which is the one thing that does run with gravity.
+        for (let i = 0; i < 70; i++) {
+            const x = rand() * W, y0 = rand() * H, len = 12 + rand() * 70;
+            wrapX(x, 8, (px) => {
+                const g = ctx.createLinearGradient(0, y0, 0, y0 + len);
+                g.addColorStop(0, `rgba(128, 68, 30, ${0.22 + rand() * 0.24})`);
+                g.addColorStop(1, 'rgba(128, 68, 30, 0)');
+                ctx.strokeStyle = g;
+                ctx.lineWidth = 1 + rand() * 2.6;
+                ctx.beginPath();
+                ctx.moveTo(px, y0);
+                ctx.lineTo(px + (rand() - 0.5) * 5, y0 + len);
+                ctx.stroke();
+            });
+        }
+
+        for (let i = 0; i < 2600; i++) {
+            const x = rand() * W, y = rand() * H, r = 0.6 + rand() * 1.9;
+            wrapX(x, r + 1, (px) => {
+                ctx.fillStyle = `rgba(52, 45, 40, ${0.14 + rand() * 0.26})`;
+                ctx.beginPath();
+                ctx.arc(px, y, r, 0, Math.PI * 2);
+                ctx.fill();
+                bCtx.fillStyle = `rgba(66, 66, 66, ${0.16 + rand() * 0.24})`;
+                bCtx.beginPath();
+                bCtx.arc(px, y, r, 0, Math.PI * 2);
+                bCtx.fill();
+            });
+        }
+
+        ctx.globalAlpha = 0.07;
+        ctx.drawImage(masterNoise, 0, 0, W, H);
+        ctx.globalAlpha = 1.0;
+        this._ditherCanvas(ctx, W, H, rand, 7);
+
+        const map = this._createWrappedTexture(canvas, 2, 1, true);
+        const bumpMap = this._createWrappedTexture(bumpCanvas, 2, 1, true);
+        return new THREE.MeshStandardMaterial({
+            map,
+            bumpMap,
+            bumpScale: 0.009,
+            roughness: 0.62,
+            metalness: 0.1
+        });
+    }
+
+    /**
+     * Builds the Incinerator's sight glass: an inspection port into the firebox.
+     *
+     * The sconce was cloning `baseLightMat`, whose map is the office fluorescent troffer
+     * diffuser -- cream field, 45-degree prismatic crosshatch, dark bezel. A ceiling diffuser
+     * panel bolted to a furnace wall. This is the fixture it should have had.
+     *
+     * Emission is driven by its own map rather than the colour map. The soot, the mesh and the
+     * frame are opaque objects in front of a fire; if they emitted along with it the glass
+     * would glow as a flat slab and none of them would read. Only the fire is hot.
+     *
+     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
+     * @returns {{map: THREE.Texture, emissiveMap: THREE.Texture}} Albedo and emission.
+     */
+    static _buildSightGlass(masterNoise) {
+        const S = 256;
+        const rand = this._seededRandom(70455312);
+        const {canvas, ctx} = this._createContext(S, S);
+        const {canvas: eCanvas, ctx: eCtx} = this._createContext(S, S);
+        eCtx.fillStyle = '#000000';
+        eCtx.fillRect(0, 0, S, S);
+        ctx.fillStyle = 'rgb(18, 12, 9)';
+        ctx.fillRect(0, 0, S, S);
+
+        // The fire, off-centre and deeper on one side, because a firebox is a room and not a
+        // lamp. Painted into both channels: the colour map so it reads lit when the fixture is
+        // dead, the emissive map so it actually throws light when it is not.
+        const cx = S * (0.42 + rand() * 0.16), cy = S * (0.52 + rand() * 0.14);
+        const core = (c, mul) => {
+            const g = c.createRadialGradient(cx, cy, 0, cx, cy, S * 0.46);
+            g.addColorStop(0.00, `rgba(255, 246, 214, ${1.0 * mul})`);
+            g.addColorStop(0.16, `rgba(255, 206, 96, ${0.96 * mul})`);
+            g.addColorStop(0.38, `rgba(238, 116, 24, ${0.82 * mul})`);
+            g.addColorStop(0.64, `rgba(150, 44, 8, ${0.5 * mul})`);
+            g.addColorStop(1.00, 'rgba(40, 10, 4, 0)');
+            c.fillStyle = g;
+            c.fillRect(0, 0, S, S);
+        };
+        core(ctx, 1);
+        core(eCtx, 1);
+
+        // Coal bed: the fire is not smooth. Brighter licks and darker clinker riding on it.
+        for (let i = 0; i < 90; i++) {
+            const a = rand() * Math.PI * 2, d = rand() * S * 0.38;
+            const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d;
+            const r = 4 + rand() * 26;
+            const hot = rand() > 0.42;
+            for (const c of [ctx, eCtx]) {
+                const g = c.createRadialGradient(x, y, 0, x, y, r);
+                g.addColorStop(0, hot
+                    ? `rgba(255, 232, 168, ${0.30 + rand() * 0.34})`
+                    : `rgba(52, 16, 6, ${0.28 + rand() * 0.30})`);
+                g.addColorStop(1, hot ? 'rgba(255, 232, 168, 0)' : 'rgba(52, 16, 6, 0)');
+                c.fillStyle = g;
+                c.fillRect(x - r, y - r, r * 2, r * 2);
+            }
+        }
+
+        // Wire-mesh guard. Square reinforcing lattice, in the colour map only -- it is steel in
+        // front of the fire, so it occludes rather than glows.
+        const MESH = S / 9;
+        ctx.strokeStyle = 'rgba(16, 11, 8, 0.82)';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        for (let i = MESH * 0.5; i < S; i += MESH) {
+            ctx.moveTo(i, 0); ctx.lineTo(i, S);
+            ctx.moveTo(0, i); ctx.lineTo(S, i);
+        }
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(210, 150, 90, 0.20)';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        for (let i = MESH * 0.5; i < S; i += MESH) {
+            ctx.moveTo(i - 1, 0); ctx.lineTo(i - 1, S);
+            ctx.moveTo(0, i - 1); ctx.lineTo(S, i - 1);
+        }
+        ctx.stroke();
+        // The mesh casts a shadow onto the fire behind it, so the emission is notched too.
+        eCtx.globalCompositeOperation = 'destination-out';
+        eCtx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+        eCtx.lineWidth = 2.4;
+        eCtx.beginPath();
+        for (let i = MESH * 0.5; i < S; i += MESH) {
+            eCtx.moveTo(i, 0); eCtx.lineTo(i, S);
+            eCtx.moveTo(0, i); eCtx.lineTo(S, i);
+        }
+        eCtx.stroke();
+        eCtx.globalCompositeOperation = 'source-over';
+
+        // Heat crazing in the glass itself.
+        ctx.lineCap = 'round';
+        for (let i = 0; i < 26; i++) {
+            let x = rand() * S, y = rand() * S;
+            ctx.strokeStyle = `rgba(236, 208, 176, ${0.10 + rand() * 0.16})`;
+            ctx.lineWidth = 0.5 + rand() * 0.9;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            for (let k = 0; k < 3 + Math.floor(rand() * 4); k++) {
+                x += (rand() - 0.5) * 46;
+                y += (rand() - 0.5) * 46;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        // Soot film, heaviest at the edges and the top where the draught deposits it. Applied
+        // to both channels so a sooted corner is genuinely dark rather than merely dark-coloured.
+        for (const c of [ctx, eCtx]) {
+            const v = c.createLinearGradient(0, 0, 0, S);
+            v.addColorStop(0, 'rgba(10, 7, 5, 0.72)');
+            v.addColorStop(0.42, 'rgba(10, 7, 5, 0.16)');
+            v.addColorStop(1, 'rgba(10, 7, 5, 0.44)');
+            c.fillStyle = v;
+            c.fillRect(0, 0, S, S);
+            const e = c.createRadialGradient(S / 2, S / 2, S * 0.22, S / 2, S / 2, S * 0.62);
+            e.addColorStop(0, 'rgba(8, 5, 4, 0)');
+            e.addColorStop(1, 'rgba(8, 5, 4, 0.9)');
+            c.fillStyle = e;
+            c.fillRect(0, 0, S, S);
+        }
+        for (let i = 0; i < 40; i++) {
+            const x = rand() * S, y = rand() * S, r = 10 + rand() * 46;
+            for (const c of [ctx, eCtx]) {
+                const g = c.createRadialGradient(x, y, 0, x, y, r);
+                g.addColorStop(0, `rgba(12, 8, 6, ${0.18 + rand() * 0.28})`);
+                g.addColorStop(1, 'rgba(12, 8, 6, 0)');
+                c.fillStyle = g;
+                c.fillRect(x - r, y - r, r * 2, r * 2);
+            }
+        }
+
+        // Frame: the glass is bedded into a heavy rebate, bolted at the corners.
+        const B = S * 0.085;
+        for (const c of [ctx, eCtx]) {
+            c.fillStyle = c === ctx ? 'rgb(38, 31, 26)' : '#000000';
+            c.fillRect(0, 0, S, B);
+            c.fillRect(0, S - B, S, B);
+            c.fillRect(0, 0, B, S);
+            c.fillRect(S - B, 0, B, S);
+        }
+        ctx.strokeStyle = 'rgba(150, 122, 96, 0.35)';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(B, B, S - B * 2, S - B * 2);
+        for (const [bx, by] of [[B * 0.5, B * 0.5], [S - B * 0.5, B * 0.5],
+            [B * 0.5, S - B * 0.5], [S - B * 0.5, S - B * 0.5]]) {
+            const g = ctx.createRadialGradient(bx - 1.5, by - 1.5, 0.5, bx, by, B * 0.42);
+            g.addColorStop(0, 'rgba(178, 158, 134, 0.9)');
+            g.addColorStop(1, 'rgba(24, 18, 14, 0.9)');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(bx, by, B * 0.42, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.globalAlpha = 0.06;
+        ctx.drawImage(masterNoise, 0, 0, S, S);
+        ctx.globalAlpha = 1.0;
+        this._ditherCanvas(ctx, S, S, rand, 5);
+
+        return {
+            map: this._createWrappedTexture(canvas),
+            emissiveMap: this._createWrappedTexture(eCanvas)
+        };
+    }
+
+    /**
+     * Builds the Incinerator's ember grate: slotted cast bars with the coal bed showing between
+     * them, part-choked with ash.
+     *
+     * `emberGrilleMat` was a flat colour and an emissive with no map at all, so a duct grille was
+     * a glowing rectangle. The bars have to occlude for it to read as a grate, which means the
+     * emission belongs between them and not on them.
+     *
+     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
+     * @returns {{map: THREE.Texture, emissiveMap: THREE.Texture}} Albedo and emission.
+     */
+    static _buildEmberGrate(masterNoise) {
+        const S = 256;
+        const BARS = 7;
+        const P = S / BARS;
+        const rand = this._seededRandom(18820644);
+        const {canvas, ctx} = this._createContext(S, S);
+        const {canvas: eCanvas, ctx: eCtx} = this._createContext(S, S);
+
+        // Coal bed first: this is what shows through the slots.
+        for (const c of [ctx, eCtx]) {
+            c.fillStyle = c === ctx ? 'rgb(46, 16, 6)' : 'rgb(58, 18, 6)';
+            c.fillRect(0, 0, S, S);
+        }
+        for (let i = 0; i < 150; i++) {
+            const x = rand() * S, y = rand() * S, r = 6 + rand() * 40;
+            const hot = rand() > 0.45;
+            for (const c of [ctx, eCtx]) {
+                const g = c.createRadialGradient(x, y, 0, x, y, r);
+                g.addColorStop(0, hot
+                    ? `rgba(255, 214, 122, ${0.34 + rand() * 0.4})`
+                    : `rgba(28, 10, 5, ${0.30 + rand() * 0.36})`);
+                g.addColorStop(1, hot ? 'rgba(255, 214, 122, 0)' : 'rgba(28, 10, 5, 0)');
+                c.fillStyle = g;
+                c.fillRect(x - r, y - r, r * 2, r * 2);
+            }
+        }
+
+        // Cast bars across the opening. Opaque in both channels -- a bar in front of a fire is
+        // a silhouette, and the emissive map is what makes that true rather than implied.
+        for (let i = 0; i < BARS; i++) {
+            const y = i * P + P * 0.30;
+            const h = P * 0.46;
+            const g = ctx.createLinearGradient(0, y, 0, y + h);
+            g.addColorStop(0, 'rgb(76, 66, 58)');
+            g.addColorStop(0.34, 'rgb(44, 37, 32)');
+            g.addColorStop(1, 'rgb(16, 12, 10)');
+            ctx.fillStyle = g;
+            ctx.fillRect(0, y, S, h);
+            ctx.fillStyle = 'rgba(168, 146, 120, 0.22)';
+            ctx.fillRect(0, y, S, 1.5);
+            eCtx.fillStyle = '#000000';
+            eCtx.fillRect(0, y, S, h);
+        }
+
+        // Ash choking the lower slots, and soot on the bar tops.
+        for (let i = 0; i < 70; i++) {
+            const x = rand() * S, y = S * (0.4 + rand() * 0.6), r = 8 + rand() * 34;
+            for (const c of [ctx, eCtx]) {
+                const g = c.createRadialGradient(x, y, 0, x, y, r);
+                const col = c === ctx ? '150, 142, 130' : '0, 0, 0';
+                g.addColorStop(0, `rgba(${col}, ${0.16 + rand() * 0.26})`);
+                g.addColorStop(1, `rgba(${col}, 0)`);
+                c.fillStyle = g;
+                c.fillRect(x - r, y - r, r * 2, r * 2);
+            }
+        }
+
+        ctx.globalAlpha = 0.07;
+        ctx.drawImage(masterNoise, 0, 0, S, S);
+        ctx.globalAlpha = 1.0;
+        this._ditherCanvas(ctx, S, S, rand, 5);
+
+        return {
+            map: this._createWrappedTexture(canvas),
+            emissiveMap: this._createWrappedTexture(eCanvas)
+        };
+    }
+
     static _buildExtendedAssets(masterNoise) {
         const dpCanvas = document.createElement('canvas');
         dpCanvas.width = dpCanvas.height = 256;
@@ -1974,7 +4029,33 @@ export default class ProceduralTextureFactory {
             map: valveTex, roughness: 0.7, metalness: 0.3
         });
         return {
-            diamondPlateMat, incinCeilingMat, boardTileMat, glassMat, bookRowMat,
+            diamondPlateMat, incinFloorMat: this._buildIncineratorFloor(masterNoise),
+            incinWallMat: this._buildIncineratorWall(masterNoise),
+            ...(() => {
+                const sg = this._buildSightGlass(masterNoise);
+                const gr = this._buildEmberGrate(masterNoise);
+                // emissiveIntensity is left at 1 and driven by LumenGrid, which also reads
+                // `material.emissive` for the light's colour -- so the emissive tint has to stay
+                // a warm fire colour rather than white, or the sconce would light the room grey.
+                return {
+                    emberLightMat: new THREE.MeshStandardMaterial({
+                        map: sg.map, emissiveMap: sg.emissiveMap,
+                        color: 0xffffff, emissive: 0xff6a22, emissiveIntensity: 1.0,
+                        roughness: 0.34, metalness: 0.0
+                    }),
+                    emberLightBrokenMat: new THREE.MeshStandardMaterial({
+                        map: sg.map, emissiveMap: sg.emissiveMap,
+                        color: 0x6b5a4e, emissive: 0x1d0e06, emissiveIntensity: 1.0,
+                        roughness: 0.5, metalness: 0.0
+                    }),
+                    emberGrateMat: new THREE.MeshStandardMaterial({
+                        map: gr.map, emissiveMap: gr.emissiveMap,
+                        color: 0xffffff, emissive: 0xff5a18, emissiveIntensity: 1.15,
+                        roughness: 0.86, metalness: 0.0
+                    })
+                };
+            })(),
+            incinCeilingMat, boardTileMat, glassMat, bookRowMat,
             fileBoxMat, movingBoxMat, bananaBoxMat, parcelBoxMat, cartonMats,
             foliageMat, farVoidMat,
             cautionConeMat, cautionConeBaseMat, valveMat
@@ -1983,25 +4064,22 @@ export default class ProceduralTextureFactory {
 
     static generatePegboardTexture() {
         const {canvas, ctx} = this._createContext(512, 512);
-        
-        // Base wood color (MDF/particle board look)
+
         ctx.fillStyle = '#b8a26a';
         ctx.fillRect(0, 0, 512, 512);
-        
-        // Subtle noise for wood grain
+
         ctx.fillStyle = '#000000';
         for (let i = 0; i < 50000; i++) {
             ctx.globalAlpha = Math.random() * 0.03;
             ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
         }
-        
-        // Peg holes grid
+
         ctx.globalAlpha = 1.0;
         ctx.fillStyle = '#111111';
         
-        const spacing = 32; // 16 holes across (512 / 32)
-        const radius = 2.5; // Roughly 1/4" scale relative to the board
-        
+        const spacing = 32;
+        const radius = 2.5;
+
         for (let y = 0; y < 512; y += spacing) {
             for (let x = 0; x < 512; x += spacing) {
                 ctx.beginPath();
@@ -2070,9 +4148,6 @@ export default class ProceduralTextureFactory {
             ...checkpointAssets,
             ...extendedAssets
         };
-        // `colorSpace`/`THREE.SRGBColorSpace` don't exist on this build (three.js r128); feature-
-        // detect per-texture and fall back to the older `encoding`/`sRGBEncoding` API so this
-        // keeps working unchanged if the renderer is ever upgraded to a build that has the new one.
         const markSRGB = (texture) => {
             if ('colorSpace' in texture) {
                 texture.colorSpace = THREE.SRGBColorSpace;
@@ -2080,10 +4155,16 @@ export default class ProceduralTextureFactory {
                 texture.encoding = THREE.sRGBEncoding;
             }
         };
-        const applyOpt = (item) => {
+        // A texture handed back on its own gets marked sRGB, which is right for a colour map and
+        // wrong for relief: three would then decode the bump through the sRGB curve and the
+        // heights would come out non-linear. The bumpMap slot below already knows not to, but a
+        // bump canvas returned as a bare asset -- ceilingBumpTexture, corrosionBumpTexture --
+        // has no slot to be found in, so it goes by name.
+        const isNonColorData = (key) => /Bump|Rough|Normal|Displacement/.test(key);
+        const applyOpt = (item, key) => {
             if (item && item.isTexture) {
                 item.anisotropy = 16;
-                markSRGB(item);
+                if (!isNonColorData(key || '')) markSRGB(item);
             }
             if (item && item.map && item.map.isTexture) {
                 item.map.anisotropy = 16;
@@ -2093,12 +4174,17 @@ export default class ProceduralTextureFactory {
                 item.emissiveMap.anisotropy = 16;
                 markSRGB(item.emissiveMap);
             }
+            for (const slot of ['bumpMap', 'roughnessMap']) {
+                if (item && item[slot] && item[slot].isTexture) {
+                    item[slot].anisotropy = 16;
+                }
+            }
         };
-        Object.values(assets).forEach(item => {
+        Object.entries(assets).forEach(([key, item]) => {
             if (Array.isArray(item)) {
-                item.forEach(applyOpt);
+                item.forEach(sub => applyOpt(sub, key));
             } else {
-                applyOpt(item);
+                applyOpt(item, key);
             }
         });
         return assets;

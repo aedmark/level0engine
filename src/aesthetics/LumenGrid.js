@@ -13,23 +13,10 @@ export default class LumenGrid {
      * Only a subset of lights cast shadows to maintain high performance.
      * @param {THREE.Scene} scene - The main Three.js scene to add lights to.
      */
-    constructor(scene) {
+    constructor(scene, shadowQuality = 'high') {
         this.scene = scene;
         this.maxActiveLights = 32;
-        // Three keys its compiled program cache partly off how many lights in the scene are
-        // casting shadows, and off whether each of those is a point or a spot. Change either
-        // number and every standard-lit material in view recompiles on the next frame. So the
-        // pool's shadow casters are fixed at construction and never toggled again: the first
-        // `maxShadowLights` slots cast forever, on both their point and their spot light, lit
-        // or not. An unused caster costs nothing per frame -- `shadow.autoUpdate` is false, so
-        // its map only re-renders when a slot explicitly asks -- but it does cost a permanent
-        // fragment sampler each. Four slots holds the total at eight samplers, which is what
-        // the old churning implementation peaked at anyway, and stays clear of the 16-unit
-        // fragment texture limit on Intel and Apple parts once the material's own maps land.
         this.maxShadowLights = 6;
-        // Reach is a separate question from shadow duty. The two used to be the same number;
-        // splitting them keeps the eight nearest fixtures lighting at their old 20-unit radius
-        // instead of collapsing to 10 just because they no longer cast.
         this.longReachSlots = 8;
         this.lightPool = [];
         this._activeFixtures = new Array(this.maxActiveLights).fill(null);
@@ -41,23 +28,35 @@ export default class LumenGrid {
         this.maxForcedShadowUpdatesPerFrame = 3;
         this._pendingShadowSlots = new Set();
         this.spawnFadeInDuration = 0.6;
+        // Point and spot shadows are not priced the same and must not be sized the same.
+        //
+        // A PointLightShadow is a cube: six faces at the stated resolution, each covering 90
+        // degrees. A SpotLightShadow is one 2D map whose camera fov is `2 * light.angle`, so a
+        // wide fixture spends the entire map on a single very distorted frustum. The atrium's
+        // soda machines run near the 90-degree half-angle cap, which puts their shadow camera
+        // around 167 degrees fov -- `tan(83.7deg)` is about 9, so the frustum spans roughly
+        // +/-9 units per unit of depth. At 512 that quantised into visible combing across
+        // every shelf. Spots get the resolution; points keep 512, because raising a cube costs
+        // six times as much for fixtures that were never distorted to begin with.
+        const pointShadowSize = 512;
+        const spotShadowSize = shadowQuality === 'low' ? 512 : 2048;
         for (let i = 0; i < this.maxActiveLights; i++) {
             const radius = i < this.maxShadowLights ? 20.0 : 10.0;
             const pointLight = new THREE.PointLight(0xffebd6, 0, radius, 2.0);
             const spotLight = new THREE.SpotLight(0xffebd6, 0, radius, Math.PI / 8, 0.4, 2.0);
             if (i < this.maxShadowLights) {
-                const setupShadow = (l) => {
+                const setupShadow = (l, mapSize) => {
                     l.castShadow = true;
-                    l.shadow.mapSize.width = 512;
-                    l.shadow.mapSize.height = 512;
+                    l.shadow.mapSize.width = mapSize;
+                    l.shadow.mapSize.height = mapSize;
                     l.shadow.camera.near = 0.5;
                     l.shadow.camera.far = 20;
                     l.shadow.bias = -0.0002;
                     l.shadow.normalBias = 0.015;
                     l.shadow.autoUpdate = false;
                 };
-                setupShadow(pointLight);
-                setupShadow(spotLight);
+                setupShadow(pointLight, pointShadowSize);
+                setupShadow(spotLight, spotShadowSize);
             }
             this.scene.add(pointLight);
             this.scene.add(spotLight);
@@ -216,10 +215,6 @@ export default class LumenGrid {
                     light.angle = fixture.spotAngle !== undefined ? fixture.spotAngle : Math.PI / 8;
                     light.penumbra = fixture.spotPenumbra !== undefined ? fixture.spotPenumbra : 0.4;
                 }
-                // Fixtures can author their own throw distance (e.g. the IMPOUND stadium masts,
-                // mounted high and aimed far out, need much more reach than a wall sconce) --
-                // respect that when given, and only fall back to the pool-slot category default
-                // (shadow-casting slots get more reach, lighthouses the most) when they don't.
                 const isLongReach = i < this.longReachSlots;
                 const targetReach = fixture.distance !== undefined
                     ? fixture.distance
@@ -230,10 +225,6 @@ export default class LumenGrid {
                 light.distance = fixture._currentReach;
 
                 const dist = Math.sqrt(fixture.distSq);
-                // This radius governs how far the *camera* can be from the fixture before its
-                // pooled light fades to nothing (avoids a visible pop as lights enter/exit the
-                // active pool). It should be tied to the active pool's cull limit (55.0 or 35.0) 
-                // so that lights stay fully on while in view, and only fade out right at the edge of the pool.
                 const cullLimit = this.maxActiveLights > 12 ? 55.0 : 35.0;
                 const activeRadius = fixture.distance !== undefined
                     ? Math.max(fixture.distance, cullLimit)
@@ -296,9 +287,15 @@ export default class LumenGrid {
                             ? time + 0.03 + Math.random() * 0.1
                             : time + 1.0 + Math.random() * 6.0;
                     }
-                    fixture.currentIntensity = fixture.baseIntensity * (fixture._flickering ? fixture._flickerDepth : 1.0);
+                    const flickerScale = fixture._flickering ? fixture._flickerDepth : 1.0;
+                    fixture.currentIntensity = fixture.baseIntensity * flickerScale;
                     light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
-                    if (fixture.material) fixture.material.emissiveIntensity = Math.max(0.05, fixture.currentIntensity * 0.6) * fadeEnvelope;
+                    if (fixture.material) {
+                        const peakEmissive = fixture.emissiveIntensity !== undefined
+                            ? fixture.emissiveIntensity * flickerScale
+                            : fixture.currentIntensity * 0.6;
+                        fixture.material.emissiveIntensity = Math.max(0.05, peakEmissive) * fadeEnvelope;
+                    }
                 } else {
                     const normalIntensity = fixture.currentIntensity !== undefined ? fixture.currentIntensity : fixture.baseIntensity;
                     light.intensity = (normalIntensity + (Math.sin(time * 120.0 + fixture.flickerOffset) * 0.02)) * fadeEnvelope * intensityScalar;

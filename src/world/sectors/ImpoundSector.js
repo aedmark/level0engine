@@ -12,11 +12,9 @@ import AABB from '../../math/AABB.js';
 export const ImpoundSector = (env, ctx) => {
     const {
         random,
-        buildWall,
         addGeometry,
         buildChair,
         buildTable,
-        buildCouch,
         addFurniture,
         chunkGroup,
         hash,
@@ -98,13 +96,6 @@ export const ImpoundSector = (env, ctx) => {
                 buildFenceRun(false);
             } else {
                 const edgeInner = env.chunkSize - 2;
-                // At a 12% roll across every eligible open-floor cell, nothing was stopping
-                // adjacent cells (4 units apart, within one chunk or across a chunk boundary)
-                // from all succeeding and piling masts on top of each other. `fixtureData` already
-                // survives exactly as long as its owning chunk (pruned on unload, see
-                // Environment.updateChunks), so it doubles as a ready-made, self-cleaning registry
-                // of where masts already are -- reject any candidate closer than MIN_MAST_SPACING
-                // to one of them instead of tracking a separate list.
                 const MIN_MAST_SPACING_SQ = 32.0 * 32.0;
                 const mastCandidateX = px + env.cellSize / 2;
                 const mastCandidateZ = pz + env.cellSize / 2;
@@ -130,14 +121,6 @@ export const ImpoundSector = (env, ctx) => {
                     crossbar.rotation.y = rotY;
                     addGeometry(crossbar);
                     const activeMat = ctx.getLightMaterial(0xffaa55, 0xffaa55, false);
-                    // getLightMaterial pools by color, and (0xffaa55, 0xffaa55) is currently
-                    // exclusive to this mast, so this only affects these fixtures -- but it's a
-                    // shared instance, so if this exact color pair is ever reused elsewhere,
-                    // that fixture inherits this too. Fog scatters *reflected* light, not light
-                    // coming straight from an emitter at the camera, which is why a real light
-                    // source stays visible through haze while the surface around it disappears;
-                    // `fog: false` opts this material out of the scene's distance fog so it reads
-                    // as a bright point at range instead of blending into the haze color.
                     activeMat.fog = false;
                     const lampGeo = env._boxGeo(1.8, 0.6, 0.4);
                     const lamp = new THREE.Mesh(lampGeo, [env.baseHousingMat, env.baseHousingMat, env.baseHousingMat, env.baseHousingMat, activeMat, env.baseHousingMat]);
@@ -151,20 +134,10 @@ export const ImpoundSector = (env, ctx) => {
                     const tx = lx + Math.sin(rotY) * 10.0;
                     const tz = lz + Math.cos(rotY) * 10.0;
                     const targetPos = new THREE.Vector3(tx, 0, tz);
-                    // Volumetric beam: same trick ChasmSector's lighthouse uses to fake its cone
-                    // being visible through fog (env._lhBeamMat/lhBeam: a hollow, barely-opaque
-                    // additive cone, apex at the fixture) so the stadium light actually reads as a
-                    // shaft of light in the yard's haze instead of just a bright bulb. The
-                    // lighthouse re-aims its beam every frame because it sweeps; this fixture's aim
-                    // is fixed, so `lookAt` is called once here at build time instead.
                     if (!env._impoundBeamMat) {
                         env._impoundBeamMat = new THREE.MeshBasicMaterial({
                             color: 0xffaa55,
                             transparent: true,
-                            // Kept below the lighthouse beam's own 0.02 -- this cone is wider and
-                            // the light behind it is brighter, and it's a hollow DoubleSide shell,
-                            // so the camera crosses two layers of it (near + far wall) for a single
-                            // beam, roughly doubling the apparent opacity on top of that.
                             opacity: 0.012,
                             blending: THREE.AdditiveBlending,
                             depthWrite: false,
@@ -195,24 +168,14 @@ export const ImpoundSector = (env, ctx) => {
                         isSpot: true,
                         isImpoundMast: true,
                         targetPos: targetPos,
-                        // Wide floodlight cone (double the LumenGrid default of PI/8, and wider
-                        // than the player's flashlight at PI/7) plus a soft penumbra so the yard
-                        // reads as broadly lit rather than a tight spotlit circle.
                         spotAngle: Math.PI / 4,
                         spotPenumbra: 0.6,
                         flickerOffset: random() * 500,
                         material: activeMat,
                         isFaulty: random() > 0.9,
-                        // 0.35 non-shadow-slot intensityScalar (see LumenGrid.update) knocks this
-                        // down to ~2.8 effective -- above the flashlight's peak of 2.2 -- while a
-                        // flat 5.5 here only nets ~1.9, i.e. dimmer than the flashlight.
                         baseIntensity: 8.0,
                         targetIntensity: 8.0,
                         currentIntensity: 8.0,
-                        // LumenGrid's default panel glow (0.4) was tuned for an ordinary ceiling
-                        // fixture; left alone, this mast would throw a flashlight-beating cone of
-                        // light out of a panel that looks unlit. Bright enough to read as a hot
-                        // floodlight bulb without matching the lighthouse's dedicated 5.0 beacon.
                         emissiveIntensity: 2.5,
                         distance: 35.0,
                         noShadow: true

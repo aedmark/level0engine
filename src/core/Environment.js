@@ -3,7 +3,7 @@ import EntityManager from '../entities/EntityManager.js';
 import SpatialHashGrid from '../math/SpatialHashGrid.js';
 import TheArchitect from './TheArchitect.js';
 import LumenGrid from '../aesthetics/LumenGrid.js';
-import SECTORS, {DEFAULT_DUST, DEFAULT_EXHAUST} from '../world/Sectors.js';
+import SECTORS, {DEFAULT_DUST, DEFAULT_EXHAUST, DEFAULT_AMBIENT, MIN_AMBIENT} from '../world/Sectors.js';
 import MaterialLibrary from '../aesthetics/MaterialLibrary.js';
 import StructureKit from '../world/StructureKit.js';
 import SetPieces from '../world/SetPieces.js';
@@ -89,9 +89,11 @@ export default class Environment {
         await new Promise(resolve => setTimeout(resolve, 0));
         const assets = await ProceduralTextureFactory.generateAssets();
         Object.assign(this, assets);
-        const {carpetTexture, ceilingTexture} = assets;
+        const {carpetTexture, ceilingTexture, ceilingBumpTexture} = assets;
         carpetTexture.repeat.set(16, 16);
-        ceilingTexture.repeat.set(128, 128);
+        // 64-unit chunk plane / 16 / 4 tiles per canvas = 1 unit per tile.
+        ceilingTexture.repeat.set(16, 16);
+        ceilingBumpTexture.repeat.set(16, 16);
         this.carpetMat = new THREE.MeshStandardMaterial({
             map: carpetTexture,
             roughness: 1.0,
@@ -102,11 +104,20 @@ export default class Environment {
         this.ceilMat = new THREE.MeshStandardMaterial({
             map: ceilingTexture,
             color: 0xffffff,
-            emissive: 0x444444,
-            roughness: 0.9,
-            bumpMap: ceilingTexture,
-            bumpScale: 0.005
+            emissive: 0x857752,
+            roughness: 0.92,
+            bumpMap: ceilingBumpTexture,
+            bumpScale: 0.02
         });
+        // Hallways are 4-unit planes with 0..1 UVs, so they need their own repeat to land on
+        // the same one-unit tile module as the chunk ceiling they open onto.
+        this.ceilMatHall = this.ceilMat.clone();
+        this.ceilMatHall.map = ceilingTexture.clone();
+        this.ceilMatHall.map.repeat.set(1, 1);
+        this.ceilMatHall.map.needsUpdate = true;
+        this.ceilMatHall.bumpMap = ceilingBumpTexture.clone();
+        this.ceilMatHall.bumpMap.repeat.set(1, 1);
+        this.ceilMatHall.bumpMap.needsUpdate = true;
         if (this.serverMat) {
             this.serverMat.metalness = 0.0;
             this.serverMat.roughness = 0.95;
@@ -170,7 +181,7 @@ export default class Environment {
         });
         this.exhaustCloud = new THREE.Points(exhaustGeo, this.exhaustMat);
         this.scene.add(this.exhaustCloud);
-        this.lumenGrid = new LumenGrid(this.scene);
+        this.lumenGrid = new LumenGrid(this.scene, RenderEngine.getSavedShadowQuality());
         this.entityManager = new EntityManager(this.scene, this.camera, this.player, this);
         this.tagPool = [];
         this.tagIndex = 0;
@@ -193,6 +204,7 @@ export default class Environment {
         this.flashlight.shadow.camera.near = 0.1;
         this.flashlight.shadow.camera.far = 45;
         this.flashlight.shadow.bias = -0.002;
+        this.flashlight.shadow.normalBias = 0.02;
         this.camera.add(this.flashlight);
         this.camera.add(this.flashlight.target);
         this.baseFogDensity = 0.05;
@@ -243,7 +255,9 @@ export default class Environment {
             if (window.acoustics) window.acoustics.setVolume(Number(e.target.value) / 100);
         });
         document.getElementById('gammaSlider').addEventListener('input', (e) => {
-            this.engine.renderer.toneMappingExposure = Number(e.target.value) / 100;
+            // Sets the preference, not the live value. `updateLights` derives
+            // `toneMappingExposure` from this and the player's current pupil state every frame.
+            this.engine.baseExposure = Number(e.target.value) / 100;
         });
         document.getElementById('headBobToggle').addEventListener('change', (e) => {
             this.player.enableHeadBob = e.target.checked;
@@ -1287,12 +1301,18 @@ export default class Environment {
         if (!this.engine.glareColor) this.engine.glareColor = new THREE.Color(1, 1, 1);
         let glareTarget = 0.0;
         let targetGlareColor = this.currentGlareColor;
+        // Diagnostics for the debug HUD. The glare chain has five gates in series -- fixture
+        // present, distance over 1m, aim within the 0.95 dot cone, beam alignment, and an
+        // occlusion raycast -- and when it misbehaves the symptom is identical no matter which
+        // gate is responsible. Reading the inputs is faster than reasoning about them.
+        this._glareDot = -1.0;
         if (nearestFixture && minLightDist > 1.0) {
             if (!this._camDir) this._camDir = new THREE.Vector3();
             this.camera.getWorldDirection(this._camDir);
             if (!this._glareDir) this._glareDir = new THREE.Vector3();
             this._glareDir.subVectors(nearestFixture.position, cameraPos).normalize();
             const dot = this._camDir.dot(this._glareDir);
+            this._glareDot = dot;
             if (dot > 0.95) {
                 let beamAlign = 1.0;
                 let distFactor = 1.0 / (1.0 + minLightDist * 0.2);
@@ -1347,8 +1367,81 @@ export default class Environment {
         }
         this.currentGlare += (glareTarget - this.currentGlare) * 0.1;
         this.currentGlareColor.lerp(targetGlareColor, 0.1);
-        this.engine.glare = this.currentGlare;
+        this._glareRaw = glareTarget;
+        this._glareDist = minLightDist;
+
+        // Pupil adaptation.
+        //
+        // `currentGlare` stays the raw stimulus arriving at the eye. `pupilAdapt` is what the
+        // eye has done about it, and the attenuation is applied once, on the way out to the
+        // shader. Keeping the two separated is not tidiness: driving the adaptation from the
+        // already-attenuated value would make each term suppress the other's input, and the
+        // glare would breathe on a limit cycle instead of settling.
+        //
+        // Constriction is roughly three times faster than dilation, which is the real
+        // asymmetry -- the pupillary reflex closes down in about a second and photopigment
+        // recovery in the dark takes minutes. Compressed to seconds here, but the ratio is
+        // what sells it: look away from a machine you have been staring at and the room is
+        // darker than you left it for a good while.
+        const PUPIL_CONSTRICT_RATE = 0.80;
+        const PUPIL_DILATE_RATE = 0.28;
+        // Saturation point of the stimulus. Above this the eye is already working as hard as
+        // it can, so more light buys no more adaptation.
+        const PUPIL_SATURATION = 0.25;
+        // Floor on the effect.
+        //
+        // This was 0.62, chosen so a fully adapted eye kept 38% of the bite. That number was
+        // reasoned about in the abstract and it is wrong in the dark. The post shader spends
+        // glare two ways:
+        //
+        //     col = mix(col, blurCol * 0.125, clamp(glare * 2.5, 0.0, 1.0));
+        //     col += glareColor * (glare * 0.9);
+        //
+        // The first term darkens toward a blurred copy of the frame. In a sector with
+        // `ambient: 0.0` that copy is already black, so the mix is invisible and the entire
+        // perceived effect is the second term -- an additive white veil laid over a frame that
+        // has nothing else in it. Additive light over black has no competition, so 38% of it
+        // still reads as a lit screen rather than a dark one, and the adaptation the player is
+        // waiting for never appears to arrive.
+        //
+        // 0.15 residual is what actually reads as "your eyes caught up" in the atrium. In a
+        // lit sector the difference between the two figures is close to imperceptible, because
+        // there the veil is competing with an image.
+        const PUPIL_MAX_ATTENUATION = 0.85;
+        // The other side of the same reflex: an eye stopped down to survive a bright panel is
+        // an eye that has given up the dark. Applied to exposure rather than to the sector
+        // ambient, for two reasons. Exposure is retinal sensitivity, which is what a pupil
+        // actually changes; ambient is how much fill light is in the room, which staring at a
+        // vending machine does not alter. And the ATRIUM declares `ambient: 0.0`, so scaling
+        // that would have done precisely nothing in the one sector this was built for.
+        //
+        // Far gentler than the glare figure. Exposure is global -- it takes the flashlight,
+        // the panels, and the floor with it -- so 0.30 lands about half a stop down, which
+        // reads as your eyes lagging rather than as the lights going out.
+        const PUPIL_MAX_DIM = 0.30;
+        // `updateLights` receives elapsed time rather than a frame delta, so the step is
+        // derived here. Clamped because a backgrounded tab returns one enormous stride, and an
+        // unclamped exponential would snap the pupil fully open or fully shut on the frame the
+        // player alt-tabs back in.
+        const dt = this._lastGlareTime === undefined
+            ? 0.016
+            : Math.min(0.1, Math.max(0.0, time - this._lastGlareTime));
+        this._lastGlareTime = time;
+        if (this.pupilAdapt === undefined) this.pupilAdapt = 0.0;
+        const adaptTarget = Math.min(1.0, this.currentGlare / PUPIL_SATURATION);
+        const adaptRate = adaptTarget > this.pupilAdapt ? PUPIL_CONSTRICT_RATE : PUPIL_DILATE_RATE;
+        // Exponential approach rather than a fixed lerp coefficient. The rest of this file
+        // leans on frame-rate-dependent lerps, which is survivable for a quarter-second blend
+        // and not for a multi-second one: at 144fps an untreated lerp would adapt five times
+        // faster than at 30fps, and this effect is only legible if its timing is stable.
+        this.pupilAdapt += (adaptTarget - this.pupilAdapt) * (1.0 - Math.exp(-adaptRate * dt));
+
+        this.engine.glare = this.currentGlare * (1.0 - this.pupilAdapt * PUPIL_MAX_ATTENUATION);
         this.engine.glareColor.copy(this.currentGlareColor);
+        if (this.engine.renderer && this.engine.baseExposure !== undefined) {
+            this.engine.renderer.toneMappingExposure =
+                this.engine.baseExposure * (1.0 - this.pupilAdapt * PUPIL_MAX_DIM);
+        }
         if (nearestFixture && minLightDist > 1.0) {
             if (time - this.lastAudioOcclusionTime > 0.1) {
                 this.audioDirection.subVectors(nearestFixture.position, cameraPos).normalize();
@@ -1407,7 +1500,7 @@ export default class Environment {
             const positions = this.dustCloud.geometry.attributes.position.array;
             // The drift mode is a per-sector constant, so it is branched once here rather than
             // once per particle. Both loops wrap coordinates through the same 30-unit cube.
-            if (dust.drift === 'drift') {
+            if (dust.drift === 'horizontal') {
                 for (let i = 0; i < positions.length; i += 3) {
                     positions[i] += 0.18;
                     if (positions[i] > 15.0) positions[i] -= 30.0;
@@ -1415,11 +1508,16 @@ export default class Environment {
                     if (positions[i + 2] > 15.0) positions[i + 2] -= 30.0;
                 }
             } else {
-                const fallSpeed = dust.fallSpeed;
+                const driftY = dust.driftY;
+                const turbulence = dust.turbulence || 0.0;
                 for (let i = 0; i < positions.length; i += 3) {
-                    positions[i + 1] -= fallSpeed;
-                    if (positions[i + 1] < -15.0) positions[i + 1] += 30.0;
-                    else if (positions[i + 1] > 15.0) positions[i + 1] -= 30.0;
+                    // `i % 11` walks a repeating 11-step cycle across the buffer, giving each
+                    // particle a stable speed somewhere in [1 - turbulence, 1] of the base.
+                    // At turbulence 0 this collapses to exactly `driftY`, so settling sectors
+                    // are bit-identical to the untuned behaviour.
+                    positions[i + 1] += driftY * (1.0 - turbulence * ((i % 11) / 11));
+                    if (positions[i + 1] > 15.0) positions[i + 1] -= 30.0;
+                    else if (positions[i + 1] < -15.0) positions[i + 1] += 30.0;
                 }
             }
             this.dustCloud.geometry.attributes.position.needsUpdate = true;
@@ -1553,17 +1651,17 @@ export default class Environment {
         }
         const playerSpeed = Math.sqrt((this.player.velocity.x * this.player.velocity.x) + (this.player.velocity.z * this.player.velocity.z));
         if (this.engine.ambientLight) {
-            const baseAmbient = 0.80;
-            const minAmbient = 0.005;
-            let targetAmbient = Math.max(minAmbient, baseAmbient - (darknessPressure * 0.4));
-            if (this._stickySectorId === "IMPOUND" || this._stickySectorId === "CHASM") targetAmbient = 0.02;
-            else if (this._stickySectorId === "ARCHIVE") targetAmbient = 0.40;
-            else if (this._stickySectorId === "INCINERATOR") targetAmbient = 0.15;
-            else if (this._stickySectorId === "MAINTENANCE") targetAmbient = 0.18;
-            else if (this._stickySectorId === "CHECKPOINT") targetAmbient = 0.15;
-            else if (this._stickySectorId === "ANNEX") targetAmbient = 0.15;
-            else if (this._stickySectorId === "SERVER") targetAmbient = 0.08;
-            else if (this._stickySectorId === "ATRIUM") targetAmbient = 0.0;
+            // Per-sector fill now lives in the SECTORS table beside that sector's fog, foley
+            // and dust, rather than in an if/elif chain here. Adding a sector no longer means
+            // remembering to come back and edit this function -- and CLINIC, which was never
+            // in the chain, was silently inheriting the brightest fill in the game.
+            const row = SECTORS[activeSector];
+            const sectorAmbient = row && row.ambient !== undefined ? row.ambient : DEFAULT_AMBIENT;
+            // Darkness pressure scales the fill proportionally. The old code subtracted a flat
+            // 0.4 from a 0.80 base, which is exactly this curve at the old default -- so the
+            // falloff every player has felt is unchanged, it just now applies to every sector
+            // instead of only the ones that fell through the chain.
+            const targetAmbient = Math.max(MIN_AMBIENT, sectorAmbient * (1.0 - darknessPressure * 0.5));
             this.engine.ambientLight.intensity += (targetAmbient - this.engine.ambientLight.intensity) * 0.05;
             if (this.engine.globalShadowLight) {
                 let targetShadow = this._stickySectorId === "SERVER" ? 0.05 : 0.40;
@@ -1690,6 +1788,8 @@ export default class Environment {
         }
         this.cellSize = 4;
         MaterialLibrary.injectMaterials(this);
+        // injectMaterials can replace materials, so the architectural set has to be rebuilt.
+        this._architecturalMats = null;
     }
 
     _generateSectorMaze(randomFn) {
@@ -1735,8 +1835,7 @@ export default class Environment {
                     iMesh.receiveShadow = true;
                 }
                 iMesh.userData.chunkHash = hash;
-                const isStructural = group.material === this.sharedWallMat || group.material === this.headerMat
-                    || group.material === this.marbleMat;
+                const isStructural = this._isArchitectural(group.material);
                 const needsColor = !isStructural && !isDecal;
                 group.meshes.forEach((mesh, index) => {
                     iMesh.setMatrixAt(index, mesh.matrixWorld);
@@ -2105,24 +2204,24 @@ export default class Environment {
     _buildPipeCornerDressing(chunkGroup, addGeometry, random, x, z, openE, openS, openN, openW, offset, pipeY, mountY, junctionY, onJunction) {
         let hasPipes = false;
         if (openE) {
-            const pipeE = new THREE.Mesh(this.pipeGeo, this.rustMat);
+            const pipeE = new THREE.Mesh(this.pipeGeo, this.pipeMat || this.rustMat);
             pipeE.position.set(x * this.cellSize + (this.cellSize / 2) + offset, pipeY, z * this.cellSize + offset);
             addGeometry(pipeE);
             hasPipes = true;
         }
         if (openS) {
-            const pipeS = new THREE.Mesh(this.pipeGeo, this.rustMat);
+            const pipeS = new THREE.Mesh(this.pipeGeo, this.pipeMat || this.rustMat);
             pipeS.rotation.y = Math.PI / 2;
             pipeS.position.set(x * this.cellSize + offset, pipeY, z * this.cellSize + (this.cellSize / 2) + offset);
             addGeometry(pipeS);
             hasPipes = true;
         }
         if (hasPipes || openN || openW) {
-            const mount = new THREE.Mesh(this.pipeMountGeo, this.rustMat);
+            const mount = new THREE.Mesh(this.pipeMountGeo, this.pipeMat || this.rustMat);
             mount.position.set(x * this.cellSize + offset, mountY, z * this.cellSize + offset);
             addGeometry(mount);
             if (random() > 0.1) {
-                const junction = new THREE.Mesh(this.pipeJunctionGeo, this.rustMat);
+                const junction = new THREE.Mesh(this.pipeJunctionGeo, this.pipeMat || this.rustMat);
                 junction.position.set(x * this.cellSize + offset, junctionY, z * this.cellSize + offset);
                 addGeometry(junction);
                 if (onJunction) onJunction();
@@ -2136,6 +2235,39 @@ export default class Environment {
 
     _planeGeo(w, h) {
         return this.structureKit.planeGeo(w, h);
+    }
+
+    /**
+     * True for materials that clad architecture rather than dress a prop.
+     *
+     * `_compileInstances` gives every instance in a batch a random tint in the 0.85-1.0 range,
+     * warm-skewed, so a row of identical crates doesn't read as a photocopy. On a crate that is
+     * variation. On a wall it is a defect: two adjacent cells of the same continuous surface get
+     * different tints and the join between them becomes a hard vertical seam, darker AND browner
+     * on one side, which is the giveaway that it is a tint and not a shadow.
+     *
+     * This used to be a hardcoded triple of sharedWallMat/headerMat/marbleMat. Every sector that
+     * has since grown its own wall material -- Clinic, Annex, Impound, Archive, Boardroom,
+     * Checkpoint -- has been getting seams. Matching on the naming convention the codebase
+     * already follows means the next sector to add one is covered without anyone remembering to.
+     *
+     * @param {THREE.Material} mat - The batch's material.
+     * @returns {boolean} True if the batch should be left untinted.
+     */
+    _isArchitectural(mat) {
+        if (!mat || Array.isArray(mat)) return false;
+        if (!this._architecturalMats) {
+            const set = new Set();
+            for (const key of Object.keys(this)) {
+                const v = this[key];
+                if (v && v.isMaterial && /(?:Wall|Floor|Ceiling|Rail)Mat$/.test(key)) set.add(v);
+            }
+            for (const m of [this.sharedWallMat, this.headerMat, this.marbleMat, this.structMat]) {
+                if (m) set.add(m);
+            }
+            this._architecturalMats = set;
+        }
+        return this._architecturalMats.has(mat);
     }
 
     _sectorFog(id) {

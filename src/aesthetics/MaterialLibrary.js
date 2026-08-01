@@ -31,12 +31,21 @@ export default class MaterialLibrary {
         env.pipeJunctionGeo = new THREE.BoxGeometry(0.28, 0.28, 0.28);
         env.pipeMountGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8);
         env.vPipeGeo = new THREE.CylinderGeometry(0.06, 0.06, 3.0, 8);
+        // The bump used to be `structMat.map` -- the structural concrete texture, dark
+        // horizontal bands and all -- at bumpScale 0.03. Wrapped round a cylinder those bands
+        // read as stacked concrete rings, so every drum, pillar and pipe on this material
+        // looked poured rather than forged. `corrosionBumpTexture` is pitting and scale with
+        // no direction to it, which is what this needs given it also skins Chasm pillars and
+        // Incinerator walls.
         env.rustMat = new THREE.MeshStandardMaterial({
             color: 0x4a433a,
-            roughness: 0.8,
-            metalness: 0.3,
-            bumpMap: env.structMat.map,
-            bumpScale: 0.03
+            roughness: 0.70,
+            // See _buildPipeMaterial: with no envMap in the scene, metalness only removes
+            // diffuse and returns nothing. This was 0.3 originally; 0.45 made every drum and
+            // pillar go flat under the hemisphere light.
+            metalness: 0.10,
+            bumpMap: env.corrosionBumpTexture || env.structMat.map,
+            bumpScale: env.corrosionBumpTexture ? 0.012 : 0.03
         });
         env.cushionGeo = new THREE.BoxGeometry(0.8, 0.15, 0.8);
         env.backrestGeo = new THREE.BoxGeometry(0.8, 0.8, 0.15);

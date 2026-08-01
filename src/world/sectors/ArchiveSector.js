@@ -15,13 +15,10 @@ export const ArchiveSector = (env, ctx) => {
         buildWall,
         addGeometry,
         buildChair,
-        buildTable,
         buildDesk,
-        buildCouch,
         addFurniture,
         chunkGroup,
-        hash,
-        stagingMeshes
+        hash
     } = ctx;
     return {
         id: "ARCHIVE",

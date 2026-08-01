@@ -34,7 +34,7 @@ export default class StructuralBlueprints {
                 prob: 0.92, build: (x, z) => {
                     const colCount = Math.floor(random() * 3) + 2;
                     for (let i = 0; i < colCount; i++) {
-                        const support = new THREE.Mesh(this.vPipeGeo, this.rustMat);
+                        const support = new THREE.Mesh(this.vPipeGeo, this.pipeMat || this.rustMat);
                         const scale = (0.1 + random() * 0.15) / 0.12;
                         support.scale.set(scale, 1, scale);
                         const offsetX = (random() - 0.5) * 2.0;
@@ -979,7 +979,7 @@ export default class StructuralBlueprints {
                     floor.rotation.x = -Math.PI / 2;
                     floor.position.set(cx, 0.02, cz);
                     addGeometry(floor);
-                    const roof = buildWall(this.cellSize, this.cellSize, this.structMat, 0.2);
+                    const roof = buildWall(3.9, 3.9, this.structMat, 0.2);
                     roof.position.set(cx, 2.9, cz);
                     addGeometry(roof);
                     const cotX = (dir === 1) ? -0.8 : (dir === 3 ? 0.8 : 0);

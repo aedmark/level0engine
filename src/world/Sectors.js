@@ -21,8 +21,9 @@ export const DEFAULT_FOLEY = {
  * so every override below is readable in isolation without chasing a prototype chain.
  */
 export const DEFAULT_DUST = {
-    drift: 'fall',
-    fallSpeed: 0.0025,
+    drift: 'vertical',
+    driftY: -0.0025,
+    turbulence: 0.0,
     baseOpacity: 0.10,
     crawlOpacity: 0.35,
     baseSize: 0.05,
@@ -44,6 +45,22 @@ export const DEFAULT_EXHAUST = {
     pulseRate: 12.0,
     pulseDepth: 0.02
 };
+/**
+ * Fill light for any sector that does not name its own `ambient`.
+ *
+ * Deliberately low. The engine used to sit at 0.80 here, which lit every room evenly from
+ * nowhere and left the ceiling fixtures with nothing to do -- surfaces read flat and the
+ * pools of light under working fixtures barely registered. Keeping this dim is what makes
+ * a lit panel feel like it is doing the work.
+ */
+export const DEFAULT_AMBIENT = 0.55;
+
+/**
+ * Floor for the ambient term. Never fully black, so an unlit room still resolves as a room
+ * rather than a void once the player's eyes have nothing else to go on.
+ */
+export const MIN_AMBIENT = 0.005;
+
 /**
  * Configuration dictionary mapping sector IDs to their specific atmospheric properties.
  *
@@ -70,8 +87,10 @@ export const DEFAULT_EXHAUST = {
  * @property {boolean} dynamicWhine - If true, the whine modulates in pitch over time.
  *
  * @typedef {Object} DustConfig
- * @property {'fall'|'drift'} drift - 'fall' sinks particles on Y; 'drift' pushes them along X/Z.
- * @property {number} fallSpeed - Y velocity per frame when drift is 'fall'. Negative rises.
+ * @property {'vertical'|'horizontal'} drift - 'vertical' moves particles on Y; 'horizontal' pushes them along X/Z.
+ * @property {number} driftY - Y units per frame when drift is 'vertical'. Positive rises, negative settles.
+ * @property {number} [turbulence] - 0..1 spread of per-particle speed. 0 is a rigid sheet,
+ *   higher values scatter the speeds so an updraft reads as moving air. Ignored when 0.
  * @property {number} baseOpacity - Material opacity while standing.
  * @property {number} crawlOpacity - Material opacity while crawling (the choking effect).
  * @property {number} baseSize - Point size while standing.
@@ -90,18 +109,29 @@ export const DEFAULT_EXHAUST = {
  * @typedef {Object} SectorConfig
  * @property {number} [fog] - Fog density for WebGL shader volumetric rendering.
  * @property {number} [fogColor] - Hex color code for the fog rendering.
+ * @property {number} [ambient] - Hemisphere-light intensity for this sector. This is fill
+ *   light only: the lower it is, the more the sector's own fixtures have to carry the room.
+ *   Falls back to `DEFAULT_AMBIENT` when omitted, and is scaled down further by the player's
+ *   accumulated darkness pressure at runtime.
  * @property {DustConfig} [dust] - Overrides the dust cloud for this sector.
  * @property {ExhaustConfig} [exhaust] - Overrides the exhaust cloud for this sector.
  * @property {AmbienceConfig} [ambience] - Parameters for the procedural drone synthesizer.
  * @property {FoleyConfig} [foley] - Overrides the procedural footstep synthesis for this sector.
- * @property {number} [delay] - Master delay time for acoustic echo in this sector.
- * @property {number} [feedback] - Master delay feedback loop intensity (how long the echo lasts).
+ * @property {number} [delay] - Spatial delay time, in seconds. This is the spacing between
+ *   repeats, so it reads as room size: short values blur into a tail, long ones separate into
+ *   discrete slaps. Note that the send is post-master, so this shapes every voice in the
+ *   graph and not just the drone bed.
+ * @property {number} [feedback] - Delay feedback, 0..1. How many repeats survive. Steady-state
+ *   gain through the loop is `1 / (1 - feedback)`, so 0.7 triples whatever enters it.
+ * @property {number} [wet] - Send level into the delay, defaulting to 0.12. `delay` and
+ *   `feedback` describe the shape of the room; this decides how much of it you hear.
  *
  * @type {Object.<string, SectorConfig>}
  */
 const SECTORS = {
     NORMAL: {
         fog: 0.03,
+        ambient: DEFAULT_AMBIENT,
         ambience: {
             noise: 0.0,
             peace: 0.0,
@@ -116,6 +146,7 @@ const SECTORS = {
     },
     ARCHIVE: {
         fog: 0.06, fogColor: 0x101010,
+        ambient: 0.28,
         ambience: {
             noise: 0.06,
             peace: 0.0,
@@ -128,7 +159,7 @@ const SECTORS = {
         },
         foley: {oscFreq: 90, filterType: 'lowpass', filterFreq: 900, gain: 0.12, attack: 0.03, decay: 0.10},
         dust: {
-            drift: 'fall', fallSpeed: 0.0025,
+            drift: 'vertical', driftY: -0.0025,
             baseOpacity: 0.30, crawlOpacity: 0.45,
             baseSize: 0.07, crawlSize: 0.09,
             color: 0xffffff
@@ -137,6 +168,7 @@ const SECTORS = {
     },
     IMPOUND: {
         fog: 0.12, fogColor: 0x1A1313,
+        ambient: 0.02,
         ambience: {
             noise: 0.19,
             peace: 0.0,
@@ -149,7 +181,7 @@ const SECTORS = {
         },
         foley: {oscFreq: 120, filterType: 'lowpass', filterFreq: 900, gain: 0.12, attack: 0.02, decay: 0.12},
         dust: {
-            drift: 'fall', fallSpeed: 0.04,
+            drift: 'vertical', driftY: -0.04,
             baseOpacity: 0.6, crawlOpacity: 0.7,
             baseSize: 0.18, crawlSize: 0.22,
             color: 0xffffff
@@ -158,6 +190,7 @@ const SECTORS = {
     },
     BOARDROOM: {
         fog: 0.02, fogColor: 0xa0bbd6,
+        ambient: 0.2,
         ambience: {
             noise: 0.05,
             peace: 0.0,
@@ -173,6 +206,7 @@ const SECTORS = {
     },
     SERVER: {
         fog: 0.01, fogColor: 0x380159,
+        ambient: 0.08,
         ambience: {
             noise: 0.1,
             peace: 0.0,
@@ -185,9 +219,9 @@ const SECTORS = {
         },
         foley: {oscFreq: 620, filterType: 'bandpass', filterFreq: 1800, gain: 0.14, attack: 0.005, decay: 0.14},
         dust: {
-            drift: 'drift', fallSpeed: 0.0025,
-            baseOpacity: 0.35, crawlOpacity: 0.45,
-            baseSize: 0.12, crawlSize: 0.16,
+            drift: 'vertical', driftY: 0.18, turbulence: 0.6,
+            baseOpacity: 0.90, crawlOpacity: 0.95,
+            baseSize: 0.30, crawlSize: 0.35,
             color: 0xffffff
         },
         exhaust: {
@@ -198,7 +232,8 @@ const SECTORS = {
         delay: 0.06, feedback: 0.08
     },
     CLINIC: {
-        fog: 0.04, fogColor: 0x7799aa,
+        fog: 0.02, fogColor: 0x031233,
+        ambient: 0.1,
         ambience: {
             noise: 0.1,
             peace: 0.0,
@@ -214,6 +249,7 @@ const SECTORS = {
 
     MAINTENANCE: {
         fog: 0.08, fogColor: 0x572503,
+        ambient: 0.18,
         ambience: {
             noise: 0.55,
             peace: 0.0,
@@ -229,6 +265,7 @@ const SECTORS = {
     },
     INCINERATOR: {
         fog: 0.20, fogColor: 0xD15900,
+        ambient: 0.15,
         ambience: {
             noise: 0.65,
             peace: 0.01,
@@ -248,6 +285,7 @@ const SECTORS = {
     },
     CHASM: {
         fog: 0.20, fogColor: 0x031B3B,
+        ambient: 0.02,
         ambience: {
             noise: 0.25,
             peace: 0.0,
@@ -260,7 +298,7 @@ const SECTORS = {
         },
         foley: {oscFreq: 240, filterType: 'bandpass', filterFreq: 1600, gain: 0.18, attack: 0.005, decay: 0.3},
         dust: {
-            drift: 'fall', fallSpeed: -0.02,
+            drift: 'vertical', driftY: 0.02,
             baseOpacity: 0.65, crawlOpacity: 0.75,
             baseSize: 0.35, crawlSize: 0.45,
             color: 0x2288ff
@@ -269,8 +307,9 @@ const SECTORS = {
     },
     ATRIUM: {
         fog: 0.09, fogColor: 0x010101,
+        ambient: 0.1,
         ambience: {
-            noise: 0.09,
+            noise: 0.13,
             peace: 0.0,
             rumble: 35,
             freq: 130,
@@ -280,10 +319,17 @@ const SECTORS = {
             dynamicWhine: false
         },
         foley: {oscFreq: 70, filterType: 'lowpass', filterFreq: 700, gain: 0.09, attack: 0.04, decay: 0.22},
-        delay: 0.4, feedback: 0.3
+        dust: {
+            drift: 'vertical', driftY: -0.006, turbulence: 0.45,
+            baseOpacity: 0.22, crawlOpacity: 0.34,
+            baseSize: 0.16, crawlSize: 0.20,
+            color: 0x8fa4b0
+        },
+        delay: 0.24, feedback: 0.58, wet: 0.20
     },
     ANNEX: {
         fog: 0.03,
+        ambient: 0.15,
         ambience: {
             noise: 0.03,
             peace: 0.0,
@@ -296,16 +342,17 @@ const SECTORS = {
         },
         foley: {oscFreq: 420, filterType: 'highpass', filterFreq: 2200, gain: 0.1, attack: 0.01, decay: 0.07},
         dust: {
-            drift: 'fall', fallSpeed: -0.01,
+            drift: 'vertical', driftY: 0.01,
             baseOpacity: 0.45, crawlOpacity: 0.55,
             baseSize: 0.45, crawlSize: 0.50,
             color: 0xe8ddc5
         },
         delay: 0.1, feedback: 0.12
     },
-    EXIT: {fog: 0.05},
+    EXIT: {fog: 0.05, ambient: 0.18},
     CHECKPOINT: {
         fog: 0.07, fogColor: 0x4E3E5E,
+        ambient: 0.15,
         ambience: {
             noise: 0.2,
             peace: 0.0,

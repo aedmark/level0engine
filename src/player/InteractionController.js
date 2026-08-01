@@ -1,5 +1,3 @@
-// InteractionController.js
-// LEVEL 0 INTERACTION & DOOR STATE MACHINES
 /**
  * Manages all physical interactions between the player, entities, and the environment.
  *
@@ -255,10 +253,9 @@ export default class InteractionController {
                             const dx = playerPos.x - anim.position.x;
                             const dz = playerPos.z - anim.position.z;
                             const distSq2D = dx * dx + dz * dz;
-                            if (distSq2D < 0.64) { // Roughly 0.8m collision radius
+                            if (distSq2D < 0.64) {
                                 anim.userData.tipped = true;
                                 anim.userData.fallDir = anim.position.clone().sub(playerPos).normalize();
-                                // Trigger a heavy thud sound/shake
                                 document.dispatchEvent(new CustomEvent('somatic-step', {
                                     detail: {
                                         distSq: 0.1,
@@ -304,7 +301,6 @@ export default class InteractionController {
                     sprite.position.set(ud.spreadX * ud.life, ud.life * 1.5, ud.spreadZ * ud.life);
                     const scale = ud.baseScale + ud.life * 1.2;
                     sprite.scale.set(scale, scale, 1);
-                    // Fade in quickly, then fade out
                     const targetOpacity = ud.life < 0.2 ? (ud.life / 0.2) : (1.0 - (ud.life - 0.2) / 1.3);
                     sprite.material.opacity = Math.max(0, targetOpacity * 0.4);
                 });
@@ -462,14 +458,6 @@ export default class InteractionController {
             case 'OUTER_OPENING':
                 airlock.outerDoor.data.target = 1.0;
                 airlock.innerDoor.data.target = 0.0;
-                // Kick off the sector's deferred interior build the moment the outer door
-                // starts opening, rather than waiting for the switch press. This is the
-                // earliest possible moment (before AWAITING_SWITCH even exists) that we know
-                // the player is committing to enter -- it gives the build the door-opening
-                // animation, however long the player takes to walk to and press the switch,
-                // plus the full airlock cycle to finish in the background. beginMacroChunkContent
-                // is a no-op once the content is already building/built, so this is safe to
-                // call every frame here.
                 if (airlock.openedFrom === 'OUTSIDE') {
                     env.beginMacroChunkContent(airlock.chunkHash);
                 }
@@ -490,8 +478,6 @@ export default class InteractionController {
                 break;
             case 'AWAITING_SWITCH':
                 if (switchPressed) {
-                    // The interior build was already kicked off back in OUTER_OPENING (see
-                    // comment there); nothing to start here.
                     airlock.state = 'WAIT_IN_CHAMBER';
                 } else if (!isPlayerInChamber) {
                     if (airlock.openedFrom === 'OUTSIDE' && pDistOuterSq > 30.0) {
@@ -522,12 +508,6 @@ export default class InteractionController {
                 const targetSector = (airlock.openedFrom === 'OUTSIDE') ? airlock.sectorId : 'NORMAL';
                 env._doorSectorForce = targetSector;
                 airlock.cycleTimer -= delta;
-                // Entering a sector (OUTSIDE) additionally requires its deferred interior to have
-                // actually finished building -- the doors don't open until everything is loaded.
-                // Exiting back out (INSIDE) never waits on this: "outside" is ordinary maze
-                // territory that's never gated. If content takes longer than cycleDuration, the
-                // player simply waits an extra beat in the chamber instead of walking into a
-                // half-built (or still-empty) room.
                 const enteringSector = airlock.openedFrom === 'OUTSIDE';
                 const contentReady = !enteringSector || env.isMacroChunkContentReady(airlock.chunkHash);
                 if (airlock.cycleTimer <= 0 && contentReady) {
@@ -570,10 +550,6 @@ export default class InteractionController {
         }
         const isReadyToPass = airlock.state === 'EXIT_INNER' || airlock.state === 'EXIT_OUTER' || airlock.state === 'OUTER_OPENING' || airlock.state === 'INNER_OPENING';
         const targetMat = isReadyToPass ? env.airlockGreenMat : env.airlockRedMat;
-        if (airlock.outerDoor.lamp.material !== targetMat) {
-            airlock.outerDoor.lamp.material = targetMat;
-            airlock.innerDoor.lamp.material = targetMat;
-        }
         env._updateAirlockDoor(airlock.outerDoor, delta);
         env._updateAirlockDoor(airlock.innerDoor, delta);
     }

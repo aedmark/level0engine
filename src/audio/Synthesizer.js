@@ -133,14 +133,38 @@ export default class Synthesizer {
         engine.subRumble.connect(engine.mainGain);
         engine.kineticFilter.connect(engine.mainGain);
         engine.whineGain.connect(engine.mainGain);
+        // The spatial delay is an aux send tapped off the master bus, not an insert on the
+        // drone.
+        //
+        // It used to be fed only by `mainGain` -- the rumble, whine, and kinetic bed, whose
+        // gain sits between 0.003 and 0.013. Everything else in the graph (footsteps, muzak,
+        // every foley event, the sector noise beds) connected straight to `masterGain` and
+        // never reached it. The sector `delay` and `feedback` numbers were therefore describing
+        // the acoustics of the drone alone, which is why a marble concourse could be set to the
+        // longest tail in the game and still return dry footsteps.
+        //
+        // Tapping post-master picks up every voice, present and future, without a source ever
+        // having to know the reverb exists. It also means `setVolume` scales wet and dry
+        // together, since `masterGain` is upstream of the send.
+        //
+        // The wet return goes to `ctx.destination` rather than back through `masterGain`. That
+        // return path would be legal -- WebAudio permits a cycle that contains a DelayNode --
+        // but it would stack a second feedback loop on top of `feedbackGain`, and the combined
+        // loop gain would then depend on the master volume setting.
         engine.spatialDelay = ctx.createDelay(2.0);
         engine.spatialDelay.delayTime.value = 0.1;
         engine.feedbackGain = ctx.createGain();
         engine.feedbackGain.gain.value = 0.2;
-        engine.mainGain.connect(engine.spatialDelay);
+        // Send level, driven per-sector by `Mixer` from `SECTORS[x].wet`. Deliberately low: a
+        // feedback delay has a steady-state gain of `1 / (1 - feedback)`, so the CHASM's 0.7
+        // multiplies whatever arrives here by 3.3 before it reaches the output.
+        engine.reverbSend = ctx.createGain();
+        engine.reverbSend.gain.value = 0.12;
+        engine.masterGain.connect(engine.reverbSend);
+        engine.reverbSend.connect(engine.spatialDelay);
         engine.spatialDelay.connect(engine.feedbackGain);
         engine.feedbackGain.connect(engine.spatialDelay);
-        engine.spatialDelay.connect(engine.masterGain);
+        engine.spatialDelay.connect(ctx.destination);
         engine.mainGain.connect(engine.masterGain);
         engine.chasmGroanGain = ctx.createGain();
         engine.chasmGroanGain.gain.value = 0.0;

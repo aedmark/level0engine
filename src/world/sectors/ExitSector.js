@@ -14,13 +14,8 @@ export const ExitSector = (env, ctx) => {
         random,
         buildWall,
         addGeometry,
-        buildChair,
-        buildTable,
-        buildCouch,
-        addFurniture,
         chunkGroup,
-        hash,
-        stagingMeshes
+        hash
     } = ctx;
     return {
         id: "EXIT",

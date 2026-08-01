@@ -15,6 +15,31 @@ function setMixParam(engine, time, key, param, target, timeConstant) {
 }
 
 /**
+ * Which sectors run the muzak sequencer, and what the tape sounds like in each.
+ *
+ * The chord set, melody, and scheduler are shared -- only these four numbers differ, which is
+ * what lets one recording read as two different buildings. ANNEX is a working speaker in a
+ * corridor. ATRIUM is the same tape heard across a concourse big enough to swallow it: the
+ * cutoff is pulled down until the melody is more suggestion than tune, the tempo drags, and
+ * the wow is deep enough that you can hear the transport failing.
+ *
+ * A table rather than a branch, so adding a third sector is a line of data and not another
+ * arm of a conditional that has to be read in full to be trusted.
+ *
+ * @typedef {Object} MuzakProfile
+ * @property {number} gain - Target `muzakGain`, the bus level for the whole sequencer.
+ * @property {number} beat - Seconds per step. The melody is sixteen steps long.
+ * @property {number} cutoff - `muzakFilter` lowpass corner. This is the distance cue.
+ * @property {number} wobble - `muzakLFOGain`, in Hz of pitch deviation. This is the tape wear.
+ *
+ * @type {Object.<string, MuzakProfile>}
+ */
+const MUZAK_PROFILES = {
+    ANNEX: {gain: 1.2, beat: 0.50, cutoff: 500, wobble: 15},
+    ATRIUM: {gain: 0.9, beat: 0.72, cutoff: 210, wobble: 34}
+};
+
+/**
  * Mixer
  *
  * Modulates the parameters of the Web Audio nodes in real-time based on player telemetry.
@@ -74,6 +99,13 @@ export default class Mixer {
             const targetFeedback = (room && room.feedback) || 0.2;
             setMixParam(engine, time, 'delayTime', engine.spatialDelay.delayTime, targetDelay, 1.0);
             setMixParam(engine, time, 'feedback', engine.feedbackGain.gain, targetFeedback, 1.0);
+            if (engine.reverbSend) {
+                // How much of the room a sector shows. `delay` and `feedback` set the shape of
+                // the tail; this sets whether you are standing in it. Nullish coalescing rather
+                // than `||` so a sector can legitimately declare itself anechoic with `wet: 0`.
+                const targetWet = (room && room.wet !== undefined) ? room.wet : 0.12;
+                setMixParam(engine, time, 'wet', engine.reverbSend.gain, targetWet, 1.5);
+            }
         }
         if (engine.idlingGain) {
             const idleVol = Math.max(0.0, 1.0 - Math.sqrt(idlingCarDistSq) / 30.0);
@@ -106,10 +138,22 @@ export default class Mixer {
             }
         }
         if (engine.muzakGain) {
-            if (activeSector === "ANNEX" && !isBlackout) {
-                setMixParam(engine, time, 'muzak', engine.muzakGain.gain, 1.2, 2.0);
+            const muzak = isBlackout ? null : MUZAK_PROFILES[activeSector];
+            if (muzak) {
+                setMixParam(engine, time, 'muzak', engine.muzakGain.gain, muzak.gain, 2.0);
+                setMixParam(engine, time, 'muzakCutoff', engine.muzakFilter.frequency, muzak.cutoff, 2.0);
+                if (engine.muzakLFOGain) {
+                    setMixParam(engine, time, 'muzakWobble', engine.muzakLFOGain.gain, muzak.wobble, 2.0);
+                }
                 if (!engine._muzakNextBeat || time > engine._muzakNextBeat - 0.5) {
-                    if (!engine._muzakNextBeat) engine._muzakNextBeat = time + 0.1;
+                    // `_muzakNextBeat` counts in AudioContext time, which keeps running while the
+                    // player is in a sector that has no muzak. Re-entering after a few minutes
+                    // away would otherwise find the cursor far in the past and schedule every
+                    // missed beat at a timestamp that has already gone -- WebAudio fires those
+                    // immediately, so the whole backlog arrives at once. Latent until now,
+                    // because ANNEX was the only sector that could arm it. Two sectors means
+                    // crossing between them, which means this fires for real.
+                    if (!engine._muzakNextBeat || engine._muzakNextBeat < time) engine._muzakNextBeat = time + 0.1;
                     if (engine._muzakStep === undefined) engine._muzakStep = 0;
                     const chords = [
                         [174.61, 220.00, 261.63, 329.63],
@@ -132,7 +176,7 @@ export default class Mixer {
                     if (mFreq) {
                         engine.playMuzakNote(mFreq, beatTime, false);
                     }
-                    engine._muzakNextBeat += 0.5;
+                    engine._muzakNextBeat += muzak.beat;
                     engine._muzakStep++;
                 }
             } else {
@@ -145,7 +189,8 @@ export default class Mixer {
         }
         if (activeSector !== "ATRIUM" || isBlackout) {
             engine._atriumNextEvent = 0;
-            engine._atriumHootAt = 0;
+            engine._atriumStepAt = 0;
+            engine._atriumStepsLeft = 0;
         }
         if (activeSector !== "IMPOUND" || isBlackout) {
             engine._impoundNextEvent = 0;
@@ -178,22 +223,36 @@ export default class Mixer {
                         }
                     }
                     break;
+                // Was 'leaves' at 65% and a doubled 'hoot' at 35% -- rustling undergrowth and a
+                // two-note owl call, which is a field at night and not a shopping centre. The
+                // palette is now a PA paging nobody and a gait crossing the concourse.
+                //
+                // Distances start at 484 rather than the 36 the other sectors use. `Foley`
+                // attenuates by `1 - sqrt(distSq)/40` and culls past 1600, so this band lands
+                // between 22 and 33 units out: audible, unplaceable, and never close enough to
+                // sound like it is happening to you.
                 case "ATRIUM":
                     if (!engine._atriumNextEvent) engine._atriumNextEvent = time + 3.0;
-                    if (engine._atriumHootAt && time >= engine._atriumHootAt) {
-                        engine.triggerSomaticEvent('hoot', engine._atriumHootDistSq, 0.55 + Math.random() * 0.25);
-                        engine._atriumHootAt = 0;
+                    // A single scuff is a noise. Three or four spaced at walking cadence is a
+                    // person, and stopping mid-crossing is the part that does the work.
+                    if (engine._atriumStepAt && time >= engine._atriumStepAt) {
+                        engine.triggerSomaticEvent('shuffle', engine._atriumStepDistSq, 0.45 + Math.random() * 0.3);
+                        engine._atriumStepsLeft--;
+                        engine._atriumStepAt = engine._atriumStepsLeft > 0
+                            ? time + 0.48 + Math.random() * 0.16
+                            : 0;
                     }
                     if (time >= engine._atriumNextEvent) {
-                        engine._atriumNextEvent = time + 5.0 + Math.random() * 10.0;
+                        engine._atriumNextEvent = time + 8.0 + Math.random() * 16.0;
                         const aRoll = Math.random();
-                        const aDistSq = 36.0 + Math.random() * 364.0;
-                        if (aRoll < 0.65) {
-                            engine.triggerSomaticEvent('leaves', aDistSq, 0.5 + Math.random() * 0.5);
+                        const aDistSq = 484.0 + Math.random() * 640.0;
+                        if (aRoll < 0.45) {
+                            engine.triggerSomaticEvent('page', aDistSq, 0.5 + Math.random() * 0.4);
                         } else {
-                            engine.triggerSomaticEvent('hoot', aDistSq, 0.7 + Math.random() * 0.3);
-                            engine._atriumHootAt = time + 0.4 + Math.random() * 0.15;
-                            engine._atriumHootDistSq = aDistSq;
+                            engine.triggerSomaticEvent('shuffle', aDistSq, 0.5 + Math.random() * 0.35);
+                            engine._atriumStepsLeft = 2 + Math.floor(Math.random() * 3);
+                            engine._atriumStepAt = time + 0.48 + Math.random() * 0.16;
+                            engine._atriumStepDistSq = aDistSq;
                         }
                     }
                     break;

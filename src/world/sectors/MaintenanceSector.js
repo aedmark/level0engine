@@ -14,13 +14,9 @@ export const MaintenanceSector = (env, ctx) => {
         random,
         buildWall,
         addGeometry,
-        buildChair,
-        buildTable,
-        buildCouch,
         addFurniture,
         chunkGroup,
-        hash,
-        stagingMeshes
+        hash
     } = ctx;
     return {
         id: "MAINTENANCE",
@@ -89,10 +85,6 @@ export const MaintenanceSector = (env, ctx) => {
                 const openN = !wN;
                 const openW = !wW;
                 const offset = -1.1;
-                // Shared pipe/mount/junction dressing (also used by ServerSector, at different
-                // heights/offset) -- see Environment._buildPipeCornerDressing(). Maintenance's own
-                // valve-wheel/leak-stain/caution-cone extras layer on top via the callback, since
-                // Server doesn't have them.
                 env._buildPipeCornerDressing(chunkGroup, addGeometry, random, x, z, openE, openS, openN, openW, offset, 2.8, 2.925, 2.8, () => {
                     if (random() > 0.85) {
                         const valveGroup = new THREE.Group();

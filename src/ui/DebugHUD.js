@@ -58,6 +58,16 @@ export const DebugHUD = {
             `ANOM  ${anomalyDist}${grace}${player.isChased ? ' CHASING' : ''}\n` +
             `POI   ${unclaimed}/${pois.length} unclaimed  HOPS ${environment._breakerHuntHops ?? '-'}\n` +
             `FIXT  ${environment.fixtureData.length}  CHUNKS ${environment.activeChunks.size}\n` +
+            // raw is the stimulus before smoothing, out is what the shader receives. If raw is
+            // healthy and out is not, adaptation is working. If they track each other, the
+            // pupil is stuck -- check dot against the 0.95 gate and dist against the 1.0 floor.
+            `GLARE raw ${(environment._glareRaw ?? 0).toFixed(3)}` +
+            `  smooth ${(environment.currentGlare ?? 0).toFixed(3)}` +
+            `  out ${(engine.glare ?? 0).toFixed(3)}\n` +
+            `PUPIL ${((environment.pupilAdapt ?? 0) * 100).toFixed(0)}%` +
+            `  exp ${engine.renderer.toneMappingExposure.toFixed(2)}` +
+            `  dot ${(environment._glareDot ?? -1).toFixed(3)}` +
+            `  dist ${Number.isFinite(environment._glareDist) ? environment._glareDist.toFixed(1) + 'm' : '-'}\n` +
             `OBJ   ${player.objectives.fixed}/${player.objectives.total}  COH ${(player.coherence * 100).toFixed(0)}%\n` +
             `PERF  hitch ${this._hitches} (${this._genHitches} gen) worst ${(this._worstHitch * 1000).toFixed(0)}ms` +
             (environment.genStats ? `  chunk avg ${(environment.genStats.totalMs / environment.genStats.count).toFixed(1)}ms worst ${environment.genStats.worstMs.toFixed(1)}ms` : '');

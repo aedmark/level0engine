@@ -479,7 +479,7 @@ export default class SetPieces {
             const tank = new THREE.Mesh(env._cacheGeo('impTank', () => new THREE.CylinderGeometry(0.34, 0.34, 1.3, 14)), env.metalMat);
             tank.rotation.z = Math.PI / 2;
             tank.position.set(0.05, 1.15, 0);
-            const pipe = new THREE.Mesh(env._cacheGeo('impExhaust', () => new THREE.CylinderGeometry(0.06, 0.06, 0.8, 8)), env.rustMat);
+            const pipe = new THREE.Mesh(env._cacheGeo('impExhaust', () => new THREE.CylinderGeometry(0.06, 0.06, 0.8, 8)), env.pipeMat || env.rustMat);
             pipe.position.set(-0.6, 1.25, 0.32);
             const ctrl = new THREE.Mesh(env._boxGeo(0.5, 0.45, 0.07), env.hazardMat);
             ctrl.position.set(0, 0.72, 0.5);
@@ -626,12 +626,6 @@ export default class SetPieces {
             const header = bWall(spansX ? 4.0 : 0.7, 0.8, spansX ? 0.7 : 4.0, env.metalMat);
             header.position.set(cx, 3.0, cz);
             addGeometry(header);
-            const lampHousing = bWall(spansX ? 0.4 : 0.2, 0.15, spansX ? 0.2 : 0.4, env.metalMat);
-            lampHousing.position.set(cx, 3.05, cz);
-            chunkGroup.add(lampHousing);
-            const lampLens = new THREE.Mesh(env._boxGeo(spansX ? 0.3 : 0.12, 0.1, spansX ? 0.12 : 0.3), env.airlockRedMat);
-            lampLens.position.set(cx, 3.02, cz);
-            chunkGroup.add(lampLens);
             if (!env._lightMatPool) env._lightMatPool = new Map();
             const barKey = '15007679_13495535_false';
             if (!env._lightMatPool.has(barKey)) {
@@ -750,7 +744,7 @@ export default class SetPieces {
                 position: new THREE.Vector3(cx, 1.5, cz),
                 userData: doorGroup.userData
             });
-            return {group: doorGroup, data: doorGroup.userData, position: new THREE.Vector3(cx, 0, cz), lamp: lampLens};
+            return {group: doorGroup, data: doorGroup.userData, position: new THREE.Vector3(cx, 0, cz)};
         };
         const outerDoor = buildDoor(outerX, outerZ);
         const innerDoor = buildDoor(innerX, innerZ);
@@ -862,7 +856,8 @@ export default class SetPieces {
                 addGeometry(floor);
             }
             if (needsCeiling) {
-                let mat = env.ceilMat;
+                // Hall-scaled variant: this plane is one 4-unit cell, not the 64-unit chunk.
+                let mat = env.ceilMatHall || env.ceilMat;
                 let isChasm = sectorId === "CHASM";
                 if (isChasm) mat = env.blackIronMat || env.structMat;
                 else if (sectorId === "IMPOUND") mat = env.impoundCeilingMat || env.structMat;

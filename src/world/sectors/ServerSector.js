@@ -14,10 +14,6 @@ export const ServerSector = (env, ctx) => {
         random,
         buildWall,
         addGeometry,
-        buildChair,
-        buildTable,
-        buildCouch,
-        addFurniture,
         chunkGroup,
         hash,
         stagingMeshes
@@ -156,9 +152,6 @@ export const ServerSector = (env, ctx) => {
                 const openN = localZ > 0 ? !maze[localX][localZ - 1] : !maze[localX][localZ];
                 const openW = localX > 0 ? !maze[localX - 1][localZ] : !maze[localX][localZ];
                 const offset = 0.9;
-                // Shared pipe/mount/junction dressing (also used by MaintenanceSector, at
-                // different heights/offset and with its own valve/leak-stain extras) -- see
-                // Environment._buildPipeCornerDressing().
                 env._buildPipeCornerDressing(chunkGroup, addGeometry, random, x, z, openE, openS, openN, openW, offset, 2.75, 2.9, 2.75);
                 if (random() > 0.85) {
                     const propType = random();

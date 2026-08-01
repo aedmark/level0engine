@@ -14,24 +14,19 @@ export const IncineratorSector = (env, ctx) => {
         random,
         buildWall,
         addGeometry,
-        buildChair,
-        buildTable,
-        buildCouch,
-        addFurniture,
         chunkGroup,
-        hash,
-        stagingMeshes
+        hash
     } = ctx;
     return {
         id: "INCINERATOR",
-        foundationMat: env.diamondPlateMat || env.rustMat,
+        foundationMat: env.incinFloorMat || env.diamondPlateMat || env.rustMat,
         ceilingMat: env.incinCeilingMat || null,
         build: (x, z, localX, localZ, maze) => {
             const edge = env.chunkSize - 1;
             const isDoorwayNS = localX === 7 && (localZ === 0 || localZ === edge);
             const isDoorwayEW = localZ === 7 && (localX === 0 || localX === edge);
             const isDoorway = isDoorwayNS || isDoorwayEW;
-            if (ctx.buildPerimeter(x, z, localX, localZ, env.sharedWallMat, "INCINERATOR")) {
+            if (ctx.buildPerimeter(x, z, localX, localZ, env.incinWallMat || env.sharedWallMat, "INCINERATOR")) {
                 if (!isDoorway) {
                     const lEdge = env.chunkSize - 1;
                     const liners = [];
@@ -49,7 +44,7 @@ export const IncineratorSector = (env, ctx) => {
                     } else {
                         for (let li = 0; li < liners.length; li++) {
                             const ldx = liners[li][0], ldz = liners[li][1];
-                            const liner = buildWall(ldx !== 0 ? 0.4 : env.cellSize, ldz !== 0 ? 0.4 : env.cellSize, env.rustMat, 3.0);
+                            const liner = buildWall(ldx !== 0 ? 0.4 : env.cellSize, ldz !== 0 ? 0.4 : env.cellSize, env.incinWallMat || env.rustMat, 3.0);
                             liner.position.set(x * env.cellSize + ldx * 2.2, 1.5, z * env.cellSize + ldz * 2.2);
                             addGeometry(liner);
                         }
@@ -81,7 +76,7 @@ export const IncineratorSector = (env, ctx) => {
             }
             const ductMat = env.ductMat || env.ventMat || env.metalMat || env.rustMat;
             if (!env.emberGrilleMat) {
-                env.emberGrilleMat = new THREE.MeshStandardMaterial({
+                env.emberGrilleMat = env.emberGrateMat || new THREE.MeshStandardMaterial({
                     color: 0x2a1005, emissive: 0xff5500, emissiveIntensity: 1.2, roughness: 0.9
                 });
                 env.sharedAssets.add(env.emberGrilleMat.uuid);
@@ -99,18 +94,22 @@ export const IncineratorSector = (env, ctx) => {
             };
             const isWall = maze && maze[localX][localZ];
             if (isWall) {
-                const block = buildWall(env.cellSize, env.cellSize, env.rustMat, 3.0);
+                const block = buildWall(env.cellSize, env.cellSize, env.incinWallMat || env.rustMat, 3.0);
                 block.position.set(cxw, 1.5, czw);
                 block.userData.isEntityBlocker = true;
                 addGeometry(block);
                 const buildSconce = (nx, nz) => {
                     const fx = cxw + nx * 2.0;
                     const fz = czw + nz * 2.0;
-                    const activeMat = ctx.getLightMaterial(0xff5522, 0xff2200, false);
+                    const activeMat = ctx.getLightMaterial(0xffffff, 0xff6a22, false, false, 'ember');
                     const housing = buildWall(nx !== 0 ? 0.16 : 0.8, nz !== 0 ? 0.16 : 0.8, env.rustMat, 0.5);
                     housing.position.set(fx + nx * 0.08, 1.5, fz + nz * 0.08);
                     addGeometry(housing);
-                    const plate = buildWall(nx !== 0 ? 0.1 : 0.55, nz !== 0 ? 0.1 : 0.55, activeMat, 0.32);
+                    // Plain box, not buildWall. buildWall scales u by (dim / cellSize) and v
+                    // by (h / 3), so a 0.55 x 0.32 panel would sample about 1.5% of the sight
+                    // glass texture -- one corner of the frame and none of the fire.
+                    const plate = new THREE.Mesh(
+                        env._boxGeo(nx !== 0 ? 0.1 : 0.55, 0.32, nz !== 0 ? 0.1 : 0.55), activeMat);
                     plate.position.set(fx + nx * 0.21, 1.5, fz + nz * 0.21);
                     plate.userData.chunkHash = hash;
                     chunkGroup.add(plate);
@@ -150,7 +149,7 @@ export const IncineratorSector = (env, ctx) => {
                 spine.position.set(cxw, 2.78, czw);
                 addGeometry(spine);
                 if ((localX + localZ) % 2 === 0) {
-                    const grille = buildWall(0.5, 0.5, env.emberGrilleMat, 0.12);
+                    const grille = new THREE.Mesh(env._boxGeo(0.5, 0.12, 0.5), env.emberGrilleMat);
                     grille.position.set(cxw, 2.50, czw);
                     addGeometry(grille);
                 }
@@ -160,7 +159,7 @@ export const IncineratorSector = (env, ctx) => {
                 spine.position.set(cxw, 2.80, czw);
                 addGeometry(spine);
                 if ((localX + localZ) % 2 === 1) {
-                    const grille = buildWall(0.5, 0.5, env.emberGrilleMat, 0.12);
+                    const grille = new THREE.Mesh(env._boxGeo(0.5, 0.12, 0.5), env.emberGrilleMat);
                     grille.position.set(cxw, 2.50, czw);
                     addGeometry(grille);
                 }
@@ -175,7 +174,7 @@ export const IncineratorSector = (env, ctx) => {
                     const collar = buildWall(0.86, 0.86, env.ventCollarMat, 0.22);
                     collar.position.set(rx, 2.58, czw);
                     addGeometry(collar);
-                    const cap = buildWall(0.7, 0.7, env.emberGrilleMat, 0.1);
+                    const cap = new THREE.Mesh(env._boxGeo(0.7, 0.1, 0.7), env.emberGrilleMat);
                     cap.position.set(rx, 1.42, czw);
                     addGeometry(cap);
                 }
@@ -188,7 +187,7 @@ export const IncineratorSector = (env, ctx) => {
                 for (let pi = 0; pi < count; pi++) {
                     const pox = (random() - 0.5) * 1.6, poz = (random() - 0.5) * 1.6;
                     const ps = 0.8 + random() * 1.6;
-                    const pipe = new THREE.Mesh(env.vPipeGeo, env.rustMat);
+                    const pipe = new THREE.Mesh(env.vPipeGeo, env.pipeMat || env.rustMat);
                     pipe.position.set(cxw + pox, 1.5, czw + poz);
                     pipe.scale.set(ps, 1.0, ps);
                     addGeometry(pipe);

@@ -15,7 +15,6 @@ export const BoardroomSector = (env, ctx) => {
         buildWall,
         addGeometry,
         buildChair,
-        buildTable,
         buildCouch,
         addFurniture,
         chunkGroup,

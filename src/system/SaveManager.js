@@ -45,7 +45,11 @@ export default class SaveManager {
             this.engine.resolutionScale = parseFloat(state.res) || 1.0;
             this.engine.enablePostProcessing = state.post !== false;
             this.engine.camera.fov = Number(state.fov) || 75;
-            this.engine.renderer.toneMappingExposure = (Number(state.gamma) || 120) / 100;
+            // `baseExposure`, not `toneMappingExposure`. The live value is recomputed from this
+            // every frame by pupil adaptation, so restoring the saved preference into the live
+            // slot would survive exactly until the next tick and the setting would look like it
+            // never loaded.
+            this.engine.baseExposure = (Number(state.gamma) || 120) / 100;
             this.acoustics.masterVolume = (state.vol !== undefined ? Number(state.vol) : 100) / 100;
             this.engine.camera.updateProjectionMatrix();
             this.player.speedMultiplier = (Number(state.speed) || 100) / 100;
