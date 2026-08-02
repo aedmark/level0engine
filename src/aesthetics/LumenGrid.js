@@ -1,18 +1,4 @@
-/**
- * The dynamic light management subsystem for Level 0.
- *
- * Browsers struggle to render more than a few shadow-casting lights at once.
- * This class solves that by maintaining a fixed pool of lights (`maxActiveLights`) and
- * continuously repositioning them near the player based on proximity (`distSq`). It uses
- * an insertion sort to prioritize the absolute closest lights for the rare shadow-casting slots.
- */
 export default class LumenGrid {
-    /**
-     * Initializes the LumenGrid illumination subsystem, pre-allocating light pools.
-     * We pre-allocate a fixed pool of lights to avoid costly instantiation during gameplay.
-     * Only a subset of lights cast shadows to maintain high performance.
-     * @param {THREE.Scene} scene - The main Three.js scene to add lights to.
-     */
     constructor(scene, shadowQuality = 'high') {
         this.scene = scene;
         this.maxActiveLights = 32;
@@ -62,19 +48,6 @@ export default class LumenGrid {
         }
     }
 
-    /**
-     * Updates active lights based on player proximity and culls distant fixtures.
-     * Prioritizes shadow-casting slots for the nearest light sources.
-     * @param {THREE.Vector3} cameraPos - The current camera position.
-     * @param {Array} fixtureData - Array of light fixture data objects.
-     * @param {number} time - Current elapsed time for flicker calculations.
-     * @param {string} [currentChunkHash] - The chunkHash of the chunk/sector the camera is
-     *   currently standing in. Fixtures tagged with any other chunkHash are on the far side
-     *   of a sector's perimeter wall and are excluded from the pool entirely (see the isLH
-     *   check below for the one deliberate exception). If omitted, no sector filtering is
-     *   applied.
-     * @returns {Object} State containing darknessPressure, nearestFixture, and minLightDistSq.
-     */
     update(cameraPos, fixtureData, time, currentChunkHash) {
         let darknessPressure = 0;
         if (!this._prevActive) this._prevActive = new Set();

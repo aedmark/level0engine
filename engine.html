@@ -611,6 +611,62 @@
             pointer-events: none;
         }
 
+        /* Palm-reader scan feedback. Sits concentric with the crosshair so the player's eye never
+           leaves the reader plate to check progress. Hidden entirely at zero so it costs nothing
+           visually on every other interaction in the game. */
+        #scan-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 16;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.12s linear;
+            background: conic-gradient(
+                    rgba(159, 230, 242, 0.95) calc(var(--scan, 0) * 360deg),
+                    rgba(159, 230, 242, 0.10) 0deg);
+            -webkit-mask: radial-gradient(circle, transparent 15px, #000 16px, #000 22px, transparent 23px);
+            mask: radial-gradient(circle, transparent 15px, #000 16px, #000 22px, transparent 23px);
+            filter: drop-shadow(0 0 6px rgba(159, 230, 242, 0.5));
+        }
+
+        #scan-ring.scanning {
+            opacity: 1;
+        }
+
+        /* Sibling rather than child of the ring, because the ring is masked to an annulus and any
+           child of it would be erased at exactly the centre where a label belongs. */
+        #scan-label {
+            position: absolute;
+            top: calc(50% + 34px);
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 16;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.12s linear;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 9px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            color: rgba(159, 230, 242, 0.9);
+            text-shadow: 0 0 4px rgba(0, 0, 0, 0.95);
+        }
+
+        #scan-label.scanning {
+            opacity: 1;
+        }
+
+        /* The [E] prompt has done its job once the hand is on the reader, and leaving it up puts two
+           competing labels inside a 40px circle. */
+        #crosshair.scanning::after {
+            opacity: 0;
+        }
+
         #flash-overlay {
             position: absolute;
             top: 0;
@@ -750,6 +806,8 @@
         <div class="inquest-footer">[ 1 / 2 / 3 TO FILE — 'E' TO STEP BACK ]</div>
     </div>
     <div id="crosshair"></div>
+    <div id="scan-ring"></div>
+    <div id="scan-label">HOLD</div>
     <span id="vhs-time" class="osd-element">AM 12:00:00 &nbsp;&nbsp; JAN 01 1997</span>
     <div id="inventory-osd" class="osd-element">
         BAT: <span id="inv-bat">0</span>/3<br>

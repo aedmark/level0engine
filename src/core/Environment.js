@@ -8,6 +8,7 @@ import MaterialLibrary from '../aesthetics/MaterialLibrary.js';
 import StructureKit from '../world/StructureKit.js';
 import SetPieces from '../world/SetPieces.js';
 import InteractionController from '../player/InteractionController.js';
+import {setPodiumScan, setPodiumSpent, SCAN_DURATION} from '../world/BreakerPodium.js';
 import RenderEngine from './RenderEngine.js';
 
 /**
@@ -65,6 +66,12 @@ export default class Environment {
         this.macroZones = new Map();
         this.pointsOfInterest = [];
         this._breakerHuntHops = undefined;
+        this.breakerScan = null;
+        this._scanDir = new THREE.Vector3();
+        this._scanAim = new THREE.Vector3();
+        document.addEventListener('somatic-interact-release', () => {
+            if (this.breakerScan) this.breakerScan.held = false;
+        });
         this._macroChunkHashes = new Set();
         this._sectorBags = null;
         this.macroSpawnExclusionRadius = 3;
@@ -394,89 +401,12 @@ export default class Environment {
                 return;
             }
             if (hit && hit.userData.type === 'breaker') {
+                // The wall boxes are a flick of the wrist. Only the objective switches ask for a palm.
                 if (!hit.userData.active) return;
                 hit.userData.active = false;
-                const chunkHash = hit.userData.chunkHash;
-                const isBlackout = this.blackoutChunks.has(chunkHash);
-                if (hit.userData.door && !hit.userData.doorOpen) {
-                    hit.userData.door.rotation.y = -Math.PI / 1.5;
-                    hit.userData.doorOpen = true;
-                }
-                document.dispatchEvent(new CustomEvent('somatic-breaker', {detail: {distSq: 1.0, intensity: 2.0}}));
-                if (!isBlackout) {
-                    this.blackoutChunks.add(chunkHash);
-                    this.fixtureData.forEach(fixture => {
-                        if (fixture.chunkHash === chunkHash && !fixture.isDead && !fixture.isLighthouse && !fixture.isArchiveLight) {
-                            fixture.originalFaulty = fixture.isFaulty;
-                            fixture.baseIntensity = 2.5;
-                            fixture.targetIntensity = 2.5;
-                            fixture.currentIntensity = 2.5;
-                            fixture.isDead = true;
-                            if (fixture.isFake && fixture.material) fixture.material.emissiveIntensity = 2.0;
-                            if (fixture.material && fixture.material.color && !fixture.originalColor) {
-                                fixture.originalColor = fixture.material.color.getHex();
-                                fixture.originalEmissive = fixture.material.emissive.getHex();
-                            }
-                            clearTimeout(fixture.flickerTimer);
-                            clearTimeout(fixture.restoreTimer);
-                            fixture.flickerTimer = setTimeout(() => {
-                                fixture.baseIntensity = 0.0;
-                                fixture.targetIntensity = 0.0;
-                                fixture.currentIntensity = 0.0;
-                                if (fixture.material && fixture.originalColor) {
-                                    fixture.material.color.setHex(0x333333);
-                                    fixture.material.emissive.setHex(0x000000);
-                                    fixture.material.emissiveIntensity = 0.0;
-                                }
-                                if (fixture.lightObj) fixture.lightObj.intensity = 0.0;
-                            }, 200 + Math.random() * 600);
-                            fixture.restoreTimer = setTimeout(() => {
-                                this.blackoutChunks.delete(chunkHash);
-                                fixture.isDead = false;
-                                fixture.isFaulty = fixture.originalFaulty !== undefined ? fixture.originalFaulty : false;
-                                fixture.baseIntensity = fixture.isFake ? 0.0 : 0.6;
-                                fixture.targetIntensity = fixture.baseIntensity;
-                                fixture.currentIntensity = fixture.baseIntensity;
-                                if (fixture.material && fixture.originalColor) {
-                                    fixture.material.color.setHex(fixture.originalColor);
-                                    fixture.material.emissive.setHex(fixture.originalEmissive);
-                                    if (fixture.isFake) fixture.material.emissiveIntensity = 0.4;
-                                }
-                                if (fixture.lightObj) fixture.lightObj.intensity = fixture.baseIntensity;
-                            }, 25000 + Math.random() * 10000);
-                        }
-                    });
-                } else {
-                    this.blackoutChunks.delete(chunkHash);
-                    this.fixtureData.forEach(fixture => {
-                        if (fixture.chunkHash === chunkHash && !fixture.isLighthouse && !fixture.isArchiveLight) {
-                            clearTimeout(fixture.flickerTimer);
-                            clearTimeout(fixture.restoreTimer);
-                            fixture.isDead = false;
-                            fixture.isFaulty = fixture.originalFaulty !== undefined ? fixture.originalFaulty : false;
-                            fixture.baseIntensity = fixture.isFake ? 0.0 : 0.6;
-                            fixture.targetIntensity = fixture.baseIntensity;
-                            fixture.currentIntensity = fixture.baseIntensity;
-                            if (fixture.material && fixture.originalColor) {
-                                fixture.material.color.setHex(fixture.originalColor);
-                                fixture.material.emissive.setHex(fixture.originalEmissive);
-                                if (fixture.isFake) fixture.material.emissiveIntensity = 0.4;
-                            }
-                        }
-                    });
-                }
+                this._triggerBreaker(hit);
             } else if (hit && hit.userData.type === 'exit_switch') {
-                if (!hit.userData.active) {
-                    hit.userData.active = true;
-                    hit.children[0].material = new THREE.MeshBasicMaterial({color: 0x55ff55});
-                    this.player.objectives.fixed++;
-                    this.player.updateObjectives();
-                    this._breakerHuntHops = this._rollHuntHops();
-                    document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 0.1, intensity: 1.5}}));
-                    if (this.engine.ambientLight) {
-                        this.engine.ambientLight.intensity = 2.0;
-                    }
-                }
+                if (!hit.userData.active) this._beginBreakerScan(hit);
             } else if (hit && hit.userData.type === 'grate' && hit.userData.active) {
                 hit.userData.active = false;
                 document.dispatchEvent(new CustomEvent('somatic-vent', {detail: {distSq: 1.0, intensity: 1.5}}));
@@ -980,6 +910,14 @@ export default class Environment {
         const cy = Math.cos(this.baseSeed * 0.5) * 0.8;
         let chunkBreakerCount = 0;
         const breakerPositions = [];
+        // Which cells resolved to solid wall, recorded as the loop goes. Breaker boxes hang flush on
+        // the yellow walls now, and a prop that mounts on a wall has to know where one is. Only the
+        // west and north neighbours are ever safe to ask about — the east and south cells have not
+        // been decided yet — so a breaker takes whichever of those two is solid and is skipped
+        // entirely when neither is. Placement is probabilistic across a whole chunk, so losing the
+        // occasional candidate cell costs nothing and beats burying a switch inside a wall.
+        const wallCells = new Set();
+        const isWallCell = (wx, wz) => wallCells.has(`${wx},${wz}`);
         let chunkStartTime = performance.now();
         for (let x = startX; x < startX + this.chunkSize; x++) {
             for (let z = startZ; z < startZ + this.chunkSize; z++) {
@@ -1000,6 +938,9 @@ export default class Environment {
                 if (ctx.isOccupied(x, z)) continue;
                 ctx.markOccupied(x, z);
                 let zx = x * 0.15;
+                // See `wallCells` below: this loop is x-outer, z-inner, so by the time any cell is
+                // resolved its west and north neighbours already are too. That is what makes
+                // wall-mounting possible here without a second pass over the chunk.
                 let zy = z * 0.15;
                 let iter = 0;
                 let zx2 = zx * zx;
@@ -1026,31 +967,39 @@ export default class Environment {
                 const isSpawnClear = (chunkX === 0 && chunkZ === 0) && (localX <= 3 && localZ <= 3);
                 if (isBlocker) isWall = true;
                 if (isArtery || isSpawnClear) isWall = false;
+                // How wet this cell is. Shared by the mould on the walls, the mould in the carpet
+                // and the water stains overhead, so the three co-locate into one damp area with
+                // a cause instead of three unrelated scatters. See `_dampAt`.
+                const damp = this._dampAt(x, z);
                 if (isWall) {
+                    wallCells.add(`${x},${z}`);
                     const structRoll = random();
                     const structure = structuralMatrix.find(s => structRoll >= s.prob);
                     if (structure) structure.build(x, z);
-                    this._placeWallMold(x, z, random, ctx.addGeometry);
+                    this._placeWallMold(x, z, random, ctx.addGeometry, damp);
                 } else {
                     let hasTallObstacle = false;
+                    // Carpet mould, on its own roll so the divider below keeps the odds it had.
+                    // Common inside a damp area and close to absent outside one; it used to be a
+                    // flat one-in-ten everywhere, which is why stained ceiling tiles sat over
+                    // clean carpet and mouldy carpet sat under sound ceilings.
+                    const stainRoll = random();
                     const floorRoll = random();
-                    if (floorRoll > 0.90) {
+                    if (stainRoll < (damp > 0.60 ? 0.32 : 0.035)) {
                         const offsetX = (random() - 0.5) * 2.0;
                         const offsetZ = (random() - 0.5) * 2.0;
                         const rotY = random() * Math.PI * 2;
-                        const scale = 0.4 + (random() * 0.6);
+                        const scale = (0.4 + (random() * 0.6)) * (0.8 + damp * 0.5);
                         const stain = new THREE.Mesh(this.moldGeo, this.moldMat);
                         stain.position.set(x * this.cellSize + offsetX, 0.01, z * this.cellSize + offsetZ);
                         stain.rotation.y = rotY;
                         stain.scale.set(scale, scale, scale);
                         ctx.addGeometry(stain);
-                        if (offsetX > 0.8) {
-                            const ceilingStain = new THREE.Mesh(this.ceilingStainGeo, this.ceilingStainMat);
-                            ceilingStain.position.set(x * this.cellSize + offsetZ, 2.99, z * this.cellSize - offsetX);
-                            ceilingStain.rotation.y = rotY + 1.5;
-                            ceilingStain.scale.set(scale * 1.3, scale * 1.3, scale * 1.3);
-                            ctx.addGeometry(ceilingStain);
-                        }
+                        // The tile the water came through. Placed near enough above the carpet
+                        // stain to read as its cause -- the old version rotated the offsets into
+                        // a different corner of the cell, so the drip and the puddle were never
+                        // in the same place and neither explained the other.
+
                     } else if (floorRoll > 0.80 && !isArtery) {
                         hasTallObstacle = true;
                         const divW = random() > 0.5 ? this.cellSize * 0.8 : this.cellSize * 0.2;
@@ -1100,7 +1049,9 @@ export default class Environment {
                     } else if (!hasTallObstacle && random() > 0.95 && chunkBreakerCount < 3 && !isArtery) {
                         const px = x * this.cellSize;
                         const pz = z * this.cellSize;
-                        let isTooClose = false;
+                        // North face first, then west. Nothing else has been decided yet.
+                        const mountSide = isWallCell(x, z - 1) ? 'N' : (isWallCell(x - 1, z) ? 'W' : null);
+                        let isTooClose = mountSide === null;
                         for (let b = 0; b < breakerPositions.length; b++) {
                             const dx = px - breakerPositions[b].x;
                             const dz = pz - breakerPositions[b].z;
@@ -1119,15 +1070,22 @@ export default class Environment {
                         if (!isTooClose) {
                             chunkBreakerCount++;
                             breakerPositions.push({x: px, z: pz});
-                            const pillar = new THREE.Mesh(this._boxGeo(0.8, 3.0, 0.8), this.structMat);
-                            pillar.position.set(px, 1.5, pz);
-                            chunkGroup.add(pillar);
+                            // Flush against the neighbouring wall's face, which sits half a cell away.
+                            // The small standoff keeps the housing off the wall's own mould decals
+                            // rather than z-fighting with them.
+                            const half = this.cellSize / 2;
                             const breakerGroup = new THREE.Group();
-                            breakerGroup.position.set(px, 1.5, pz + 0.525);
-                            const breakerBase = new THREE.Mesh(this.breakerBaseGeo, this.pittedMetalMat);
+                            if (mountSide === 'N') {
+                                breakerGroup.position.set(px, 1.5, pz - half + 0.11);
+                            } else {
+                                breakerGroup.position.set(px - half + 0.11, 1.5, pz);
+                                breakerGroup.rotation.y = Math.PI / 2;
+                            }
+                            const shellMat = this.breakerPanelMat || this.pittedMetalMat;
+                            const breakerBase = new THREE.Mesh(this.breakerBaseGeo, shellMat);
                             breakerBase.position.set(0, 0, -0.025);
                             breakerGroup.add(breakerBase);
-                            const breakerDoor = new THREE.Mesh(this.breakerDoorGeo, this.pittedMetalMat);
+                            const breakerDoor = new THREE.Mesh(this.breakerDoorGeo, shellMat);
                             breakerDoor.position.set(-0.3, 0, 0.102);
                             const breakerHandle = new THREE.Mesh(this.breakerHandleGeo, this.breakerHandleMat);
                             breakerHandle.position.set(0.5, 0, 0.05);
@@ -1136,9 +1094,6 @@ export default class Environment {
                             breakerGroup.userData = {type: 'breaker', chunkHash: hash, active: true, door: breakerDoor};
                             chunkGroup.add(breakerGroup);
                             this.interactables.push(breakerGroup);
-                            const pBox = new THREE.Box3().setFromObject(pillar);
-                            pBox.chunkHash = hash;
-                            this.spatialGrid.insert(pBox);
                         }
                     }
                 }
@@ -1761,7 +1716,7 @@ export default class Environment {
             if (group.meshes.length > 1 && !Array.isArray(group.material)) {
                 const iMesh = new THREE.InstancedMesh(group.geometry, group.material, group.meshes.length);
                 if (!isDecal) {
-                    iMesh.castShadow = (group.material !== this.fenceMat);
+                    iMesh.castShadow = (group.material !== this.fenceMat && !group.material.userData.noShadow);
                     iMesh.receiveShadow = true;
                 }
                 iMesh.userData.chunkHash = hash;
@@ -1784,7 +1739,7 @@ export default class Environment {
                     const mesh = group.meshes[j];
                     mesh.matrixWorld.decompose(mesh.position, mesh.quaternion, mesh.scale);
                     if (!isDecal) {
-                        mesh.castShadow = (!Array.isArray(group.material) && group.material !== this.fenceMat);
+                        mesh.castShadow = (!Array.isArray(group.material) && group.material !== this.fenceMat && !group.material.userData.noShadow);
                         mesh.receiveShadow = true;
                         this.walls.push(mesh);
                     }
@@ -1814,6 +1769,73 @@ export default class Environment {
     }
 
     /**
+     * How wet this cell is, from 0 (bone dry) to 1 (a leak has been running for years).
+     *
+     * Every damp feature in the building samples this one function: wall mould, the mould in the
+     * carpet, and the water stains in the ceiling tiles. Before it existed each of the three was
+     * an independent coin flip, and independent coin flips is precisely what "randomly growing in
+     * neatly contained splotches with no clear point of origin" describes. Nothing caused
+     * anything. A stained ceiling tile sat above clean carpet, and mould grew on a dry wall
+     * twenty metres from the nearest sign of water.
+     *
+     * Two properties matter and both come from using noise rather than a roll.
+     *
+     * It is *smooth*, so neighbouring cells hold similar values. A wet region is therefore a
+     * region, and wall cells running through it all qualify together -- which is the chain. The
+     * low octave sets out damp zones roughly nine cells across, about the size of a few rooms,
+     * and the high octave breaks their edges up so a zone is not an ellipse.
+     *
+     * It is *positional*, hashed straight from world cell coordinates rather than drawn from the
+     * chunk PRNG. A chunk PRNG is consumed in build order, so the same cell would get different
+     * values depending on which chunk claimed it and every damp zone would be sliced apart at
+     * the chunk seams. This way a cell's wetness is the same fact no matter who asks.
+     *
+     * @param {number} x - Cell X in world grid coordinates.
+     * @param {number} z - Cell Z in world grid coordinates.
+     * @returns {number} Dampness in 0..1, centred near 0.5.
+     */
+    _dampAt(x, z) {
+        return this._dampOctave(x * 0.11, z * 0.11) * 0.62
+            + this._dampOctave(x * 0.31, z * 0.31) * 0.38;
+    }
+
+    /**
+     * One octave of smoothed value noise: bilinear between four hashed lattice corners, with the
+     * interpolant run through a smoothstep so the field has no creases along the lattice lines.
+     *
+     * @param {number} fx - Sample X in lattice units.
+     * @param {number} fz - Sample Z in lattice units.
+     * @returns {number} Noise in 0..1.
+     */
+    _dampOctave(fx, fz) {
+        const x0 = Math.floor(fx), z0 = Math.floor(fz);
+        const tx = fx - x0, tz = fz - z0;
+        const sx = tx * tx * (3 - 2 * tx);
+        const sz = tz * tz * (3 - 2 * tz);
+        const a = this._dampHash(x0, z0);
+        const b = this._dampHash(x0 + 1, z0);
+        const c = this._dampHash(x0, z0 + 1);
+        const d = this._dampHash(x0 + 1, z0 + 1);
+        const top = a + (b - a) * sx;
+        return top + ((c + (d - c) * sx) - top) * sz;
+    }
+
+    /**
+     * Integer coordinate hash. `Math.imul` throughout: the products overflow 32 bits by design
+     * and plain `*` would round them off as doubles, which costs the low bits that carry all the
+     * decorrelation.
+     *
+     * @param {number} ix - Lattice X.
+     * @param {number} iz - Lattice Z.
+     * @returns {number} A well-distributed value in 0..1.
+     */
+    _dampHash(ix, iz) {
+        let h = Math.imul(ix | 0, 374761393) ^ Math.imul(iz | 0, 668265263);
+        h = Math.imul(h ^ (h >>> 13), 1274126177);
+        return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+    }
+
+    /**
      * Rolls a wall cell for a patch of rising damp and, if it wins, hangs one decal on a single
      * randomly chosen face.
      *
@@ -1836,14 +1858,33 @@ export default class Environment {
      * was one texture in the entire world and a mirror was the only thing distinguishing two
      * patches in the same line of sight, which is not enough at any distance you can walk to.
      *
+     * ## Where it grows
+     *
+     * Whether a cell qualifies is read from `_dampAt` rather than rolled. The field is smooth,
+     * so a wet region qualifies as a region and the wall cells running through it grow mould
+     * together -- a run down a corridor instead of a scatter of unrelated splotches.
+     *
+     * Where on the face it grows is decided by the collision geometry. Mould needs somewhere for
+     * water to sit and air not to move, and on a corridor wall that is an inside corner: two
+     * faces meeting, no airflow in the crease, and the skirting mitre leaking behind both. So
+     * corners are found by probing the diagonal neighbour, the ends of wall runs are found by
+     * probing along the face, and patches are hung there by preference.
+     *
+     * Mid-face growth is not removed, but it now requires the cell to be genuinely soaked. That
+     * is the fix for a patch appearing halfway along a clean wall with nothing in frame to have
+     * caused it: at that point the whole wall is wet and the patch has an explanation.
+     *
      * @param {number} x - Cell X in world grid coordinates.
      * @param {number} z - Cell Z in world grid coordinates.
      * @param {Function} random - The chunk's seeded PRNG.
      * @param {Function} addGeometry - The chunk ctx's geometry sink.
+     * @param {number} damp - This cell's value from `_dampAt`.
      */
-    _placeWallMold(x, z, random, addGeometry) {
+    _placeWallMold(x, z, random, addGeometry, damp) {
         if (!this.moldCreepMat || !this.moldCreepGeos || !this.moldCreepGeos.length) return;
-        if (random() > 0.28) return;
+        // Jittered so the boundary of a damp zone frays instead of ending on a contour line.
+        // Without it the outermost ring of a zone is a visibly smooth arc of mouldy walls.
+        if (damp + (random() - 0.5) * 0.12 < 0.545) return;
         const out = (this.cellSize / 2) + 0.03;
         const cx = x * this.cellSize;
         const cz = z * this.cellSize;
@@ -1872,6 +1913,45 @@ export default class Environment {
             return false;
         };
 
+        const cell = this.cellSize;
+        const geos = this.moldCreepGeos;
+
+        /**
+         * Where along `face` the mould has a reason to be.
+         *
+         * `sign` runs along the face, matching the sense of `slide` below. For each end:
+         *
+         *   corner -- the diagonal cell (one out, one along) is solid, so a perpendicular face
+         *             meets ours in an inside crease. Still water, dead air, and two skirting
+         *             runs mitred together with a gap behind the joint. This is where mould
+         *             starts in a real building and it is the strongest anchor we have.
+         *
+         *   runEnd -- our own wall does not continue along the face. An exposed end takes damp
+         *             from two sides and gets knocked by trolleys, so the paper is open there.
+         *
+         * Both are asked of the collision geometry rather than the maze flags, for the same
+         * reason the face test is: `isWall` says the maze wanted a wall, and the structural
+         * blueprint that built the cell is free to have hollowed it into an archway.
+         */
+        const anchorsOn = (f) => {
+            const r = f * (Math.PI / 2);
+            const s = Math.sin(r), c = Math.cos(r);
+            const found = [];
+            for (const sign of [-1, 1]) {
+                const ax = c * sign, az = -s * sign;
+                // Close enough that the colony runs into the crease and is clipped by the
+                // perpendicular wall rather than stopping short of it. At 0.55 back it ended a
+                // hand's width from the corner, which reads as a patch that happens to be near a
+                // corner instead of one that started there.
+                if (solidBehind(cx + s * cell + ax * cell, cz + c * cell + az * cell)) {
+                    found.push({slide: sign * (cell / 2 - 0.15), toward: sign, jitter: 0.14, weight: 1.35, corner: true});
+                } else if (!solidBehind(cx + s * (out - 0.25) + ax * cell, cz + c * (out - 0.25) + az * cell)) {
+                    found.push({slide: sign * (cell / 2 - 0.7), toward: sign, jitter: 0.3, weight: 1.1, corner: false});
+                }
+            }
+            return found;
+        };
+
         const order = [0, 1, 2, 3];
         for (let i = 3; i > 0; i--) {
             const j = Math.floor(random() * (i + 1));
@@ -1879,32 +1959,57 @@ export default class Environment {
             order[i] = order[j];
             order[j] = t;
         }
+
+        // Faces are tried in shuffled order, but a face with an anchor beats one without.
+        // Choosing the first solid face and then asking whether it happened to have a corner
+        // leaves the anchoring to a coin toss, and a cell sitting in a corner whose mould landed
+        // on its blank face is the exact failure this is meant to remove.
         let face = -1;
+        let anchors = [];
         for (const f of order) {
             const r = f * (Math.PI / 2);
-            if (solidBehind(cx + Math.sin(r) * (out - 0.25), cz + Math.cos(r) * (out - 0.25))) {
+            if (!solidBehind(cx + Math.sin(r) * (out - 0.25), cz + Math.cos(r) * (out - 0.25))) continue;
+            const found = anchorsOn(f);
+            if (found.length) {
                 face = f;
+                anchors = found;
                 break;
             }
+            if (face < 0) face = f;
         }
         if (face < 0) return;
         const rotY = face * (Math.PI / 2);
-        const geos = this.moldCreepGeos;
-        const count = 1 + (random() > 0.62 ? 1 : 0);
-        const firstSide = random() > 0.5 ? 1 : -1;
-        for (let i = 0; i < count; i++) {
-            const side = i === 0 ? firstSide : -firstSide;
-            const slide = side * (0.35 + random() * 0.95);
+        const sinY = Math.sin(rotY), cosY = Math.cos(rotY);
+
+        // A soaked cell also grows between its anchors, which is what closes a corridor run into
+        // a chain rather than a string of beads at the corners.
+        //
+        // A merely damp cell with no corner and no wall end grows nothing at all. That is the
+        // case that used to produce a splotch stranded halfway along a clean wall with nothing in
+        // frame to have caused it -- the growth is still allowed there, but only once the cell is
+        // wet enough that the whole wall explains it.
+        if (damp > 0.66) anchors.push({slide: (random() - 0.5) * (cell - 2.2), toward: 0, jitter: 0.5, weight: 0.95});
+        else if (!anchors.length) return;
+
+        for (const anchor of anchors) {
             const flip = random() > 0.5 ? 1 : -1;
-            const sx = 0.6 + random() * 0.9;
-            const px = cx + Math.sin(rotY) * out + Math.cos(rotY) * slide;
-            const pz = cz + Math.cos(rotY) * out - Math.sin(rotY) * slide;
+            // Wetter cells grow wider colonies. This is the last place size varies, and it means
+            // a run through the middle of a damp zone visibly thickens toward the centre.
+            const sx = (0.6 + random() * 0.7) * anchor.weight * (0.85 + damp * 0.4);
+            const slide = anchor.slide + (random() - 0.5) * anchor.jitter;
+            const px = cx + sinY * out + cosY * slide;
+            const pz = cz + cosY * out - sinY * slide;
             const half = (1.5 * sx) * 0.42;
             const inward = 0.25;
             let hung = true;
             for (let e = -1; e <= 1; e++) {
-                const ex = px + Math.cos(rotY) * half * e - Math.sin(rotY) * inward;
-                const ez = pz - Math.sin(rotY) * half * e - Math.cos(rotY) * inward;
+                // The end facing the anchor is not probed. A corner patch is meant to overhang
+                // into the crease, and out there the probe lands in the *next* cell along the
+                // face -- which is frequently open, so probing it rejected exactly the patches
+                // the corner detection had just gone to the trouble of finding.
+                if (e === anchor.toward && e !== 0) continue;
+                const ex = px + cosY * half * e - sinY * inward;
+                const ez = pz - sinY * half * e - cosY * inward;
                 if (!solidBehind(ex, ez)) {
                     hung = false;
                     break;
@@ -1916,6 +2021,23 @@ export default class Environment {
             mold.rotation.y = rotY;
             mold.scale.set(flip * sx, 1, 1);
             addGeometry(mold);
+
+            if (anchor.corner) {
+                const sx_adj = (0.6 + random() * 0.7) * anchor.weight * (0.85 + damp * 0.4);
+                const flip_adj = random() > 0.5 ? 1 : -1;
+                const f_adj = (face + anchor.toward + 4) % 4;
+                const rotY_adj = f_adj * (Math.PI / 2);
+                const sinY_adj = Math.sin(rotY_adj), cosY_adj = Math.cos(rotY_adj);
+                const slide_adj = -anchor.slide + (random() - 0.5) * anchor.jitter;
+                const px_adj = cx + sinY_adj * out + cosY_adj * slide_adj;
+                const pz_adj = cz + cosY_adj * out - sinY_adj * slide_adj;
+
+                const mold_adj = new THREE.Mesh(geos[Math.floor(random() * geos.length)], this.moldCreepMat);
+                mold_adj.position.set(px_adj, BOTTOM + geoH / 2, pz_adj);
+                mold_adj.rotation.y = rotY_adj;
+                mold_adj.scale.set(flip_adj * sx_adj, 1, 1);
+                addGeometry(mold_adj);
+            }
         }
     }
 
@@ -2006,6 +2128,188 @@ export default class Environment {
         if (r < 0.10) return 0;
         if (r < 0.60) return 1;
         return 2;
+    }
+
+    /**
+     * Puts a hand on the reader and starts the clock.
+     *
+     * Nothing is committed here. The breaker is not marked spent, no lights are touched, and the
+     * chunk's blackout state is untouched until the scan actually completes. An aborted scan must
+     * leave the world exactly as it found it, which is only cheap to guarantee if the abort path
+     * has nothing to undo.
+     *
+     * @param {THREE.Group} podium - The breaker fixture under the crosshair.
+     * @private
+     */
+    _beginBreakerScan(podium) {
+        if (this.breakerScan && this.breakerScan.podium === podium) return;
+        this._abortBreakerScan();
+        this.breakerScan = {podium: podium, t: 0, held: true};
+        setPodiumScan(podium, 0);
+        document.dispatchEvent(new CustomEvent('somatic-scan-start', {detail: {distSq: 1.0, intensity: 0.5}}));
+    }
+
+    /**
+     * Drops the scan and resets the reader.
+     * @private
+     */
+    _abortBreakerScan() {
+        const scan = this.breakerScan;
+        if (!scan) return;
+        this.breakerScan = null;
+        if (!scan.podium.userData.active) setPodiumScan(scan.podium, 0);
+    }
+
+    /**
+     * Advances a live scan and enforces the three ways it can fail.
+     *
+     * The reader wants continuous contact: release the key, look away, or walk out of arm's reach and
+     * the print is lost. That last one matters more than it sounds. Without a distance check the
+     * player could start a scan and back down the corridor while it finished, which turns a moment of
+     * deliberate vulnerability into a fire-and-forget.
+     *
+     * @param {THREE.Vector3} playerPos
+     * @param {number} delta - Frame time in seconds.
+     * @private
+     */
+    _updateBreakerScan(playerPos, delta) {
+        const scan = this.breakerScan;
+        if (!scan) return;
+        const podium = scan.podium;
+        // `exit_switch` reads `active` backwards from every other interactable: false means the
+        // objective is still outstanding, true means it has been filed. The radar depends on that
+        // convention (`active === false` is how it picks its target), so the scan bends to it rather
+        // than the other way round. A truthy `active` here means the switch is already done.
+        if (podium.userData.active || !podium.parent) {
+            this._abortBreakerScan();
+            return;
+        }
+        if (!scan.held) {
+            this._abortBreakerScan();
+            return;
+        }
+        if (podium.position.distanceToSquared(playerPos) > 9.0) {
+            this._abortBreakerScan();
+            return;
+        }
+        if (this.camera) {
+            this.camera.getWorldDirection(this._scanDir);
+            this._scanAim.subVectors(podium.position, playerPos).normalize();
+            if (this._scanDir.dot(this._scanAim) < 0.70) {
+                this._abortBreakerScan();
+                return;
+            }
+        }
+        scan.t = Math.min(1, scan.t + delta / SCAN_DURATION);
+        setPodiumScan(podium, scan.t);
+        if (scan.t >= 1) {
+            this.breakerScan = null;
+            podium.userData.active = true;
+            setPodiumSpent(podium);
+            this._activateExitSwitch(podium);
+        }
+    }
+
+    /**
+     * Files a completed palm print against one of the objective breakers.
+     *
+     * This is the old `exit_switch` interact branch, unchanged in effect. The one repair: it used to
+     * recolour `children[0]` and allocate a fresh material to do it, which bound the objective's
+     * completion feedback to an array index. The podium names its status bead in `userData`, so the
+     * lamp can move without silently painting whatever geometry happened to be built first.
+     *
+     * @param {THREE.Group} podium
+     * @private
+     */
+    _activateExitSwitch(podium) {
+        this.player.objectives.fixed++;
+        this.player.updateObjectives();
+        this._breakerHuntHops = this._rollHuntHops();
+        document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 0.1, intensity: 1.5}}));
+        if (this.engine.ambientLight) {
+            this.engine.ambientLight.intensity = 2.0;
+        }
+    }
+
+    /**
+     * Throws the breaker: kills or restores every tracked fixture in the chunk.
+     *
+     * Lifted verbatim out of the interact handler when the fixture became a podium. The switch's
+     * effect on the world did not change and should not have; only what it costs to reach it did.
+     *
+     * @param {THREE.Group} podium
+     * @private
+     */
+    _triggerBreaker(podium) {
+                const chunkHash = podium.userData.chunkHash;
+                const isBlackout = this.blackoutChunks.has(chunkHash);
+                if (podium.userData.door && !podium.userData.doorOpen) {
+                    podium.userData.door.rotation.y = -Math.PI / 1.5;
+                    podium.userData.doorOpen = true;
+                }
+                document.dispatchEvent(new CustomEvent('somatic-breaker', {detail: {distSq: 1.0, intensity: 2.0}}));
+                if (!isBlackout) {
+                    this.blackoutChunks.add(chunkHash);
+                    this.fixtureData.forEach(fixture => {
+                        if (fixture.chunkHash === chunkHash && !fixture.isDead && !fixture.isLighthouse && !fixture.isArchiveLight) {
+                            fixture.originalFaulty = fixture.isFaulty;
+                            fixture.baseIntensity = 2.5;
+                            fixture.targetIntensity = 2.5;
+                            fixture.currentIntensity = 2.5;
+                            fixture.isDead = true;
+                            if (fixture.isFake && fixture.material) fixture.material.emissiveIntensity = 2.0;
+                            if (fixture.material && fixture.material.color && !fixture.originalColor) {
+                                fixture.originalColor = fixture.material.color.getHex();
+                                fixture.originalEmissive = fixture.material.emissive.getHex();
+                            }
+                            clearTimeout(fixture.flickerTimer);
+                            clearTimeout(fixture.restoreTimer);
+                            fixture.flickerTimer = setTimeout(() => {
+                                fixture.baseIntensity = 0.0;
+                                fixture.targetIntensity = 0.0;
+                                fixture.currentIntensity = 0.0;
+                                if (fixture.material && fixture.originalColor) {
+                                    fixture.material.color.setHex(0x333333);
+                                    fixture.material.emissive.setHex(0x000000);
+                                    fixture.material.emissiveIntensity = 0.0;
+                                }
+                                if (fixture.lightObj) fixture.lightObj.intensity = 0.0;
+                            }, 200 + Math.random() * 600);
+                            fixture.restoreTimer = setTimeout(() => {
+                                this.blackoutChunks.delete(chunkHash);
+                                fixture.isDead = false;
+                                fixture.isFaulty = fixture.originalFaulty !== undefined ? fixture.originalFaulty : false;
+                                fixture.baseIntensity = fixture.isFake ? 0.0 : 0.6;
+                                fixture.targetIntensity = fixture.baseIntensity;
+                                fixture.currentIntensity = fixture.baseIntensity;
+                                if (fixture.material && fixture.originalColor) {
+                                    fixture.material.color.setHex(fixture.originalColor);
+                                    fixture.material.emissive.setHex(fixture.originalEmissive);
+                                    if (fixture.isFake) fixture.material.emissiveIntensity = 0.4;
+                                }
+                                if (fixture.lightObj) fixture.lightObj.intensity = fixture.baseIntensity;
+                            }, 25000 + Math.random() * 10000);
+                        }
+                    });
+                } else {
+                    this.blackoutChunks.delete(chunkHash);
+                    this.fixtureData.forEach(fixture => {
+                        if (fixture.chunkHash === chunkHash && !fixture.isLighthouse && !fixture.isArchiveLight) {
+                            clearTimeout(fixture.flickerTimer);
+                            clearTimeout(fixture.restoreTimer);
+                            fixture.isDead = false;
+                            fixture.isFaulty = fixture.originalFaulty !== undefined ? fixture.originalFaulty : false;
+                            fixture.baseIntensity = fixture.isFake ? 0.0 : 0.6;
+                            fixture.targetIntensity = fixture.baseIntensity;
+                            fixture.currentIntensity = fixture.baseIntensity;
+                            if (fixture.material && fixture.originalColor) {
+                                fixture.material.color.setHex(fixture.originalColor);
+                                fixture.material.emissive.setHex(fixture.originalEmissive);
+                                if (fixture.isFake) fixture.material.emissiveIntensity = 0.4;
+                            }
+                        }
+                    });
+                }
     }
 
     _cacheGeo(key, make) {

@@ -176,11 +176,12 @@ export const MaintenanceSector = (env, ctx) => {
                             if (isBreaker) {
                                 const boxGroup = new THREE.Group();
                                 const boxGeo = env._cacheGeo('maintBreakerBox', () => new THREE.BoxGeometry(0.6, 0.8, 0.2));
-                                const boxMesh = new THREE.Mesh(boxGeo, env.pittedMetalMat);
+                                const shellMat = env.breakerPanelMat || env.pittedMetalMat;
+                                const boxMesh = new THREE.Mesh(boxGeo, shellMat);
                                 const handleGeo = env._cacheGeo('maintBreakerHandle', () => new THREE.BoxGeometry(0.05, 0.2, 0.05));
                                 const handle = new THREE.Mesh(handleGeo, env.metalMat);
                                 handle.position.set(0.15, 0, 0.0);
-                                const breakerDoor = new THREE.Mesh(env.breakerDoorGeo, env.pittedMetalMat);
+                                const breakerDoor = new THREE.Mesh(env.breakerDoorGeo, shellMat);
                                 breakerDoor.position.set(-0.3, 0, 0.102);
                                 const doorHandle = new THREE.Mesh(env.breakerHandleGeo, env.breakerHandleMat);
                                 doorHandle.position.set(0.5, 0, 0.05);

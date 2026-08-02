@@ -135,6 +135,7 @@ export default class InteractionController {
         if (env.interactables) env.interactables.forEach(checkObj);
         if (env.interactiveDoors) env.interactiveDoors.forEach(checkObj);
         env.isLookingAtInteractable = lookingAtHit;
+        env._updateBreakerScan(playerPos, delta);
         if (env.airlocks) {
             env.airlocks.forEach(airlock => env._updateAirlock(airlock, playerPos, delta));
         }

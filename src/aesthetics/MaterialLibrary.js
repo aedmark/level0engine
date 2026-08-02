@@ -1,17 +1,4 @@
-/**
- * A centralized factory for generating and caching Three.js materials and geometries.
- *
- * To keep the game bundle extremely small and avoid loading external image files,
- * this engine procedurally generates its textures at runtime using the HTML5 2D Canvas API.
- * (e.g. `dpCanvas` for diamond plate, `ccv` for soot-stained ceilings). These canvases are
- * then converted into `THREE.CanvasTexture` objects.
- */
 export default class MaterialLibrary {
-    /**
-     * Injects dynamically generated geometries, materials, and procedural textures
-     * into the provided environment instance. Initializes shared assets used across the world.
-     * @param {Object} env - The target Environment instance to inject materials into.
-     */
     static injectMaterials(env) {
         if (env.sharedWallGeo) return;
         env.sharedWallGeo = new THREE.BoxGeometry(env.cellSize + 0.02, 3.02, env.cellSize + 0.02);
@@ -65,7 +52,12 @@ export default class MaterialLibrary {
         env.breakerDoorGeo = new THREE.BoxGeometry(0.6, 0.8, 0.05);
         env.breakerDoorGeo.translate(0.3, 0, 0);
         env.breakerHandleGeo = new THREE.BoxGeometry(0.05, 0.2, 0.05);
-        env.breakerHandleMat = new THREE.MeshStandardMaterial({color: 0x2b2b2b, roughness: 0.4, metalness: 0.8});
+        env.breakerHandleMat = new THREE.MeshStandardMaterial({color: 0x3c3f3a, roughness: 0.5, metalness: 0.15});
+        env.structuralSteelMat = new THREE.MeshStandardMaterial({
+            color: 0x7e8279,
+            roughness: 0.50,
+            metalness: 0.12
+        });
         env.crtScreenMat = new THREE.MeshStandardMaterial({
             color: 0xffb000,
             emissive: 0xffb000,

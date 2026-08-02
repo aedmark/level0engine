@@ -56,6 +56,9 @@ export default class SomaticController {
             }
         });
         document.addEventListener('somatic-breaker', (e) => this.acoustics.triggerSomaticEvent('breaker', e.detail.distSq, e.detail.intensity));
+        // The palm reader waking up borrows the item chirp rather than inventing a voice for itself.
+        // A dedicated synth for a 1.2 second acknowledgement is a sound designer's reflex, not a need.
+        document.addEventListener('somatic-scan-start', (e) => this.acoustics.triggerSomaticEvent('item', e.detail.distSq, e.detail.intensity));
         document.addEventListener('somatic-item', (e) => this.acoustics.triggerSomaticEvent('item', e.detail.distSq, e.detail.intensity));
     }
 }

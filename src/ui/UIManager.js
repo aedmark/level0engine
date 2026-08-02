@@ -46,6 +46,25 @@ export default class UIManager {
                 this.crosshair._lastActive = active;
             }
         }
+        if (!this.scanRing) {
+            this.scanRing = document.getElementById('scan-ring');
+            this.scanLabel = document.getElementById('scan-label');
+        }
+        if (this.scanRing && environment) {
+            const scan = environment.breakerScan;
+            // Quantised to whole percent. The ring is a conic gradient, so writing the custom property
+            // dirties a paint every time it changes; sub-percent precision would buy nothing visible
+            // and cost a repaint on every single frame of every scan.
+            const pct = scan ? Math.round(scan.t * 100) : -1;
+            if (this.scanRing._lastPct !== pct) {
+                const live = pct >= 0;
+                if (live) this.scanRing.style.setProperty('--scan', (pct / 100).toFixed(2));
+                this.scanRing.classList.toggle('scanning', live);
+                if (this.scanLabel) this.scanLabel.classList.toggle('scanning', live);
+                if (this.crosshair) this.crosshair.classList.toggle('scanning', live);
+                this.scanRing._lastPct = pct;
+            }
+        }
         if (this.batLevel) {
             const batInt = Math.round(player.flashlightBattery);
             if (this.batLevel._last !== batInt) {

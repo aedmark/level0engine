@@ -1,5 +1,6 @@
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
+import {buildBreakerPodium, PODIUM_PLATE_Y} from './BreakerPodium.js';
 
 /**
  * A weighted factory for generating the "NORMAL" sector's architectural variations.
@@ -615,6 +616,7 @@ export default class StructuralBlueprints {
                     }
                     if (!this.ceilingHoleMat) {
                         this.ceilingHoleMat = new THREE.MeshBasicMaterial({color: 0x060504});
+                        this.ceilingHoleMat.userData = { noShadow: true };
                         this.sharedAssets.add(this.ceilingHoleMat.uuid);
                     }
                     const tileCount = 2 + Math.floor(lRand() * 3);
@@ -655,12 +657,7 @@ export default class StructuralBlueprints {
                         sheet.rotation.y = lRand() * Math.PI * 2;
                         addGeometry(sheet);
                     }
-                    const stain = new THREE.Mesh(this.ceilingStainGeo, this.ceilingStainMat);
-                    stain.position.set(cx, 2.99, cz);
-                    stain.rotation.y = lRand() * Math.PI * 2;
-                    const stScale = 0.8 + lRand() * 0.6;
-                    stain.scale.set(stScale, stScale, stScale);
-                    addGeometry(stain);
+
                     if (dA > 0.6) {
                         const felled = buildChair(cx + (lRand() - 0.5) * 1.6, 0, cz + (lRand() - 0.5) * 1.6, lRand() * Math.PI * 2);
                         felled.rotation.z = (lRand() > 0.5 ? 1 : -1) * Math.PI / 2;
@@ -703,29 +700,24 @@ export default class StructuralBlueprints {
                         this._globalSwitches.push({x: cx, z: cz, poi: false});
                     }
                     if (ctx.markOccupied) ctx.markOccupied(x, z);
-                    const pillar = buildWall(1.5, 1.5, this.metalMat);
-                    pillar.position.set(cx, 1.5, cz);
-                    pillar.userData.isEntityBlocker = !isHallucination;
-                    addGeometry(pillar);
-                    const bBox = new THREE.Mesh(this._boxGeo(0.8, 1.2, 0.2), this.rustMat);
-                    const isZ = random() > 0.5;
-                    const sign = random() > 0.5 ? 1 : -1;
-                    if (isZ) {
-                        bBox.position.set(cx, 1.5, cz + (sign * 0.85));
-                    } else {
-                        bBox.rotation.y = Math.PI / 2;
-                        bBox.position.set(cx + (sign * 0.85), 1.5, cz);
-                    }
-                    bBox.userData = {type: isHallucination ? 'grate' : 'exit_switch', chunkHash: hash, active: false};
-                    chunkGroup.add(bBox);
+                    const podium = buildBreakerPodium(this, hash, random);
+                    podium.position.set(cx, PODIUM_PLATE_Y, cz);
+                    podium.rotation.y = Math.floor(random() * 4) * (Math.PI / 2);
+                    podium.userData.type = isHallucination ? 'grate' : 'exit_switch';
+                    podium.userData.chunkHash = hash;
+                    podium.userData.active = false;
+                    chunkGroup.add(podium);
                     if (!this.interactables) this.interactables = [];
-                    this.interactables.push(bBox);
-                    const lightMesh = new THREE.Mesh(this._boxGeo(0.2, 0.2, 0.25), this.hazardMat);
-                    lightMesh.position.set(0, 0.3, 0);
-                    if (isHallucination) {
-                        lightMesh.material = new THREE.MeshBasicMaterial({color: 0xffaa00});
+                    this.interactables.push(podium);
+                    if (isHallucination && podium.userData.bead) {
+                        podium.userData.bead.material.emissive.setHex(0xffaa00);
                     }
-                    bBox.add(lightMesh);
+                    const pBox = new THREE.Box3(
+                        new THREE.Vector3(cx - 0.36, 0, cz - 0.36),
+                        new THREE.Vector3(cx + 0.36, 1.25, cz + 0.36)
+                    );
+                    pBox.chunkHash = hash;
+                    this.spatialGrid.insert(pBox);
                 }
             },
             {

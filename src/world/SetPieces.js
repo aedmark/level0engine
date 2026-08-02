@@ -325,7 +325,7 @@ export default class SetPieces {
      */
     buildCheckpointCageLight(chunkGroup, hash, stagingMeshes, px, pz, rotY, flickerOffset, isFaulty, getLightMaterial, colorHex = 0xd8e6ff, emissiveHex = 0xc8ddff, intensity = 0.975) {
         const env = this.env;
-        const cageMat = env.pittedMetalMat || env.metalMat;
+        const cageMat = env.structuralSteelMat || env.pittedMetalMat || env.metalMat;
         const activeMat = getLightMaterial(colorHex, emissiveHex, isFaulty, true);
         const group = new THREE.Group();
         group.position.set(px, 2.96, pz);
@@ -710,7 +710,7 @@ export default class SetPieces {
                 else stripe.position.set(0, 0, -side * 0.92);
                 p.add(stripe);
                 for (let ry = -1; ry <= 1; ry += 2) {
-                    const rib = new THREE.Mesh(ribGeo, env.pittedMetalMat || env.titaniumMat || env.metalMat);
+                    const rib = new THREE.Mesh(ribGeo, env.structuralSteelMat || env.titaniumMat || env.metalMat);
                     rib.position.set(0, ry * 0.75, 0);
                     p.add(rib);
                 }

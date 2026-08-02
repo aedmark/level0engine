@@ -111,6 +111,9 @@ export default class SomaticInput {
             document.dispatchEvent(new Event('somatic-toggle-compass'));
         }
         if (event.code === 'KeyE') {
+            // Held interactions exist now (the breaker podiums want a sustained palm print), so the
+            // browser's auto-repeat must not read as a stream of fresh presses.
+            if (event.repeat) return;
             if (this.state.isReading) {
                 document.dispatchEvent(new Event('somatic-close-document'));
             } else {
@@ -163,6 +166,9 @@ export default class SomaticInput {
             document.dispatchEvent(new CustomEvent('somatic-eyes', {detail: {closed: false}}));
         }
         if (event.code === 'Space') this.state.flyUp = false;
+        if (event.code === 'KeyE') {
+            document.dispatchEvent(new Event('somatic-interact-release'));
+        }
         if (event.code === 'KeyC') {
             this._cKeyDown = false;
             if (!this._cKeyHandled && !this.suppressCrouchToggle) {
