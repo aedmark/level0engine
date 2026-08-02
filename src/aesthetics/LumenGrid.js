@@ -28,23 +28,7 @@ export default class LumenGrid {
         this.maxForcedShadowUpdatesPerFrame = 3;
         this._pendingShadowSlots = new Set();
         this.spawnFadeInDuration = 0.6;
-        // Point and spot shadows are not priced the same and must not be sized the same.
-        //
-        // A PointLightShadow is a cube: six faces at the stated resolution, each covering 90
-        // degrees. A SpotLightShadow is one 2D map whose camera fov is `2 * light.angle`, so a
-        // wide fixture spends the entire map on a single very distorted frustum. The atrium's
-        // soda machines run near the 90-degree half-angle cap, which puts their shadow camera
-        // around 167 degrees fov -- `tan(83.7deg)` is about 9, so the frustum spans roughly
-        // +/-9 units per unit of depth. At 512 that quantised into visible combing across
-        // every shelf. Spots get the resolution; points keep 512, because raising a cube costs
-        // six times as much for fixtures that were never distorted to begin with.
         const pointShadowSize = 512;
-        // 1024 rather than 2048. The PCF kernel is measured in texels, not world units, so
-        // shadow softness is inversely coupled to this number -- 2048 resolved the combing and
-        // then handed back edges harder than the soft filter was meant to produce. Halving it
-        // doubles the kernel's world-space footprint and still leaves four times the texel
-        // density of the 512 that caused the combing in the first place. Also returns roughly
-        // 19MB of depth target across the six spot slots.
         const spotShadowSize = shadowQuality === 'low' ? 512 : 1024;
         for (let i = 0; i < this.maxActiveLights; i++) {
             const radius = i < this.maxShadowLights ? 20.0 : 10.0;
@@ -128,25 +112,6 @@ export default class LumenGrid {
             const maxDistSq = isLH ? 14400.0 : 3025.0;
             if (distSq < maxDistSq) {
                 if (fixture.isDead) {
-                    // Floored at zero. `0.00111` is 1/900, so this term is `1 - distSq/30^2`:
-                    // a proximity weight meant to fade out at 30 units. The loop culls at 55
-                    // (maxDistSq 3025), so without the floor every dead fixture between those
-                    // two radii contributed a *negative* pressure, down to -2.36 at the cull
-                    // edge.
-                    //
-                    // Harmless while fixtures died one at a time. A breaker kills every fixture
-                    // in the chunk at once, and a chunk is 64 units across, so standing
-                    // anywhere but the middle put most of the corpses in the negative band and
-                    // drove the sum below zero. Downstream that inverts:
-                    // `sectorAmbient * (1 - darknessPressure * 0.5)` became a roughly fourfold
-                    // ambient *boost*, so cutting the power lit the sector up with fill from
-                    // nowhere and left the flashlight with nothing to contribute. It also sent
-                    // `perceivedDarkness` to around -5 via `1 - exp(-dp * 0.3)`, and that value
-                    // is handed straight to the post shader as a `mix()` factor, where a
-                    // negative weight extrapolates instead of blending.
-                    //
-                    // Every consumer downstream already clamps for the positive direction, so
-                    // holding this term at or above zero is the whole fix.
                     darknessPressure += Math.max(0.0, 1.0 - (distSq * 0.00111));
                 }
                 if (!fixture.isFake) {

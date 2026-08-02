@@ -72,9 +72,6 @@ export default class AcousticEngine {
         const incoming = (outgoing + 1) % 2;
         const t = this.ctx.currentTime;
         this.convolvers[incoming].conv.buffer = impulse;
-        // Roughly a second and a half to swap. Long enough that the old room fades rather than
-        // cuts, short enough that a player crossing a threshold is not still hearing the
-        // corridor once they are well inside the hall.
         this.convolvers[incoming].wet.gain.setTargetAtTime(1.0, t, 0.5);
         this.convolvers[outgoing].wet.gain.setTargetAtTime(0.0, t, 0.5);
         this._reverbSlot = incoming;

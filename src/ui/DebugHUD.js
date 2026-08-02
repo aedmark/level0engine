@@ -58,9 +58,6 @@ export const DebugHUD = {
             `ANOM  ${anomalyDist}${grace}${player.isChased ? ' CHASING' : ''}\n` +
             `POI   ${unclaimed}/${pois.length} unclaimed  HOPS ${environment._breakerHuntHops ?? '-'}\n` +
             `FIXT  ${environment.fixtureData.length}  CHUNKS ${environment.activeChunks.size}\n` +
-            // raw is the stimulus before smoothing, out is what the shader receives. If raw is
-            // healthy and out is not, adaptation is working. If they track each other, the
-            // pupil is stuck -- check dot against the 0.95 gate and dist against the 1.0 floor.
             `GLARE raw ${(environment._glareRaw ?? 0).toFixed(3)}` +
             `  smooth ${(environment.currentGlare ?? 0).toFixed(3)}` +
             `  out ${(engine.glare ?? 0).toFixed(3)}\n` +

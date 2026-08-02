@@ -39,9 +39,6 @@ export const ClinicSector = (env, ctx) => {
                 }
                 return g;
             };
-            // Staged straight onto the mesh list rather than through addGeometry: a 5cm lip at
-            // hip height that you cannot walk past is worse than no lip at all, so the rail is
-            // visual only. This is what the old `decal` helper did before the refactor.
             const stage = (mesh) => {
                 mesh.userData.chunkHash = hash;
                 mesh.updateMatrixWorld(true);
@@ -64,9 +61,6 @@ export const ClinicSector = (env, ctx) => {
                     );
                     rail.position.set(px + dx * FACE, RAIL_Y, pz + dz * FACE);
                     stage(rail);
-                    // End caps: the vinyl returns to the wall at a termination instead of
-                    // stopping dead, which is the difference between a fitted rail and a
-                    // stripe someone painted on.
                     for (const end of [-1, 1]) {
                         const cap = new THREE.Mesh(
                             geo(alongZ ? 'clinicRailCapZ' : 'clinicRailCapX',
@@ -89,7 +83,6 @@ export const ClinicSector = (env, ctx) => {
                 railFaces(cx0, cz0, localX, localZ, wallAt);
                 return;
             }
-            // Reached only on cleared ward floor: the maze wall branch above has already returned.
             placeSectorPaper(env, ctx, "CLINIC", cx0, cz0);
             const gateApproach = (localX === 7 && (localZ <= 2 || localZ >= 13)) || (localZ === 7 && (localX <= 2 || localX >= 13));
             if (!gateApproach && (localX + localZ) % 2 === 0 && random() > 0.5) {

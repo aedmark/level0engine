@@ -42,9 +42,6 @@ export default class StoryEngine {
         this.truth = Math.floor(this.rand() * 3);
         this.penNumber = 3 + Math.floor(this.rand() * 19);
         this.siteYear = 1971 + Math.floor(this.rand() * 28);
-        // The lock is assembled, never issued. No document in the wing prints these four digits;
-        // one names the rule, another the year, a third the pen, and the player does the sum. The
-        // value is held here only so the keypad has something to compare against.
         this.accessCode = String(this.siteYear).slice(2) + String(this.penNumber).padStart(2, '0');
         this.hours = 300 + Math.floor(this.rand() * 900);
         this.readTemplates = new Set();
@@ -52,8 +49,6 @@ export default class StoryEngine {
         this.collected = [];
         this.cycleIndex = new Map();
         this.tapesDealt = new Set();
-        // `threadOf` is keyed on a template's exact text so tags survive shuffling and splicing with
-        // no index reconciliation. `threadSectors` records which sectors have asserted each claim.
         this.threadOf = new Map();
         this.threadSectors = new Map();
         this.corroborated = new Set();
@@ -83,9 +78,6 @@ export default class StoryEngine {
         this.ephemera = files.ephemera;
         this.ephemeraDealt = new Map();
         this.trackers = {};
-        // No +1 for the finale any more. The records room holds the elevator key, not the sealed
-        // Finding, so the finale text has no object in the world that deals it and counting it
-        // would make DATA RECOVERED permanently unreachable at 100%.
         this.totalTemplates = 0;
         for (const sector in this.library) {
             this.trackers[sector] = 0;
@@ -172,9 +164,6 @@ export default class StoryEngine {
             }
             return {text: this.assignments.get(assignKey), progress: this.progress()};
         }
-        // Ephemera short-circuits everything below it. No thread, no tension, no archive entry, no
-        // effect on DATA RECOVERED. It is not case material and the engine should not pretend it
-        // is. Dealt round-robin so a bunker with eight desks reads eight different notes.
         if (idStr.startsWith('NOTE_')) {
             const pool = this.ephemera[zone] || this.ephemera.EXIT;
             const n = this.ephemeraDealt.get(zone || 'EXIT') || 0;
@@ -184,8 +173,6 @@ export default class StoryEngine {
             return {text, progress: this.progress(), ephemera: true};
         }
         const sector = (zone && this.library[zone]) ? zone : 'DEFAULT';
-        // A recorder deals its own sector's tape, once. A second recorder in the same sector has
-        // nothing left to play and falls through to that sector's paper.
         if (idStr.startsWith('TAPE_') && this.tapes[sector] && !this.tapesDealt.has(sector)) {
             this.tapesDealt.add(sector);
             const tape = this.tapes[sector];
@@ -246,9 +233,6 @@ export default class StoryEngine {
             sectors = new Set();
             this.threadSectors.set(thread, sectors);
         }
-        // Recorded before the settled check, so a third and fourth source still count toward case
-        // strength. A claim confirmed across five sectors is a stronger case than the same claim
-        // confirmed across two, even though both are equally settled.
         sectors.add(sector);
         if (this.corroborated.has(thread) || sectors.size < 2) return null;
         this.corroborated.add(thread);

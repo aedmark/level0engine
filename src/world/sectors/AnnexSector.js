@@ -182,10 +182,6 @@ export const AnnexSector = (env, ctx) => {
                 aGroup.userData = {type: 'almond', chunkHash: hash, active: true};
                 chunkGroup.add(aGroup);
                 env.interactables.push(aGroup);
-                // The records room used to hold the sealed Finding, which named the correct verdict
-                // outright and made every other document in the wing optional. It now holds the
-                // elevator's release key instead: the room is still worth breaking into, but it
-                // answers "can I leave" rather than "what happened here".
                 if (!env.exitKeyMat) {
                     env.exitKeyMat = new THREE.MeshStandardMaterial({
                         color: 0xb8912f, roughness: 0.32, metalness: 0.95,

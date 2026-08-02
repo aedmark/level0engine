@@ -76,8 +76,6 @@ export default class DocumentViewer {
                 const zone = e.detail ? e.detail.zone : null;
                 const fragment = this.getStory().getFragment(docId, zone);
                 const isTerminal = docId && String(docId).startsWith('PC_');
-                // Charge the read where the data lives. Re-reads return an assignment with no
-                // `thread` field, so a player cannot farm tension or refunds off one sticky note.
                 if (fragment.thread !== undefined || fragment.ephemera) {
                     document.dispatchEvent(new CustomEvent('somatic-document-read', {detail: fragment}));
                     if (fragment.corroboration) {

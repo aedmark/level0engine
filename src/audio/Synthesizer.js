@@ -35,11 +35,6 @@ export default class Synthesizer {
         const preSamples = Math.max(0, Math.floor(predelay * rate));
         const tailSamples = Math.max(1, Math.ceil(decay * rate));
         const buffer = ctx.createBuffer(2, preSamples + tailSamples, rate);
-        // The envelope is stepped by repeated multiplication rather than a `Math.pow` per
-        // sample. The CHASM's 4.5s response is roughly 216,000 samples per channel, and this
-        // runs synchronously the first time the player crosses into a room -- 432,000 `pow`
-        // calls is a visible frame hitch, one multiply each is not. Drift across that many
-        // float64 multiplies is around 1e-11, which is inaudible by a wide margin.
         const step = Math.pow(0.001, 1 / tailSamples);
         for (let channel = 0; channel < 2; channel++) {
             const data = buffer.getChannelData(channel);
@@ -181,38 +176,12 @@ export default class Synthesizer {
         engine.subRumble.connect(engine.mainGain);
         engine.kineticFilter.connect(engine.mainGain);
         engine.whineGain.connect(engine.mainGain);
-        // The spatial delay is an aux send tapped off the master bus, not an insert on the
-        // drone.
-        //
-        // It used to be fed only by `mainGain` -- the rumble, whine, and kinetic bed, whose
-        // gain sits between 0.003 and 0.013. Everything else in the graph (footsteps, muzak,
-        // every foley event, the sector noise beds) connected straight to `masterGain` and
-        // never reached it. The sector `delay` and `feedback` numbers were therefore describing
-        // the acoustics of the drone alone, which is why a marble concourse could be set to the
-        // longest tail in the game and still return dry footsteps.
-        //
-        // Tapping post-master picks up every voice, present and future, without a source ever
-        // having to know the reverb exists. It also means `setVolume` scales wet and dry
-        // together, since `masterGain` is upstream of the send.
-        //
-        // The wet return goes to `ctx.destination` rather than back through `masterGain`. That
-        // return path would be legal, but it would put the reverb inside the master volume
-        // control's own signal path and make the wet/dry balance depend on the slider position.
-        //
-        // Two convolvers, not one. A ConvolverNode's `buffer` cannot be swapped while it is
-        // running without a discontinuity, and sectors change under the player's feet. So each
-        // room change loads its impulse response into whichever unit is currently silent and
-        // crossfades between the pair, which also lets the outgoing room's tail ring out
-        // underneath the incoming one instead of being cut off at the doorway.
         engine.reverbSend = ctx.createGain();
         engine.reverbSend.gain.value = 0.12;
         engine.masterGain.connect(engine.reverbSend);
         engine.convolvers = [];
         for (let i = 0; i < 2; i++) {
             const conv = ctx.createConvolver();
-            // Equal-power normalisation, on. Without it a 4.5s impulse carries roughly ten
-            // times the energy of a 0.45s one and the CHASM would be an order of magnitude
-            // louder than the ANNEX at an identical send level.
             conv.normalize = true;
             const wet = ctx.createGain();
             wet.gain.value = 0.0;
@@ -221,8 +190,6 @@ export default class Synthesizer {
             wet.connect(ctx.destination);
             engine.convolvers.push({conv, wet});
         }
-        // A convolver with no buffer assigned outputs silence, so the graph is safe until the
-        // first sector resolves and `setReverbRoom` populates slot 0.
         engine._reverbSlot = 0;
         engine._irCache = new Map();
         engine.mainGain.connect(engine.masterGain);

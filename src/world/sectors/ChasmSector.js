@@ -69,8 +69,6 @@ export const ChasmSector = (env, ctx) => {
                     roughness: 0.7,
                     metalness: 0.9
                 });
-                // Catwalk decking only. The void branch never reaches here, so paper can never be
-                // dropped over the drop.
                 placeSectorPaper(env, ctx, "CHASM", gx, gz);
                 const hx = env.cellSize / 2;
                 const tb1 = buildWall(env.cellSize, 0.1, env.blackIronMat, 0.2);

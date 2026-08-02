@@ -1,4 +1,4 @@
-const PREVENT_KEYS = new Set(['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyV', 'KeyQ', 'KeyF', 'KeyE', 'KeyG', 'KeyZ', 'Space']);
+const PREVENT_KEYS = new Set(['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyV', 'KeyQ', 'KeyF', 'KeyE', 'KeyG', 'KeyZ', 'Space', 'Tab']);
 export default class SomaticInput {
     constructor(camera) {
         this.camera = camera;
@@ -106,6 +106,9 @@ export default class SomaticInput {
         }
         if (event.code === 'KeyT') {
             document.dispatchEvent(new Event('somatic-tag'));
+        }
+        if (event.code === 'KeyM' && !this.state.isReading) {
+            document.dispatchEvent(new Event('somatic-toggle-compass'));
         }
         if (event.code === 'KeyE') {
             if (this.state.isReading) {

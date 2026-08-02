@@ -869,7 +869,6 @@ export default class SetPieces {
                 addGeometry(floor);
             }
             if (needsCeiling) {
-                // Hall-scaled variant: this plane is one 4-unit cell, not the 64-unit chunk.
                 let mat = env.ceilMatHall || env.ceilMat;
                 let isChasm = sectorId === "CHASM";
                 if (isChasm) mat = env.blackIronMat || env.structMat;

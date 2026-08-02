@@ -37,23 +37,8 @@ export default class RenderEngine {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         const shadowQuality = RenderEngine.getSavedShadowQuality();
         this.renderer.shadowMap.enabled = shadowQuality !== 'off';
-        // Both PCF variants take nine taps; the soft one weights them by the fractional
-        // position within the texel instead of snapping to texel centres, so the extra cost is
-        // arithmetic rather than bandwidth. This is global -- flashlight, warden, and every
-        // LumenGrid slot inherit it.
-        //
-        // Worth knowing before tuning: the PCF kernel is measured in texels, not world units,
-        // so shadow softness is inversely coupled to shadow map resolution. Raising the atrium
-        // spots to 2048 shrank each texel to a quarter of its former footprint, which is what
-        // fixed the combing and also what made the remaining edges read harder. If these are
-        // still too crisp, the next dial is DOWN to 1024 in LumenGrid, not up.
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        // The gamma slider writes `baseExposure`, not `toneMappingExposure` directly. Pupil
-        // adaptation in `Environment.updateLights` multiplies this every frame to produce the
-        // live exposure, so the two need separate storage -- otherwise each write clobbers the
-        // other and whichever ran last that frame wins. This value is the player's preference;
-        // `toneMappingExposure` is that preference as their eyes currently have it.
         this.baseExposure = 1.2;
         this.renderer.toneMappingExposure = this.baseExposure;
         if ('outputColorSpace' in this.renderer) {

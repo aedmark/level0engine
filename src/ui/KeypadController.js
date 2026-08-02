@@ -41,9 +41,6 @@ export default class KeypadController {
                     this.player.input.state.isReading = false;
                 }, 500);
             } else {
-                // A wrong code reports which legs of the lock are still missing from the record, and
-                // never which digits were wrong. A player who has all three legs and still cannot
-                // open the door has an arithmetic problem, which is theirs to solve.
                 const lock = this.getStory().lockProgress();
                 const missing = [];
                 if (!lock.cipher) missing.push('RULE');

@@ -44,10 +44,6 @@ export default class StructureKit {
                 }
                 return false;
             },
-            // `variant` selects which base the clone comes from. Without it every emissive in
-            // the game inherits `baseLightMat`, whose map is the office fluorescent diffuser --
-            // which is how a furnace sconce ended up wearing a ceiling troffer's prismatic
-            // crosshatch. The variant is part of the pool key so the two never collide.
             getLightMaterial: (colorHex, emissiveHex, isBroken = false, plain = false, variant = '') => {
                 if (!env._lightMatPool) env._lightMatPool = new Map();
                 const key = `${colorHex}_${emissiveHex}_${isBroken}_${plain}_${variant}`;

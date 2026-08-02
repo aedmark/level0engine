@@ -148,7 +148,6 @@ export const ServerSector = (env, ctx) => {
                     addGeometry(rack);
                 }
             } else {
-                // Cold aisle floor. The rack branch above has already taken every occupied cell.
                 placeSectorPaper(env, ctx, "SERVER", x * env.cellSize, z * env.cellSize);
                 const openE = localX < env.chunkSize - 1 ? !maze[localX + 1][localZ] : !maze[localX][localZ];
                 const openS = localZ < env.chunkSize - 1 ? !maze[localX][localZ + 1] : !maze[localX][localZ];

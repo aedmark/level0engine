@@ -1,5 +1,6 @@
 import RenderEngine from './src/core/RenderEngine.js';
 import PlayerController from './src/player/PlayerController.js';
+import Compass from './src/player/Compass.js';
 import Environment from './src/core/Environment.js';
 import AcousticEngine from './src/audio/AcousticEngine.js';
 import StoryEngine from './src/narrative/StoryEngine.js';
@@ -17,6 +18,7 @@ window.acoustics = acoustics;
 const player = new PlayerController(engine.camera, engine.renderer.domElement);
 const environment = new Environment(engine, player);
 window.environment = environment;
+const compass = new Compass(engine, environment, player);
 let sectorHuntActive = false;
 const saveManager = new SaveManager(engine, player, environment, acoustics);
 const somatic = new SomaticController(acoustics);
@@ -189,6 +191,7 @@ function animate() {
         return;
     }
     player.update(delta, environment.spatialGrid);
+    compass.update(delta);
     if (engine.camera.position.y > 2.8 && player.onWarpZone && !environment.isSpawning) {
         environment.generate(true);
         return;

@@ -32,7 +32,6 @@ export const MaintenanceSector = (env, ctx) => {
                 block.userData.isEntityBlocker = true;
                 addGeometry(block);
             } else {
-                // Shaft floor: the wall branch above consumed every solid cell.
                 placeSectorPaper(env, ctx, "MAINTENANCE", x * env.cellSize, z * env.cellSize);
                 const isW = (lx, lz) => {
                     if (lx < 0 || lx >= env.chunkSize || lz < 0 || lz >= env.chunkSize) {

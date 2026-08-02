@@ -302,11 +302,6 @@ export default class BackupDaemonEntity {
         this.camera.position.set(spot.x, 1.6, spot.z);
         this.player.velocity.set(0, 0, 0);
         if (this.env.updateChunks) this.env.updateChunks(this.camera.position);
-        // PlayerController's per-frame roll damping (_applyCinematics) pulls camera.rotation.z
-        // back toward level on its own, but 0.25-0.5 rad (~14-29 deg) was a big enough snap that,
-        // combined with the position teleport and the somatic-breaker flinch firing at the same
-        // instant, it read as getting thrown into a spin rather than a jolt. Toned down to
-        // something the damping visibly resolves in a beat instead of a stumble.
         this.camera.rotation.z += (Math.random() < 0.5 ? -1 : 1) * (0.05 + Math.random() * 0.07);
         document.dispatchEvent(new CustomEvent('somatic-breaker', {detail: {distSq: 1.0, intensity: 1.6}}));
     }

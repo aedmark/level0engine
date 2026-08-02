@@ -1,6 +1,3 @@
-// HazardUtils.js
-// LEVEL 0 SHARED HAZARD-ENTITY HELPERS
-
 import AABB from '../math/AABB.js';
 
 /**

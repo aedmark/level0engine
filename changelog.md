@@ -1,5 +1,39 @@
 # Level 0 Engine Changelog
 
+## [v0.7.2] - 2026-08-02
+
+_A Hand To Hold It_
+
+### Added
+
+- **[PLAYER] The Compass Is Held In A Hand:** A floating instrument reads as a HUD element drawn in perspective no matter how good the model is, because nothing in the frame explains why it is there. The case now sits at the origin of a rig with a right hand built around it: a palm slab behind the case, a rounded heel where it meets the wrist, four fingers rising off the far edge and curling forward over the top rim, a thumb with its pad on the near-left rim, then wrist, cuff and sleeve. The sleeve does more work than its polygon count suggests — a bare forearm running off the bottom of the frame reads as a floating limb, while a cuff terminates the arm at a garment and the eye stops asking.
+- Fingers are chains of nested joints rather than three rotated sticks, so curls compound the way knuckles do, with a sphere at every joint and a tapering radius down each digit. Segment lengths, curls and base heights are varied per finger; the little finger is shorter, set lower, and comes to rest against the side of the case instead of reaching the rim, which is what a little finger does. Verified: index, middle and ring tips land at y 0.077 to 0.084 against a case rim at 0.085, sitting just in front of the glass at z 0.026 to 0.030, so they break the bezel silhouette without covering the dial.
+- **[PLAYER] Skin Is Mottled, Not Flat:** A procedural 128px canvas of warm and pale blotches with sparse short creases. A single albedo across a hand this close to the eye reads as a mannequin regardless of the geometry under it.
+- **[PLAYER] The Compass Toggles On `M`:** Always-on was wrong for an instrument you are meant to raise. Raising and lowering is a movement rather than a visibility flag: the rig eases on a smoothstep, drops 0.46 and rolls out of the wrist on the way down, and only stops rendering once it is genuinely below the frame, so there is no pop at either end. Lowering is slightly faster than raising. It refuses to raise while a document is open and stows itself on death.
+
+### Fixed
+
+- **[UI] The Menu Moved To Tab, Because M Was Firing Twice:** `Environment.js` bound the settings panel to a bare `e.key` of `m`, so the new compass toggle opened the menu on the same press. The menu is now on `Tab`, whose own default of focus traversal is already suppressed by the handler's existing `preventDefault`, and `Tab` has been added to `PREVENT_KEYS` alongside it.
+- **[UI] The Menu No Longer Opens While You Are Typing:** Pre-existing and unrelated to the collision. The old binding matched `e.key === 'm'` on a document-level listener with no target check, so typing any word containing an M into the seed field toggled the settings panel mid-word. The handler now ignores events originating from an `INPUT`, `SELECT` or `TEXTAREA`.
+- **[PLAYER] The Thumb Was Solved, Not Eyeballed:** The first pass leaned the thumb inward at `-0.92` on Z. Composing that lean with the joint curl through Euler XYZ walked the fingertip to a radius of **0.003** — dead centre on the dial, squarely over the needle pivot, hiding the one thing the instrument exists to show. Caught by computing the actual transform chain rather than trusting the two-dimensional estimate that produced it. The replacement values put the tip at radius 0.089 against a case radius of 0.085, so the pad rests on the outside of the rim.
+
+## [v0.7.1] - 2026-08-02
+
+_The Threshold Compass_
+
+### Added
+
+- **[PLAYER] `src/player/Compass.js` — A Second Instrument, Answering A Different Question:** First-playthrough feedback was that a lost signal is unrecoverable and that the hunt never routes anywhere near a sector. Both are true and they share a cause. `Environment.js` builds the entire radar readout as `${nearestDist.toFixed(1)}m` — distance and nothing else, no bearing anywhere in the system. The player is meant to triangulate by walking and watching the number move, which the README says out loud, but in fog with blind doglegs that makes every lost signal a random walk. Past 1000m it degrades to `WEAK - RELOCATE`, which asks you to relocate without saying where. Separately, confirmed: the radar targets unvisited POIs while `_breakerHuntHops` lasts and then the nearest inactive `exit_switch`. Macro zones are never targets, the sole exception being the Annex during exit phase.
+- The fix keeps the two instruments opposed rather than fixing the radar. The radar stays distance-only and stays scrambleable, because that unreliability is where its whole character lives. The compass knows nothing about objectives, cannot be scrambled, and only ever points at the nearest sector threshold. A lost signal now means walking to a sector, re-establishing position against a fixed landmark, and resuming the hunt from a known place.
+- **[PLAYER] Built As Held Geometry, Not A HUD Overlay:** Parented to the camera, so it inherits head bob, lean, squeeze FOV and the full post-processing stack for free and is subject to darkness like everything else. Brass case, torus bezel and lug, procedurally drawn dial with 72 graduations, cardinal marks and foxing spotted across the face, glass at 17% opacity, and a needle on a pin. Only the needle carries luminous paint — with the torch off the dial is as dark as the room. The camera is added to the scene on construction, since children of a camera do not render unless the camera is itself in the graph and it never needed to be until now.
+- **[PLAYER] The Needle Is A Damped Spring, Not A Lerp:** Stiffness 26 against damping 6.4, so it overshoots a hard turn and hunts before settling, plus a jostle term scaled by player speed. A needle that eases perfectly to its mark reads as a HUD element drawn in perspective. Bearing is derived from world angle minus camera heading, where heading is `yaw + π` because three.js cameras look down their own -Z. Verified across five headings: target ahead resolves to 0°, east to -90° (right), west to +90° (left), and a 90° left turn correctly moves a formerly-ahead target to the right.
+
+### Notes
+
+- **The compass remembers thresholds after they unload.** Pointing only at `macroZones` would blank the needle the moment the nearest sector left the load radius, which is precisely when a lost player needs it. It reads `_macroChunkHashes` instead — the standing record of every macro chunk the seed has claimed, pruned only on reseed and never on chunk unload — and rederives bounds from the chunk key with the same arithmetic `buildChunk` uses. Loaded zones still take priority and use the bounds the world actually registered.
+- Unloaded macro chunks cannot be *predicted*, only remembered. `isMacroStructure` draws from the chunk's seeded PRNG mid-sequence and then consults `_macroChunkHashes` for minimum spacing, so which chunks become sectors is path-dependent on build order by design. The compass can only point at thresholds the world has already committed to.
+- On a fresh seed that has not yet produced a single macro zone the needle has nothing to hold and wanders on a slow sine. It is hidden entirely while reading a document or on death.
+
 ## [v0.7.0] - 2026-08-02
 
 _The Corroboration Update_

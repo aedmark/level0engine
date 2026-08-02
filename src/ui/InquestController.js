@@ -94,9 +94,6 @@ export default class InquestController {
             const progress = story.progress();
             document.getElementById('inquest-case').innerText =
                 `CASE FILE: PROJECT ${v.project} — DATA RECOVERED [ ${progress.found} / ${progress.total} ]`;
-            // No option is ever starred. The records room hands over the elevator key, not the
-            // answer, so the verdict has to come from the evidence the player actually assembled.
-            // The hint reports the strength of their case and refuses to grade it for them.
             document.getElementById('inquest-hint').innerText = v.tellCorroborated
                 ? `CORROBORATED ACROSS ${v.caseStrength} SECTORS. THE RECORD SUPPORTS ONE FINDING. FILE IT.`
                 : `CLAIMS SETTLED: ${v.settled} OF ${v.resolvable}. NO FINDING IS CORROBORATED. FILING NOW IS A GUESS AT ONE IN THREE.`;

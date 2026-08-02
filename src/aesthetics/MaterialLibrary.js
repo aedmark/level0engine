@@ -20,10 +20,6 @@ export default class MaterialLibrary {
             color: 0xffffff,
             roughness: 0.75,
             metalness: 0.05,
-            // Was `wallTexture` -- its own colour map -- which embossed every damp stain into
-            // relief. Discolouration is not topography; wet paper is if anything flatter than
-            // dry. The dedicated canvas carries only what is physically there: the printed
-            // stripe, the skirting board, and the blistering where the adhesive let go.
             bumpMap: env.wallBumpTexture || env.wallTexture,
             bumpScale: 0.012
         });
@@ -35,18 +31,9 @@ export default class MaterialLibrary {
         env.pipeJunctionGeo = new THREE.BoxGeometry(0.28, 0.28, 0.28);
         env.pipeMountGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8);
         env.vPipeGeo = new THREE.CylinderGeometry(0.06, 0.06, 3.0, 8);
-        // The bump used to be `structMat.map` -- the structural concrete texture, dark
-        // horizontal bands and all -- at bumpScale 0.03. Wrapped round a cylinder those bands
-        // read as stacked concrete rings, so every drum, pillar and pipe on this material
-        // looked poured rather than forged. `corrosionBumpTexture` is pitting and scale with
-        // no direction to it, which is what this needs given it also skins Chasm pillars and
-        // Incinerator walls.
         env.rustMat = new THREE.MeshStandardMaterial({
             color: 0x4a433a,
             roughness: 0.70,
-            // See _buildPipeMaterial: with no envMap in the scene, metalness only removes
-            // diffuse and returns nothing. This was 0.3 originally; 0.45 made every drum and
-            // pillar go flat under the hemisphere light.
             metalness: 0.10,
             bumpMap: env.corrosionBumpTexture || env.structMat.map,
             bumpScale: env.corrosionBumpTexture ? 0.012 : 0.03

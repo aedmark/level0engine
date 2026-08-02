@@ -120,9 +120,6 @@ export const IncineratorSector = (env, ctx) => {
                     const housing = buildWall(nx !== 0 ? 0.16 : 0.8, nz !== 0 ? 0.16 : 0.8, env.rustMat, 0.5);
                     housing.position.set(fx + nx * 0.08, 1.5, fz + nz * 0.08);
                     addGeometry(housing);
-                    // Plain box, not buildWall. buildWall scales u by (dim / cellSize) and v
-                    // by (h / 3), so a 0.55 x 0.32 panel would sample about 1.5% of the sight
-                    // glass texture -- one corner of the frame and none of the fire.
                     const plate = new THREE.Mesh(
                         env._boxGeo(nx !== 0 ? 0.1 : 0.55, 0.32, nz !== 0 ? 0.1 : 0.55), activeMat);
                     plate.position.set(fx + nx * 0.21, 1.5, fz + nz * 0.21);
@@ -147,7 +144,6 @@ export const IncineratorSector = (env, ctx) => {
                 if (!isW(localX, localZ + 1) && random() > 0.55) buildSconce(0, 1);
                 return;
             }
-            // Combustion gallery floor. The wall branch above returned on every solid cell.
             placeSectorPaper(env, ctx, "INCINERATOR", cxw, czw);
             const wN = isW(localX, localZ - 1);
             const wS = isW(localX, localZ + 1);

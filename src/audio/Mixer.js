@@ -96,14 +96,8 @@ export default class Mixer {
         if (engine.convolvers) {
             const room = SECTORS[activeSector];
             const verb = (room && room.reverb) || DEFAULT_REVERB;
-            // `setReverbRoom` self-guards on an unchanged room, so calling it every frame costs
-            // a string compare. It builds a multi-megabyte buffer when the room does change,
-            // which is why that guard is inside it rather than trusted to every caller.
             engine.setReverbRoom(verb.rt60, verb.predelay);
             if (engine.reverbSend) {
-                // `rt60` and `predelay` describe the room; this decides how much of it you are
-                // standing in. Smoothed rather than stepped, so it can ride the convolver
-                // crossfade instead of jumping at the doorway.
                 setMixParam(engine, time, 'wet', engine.reverbSend.gain, verb.wet, 1.5);
             }
         }
@@ -146,13 +140,6 @@ export default class Mixer {
                     setMixParam(engine, time, 'muzakWobble', engine.muzakLFOGain.gain, muzak.wobble, 2.0);
                 }
                 if (!engine._muzakNextBeat || time > engine._muzakNextBeat - 0.5) {
-                    // `_muzakNextBeat` counts in AudioContext time, which keeps running while the
-                    // player is in a sector that has no muzak. Re-entering after a few minutes
-                    // away would otherwise find the cursor far in the past and schedule every
-                    // missed beat at a timestamp that has already gone -- WebAudio fires those
-                    // immediately, so the whole backlog arrives at once. Latent until now,
-                    // because ANNEX was the only sector that could arm it. Two sectors means
-                    // crossing between them, which means this fires for real.
                     if (!engine._muzakNextBeat || engine._muzakNextBeat < time) engine._muzakNextBeat = time + 0.1;
                     if (engine._muzakStep === undefined) engine._muzakStep = 0;
                     const chords = [
@@ -223,18 +210,8 @@ export default class Mixer {
                         }
                     }
                     break;
-                // Was 'leaves' at 65% and a doubled 'hoot' at 35% -- rustling undergrowth and a
-                // two-note owl call, which is a field at night and not a shopping centre. The
-                // palette is now a PA paging nobody and a gait crossing the concourse.
-                //
-                // Distances start at 484 rather than the 36 the other sectors use. `Foley`
-                // attenuates by `1 - sqrt(distSq)/40` and culls past 1600, so this band lands
-                // between 22 and 33 units out: audible, unplaceable, and never close enough to
-                // sound like it is happening to you.
                 case "ATRIUM":
                     if (!engine._atriumNextEvent) engine._atriumNextEvent = time + 3.0;
-                    // A single scuff is a noise. Three or four spaced at walking cadence is a
-                    // person, and stopping mid-crossing is the part that does the work.
                     if (engine._atriumStepAt && time >= engine._atriumStepAt) {
                         engine.triggerSomaticEvent('shuffle', engine._atriumStepDistSq, 0.45 + Math.random() * 0.3);
                         engine._atriumStepsLeft--;

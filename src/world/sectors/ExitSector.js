@@ -53,10 +53,6 @@ export const ExitSector = (env, ctx) => {
                     eBox.isEntityBlocker = true;
                     env.spatialGrid.insert(eBox);
                 } else {
-                    // The eight chamber cells ringing the car, and nothing else in the sector. By
-                    // the time a player stands here they have thrown three breakers, assembled the
-                    // lock out of three sectors and carried the key across the wing. What is on
-                    // these desks costs nothing to read and proves nothing. That is the point.
                     placeEphemera(env, ctx, "EXIT", x * env.cellSize, z * env.cellSize);
                 }
             } else if (isPathX || isPathZ) {

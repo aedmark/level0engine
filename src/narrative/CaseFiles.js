@@ -127,7 +127,6 @@ export function buildCaseFiles(ctx) {
         ]
     };
 
-    // Positional against the authored order above. Applied before any shuffling.
     const tags = {
         ANNEX: ['GEOMETRY', 'GEOMETRY', 'CIPHER', 'GEOMETRY', 'LOST'],
         ARCHIVE: ['LOST', 'GEOMETRY', 'HUM', 'CIPHER'],

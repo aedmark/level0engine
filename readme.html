@@ -9,7 +9,6 @@
     <link href="https://fonts.googleapis.com/css2?family=VT323&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 
     <style>
-        /* CSS Variables based on original Tailwind config */
         :root {
             --liminal-900: #1a1811;
             --liminal-800: #332d1c;
@@ -20,7 +19,6 @@
             --font-vhs: 'VT323', monospace;
         }
 
-        /* Base CSS Reset (Simulating Tailwind Preflight) */
         *, *::before, *::after {
             box-sizing: border-box;
         }
@@ -35,23 +33,17 @@
             background-color: #050505;
             color: var(--liminal-400);
             font-family: var(--font-mono);
-            font-size: 0.875rem; /* text-sm */
+            font-size: 0.875rem;
             -webkit-font-smoothing: antialiased;
             overflow-x: hidden;
             display: flex;
             flex-direction: column;
             min-height: 100vh;
 
-            /* Artisan Note: Prevent text selection to maintain terminal illusion */
             user-select: none;
             -webkit-user-select: none;
         }
 
-        /* ============================
-           ATMOSPHERIC EFFECTS
-           ============================ */
-
-        /* NOISE OVERLAY - Adds structural grit */
         .noise-overlay {
             position: fixed;
             inset: 0;
@@ -61,7 +53,6 @@
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
         }
 
-        /* SCANLINES - Enforces the temporal displacement */
         .scanlines {
             background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
             background-size: 100% 4px;
@@ -71,7 +62,6 @@
             z-index: 49;
         }
 
-        /* TERMINAL GLOW - The heartbeat of the machine */
         @keyframes flicker {
             0% { opacity: 0.9; text-shadow: 0 0 4px rgba(212, 195, 130, 0.4); }
             5% { opacity: 0.5; text-shadow: none; }
@@ -90,10 +80,6 @@
             color: #050505;
         }
 
-        /* ============================
-           LAYOUT & COMPONENTS
-           ============================ */
-
         .main-wrapper {
             flex-grow: 1;
             display: flex;
@@ -107,7 +93,7 @@
         }
 
         .terminal-box {
-            max-width: 56rem; /* max-w-4xl */
+            max-width: 56rem;
             width: 100%;
             background-color: rgba(0, 0, 0, 0.6);
             border: 1px solid var(--liminal-800);
@@ -183,7 +169,7 @@
             font-size: 0.875rem;
             display: flex;
             flex-direction: column;
-            gap: 2rem; /* space-y-8 */
+            gap: 2rem;
         }
 
         .terminal-article p.intro-text {
@@ -196,7 +182,7 @@
         }
 
         .section-title {
-            font-size: 1.25rem; /* text-xl */
+            font-size: 1.25rem;
             font-weight: 700;
             color: var(--liminal-100);
             border-bottom: 1px solid var(--liminal-800);
@@ -214,7 +200,7 @@
             padding-bottom: 0.5rem;
             display: flex;
             flex-direction: column;
-            gap: 1rem; /* space-y-4 */
+            gap: 1rem;
         }
 
         .highlight-text {
@@ -236,13 +222,12 @@
             font-size: 0.75rem;
         }
 
-        /* Lists */
         .ordered-list {
             list-style-type: decimal;
-            padding-left: 1.5rem; /* pl-6 */
+            padding-left: 1.5rem;
             display: flex;
             flex-direction: column;
-            gap: 1rem; /* space-y-4 */
+            gap: 1rem;
         }
 
         .ordered-list > li::marker {
@@ -264,7 +249,6 @@
             color: var(--liminal-800);
         }
 
-        /* Inline code styling */
         code {
             background-color: rgba(26, 24, 17, 0.8);
             color: var(--liminal-100);
@@ -337,11 +321,7 @@
             color: var(--liminal-500);
         }
 
-        /* ============================
-           RESPONSIVE QUERIES
-           ============================ */
-
-        @media (min-width: 768px) { /* Tailwind md: */
+        @media (min-width: 768px) {
             .main-wrapper {
                 padding: 2rem;
             }
@@ -378,7 +358,7 @@
                 <p class="terminal-subtitle">Level 0 Engine: Procedural Liminal Space Simulator</p>
             </div>
             <div class="sys-info">
-                <span>SYS.VER 0.7.0</span>
+                <span>SYS.VER 0.7.2</span>
                 <a href="index.html" class="return-link">[ RETURN ]</a>
             </div>
         </header>
@@ -444,6 +424,8 @@
                             <li><code>E</code> : Somatic Interact (Doors, security keypads, documents, terminals, Surge Breakers, items)</li>
                             <li><code>Arrow Keys</code> : Browse the recovered archive while a terminal is open (<code>◄</code>/<code>▲</code> previous file, <code>►</code>/<code>▼</code> next file)</li>
                             <li><code>T</code> : Spray UV Decoy Breadcrumb (Mark your path and distract the Anomaly)</li>
+                            <li><code>M</code> : Raise/lower the Threshold Compass (Bearing to the nearest sector threshold)</li>
+                            <li><code>Tab</code> : Toggle the settings menu</li>
                             <li><code>Z</code> : Sector Warp (Debug: teleport to the first step inside the active macro-zone's northern blast door path)</li>
                             <li><code>G</code> : God Mode (Debug: invincible to the Anomaly and the void, noclip ghost flight — <code>Space</code> ascends, <code>C</code> held descends, sprint for speed)</li>
                             <li><code>`</code> : Debug HUD (Seed, sector, chunk, FPS, draw calls, anomaly distance, POI and objective state)</li>
@@ -469,6 +451,7 @@
                     <p><strong class="highlight-text">The Exit Threshold & The Inquest:</strong> A heavily fortified extraction bunker that only manifests in the generation matrix once all sector breakers are thrown <em>and</em> you are carrying the release key out of the records room. The elevator does not descend on touch: an Inquest terminal demands the Finding of Fact — three verdicts, keyed <code>1</code>/<code>2</code>/<code>3</code>. Nothing marks the correct one. The terminal reports how many claims you have settled and across how many sectors, and tells you plainly when filing would be a guess at one in three. The verdict has to come from a tell corroborated across the wing, seeded one apiece into five sectors. File the truth and the case closes for a clean descent with Coherence restored; file wrong and the seed mutates, rebuilding reality around a new cold case.</p>
                     <p><strong class="highlight-text">Ephemera:</strong> The bunker's own paperwork, ringing the elevator car. A shift rota with one name on every weekday. A coffee fund nobody has touched since the disappearance. A debrief script with step four scratched through the lamination. A lost and found holding a cold wedding ring. These carry no claim, settle nothing, never enter the archive, and do not move your recovery count. They are the only paper in the facility that costs nothing to read and gives a little back, because by the time you are standing there you have earned something that is not more evidence.</p>
 
+                    <p><strong class="highlight-text">The Threshold Compass:</strong> A brass instrument you raise into view with <code>M</code>, held in a bare right hand with the sleeve of your jumpsuit running off the bottom of the frame, and the deliberate opposite of the radar. The radar knows precisely which breaker it wants and refuses to say which way it is, reports a bare distance, and scrambles under Anomaly pressure. The compass knows nothing about your objectives, cannot be scrambled, and answers exactly one question: which way is the nearest way <em>in</em>. It is magnetised to sector thresholds and remembers every one the seed has committed to, so it keeps pointing long after that zone has scrolled out of memory. A lost signal is no longer a random walk — you walk to a sector, re-establish where you are, and pick the hunt back up from a fixed landmark. Only the needle carries luminous paint; with the torch off, the dial is as dark as everything else. On a seed that has not yet produced a single macro zone the needle has nothing to hold and wanders.</p>
                     <p><strong class="highlight-text">Safe Rooms (The Outpost):</strong> A rare chance for a fully enclosed, anomaly-shielded refuge featuring clean tile, a cot, guaranteed Almond Water, and an <code>isEntityBlocker</code> barrier that permits player entry while barring the entity.</p>
 
                     <p><strong class="highlight-text">The Surge Breakers:</strong> Interactive, articulated breaker boxes. Press 'E' to crack the panel open and trigger a chunk-wide blackout cascade. Blackouts automatically resolve and restore lighting via an autonomic 25-35 second timer to preserve dynamic equilibrium.</p>

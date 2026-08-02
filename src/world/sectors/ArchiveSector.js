@@ -148,9 +148,6 @@ export const ArchiveSector = (env, ctx) => {
                     const sz = acz + (alongZ ? 0 : side * 0.7);
                     for (let e = -1; e <= 1; e += 2) {
                         if (e < 0 ? !openNeg : !openPos) continue;
-                        // The whole unit is joinery: end panel, back, shelf boards, top cap. Only
-                        // the boards were on `woodMat` -- the frame around them was `metalMat`,
-                        // which is why the carcass never matched the shelves it was holding.
                         const upright = buildWall(alongZ ? 1.0 : 0.12, alongZ ? 0.12 : 1.0, env.woodMat, 3.0);
                         upright.position.set(sx + (alongZ ? 0 : e * capOffset), 1.5, sz + (alongZ ? e * capOffset : 0));
                         addGeometry(upright);
@@ -166,14 +163,6 @@ export const ArchiveSector = (env, ctx) => {
                         board.position.set(sx, shelfY, sz);
                         addGeometry(board);
                         for (let face = -1; face <= 1; face += 2) {
-                            // Both branches test the same draw, and the ranges overlap: any roll
-                            // in 0.22..0.4 places books and boxes on the same shelf face. That
-                            // is worth keeping -- a real archive shelf carries both -- but
-                            // nothing used to reserve space for the second one, and the box's
-                            // vertical extent (shelfY+0.04 to +0.34) sits entirely inside the
-                            // row's (+0.04 to +0.64), so any overlap along the run buried it
-                            // rather than merely crowding it. The row now records what it claims
-                            // and the boxes take what is left.
                             const roll = random();
                             const RUN_HALF = 1.75;
                             let rowMin = 0.0;
@@ -183,8 +172,6 @@ export const ArchiveSector = (env, ctx) => {
                                 const row = new THREE.Mesh(env.bookRowGeo, env.bookRowMat);
                                 const wScale = 0.45 + random() * 0.55;
                                 const slide = (random() - 0.5) * 3.5 * (1 - wScale);
-                                // `bookRowGeo` is 3.5 long before `wScale`, so the row occupies
-                                // `slide` +/- 1.75 * wScale of the run.
                                 rowMin = slide - RUN_HALF * wScale;
                                 rowMax = slide + RUN_HALF * wScale;
                                 hasRow = true;
@@ -198,9 +185,6 @@ export const ArchiveSector = (env, ctx) => {
                                 addGeometry(row);
                             }
                             if (roll < 0.4) {
-                                // Half of `fileBoxGeo`'s 0.42 width, plus margin for the
-                                // +/-0.125 rad yaw jitter applied below, which swings a corner
-                                // out past the flat half-width.
                                 const BOX_HALF = 0.26;
                                 const boxCount = 1 + Math.floor(random() * 2);
                                 for (let bi = 0; bi < boxCount; bi++) {

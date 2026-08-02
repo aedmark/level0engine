@@ -22,10 +22,6 @@ export const AtriumSector = (env, ctx) => {
     const TOP_TIER_Y = TIER_BASE + (TIER_COUNT - 1) * TIER_STEP;
     const STRUCTURE_TOP_Y = TOP_TIER_Y + 15.0;
     const VENDING_GLOW = 2.2;
-    // The atrium runs at ambient 0.0, so these machines and the flashlight are the whole
-    // lighting budget. Reach is stated explicitly rather than inherited from LumenGrid's
-    // slot defaults (20.0 for the first eight, 10.0 after), because a machine that halves
-    // its throw the moment a ninth fixture comes into range reads as a power fault.
     const VENDING_REACH = 13.0;
     const VENDING_INTENSITY = 2.4;
     if (!env.matrixVoidMat) {
@@ -85,18 +81,8 @@ export const AtriumSector = (env, ctx) => {
         return zR && !xR ? true : (xR && !zR ? false : ((lx + lz) % 2 === 0));
     };
     const AISLE_DETAIL_TOP_Y = 2.92;
-    // Was 14.0 in 3.2m bands of flat `shelfMat`. The aisles now stop being shelving at
-    // `AISLE_DETAIL_TOP_Y` and continue as a texture-stretch artifact to the same height the
-    // sector's own structure reaches, so the smear terminates where the atrium does rather than
-    // at an arbitrary ceiling nothing else in the room shares.
     const SMEAR_TOP_Y = STRUCTURE_TOP_Y;
-    // Metres of column the smear canvas covers before `ClampToEdgeWrapping` takes over and the
-    // top row repeats to the end. Short on purpose: the shelf edge should be gone almost the
-    // instant it leaves the last real shelf, because a renderer that runs out of texture does
-    // not ease into it.
     const SMEAR_SOURCE_SPAN = 1.15;
-    // Vertex-coloured falloff needs rows to interpolate between. 24 gives a smooth curve up
-    // 50-odd metres at 100 extra triangles per column, which instancing then pays for once.
     const SMEAR_SEGMENTS = 24;
     /**
      * The column the smear is drawn on. Cached per orientation, so every aisle in the sector
@@ -184,10 +170,6 @@ export const AtriumSector = (env, ctx) => {
             addGeometry(cap);
             const smear = new THREE.Mesh(smearGeo(alongZ, runSpan), env.atriumSmearMat);
             smear.position.set(sx, AISLE_DETAIL_TOP_Y + (SMEAR_TOP_Y - AISLE_DETAIL_TOP_Y) / 2, sz);
-            // Staged, not `addGeometry`d. The artifact is not a thing in the room and must not
-            // own a collider; the `spine` below already blocks the aisle at head height, and
-            // handing the spatial grid a 50-metre box to represent a rendering error is exactly
-            // the kind of thing that later reads as a physics bug with no visible cause.
             smear.userData.chunkHash = hash;
             smear.updateMatrixWorld(true);
             ctx.stagingMeshes.push(smear);
@@ -242,10 +224,6 @@ export const AtriumSector = (env, ctx) => {
                 map: tex,
                 emissiveMap: tex,
                 color: 0xffffff,
-                // LumenGrid copies this uniform tint into the PointLight colour, not the
-                // emissiveMap. Left at pure white the machine threw clinical white light
-                // into a room lit by nothing else. A cold fluorescent cast is what a lamp
-                // sitting behind a cyan acrylic panel actually puts on the floor.
                 emissive: 0xd8f2ff,
                 emissiveIntensity: VENDING_GLOW,
                 roughness: 0.2
@@ -259,12 +237,6 @@ export const AtriumSector = (env, ctx) => {
         panel.userData.chunkHash = hash;
         body.add(panel);
 
-        // The body carries a child mesh, so it cannot go through `addGeometry`. That helper
-        // stages the mesh for `_compileInstances`, which batches by geometry+material and
-        // writes only the parent's matrix into an InstancedMesh -- children are dropped. Two
-        // machines in one chunk share a signature, so the glowing panel disappeared exactly
-        // when the atrium had the most of them. The body is parented directly and its
-        // collider is inserted by hand instead.
         chunkGroup.add(body);
         body.updateMatrixWorld(true);
         if (!bodyGeo.boundingBox) bodyGeo.computeBoundingBox();
@@ -274,10 +246,6 @@ export const AtriumSector = (env, ctx) => {
         env.spatialGrid.insert(collider);
         env.walls.push(body);
 
-        // The panel faces the body's local +Z, so rotating that unit vector by rotY gives the
-        // outward normal. The lamp goes there, clear of the 1.0-deep cabinet. Sat at the
-        // body's centre it would be sealed inside its own collider, lighting the inside of a
-        // box and casting no shadow the player could ever stand in.
         const outX = Math.sin(rotY);
         const outZ = Math.cos(rotY);
         const lampX = cx + outX * 0.85;
@@ -286,27 +254,12 @@ export const AtriumSector = (env, ctx) => {
         env.fixtureData.push({
             chunkHash: hash,
             position: new THREE.Vector3(lampX, LAMP_Y, lampZ),
-            // A backlit acrylic panel emits into the hemisphere it faces and nothing behind it.
-            // A PointLight emits into a full sphere, so the cabinet occluded only the narrow
-            // cone directly behind itself and the rest of the throw curled around both sides --
-            // the machine appeared to light the wall it was standing against. A near-90-degree
-            // spot on the panel normal is the cheapest honest shape for a one-sided emitter:
-            // everything forward stays lit, everything behind the plane of the panel goes dark
-            // by construction rather than by hoping a shadow slot was free.
             isSpot: true,
             targetPos: new THREE.Vector3(lampX + outX * 4.0, LAMP_Y, lampZ + outZ * 4.0),
-            // Three clamps the half-angle at PI/2. Sitting just under it keeps the cone edge off
-            // the hard clamp, and full penumbra dissolves the ellipse the apex would otherwise
-            // stamp on the floor.
             spotAngle: Math.PI / 2.15,
             spotPenumbra: 1.0,
             flickerOffset: random() * 500,
             material: env.vendingPanelMat,
-            // `vendingPanelMat` is one shared material across every machine in the world, and
-            // LumenGrid writes `material.emissiveIntensity` per fixture per frame. Whichever
-            // machine is evaluated last drives the glow on all of them. A steady fixture makes
-            // that coupling invisible; flag one machine faulty and the whole atrium blinks in
-            // unison. Per-machine flicker needs a cloned material first.
             isFaulty: false,
             emissiveIntensity: VENDING_GLOW,
             distance: VENDING_REACH,
@@ -361,7 +314,6 @@ export const AtriumSector = (env, ctx) => {
             } else if (random() > 0.90) {
                 buildVendingMachine(x * env.cellSize, z * env.cellSize);
             } else {
-                // Aisle floor, and specifically not a cell that just took a vending machine.
                 placeSectorPaper(env, ctx, "ATRIUM", x * env.cellSize, z * env.cellSize);
             }
         }

@@ -69,10 +69,6 @@ export default class PlayerController {
         this.isGodMode = false;
         this.baseFov = camera.fov;
         this.linguisticDarkMatter = 0.0;
-        // Tension carried specifically by unverified reading. Ordinary paranoia bleeds off in a lit
-        // room; this does not. A claim you have read once and confirmed nowhere sits on the battery
-        // ceiling until a second source settles it. Capped below the global 50 so ambient paranoia
-        // still has headroom to stack on top.
         this.narrativeTension = 0.0;
         this.MAX_NARRATIVE_TENSION = 40.0;
         this.currentFov = camera.fov;
@@ -131,14 +127,7 @@ export default class PlayerController {
     }
 
     _bindMetabolicListeners() {
-        // Reading is now a transaction rather than a flat sanity tax. Taking on a claim you cannot
-        // verify raises narrative tension, which pins the flashlight ceiling down until a second
-        // independent source settles it. The coherence sting stays small on purpose: passive
-        // recovery repays it in about a second, so it reads as a flinch, not as the price.
         document.addEventListener('somatic-document-read', (e) => {
-            // Ephemera runs the transaction backwards. It asserts nothing, so there is nothing to
-            // carry and nothing to verify, and reading something written by a person rather than
-            // by the facility is the only thing in the wing that settles you.
             if (e.detail && e.detail.ephemera) {
                 this.coherence = Math.min(1.0, this.coherence + 0.06);
                 return;

@@ -293,8 +293,6 @@ export const BoardroomSector = (env, ctx) => {
                 }
                 confTable.position.set(bx, 0, bz);
                 addFurniture(confTable);
-                // Onto the table top rather than the floor. The spread is deliberately narrower
-                // than the short axis of the smaller table orientation so nothing overhangs an edge.
                 placeSectorPaper(env, ctx, "BOARDROOM", bx, bz, 0.925, 1.0);
                 const sideOff = 1.15;
                 for (let sc = -1; sc <= 1; sc += 2) {
