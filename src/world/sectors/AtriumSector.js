@@ -84,8 +84,52 @@ export const AtriumSector = (env, ctx) => {
         return zR && !xR ? true : (xR && !zR ? false : ((lx + lz) % 2 === 0));
     };
     const AISLE_DETAIL_TOP_Y = 2.92;
-    const AISLE_HEIGHT = 14.0;
-    const AISLE_BAND_STEP = 3.2;
+    // Was 14.0 in 3.2m bands of flat `shelfMat`. The aisles now stop being shelving at
+    // `AISLE_DETAIL_TOP_Y` and continue as a texture-stretch artifact to the same height the
+    // sector's own structure reaches, so the smear terminates where the atrium does rather than
+    // at an arbitrary ceiling nothing else in the room shares.
+    const SMEAR_TOP_Y = STRUCTURE_TOP_Y;
+    // Metres of column the smear canvas covers before `ClampToEdgeWrapping` takes over and the
+    // top row repeats to the end. Short on purpose: the shelf edge should be gone almost the
+    // instant it leaves the last real shelf, because a renderer that runs out of texture does
+    // not ease into it.
+    const SMEAR_SOURCE_SPAN = 1.15;
+    // Vertex-coloured falloff needs rows to interpolate between. 24 gives a smooth curve up
+    // 50-odd metres at 100 extra triangles per column, which instancing then pays for once.
+    const SMEAR_SEGMENTS = 24;
+    /**
+     * The column the smear is drawn on. Cached per orientation, so every aisle in the sector
+     * shares two geometries and `_compileInstances` can batch them.
+     *
+     * Two things are rewritten off the stock box. `uv.y` is re-derived from each vertex's own
+     * height as `rise / SMEAR_SOURCE_SPAN` rather than left as the 0..1 the box ships with --
+     * that is what pushes v past 1 almost immediately and hands the rest of the column to
+     * `ClampToEdgeWrapping`. And vertex colours carry a falloff to black with height, because
+     * clamping means the texture cannot supply a vertical gradient by definition: every row
+     * above the canvas is the same row. Without it the smear arrives at 50 metres as bright as
+     * it left the shelf and reads as a solid painted mast.
+     *
+     * The exponent is above 1 so the column loses most of its value in its first third and then
+     * trails, which is what makes it read as receding rather than as merely ending.
+     */
+    const smearGeo = (alongZ, runSpan) => env._cacheGeo(`atriumSmear_${alongZ ? 'z' : 'x'}`, () => {
+        const h = SMEAR_TOP_Y - AISLE_DETAIL_TOP_Y;
+        const g = new THREE.BoxGeometry(
+            alongZ ? 0.92 : runSpan, h, alongZ ? runSpan : 0.92, 1, SMEAR_SEGMENTS, 1);
+        const pos = g.attributes.position;
+        const uv = g.attributes.uv;
+        const col = new Float32Array(pos.count * 3);
+        for (let i = 0; i < pos.count; i++) {
+            const rise = pos.getY(i) + h / 2;
+            uv.setY(i, rise / SMEAR_SOURCE_SPAN);
+            const fade = Math.pow(Math.max(0, 1 - rise / h), 1.7);
+            col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = fade;
+        }
+        uv.needsUpdate = true;
+        g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+        return g;
+    });
+
     const buildAisleWallSegment = (maze, localX, localZ, acx, acz) => {
         const alongZ = aisleRunOrientation(maze, localX, localZ);
         const runSpan = env.cellSize;
@@ -137,14 +181,15 @@ export const AtriumSector = (env, ctx) => {
             const cap = buildWall(alongZ ? 0.96 : runSpan, alongZ ? runSpan : 0.96, frameMat, 0.06);
             cap.position.set(sx, AISLE_DETAIL_TOP_Y, sz);
             addGeometry(cap);
-            let bandY = AISLE_DETAIL_TOP_Y;
-            while (bandY < AISLE_HEIGHT) {
-                const segH = Math.min(AISLE_BAND_STEP, AISLE_HEIGHT - bandY);
-                const band = buildWall(alongZ ? 0.9 : runSpan, alongZ ? runSpan : 0.9, frameMat, segH);
-                band.position.set(sx, bandY + segH / 2, sz);
-                addGeometry(band);
-                bandY += segH;
-            }
+            const smear = new THREE.Mesh(smearGeo(alongZ, runSpan), env.atriumSmearMat);
+            smear.position.set(sx, AISLE_DETAIL_TOP_Y + (SMEAR_TOP_Y - AISLE_DETAIL_TOP_Y) / 2, sz);
+            // Staged, not `addGeometry`d. The artifact is not a thing in the room and must not
+            // own a collider; the `spine` below already blocks the aisle at head height, and
+            // handing the spatial grid a 50-metre box to represent a rendering error is exactly
+            // the kind of thing that later reads as a physics bug with no visible cause.
+            smear.userData.chunkHash = hash;
+            smear.updateMatrixWorld(true);
+            ctx.stagingMeshes.push(smear);
         }
     };
     const buildVendingMachine = (cx, cz) => {

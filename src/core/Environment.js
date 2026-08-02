@@ -98,8 +98,13 @@ export default class Environment {
             map: carpetTexture,
             roughness: 1.0,
             bumpMap: carpetTexture,
-            bumpScale: 0.015,
-            shadowSide: THREE.DoubleSide
+            bumpScale: 0.015
+            // No shadowSide override -- see _buildClinicWall. DoubleSide would write this
+            // floor's own front face into the shadow map, and the floor receives shadows, so
+            // it tested against itself and broke into horizontal acne. Three's default picks
+            // BackSide for a FrontSide material precisely to prevent that. The floor is no
+            // longer a caster either, but leaving the override here would re-arm the bug the
+            // moment anything turned casting back on.
         });
         this.ceilMat = new THREE.MeshStandardMaterial({
             map: ceilingTexture,
@@ -127,11 +132,30 @@ export default class Environment {
             this.ventMat.roughness = 0.3;
         }
         if (this.metalMat) {
+            // Third instance of the same mistake, after `rustMat` on the pipes and again in
+            // MaterialLibrary: `structMat.map` is the structural *concrete* texture, dark
+            // horizontal banding and all, and it was being assigned here as both the diffuse
+            // map and the bump. Not just relief -- the actual colour and pattern of a poured
+            // wall was painted onto every surface on this material.
+            //
+            // It shows worst on the Archive shelf spines, which are flat 4m by 3m panels
+            // standing at eye level, each taking exactly one tile of that texture and reading
+            // as a concrete wall behind the books. Boardroom mullions, Chasm pillars,
+            // Incinerator ducts, Atrium shelf frames and the Checkpoint cages are all on this
+            // material too and were all wearing the same thing, just less legibly.
+            //
+            // `map` goes to null rather than to another texture. This is painted steel shelving
+            // and sheet duct -- flat stock has no diffuse pattern, and inventing one would only
+            // repeat the original error with a different picture. The surface interest comes
+            // from `corrosionBumpTexture`, which is undirected pitting and scale, at the same
+            // 0.012 the rust material settled on.
             this.metalMat.metalness = 0.6;
             this.metalMat.roughness = 0.5;
-            this.metalMat.map = this.structMat.map;
-            this.metalMat.bumpMap = this.structMat.map;
-            this.metalMat.bumpScale = 0.03;
+            this.metalMat.map = null;
+            this.metalMat.bumpMap = this.corrosionBumpTexture || null;
+            this.metalMat.bumpScale = 0.012;
+            // Adding or removing a map changes the shader program, not just a uniform.
+            this.metalMat.needsUpdate = true;
         }
         const particleCanvas = document.createElement('canvas');
         particleCanvas.width = 64;
@@ -848,7 +872,16 @@ export default class Environment {
                 const centerOffset = (this.chunkSize * this.cellSize) / 2 - (this.cellSize / 2);
                 foundation.position.set(startX * this.cellSize + centerOffset, 0.02, startZ * this.cellSize + centerOffset);
                 foundation.receiveShadow = true;
-                foundation.castShadow = true;
+                // Never a caster. This is a single-sided plane sitting 2cm above the base
+                // floor with nothing underneath it, so anything it wrote into a shadow map
+                // would land on geometry no one can see. What it did instead was write its
+                // own upward face at the depth it then tested against, and the surface
+                // self-shadowed into horizontal acne bands that crawled as LumenGrid
+                // requantised the map -- swapping `shadow.camera.far` between 20 and 150 and
+                // lerping `light.distance` every frame, which is why walking toward a fixture
+                // made them move. Matches the ceiling plane below, which has always been
+                // `castShadow = false` for the same reason.
+                foundation.castShadow = false;
                 chunkGroup.add(foundation);
             }
             if (activeSector.ceilingMat) {
@@ -872,7 +905,9 @@ export default class Environment {
             floor.rotation.x = -Math.PI / 2;
             floor.position.set(startX * this.cellSize + centerOffset, 0, startZ * this.cellSize + centerOffset);
             floor.receiveShadow = true;
-            floor.castShadow = true;
+            // See the sector foundation above: a ground plane has nothing beneath it to cast
+            // onto, and casting only bought it self-shadow acne.
+            floor.castShadow = false;
             chunkGroup.add(floor);
         }
         if (!usesVoidCeiling) {
@@ -1029,6 +1064,16 @@ export default class Environment {
                     const structRoll = random();
                     const structure = structuralMatrix.find(s => structRoll >= s.prob);
                     if (structure) structure.build(x, z);
+                    // Every wall cell rolls here, which is the only place that is true.
+                    //
+                    // This started inside two of the structural blueprints, and the matrix is
+                    // searched with `find(s => structRoll >= s.prob)` over a descending list --
+                    // so a blueprint declaring `prob: 0.40` only receives rolls between 0.40 and
+                    // the next entry above it, which is 8% of wall cells, not 40%. The two
+                    // variants that carried the call covered under 9% between them and each only
+                    // reached it down one sub-branch, so mould was landing on roughly one wall
+                    // in sixty and was effectively impossible to find.
+                    this._placeWallMold(x, z, random, ctx.addGeometry);
                 } else {
                     let hasTallObstacle = false;
                     const floorRoll = random();
@@ -1827,7 +1872,7 @@ export default class Environment {
                 compileStartTime = performance.now();
             }
             const group = groups[i];
-            const isDecal = !Array.isArray(group.material) && (group.material === this.moldMat || group.material === this.ceilingStainMat || group.material === this.glowMat);
+            const isDecal = !Array.isArray(group.material) && (group.material === this.moldMat || group.material === this.ceilingStainMat || group.material === this.glowMat || group.material === this.moldCreepMat);
             if (group.meshes.length > 1 && !Array.isArray(group.material)) {
                 const iMesh = new THREE.InstancedMesh(group.geometry, group.material, group.meshes.length);
                 if (!isDecal) {
@@ -1890,6 +1935,115 @@ export default class Environment {
                 }
                 this.engine.renderer.compile(this.scene, this.camera);
             }
+        }
+    }
+
+    /**
+     * Rolls a wall cell for a patch of rising damp and, if it wins, hangs one decal on a single
+     * randomly chosen face.
+     *
+     * The damp used to be painted into the wallpaper tile, which repeats four times per wall
+     * segment and on every segment in the game -- so the tide line appeared at a fixed period
+     * forever and read as pattern rather than as decay. Nothing about the stain itself was
+     * wrong; a tiling texture is simply the wrong container for a feature that is supposed to be
+     * occasional.
+     *
+     * One face, not four. Three of the four would usually be buried against neighbouring wall
+     * cells anyway, and picking a single face means a cell that rolled damp still has clean
+     * sides -- the gaps are as much of the read as the patches.
+     *
+     * Faces buried against an adjacent wall simply never get seen. That is the deliberate
+     * trade: the alternative is threading neighbour occupancy down into this call, and a decal
+     * that is invisible costs one quad inside an instanced batch.
+     *
+     * @param {number} x - Cell X in world grid coordinates.
+     * @param {number} z - Cell Z in world grid coordinates.
+     * @param {Function} random - The chunk's seeded PRNG.
+     * @param {Function} addGeometry - The chunk ctx's geometry sink.
+     */
+    _placeWallMold(x, z, random, addGeometry) {
+        if (!this.moldCreepMat || !this.moldCreepGeo) return;
+        if (random() > 0.28) return;
+        // Clear of the wall's own skin. `sharedWallGeo` is built at cellSize + 0.02, so the face
+        // sits a hair proud of the nominal cell edge.
+        const out = (this.cellSize / 2) + 0.03;
+        const cx = x * this.cellSize;
+        const cz = z * this.cellSize;
+        if (!this._moldProbe) this._moldProbe = new THREE.Vector3();
+        const probe = this._moldProbe;
+        // The junction the mould grows out of.
+        //
+        // The wall texture is 512 rows over a 3.02 unit wall. The skirting fills rows 480-512
+        // and a dark trim line sits at 476-480, so the board's top edge lands here. That line is
+        // the target: the decal's *bottom* edge sits on it and the colony grows up into paper.
+        const BOARD_TOP = 3.02 * (512 - 480) / 512;
+
+        /**
+         * Is there solid material immediately behind this point? Measured against the spatial
+         * grid, which `addGeometry` has already populated for this cell by the time we run.
+         *
+         * Invisible blockers are rejected deliberately. They are collision volumes with no
+         * surface -- a decal hung on one is a stain floating in a doorway.
+         */
+        const solidBehind = (px, pz) => {
+            probe.set(px, BOARD_TOP + 0.15, pz);
+            const boxes = this.spatialGrid.getNearby(px, pz, 0.6);
+            for (let i = 0; i < boxes.length; i++) {
+                const b = boxes[i];
+                if (b.isInvisibleBlocker) continue;
+                if (b.containsPoint && b.containsPoint(probe)) return true;
+            }
+            return false;
+        };
+
+        // Faces are tried in a shuffled order and the first one with something behind it wins.
+        //
+        // Picking a face blind put 35% of all mould in mid-air. `isWall` only means the maze
+        // wanted a wall here -- the structural blueprint that then built the cell is free to
+        // hollow it into an archway, a tunnel mouth or a collapsed span, and a third of them do.
+        // Nothing about the cell's own flags records that, so the only honest test is to ask the
+        // collision geometry whether a surface actually exists where the decal would hang.
+        const order = [0, 1, 2, 3];
+        for (let i = 3; i > 0; i--) {
+            const j = Math.floor(random() * (i + 1));
+            const t = order[i];
+            order[i] = order[j];
+            order[j] = t;
+        }
+        let face = -1;
+        for (const f of order) {
+            const r = f * (Math.PI / 2);
+            if (solidBehind(cx + Math.sin(r) * (out - 0.25), cz + Math.cos(r) * (out - 0.25))) {
+                face = f;
+                break;
+            }
+        }
+        if (face < 0) return;
+        const rotY = face * (Math.PI / 2);
+        const geoH = this.moldCreepGeo.parameters.height;
+        const count = 1 + (random() > 0.62 ? 1 : 0);
+        for (let i = 0; i < count; i++) {
+            const slide = (random() - 0.5) * 2.4;
+            const flip = random() > 0.5 ? 1 : -1;
+            const sx = 0.7 + random() * 0.55;
+            const sy = 0.7 + random() * 0.5;
+            const px = cx + Math.sin(rotY) * out + Math.cos(rotY) * slide;
+            const pz = cz + Math.cos(rotY) * out - Math.sin(rotY) * slide;
+            // The face passed at its centre, but `slide` can carry a patch 1.2 units along it and
+            // off the end of whatever was actually there. Probed again at the position it will
+            // occupy rather than the one it was chosen by.
+            if (!solidBehind(px - Math.sin(rotY) * 0.25, pz - Math.cos(rotY) * 0.25)) continue;
+            const mold = new THREE.Mesh(this.moldCreepGeo, this.moldCreepMat);
+            // The vertical scale is rolled per patch, so the centre has to be derived from this
+            // instance's own height. A fixed `position.y` with a varying height puts the bottom
+            // edge somewhere different every time -- which is how the previous version ended up
+            // seated on the face of the board instead of on top of it.
+            mold.position.set(px, BOARD_TOP + (geoH * sy) / 2, pz);
+            mold.rotation.y = rotY;
+            // Mirroring costs nothing and doubles the number of distinct silhouettes, which
+            // matters more than scale variation for whether two patches read as one asset.
+            mold.scale.set(flip * sx, sy, 1);
+            addGeometry(mold);
         }
     }
 

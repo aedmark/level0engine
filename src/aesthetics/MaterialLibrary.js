@@ -20,8 +20,12 @@ export default class MaterialLibrary {
             color: 0xffffff,
             roughness: 0.75,
             metalness: 0.05,
-            bumpMap: env.wallTexture,
-            bumpScale: 0.010
+            // Was `wallTexture` -- its own colour map -- which embossed every damp stain into
+            // relief. Discolouration is not topography; wet paper is if anything flatter than
+            // dry. The dedicated canvas carries only what is physically there: the printed
+            // stripe, the skirting board, and the blistering where the adhesive let go.
+            bumpMap: env.wallBumpTexture || env.wallTexture,
+            bumpScale: 0.012
         });
         env.sharedPanelGeo = new THREE.BoxGeometry(0.98, 0.05, 1.98);
         env.pipeGeo = new THREE.CylinderGeometry(0.08, 0.08, env.cellSize, 8);

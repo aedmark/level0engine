@@ -46,6 +46,18 @@ export const DEFAULT_EXHAUST = {
     pulseDepth: 0.02
 };
 /**
+ * Baseline room acoustics for any sector that does not name its own `reverb`.
+ *
+ * Same wholesale-override convention as the blocks above: a sector supplies a complete reverb
+ * block or inherits this one. A plain drywall corridor with something soft on the floor.
+ */
+export const DEFAULT_REVERB = {
+    rt60: 0.8,
+    predelay: 0.012,
+    wet: 0.14
+};
+
+/**
  * Fill light for any sector that does not name its own `ambient`.
  *
  * Deliberately low. The engine used to sit at 0.80 here, which lit every room evenly from
@@ -53,7 +65,7 @@ export const DEFAULT_EXHAUST = {
  * pools of light under working fixtures barely registered. Keeping this dim is what makes
  * a lit panel feel like it is doing the work.
  */
-export const DEFAULT_AMBIENT = 0.55;
+export const DEFAULT_AMBIENT = 0.65;
 
 /**
  * Floor for the ambient term. Never fully black, so an unlit room still resolves as a room
@@ -106,7 +118,18 @@ export const MIN_AMBIENT = 0.005;
  * @property {number} pulseRate - Angular frequency of the size pulse.
  * @property {number} pulseDepth - Amplitude of the size pulse.
  *
- * @typedef {Object} SectorConfig
+ * @typedef {Object} ReverbConfig
+ * @property {number} rt60 - Reverberation time in seconds: how long the tail takes to fall
+ *   60dB. The standard measure of how long a room rings, so these can be authored against
+ *   real acoustic intuition rather than tuned blind. A padded cell is around 0.35, a domestic
+ *   room 0.5, a concrete stairwell 2, a cathedral 4 and up.
+ * @property {number} predelay - Seconds of silence before the tail begins, standing in for the
+ *   travel time out to the first wall and back. The ear reads this as distance to the nearest
+ *   surface, which makes it a stronger size cue than `rt60` on its own -- a small room with a
+ *   long tail sounds like a cupboard full of springs, not like a hall.
+ * @property {number} wet - Convolver return level. Since the impulse responses are
+ *   equal-power normalised, this is comparable across sectors: 0.30 in one room is about as
+ *   present as 0.30 in another regardless of their tail lengths.
  * @property {number} [fog] - Fog density for WebGL shader volumetric rendering.
  * @property {number} [fogColor] - Hex color code for the fog rendering.
  * @property {number} [ambient] - Hemisphere-light intensity for this sector. This is fill
@@ -117,14 +140,7 @@ export const MIN_AMBIENT = 0.005;
  * @property {ExhaustConfig} [exhaust] - Overrides the exhaust cloud for this sector.
  * @property {AmbienceConfig} [ambience] - Parameters for the procedural drone synthesizer.
  * @property {FoleyConfig} [foley] - Overrides the procedural footstep synthesis for this sector.
- * @property {number} [delay] - Spatial delay time, in seconds. This is the spacing between
- *   repeats, so it reads as room size: short values blur into a tail, long ones separate into
- *   discrete slaps. Note that the send is post-master, so this shapes every voice in the
- *   graph and not just the drone bed.
- * @property {number} [feedback] - Delay feedback, 0..1. How many repeats survive. Steady-state
- *   gain through the loop is `1 / (1 - feedback)`, so 0.7 triples whatever enters it.
- * @property {number} [wet] - Send level into the delay, defaulting to 0.12. `delay` and
- *   `feedback` describe the shape of the room; this decides how much of it you hear.
+ * @property {ReverbConfig} [reverb] - Overrides the convolution room for this sector.
  *
  * @type {Object.<string, SectorConfig>}
  */
@@ -142,11 +158,12 @@ const SECTORS = {
             whineOcc: 0.0001,
             dynamicWhine: true
         },
-        delay: 0.15, feedback: 0.2
+        foley: {oscFreq: 85, filterType: 'lowpass', filterFreq: 1200, gain: 0.09, attack: 0.02, decay: 0.11},
+        reverb: {rt60: 0.8, predelay: 0.010, wet: 0.14}
     },
     ARCHIVE: {
-        fog: 0.06, fogColor: 0x101010,
-        ambient: 0.28,
+        fog: 0.07, fogColor: 0x000000,
+        ambient: 0.58,
         ambience: {
             noise: 0.06,
             peace: 0.0,
@@ -164,7 +181,7 @@ const SECTORS = {
             baseSize: 0.07, crawlSize: 0.09,
             color: 0xffffff
         },
-        delay: 0.35, feedback: 0.45
+        reverb: {rt60: 1.1, predelay: 0.014, wet: 0.16}
     },
     IMPOUND: {
         fog: 0.12, fogColor: 0x1A1313,
@@ -186,7 +203,7 @@ const SECTORS = {
             baseSize: 0.18, crawlSize: 0.22,
             color: 0xffffff
         },
-        delay: 0.45, feedback: 0.35
+        reverb: {rt60: 1.9, predelay: 0.040, wet: 0.22}
     },
     BOARDROOM: {
         fog: 0.02, fogColor: 0xa0bbd6,
@@ -202,7 +219,7 @@ const SECTORS = {
             dynamicWhine: false
         },
         foley: {oscFreq: 120, filterType: 'lowpass', filterFreq: 1400, gain: 0.18, attack: 0.02, decay: 0.12},
-        delay: 0.25, feedback: 0.35
+        reverb: {rt60: 0.7, predelay: 0.011, wet: 0.12}
     },
     SERVER: {
         fog: 0.01, fogColor: 0x380159,
@@ -229,7 +246,7 @@ const SECTORS = {
             spinY: -0.07, spinX: 0.04,
             baseSize: 0.08, pulseRate: 12.0, pulseDepth: 0.02
         },
-        delay: 0.06, feedback: 0.08
+        reverb: {rt60: 0.55, predelay: 0.007, wet: 0.10}
     },
     CLINIC: {
         fog: 0.02, fogColor: 0x031233,
@@ -244,7 +261,8 @@ const SECTORS = {
             whineOcc: 0.003,
             dynamicWhine: false
         },
-        foley: {oscFreq: 800, filterType: 'highpass', filterFreq: 3000, gain: 0.15, attack: 0.01, decay: 0.06}
+        foley: {oscFreq: 800, filterType: 'highpass', filterFreq: 3000, gain: 0.15, attack: 0.01, decay: 0.06},
+        reverb: {rt60: 1.0, predelay: 0.009, wet: 0.18}
     },
 
     MAINTENANCE: {
@@ -261,7 +279,7 @@ const SECTORS = {
             dynamicWhine: true
         },
         foley: {oscFreq: 400, filterType: 'bandpass', filterFreq: 2500, gain: 0.12, attack: 0.01, decay: 0.15},
-        delay: 0.05, feedback: 0.1
+        reverb: {rt60: 0.6, predelay: 0.006, wet: 0.10}
     },
     INCINERATOR: {
         fog: 0.20, fogColor: 0xD15900,
@@ -281,7 +299,8 @@ const SECTORS = {
             spinY: -0.18, spinX: 0.12,
             baseSize: 0.18, pulseRate: 24.0, pulseDepth: 0.05
         },
-        delay: 0.02, feedback: 0.15
+        foley: {oscFreq: 1400, filterType: 'bandpass', filterFreq: 3200, gain: 0.22, attack: 0.004, decay: 0.19},
+        reverb: {rt60: 1.3, predelay: 0.012, wet: 0.18}
     },
     CHASM: {
         fog: 0.20, fogColor: 0x031B3B,
@@ -303,11 +322,11 @@ const SECTORS = {
             baseSize: 0.35, crawlSize: 0.45,
             color: 0x2288ff
         },
-        delay: 0.8, feedback: 0.7
+        reverb: {rt60: 4.5, predelay: 0.085, wet: 0.38}
     },
     ATRIUM: {
-        fog: 0.09, fogColor: 0x010101,
-        ambient: 0.1,
+        fog: 0.20, fogColor: 0x000000,
+        ambient: 0.10,
         ambience: {
             noise: 0.13,
             peace: 0.0,
@@ -318,14 +337,14 @@ const SECTORS = {
             whineOcc: 0.0,
             dynamicWhine: false
         },
-        foley: {oscFreq: 70, filterType: 'lowpass', filterFreq: 700, gain: 0.09, attack: 0.04, decay: 0.22},
+        foley: {oscFreq: 900, filterType: 'bandpass', filterFreq: 2400, gain: 0.13, attack: 0.006, decay: 0.07},
         dust: {
             drift: 'vertical', driftY: -0.006, turbulence: 0.45,
             baseOpacity: 0.22, crawlOpacity: 0.34,
             baseSize: 0.16, crawlSize: 0.20,
             color: 0x8fa4b0
         },
-        delay: 0.24, feedback: 0.58, wet: 0.20
+        reverb: {rt60: 3.0, predelay: 0.045, wet: 0.30}
     },
     ANNEX: {
         fog: 0.03,
@@ -347,12 +366,16 @@ const SECTORS = {
             baseSize: 0.45, crawlSize: 0.50,
             color: 0xe8ddc5
         },
-        delay: 0.1, feedback: 0.12
+        reverb: {rt60: 0.35, predelay: 0.005, wet: 0.08}
     },
-    EXIT: {fog: 0.05, ambient: 0.18},
+    EXIT: {
+        fog: 0.05, ambient: 0.18,
+        foley: {oscFreq: 700, filterType: 'bandpass', filterFreq: 2700, gain: 0.14, attack: 0.008, decay: 0.075},
+        reverb: {rt60: 0.9, predelay: 0.012, wet: 0.14}
+    },
     CHECKPOINT: {
-        fog: 0.07, fogColor: 0x4E3E5E,
-        ambient: 0.15,
+        fog: 0.05,
+        ambient: 0.65,
         ambience: {
             noise: 0.2,
             peace: 0.0,
@@ -363,7 +386,8 @@ const SECTORS = {
             whineOcc: 0.01,
             dynamicWhine: true
         },
-        foley: {oscFreq: 800, filterType: 'bandpass', filterFreq: 2000, gain: 0.1, attack: 0.01, decay: 0.1}
+        foley: {oscFreq: 800, filterType: 'bandpass', filterFreq: 2000, gain: 0.1, attack: 0.01, decay: 0.1},
+        reverb: {rt60: 1.0, predelay: 0.010, wet: 0.15}
     }
 };
 export default SECTORS;

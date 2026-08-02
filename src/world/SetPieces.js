@@ -37,7 +37,7 @@ export default class SetPieces {
         const leafMat = env.annexDoorMat || env.doorMat;
         if (flankV) {
             for (let s = -1; s <= 1; s += 2) {
-                const stub = buildWall(0.25, 1.2, env.structMat);
+                const stub = buildWall(0.25, 1.2, env.checkpointWallMat || env.structMat);
                 stub.position.set(bx, 1.5, cz0 + s * 1.4);
                 stub.userData.isEntityBlocker = true;
                 addGeometry(stub);
@@ -55,7 +55,7 @@ export default class SetPieces {
             addGeometry(mark);
         } else {
             for (let s = -1; s <= 1; s += 2) {
-                const stub = buildWall(1.2, 0.25, env.structMat);
+                const stub = buildWall(1.2, 0.25, env.checkpointWallMat || env.structMat);
                 stub.position.set(cx0 + s * 1.4, 1.5, bz);
                 stub.userData.isEntityBlocker = true;
                 addGeometry(stub);

@@ -1,4 +1,4 @@
-import SECTORS from '../world/Sectors.js';
+import SECTORS, {DEFAULT_REVERB} from '../world/Sectors.js';
 
 /**
  * Nudges a single AudioParam toward `target` via `setTargetAtTime`, but only if it actually
@@ -93,18 +93,18 @@ export default class Mixer {
             setMixParam(engine, time, 'paranoiaLFO', engine.paranoiaLFO.frequency, Math.max(0.5, 4.0 - (structuralTension * 4.0)), 1.0);
             setMixParam(engine, time, 'paranoiaPitch', engine.paranoiaOsc.frequency, Math.max(300, 650 - (structuralTension * 300.0)), 1.0);
         }
-        if (engine.spatialDelay) {
+        if (engine.convolvers) {
             const room = SECTORS[activeSector];
-            const targetDelay = (room && room.delay) || 0.15;
-            const targetFeedback = (room && room.feedback) || 0.2;
-            setMixParam(engine, time, 'delayTime', engine.spatialDelay.delayTime, targetDelay, 1.0);
-            setMixParam(engine, time, 'feedback', engine.feedbackGain.gain, targetFeedback, 1.0);
+            const verb = (room && room.reverb) || DEFAULT_REVERB;
+            // `setReverbRoom` self-guards on an unchanged room, so calling it every frame costs
+            // a string compare. It builds a multi-megabyte buffer when the room does change,
+            // which is why that guard is inside it rather than trusted to every caller.
+            engine.setReverbRoom(verb.rt60, verb.predelay);
             if (engine.reverbSend) {
-                // How much of the room a sector shows. `delay` and `feedback` set the shape of
-                // the tail; this sets whether you are standing in it. Nullish coalescing rather
-                // than `||` so a sector can legitimately declare itself anechoic with `wet: 0`.
-                const targetWet = (room && room.wet !== undefined) ? room.wet : 0.12;
-                setMixParam(engine, time, 'wet', engine.reverbSend.gain, targetWet, 1.5);
+                // `rt60` and `predelay` describe the room; this decides how much of it you are
+                // standing in. Smoothed rather than stepped, so it can ride the convolver
+                // crossfade instead of jumping at the doorway.
+                setMixParam(engine, time, 'wet', engine.reverbSend.gain, verb.wet, 1.5);
             }
         }
         if (engine.idlingGain) {

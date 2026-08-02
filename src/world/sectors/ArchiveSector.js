@@ -100,6 +100,31 @@ export const ArchiveSector = (env, ctx) => {
                     }
                 }
             };
+            /**
+             * Picks a position along a shelf run for a prop of half-width `halfWidth`, clear of
+             * the book row already occupying `[rowMin, rowMax]`.
+             *
+             * Returns null when the row leaves no gap wide enough -- a shelf packed end to end
+             * with books genuinely has nowhere to put a box, and the caller stops rather than
+             * forcing one in.
+             *
+             * The side is chosen in proportion to the free width on each side. Picking a side
+             * first and a position second would put half the boxes into whatever sliver remains
+             * behind a row that has been slid hard against one end.
+             */
+            const slideClearOfRow = (rowMin, rowMax, runHalf, halfWidth) => {
+                const loLeft = -runHalf + halfWidth;
+                const hiLeft = rowMin - halfWidth;
+                const loRight = rowMax + halfWidth;
+                const hiRight = runHalf - halfWidth;
+                const spanLeft = Math.max(0, hiLeft - loLeft);
+                const spanRight = Math.max(0, hiRight - loRight);
+                const total = spanLeft + spanRight;
+                if (total <= 0) return null;
+                return random() * total < spanLeft
+                    ? loLeft + random() * spanLeft
+                    : loRight + random() * spanRight;
+            };
             if (isWall) {
                 const inMaze = (nx, nz) => nx >= 0 && nx < env.chunkSize && nz >= 0 && nz < env.chunkSize && maze[nx][nz];
                 const runOrientation = (lx, lz) => {
@@ -123,11 +148,14 @@ export const ArchiveSector = (env, ctx) => {
                     const sz = acz + (alongZ ? 0 : side * 0.7);
                     for (let e = -1; e <= 1; e += 2) {
                         if (e < 0 ? !openNeg : !openPos) continue;
-                        const upright = buildWall(alongZ ? 1.0 : 0.12, alongZ ? 0.12 : 1.0, env.metalMat, 3.0);
+                        // The whole unit is joinery: end panel, back, shelf boards, top cap. Only
+                        // the boards were on `woodMat` -- the frame around them was `metalMat`,
+                        // which is why the carcass never matched the shelves it was holding.
+                        const upright = buildWall(alongZ ? 1.0 : 0.12, alongZ ? 0.12 : 1.0, env.woodMat, 3.0);
                         upright.position.set(sx + (alongZ ? 0 : e * capOffset), 1.5, sz + (alongZ ? e * capOffset : 0));
                         addGeometry(upright);
                     }
-                    const spine = buildWall(alongZ ? 0.08 : runSpan, alongZ ? runSpan : 0.08, env.metalMat, 3.0);
+                    const spine = buildWall(alongZ ? 0.08 : runSpan, alongZ ? runSpan : 0.08, env.woodMat, 3.0);
                     spine.position.set(sx, 1.5, sz);
                     spine.userData.isEntityBlocker = true;
                     addGeometry(spine);
@@ -138,11 +166,28 @@ export const ArchiveSector = (env, ctx) => {
                         board.position.set(sx, shelfY, sz);
                         addGeometry(board);
                         for (let face = -1; face <= 1; face += 2) {
+                            // Both branches test the same draw, and the ranges overlap: any roll
+                            // in 0.22..0.4 places books and boxes on the same shelf face. That
+                            // is worth keeping -- a real archive shelf carries both -- but
+                            // nothing used to reserve space for the second one, and the box's
+                            // vertical extent (shelfY+0.04 to +0.34) sits entirely inside the
+                            // row's (+0.04 to +0.64), so any overlap along the run buried it
+                            // rather than merely crowding it. The row now records what it claims
+                            // and the boxes take what is left.
                             const roll = random();
+                            const RUN_HALF = 1.75;
+                            let rowMin = 0.0;
+                            let rowMax = 0.0;
+                            let hasRow = false;
                             if (roll > 0.22) {
                                 const row = new THREE.Mesh(env.bookRowGeo, env.bookRowMat);
                                 const wScale = 0.45 + random() * 0.55;
                                 const slide = (random() - 0.5) * 3.5 * (1 - wScale);
+                                // `bookRowGeo` is 3.5 long before `wScale`, so the row occupies
+                                // `slide` +/- 1.75 * wScale of the run.
+                                rowMin = slide - RUN_HALF * wScale;
+                                rowMax = slide + RUN_HALF * wScale;
+                                hasRow = true;
                                 row.position.set(
                                     sx + (alongZ ? face * 0.24 : slide),
                                     shelfY + 0.34,
@@ -153,10 +198,17 @@ export const ArchiveSector = (env, ctx) => {
                                 addGeometry(row);
                             }
                             if (roll < 0.4) {
+                                // Half of `fileBoxGeo`'s 0.42 width, plus margin for the
+                                // +/-0.125 rad yaw jitter applied below, which swings a corner
+                                // out past the flat half-width.
+                                const BOX_HALF = 0.26;
                                 const boxCount = 1 + Math.floor(random() * 2);
                                 for (let bi = 0; bi < boxCount; bi++) {
+                                    const bSlide = hasRow
+                                        ? slideClearOfRow(rowMin, rowMax, RUN_HALF, BOX_HALF)
+                                        : (random() - 0.5) * 3.0;
+                                    if (bSlide === null) break;
                                     const fb = new THREE.Mesh(env.fileBoxGeo, env.fileBoxMat);
-                                    const bSlide = (random() - 0.5) * 3.0;
                                     fb.position.set(
                                         sx + (alongZ ? face * 0.26 : bSlide),
                                         shelfY + 0.19,
@@ -168,7 +220,7 @@ export const ArchiveSector = (env, ctx) => {
                             }
                         }
                     }
-                    const cap = buildWall(alongZ ? 0.96 : runSpan, alongZ ? runSpan : 0.96, env.metalMat, 0.06);
+                    const cap = buildWall(alongZ ? 0.96 : runSpan, alongZ ? runSpan : 0.96, env.woodMat, 0.06);
                     cap.position.set(sx, 2.92, sz);
                     addGeometry(cap);
                 }

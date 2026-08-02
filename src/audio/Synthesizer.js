@@ -5,6 +5,54 @@
  */
 export default class Synthesizer {
     /**
+     * Synthesises a room impulse response: decorrelated stereo noise under an exponential
+     * decay envelope, generated rather than loaded, in keeping with the rest of this engine.
+     *
+     * The envelope is `0.001 ^ t` over the normalised tail, which reaches exactly -60dB at
+     * `t = 1`. That makes `decay` literally RT60 in seconds -- the standard measure of how
+     * long a room rings -- rather than an arbitrary tuning scalar, so the sector table can be
+     * authored against real acoustic intuition (a padded cell is 0.4s, a cathedral is 4s).
+     *
+     * Left and right are filled from independent noise so the tail is decorrelated, which is
+     * what makes a reverb sound wide instead of like a mono wash pasted across the middle.
+     *
+     * The pre-delay is silence before the tail begins: the gap between a sound and its first
+     * reflection off a wall, which the ear reads as distance to that wall. It is the cheapest
+     * available cue for room size and is worth more than the decay time for that purpose.
+     *
+     * Deliberately absent: discrete early reflections. A smooth noise tail is a diffuse field
+     * with no geometry in it, which suits featureless concrete better than it would a room
+     * full of hard parallel surfaces. Adding a handful of sparse taps before the tail is the
+     * obvious next refinement if any sector needs to sound like a specific shape.
+     *
+     * @param {AudioContext} ctx - The audio context, for sample rate and buffer allocation.
+     * @param {number} decay - RT60 in seconds. Time for the tail to fall 60dB.
+     * @param {number} predelay - Seconds of silence before the tail starts.
+     * @returns {AudioBuffer} A two-channel impulse response.
+     */
+    static buildImpulseResponse(ctx, decay, predelay) {
+        const rate = ctx.sampleRate;
+        const preSamples = Math.max(0, Math.floor(predelay * rate));
+        const tailSamples = Math.max(1, Math.ceil(decay * rate));
+        const buffer = ctx.createBuffer(2, preSamples + tailSamples, rate);
+        // The envelope is stepped by repeated multiplication rather than a `Math.pow` per
+        // sample. The CHASM's 4.5s response is roughly 216,000 samples per channel, and this
+        // runs synchronously the first time the player crosses into a room -- 432,000 `pow`
+        // calls is a visible frame hitch, one multiply each is not. Drift across that many
+        // float64 multiplies is around 1e-11, which is inaudible by a wide margin.
+        const step = Math.pow(0.001, 1 / tailSamples);
+        for (let channel = 0; channel < 2; channel++) {
+            const data = buffer.getChannelData(channel);
+            let envelope = 1.0;
+            for (let i = 0; i < tailSamples; i++) {
+                data[preSamples + i] = (Math.random() * 2 - 1) * envelope;
+                envelope *= step;
+            }
+        }
+        return buffer;
+    }
+
+    /**
      * Injects, connects, and starts all persistent Web Audio graph nodes into the engine.
      * @param {AcousticEngine} engine - The main acoustic engine instance to populate.
      */
@@ -148,23 +196,35 @@ export default class Synthesizer {
         // together, since `masterGain` is upstream of the send.
         //
         // The wet return goes to `ctx.destination` rather than back through `masterGain`. That
-        // return path would be legal -- WebAudio permits a cycle that contains a DelayNode --
-        // but it would stack a second feedback loop on top of `feedbackGain`, and the combined
-        // loop gain would then depend on the master volume setting.
-        engine.spatialDelay = ctx.createDelay(2.0);
-        engine.spatialDelay.delayTime.value = 0.1;
-        engine.feedbackGain = ctx.createGain();
-        engine.feedbackGain.gain.value = 0.2;
-        // Send level, driven per-sector by `Mixer` from `SECTORS[x].wet`. Deliberately low: a
-        // feedback delay has a steady-state gain of `1 / (1 - feedback)`, so the CHASM's 0.7
-        // multiplies whatever arrives here by 3.3 before it reaches the output.
+        // return path would be legal, but it would put the reverb inside the master volume
+        // control's own signal path and make the wet/dry balance depend on the slider position.
+        //
+        // Two convolvers, not one. A ConvolverNode's `buffer` cannot be swapped while it is
+        // running without a discontinuity, and sectors change under the player's feet. So each
+        // room change loads its impulse response into whichever unit is currently silent and
+        // crossfades between the pair, which also lets the outgoing room's tail ring out
+        // underneath the incoming one instead of being cut off at the doorway.
         engine.reverbSend = ctx.createGain();
         engine.reverbSend.gain.value = 0.12;
         engine.masterGain.connect(engine.reverbSend);
-        engine.reverbSend.connect(engine.spatialDelay);
-        engine.spatialDelay.connect(engine.feedbackGain);
-        engine.feedbackGain.connect(engine.spatialDelay);
-        engine.spatialDelay.connect(ctx.destination);
+        engine.convolvers = [];
+        for (let i = 0; i < 2; i++) {
+            const conv = ctx.createConvolver();
+            // Equal-power normalisation, on. Without it a 4.5s impulse carries roughly ten
+            // times the energy of a 0.45s one and the CHASM would be an order of magnitude
+            // louder than the ANNEX at an identical send level.
+            conv.normalize = true;
+            const wet = ctx.createGain();
+            wet.gain.value = 0.0;
+            engine.reverbSend.connect(conv);
+            conv.connect(wet);
+            wet.connect(ctx.destination);
+            engine.convolvers.push({conv, wet});
+        }
+        // A convolver with no buffer assigned outputs silence, so the graph is safe until the
+        // first sector resolves and `setReverbRoom` populates slot 0.
+        engine._reverbSlot = 0;
+        engine._irCache = new Map();
         engine.mainGain.connect(engine.masterGain);
         engine.chasmGroanGain = ctx.createGain();
         engine.chasmGroanGain.gain.value = 0.0;

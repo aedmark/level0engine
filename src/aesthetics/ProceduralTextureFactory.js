@@ -113,26 +113,9 @@ export default class ProceduralTextureFactory {
     }
 
     static _buildStructuralAssets(masterNoise) {
-        const {canvas: wallCanvas, ctx: wallCtx} = this._createContext(512, 512);
-        wallCtx.fillStyle = '#d4c382';
-        wallCtx.fillRect(0, 0, 512, 512);
-        wallCtx.lineWidth = 4;
-        for (let i = 0; i < 512; i += 16) {
-            wallCtx.strokeStyle = (i % 32 === 0) ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)';
-            wallCtx.beginPath();
-            wallCtx.moveTo(i, 0);
-            wallCtx.lineTo(i, 512);
-            wallCtx.stroke();
-        }
-        wallCtx.globalAlpha = 0.5;
-        wallCtx.drawImage(masterNoise, 0, 0);
-        wallCtx.globalAlpha = 1.0;
-        for (let i = 0; i < 150; i++) {
-            wallCtx.fillStyle = `rgba(80, 70, 40, ${Math.random() * 0.04})`;
-            wallCtx.beginPath();
-            wallCtx.arc(Math.random() * 512, 450 + Math.random() * 62, Math.random() * 50, 0, Math.PI * 2);
-            wallCtx.fill();
-        }
+        const {canvas: wallCanvas, bumpCanvas: wallBumpCanvas} = this._buildWallpaper(masterNoise);
+        const wallCtx = wallCanvas.getContext('2d');
+        const wallBumpCtx = wallBumpCanvas.getContext('2d');
         const {canvas: headerCanvas, ctx: headerCtx} = this._createContext(512, 512);
         headerCtx.drawImage(wallCanvas, 0, 0);
         const headerTexture = this._createWrappedTexture(headerCanvas, 4, 0.1);
@@ -149,7 +132,16 @@ export default class ProceduralTextureFactory {
         wallCtx.fillRect(0, 476, 512, 4);
         wallCtx.fillStyle = 'rgba(0,0,0,0.15)';
         wallCtx.fillRect(255, 0, 2, 512);
+        // The skirting is a real board standing proud of the paper, and the butt joint between
+        // two lengths of it is a real gap -- both belong in the relief, unlike the damp above.
+        wallBumpCtx.fillStyle = '#e0e0e0';
+        wallBumpCtx.fillRect(0, 480, 512, 32);
+        wallBumpCtx.fillStyle = '#3c3c3c';
+        wallBumpCtx.fillRect(0, 476, 512, 4);
+        wallBumpCtx.fillStyle = 'rgba(40,40,40,0.6)';
+        wallBumpCtx.fillRect(255, 0, 2, 512);
         const wallTexture = this._createWrappedTexture(wallCanvas, 4, 1, true);
+        const wallBumpTexture = this._createWrappedTexture(wallBumpCanvas, 4, 1, true);
         const {canvas: structCanvas, ctx: structCtx} = this._createContext(512, 512);
         structCtx.fillStyle = '#7e7664';
         structCtx.fillRect(0, 0, 512, 512);
@@ -178,53 +170,47 @@ export default class ProceduralTextureFactory {
             bumpMap: structTexture,
             bumpScale: 0.02
         });
-        const {canvas: woodCanvas, ctx: woodCtx} = this._createContext(256, 512);
-        woodCtx.fillStyle = '#6f4b26';
-        woodCtx.fillRect(0, 0, 256, 512);
-        woodCtx.lineWidth = 1.5;
-        woodCtx.beginPath();
-        for (let i = 0; i < 250; i++) {
-            let x = Math.random() * 256, y = Math.random() * 512, length = Math.random() * 100 + 20;
-            woodCtx.moveTo(x, y);
-            woodCtx.bezierCurveTo(x + (Math.random() * 10 - 5), y + length / 2, x + (Math.random() * 10 - 5), y + length / 2, x + (Math.random() * 4 - 2), y + length);
-        }
-        woodCtx.shadowColor = 'rgba(255,255,255,0.03)';
-        woodCtx.shadowOffsetY = 2;
-        woodCtx.strokeStyle = 'rgba(0,0,0,0.12)';
-        woodCtx.stroke();
-        woodCtx.shadowColor = 'transparent';
-        const woodTexture = new THREE.CanvasTexture(woodCanvas);
+        const {canvas: woodCanvas, bumpCanvas: woodBumpCanvas} = this._buildWood(masterNoise);
+        const woodTexture = this._createWrappedTexture(woodCanvas);
+        const woodBumpTexture = this._createWrappedTexture(woodBumpCanvas);
         const woodMat = new THREE.MeshStandardMaterial({
             map: woodTexture,
-            roughness: 0.9,
-            bumpMap: woodTexture,
+            // Was 0.9, which is bare sawn timber. Archive shelving and boardroom tables are
+            // finished stock, and a little sheen is what lets the ring bands register at all in
+            // a sector this dark -- a fully matte surface returns the same value from every
+            // angle and the figure disappears with it.
+            roughness: 0.74,
+            bumpMap: woodBumpTexture,
             bumpScale: 0.015
         });
-        const {canvas: doorCanvas, ctx: doorCtx} = this._createContext(256, 512);
-        doorCtx.drawImage(woodCanvas, 0, 0);
-        doorCtx.fillStyle = 'rgba(0,0,0,0.3)';
-        doorCtx.fillRect(32, 32, 192, 200);
-        doorCtx.fillRect(32, 260, 192, 220);
-        doorCtx.fillStyle = 'rgba(255,255,255,0.05)';
-        doorCtx.fillRect(32, 32, 192, 4);
-        doorCtx.fillRect(32, 32, 4, 200);
-        doorCtx.fillRect(32, 260, 192, 4);
-        doorCtx.fillRect(32, 260, 4, 220);
-        doorCtx.fillStyle = '#8a7e32';
-        doorCtx.beginPath();
-        doorCtx.arc(210, 260, 12, 0, Math.PI * 2);
-        doorCtx.fill();
+        const {canvas: doorCanvas, bumpCanvas: doorBumpCanvas} =
+            this._buildDoor(woodCanvas, woodBumpCanvas, masterNoise);
         const doorTexture = new THREE.CanvasTexture(doorCanvas);
-        const {canvas: doorBackCanvas, ctx: doorBackCtx} = this._createContext(256, 512);
-        doorBackCtx.translate(256, 0);
-        doorBackCtx.scale(-1, 1);
-        doorBackCtx.drawImage(doorCanvas, 0, 0);
-        const doorBackTexture = new THREE.CanvasTexture(doorBackCanvas);
-        const doorMatFront = new THREE.MeshStandardMaterial({map: doorTexture, roughness: 0.9});
-        const doorMatBack = new THREE.MeshStandardMaterial({map: doorBackTexture, roughness: 0.9});
-        const doorMatEdge = new THREE.MeshStandardMaterial({map: woodTexture, roughness: 0.9});
+        const doorBumpTexture = new THREE.CanvasTexture(doorBumpCanvas);
+        // The back leaf is the front mirrored, so its relief has to be mirrored with it -- an
+        // unflipped bump would light the far side's chamfers as if they belonged to the near one.
+        const mirror = (src) => {
+            const {canvas: out, ctx: outCtx} = this._createContext(256, 512);
+            outCtx.translate(256, 0);
+            outCtx.scale(-1, 1);
+            outCtx.drawImage(src, 0, 0);
+            return out;
+        };
+        const doorBackTexture = new THREE.CanvasTexture(mirror(doorCanvas));
+        const doorBackBumpTexture = new THREE.CanvasTexture(mirror(doorBumpCanvas));
+        // The face carried no bumpMap at all, which is the other half of why the panels read as
+        // printed on: with no relief there was nothing for the player's torch to rake across.
+        const doorMatFront = new THREE.MeshStandardMaterial({
+            map: doorTexture, bumpMap: doorBumpTexture, bumpScale: 0.03, roughness: 0.74
+        });
+        const doorMatBack = new THREE.MeshStandardMaterial({
+            map: doorBackTexture, bumpMap: doorBackBumpTexture, bumpScale: 0.03, roughness: 0.74
+        });
+        const doorMatEdge = new THREE.MeshStandardMaterial({
+            map: woodTexture, bumpMap: woodBumpTexture, bumpScale: 0.015, roughness: 0.74
+        });
         const doorMat = [doorMatEdge, doorMatEdge, doorMatEdge, doorMatEdge, doorMatFront, doorMatBack];
-        return {headerMat, wallTexture, structMat, woodMat, doorMat};
+        return {headerMat, wallTexture, wallBumpTexture, structMat, woodMat, doorMat};
     }
 
     static _buildSurfaceAssets(masterNoise) {
@@ -1064,8 +1050,13 @@ export default class ProceduralTextureFactory {
 
         this._ditherCanvas(ctx, SIZE, SIZE, rand, 4);
 
-        const map = this._createWrappedTexture(canvas, 23, 23);
-        const bumpMap = this._createWrappedTexture(bumpCanvas, 23, 23);
+        // 21, not 23. This canvas is 4 tiles across by 2 down, so both axes have to satisfy the
+        // multiple-of-14 rule (see _buildCheckpointAssets) and 21 is the only nearby value that
+        // does it for both: 0.667 x 1.333 units, six by three to a cell. 23 gave 0.609 x 1.217,
+        // which is 6.57 x 3.29 and lands a wall face mid-tile everywhere. The 2:1 tile stays 2:1
+        // -- this is 600x1200 mineral fibre and the ratio is the whole reason it reads as such.
+        const map = this._createWrappedTexture(canvas, 21, 21);
+        const bumpMap = this._createWrappedTexture(bumpCanvas, 21, 21);
         return new THREE.MeshStandardMaterial({
             map,
             bumpMap,
@@ -1256,17 +1247,24 @@ export default class ProceduralTextureFactory {
             bCtx.stroke();
         }
 
-        const map = this._createWrappedTexture(canvas, 20, 20);
-        const bumpMap = this._createWrappedTexture(bumpCanvas, 20, 20);
-        const roughnessMap = this._createWrappedTexture(roughCanvas, 20, 20);
+        // 21, not 20: `R * TILES` has to be a multiple of 14 for a tile edge to land on a cell
+        // edge (see _buildCheckpointAssets for the derivation). 20 x 8 gave 0.35 units and
+        // 11.43 tiles to a cell; 21 gives a third of a unit, twelve to a cell. Also closer to
+        // the 12-inch VCT this is imitating than the old value was.
+        const map = this._createWrappedTexture(canvas, 21, 21);
+        const bumpMap = this._createWrappedTexture(bumpCanvas, 21, 21);
+        const roughnessMap = this._createWrappedTexture(roughCanvas, 21, 21);
         return new THREE.MeshStandardMaterial({
             map,
             bumpMap,
             bumpScale: 0.012,
             roughnessMap,
             roughness: 1.0,
-            metalness: 0.12,
-            shadowSide: THREE.DoubleSide
+            metalness: 0.12
+            // No shadowSide override, for the reason spelled out in _buildClinicWall: on a
+            // surface that both casts and receives, DoubleSide makes it test against its own
+            // depth and band. This floor is white, high-albedo and sits directly under the
+            // Clinic's ceiling panels, so it showed the acne at maximum contrast.
         });
     }
 
@@ -1390,15 +1388,20 @@ export default class ProceduralTextureFactory {
         bCtx.drawImage(masterNoise, 0, 0, SIZE, SIZE);
         bCtx.globalAlpha = 1.0;
 
-        const map = this._createWrappedTexture(canvas, 16, 16);
-        const bumpMap = this._createWrappedTexture(bumpCanvas, 16, 16);
+        // 14, not 16 -- `R * TILES` must be a multiple of 14; see _buildCheckpointAssets. 16 x 4
+        // gave 0.875 units and 4.57 tiles to a cell. 14 gives one unit, four to a cell.
+        const map = this._createWrappedTexture(canvas, 14, 14);
+        const bumpMap = this._createWrappedTexture(bumpCanvas, 14, 14);
         return new THREE.MeshStandardMaterial({
             map,
             bumpMap,
             bumpScale: 0.018,
             roughness: 0.9,
-            metalness: 0.0,
-            shadowSide: THREE.DoubleSide
+            metalness: 0.0
+            // No shadowSide override -- see _buildClinicWall. The Atrium is the worst case for
+            // this: ambient 0.0 means the vending spots are the entire lighting budget, and at
+            // spotAngle PI/2.15 their shadow camera runs near 167 degrees fov, so texel density
+            // on the floor is already as thin as it gets before self-shadowing is added to it.
         });
     }
 
@@ -1580,7 +1583,24 @@ export default class ProceduralTextureFactory {
             map: skyTexture,
             fog: false
         });
-        return {moldMat, moldGeo, ceilingStainMat, ceilingStainGeo, fabricMat, mossMat, cornMat, dirtMat, nightSkyMat};
+        const moldCreepTexture = new THREE.CanvasTexture(this._buildMoldCreep(masterNoise));
+        const moldCreepMat = new THREE.MeshStandardMaterial({
+            map: moldCreepTexture,
+            transparent: true,
+            depthWrite: false,
+            roughness: 0.95,
+            metalness: 0.0,
+            // Lifts the quad off the wall face it lies against. Without it the two surfaces are
+            // coplanar and the decal flickers in and out with the camera.
+            polygonOffset: true,
+            polygonOffsetFactor: -2
+        });
+        // 1.35m wide against a 4m cell, standing 0.62 tall. Earlier this was 2.6 by 1.55, which
+        // is a third of a wall and reads as the wall's finish rather than as a blemish; the
+        // correction to 1.05 by 0.52 then overshot the other way and left it too small to find
+        // in a corridor lit by a torch.
+        const moldCreepGeo = new THREE.PlaneGeometry(1.35, 0.62);
+        return {moldMat, moldGeo, ceilingStainMat, ceilingStainGeo, fabricMat, mossMat, cornMat, dirtMat, nightSkyMat, moldCreepMat, moldCreepGeo};
     }
 
     static _buildTechAssets(masterNoise) {
@@ -1952,6 +1972,522 @@ export default class ProceduralTextureFactory {
             pipeMat: this._buildPipeMaterial(masterNoise),
             corrosionBumpTexture: this._buildCorrosionBump()
         };
+    }
+
+    /**
+     * Builds the yellow wallpaper: printed stripe over lining paper, eaten from the floor up by
+     * rising damp.
+     *
+     * The stains were 150 flat-alpha discs scattered along the bottom edge. Overlapping discs
+     * of constant opacity can only ever produce a soft symmetrical cloud, which is why they
+     * read as airbrush rather than as water, and the specific thing they were missing is the
+     * one feature that identifies rising damp on sight.
+     *
+     * Groundwater climbs the substrate by capillary action until the rate of rise matches the
+     * rate of evaporation off the face, so it stops at a fairly consistent height and leaves a
+     * boundary there. Dissolved salts cannot evaporate with the water, so they precipitate at
+     * exactly that boundary and concentrate into a **tide mark** -- a dark, comparatively sharp
+     * band with a paler, drier zone immediately beneath it. Read from the bottom up the wall
+     * runs dark, then lighter, then abruptly dark again at the line, then clean. That
+     * non-monotonic profile is the signature, and no stack of discs will produce it.
+     *
+     * Everything else follows from the same mechanism. Paper seams wick faster than the field,
+     * so the tide climbs at each one. Salts bloom pale just below the line as efflorescence.
+     * Mould colonises the wet zone with a density that rises toward the floor. The adhesive
+     * fails where it has been wet longest, so the paper blisters low down and nowhere else.
+     *
+     * Relief ships separately for a reason specific to this asset: `sharedWallMat` was using the
+     * colour map as its own bump, which embossed every stain. A stain is discolouration, not
+     * topography -- damp paper is if anything flatter than dry. The only relief the damp
+     * genuinely creates is the blistering, which is why that is the one part of this that draws
+     * to the bump canvas and not the colour one.
+     *
+     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
+     * @returns {{canvas: HTMLCanvasElement, bumpCanvas: HTMLCanvasElement}} Colour and relief.
+     */
+    static _buildWallpaper(masterNoise) {
+        const W = 512, H = 512;
+        const rand = this._seededRandom(70431182);
+        const {canvas, ctx} = this._createContext(W, H);
+        const {canvas: bumpCanvas, ctx: bCtx} = this._createContext(W, H);
+
+        ctx.fillStyle = '#d4c382';
+        ctx.fillRect(0, 0, W, H);
+        bCtx.fillStyle = '#8c8c8c';
+        bCtx.fillRect(0, 0, W, H);
+
+        // The stripe is printed and very slightly raised, so it belongs on both canvases.
+        ctx.lineWidth = 4;
+        bCtx.lineWidth = 4;
+        for (let i = 0; i < W; i += 16) {
+            const major = i % 32 === 0;
+            ctx.strokeStyle = major ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)';
+            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, H); ctx.stroke();
+            bCtx.strokeStyle = major ? 'rgba(122,122,122,0.45)' : 'rgba(188,188,188,0.35)';
+            bCtx.beginPath(); bCtx.moveTo(i, 0); bCtx.lineTo(i, H); bCtx.stroke();
+        }
+        ctx.globalAlpha = 0.5;
+        ctx.drawImage(masterNoise, 0, 0);
+        ctx.globalAlpha = 0.22;
+        bCtx.drawImage(masterNoise, 0, 0);
+        ctx.globalAlpha = 1.0;
+        bCtx.globalAlpha = 1.0;
+
+        this._ditherCanvas(ctx, W, H, rand, 4);
+        this._ditherCanvas(bCtx, W, H, rand, 3);
+        return {canvas, bumpCanvas};
+    }
+
+    /**
+     * Builds a creep of mould emerging from under the skirting.
+     *
+     * This started life as a full rising-damp patch: a tide line running the width of the decal
+     * with a salt band, efflorescence and blistering under it. All of that was accurate and all
+     * of it was wrong for the job. A tide line is a horizontal feature spanning whatever it is
+     * drawn on, so at decal scale it terminates at two vertical edges and reads as a chart --
+     * and rendered in near-black against yellow paper it was the loudest thing in the corridor.
+     *
+     * Mould is not a front, it is a colony. It starts at a point where moisture gets in, which
+     * on a papered wall is the gap behind the skirting, and it climbs in filaments that each
+     * stop at their own height. That is what gives it a beginning and an end: the shape tapers
+     * because the organism runs out of reach, not because the texture ran out of pixels.
+     *
+     * So the structure is a handful of colonies along the bottom edge, each throwing a few
+     * hundred filaments upward on a damped random walk. Each filament carries its own ceiling
+     * drawn from a biased roll, so most stay low and a few reach -- fingers rather than a face.
+     * Deposits are laid at very low alpha and allowed to accumulate where filaments overlap,
+     * which puts the density at the base without anything having to draw a gradient there.
+     *
+     * The colour is a desaturated brown-grey rather than black. Black mould on yellow paper is a
+     * value contrast the eye goes to before anything else in the room, and this is meant to be
+     * something the player notices second.
+     *
+     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
+     * @returns {HTMLCanvasElement} An RGBA canvas, mostly transparent.
+     */
+    static _buildMoldCreep(masterNoise) {
+        const W = 256, H = 128;
+        const rand = this._seededRandom(31775902);
+        const {canvas, ctx} = this._createContext(W, H, false);
+
+        const colonies = 3 + Math.floor(rand() * 3);
+        const seats = [];
+        for (let c = 0; c < colonies; c++) {
+            // Kept off the extreme edges so a colony is never cut in half by the decal bounds.
+            const cx = 0.14 * W + rand() * 0.72 * W;
+            // Wider than it is tall, and deliberately so. At 244px per metre these are colonies
+            // 15-35cm across reaching 6-22cm up. The first pass had them narrower than their
+            // height, which produces vertical plumes -- the silhouette of smoke, not of
+            // something spreading sideways along the base of a wall.
+            const reach = 16 + rand() * 38;
+            const spread = 30 + rand() * 55;
+            const filaments = 150 + Math.floor(rand() * 170);
+            seats.push({cx, spread});
+
+            // The seat of the colony, where it comes out from behind the board.
+            // Lighter than it was. The seat is the densest thing on the decal and it sits on the
+            // bottom edge, so any excess reads as a hard dark bar along the skirting line rather
+            // than as growth.
+            const seat = ctx.createRadialGradient(cx, H, 0, cx, H, spread);
+            seat.addColorStop(0, 'rgba(70,62,45,0.24)');
+            seat.addColorStop(0.55, 'rgba(70,62,45,0.10)');
+            seat.addColorStop(1, 'rgba(70,62,45,0)');
+            ctx.save();
+            ctx.translate(cx, H);
+            // Squashed vertically: the seat is a smear along the skirting, not a hemisphere.
+            ctx.scale(1, 0.42);
+            ctx.fillStyle = seat;
+            ctx.beginPath();
+            ctx.arc(0, 0, spread, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            for (let f = 0; f < filaments; f++) {
+                // Exponent biases most filaments short. An even spread of ceilings gives a
+                // rounded dome, which is just a tide line with a curve in it.
+                const top = H - reach * Math.pow(rand(), 1.7);
+                let x = cx + (rand() - 0.5) * spread;
+                let y = H;
+                let drift = (rand() - 0.5) * 0.5;
+                while (y > top) {
+                    const climbed = (H - y) / Math.max(1, H - top);
+                    ctx.fillStyle = `rgba(74,66,48,${(0.05 * (1 - climbed) + 0.012).toFixed(3)})`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 1.6 * (1 - climbed * 0.6) + 0.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Damped walk: undamped, the filaments fan out into a bush; fully damped
+                    // they are straight lines. This wanders and recovers.
+                    drift = (drift + (rand() - 0.5) * 0.35) * 0.86;
+                    x += drift;
+                    y -= 0.7 + rand() * 1.1;
+                }
+            }
+        }
+
+        // Outlying spores, drawn around the colonies rather than across the whole canvas. Spread
+        // uniformly they read as dirt on the lens: specks in clean paper with nothing to belong
+        // to. Anchored to a seat they read as the colony spreading.
+        for (let i = 0; i < 1100; i++) {
+            const seat = seats[Math.floor(rand() * seats.length)];
+            const x = seat.cx + (rand() - 0.5) * seat.spread * 2.6;
+            const y = H - Math.pow(rand(), 2.4) * H * 0.6;
+            ctx.fillStyle = `rgba(58,52,38,${(0.04 + rand() * 0.11).toFixed(3)})`;
+            ctx.beginPath();
+            ctx.arc(x, y, 0.4 + rand() * 1.2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Feather the vertical edges. The colonies already taper, but the speckle above does not
+        // know about them and would otherwise stop dead at x=0.
+        const img = ctx.getImageData(0, 0, W, H);
+        const px = img.data;
+        const FEATHER = 30;
+        for (let y = 0; y < H; y++) {
+            for (let x = 0; x < W; x++) {
+                let k = 1;
+                if (x < FEATHER) k = x / FEATHER;
+                else if (x > W - FEATHER) k = (W - x) / FEATHER;
+                if (k < 1) px[((y * W) + x) * 4 + 3] *= k * k;
+            }
+        }
+        ctx.putImageData(img, 0, 0);
+        return canvas;
+    }
+
+    /**
+     * Builds the joinery timber: three sawn boards to a tile, stained and waxed.
+     *
+     * The previous version was a flat fill under 250 random beziers, stroked as a single path
+     * in a single colour off `Math.random`. It failed for one specific reason: wood does not
+     * read as lines drawn on a surface, it reads as *banding*. Growth rings alternate soft pale
+     * earlywood against hard dark latewood, and that tonal alternation is what the eye
+     * recognises from across a room. Scribbles over a constant background have no bands in them
+     * at any distance, which is why it looked like crayon on card.
+     *
+     * Three boards rather than one sheet. The Archive shelf back is 4m wide and takes exactly
+     * one tile, so a single continuous grain field reads there as one photograph stretched
+     * across a wall. A seam every 1.3m is what makes it carpentry.
+     *
+     * Ring spacing drives everything downstream. A narrow ring is a slow growth year, which
+     * means proportionally more latewood, which means a darker and harder band -- so both the
+     * darkness and the relief of a line are derived from its spacing rather than rolled
+     * independently, and the bands clump the way real stock does.
+     *
+     * The wobble is a sum of sines at whole-number cycle counts over the canvas height, which
+     * is what lets a grain line leave the bottom edge at exactly the x it entered the top at.
+     * Amplitude rises near each board's pith, so a board sawn near the log centre arches into
+     * cathedral figure while one sawn off the flank comes out nearly quartersawn and straight.
+     * Once the pith is a per-board number, the variation between boards is free.
+     *
+     * Relief ships as its own canvas, per the rule the ceilings already follow. Driving bump
+     * from this colour map would put the pores at the same depth as the stain pooling, which is
+     * a property of the finish and is not physically there at all.
+     *
+     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
+     * @returns {{canvas: HTMLCanvasElement, bumpCanvas: HTMLCanvasElement}} Colour and relief.
+     */
+    static _buildWood(masterNoise) {
+        const W = 512, H = 1024;
+        const rand = this._seededRandom(48120773);
+        const {canvas, ctx} = this._createContext(W, H);
+        const {canvas: bumpCanvas, ctx: bCtx} = this._createContext(W, H);
+
+        bCtx.fillStyle = '#808080';
+        bCtx.fillRect(0, 0, W, H);
+
+        const BOARDS = 3;
+        const edges = [];
+        for (let i = 0; i <= BOARDS; i++) edges.push(Math.round(i * W / BOARDS));
+
+        // Anything drawn near a vertical edge is drawn again one canvas width away, so a grain
+        // line that wanders across the seam exists on both sides of it.
+        const wrapX = (x, reach, fn) => {
+            fn(x);
+            if (x < reach) fn(x + W);
+            else if (x > W - reach) fn(x - W);
+        };
+
+        for (let b = 0; b < BOARDS; b++) {
+            const left = edges[b], right = edges[b + 1];
+            const span = right - left;
+
+            // Per-board stain. Boards come off different logs and take finish differently; one
+            // fill across the whole tile was most of what made the old texture read as paper.
+            ctx.fillStyle = `hsl(${22 + rand() * 10}, ${34 + rand() * 12}%, ${21 + rand() * 8}%)`;
+            ctx.fillRect(left, 0, span, H);
+
+            // Often outside the board entirely, which is the common case for sawn stock and
+            // gives straight grain. Occasionally inside, which gives the arches.
+            const pith = left + span * (-0.6 + rand() * 2.2);
+            const k1 = 1 + Math.floor(rand() * 2);
+            const k2 = 3 + Math.floor(rand() * 3);
+            const a1 = 3 + rand() * 7;
+            const a2 = 0.8 + rand() * 2.0;
+            const p1 = rand() * Math.PI * 2;
+            const p2 = rand() * Math.PI * 2;
+            const wob = (y, x0) => {
+                const near = 1 + 2.6 * Math.exp(-Math.abs(x0 - pith) / 70);
+                return near * (a1 * Math.sin(2 * Math.PI * k1 * y / H + p1)
+                    + a2 * Math.sin(2 * Math.PI * k2 * y / H + p2));
+            };
+            const grain = (target, x0, width, style) => {
+                wrapX(x0, 26, (sx) => {
+                    target.beginPath();
+                    for (let y = 0; y <= H; y += 8) {
+                        const px = sx + wob(y, x0);
+                        if (y === 0) target.moveTo(px, y); else target.lineTo(px, y);
+                    }
+                    target.strokeStyle = style;
+                    target.lineWidth = width;
+                    target.stroke();
+                });
+            };
+
+            let x = left + rand() * 5;
+            while (x < right) {
+                // Exponent biases the roll toward narrow rings, leaving the occasional wide
+                // fast-growth year as a pale gap between clusters.
+                const ring = 3.5 + Math.pow(rand(), 1.7) * 17;
+                x += ring;
+                if (x >= right) break;
+                const tight = 1 - Math.min(1, ring / 20);
+                const width = 0.9 + tight * 2.4;
+                grain(ctx, x, width, `rgba(46,26,11,${(0.16 + tight * 0.30).toFixed(3)})`);
+                grain(bCtx, x, width, `rgba(70,70,70,${(0.20 + tight * 0.32).toFixed(3)})`);
+                if (ring > 12) {
+                    // Pale earlywood trailing a wide ring. This is the half that turns a line
+                    // into a band.
+                    grain(ctx, x + ring * 0.32, ring * 0.30, 'rgba(190,150,100,0.05)');
+                }
+            }
+
+            // Open pores, lying along the grain. These carry the surface at arm's length, where
+            // the ring bands are too coarse to be doing anything.
+            const pores = Math.round(span * 5.2);
+            for (let i = 0; i < pores; i++) {
+                const px = left + rand() * span;
+                const py = rand() * H;
+                const len = 2 + rand() * 8;
+                const a = 0.10 + rand() * 0.20;
+                const lw = 0.6 + rand() * 0.7;
+                const pore = (oy) => {
+                    const y0 = py + oy, y1 = py + len + oy;
+                    ctx.strokeStyle = `rgba(38,20,8,${a.toFixed(3)})`;
+                    ctx.lineWidth = lw;
+                    ctx.beginPath();
+                    ctx.moveTo(px + wob(py, px), y0);
+                    ctx.lineTo(px + wob(py + len, px), y1);
+                    ctx.stroke();
+                    bCtx.strokeStyle = `rgba(58,58,58,${(a * 1.5).toFixed(3)})`;
+                    bCtx.lineWidth = 0.8;
+                    bCtx.beginPath();
+                    bCtx.moveTo(px + wob(py, px), y0);
+                    bCtx.lineTo(px + wob(py + len, px), y1);
+                    bCtx.stroke();
+                };
+                pore(0);
+                if (py + len > H) pore(-H);
+            }
+
+            // Medullary rays, on whichever boards came off the quarter. Pale flecks running
+            // across the grain rather than along it, and the reason this reads as oak.
+            if (rand() > 0.45) {
+                const flecks = Math.round(span * 0.9);
+                for (let i = 0; i < flecks; i++) {
+                    const px = left + rand() * span;
+                    const py = rand() * H;
+                    const len = 3 + rand() * 9;
+                    ctx.strokeStyle = `rgba(214,182,132,${(0.04 + rand() * 0.07).toFixed(3)})`;
+                    ctx.lineWidth = 0.6 + rand() * 1.1;
+                    ctx.beginPath();
+                    ctx.moveTo(px - len / 2, py);
+                    ctx.lineTo(px + len / 2, py + (rand() - 0.5) * 2);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // Stain pooling. The only layer here about the coating rather than the timber, which is
+        // exactly why it never touches the bump canvas.
+        for (let i = 0; i < 26; i++) {
+            const bx = rand() * W, by = rand() * H;
+            const r = 40 + rand() * 150;
+            const dark = rand() > 0.45;
+            const a = 0.05 + rand() * 0.06;
+            const blot = (sx, sy) => {
+                const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
+                g.addColorStop(0, dark ? `rgba(26,14,5,${a})` : `rgba(196,156,104,${a * 0.7})`);
+                g.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = g;
+                ctx.beginPath();
+                ctx.arc(sx, sy, r, 0, Math.PI * 2);
+                ctx.fill();
+            };
+            const oxs = bx < r ? [0, W] : (bx > W - r ? [0, -W] : [0]);
+            const oys = by < r ? [0, H] : (by > H - r ? [0, -H] : [0]);
+            for (const ox of oxs) for (const oy of oys) blot(bx + ox, by + oy);
+        }
+
+        // Board seams: the shadow gap between two edges, with the arris beside it catching what
+        // little light the Archive has.
+        for (let i = 0; i < BOARDS; i++) {
+            const seam = (target, darkStyle, lightStyle) => {
+                wrapX(edges[i], 4, (x) => {
+                    target.fillStyle = darkStyle;
+                    target.fillRect(x - 0.5, 0, 1.6, H);
+                    target.fillStyle = lightStyle;
+                    target.fillRect(x + 1.4, 0, 1.0, H);
+                });
+            };
+            seam(ctx, 'rgba(20,10,3,0.55)', 'rgba(210,175,125,0.06)');
+            seam(bCtx, 'rgba(40,40,40,0.75)', 'rgba(190,190,190,0.25)');
+        }
+
+        ctx.globalAlpha = 0.05;
+        ctx.drawImage(masterNoise, 0, 0, W, H);
+        ctx.globalAlpha = 1.0;
+        this._ditherCanvas(ctx, W, H, rand, 4);
+        this._ditherCanvas(bCtx, W, H, rand, 3);
+        return {canvas, bumpCanvas};
+    }
+
+    /**
+     * Builds the panelled door face: two stiles, three rails, two recessed panels.
+     *
+     * The face used to be one draw of the wood tile with dark rectangles painted over it, which
+     * broke twice. The grain ran unbroken across the whole leaf, and the panel edges were
+     * painted light on the top and left -- a highlight, applied to what is physically a recess.
+     *
+     * A panelled door is not a board with shapes cut into it. It is frame-and-panel: two
+     * full-height stiles, three rails tenoned between them, and two panels floating in the
+     * grooves. Seven separate pieces of timber, and the grain in each runs along its own length.
+     * That means the rails run *horizontal* grain, which is the single strongest cue that the
+     * frame is assembled rather than printed, and no amount of relief substitutes for it -- if
+     * the grain flows straight through a joint the eye reads one flat surface no matter how the
+     * edges are shaded.
+     *
+     * Relief goes in the bump canvas, and the colour map carries no directional shading at all.
+     * `_buildPipeMaterial` already sets this rule for the same reason: a painted highlight is
+     * baked for one light position, and this game's dominant light source is a torch the player
+     * carries. Paint the chamfer bright on its upper edge and it stays bright while the player
+     * lights it from below. The colour map gets only what is physically colour -- ambient
+     * occlusion pooling in the recess, which is directionless, and dirt at boot height.
+     *
+     * The AO is applied to all four sides of each panel equally. That is what distinguishes a
+     * recess from a boss once the directional lighting is left to the renderer.
+     *
+     * @param {HTMLCanvasElement} woodCanvas - Colour source, grain running down the canvas.
+     * @param {HTMLCanvasElement} woodBumpCanvas - Matching relief source.
+     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
+     * @returns {{canvas: HTMLCanvasElement, bumpCanvas: HTMLCanvasElement}} Colour and relief.
+     */
+    static _buildDoor(woodCanvas, woodBumpCanvas, masterNoise) {
+        const W = 256, H = 512;
+        const rand = this._seededRandom(20514477);
+        const {canvas, ctx} = this._createContext(W, H);
+        const {canvas: bumpCanvas, ctx: bCtx} = this._createContext(W, H);
+
+        // Stiles run the full height and the rails tenon between them, which is why the stiles
+        // are listed first and span 0..H while every rail stops at their inner faces.
+        const STILE = 32;
+        const members = [
+            {x: 0, y: 0, w: STILE, h: H, horiz: false},
+            {x: W - STILE, y: 0, w: STILE, h: H, horiz: false},
+            {x: STILE, y: 0, w: W - STILE * 2, h: 32, horiz: true},
+            {x: STILE, y: 232, w: W - STILE * 2, h: 28, horiz: true},
+            {x: STILE, y: 480, w: W - STILE * 2, h: 32, horiz: true}
+        ];
+        const panels = [
+            {x: STILE, y: 32, w: W - STILE * 2, h: 200, horiz: false},
+            {x: STILE, y: 260, w: W - STILE * 2, h: 220, horiz: false}
+        ];
+
+        // Clips to the member, rotates a quarter turn for rails so the grain lies along their
+        // length, and tiles the source so an arbitrary sample offset still covers the rect. The
+        // offset is what stops two members cut from the same tile showing the same figure.
+        const place = (target, src, m, ox, oy) => {
+            target.save();
+            target.beginPath();
+            target.rect(m.x, m.y, m.w, m.h);
+            target.clip();
+            if (m.horiz) {
+                const cx = m.x + m.w / 2, cy = m.y + m.h / 2;
+                target.translate(cx, cy);
+                target.rotate(-Math.PI / 2);
+                target.translate(-cx, -cy);
+            }
+            for (let ty = -1; ty <= 1; ty++) {
+                for (let tx = -1; tx <= 1; tx++) {
+                    target.drawImage(src, tx * W - ox, ty * H - oy, W, H);
+                }
+            }
+            target.restore();
+        };
+
+        for (const m of members.concat(panels)) {
+            const ox = rand() * W, oy = rand() * H;
+            place(ctx, woodCanvas, m, ox, oy);
+            place(bCtx, woodBumpCanvas, m, ox, oy);
+        }
+
+        // Ambient occlusion in the recesses. Equal on all four sides: a recess gathers shadow
+        // everywhere its walls face each other, and any asymmetry here would be the baked
+        // directional lighting this is specifically avoiding.
+        const AO = 15;
+        for (const p of panels) {
+            const edges = [
+                [p.x, 0, p.x + AO, 0],
+                [p.x + p.w, 0, p.x + p.w - AO, 0],
+                [0, p.y, 0, p.y + AO],
+                [0, p.y + p.h, 0, p.y + p.h - AO]
+            ];
+            for (const [x0, y0, x1, y1] of edges) {
+                const g = ctx.createLinearGradient(x0, y0, x1, y1);
+                g.addColorStop(0, 'rgba(0,0,0,0.34)');
+                g.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = g;
+                ctx.fillRect(p.x, p.y, p.w, p.h);
+            }
+        }
+
+        // Relief mask, multiplied over the grain so the panels drop without flattening the
+        // figure inside them. The blur is the chamfer: a hard step would read as a decal edge
+        // under a moving light, and it rounds the corners for free.
+        const {canvas: maskCanvas, ctx: mCtx} = this._createContext(W, H);
+        mCtx.fillStyle = '#ffffff';
+        mCtx.fillRect(0, 0, W, H);
+        mCtx.filter = 'blur(4px)';
+        mCtx.fillStyle = '#8e8e8e';
+        for (const p of panels) {
+            mCtx.fillRect(p.x + 5, p.y + 5, p.w - 10, p.h - 10);
+        }
+        mCtx.filter = 'none';
+        bCtx.globalCompositeOperation = 'multiply';
+        bCtx.drawImage(maskCanvas, 0, 0);
+        bCtx.globalCompositeOperation = 'source-over';
+
+        // Dirt at boot height, and the handle. The knob is proud on the bump canvas rather than
+        // shaded on the colour one, for the same reason as everything else here.
+        const grime = ctx.createLinearGradient(0, H, 0, H - 120);
+        grime.addColorStop(0, 'rgba(18,12,6,0.34)');
+        grime.addColorStop(1, 'rgba(18,12,6,0)');
+        ctx.fillStyle = grime;
+        ctx.fillRect(0, H - 120, W, 120);
+
+        ctx.fillStyle = '#8a7e32';
+        ctx.beginPath();
+        ctx.arc(210, 260, 12, 0, Math.PI * 2);
+        ctx.fill();
+        bCtx.fillStyle = '#f2f2f2';
+        bCtx.beginPath();
+        bCtx.arc(210, 260, 12, 0, Math.PI * 2);
+        bCtx.fill();
+
+        ctx.globalAlpha = 0.05;
+        ctx.drawImage(masterNoise, 0, 0, W, H);
+        ctx.globalAlpha = 1.0;
+        this._ditherCanvas(ctx, W, H, rand, 4);
+        return {canvas, bumpCanvas};
     }
 
     /**
@@ -2645,7 +3181,119 @@ export default class ProceduralTextureFactory {
             roughness: 0.6,
             metalness: 0.2
         });
-        return {marbleMat, shelfMat};
+        const atriumSmearMat = this._buildAtriumSmear();
+        return {marbleMat, shelfMat, atriumSmearMat};
+    }
+
+    /**
+     * Builds the Atrium aisle smear: the source row for the texture-stretch artifact that the
+     * shelf uprights dissolve into above head height.
+     *
+     * The aisles are authored 14 metres tall and only the bottom 2.92 of that is shelving. The
+     * rest was `shelfMat` -- a flat `0xc9bd9e` with no map on it at all -- stacked in 3.2m bands,
+     * so the tallest structure in the sector was also the only surface in the game with nothing
+     * whatsoever on it. This replaces the bands with the failure mode a renderer actually has
+     * when geometry outruns its texture: the last valid scanline gets held and smeared up the
+     * surface forever.
+     *
+     * The canvas is one scanline's worth of information and a lot of vertical nothing. Its foot
+     * is a readable shelf edge -- run-length blocks in the aisle's own product colours over a
+     * dark frame line -- and every column above that holds its colour unchanged to the top. The
+     * material then clamps T, so past the canvas the top row repeats out to whatever height the
+     * geometry asks for. That is the whole trick, and it is the same mechanism that produces the
+     * artifact for real, which is why it reads as one rather than as a striped wallpaper.
+     *
+     * Two decisions carry it. `NearestFilter` on magnification, because a stretched texel is
+     * hard-edged -- letting it interpolate produces a soft airbrushed gradient, which is what a
+     * deliberate effect looks like and not what a broken one does. And `MeshBasicMaterial`: the
+     * smear takes no lighting, because an artifact is not in the room. A lit smear sits in the
+     * dark with the rest of the geometry and reads as painted board; an unlit one keeps burning
+     * at constant value while everything around it falls off, which is exactly the wrongness
+     * being reached for. Height falloff is carried by vertex colours instead (see the geometry
+     * in AtriumSector), since clamping means no vertical gradient can come from the texture.
+     *
+     * @returns {THREE.MeshBasicMaterial} The aisle smear material.
+     */
+    static _buildAtriumSmear() {
+        // The one dial. `true` gives the artifact its own light -- a MeshBasicMaterial that
+        // ignores the scene entirely and keeps burning at constant value while the room falls
+        // away around it. `false` puts it back in the room as lit geometry with a low emissive
+        // floor, so it still glows faintly where nothing else does but obeys distance and dark.
+        //
+        // The tradeoff is the sector's floor of darkness. Atrium runs at `ambient: 0.0` and the
+        // v0.6.2 work deliberately made the vending machines its entire lighting budget; unlit,
+        // the aisles are visible with the flashlight off and no machine in range, which is a
+        // real change to how dark the room is allowed to get.
+        //
+        // Note while tuning: `vertexColors` multiplies `diffuseColor` and does not touch
+        // `totalEmissiveRadiance`, so the height falloff baked into the geometry applies to the
+        // lit variant's diffuse only. Its emissive recedes on fog and distance instead, which is
+        // why the two variants fade differently rather than identically at different strengths.
+        const UNLIT = false;
+
+        const W = 512, H = 64;
+        const RAIL = 11;
+        const rand = this._seededRandom(73310945);
+        const {canvas, ctx} = this._createContext(W, H);
+
+        // Muted against the literal values, because an unlit material sits at full value
+        // wherever it is drawn and the Atrium runs at ambient 0.0 -- at the boxes' true
+        // brightness these columns were the most luminous thing in a sector whose whole premise
+        // is that the vending machines are the only light in it. The lit variant has the
+        // opposite problem and needs the gain back, since it is being multiplied by an incident
+        // light level that is frequently zero.
+        const g = UNLIT ? 1.0 : 1.85;
+        const SHELF = [116 * g, 109 * g, 91 * g];
+        const GAP = [26 * g, 24 * g, 21 * g];
+        const BOXES = [[118 * g, 107 * g, 81 * g], [84 * g, 36 * g, 36 * g],
+            [37 * g, 57 * g, 44 * g], [35 * g, 48 * g, 70 * g], [126 * g, 122 * g, 107 * g]];
+
+        // canvas y is inverted by the texture's flipY, so the foot of the wall is the foot of
+        // the canvas: rail at the bottom, the endless part climbing away from it.
+        let x = 0;
+        while (x < W) {
+            const run = 3 + Math.floor(rand() * 30);
+            const r = rand();
+            const c = r < 0.44 ? SHELF : (r < 0.60 ? GAP : BOXES[Math.floor(rand() * BOXES.length)]);
+            const j = 0.80 + rand() * 0.40;
+            const shade = (k) => Math.max(0, Math.min(255, Math.round(c[0 + k] * j)));
+            ctx.fillStyle = `rgb(${shade(0)}, ${shade(1)}, ${shade(2)})`;
+            ctx.fillRect(x, 0, run, H - RAIL);
+            // The same column, darker, for the strip the smear is nominally sampling. Each
+            // streak visibly leaves from its own piece of shelf rather than from a seam.
+            ctx.fillStyle = `rgb(${Math.round(shade(0) * 0.52)}, ${Math.round(shade(1) * 0.52)}, ${Math.round(shade(2) * 0.52)})`;
+            ctx.fillRect(x, H - RAIL, run, RAIL);
+            if (rand() > 0.45) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+                ctx.fillRect(x, 0, 1, H);
+            }
+            x += run;
+        }
+        // The last good scanline itself: the shelf's frame edge, the thing that stopped.
+        ctx.fillStyle = 'rgb(20, 19, 17)';
+        ctx.fillRect(0, H - 2, W, 2);
+
+        const map = this._createWrappedTexture(canvas, 1, 1, true);
+        map.magFilter = THREE.NearestFilter;
+        map.minFilter = THREE.LinearMipmapLinearFilter;
+        if (UNLIT) return new THREE.MeshBasicMaterial({map, vertexColors: true});
+        return new THREE.MeshStandardMaterial({
+            map,
+            // The emissive has to run through the map rather than sit as a flat tint, or every
+            // streak glows the same colour and the horizontal information -- the only thing
+            // distinguishing a smear from a bar of light -- is lost at exactly the heights where
+            // the diffuse has already gone dark.
+            emissiveMap: map,
+            emissive: 0xffffff,
+            // Low on purpose. This is a floor, not a light source: enough that the aisles do not
+            // vanish completely between machines, not so much that they stop reading as unlit
+            // geometry that happens to be wrong.
+            emissiveIntensity: 0.14,
+            roughness: 0.92,
+            // Dielectric -- no envMap in this scene, so metalness only subtracts diffuse.
+            metalness: 0.0,
+            vertexColors: true
+        });
     }
 
     static _buildMaintenanceAssets(masterNoise) {
@@ -2756,7 +3404,9 @@ export default class ProceduralTextureFactory {
             floorCtx.lineTo(t * tileSize, 256);
             floorCtx.stroke();
         }
-        const archiveFloorTexture = this._createWrappedTexture(floorCanvas, 16, 16);
+        // 14, not 16 -- `R * tiles` must be a multiple of 14; see _buildCheckpointAssets. 16 x 8
+        // gave 0.4375 units and 9.14 tiles to a cell. 14 gives half a unit, eight to a cell.
+        const archiveFloorTexture = this._createWrappedTexture(floorCanvas, 14, 14);
         const archiveFloorMat = new THREE.MeshStandardMaterial({
             map: archiveFloorTexture,
             roughness: 0.65,
@@ -2823,12 +3473,393 @@ export default class ProceduralTextureFactory {
     }
 
     /**
-     * Checkpoint's own floor and ceiling treatment -- previously a flat gray noise-speckle
-     * "concrete" floor and the generic `structMat` borrowed for its ceiling, neither of which
-     * belonged to the sector specifically. Replaced with an aged basket-weave hardwood parquet
-     * floor and a Victorian-style pressed tin ceiling (embossed square panels, each with its own
-     * rosette medallion) -- the "old government building" look the checkpoint's hazmat-and-forms
-     * dressing already implies but its surfaces didn't back up.
+     * Builds the Checkpoint's walls: walnut raised-and-fielded panelling, in the condition a
+     * government building reaches when nobody has held its maintenance budget for a decade.
+     *
+     * The sector already commits to "old government building" below and above -- basket-weave
+     * parquet underfoot, pressed tin overhead -- and then borrowed the generic `structMat` for
+     * the one surface actually at eye level, so the room read as a concrete bunker somebody had
+     * installed a nice floor in. This is the missing third surface.
+     *
+     * Height-aware, like `_buildClinicWall`. `buildWall` maps v across the full 3-unit wall and
+     * the texture is clamped vertically, so canvas y is an absolute elevation rather than a
+     * tiling coordinate: plinth on the floor, dado rail at 0.95m, fielded panels above it,
+     * cornice into the ceiling. Nothing here repeats upward and nothing may -- a dado rail that
+     * tiles is just a stripe.
+     *
+     * Horizontally it does tile, at one bay per metre (`repeatX: 4` against the `w / cellSize`
+     * UV scaling `buildWall` applies on a 4-unit cell). The stile dividing two bays is drawn at
+     * both x=0 and x=W so its halves meet across the seam; drawn once in the middle instead, the
+     * wall would show a full stile at each bay centre and a butt joint at every wrap.
+     *
+     * Three maps rather than the usual two. Old varnish is the entire read on wood: the dado
+     * rail and the cornice are polished where hands and sleeves reach them while the panel
+     * fields have gone chalky, and only `roughnessMap` carries that. Without it this is brown
+     * concrete -- the same point `_buildClinicRail` makes about semi-gloss vinyl standing against
+     * flat wall paint.
+     *
+     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
+     * @returns {THREE.MeshStandardMaterial} The Checkpoint wall material.
+     */
+    static _buildCheckpointWall(masterNoise) {
+        // 512 across one metre of bay, 1024 up three metres. Deliberately not square, unlike the
+        // other walls in this file: everything that sells panelling is a horizontal moulding a
+        // few centimetres deep, and at the Clinic wall's 512 height a 25mm bead is four pixels
+        // and dissolves into the dither. 341px/m puts it at eight.
+        const W = 512, H = 1024;
+        const UNITS = 3.0;
+        const yAt = (u) => H - (u / UNITS) * H;
+        const xAt = (m) => m * (W / 2);
+        const rand = this._seededRandom(41778203);
+
+        // Elevations, in metres off the floor. Joinery proportions rather than invented ones:
+        // the dado sits at the height a chair back hits, which is why the rail exists at all.
+        const PLINTH = 0.16, PLINTH_CAP = 0.205;
+        const DADO_BOT = 0.92, DADO_TOP = 1.02;
+        const FRIEZE = 2.55, CORNICE = 2.74;
+
+        // Two bays per canvas, not one. Panelling repeats by nature and a tiling wall is not
+        // wrong to repeat -- but the cathedral figure is a landmark, and at one bay per canvas
+        // the identical peak recurring every metre was the only thing the eye tracked. A second
+        // bay with its own draws from the same stream halves the period for no extra memory.
+        // Costs horizontal density (256px/m rather than 512) which lands it closer to the
+        // 341px/m vertical anyway; the mouldings that needed the resolution are horizontal and
+        // take theirs from H.
+        const BAYS = 2;
+        const BAY = W / BAYS;
+        const STILE = xAt(0.10);
+        const MUNTIN = xAt(0.058);
+        const fieldOf = (b) => [b * BAY + STILE / 2 + MUNTIN, (b + 1) * BAY - STILE / 2 - MUNTIN];
+
+        // American black walnut, not mahogany. The distinction is almost entirely saturation:
+        // walnut is a desaturated grey-brown with a cool, faintly purple cast, and the obvious
+        // first guess -- a warm chocolate around [74, 51, 36] -- is a red-brown that reads as
+        // sapele the moment a tungsten fixture hits it. That mattered here beyond pedantry,
+        // because the Checkpoint's parquet floor is already a golden oak and a wall at the same
+        // hue collapsed the two surfaces into one warm mass with the room's depth gone. Cooling
+        // the wall is what puts the floor back underneath it.
+        const FIELD = [72, 54, 45];
+        const RAIL = [62, 46, 39];
+        const DARK = [40, 30, 25];
+        const LIGHT = [110, 88, 72];
+        const SAP = [148, 122, 95];
+        const rgba = (c, a) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a})`;
+        const rgb = (c) => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+
+        const {canvas, ctx} = this._createContext(W, H);
+        const {canvas: bumpCanvas, ctx: bCtx} = this._createContext(W, H);
+        const {canvas: roughCanvas, ctx: rCtx} = this._createContext(W, H);
+        bCtx.fillStyle = '#808080';
+        bCtx.fillRect(0, 0, W, H);
+        rCtx.fillStyle = '#b4b4b4';
+        rCtx.fillRect(0, 0, W, H);
+
+        // A band spanning two elevations. yAt inverts, so the taller elevation is the smaller
+        // canvas y and every rect in here has to be built from the top down.
+        const band = (u0, u1) => ({y: yAt(u1), h: yAt(u0) - yAt(u1)});
+
+        /**
+         * Lays sawn grain into a rectangle. `arch` selects plain-sawn stock -- the nested
+         * cathedral figure you only get when the blade crosses the annual rings at a shallow
+         * angle. Off, it gives quarter-sawn: straight and quiet, which is what stiles and rails
+         * are cut from precisely because it moves least. Putting cathedrals on a rail is the
+         * commonest tell of a wood texture nobody looked at wood to write.
+         */
+        const grain = (x0, y0, w, h, base, arch) => {
+            if (w <= 0 || h <= 0) return;
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x0, y0, w, h);
+            ctx.clip();
+            ctx.fillStyle = rgb(base);
+            ctx.fillRect(x0, y0, w, h);
+            for (let i = 0; i < 10; i++) {
+                const gx = x0 + rand() * w, gy = y0 + rand() * h;
+                const r = Math.max(w, h) * (0.22 + rand() * 0.42);
+                const warm = rand() > 0.5;
+                const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, r);
+                g.addColorStop(0, rgba(warm ? LIGHT : DARK, 0.10 + rand() * 0.16));
+                g.addColorStop(1, rgba(warm ? LIGHT : DARK, 0));
+                ctx.fillStyle = g;
+                ctx.fillRect(x0 - r, y0 - r, w + r * 2, h + r * 2);
+            }
+            // Sparse. An earlier pass ran this near four lines per centimetre of board and the
+            // result was corduroy -- at that density the eye stops resolving individual grain
+            // and integrates the lot into a flat woven tone, which is the same failure mode as
+            // a hatch pattern standing in for shading. Wood is mostly figure with a little line
+            // work over it, not the reverse.
+            const lines = Math.round(w * 0.13);
+            for (let i = 0; i < lines; i++) {
+                const gx = x0 + rand() * w;
+                const dark = rand() > 0.40;
+                ctx.strokeStyle = rgba(dark ? DARK : LIGHT, 0.05 + rand() * 0.15);
+                ctx.lineWidth = 0.6 + rand() * 1.8;
+                ctx.beginPath();
+                ctx.moveTo(gx, y0);
+                ctx.bezierCurveTo(
+                    gx + (rand() - 0.5) * w * 0.11, y0 + h * 0.34,
+                    gx + (rand() - 0.5) * w * 0.11, y0 + h * 0.67,
+                    gx + (rand() - 0.5) * w * 0.07, y0 + h
+                );
+                ctx.stroke();
+            }
+            if (arch) {
+                // The cathedral is the dominant feature of a plain-sawn face, not a garnish on
+                // top of straight grain, so it gets the contrast budget. Each peak is a stack of
+                // nested rings sharing one axis -- literally the growth rings, seen where the
+                // blade crossed them at a shallow angle -- with the outer rings both wider and
+                // flatter, which is what makes the shape read as a section through a cone
+                // rather than as a row of painted arches.
+                let ay = y0 - h * 0.14;
+                while (ay < y0 + h) {
+                    const acx = x0 + w * (0.14 + rand() * 0.72);
+                    const halfW = w * (0.20 + rand() * 0.24);
+                    const peak = h * (0.055 + rand() * 0.075);
+                    const rings = 11 + Math.floor(rand() * 10);
+                    const step = peak / 4.0;
+                    for (let k = 0; k < rings; k++) {
+                        // Successive rings are vertical translations of one curve, not a fan
+                        // widening about a shared apex. Scaling the half-width per ring instead
+                        // splays the legs outward from a common peak and the result reads as a
+                        // firework -- rings that are copies offset down the board stay parallel
+                        // at the flanks, which is what makes the legs resolve into ordinary
+                        // straight grain away from the peak, which is what a cathedral is.
+                        const oy = ay + k * step;
+                        const jw = halfW * (0.97 + rand() * 0.06);
+                        ctx.strokeStyle = rgba(rand() > 0.30 ? DARK : LIGHT, 0.07 + rand() * 0.15);
+                        ctx.lineWidth = 0.7 + rand() * 1.5;
+                        ctx.beginPath();
+                        ctx.moveTo(acx - jw * 1.9, oy + peak * 2.8);
+                        ctx.quadraticCurveTo(acx, oy - peak * 0.95, acx + jw * 1.9, oy + peak * 2.8);
+                        ctx.stroke();
+                    }
+                    ay += peak * (2.4 + rand() * 1.4) + h * 0.04;
+                }
+            }
+            // Walnut is ring-porous, so the pores land as short dashes running with the grain
+            // rather than as isotropic speckle. This is most of what stops it reading as paint.
+            const pores = Math.round(w * h * 0.0012);
+            for (let i = 0; i < pores; i++) {
+                const px = x0 + rand() * w, py = y0 + rand() * h;
+                ctx.fillStyle = rgba(DARK, 0.10 + rand() * 0.20);
+                ctx.fillRect(px, py, 0.6 + rand() * 1.0, 1.4 + rand() * 4.2);
+                bCtx.fillStyle = `rgba(90, 90, 90, ${0.10 + rand() * 0.16})`;
+                bCtx.fillRect(px, py, 0.6 + rand() * 1.0, 1.4 + rand() * 4.2);
+            }
+            ctx.restore();
+        };
+
+        // Carcass first: the whole wall is stile-and-rail stock, and the fields are cut into it.
+        grain(0, 0, W, H, RAIL, false);
+
+        /**
+         * A recessed fielded panel. Four mitred bevels around a flat centre, which is the only
+         * part of this that has to be right -- a fielded panel is defined by the bevel catching
+         * light on one edge and shadow on the opposite one, and a fixture anywhere in the room
+         * will rake at least two of the four.
+         */
+        const panel = (b, u0, u1, arch) => {
+            const [fx0, fx1] = fieldOf(b);
+            const {y, h} = band(u0, u1);
+            const bevel = xAt(0.032);
+            grain(fx0, y, fx1 - fx0, h, FIELD, arch);
+            // Recess: the field sits behind the frame, the bevels ramp back out to it.
+            bCtx.fillStyle = '#4a4a4a';
+            bCtx.fillRect(fx0, y, fx1 - fx0, h);
+            const ramp = (x, yy, w, hh, from, to, horiz) => {
+                const g = bCtx.createLinearGradient(x, yy, horiz ? x + w : x, horiz ? yy : yy + hh);
+                g.addColorStop(0, from);
+                g.addColorStop(1, to);
+                bCtx.fillStyle = g;
+                bCtx.fillRect(x, yy, w, hh);
+            };
+            ramp(fx0, y, bevel, h, '#c0c0c0', '#4a4a4a', true);
+            ramp(fx1 - bevel, y, bevel, h, '#4a4a4a', '#c0c0c0', true);
+            ramp(fx0, y, fx1 - fx0, bevel, '#c0c0c0', '#4a4a4a', false);
+            ramp(fx0, y + h - bevel, fx1 - fx0, bevel, '#4a4a4a', '#c0c0c0', false);
+            // The albedo needs the bevels too -- bump alone vanishes under a light square on it.
+            const g1 = ctx.createLinearGradient(fx0, 0, fx0 + bevel, 0);
+            g1.addColorStop(0, 'rgba(0,0,0,0.34)');
+            g1.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = g1;
+            ctx.fillRect(fx0, y, bevel, h);
+            const g2 = ctx.createLinearGradient(fx1 - bevel, 0, fx1, 0);
+            g2.addColorStop(0, 'rgba(255,255,255,0)');
+            g2.addColorStop(1, 'rgba(255,255,255,0.10)');
+            ctx.fillStyle = g2;
+            ctx.fillRect(fx1 - bevel, y, bevel, h);
+            const g3 = ctx.createLinearGradient(0, y, 0, y + bevel);
+            g3.addColorStop(0, 'rgba(0,0,0,0.30)');
+            g3.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = g3;
+            ctx.fillRect(fx0, y, fx1 - fx0, bevel);
+            const g4 = ctx.createLinearGradient(0, y + h - bevel, 0, y + h);
+            g4.addColorStop(0, 'rgba(255,255,255,0)');
+            g4.addColorStop(1, 'rgba(255,255,255,0.11)');
+            ctx.fillStyle = g4;
+            ctx.fillRect(fx0, y + h - bevel, fx1 - fx0, bevel);
+            // Fields are the one surface nobody touches, so they keep the least polish.
+            rCtx.fillStyle = '#cdcdcd';
+            rCtx.fillRect(fx0 + bevel, y + bevel, fx1 - fx0 - bevel * 2, h - bevel * 2);
+        };
+
+        for (let b = 0; b < BAYS; b++) {
+            // Both courses are figured. Panels are resawn from the same plain-sawn stock; it is
+            // the stiles and rails that are quarter-sawn, and they get `false` above.
+            panel(b, PLINTH_CAP + 0.03, DADO_BOT - 0.03, true);
+            panel(b, DADO_TOP + 0.04, FRIEZE - 0.04, true);
+        }
+
+        // Stiles last so they sit over the panel frames, which is the actual assembly order.
+        // 0 and W are the two halves of the stile that straddles the wrap seam.
+        for (const sx of [0, BAY, W]) {
+            grain(sx - STILE / 2, 0, STILE, H, RAIL, false);
+            bCtx.fillStyle = '#9c9c9c';
+            bCtx.fillRect(sx - STILE / 2, 0, STILE, H);
+            const sg = ctx.createLinearGradient(sx - STILE / 2, 0, sx + STILE / 2, 0);
+            sg.addColorStop(0, 'rgba(0,0,0,0.20)');
+            sg.addColorStop(0.5, 'rgba(255,255,255,0.05)');
+            sg.addColorStop(1, 'rgba(0,0,0,0.20)');
+            ctx.fillStyle = sg;
+            ctx.fillRect(sx - STILE / 2, 0, STILE, H);
+        }
+
+        /**
+         * A proud horizontal member -- plinth cap, dado rail, cornice course. `gloss` is what
+         * separates them: the rail and cornice are hand-height or catch the room's only lamp,
+         * the plinth cap is at boot level and has been kicked matte.
+         */
+        const moulding = (u0, u1, tone, height, gloss) => {
+            const {y, h} = band(u0, u1);
+            grain(0, y, W, h, tone, false);
+            ctx.fillStyle = 'rgba(255,255,255,0.09)';
+            ctx.fillRect(0, y, W, Math.max(1, h * 0.16));
+            ctx.fillStyle = 'rgba(0,0,0,0.34)';
+            ctx.fillRect(0, y + h - Math.max(1, h * 0.14), W, Math.max(1, h * 0.14));
+            bCtx.fillStyle = height;
+            bCtx.fillRect(0, y, W, h);
+            bCtx.fillStyle = 'rgba(0,0,0,0.55)';
+            bCtx.fillRect(0, y + h, W, 3);
+            rCtx.fillStyle = gloss;
+            rCtx.fillRect(0, y, W, h);
+        };
+
+        // Plinth: the board that meets the parquet, and the one that gets mopped into.
+        const plinth = band(0, PLINTH);
+        grain(0, plinth.y, W, plinth.h, DARK, false);
+        bCtx.fillStyle = '#aeaeae';
+        bCtx.fillRect(0, plinth.y, W, plinth.h);
+        rCtx.fillStyle = '#c8c8c8';
+        rCtx.fillRect(0, plinth.y, W, plinth.h);
+        moulding(PLINTH, PLINTH_CAP, RAIL, '#dcdcdc', '#a0a0a0');
+        moulding(DADO_BOT, DADO_TOP, RAIL, '#f2f2f2', '#5e5e5e');
+        moulding(FRIEZE, FRIEZE + 0.06, RAIL, '#d0d0d0', '#8a8a8a');
+        grain(0, band(FRIEZE + 0.06, CORNICE).y, W, band(FRIEZE + 0.06, CORNICE).h, RAIL, false);
+        moulding(CORNICE, CORNICE + 0.09, LIGHT, '#ffffff', '#6a6a6a');
+        moulding(CORNICE + 0.09, UNITS, RAIL, '#e6e6e6', '#7c7c7c');
+
+        // Rising damp. Panelling fails from the plinth up, because that is where the wall is
+        // wet and where the air does not move, and it is the single most legible sign that a
+        // room this formal has been left alone -- more so than any amount of surface dirt.
+        for (let i = 0; i < 9; i++) {
+            const x = rand() * W;
+            const top = yAt(0.20 + rand() * 0.55);
+            const w = xAt(0.05 + rand() * 0.22);
+            const g = ctx.createLinearGradient(0, top, 0, yAt(0));
+            g.addColorStop(0, 'rgba(28, 20, 14, 0)');
+            g.addColorStop(1, `rgba(24, 17, 11, ${0.22 + rand() * 0.26})`);
+            ctx.fillStyle = g;
+            ctx.fillRect(x, top, w, yAt(0) - top);
+            const rg = rCtx.createLinearGradient(0, top, 0, yAt(0));
+            rg.addColorStop(0, 'rgba(255,255,255,0)');
+            rg.addColorStop(1, 'rgba(255,255,255,0.45)');
+            rCtx.fillStyle = rg;
+            rCtx.fillRect(x, top, w, yAt(0) - top);
+        }
+
+        // Contact wear at the dado. Same reasoning as the Clinic's scuff band: the rail exists
+        // because things are pushed against it, so the evidence belongs above and below it and
+        // nowhere else. Queues stand here for hours.
+        const dadoY = yAt(0.97);
+        for (let i = 0; i < 120; i++) {
+            const y = dadoY + (rand() + rand() + rand() - 1.5) * 90;
+            const x = rand() * W;
+            const len = 10 + rand() * 70;
+            const near = 1 - Math.min(1, Math.abs(y - dadoY) / 130);
+            ctx.strokeStyle = rgba(SAP, (0.03 + rand() * 0.08) * (0.4 + near));
+            ctx.lineWidth = 0.5 + rand() * 1.6;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + len, y + (rand() - 0.5) * 6);
+            ctx.stroke();
+        }
+
+        // Chips through to raw stock. Walnut is dark all the way down but the broken edge is
+        // unfinished, so a chip reads as a pale spot rather than a dark one -- the opposite of
+        // what damage does to painted plaster, and worth getting right since the Clinic wall
+        // right next door in this file does it the other way for exactly that reason.
+        for (let i = 0; i < 13; i++) {
+            const x = rand() * W;
+            const y = yAt(0.1 + rand() * 2.4);
+            const r = 1.2 + rand() * 3.2;
+            const pts = 5 + Math.floor(rand() * 4);
+            const phase = rand() * Math.PI * 2;
+            ctx.beginPath();
+            for (let p = 0; p <= pts; p++) {
+                const a = (p / pts) * Math.PI * 2 + phase;
+                const rr = r * (0.6 + rand() * 0.6);
+                const qx = x + Math.cos(a) * rr, qy = y + Math.sin(a) * rr;
+                if (p === 0) ctx.moveTo(qx, qy); else ctx.lineTo(qx, qy);
+            }
+            ctx.closePath();
+            ctx.fillStyle = rgba(SAP, 0.16 + rand() * 0.20);
+            ctx.fill();
+            bCtx.fillStyle = `rgba(40, 40, 40, ${0.4 + rand() * 0.3})`;
+            bCtx.beginPath();
+            bCtx.arc(x, y, r * 0.8, 0, Math.PI * 2);
+            bCtx.fill();
+            rCtx.fillStyle = 'rgba(255,255,255,0.5)';
+            rCtx.beginPath();
+            rCtx.arc(x, y, r * 0.9, 0, Math.PI * 2);
+            rCtx.fill();
+        }
+
+        ctx.globalAlpha = 0.05;
+        ctx.drawImage(masterNoise, 0, 0, W, H);
+        ctx.globalAlpha = 1.0;
+        this._ditherCanvas(ctx, W, H, rand, 10);
+
+        // repeatX 2, not 4: the canvas is now two metres of bay, and `buildWall` already scales
+        // u by `w / cellSize`, so two repeats cover the 4-unit cell at one bay per metre.
+        const map = this._createWrappedTexture(canvas, 2, 1, true);
+        const bumpMap = this._createWrappedTexture(bumpCanvas, 2, 1, true);
+        const roughnessMap = this._createWrappedTexture(roughCanvas, 2, 1, true);
+        return new THREE.MeshStandardMaterial({
+            map,
+            bumpMap,
+            // Panelling is shallow. The deepest thing here is a 6mm recess, and pushing bump
+            // past that turns mitres into rubber -- the failure `rustMat` documents from the
+            // other direction.
+            bumpScale: 0.016,
+            roughnessMap,
+            // Left at 1.0 so the map carries the whole range rather than being scaled down into
+            // a narrow band; the gloss separation between rail and field is the point.
+            roughness: 1.0,
+            // Dielectric. No envMap in this scene, so metalness only subtracts diffuse and
+            // returns nothing -- see _buildPipeMaterial and rustMat.
+            metalness: 0.0
+            // No shadowSide override, per _buildClinicWall.
+        });
+    }
+
+    /**
+     * Checkpoint's own floor, wall and ceiling treatment -- previously a flat gray noise-speckle
+     * "concrete" floor and the generic `structMat` borrowed for its walls and ceiling, none of
+     * which belonged to the sector specifically. Replaced with an aged basket-weave hardwood
+     * parquet floor, walnut raised-and-fielded panelling, and a Victorian-style pressed tin
+     * ceiling (embossed square panels, each with its own rosette medallion) -- the "old
+     * government building" look the checkpoint's hazmat-and-forms dressing already implies but
+     * its surfaces didn't back up.
      */
     static _buildCheckpointAssets(masterNoise) {
         const {canvas: ckFloorCanvas, ctx: ckFloorCtx} = this._createContext(256, 256);
@@ -2882,7 +3913,13 @@ export default class ProceduralTextureFactory {
             ckFloorCtx.fillStyle = grad;
             ckFloorCtx.fillRect(wx - wr, wy - wr, wr * 2, wr * 2);
         }
-        const checkpointFloorTexture = this._createWrappedTexture(ckFloorCanvas, 12, 12);
+        // 14, not 12. Every sector foundation is the inner chunk -- `(chunkSize - 2) * cellSize`
+        // = 56 units -- so a canvas carrying T tiles per axis at repeat R puts a tile at
+        // `56 / (R * T)` units. For a tile edge to ever land on a wall face, that has to divide
+        // the 4-unit cell a whole number of times, which makes the rule `R * T` must be a
+        // multiple of 14. At 12 x 4 blocks this ran 1.167 units, 3.43 blocks to a cell, and no
+        // wall in the sector could meet a block edge. 14 gives exactly one unit, four to a cell.
+        const checkpointFloorTexture = this._createWrappedTexture(ckFloorCanvas, 14, 14);
         const checkpointFloorMat = new THREE.MeshStandardMaterial({
             map: checkpointFloorTexture,
             roughness: 0.88,
@@ -2962,8 +3999,22 @@ export default class ProceduralTextureFactory {
                 drawTinTile(ckCeilCtx, ckCeilBumpCtx, tx * tinTileSize, ty * tinTileSize, tinTileSize);
             }
         }
-        const checkpointCeilingTexture = this._createWrappedTexture(ckCeilCanvas, 32, 32);
-        const checkpointCeilingBumpTexture = this._createWrappedTexture(ckCeilBumpCanvas, 32, 32);
+        // 28, not 32, and the number is derived rather than chosen. The sector ceiling plane is
+        // the inner chunk, `(chunkSize - 2) * cellSize` = 56 units, and this canvas carries
+        // `tinTiles` = 2 panels per axis, so the repeat sets panel size at `56 / (R * 2)`. At 32
+        // that is 0.875 units against a 4-unit cell -- 4.571 panels per cell, which never lands
+        // a panel edge on a cell edge, so every wall in the sector cut a panel somewhere across
+        // its middle and the coffering read as wallpaper the walls had been dropped onto.
+        //
+        // Alignment needs `cellSize / panelSize` to be a whole number, i.e. `R * tinTiles` to be
+        // a multiple of 14. 28 is the value in that family nearest the old look: 56 panels over
+        // 56 units, exactly one unit each, four to a cell, every wall face landing on a seam.
+        // It also puts this back on the convention `ceilMat` already states in Environment --
+        // "64-unit chunk plane / 16 / 4 tiles per canvas = 1 unit per tile" -- which this
+        // surface was the only ceiling in the game not following.
+        const CEIL_REPEAT = 28;
+        const checkpointCeilingTexture = this._createWrappedTexture(ckCeilCanvas, CEIL_REPEAT, CEIL_REPEAT);
+        const checkpointCeilingBumpTexture = this._createWrappedTexture(ckCeilBumpCanvas, CEIL_REPEAT, CEIL_REPEAT);
         const checkpointCeilingMat = new THREE.MeshStandardMaterial({
             map: checkpointCeilingTexture,
             bumpMap: checkpointCeilingBumpTexture,
@@ -2971,7 +4022,8 @@ export default class ProceduralTextureFactory {
             roughness: 0.92,
             metalness: 0.65
         });
-        return {checkpointFloorMat, checkpointCeilingMat};
+        const checkpointWallMat = this._buildCheckpointWall(masterNoise);
+        return {checkpointFloorMat, checkpointCeilingMat, checkpointWallMat};
     }
 
     /**

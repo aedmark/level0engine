@@ -30,7 +30,8 @@ export const CheckpointSector = (env, ctx) => {
             const isPathW = localZ === 7 && localX > 0 && localX <= 7;
             const isPathE = localZ === 7 && localX >= 7 && localX < edge;
             const isPath = isPathN || isPathS || isPathW || isPathE;
-            if (ctx.buildPerimeter(x, z, localX, localZ, env.structMat, "CHECKPOINT")) return;
+            const wallMat = env.checkpointWallMat || env.structMat;
+            if (ctx.buildPerimeter(x, z, localX, localZ, wallMat, "CHECKPOINT")) return;
             const ckHash = (a, b, salt) => {
                 let h = (hash ^ Math.imul(a + 64, 73856093) ^ Math.imul(b + 64, 19349663) ^ Math.imul(salt + 1, 83492791)) >>> 0;
                 h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;
@@ -62,7 +63,7 @@ export const CheckpointSector = (env, ctx) => {
                     });
                     return;
                 }
-                const block = buildWall(env.cellSize, env.cellSize, env.structMat);
+                const block = buildWall(env.cellSize, env.cellSize, wallMat);
                 block.position.set(x * env.cellSize, 1.5, z * env.cellSize);
                 block.userData.isEntityBlocker = true;
                 addGeometry(block);
