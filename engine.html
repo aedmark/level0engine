@@ -611,9 +611,6 @@
             pointer-events: none;
         }
 
-        /* Palm-reader scan feedback. Sits concentric with the crosshair so the player's eye never
-           leaves the reader plate to check progress. Hidden entirely at zero so it costs nothing
-           visually on every other interaction in the game. */
         #scan-ring {
             position: absolute;
             top: 50%;
@@ -638,8 +635,6 @@
             opacity: 1;
         }
 
-        /* Sibling rather than child of the ring, because the ring is masked to an annulus and any
-           child of it would be erased at exactly the centre where a label belongs. */
         #scan-label {
             position: absolute;
             top: calc(50% + 34px);
@@ -661,8 +656,6 @@
             opacity: 1;
         }
 
-        /* The [E] prompt has done its job once the hand is on the reader, and leaving it up puts two
-           competing labels inside a 40px circle. */
         #crosshair.scanning::after {
             opacity: 0;
         }
@@ -832,7 +825,7 @@
 <div id="ui-layer">
     <button id="menuToggleBtn" class="btn">MENU</button>
     <div class="control-panel">
-        <h1>LEVEL 0 ENGINE v0.7.2</h1>
+        <h1>LEVEL 0 ENGINE v0.7.3</h1>
         <div class="instructions">
             <p align="center">WASD to Move | Shift to Run<br>'E' to Interact | 'C' to Crouch<br>'Q' to Squeeze | 'V' to Blink<br>'F' for
                 Flashlight | '1' Use Battery<br>'2' Use Water | LMB to Look<br>RMB to Lean</p><br>

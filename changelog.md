@@ -1,5 +1,19 @@
 # Level 0 Engine Changelog
 
+## [v0.7.3] - 2026-08-02
+
+_The Texture Polish Update_
+
+### Changed
+
+- **[AESTHETICS] Procedural Texture Refactor:** Extracted the massive monolithic `ProceduralTextureFactory.js` into modular domain-specific classes (`TextureMechanics`, `OrganicTextures`, `SurfaceTextures`, etc.) grouped in `common/` and `sectors/` subdirectories for easier sector-specific maintenance. 
+- **[AESTHETICS] Mold Corner Spreading:** When wall mold hits an inside crease, it no longer stops dead at the seam. The engine now detects the perpendicular wall and spawns a dynamically rotated secondary decal. Since both share the exact same jittered origin but use different random scales from the atlas, they merge seamlessly into an asymmetrical fungal bloom wrapping across both faces.
+- **[AESTHETICS] Ceiling Stains Reworked:** Completely removed the dark, floating overlay meshes that were generating water stains on the ceiling. We now rely entirely on the native procedural stains baked into the ceiling tiles, which have had their alpha transparency values slightly boosted to pop a little more naturally without looking stamped-on.
+
+### Fixed
+
+- **[WORLD] Missing Ceiling Tiles No Longer Cast Shadows:** The engine generates missing ceiling tiles by placing a black square geometry flush with the ceiling. Because solid geometries default to casting shadows when instanced, these "holes" were blocking the room's global lighting. Added a custom `userData.noShadow = true` flag to the `ceilingHoleMat` material in `StructuralBlueprints.js` and modified the geometry merging loops in `Environment.js` to respect it. Light now shines straight through the missing tiles to the floor beneath.
+
 ## [v0.7.2] - 2026-08-02
 
 _A Hand To Hold It_
