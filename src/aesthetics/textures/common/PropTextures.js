@@ -532,6 +532,188 @@ export default class PropTextures {
         });
     }
 
+    /**
+     * Brushed stainless for the airlock shell and its doors.
+     *
+     * Bright and clean on purpose: this is the one place in the facility that is supposed to feel
+     * maintained. The grain runs in one direction only, because that is what distinguishes brushed
+     * stainless from every other grey surface here — a random speckle reads as concrete, a
+     * directional grain reads as milled metal.
+     *
+     * Metalness stays low for the same reason it does everywhere else in this engine: there is no
+     * environment map, so a physically-honest stainless value would resolve to a dark slab. The
+     * brightness comes from a high base value and a tight roughness instead.
+     *
+     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
+     * @returns {THREE.MeshStandardMaterial}
+     */
+    static _buildStainlessMaterial(masterNoise) {
+        const S = 512;
+        const rand = TextureMechanics._seededRandom(30514877);
+        const {canvas, ctx} = TextureMechanics._createContext(S, S);
+        const {canvas: bumpCanvas, ctx: bCtx} = TextureMechanics._createContext(S, S);
+        bCtx.fillStyle = '#8c8c8c';
+        bCtx.fillRect(0, 0, S, S);
+        ctx.fillStyle = 'rgb(196, 203, 212)';
+        ctx.fillRect(0, 0, S, S);
+
+        // The brush runs vertically: wall panels and lift doors are hung the way the sheet was
+        // drawn, and a horizontal grain on a door reads as clapboard.
+        for (let i = 0; i < 2600; i++) {
+            const y = rand() * S;
+            const x = rand() * S;
+            const len = 60 + rand() * 300;
+            const light = rand() > 0.5;
+            ctx.strokeStyle = light
+                ? `rgba(224, 230, 238, ${0.03 + rand() * 0.06})`
+                : `rgba(164, 171, 180, ${0.03 + rand() * 0.06})`;
+            ctx.lineWidth = 0.6 + rand() * 1.6;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + (rand() - 0.5) * 1.2, y + len);
+            ctx.stroke();
+        }
+
+        // A few deeper scores. Even a well-kept lift picks these up at trolley height.
+        for (let i = 0; i < 18; i++) {
+            const y = rand() * S;
+            const x = rand() * S;
+            const len = 40 + rand() * 220;
+            ctx.strokeStyle = `rgba(148, 155, 164, ${0.14 + rand() * 0.16})`;
+            ctx.lineWidth = 0.8 + rand() * 1.1;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + (rand() - 0.5) * 2.0, y + len);
+            ctx.stroke();
+            bCtx.strokeStyle = `rgba(60, 60, 60, ${0.3 + rand() * 0.3})`;
+            bCtx.lineWidth = 1.0;
+            bCtx.beginPath();
+            bCtx.moveTo(x, y);
+            bCtx.lineTo(x + (rand() - 0.5) * 2.0, y + len);
+            bCtx.stroke();
+        }
+
+        // Very slight vertical falloff so a tall panel is not perfectly flat top to bottom.
+        const grad = ctx.createLinearGradient(0, 0, 0, S);
+        grad.addColorStop(0, 'rgba(255, 255, 255, 0.05)');
+        grad.addColorStop(0.55, 'rgba(255, 255, 255, 0)');
+        grad.addColorStop(1, 'rgba(124, 130, 138, 0.10)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, S, S);
+
+        ctx.globalAlpha = 0.04;
+        ctx.drawImage(masterNoise, 0, 0, S, S);
+        ctx.globalAlpha = 1.0;
+        TextureMechanics._ditherCanvas(ctx, S, S, rand, 4);
+
+        const map = TextureMechanics._createWrappedTexture(canvas, 1, 1);
+        const bumpMap = TextureMechanics._createWrappedTexture(bumpCanvas, 1, 1);
+        return new THREE.MeshStandardMaterial({
+            map,
+            bumpMap,
+            bumpScale: 0.003,
+            roughness: 0.30,
+            metalness: 0.15,
+            emissive: 0x141a22,
+            emissiveIntensity: 0.25
+        });
+    }
+
+    /**
+     * The airlock door leaf: same stainless family as the shell, deliberately not the same tint.
+     *
+     * A door finished identically to the frame it sits in disappears into it — the whole assembly
+     * reads as one blank slab, which is exactly what happened when both wore `stainlessMat`. This
+     * runs several stops darker so the leaf reads as a separate moving part set into a brighter
+     * surround, the way a lift door does.
+     *
+     * The warning triangle is the one that used to live in the titanium texture and was lost when
+     * the doors were stripped back. It is baked into the map rather than added as geometry because
+     * the panel's UVs already map it once per leaf, which is where it belongs.
+     *
+     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
+     * @returns {THREE.MeshStandardMaterial}
+     */
+    static _buildStainlessDoorMaterial(masterNoise) {
+        const W = 256, H = 336;
+        const rand = TextureMechanics._seededRandom(66192384);
+        const {canvas, ctx} = TextureMechanics._createContext(W, H);
+        const {canvas: bumpCanvas, ctx: bCtx} = TextureMechanics._createContext(W, H);
+        bCtx.fillStyle = '#8c8c8c';
+        bCtx.fillRect(0, 0, W, H);
+
+        // Darker than the shell's rgb(196,203,212), same cool cast.
+        ctx.fillStyle = 'rgb(148, 156, 166)';
+        ctx.fillRect(0, 0, W, H);
+
+        for (let i = 0; i < 1500; i++) {
+            const y = rand() * H, x = rand() * W;
+            const len = 40 + rand() * 200;
+            ctx.strokeStyle = rand() > 0.5
+                ? `rgba(184, 192, 202, ${0.03 + rand() * 0.06})`
+                : `rgba(118, 126, 136, ${0.03 + rand() * 0.06})`;
+            ctx.lineWidth = 0.6 + rand() * 1.6;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + (rand() - 0.5) * 1.2, y + len);
+            ctx.stroke();
+        }
+
+        // Warning triangle, upright, upper-middle. Kept as a dark tint rather than a solid fill so
+        // the brushed grain still runs through it and it reads as painted onto steel.
+        const apexY = 96, baseY = 212, halfW = 72;
+        ctx.fillStyle = 'rgba(24, 28, 34, 0.42)';
+        ctx.beginPath();
+        ctx.moveTo(W / 2, apexY);
+        ctx.lineTo(W / 2 + halfW, baseY);
+        ctx.lineTo(W / 2 - halfW, baseY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(18, 22, 28, 0.55)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        bCtx.fillStyle = 'rgba(190, 190, 190, 0.5)';
+        bCtx.beginPath();
+        bCtx.moveTo(W / 2, apexY);
+        bCtx.lineTo(W / 2 + halfW, baseY);
+        bCtx.lineTo(W / 2 - halfW, baseY);
+        bCtx.closePath();
+        bCtx.fill();
+
+        // The exclamation stroke inside it.
+        ctx.fillStyle = 'rgba(20, 24, 30, 0.5)';
+        ctx.fillRect(W / 2 - 7, apexY + 44, 14, 44);
+        ctx.beginPath();
+        ctx.arc(W / 2, apexY + 102, 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // The dark band the original carried below the triangle.
+        ctx.fillStyle = 'rgba(28, 32, 38, 0.22)';
+        ctx.fillRect(0, 250, W, 14);
+
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, 'rgba(255, 255, 255, 0.06)');
+        grad.addColorStop(0.55, 'rgba(255, 255, 255, 0)');
+        grad.addColorStop(1, 'rgba(96, 104, 114, 0.14)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+
+        ctx.globalAlpha = 0.05;
+        ctx.drawImage(masterNoise, 0, 0, W, H);
+        ctx.globalAlpha = 1.0;
+        TextureMechanics._ditherCanvas(ctx, W, H, rand, 4);
+
+        return new THREE.MeshStandardMaterial({
+            map: TextureMechanics._createWrappedTexture(canvas, 1, 1),
+            bumpMap: TextureMechanics._createWrappedTexture(bumpCanvas, 1, 1),
+            bumpScale: 0.004,
+            roughness: 0.34,
+            metalness: 0.15,
+            emissive: 0x101620,
+            emissiveIntensity: 0.45
+        });
+    }
+
     static _buildCorrosionBump() {
         const S = 512;
         const rand = TextureMechanics._seededRandom(90218844);

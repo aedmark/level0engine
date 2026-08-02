@@ -222,6 +222,8 @@ export default class HazardTextures {
             titaniumMat,
             pipeMat: PropTextures._buildPipeMaterial(masterNoise),
             breakerPanelMat: PropTextures._buildBreakerPanelMaterial(masterNoise),
+            stainlessMat: PropTextures._buildStainlessMaterial(masterNoise),
+            stainlessDoorMat: PropTextures._buildStainlessDoorMaterial(masterNoise),
             corrosionBumpTexture: PropTextures._buildCorrosionBump()
         };
     }

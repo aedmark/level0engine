@@ -1,17 +1,55 @@
 # Level 0 Engine Changelog
 
+## [v0.7.4] - 2026-08-02
+
+_The Unibody Airlock_
+
+The airlock was nine separate assemblies stacked in the same cell and it looked like it. This release throws all of them away except the doors and the button, and puts a single stainless shell around what is left.
+
+### Added
+
+- **[WORLD] The Airlock Is One Object:** Two side walls, a floor pan, a roof, and a header over each doorway, all in one pressed stainless. It replaces two door headers, two lamp housings, two emissive lens bars, a black-iron roof slab, a separate bezel and a metal floor plate. The shell exists mainly so the chamber has an inside of its own: you used to stand in the airlock and see the host sector's wall material in the corners, because the corridor segment underneath was still showing through, and a sealed box cannot leak what it completely covers.
+- **[AESTHETICS] `_buildStainlessMaterial` And `_buildStainlessDoorMaterial`:** Brushed steel with the grain running one direction only — a random speckle reads as concrete, a directional grain reads as milled metal. The albedo leans deliberately blue. A neutral grey came out khaki in situ, because every light in this facility is warm amber and a diffuse surface simply returns what it is given; leaning it cool lets the warm light neutralise it back to grey, which is the only way to read as steel in a room with no cool source and no environment map to reflect one. The door runs several stops darker than the shell, because a leaf finished identically to its own frame disappears into it and the whole assembly reads as one blank slab.
+
+### Changed
+
+- **[WORLD] The Sector No Longer Builds Walls Inside The Airlock:** `buildEntranceHallways` passed `buildWalls = true` for the airlock's own cell, so the corridor was raising the host sector's `structMat` side walls in exactly the same place as the shell. Now `false`. The shell brings its own walls and, importantly, the collision those corridor walls used to provide — spatial-grid boxes are inserted to match, or the airlock would have become a hole you could walk out the side of.
+- **[WORLD] The Shell Is Built To 2.0, Not To The Corridor Half-Width:** Measured rather than assumed: the sector's wall blocks present their inner faces at ±1.99, so a shell built to `CORRIDOR_HALF` stopped 0.18 short of them and left a strip of bare plaster running floor to ceiling down each side of the portal, with a wider strip again above the doors where the header ran out before the opening did. Building to 2.0 buries the shell edge inside the sector wall so there is no seam left to show.
+- **[WORLD] A Real Fixture Instead Of A Glowing Ceiling:** The first pass lit the chamber with a flush emissive panel, which read as a lightbox with no lamp in it and, at the intensity needed to beat the warm ambient, blew the whole room to white. The Checkpoint cage light is reused instead — housing, tube, end caps, cage bars — at **0.55** against the panel's 2.6. The shell and door materials also had their emissive dropped to 0.45; that lift was added to keep the steel out of the amber, and against a glowing ceiling the two were compounding. Cutting only the lamp would have left a dim room made of self-lit walls.
+- **[AESTHETICS] Doors Keep Their Warnings:** The warning triangle that used to live in the titanium texture is baked into the door map, as a dark tint rather than a solid fill so the brushed grain runs through it and it reads as painted onto steel. The hazard stripe is back as geometry on the meeting edge where the two leaves close.
+
+### Fixed
+
+- **[UI] The Call Button Had Never Changed Colour:** `InteractionController` computed `targetMat` from the airlock state on every frame and then dropped it on the floor — the red/green readout has never once rendered. Now applied, and the button mesh is named in `userData` rather than reached for by child index, since an index would silently start painting the housing the moment anything else joined that group.
+- **[WORLD] The Chamber Ceiling Was The Sector's, Not The Shell's:** Fitting the cage fixture meant moving the roof out of its way, and moving it to 3.00 let the corridor's own stained ceiling tile at 2.99 become the chamber's ceiling, quietly undoing the self-contained shell. The roof sits at **2.97** — a 20mm window with the tile hidden above it and the cage housing recessed into it, which is how a troffer mounts anyway.
+
+### Notes
+
+- **The airlock's two spotlights are gone and nothing in the shell casts.** The hard shadows thrown across the chamber came from two `fixtureData` entries with `isSpot: true` aimed straight down at the doors. The world-wide `isSpot` count is now zero.
+- **`buildCheckpointCageLight` stages its meshes for instancing with world matrices pre-baked.** `buildAirlock` adds straight to the chunk group, so the transform has to be decomposed back out of `matrixWorld` or every part of the fixture collapses onto the chunk origin.
+- **The switch still does nothing from `IDLE`, by design.** You interact with a *door* to get in; the switch is only read in `AWAITING_SWITCH`. Pre-existing and untouched, but now that the chamber is stripped to doors and a button, a button that ignores you on approach is more conspicuous than it used to be.
+
 ## [v0.7.3] - 2026-08-02
 
 _The Texture Polish Update_
 
+### Added
+
+- **[WORLD] `src/world/BreakerPodium.js` — The Objective Breakers Are Podiums:** The three breakers the radar hunts were a rusted panel bolted to the face of a 1.5m metal column, which read as a texture swatch on a pillar rather than as a thing somebody built and somebody else operates. The cell is now an open pocket in the maze with a free-standing podium in it: plinth, ribbed stalk, collar, tilted console head, and a palm reader on dark glass with a procedurally drawn hand etched into it. Being free-standing is the point — the reader can be approached from any side, and nothing about placement needs to know what the neighbouring cells resolved to. A slim conduit runs from the head to the ceiling so the fixture still throws a silhouette down a fogged corridor; cutting the column to hip height with nothing above it would have made the objectives invisible at fog distance and turned the hunt into a stumble.
+- **[PLAYER] Breakers Are Held, Not Tapped:** `E` on a podium starts a 1.2 second palm scan rather than firing instantly. The plate blooms, a sweep bar crosses it, and a conic-gradient ring fills around the crosshair. The scan dies three ways — release the key, look away past a 0.70 dot product, or step beyond 3m — and nothing is committed until it completes, so an aborted scan has nothing to undo and leaves the world exactly as it found it. `SomaticInput` gained a `KeyE` keyup dispatch and an `event.repeat` guard, without which the browser's auto-repeat reads as a stream of fresh presses.
+- **[UI] The Crosshair Reports Scan Progress:** A masked annulus concentric with the crosshair, with the `[E]` prompt suppressed while a scan is live so two labels are not competing inside a 40px circle. Progress is quantised to whole percent, because the ring is a conic gradient and sub-percent precision would dirty a paint every frame of every scan for nothing visible.
+
 ### Changed
 
+- **[WORLD] Light-Panel Breakers Moved Onto The Walls:** The incidental chunk breakers came off their own `structMat` columns and now hang flush on the yellow walls, keeping their instant throw — the palm reader belongs to the objective breakers alone, so seeing one means you have found what the radar wanted. Finding a wall to hang on needs neighbour knowledge the generic chunk generator does not keep, so `_buildChunkInterior` now records wall cells into a set as the loop resolves them. The loop is x-outer, z-inner, which means only the west and north neighbours are ever safe to ask about; a breaker takes whichever of those two is solid and is skipped entirely when neither is. Placement is probabilistic across a whole chunk, so losing the occasional candidate cell costs nothing and beats burying a switch inside a wall.
 - **[AESTHETICS] Procedural Texture Refactor:** Extracted the massive monolithic `ProceduralTextureFactory.js` into modular domain-specific classes (`TextureMechanics`, `OrganicTextures`, `SurfaceTextures`, etc.) grouped in `common/` and `sectors/` subdirectories for easier sector-specific maintenance. 
 - **[AESTHETICS] Mold Corner Spreading:** When wall mold hits an inside crease, it no longer stops dead at the seam. The engine now detects the perpendicular wall and spawns a dynamically rotated secondary decal. Since both share the exact same jittered origin but use different random scales from the atlas, they merge seamlessly into an asymmetrical fungal bloom wrapping across both faces.
 - **[AESTHETICS] Ceiling Stains Reworked:** Completely removed the dark, floating overlay meshes that were generating water stains on the ceiling. We now rely entirely on the native procedural stains baked into the ceiling tiles, which have had their alpha transparency values slightly boosted to pop a little more naturally without looking stamped-on.
 
 ### Fixed
 
+- **[AESTHETICS] Metal That Rendered As Black Holes:** The breaker housings resolved to featureless black rectangles on lit yellow walls, and the diagnosis generalises: `pittedMetalMat` carries `metalness: 0.75` and this engine has no environment map, so a surface that physically-correct has almost nothing to reflect and returns almost nothing. The pipes read properly for one reason only — `_buildPipeMaterial` sits at `metalness: 0.05` and lets the scene lights do the work. Added `_buildBreakerPanelMaterial`, the same alloy authored for a flat panel instead of a cylinder: welded flange, four hex bolts, recessed brushed face, and the same chipped-paint and rust-run vocabulary so the two age as though they came off one rack. The door handle had the same disease at `metalness: 0.8` and is now dark painted steel at 0.15.
+- **[AESTHETICS] Cage Bars And Door Ribs Were Also Voids:** Same root cause, different fix. `env.structuralSteelMat` is deliberately untextured — the things wearing it are three-centimetre cage bars and eight-centimetre blast door ribs, and a map at that scale is noise nobody can read. What they needed was never a texture, it was a lighting response.
 - **[WORLD] Missing Ceiling Tiles No Longer Cast Shadows:** The engine generates missing ceiling tiles by placing a black square geometry flush with the ceiling. Because solid geometries default to casting shadows when instanced, these "holes" were blocking the room's global lighting. Added a custom `userData.noShadow = true` flag to the `ceilingHoleMat` material in `StructuralBlueprints.js` and modified the geometry merging loops in `Environment.js` to respect it. Light now shines straight through the missing tiles to the floor beneath.
 
 ## [v0.7.2] - 2026-08-02

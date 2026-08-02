@@ -550,7 +550,12 @@ export default class InteractionController {
                 break;
         }
         const isReadyToPass = airlock.state === 'EXIT_INNER' || airlock.state === 'EXIT_OUTER' || airlock.state === 'OUTER_OPENING' || airlock.state === 'INNER_OPENING';
+        // This was computed and then dropped on the floor, so the call button has never actually
+        // changed colour. With the shell stripped back to doors and a button, the button is now the
+        // only thing in the chamber reporting state, so it needs to work.
         const targetMat = isReadyToPass ? env.airlockGreenMat : env.airlockRedMat;
+        const button = airlock.switchGrp && airlock.switchGrp.userData.button;
+        if (button && button.material !== targetMat) button.material = targetMat;
         env._updateAirlockDoor(airlock.outerDoor, delta);
         env._updateAirlockDoor(airlock.innerDoor, delta);
     }

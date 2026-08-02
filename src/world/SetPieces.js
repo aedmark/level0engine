@@ -581,7 +581,7 @@ export default class SetPieces {
             env._buildAirlock(chunkGroup, hash, outer.x * env.cellSize, outer.z * env.cellSize, spansX, sectorId, outSign);
             if (needsFloor || needsCeiling) {
                 env._buildHallwaySegment(chunkGroup, hash, innerCellX * env.cellSize, innerCellZ * env.cellSize, spansX, needsFloor, needsCeiling, sectorId, false);
-                env._buildHallwaySegment(chunkGroup, hash, outer.x * env.cellSize, outer.z * env.cellSize, spansX, needsFloor, needsCeiling, sectorId, true);
+                env._buildHallwaySegment(chunkGroup, hash, outer.x * env.cellSize, outer.z * env.cellSize, spansX, needsFloor, needsCeiling, sectorId, false);
             }
         }
     }
@@ -604,6 +604,8 @@ export default class SetPieces {
             env.airlockRedMat = new THREE.MeshBasicMaterial({color: 0xff2222});
             env.airlockGreenMat = new THREE.MeshBasicMaterial({color: 0x22ff44});
         }
+        const shellMat = env.stainlessMat || env.titaniumMat || env.metalMat;
+        const doorMat = env.stainlessDoorMat || env.titaniumMat || shellMat;
         const inSign = outSign * -1;
         const chamberDepth = 2.8;
         const halfDepth = chamberDepth * 0.5;
@@ -615,8 +617,6 @@ export default class SetPieces {
         const midX = dcx;
         const midZ = dcz;
         const CORRIDOR_HALF = 1.75;
-        const PILLAR_REACH = 2.2;
-        const SHOULDER_OUTER = 2.0;
         const addGeometry = (mesh) => {
             mesh.castShadow = true;
             mesh.receiveShadow = true;
@@ -636,45 +636,6 @@ export default class SetPieces {
             return new THREE.Mesh(geo, mat);
         };
         const buildDoor = (cx, cz) => {
-            const header = bWall(spansX ? 4.0 : 0.7, 0.8, spansX ? 0.7 : 4.0, env.metalMat);
-            header.position.set(cx, 3.0, cz);
-            addGeometry(header);
-            if (!env._lightMatPool) env._lightMatPool = new Map();
-            const barKey = '15007679_13495535_false';
-            if (!env._lightMatPool.has(barKey)) {
-                const mat = env.baseLightMat.clone();
-                mat.color.setHex(0xeaf6ff);
-                mat.emissive.setHex(0xcfe9ff);
-                env.sharedAssets.add(mat.uuid);
-                env._lightMatPool.set(barKey, mat);
-            }
-            const barMat = env._lightMatPool.get(barKey);
-            const depthSign = spansX ? (Math.sign(cz - midZ) || outSign) : (Math.sign(cx - midX) || outSign);
-            const barCx = spansX ? cx : cx + depthSign * 0.4;
-            const barCz = spansX ? cz + depthSign * 0.4 : cz;
-            const barHousing = new THREE.Mesh(env._boxGeo(spansX ? 1.6 : 0.3, 0.14, spansX ? 0.3 : 1.6), env.baseHousingMat);
-            barHousing.position.set(barCx, 2.73, barCz);
-            chunkGroup.add(barHousing);
-            env.walls.push(barHousing);
-            const barLens = new THREE.Mesh(env._boxGeo(spansX ? 1.4 : 0.16, 0.04, spansX ? 0.16 : 1.4), barMat);
-            barLens.position.set(barCx, 2.64, barCz);
-            chunkGroup.add(barLens);
-            env.walls.push(barLens);
-            env.fixtureData.push({
-                chunkHash: hash,
-                position: new THREE.Vector3(barCx, 2.64, barCz),
-                isSpot: true,
-                targetPos: new THREE.Vector3(cx, 0.0, cz),
-                spotAngle: Math.PI / 5,
-                spotPenumbra: 0.5,
-                distance: 8.0,
-                flickerOffset: Math.abs(cx * 37 + cz * 17) % 500,
-                material: barMat,
-                isFaulty: false,
-                baseIntensity: 2.2,
-                targetIntensity: 2.2,
-                currentIntensity: 2.2
-            });
             const doorGroup = new THREE.Group();
             doorGroup.position.set(cx, 0, cz);
             const getDoorGeo = (name, w, h, d) => {
@@ -693,28 +654,16 @@ export default class SetPieces {
             const stripeGeo = spansX
                 ? getDoorGeo('doorStripe', 0.14, 2.6, 0.26)
                 : getDoorGeo('doorStripe', 0.26, 2.6, 0.14);
-            const ribGeo = spansX
-                ? getDoorGeo('doorRib', 1.98, 0.08, 0.28)
-                : getDoorGeo('doorRib', 0.28, 0.08, 1.98);
             const mkPanel = (side) => {
-                const edgeMat = env.blackIronMat || env.metalMat;
-                const faceMat = env.titaniumMat || env.metalMat;
-                const matArray = spansX
-                    ? [side === -1 ? edgeMat : faceMat, side === 1 ? edgeMat : faceMat, faceMat, faceMat, faceMat, faceMat]
-                    : [faceMat, faceMat, faceMat, faceMat, side === -1 ? edgeMat : faceMat, side === 1 ? edgeMat : faceMat];
-                const p = new THREE.Mesh(panelGeo, matArray);
+                const p = new THREE.Mesh(panelGeo, doorMat);
                 if (spansX) p.position.set(side * 0.96, 1.3, 0);
                 else p.position.set(0, 1.3, side * 0.96);
                 const stripe = new THREE.Mesh(stripeGeo, env.hazardMat);
                 if (spansX) stripe.position.set(-side * 0.92, 0, 0);
                 else stripe.position.set(0, 0, -side * 0.92);
                 p.add(stripe);
-                for (let ry = -1; ry <= 1; ry += 2) {
-                    const rib = new THREE.Mesh(ribGeo, env.structuralSteelMat || env.titaniumMat || env.metalMat);
-                    rib.position.set(0, ry * 0.75, 0);
-                    p.add(rib);
-                }
-                p.castShadow = p.receiveShadow = true;
+                p.castShadow = false;
+                p.receiveShadow = true;
                 p.userData.chunkHash = hash;
                 doorGroup.add(p);
                 return p;
@@ -761,23 +710,98 @@ export default class SetPieces {
         };
         const outerDoor = buildDoor(outerX, outerZ);
         const innerDoor = buildDoor(innerX, innerZ);
-        const roofSpan = SHOULDER_OUTER * 2 + 0.2;
-        const capMat = env.blackIronMat || env.structMat;
-        const ceilBase = bWall(4.2, 0.4, 4.2, capMat);
-        ceilBase.position.set(midX, 3.2, midZ);
-        addGeometry(ceilBase);
-        const bezel = bWall(3.2, 0.2, 3.2, capMat);
-        bezel.position.set(midX, 2.9, midZ);
-        addGeometry(bezel);
-        const floorPlate = bWall(4.0, 0.04, 4.0, env.metalMat);
-        floorPlate.position.set(midX, 0.02, midZ);
-        addGeometry(floorPlate);
+        const SHELL_HALF = 2.0;
+        const SHELL_SPAN = SHELL_HALF * 2;
+        const SHELL_H = 3.0;
+        const WALL_T = 0.12;
+        const DOOR_TOP = 2.6;
+
+        // Along-axis is the direction of travel; cross-axis is the doorway's width.
+        const along = (n) => spansX ? [0, n] : [n, 0];
+        const shellPiece = (w, h, d, x, y, z, mat, solid) => {
+            const mesh = bWall(w, h, d, mat);
+            mesh.position.set(x, y, z);
+            mesh.castShadow = false;
+            mesh.receiveShadow = true;
+            mesh.userData.chunkHash = hash;
+            mesh.updateMatrixWorld(true);
+            chunkGroup.add(mesh);
+            env.walls.push(mesh);
+            if (solid) {
+                const box = new THREE.Box3(
+                    new THREE.Vector3(x - w / 2, y - h / 2, z - d / 2),
+                    new THREE.Vector3(x + w / 2, y + h / 2, z + d / 2)
+                );
+                box.chunkHash = hash;
+                box.isEntityBlocker = true;
+                env.spatialGrid.insert(box);
+            }
+            return mesh;
+        };
+
+        // Side walls. These now carry the collision the host sector's corridor walls used to,
+        // because those are no longer built across the airlock cell.
+        for (const side of [-1, 1]) {
+            const [ox, oz] = spansX ? [side * SHELL_HALF, 0] : [0, side * SHELL_HALF];
+            shellPiece(
+                spansX ? WALL_T : SHELL_SPAN, SHELL_H, spansX ? SHELL_SPAN : WALL_T,
+                midX + ox, SHELL_H / 2, midZ + oz, shellMat, true
+            );
+        }
+
+        const ROOF_BOTTOM = 2.97;
+        shellPiece(SHELL_SPAN, 0.06, SHELL_SPAN, midX, 0.03, midZ, shellMat, false);
+        shellPiece(SHELL_SPAN, 0.10, SHELL_SPAN, midX, ROOF_BOTTOM + 0.05, midZ, shellMat, false);
+
+        // Headers, filling the gap between each doorway's top and the roof so the doors read as set
+        // into the shell rather than hung in front of it.
+        for (const end of [-1, 1]) {
+            const [ox, oz] = along(end * halfDepth);
+            shellPiece(
+                spansX ? SHELL_SPAN : 0.5, ROOF_BOTTOM - DOOR_TOP, spansX ? 0.5 : SHELL_SPAN,
+                midX + ox, (DOOR_TOP + ROOF_BOTTOM) / 2, midZ + oz, shellMat, false
+            );
+        }
+
+        const cageStaging = [];
+        const getLightMaterial = (colorHex, emissiveHex, isBroken = false, plain = false) => {
+            if (!env._lightMatPool) env._lightMatPool = new Map();
+            const key = `${colorHex}_${emissiveHex}_${isBroken}_${plain}_`;
+            if (!env._lightMatPool.has(key)) {
+                const base = (isBroken ? env.baseBrokenLightMat : env.baseLightMat) || env.baseLightMat;
+                const mat = base.clone();
+                mat.color.setHex(colorHex);
+                mat.emissive.setHex(emissiveHex);
+                if (plain) {
+                    mat.map = null;
+                    mat.emissiveMap = null;
+                }
+                env.sharedAssets.add(mat.uuid);
+                env._lightMatPool.set(key, mat);
+            }
+            return env._lightMatPool.get(key);
+        };
+        this.buildCheckpointCageLight(
+            chunkGroup, hash, cageStaging, midX, midZ, spansX ? 0 : Math.PI / 2,
+            0, false, getLightMaterial, 0xeaf6ff, 0xcfe9ff, 0.45
+        );
+        // `buildCheckpointCageLight` stages its meshes for instancing with world matrices already
+        // baked in. This builder adds straight to the chunk group, so the transform has to be
+        // decomposed back out or every part collapses onto the chunk origin.
+        for (const mesh of cageStaging) {
+            const world = mesh.matrixWorld.clone();
+            mesh.castShadow = false;
+            chunkGroup.add(mesh);
+            world.decompose(mesh.position, mesh.quaternion, mesh.scale);
+            env.walls.push(mesh);
+        }
+
         const switchGroup = new THREE.Group();
-        const switchBase = bWall(spansX ? 0.05 : 0.3, 0.4, spansX ? 0.3 : 0.05, env.metalMat);
-        const switchButtonMat = new THREE.MeshBasicMaterial({color: 0x00ffcc});
+        const switchBase = bWall(spansX ? 0.05 : 0.3, 0.4, spansX ? 0.3 : 0.05, shellMat);
+        const switchButtonMat = new THREE.MeshBasicMaterial({color: 0xff2222});
         const switchButtonGeo = new THREE.BoxGeometry(spansX ? 0.06 : 0.1, 0.1, spansX ? 0.1 : 0.06);
         const switchButton = new THREE.Mesh(switchButtonGeo, switchButtonMat);
-        const WALL_HALF_THICKNESS = 0.2;
+        const WALL_HALF_THICKNESS = WALL_T;
         const SWITCH_OFFSET = CORRIDOR_HALF - WALL_HALF_THICKNESS - 0.025;
         if (spansX) {
             switchButton.position.set(-0.03, 0, 0);
@@ -787,7 +811,10 @@ export default class SetPieces {
             switchGroup.position.set(midX, 1.3, midZ + SWITCH_OFFSET);
         }
         switchGroup.add(switchBase, switchButton);
-        switchGroup.userData = {isAirlockSwitch: true, entityOpen: false, chunkHash: hash};
+        // `button` is named rather than reached for by child index. The cycle logic wants to recolour
+        // it every frame, and an index would silently start painting the housing the moment anything
+        // else is added to this group.
+        switchGroup.userData = {isAirlockSwitch: true, entityOpen: false, chunkHash: hash, button: switchButton};
         chunkGroup.add(switchGroup);
         if (!env.interactables) env.interactables = [];
         env.interactables.push(switchGroup);
