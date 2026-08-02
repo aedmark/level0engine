@@ -20,7 +20,7 @@ export default class PlayerController {
         this.speedMultiplier = 1.0;
         this.maxStamina = 100.0;
         this.stamina = 100.0;
-        this.inventory = {batteries: 0, almondWater: 0};
+        this.inventory = {batteries: 0, almondWater: 0, hasExitKey: false};
         this.objectives = {fixed: 0, total: 3, escaped: false};
         this.depth = 1;
         this.bestDepth = 1;
@@ -34,19 +34,19 @@ export default class PlayerController {
             if (this.objectives.escaped) return;
             if (this._lastSignalText === signalText && this._lastFixed === this.objectives.fixed &&
                 this._lastDepth === this.depth && this._lastBestDepth === this.bestDepth &&
-                this._lastAnnexVisited === this.hasVisitedAnnex) return;
+                this._lastKey === this.inventory.hasExitKey) return;
             this._lastSignalText = signalText;
             this._lastFixed = this.objectives.fixed;
             this._lastDepth = this.depth;
             this._lastBestDepth = this.bestDepth;
-            this._lastAnnexVisited = this.hasVisitedAnnex;
+            this._lastKey = this.inventory.hasExitKey;
             let uiHTML = `> LAYER ${this.depth} — DEEPEST REACHED: ${this.bestDepth}<br>`;
             if (this.objectives.fixed >= this.objectives.total) {
-                if (this.hasVisitedAnnex) {
-                    uiHTML += `> SECTOR STABILIZED.<br>> LOCATE EXIT THRESHOLD.<br>> SIGNAL: ${signalText}`;
+                if (this.inventory.hasExitKey) {
+                    uiHTML += `> SECTOR STABILIZED. RELEASE KEY HELD.<br>> LOCATE EXIT THRESHOLD.<br>> SIGNAL: ${signalText}`;
                     this.objectiveUI.style.color = '#88cc88';
                 } else {
-                    uiHTML += `> SECTOR STABILIZED.<br>> UNREVIEWED RECORDS FLAGGED — ANNEX.<br>> EXIT WILL NOT MANIFEST UNTIL REVIEWED.<br>> SIGNAL: ${signalText}`;
+                    uiHTML += `> SECTOR STABILIZED.<br>> ELEVATOR RELEASE KEY SECURED IN RECORDS — ANNEX.<br>> RECORDS LOCK IS NOT ON FILE. ASSEMBLE IT.<br>> SIGNAL: ${signalText}`;
                     this.objectiveUI.style.color = '#ffaa55';
                 }
             } else {
@@ -69,6 +69,12 @@ export default class PlayerController {
         this.isGodMode = false;
         this.baseFov = camera.fov;
         this.linguisticDarkMatter = 0.0;
+        // Tension carried specifically by unverified reading. Ordinary paranoia bleeds off in a lit
+        // room; this does not. A claim you have read once and confirmed nowhere sits on the battery
+        // ceiling until a second source settles it. Capped below the global 50 so ambient paranoia
+        // still has headroom to stack on top.
+        this.narrativeTension = 0.0;
+        this.MAX_NARRATIVE_TENSION = 40.0;
         this.currentFov = camera.fov;
         this._leanOffset = new Vec3();
         this._boxX = new AABB();
@@ -113,16 +119,42 @@ export default class PlayerController {
         this.perceivedDarkness = 0.0;
         this.flashlightBattery = 100.0;
         this.linguisticDarkMatter = 0.0;
+        this.narrativeTension = 0.0;
         this.velocity.set(0, 0, 0);
         this.objectives.fixed = 0;
         this.objectives.escaped = false;
         this.hasVisitedAnnex = false;
+        this.inventory.hasExitKey = false;
         if (this.depth > this.bestDepth) this.bestDepth = this.depth;
         this.depth = 1;
         this.updateObjectives();
     }
 
     _bindMetabolicListeners() {
+        // Reading is now a transaction rather than a flat sanity tax. Taking on a claim you cannot
+        // verify raises narrative tension, which pins the flashlight ceiling down until a second
+        // independent source settles it. The coherence sting stays small on purpose: passive
+        // recovery repays it in about a second, so it reads as a flinch, not as the price.
+        document.addEventListener('somatic-document-read', (e) => {
+            // Ephemera runs the transaction backwards. It asserts nothing, so there is nothing to
+            // carry and nothing to verify, and reading something written by a person rather than
+            // by the facility is the only thing in the wing that settles you.
+            if (e.detail && e.detail.ephemera) {
+                this.coherence = Math.min(1.0, this.coherence + 0.06);
+                return;
+            }
+            const unresolved = e.detail && e.detail.thread && !(e.detail.corroboration);
+            this.coherence = Math.max(0.0, this.coherence - 0.05);
+            if (!unresolved) return;
+            this.narrativeTension = Math.min(this.MAX_NARRATIVE_TENSION, this.narrativeTension + 7.0);
+            this.linguisticDarkMatter = Math.max(this.linguisticDarkMatter, this.narrativeTension);
+        });
+        document.addEventListener('somatic-corroboration', () => {
+            this.narrativeTension = Math.max(0.0, this.narrativeTension - 16.0);
+            this.linguisticDarkMatter = Math.max(this.narrativeTension, this.linguisticDarkMatter - 16.0);
+            this.coherence = Math.min(1.0, this.coherence + 0.12);
+            this.maxStamina = Math.min(100.0, this.maxStamina + 6.0);
+        });
         document.addEventListener('somatic-pickup-battery', () => {
             if (this.inventory.batteries < this.MAX_BATTERIES) {
                 this.inventory.batteries++;
@@ -338,7 +370,7 @@ export default class PlayerController {
             if (currentParanoia > 0.2 && currentParanoia < 0.5) {
                 this.linguisticDarkMatter = Math.min(50.0, this.linguisticDarkMatter + (delta * 0.8));
             } else if (this.isBlindFolded || (this.perceivedDarkness < 0.1 && currentParanoia === 0.0)) {
-                this.linguisticDarkMatter = Math.max(0.0, this.linguisticDarkMatter - (delta * 1.5));
+                this.linguisticDarkMatter = Math.max(this.narrativeTension, this.linguisticDarkMatter - (delta * 1.5));
             }
             const maxBatteryCeiling = 100.0 - this.linguisticDarkMatter;
             const clampedAngular = Math.min(5.0, angularSpeed);

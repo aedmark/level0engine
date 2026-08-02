@@ -325,8 +325,8 @@ const SECTORS = {
         reverb: {rt60: 4.5, predelay: 0.085, wet: 0.38}
     },
     ATRIUM: {
-        fog: 0.20, fogColor: 0x000000,
-        ambient: 0.10,
+        fog: 0.12, fogColor: 0x000000,
+        ambient: 0.00,
         ambience: {
             noise: 0.13,
             peace: 0.0,
@@ -374,8 +374,8 @@ const SECTORS = {
         reverb: {rt60: 0.9, predelay: 0.012, wet: 0.14}
     },
     CHECKPOINT: {
-        fog: 0.05,
-        ambient: 0.65,
+        fog: 0.01,
+        ambient: 0.55,
         ambience: {
             noise: 0.2,
             peace: 0.0,

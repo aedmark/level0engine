@@ -182,18 +182,37 @@ export const AnnexSector = (env, ctx) => {
                 aGroup.userData = {type: 'almond', chunkHash: hash, active: true};
                 chunkGroup.add(aGroup);
                 env.interactables.push(aGroup);
-                const fin = new THREE.Mesh(env.documentGeo, env.documentMat);
-                fin.position.set(ox, 0.035, oz);
-                fin.rotation.y = random() * Math.PI;
-                fin.userData = {
-                    type: 'document',
-                    chunkHash: hash,
-                    active: true,
-                    zone: 'ANNEX',
-                    docId: 'FINALE_' + Math.floor(random() * 999)
-                };
-                chunkGroup.add(fin);
-                env._registerInteractable(fin, hash);
+                // The records room used to hold the sealed Finding, which named the correct verdict
+                // outright and made every other document in the wing optional. It now holds the
+                // elevator's release key instead: the room is still worth breaking into, but it
+                // answers "can I leave" rather than "what happened here".
+                if (!env.exitKeyMat) {
+                    env.exitKeyMat = new THREE.MeshStandardMaterial({
+                        color: 0xb8912f, roughness: 0.32, metalness: 0.95,
+                        emissive: 0x3a2c08, emissiveIntensity: 0.6
+                    });
+                    env.sharedAssets.add(env.exitKeyMat.uuid);
+                }
+                const keyGroup = new THREE.Group();
+                const bow = new THREE.Mesh(env._boxGeo(0.11, 0.012, 0.07), env.exitKeyMat);
+                bow.position.set(-0.05, 0, 0);
+                keyGroup.add(bow);
+                const shaft = new THREE.Mesh(env._boxGeo(0.16, 0.01, 0.018), env.exitKeyMat);
+                shaft.position.set(0.07, 0, 0);
+                keyGroup.add(shaft);
+                const bit = new THREE.Mesh(env._boxGeo(0.022, 0.01, 0.045), env.exitKeyMat);
+                bit.position.set(0.13, 0, 0.028);
+                keyGroup.add(bit);
+                const kGlow = new THREE.Mesh(env.glowGeo, env.glowMat);
+                kGlow.scale.set(0.16, 0.16, 0.16);
+                kGlow.position.y = 0.01;
+                keyGroup.add(kGlow);
+                keyGroup.position.set(ox, 0.06, oz);
+                keyGroup.rotation.y = random() * Math.PI;
+                keyGroup.userData = {type: 'exit_key', chunkHash: hash, active: true};
+                chunkGroup.add(keyGroup);
+                keyGroup.updateMatrixWorld(true);
+                env._registerInteractable(keyGroup, hash);
                 return;
             }
             if (!isOpenable) return;
@@ -248,7 +267,7 @@ export const AnnexSector = (env, ctx) => {
                         type: 'document',
                         chunkHash: hash,
                         active: true,
-                        zone: 'AUDIO',
+                        zone: 'ANNEX',
                         docId: 'TAPE_' + Math.floor(random() * 9999)
                     };
                     chunkGroup.add(tapeGroup);

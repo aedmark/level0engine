@@ -1,5 +1,6 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
+import {placeSectorPaper} from '../NarrativeProps.js';
 
 /**
  * A procedural sector generator for the atrium: the interior of a shopping mall, built on
@@ -359,6 +360,9 @@ export const AtriumSector = (env, ctx) => {
                 buildAisleWallSegment(maze, localX, localZ, x * env.cellSize, z * env.cellSize);
             } else if (random() > 0.90) {
                 buildVendingMachine(x * env.cellSize, z * env.cellSize);
+            } else {
+                // Aisle floor, and specifically not a cell that just took a vending machine.
+                placeSectorPaper(env, ctx, "ATRIUM", x * env.cellSize, z * env.cellSize);
             }
         }
     };

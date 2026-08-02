@@ -54,6 +54,14 @@ export default class UIManager {
                 this.batLevel._last = batInt;
             }
         }
+        if (!this.batTension) this.batTension = document.getElementById('battery-tension');
+        if (this.batTension) {
+            const lost = Math.round(player.linguisticDarkMatter || 0);
+            if (this.batTension._last !== lost) {
+                this.batTension.style.width = `${lost}%`;
+                this.batTension._last = lost;
+            }
+        }
         if (this.stamLevel) {
             const stamInt = Math.round(player.stamina);
             if (this.stamLevel._last !== stamInt) {

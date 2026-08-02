@@ -1,5 +1,6 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
+import {placeSectorPaper} from '../NarrativeProps.js';
 
 /**
  * A procedural sector generator characterized by massive rusted pipes and glowing ember grilles.
@@ -15,8 +16,22 @@ export const IncineratorSector = (env, ctx) => {
         buildWall,
         addGeometry,
         chunkGroup,
-        hash
+        hash,
+        stagingMeshes
     } = ctx;
+    /**
+     * Ceiling trim, visible but not solid.
+     *
+     * The sector's headroom rule is a distinction rather than a height: a duct that physically
+     * drops into the gallery is meant to be ducked under, and a grille flush in the ceiling is
+     * meant to be walked beneath without noticing it. The risers stay collidable for exactly that
+     * reason. Anything that only reads as ceiling goes through here.
+     */
+    const decor = (m) => {
+        m.userData.chunkHash = hash;
+        m.updateMatrixWorld(true);
+        stagingMeshes.push(m);
+    };
     return {
         id: "INCINERATOR",
         foundationMat: env.incinFloorMat || env.diamondPlateMat || env.rustMat,
@@ -132,6 +147,8 @@ export const IncineratorSector = (env, ctx) => {
                 if (!isW(localX, localZ + 1) && random() > 0.55) buildSconce(0, 1);
                 return;
             }
+            // Combustion gallery floor. The wall branch above returned on every solid cell.
+            placeSectorPaper(env, ctx, "INCINERATOR", cxw, czw);
             const wN = isW(localX, localZ - 1);
             const wS = isW(localX, localZ + 1);
             const wE = isW(localX + 1, localZ);
@@ -151,7 +168,7 @@ export const IncineratorSector = (env, ctx) => {
                 if ((localX + localZ) % 2 === 0) {
                     const grille = new THREE.Mesh(env._boxGeo(0.5, 0.12, 0.5), env.emberGrilleMat);
                     grille.position.set(cxw, 2.50, czw);
-                    addGeometry(grille);
+                    decor(grille);
                 }
             }
             if (throughEW) {
@@ -161,7 +178,7 @@ export const IncineratorSector = (env, ctx) => {
                 if ((localX + localZ) % 2 === 1) {
                     const grille = new THREE.Mesh(env._boxGeo(0.5, 0.12, 0.5), env.emberGrilleMat);
                     grille.position.set(cxw, 2.50, czw);
-                    addGeometry(grille);
+                    decor(grille);
                 }
             }
             if (throughNS && throughEW) {

@@ -388,6 +388,7 @@
             border: 2px solid #fff;
             padding: 2px;
             box-sizing: border-box;
+            position: relative;
         }
 
         #battery-level {
@@ -397,34 +398,37 @@
             transition: width 0.2s linear, background-color 0.2s;
         }
 
+        #battery-tension {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            bottom: 2px;
+            width: 0;
+            background: repeating-linear-gradient(
+                    -45deg, rgba(255, 85, 85, 0.85) 0 2px, rgba(0, 0, 0, 0.9) 2px 4px);
+            transition: width 0.3s linear;
+            pointer-events: none;
+        }
+
         #document-overlay {
             display: none;
             position: absolute;
-
-            /* Symmetrical tension against the viewport bounds */
             top: 12%;
             bottom: 12%;
             left: 50%;
             transform: translateX(-50%);
-
             width: 70%;
             max-width: 600px;
-
-            /* Base color + integrated scanline artifacting */
             background-color: #f4f1e1;
             background-image: linear-gradient(
                     rgba(168, 159, 104, 0.15) 50%,
                     transparent 50%
             );
             background-size: 100% 4px;
-
             color: #1a1811;
             z-index: 2000;
             padding: 2.5rem;
-
-            /* Forces padding to respect the 12% bottom pin */
             box-sizing: border-box;
-
             font-family: 'Courier New', Courier, monospace;
             overflow-y: auto;
             border: 1px solid #a89f68;
@@ -754,6 +758,7 @@
     <div id="battery-wrapper" class="osd-element">
         <div id="battery-body">
             <div id="battery-level"></div>
+            <div id="battery-tension"></div>
         </div>
         <div id="battery-tip"></div>
     </div>
@@ -769,7 +774,7 @@
 <div id="ui-layer">
     <button id="menuToggleBtn" class="btn">MENU</button>
     <div class="control-panel">
-        <h1>LEVEL 0 ENGINE v0.6.2</h1>
+        <h1>LEVEL 0 ENGINE v0.7.0</h1>
         <div class="instructions">
             <p align="center">WASD to Move | Shift to Run<br>'E' to Interact | 'C' to Crouch<br>'Q' to Squeeze | 'V' to Blink<br>'F' for
                 Flashlight | '1' Use Battery<br>'2' Use Water | LMB to Look<br>RMB to Lean</p><br>

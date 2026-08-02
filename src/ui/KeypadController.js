@@ -41,14 +41,22 @@ export default class KeypadController {
                     this.player.input.state.isReading = false;
                 }, 500);
             } else {
-                display.innerText = "DENIED";
+                // A wrong code reports which legs of the lock are still missing from the record, and
+                // never which digits were wrong. A player who has all three legs and still cannot
+                // open the door has an arithmetic problem, which is theirs to solve.
+                const lock = this.getStory().lockProgress();
+                const missing = [];
+                if (!lock.cipher) missing.push('RULE');
+                if (!lock.epoch) missing.push('YEAR');
+                if (!lock.pen) missing.push('PEN');
+                display.innerText = missing.length ? 'DENIED — NO ' + missing.join(' / ') : 'DENIED';
                 display.style.color = "#ff5555";
                 this.acoustics.triggerSomaticEvent('breaker', 1.0, 0.5);
                 setTimeout(() => {
                     this.currentKeypadInput = "";
                     display.innerText = "_";
                     display.style.color = "#55ff55";
-                }, 800);
+                }, 1400);
             }
         } else {
             if (this.currentKeypadInput.length < 4) {

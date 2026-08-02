@@ -35,6 +35,19 @@ export default class SetPieces {
         const doorW = 1.4, doorT = 0.1;
         const frameMat = env.annexFrameMat || env.metalMat;
         const leafMat = env.annexDoorMat || env.doorMat;
+        /**
+         * Painted trim, staged straight onto the mesh list instead of through `addGeometry`.
+         *
+         * The hazard stripe below hangs at 2.43, and `PlayerController` forces a crouch under 2.43
+         * of headroom because anything lower is a duct you are meant to crawl. A painted stripe is
+         * not a duct. Registering it as collision meant every side room in the sector could only be
+         * entered doubled over, through a doorway whose actual header clears at 2.65.
+         */
+        const decor = (m) => {
+            m.userData.chunkHash = hash;
+            m.updateMatrixWorld(true);
+            stagingMeshes.push(m);
+        };
         if (flankV) {
             for (let s = -1; s <= 1; s += 2) {
                 const stub = buildWall(0.25, 1.2, env.checkpointWallMat || env.structMat);
@@ -52,7 +65,7 @@ export default class SetPieces {
             }
             const mark = new THREE.Mesh(env._boxGeo(0.04, 0.14, 1.5), env.hazardMat);
             mark.position.set(bx + dir * 0.15, 2.5, cz0);
-            addGeometry(mark);
+            decor(mark);
         } else {
             for (let s = -1; s <= 1; s += 2) {
                 const stub = buildWall(1.2, 0.25, env.checkpointWallMat || env.structMat);
@@ -70,7 +83,7 @@ export default class SetPieces {
             }
             const mark = new THREE.Mesh(env._boxGeo(1.5, 0.14, 0.04), env.hazardMat);
             mark.position.set(cx0, 2.5, bz + dir * 0.15);
-            addGeometry(mark);
+            decor(mark);
         }
         let doorMesh;
         if (flankV) {

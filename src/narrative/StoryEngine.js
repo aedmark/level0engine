@@ -1,10 +1,17 @@
+import {buildCaseFiles, THREADS} from './CaseFiles.js';
+
 /**
  * A procedural narrative generator that constructs a coherent lore state per playthrough.
  *
- * Instead of static text, this engine uses a seeded random number generator (PRNG).
- * When the player starts a run, the seed dictates the names of the cast, the access codes,
- * and the ultimate "truth" of the mystery. This ensures that every note, terminal, and tape
- * points toward a consistent conclusion for that specific seed, making each run unique but solvable.
+ * The seed dictates the cast, the access code, and which of three findings is true, so every note,
+ * terminal and tape in a run points at one consistent conclusion. This class owns the dealing:
+ * which object gets which document, in what order, and what that costs. The documents themselves
+ * live in CaseFiles.js.
+ *
+ * The unit of verification is the SECTOR. A claim asserted by one sector is rumour and sits on the
+ * player's flashlight ceiling as unresolved tension. The same claim asserted by a second, different
+ * sector settles and refunds. That single rule is what couples the case file to the maze: the price
+ * of knowing anything is measured in how far you walked to confirm it.
  */
 export default class StoryEngine {
     constructor(seed) {
@@ -32,109 +39,71 @@ export default class StoryEngine {
         const lost = mkName();
         this.cast = {lead, custodian, archivist, lost};
         this.projectName = pick(['THRESHOLD', 'LONG HALLWAY', 'WALLPAPER', 'EVENING SHIFT', 'HUM', 'PATIENT DOOR', 'YELLOW FIELD']);
-        this.accessCode = String(1000 + Math.floor(this.rand() * 9000));
         this.truth = Math.floor(this.rand() * 3);
         this.penNumber = 3 + Math.floor(this.rand() * 19);
+        this.siteYear = 1971 + Math.floor(this.rand() * 28);
+        // The lock is assembled, never issued. No document in the wing prints these four digits;
+        // one names the rule, another the year, a third the pen, and the player does the sum. The
+        // value is held here only so the keypad has something to compare against.
+        this.accessCode = String(this.siteYear).slice(2) + String(this.penNumber).padStart(2, '0');
         this.hours = 300 + Math.floor(this.rand() * 900);
         this.readTemplates = new Set();
-        this.trackers = {AUDIO: 0, ANNEX: 0, ARCHIVE: 0, IMPOUND: 0, DEFAULT: 0};
         this.assignments = new Map();
         this.collected = [];
         this.cycleIndex = new Map();
+        this.tapesDealt = new Set();
+        // `threadOf` is keyed on a template's exact text so tags survive shuffling and splicing with
+        // no index reconciliation. `threadSectors` records which sectors have asserted each claim.
+        this.threadOf = new Map();
+        this.threadSectors = new Map();
+        this.corroborated = new Set();
+        this.sectorsRead = new Set();
         this._buildLibrary();
         this._shuffleLibrary();
         this._anchorCodeFragments();
     }
 
     /**
-     * Builds the library of narrative fragments (tapes, reports, memos).
-     *
-     * We inject the randomly generated names (c.lead, c.lost) and codes (code, pen, hrs)
-     * directly into template literals. One of three possible "foreshadowing" threads is also injected
-     * based on `this.truth`, planting seeds for the final revelation.
-     *
+     * Loads the authored case files for this seed and indexes them for dealing.
      * @private
      */
     _buildLibrary() {
-        const c = this.cast;
-        const P = this.projectName;
-        const code = this.accessCode;
-        const pen = this.penNumber;
-        const hrs = this.hours;
-        this.library = {
-            AUDIO: [
-                `TAPE 01: [LOUD STATIC] ...${c.lead} here. The corridor walls are absorbing sound. I yelled for ${c.custodian} earlier and the echo... didn't come back. It just stopped. [CLICK]`,
-                `TAPE 02: [WARBLED BREATHING] ...if anyone finds this... the blueprints are a trap. The access codes aren't to keep us out. They're to keep it busy. [CLICK]`,
-                `TAPE 03: [HISSING] ...I found ${c.lost}'s tape recorder. It's still spinning, but there's no tape inside. How is it recording? [CLICK]`,
-                `TAPE 04: [METALLIC SCRAPING] ...hour ${hrs}. ${c.archivist} was right. The humming isn't a machine. It's a lung. [STATIC]`
-            ],
-            ANNEX: [
-                `ASYNC RESEARCH REPORT — PROJECT ${P}\nAUTHOR: ${c.lead}\n\nIt doesn't use the doors.\nIt doesn't need the doors.\nWhy did we build doors?`,
-                `INTERNAL MAIL — UNSENT\nFROM: ${c.lost}\nTO: ${c.lead}\n\nYou keep saying "containment" like the word still means something here. I measured my office again last night. It has been growing by four centimeters a week. I have stopped reporting it because you have stopped reading these.`,
-                `IT BULLETIN 7\nFROM: FACILITIES (${c.custodian})\n\nThe records room lock has been reset AGAIN. The new code is ${code}. Do not write it down. Do not tell ${c.lead} I wrote it down.`,
-                `PROJECT ${P} — OBSERVATION ${100 + (this.seed % 800)}\nAUTHOR: ${c.lead}\n\nThe architectural shift is directly proportional to the observer's heart rate. The walls aren't moving; the space between them is breathing. ${c.lost} disagrees. ${c.lost} has been in the halls ${hrs} hours and I no longer weight ${c.lost}'s disagreements.`,
-                `STICKY NOTE, FOLDED TWICE\n\nIf my door is locked and my laptop is on, I have gone to the pens. If my door is locked and my laptop is gone, so am I. — ${c.lost}`
-            ],
-            ARCHIVE: [
-                `PERSONNEL RECORD — ${c.lost.toUpperCase()}\nSTATUS: SEE ADDENDUM\nADDENDUM: MISSING\nADDENDUM 2: The addendum is not missing. The addendum was reclassified. — ${c.archivist}`,
-                `REQUISITION SLIP\nREQUESTED: 1 (one) additional copy of the floor plan\nDENIED. REASON: The floor plan is a living document. Duplication causes drift. — ${c.archivist}`,
-                `SHELVING MEMO\nFROM: ${c.archivist}\n\nStop filing the ${P} reports under FICTION. I know it's ${c.custodian}. The whispering in the stacks is NOT the documents, and even if it were, they would not appreciate the joke.`,
-                `BURN ORDER — PARTIAL\nAUTHORIZED: ${c.lead}\n\nAll ${P} correspondence prior to hour ${hrs}. The incinerator crew reports the door code desk left for them reads ${code}. That is not the incinerator code. That is the records room. Someone wants something read before it burns.`
-            ],
-            IMPOUND: [
-                `PROPERTY TAG — PEN ${pen}\nITEM: One (1) wedding ring, still warm.\nOWNER: ${c.lost}\nCLAIM STATUS: OWNER MUST CLAIM IN PERSON.`,
-                `PROPERTY TAG — PEN ${pen + 1}\nITEM: Office chair, one caster missing.\nNOTE FROM ${c.custodian}: It rolls back to the pen by morning. Stopped chasing it. Fence holds.`,
-                `IMPOUND LEDGER, FINAL PAGE\n\nHour ${hrs}: ${c.custodian} logged IN one (1) personal effect belonging to ${c.lost}.\nHour ${hrs}: ${c.custodian} logged OUT.\nThere is no second entry. The gate to pen ${pen} has been ajar since.`
-            ],
-            DEFAULT: [
-                `INCIDENT LOG\n\nSubject exhibited extreme paranoia after ${hrs} hours. Claimed the hum of the fluorescent lights was a linguistic sequence. We cut the power, but the humming didn't stop.`,
-                `MAINTENANCE REQUEST\nFILED BY: ${c.custodian}\n\nPlease send someone to Level 0. The carpet is damp again. Also, stop leaving geometry in the negative coordinate space. The renderer is screaming.`,
-                `MEMO\n\nIf you hear it scraping, stand still. If you hear it breathing, turn off the light. If you hear it laughing, close your eyes.`,
-                `SHIFT HANDOVER — PROJECT ${P}\n\n${c.lead} says the exits are a motivational tool. ${c.archivist} says the exits are load-bearing. ${c.lost} said the exits are a rumor the building spreads about itself. ${c.lost} was smiling when they said it. Nobody has seen that smile since.`,
-                `CAFETERIA NOTICE\n\nThe almond water is not a beverage. The almond water is a countermeasure. Ration accordingly. — FACILITIES`
-            ]
-        };
-        this.finales = [
-            `RECORDS ROOM — SEALED FILE\nPROJECT ${P} — FINDING OF FACT\n\nThere was no breach. Review every log: it never came IN. The entity predates the facility. The facility predates the level. We did not build a laboratory around a specimen. It grew a specimen around a laboratory.\n\n${c.lead}'s final margin note: "We are the note it left for itself."`,
-            `RECORDS ROOM — SEALED FILE\nPROJECT ${P} — FINDING OF FACT\n\n${c.lost} is alive. That is the finding. Every door that will not open has been locked FROM THE INSIDE, by hand, in ${c.lost}'s handwriting, in chalk, on the side we cannot see. ${c.lost} is not trapped in here with it.\n\nIt is trapped in here with ${c.lost}.`,
-            `RECORDS ROOM — SEALED FILE\nPROJECT ${P} — FINDING OF FACT\n\nThe hum is a carrier wave. ${c.archivist} proved it in the stacks: the documents rearrange along it. The building is not haunted. The building is TRANSMITTING — inventory, floor plans, personnel files — somewhere. We are not test subjects.\n\nWe are the payload.`
-        ];
-        const foreshadow = [
-            {
-                AUDIO: `TAPE 00: [DEAD AIR, THEN A SINGLE WORD, TOO LOW TO BE ${c.lost.toUpperCase()}'S VOICE] ...already... [SEVERAL MINUTES OF SILENCE, THEN CLICK]`,
-                ANNEX: `SITE SURVEY ADDENDUM — PRE-CONSTRUCTION\nAUTHOR: ${c.lead}\n\nThe soil report keeps flagging the same anomaly at survey depth, dated eleven years before ground was broken here. Facilities insists it's a scanning error. I have stopped asking why the error has a heartbeat.`,
-                ARCHIVE: `BLUEPRINT REVISION LOG, PAGE 1\n\nOriginal architect's notes, margin, undated: "Building AROUND it, not over it. Do not disturb the center." No further revisions on file. No original architect on file either. — ${c.archivist}`
-            },
-            {
-                AUDIO: `TAPE 00: [CALM, DELIBERATE — THIS IS ${c.lost.toUpperCase()}] ...I need you to stop looking for me. I need you to start locking up behind me instead. [CLICK]`,
-                ANNEX: `INTERNAL MAIL — UNSENT\nFROM: ${c.custodian}\nTO: ${c.lead}\n\n${c.lost} asked me for chalk last week. Not a pen, not a marker. Chalk. I didn't think anything of it until I found the supply boxes empty.`,
-                ARCHIVE: `SHELVING MEMO, ADDENDUM\nFROM: ${c.archivist}\n\nWe keep finding doors sealed from a side that has no handle. ${c.lost} filed the original blueprints personally. ${c.lost} would know exactly which side that is.`
-            },
-            {
-                AUDIO: `TAPE 00: [A RHYTHMIC CLICKING, LIKE A MODEM, THEN ${c.lead.toUpperCase()}'S VOICE] ...it isn't calling out. It's uploading. [STATIC]`,
-                ANNEX: `IT BULLETIN, ADDENDUM\nFROM: FACILITIES (${c.custodian})\n\nOutbound network traffic spiked again last night. Nobody was logged in. The packets are personnel files.\nOurs.`,
-                ARCHIVE: `REQUISITION SLIP, DENIED\nREQUESTED: Explanation for the antenna array logged under "HVAC."\nDENIED. REASON: It is HVAC. It regulates something. We were never told what. — ${c.archivist}`
+        const files = buildCaseFiles({
+            cast: this.cast,
+            project: this.projectName,
+            siteYear: this.siteYear,
+            pen: this.penNumber,
+            hours: this.hours,
+            seed: this.seed,
+            truth: this.truth
+        });
+        this.library = files.library;
+        this.tapes = files.tapes;
+        this.finales = files.finales;
+        this.ephemera = files.ephemera;
+        this.ephemeraDealt = new Map();
+        this.trackers = {};
+        // No +1 for the finale any more. The records room holds the elevator key, not the sealed
+        // Finding, so the finale text has no object in the world that deals it and counting it
+        // would make DATA RECOVERED permanently unreachable at 100%.
+        this.totalTemplates = 0;
+        for (const sector in this.library) {
+            this.trackers[sector] = 0;
+            const arr = this.library[sector];
+            const tags = files.tags[sector] || [];
+            for (let i = 0; i < arr.length; i++) {
+                if (tags[i]) this.threadOf.set(arr[i], tags[i]);
             }
-        ];
-        const tell = foreshadow[this.truth];
-        this.library.AUDIO.push(tell.AUDIO);
-        this.library.ANNEX.push(tell.ANNEX);
-        this.library.ARCHIVE.push(tell.ARCHIVE);
-        this.totalTemplates =
-            this.library.AUDIO.length +
-            this.library.ANNEX.length +
-            this.library.ARCHIVE.length +
-            this.library.IMPOUND.length +
-            this.library.DEFAULT.length + 1;
+            this.totalTemplates += arr.length;
+        }
+        for (const sector in this.tapes) {
+            this.threadOf.set(this.tapes[sector].text, this.tapes[sector].thread);
+            this.totalTemplates++;
+        }
     }
 
     /**
-     * Shuffles the document arrays to ensure random discovery order.
-     *
-     * Uses the Fisher-Yates shuffle algorithm alongside our seeded PRNG.
-     * This guarantees that the order in which documents are found is randomized, but will
-     * always be exactly the same if the same seed is used.
-     *
+     * Shuffles each sector's pool so discovery order varies, deterministically per seed.
      * @private
      */
     _shuffleLibrary() {
@@ -147,32 +116,39 @@ export default class StoryEngine {
         }
     }
 
+    /**
+     * Floats every document carrying the access code toward the front of its own pool.
+     *
+     * The records room is the one hard lock in the wing, so a run where all five CODE documents
+     * shuffle to the back is a run the player cannot open. Selecting on the thread tag rather than
+     * on substrings of the prose means adding another code-bearing memo needs no change here.
+     *
+     * @private
+     */
     _anchorCodeFragments() {
-        const markers = {
-            ANNEX: 'The new code is',
-            ARCHIVE: 'desk left for them reads'
-        };
-        for (const key in markers) {
+        const LEGS = ['CIPHER', 'EPOCH', 'PEN'];
+        for (const key in this.library) {
             const arr = this.library[key];
-            const ci = arr.findIndex(t => t.indexOf(markers[key]) !== -1);
-            if (ci > 2) {
-                const entry = arr.splice(ci, 1)[0];
-                arr.splice(Math.floor(this.rand() * 3), 0, entry);
+            for (const leg of LEGS) {
+                const ci = arr.findIndex(t => this.threadOf.get(t) === leg);
+                if (ci > 2) {
+                    const entry = arr.splice(ci, 1)[0];
+                    arr.splice(Math.floor(this.rand() * 3), 0, entry);
+                }
             }
         }
     }
 
     /**
-     * Retrieves the next available story fragment for a specific object (document/terminal/tape).
+     * Retrieves the story fragment bound to a specific object, assigning one on first contact.
      *
-     * Once an object (docId) is interacted with, the engine permanently maps
-     * that ID to a specific piece of text in `this.assignments`. If the player drops a document
-     * and picks it up again later, it will still say the same thing. Terminals cycle through
-     * all previously collected documents.
+     * Assignments are permanent: a note re-read says the same thing, and re-reads return no thread
+     * field, so tension and refunds cannot be farmed off one sticky note. Terminals ignore all of
+     * this and browse the recovered archive instead.
      *
      * @param {string} docId - The unique identifier of the interactable object.
-     * @param {string} [zone] - The sector the object was found in (determines document category).
-     * @returns {Object} An object containing the text and the player's collection progress.
+     * @param {string} [zone] - The sector the object was found in.
+     * @returns {Object} The fragment text, collection progress, thread, and any corroboration.
      */
     getFragment(docId, zone) {
         const idStr = String(docId || 'X');
@@ -196,12 +172,34 @@ export default class StoryEngine {
             }
             return {text: this.assignments.get(assignKey), progress: this.progress()};
         }
-        let category = 'DEFAULT';
-        if (idStr.startsWith('TAPE')) {
-            category = 'AUDIO';
-        } else if (zone && this.library[zone]) {
-            category = zone;
+        // Ephemera short-circuits everything below it. No thread, no tension, no archive entry, no
+        // effect on DATA RECOVERED. It is not case material and the engine should not pretend it
+        // is. Dealt round-robin so a bunker with eight desks reads eight different notes.
+        if (idStr.startsWith('NOTE_')) {
+            const pool = this.ephemera[zone] || this.ephemera.EXIT;
+            const n = this.ephemeraDealt.get(zone || 'EXIT') || 0;
+            this.ephemeraDealt.set(zone || 'EXIT', n + 1);
+            const text = pool[n % pool.length];
+            this.assignments.set(assignKey, text);
+            return {text, progress: this.progress(), ephemera: true};
         }
+        const sector = (zone && this.library[zone]) ? zone : 'DEFAULT';
+        // A recorder deals its own sector's tape, once. A second recorder in the same sector has
+        // nothing left to play and falls through to that sector's paper.
+        if (idStr.startsWith('TAPE_') && this.tapes[sector] && !this.tapesDealt.has(sector)) {
+            this.tapesDealt.add(sector);
+            const tape = this.tapes[sector];
+            this.readTemplates.add('TAPE:' + sector);
+            this.assignments.set(assignKey, tape.text);
+            this.collected.push(tape.text);
+            return {
+                text: tape.text,
+                progress: this.progress(),
+                thread: tape.thread,
+                corroboration: this._registerThread(tape.text, sector)
+            };
+        }
+        let category = sector;
         let idx = this.trackers[category];
         if (idx >= this.library[category].length) {
             if (category !== 'DEFAULT' && this.trackers['DEFAULT'] < this.library['DEFAULT'].length) {
@@ -215,9 +213,112 @@ export default class StoryEngine {
         }
         this.trackers[category]++;
         this.readTemplates.add(`${category}:${idx}`);
-        this.assignments.set(assignKey, this.library[category][idx]);
-        this.collected.push(this.library[category][idx]);
-        return {text: this.library[category][idx], progress: this.progress()};
+        const text = this.library[category][idx];
+        this.assignments.set(assignKey, text);
+        this.collected.push(text);
+        return {
+            text,
+            progress: this.progress(),
+            thread: this.threadOf.get(text) || null,
+            corroboration: this._registerThread(text, sector)
+        };
+    }
+
+    /**
+     * Files a freshly read document against the claim it makes, and reports a corroboration the
+     * first time two independent SECTORS assert the same claim.
+     *
+     * Two impound tags naming the same missing person do not corroborate each other. Neither does a
+     * tape and a memo pulled from the same room. Verification is priced in traversal, which is the
+     * entire reason the sector rather than the document category is the unit here.
+     *
+     * @param {string} text - The exact template text just read.
+     * @param {string} sector - The sector it was recovered from.
+     * @returns {Object|null} The corroboration payload, or null if nothing resolved this read.
+     * @private
+     */
+    _registerThread(text, sector) {
+        this.sectorsRead.add(sector);
+        const thread = this.threadOf.get(text);
+        if (!thread) return null;
+        let sectors = this.threadSectors.get(thread);
+        if (!sectors) {
+            sectors = new Set();
+            this.threadSectors.set(thread, sectors);
+        }
+        // Recorded before the settled check, so a third and fourth source still count toward case
+        // strength. A claim confirmed across five sectors is a stronger case than the same claim
+        // confirmed across two, even though both are equally settled.
+        sectors.add(sector);
+        if (this.corroborated.has(thread) || sectors.size < 2) return null;
+        this.corroborated.add(thread);
+        return {
+            thread,
+            label: this.threadLabel(thread),
+            sources: Array.from(sectors),
+            resolved: this.corroborated.size,
+            resolvable: THREADS.length,
+            sectors: this.caseStrength()
+        };
+    }
+
+    /**
+     * The claim a thread makes, phrased as the player would file it.
+     *
+     * CIPHER, EPOCH and PEN deliberately name the shape of the answer and never the answer. The
+     * banner tells you that you now know how the lock is built, or which year, or which pen. It
+     * does not do the arithmetic, because doing the arithmetic is the puzzle.
+     */
+    threadLabel(thread) {
+        return {
+            CIPHER: 'RECORDS LOCK — POUR YEAR, THEN OPEN PEN',
+            EPOCH: `THE SLAB WAS POURED IN ${this.siteYear}`,
+            PEN: `PEN ${this.penNumber} HAS NEVER BEEN SHUT`,
+            LOST: `THE DISPOSITION OF ${this.cast.lost.toUpperCase()}`,
+            GEOMETRY: 'THE FLOOR PLAN IS NOT FIXED',
+            HUM: 'THE HUM CARRIES INFORMATION',
+            TELL: `PROJECT ${this.projectName} — THE SHAPE OF THE FINDING`
+        }[thread] || thread;
+    }
+
+    /**
+     * Whether the player has settled all three legs of the records room lock.
+     *
+     * Nothing gates the keypad on this: a player who works the code out from one unconfirmed memo
+     * is welcome to type it in. This exists so the keypad can tell them which legs they are still
+     * missing when they get it wrong, rather than just buzzing at them.
+     *
+     * @returns {{cipher: boolean, epoch: boolean, pen: boolean, complete: boolean}}
+     */
+    lockProgress() {
+        const has = (t) => (this.threadSectors.get(t) || new Set()).size > 0;
+        const cipher = has('CIPHER'), epoch = has('EPOCH'), pen = has('PEN');
+        return {cipher, epoch, pen, complete: cipher && epoch && pen};
+    }
+
+    /**
+     * How many distinct sectors have contributed to a settled claim.
+     *
+     * This is the number the Inquest should be gated on. A finding assembled inside one wing is not
+     * a finding, it is a hunch with letterhead.
+     *
+     * @returns {number}
+     */
+    caseStrength() {
+        const contributing = new Set();
+        this.threadSectors.forEach((sectors, thread) => {
+            if (this.corroborated.has(thread)) sectors.forEach(s => contributing.add(s));
+        });
+        return contributing.size;
+    }
+
+    /** Claims asserted by at least one sector and not yet confirmed by a second. */
+    openThreads() {
+        const open = [];
+        this.threadSectors.forEach((sectors, thread) => {
+            if (!this.corroborated.has(thread)) open.push(thread);
+        });
+        return open;
     }
 
     getVerdicts() {
@@ -230,6 +331,10 @@ export default class StoryEngine {
             ],
             truth: this.truth,
             finaleRead: this.readTemplates.has('FINALE'),
+            tellCorroborated: this.corroborated.has('TELL'),
+            caseStrength: this.caseStrength(),
+            settled: this.corroborated.size,
+            resolvable: THREADS.length,
             project: this.projectName
         };
     }

@@ -509,6 +509,12 @@ export default class Environment {
             } else if (hit && hit.userData.type === 'grate' && hit.userData.active) {
                 hit.userData.active = false;
                 document.dispatchEvent(new CustomEvent('somatic-vent', {detail: {distSq: 1.0, intensity: 1.5}}));
+            } else if (hit && hit.userData.type === 'exit_key' && hit.userData.active) {
+                hit.userData.active = false;
+                hit.visible = false;
+                this.player.inventory.hasExitKey = true;
+                this.player.updateObjectives();
+                document.dispatchEvent(new CustomEvent('somatic-item', {detail: {distSq: 1.0, intensity: 0.8}}));
             } else if (hit && hit.userData.type === 'battery' && hit.userData.active) {
                 if (this.player.inventory.batteries < this.player.MAX_BATTERIES) {
                     hit.userData.active = false;
@@ -833,7 +839,7 @@ export default class Environment {
         const breakerPositions = [];
         if (isMacroStructure) {
             const isExitPhase = this.player && this.player.objectives && this.player.objectives.fixed >= this.player.objectives.total &&
-                this.player.hasVisitedAnnex && !this.player.objectives.escaped;
+                this.player.inventory.hasExitKey && !this.player.objectives.escaped;
             const poolKey = isExitPhase ? 'exit' : 'normal';
             if (!this._sectorBags) this._sectorBags = {};
             if (!this._sectorBags[poolKey] || this._sectorBags[poolKey].length === 0) {
@@ -1592,7 +1598,7 @@ export default class Environment {
         if (this.interactables && this.player && this.player.updateObjectives) {
             let nearestDistSq = Infinity;
             const isExitPhase = this.player.objectives.fixed >= this.player.objectives.total;
-            if (isExitPhase && !this.player.hasVisitedAnnex) {
+            if (isExitPhase && !this.player.inventory.hasExitKey) {
                 for (const zone of this.macroZones.values()) {
                     if (zone.id !== "ANNEX") continue;
                     const nx = Math.max(zone.minX, Math.min(cameraPos.x, zone.maxX));

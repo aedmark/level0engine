@@ -1,5 +1,6 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
+import {placeSectorPaper} from '../NarrativeProps.js';
 
 /**
  * A procedural sector generator characterized by hospital beds, IV drips, and collapsed ceilings.
@@ -88,6 +89,8 @@ export const ClinicSector = (env, ctx) => {
                 railFaces(cx0, cz0, localX, localZ, wallAt);
                 return;
             }
+            // Reached only on cleared ward floor: the maze wall branch above has already returned.
+            placeSectorPaper(env, ctx, "CLINIC", cx0, cz0);
             const gateApproach = (localX === 7 && (localZ <= 2 || localZ >= 13)) || (localZ === 7 && (localX <= 2 || localX >= 13));
             if (!gateApproach && (localX + localZ) % 2 === 0 && random() > 0.5) {
                 env._buildCeilingPanelLight(chunkGroup, hash, cx0, cz0, random, ctx.getLightMaterial, 0xe6f0ee, 0xd6e4dc, 1.7, 0.6);

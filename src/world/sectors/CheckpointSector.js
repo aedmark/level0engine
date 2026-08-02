@@ -1,5 +1,6 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
+import {placeSectorPaper} from '../NarrativeProps.js';
 
 /**
  * A procedural sector generator characterized by decontamination showers, hazmat gear, and security gates.
@@ -61,6 +62,9 @@ export const CheckpointSector = (env, ctx) => {
                         buildWall, addGeometry, addFurniture, chunkGroup, hash,
                         stagingMeshes, getLightMaterial: ctx.getLightMaterial
                     });
+                    // Inside the side room the builder just carved. Tightened to 0.9 so paper stays
+                    // clear of the stubs and door frame ringing the room's own cell.
+                    placeSectorPaper(env, ctx, "CHECKPOINT", x * env.cellSize, z * env.cellSize, undefined, 0.9);
                     return;
                 }
                 const block = buildWall(env.cellSize, env.cellSize, wallMat);
@@ -151,7 +155,11 @@ export const CheckpointSector = (env, ctx) => {
                     const rail = new THREE.Mesh(
                         env._boxGeo(alongZ ? 0.06 : railLen, 0.06, alongZ ? railLen : 0.06), env.metalMat);
                     rail.position.set(rx, 2.35, rz);
-                    addGeometry(rail);
+                    // Was the only part of the suit rack registered as collision: its own posts
+                    // two lines down already stage as decor. The rail's underside sits at 2.32,
+                    // which is under the 2.5 headroom floor, so a hanging clothes rail was forcing
+                    // a crouch on anyone walking the length of the rack.
+                    decalMesh(rail);
                     for (let p = -1; p <= 1; p += 2) {
                         const post = new THREE.Mesh(env._boxGeo(0.06, 2.35, 0.06), env.metalMat);
                         const [ppx, ppz] = alongZ ? [rx, rz + p * 1.5] : [rx + p * 1.5, rz];

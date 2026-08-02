@@ -57,6 +57,7 @@ export default class InquestController {
                         this.player.objectives.fixed = 0;
                         this.player.objectives.escaped = false;
                         this.player.hasVisitedAnnex = false;
+                        this.player.inventory.hasExitKey = false;
                         this.player.depth++;
                         if (this.player.depth > this.player.bestDepth) this.player.bestDepth = this.player.depth;
                         this.player.updateObjectives();
@@ -93,12 +94,15 @@ export default class InquestController {
             const progress = story.progress();
             document.getElementById('inquest-case').innerText =
                 `CASE FILE: PROJECT ${v.project} — DATA RECOVERED [ ${progress.found} / ${progress.total} ]`;
-            document.getElementById('inquest-hint').innerText = v.finaleRead
-                ? 'THE SEALED FINDING OF FACT IS ON RECORD. FILE IT.'
-                : 'THE SEALED FINDING OF FACT WAS NEVER RECOVERED. FILING WITHOUT IT IS GUESSWORK.';
+            // No option is ever starred. The records room hands over the elevator key, not the
+            // answer, so the verdict has to come from the evidence the player actually assembled.
+            // The hint reports the strength of their case and refuses to grade it for them.
+            document.getElementById('inquest-hint').innerText = v.tellCorroborated
+                ? `CORROBORATED ACROSS ${v.caseStrength} SECTORS. THE RECORD SUPPORTS ONE FINDING. FILE IT.`
+                : `CLAIMS SETTLED: ${v.settled} OF ${v.resolvable}. NO FINDING IS CORROBORATED. FILING NOW IS A GUESS AT ONE IN THREE.`;
             for (let i = 0; i < 3; i++) {
                 const btn = document.getElementById(`inquest-opt-${i}`);
-                btn.innerText = `[${i + 1}] ${v.options[i]}` + ((v.finaleRead && i === v.truth) ? '\n    ★ MATCHES SEALED FINDING' : '');
+                btn.innerText = `[${i + 1}] ${v.options[i]}`;
             }
             const result = document.getElementById('inquest-result');
             result.innerText = '';

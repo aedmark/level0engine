@@ -1,5 +1,6 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
+import {placeSectorPaper} from '../NarrativeProps.js';
 
 /**
  * A procedural sector generator characterized by vast, bottomless drops and precarious catwalks.
@@ -68,6 +69,9 @@ export const ChasmSector = (env, ctx) => {
                     roughness: 0.7,
                     metalness: 0.9
                 });
+                // Catwalk decking only. The void branch never reaches here, so paper can never be
+                // dropped over the drop.
+                placeSectorPaper(env, ctx, "CHASM", gx, gz);
                 const hx = env.cellSize / 2;
                 const tb1 = buildWall(env.cellSize, 0.1, env.blackIronMat, 0.2);
                 tb1.position.set(gx, -0.1, gz - hx + 0.05);

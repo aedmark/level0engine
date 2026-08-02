@@ -1,5 +1,6 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
+import {placeSectorPaper} from '../NarrativeProps.js';
 
 /**
  * A procedural sector generator characterized by tight crawlspaces, scattered tools, and hazard trims.
@@ -31,6 +32,8 @@ export const MaintenanceSector = (env, ctx) => {
                 block.userData.isEntityBlocker = true;
                 addGeometry(block);
             } else {
+                // Shaft floor: the wall branch above consumed every solid cell.
+                placeSectorPaper(env, ctx, "MAINTENANCE", x * env.cellSize, z * env.cellSize);
                 const isW = (lx, lz) => {
                     if (lx < 0 || lx >= env.chunkSize || lz < 0 || lz >= env.chunkSize) {
                         if (lx === 7 && (lz === -1 || lz === env.chunkSize)) return false;

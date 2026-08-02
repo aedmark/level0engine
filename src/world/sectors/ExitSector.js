@@ -1,5 +1,6 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
+import {placeEphemera} from '../NarrativeProps.js';
 
 /**
  * A procedural sector generator characterized by a central elevator/exit point.
@@ -51,6 +52,12 @@ export const ExitSector = (env, ctx) => {
                     eBox.chunkHash = hash;
                     eBox.isEntityBlocker = true;
                     env.spatialGrid.insert(eBox);
+                } else {
+                    // The eight chamber cells ringing the car, and nothing else in the sector. By
+                    // the time a player stands here they have thrown three breakers, assembled the
+                    // lock out of three sectors and carried the key across the wing. What is on
+                    // these desks costs nothing to read and proves nothing. That is the point.
+                    placeEphemera(env, ctx, "EXIT", x * env.cellSize, z * env.cellSize);
                 }
             } else if (isPathX || isPathZ) {
             } else {

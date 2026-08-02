@@ -2213,7 +2213,24 @@ export default class ProceduralTextureFactory {
 
             // Per-board stain. Boards come off different logs and take finish differently; one
             // fill across the whole tile was most of what made the old texture read as paper.
-            ctx.fillStyle = `hsl(${22 + rand() * 10}, ${34 + rand() * 12}%, ${21 + rand() * 8}%)`;
+            //
+            // Lightness was 21-29%, which is a true walnut albedo of about (0.28, 0.20, 0.14).
+            // That value cannot survive this engine's fill light. Ambient is a HemisphereLight
+            // whose ground colour is 0x3d3520, so a downward-facing board resolves to
+            // 0.28 x 0.24 x 0.65 ambient = RGB (11, 7, 3) and a vertical one to RGB (29, 19, 10).
+            // Every grain layer below is drawn at low alpha over this fill, so the figure was
+            // being multiplied into black along with it.
+            //
+            // 30-39% keeps the hue and saturation untouched -- this is still walnut, not pine.
+            // Measured against the real hemisphere terms, a vertical face goes from RGB (30,20,9)
+            // to (43,28,13) and an upward one from (49,32,16) to (70,46,23), rising to (56,36,17)
+            // and (90,60,30) on the lightest board. A downward face only moves from (12,7,3) to
+            // (17,10,4): the ground colour is the binding constraint there, not the albedo, and no
+            // value change to this fill will rescue a surface that faces the floor.
+            //
+            // The rand() call count is unchanged, so the seeded grain pattern is bit-identical to
+            // before. Only its value moves.
+            ctx.fillStyle = `hsl(${22 + rand() * 10}, ${34 + rand() * 12}%, ${30 + rand() * 9}%)`;
             ctx.fillRect(left, 0, span, H);
 
             // Often outside the board entirely, which is the common case for sawn stock and
@@ -3203,59 +3220,75 @@ export default class ProceduralTextureFactory {
      * geometry asks for. That is the whole trick, and it is the same mechanism that produces the
      * artifact for real, which is why it reads as one rather than as a striped wallpaper.
      *
-     * Two decisions carry it. `NearestFilter` on magnification, because a stretched texel is
-     * hard-edged -- letting it interpolate produces a soft airbrushed gradient, which is what a
-     * deliberate effect looks like and not what a broken one does. And `MeshBasicMaterial`: the
-     * smear takes no lighting, because an artifact is not in the room. A lit smear sits in the
-     * dark with the rest of the geometry and reads as painted board; an unlit one keeps burning
-     * at constant value while everything around it falls off, which is exactly the wrongness
-     * being reached for. Height falloff is carried by vertex colours instead (see the geometry
-     * in AtriumSector), since clamping means no vertical gradient can come from the texture.
+     * `NearestFilter` on magnification, because a stretched texel is hard-edged -- letting it
+     * interpolate produces a soft airbrushed gradient, which is what a deliberate effect looks
+     * like and not what a broken one does.
      *
-     * @returns {THREE.MeshBasicMaterial} The aisle smear material.
+     * Height falloff is carried by vertex colours on the geometry (see AtriumSector), since
+     * clamping means no vertical gradient can come from the texture by definition -- every row
+     * above the canvas is the same row. Note when tuning: `vertexColors` multiplies
+     * `diffuseColor` and never reaches `totalEmissiveRadiance`, so that falloff governs the
+     * diffuse only and the emissive floor recedes on fog and distance instead.
+     *
+     * @returns {THREE.MeshStandardMaterial} The aisle smear material.
      */
     static _buildAtriumSmear() {
-        // The one dial. `true` gives the artifact its own light -- a MeshBasicMaterial that
-        // ignores the scene entirely and keeps burning at constant value while the room falls
-        // away around it. `false` puts it back in the room as lit geometry with a low emissive
-        // floor, so it still glows faintly where nothing else does but obeys distance and dark.
-        //
-        // The tradeoff is the sector's floor of darkness. Atrium runs at `ambient: 0.0` and the
-        // v0.6.2 work deliberately made the vending machines its entire lighting budget; unlit,
-        // the aisles are visible with the flashlight off and no machine in range, which is a
-        // real change to how dark the room is allowed to get.
-        //
-        // Note while tuning: `vertexColors` multiplies `diffuseColor` and does not touch
-        // `totalEmissiveRadiance`, so the height falloff baked into the geometry applies to the
-        // lit variant's diffuse only. Its emissive recedes on fog and distance instead, which is
-        // why the two variants fade differently rather than identically at different strengths.
-        const UNLIT = false;
-
         const W = 512, H = 64;
         const RAIL = 11;
         const rand = this._seededRandom(73310945);
         const {canvas, ctx} = this._createContext(W, H);
 
-        // Muted against the literal values, because an unlit material sits at full value
-        // wherever it is drawn and the Atrium runs at ambient 0.0 -- at the boxes' true
-        // brightness these columns were the most luminous thing in a sector whose whole premise
-        // is that the vending machines are the only light in it. The lit variant has the
-        // opposite problem and needs the gain back, since it is being multiplied by an incident
-        // light level that is frequently zero.
-        const g = UNLIT ? 1.0 : 1.85;
-        const SHELF = [116 * g, 109 * g, 91 * g];
-        const GAP = [26 * g, 24 * g, 21 * g];
-        const BOXES = [[118 * g, 107 * g, 81 * g], [84 * g, 36 * g, 36 * g],
-            [37 * g, 57 * g, 44 * g], [35 * g, 48 * g, 70 * g], [126 * g, 122 * g, 107 * g]];
+        // Weighted, because the previous flat split was the whole reason this came out beige.
+        // It ran shelf-face 44% of the time and picked uniformly from five box colours for the
+        // rest, two of which (tan and cream) are themselves beige -- so 52% of the canvas was
+        // one hue and only 24% was red, green or blue between them. A supermarket shelf seen
+        // head-on is almost entirely product; the shelf itself survives as slivers between
+        // facings, not as the majority surface. Now 11% shelf, 8% gap, and the rest product,
+        // with red/green/blue at roughly 20% each.
+        //
+        // Saturation is raised over `productBoxMats` rather than copied from it. Those are
+        // authored to sit in a lit room where a 0x8a3a3a box still reads as red because the eye
+        // has the whole box to judge; a two-inch vertical streak at 40 metres under a vending
+        // machine's cyan cast has no such context and collapses to grey-brown. Each family also
+        // spans three values instead of one, so a run of adjacent facings varies the way stock
+        // on a shelf does.
+        const PALETTE = [
+            {w: 14, c: [188, 178, 150]},   // shelf face between facings
+            {w: 10, c: [34, 31, 27]},      // gap and shadow behind the front row
+            {w: 13, c: [186, 62, 54]},
+            {w: 8, c: [156, 44, 44]},
+            {w: 6, c: [206, 88, 62]},
+            {w: 12, c: [78, 138, 84]},
+            {w: 7, c: [58, 106, 70]},
+            {w: 5, c: [104, 156, 88]},
+            {w: 12, c: [62, 100, 158]},
+            {w: 7, c: [46, 76, 126]},
+            {w: 5, c: [86, 128, 184]},
+            {w: 11, c: [232, 224, 198]},
+            {w: 7, c: [210, 200, 172]},
+            {w: 9, c: [206, 178, 126]}
+        ];
+        const TOTAL = PALETTE.reduce((s, p) => s + p.w, 0);
+        const pick = () => {
+            let t = rand() * TOTAL;
+            for (const p of PALETTE) {
+                t -= p.w;
+                if (t <= 0) return p.c;
+            }
+            return PALETTE[0].c;
+        };
 
         // canvas y is inverted by the texture's flipY, so the foot of the wall is the foot of
         // the canvas: rail at the bottom, the endless part climbing away from it.
         let x = 0;
         while (x < W) {
-            const run = 3 + Math.floor(rand() * 30);
-            const r = rand();
-            const c = r < 0.44 ? SHELF : (r < 0.60 ? GAP : BOXES[Math.floor(rand() * BOXES.length)]);
-            const j = 0.80 + rand() * 0.40;
+            // 5..28px against 128px per metre, so a run is 4 to 22cm -- the width of a facing.
+            // The old 3..33 produced quarter-metre slabs that read as painted boarding.
+            const run = 5 + Math.floor(rand() * 24);
+            const c = pick();
+            // Tightened from 0.80..1.20. Wide value jitter on an already-desaturated palette was
+            // pushing half the runs far enough off their hue to land back in neutral.
+            const j = 0.88 + rand() * 0.24;
             const shade = (k) => Math.max(0, Math.min(255, Math.round(c[0 + k] * j)));
             ctx.fillStyle = `rgb(${shade(0)}, ${shade(1)}, ${shade(2)})`;
             ctx.fillRect(x, 0, run, H - RAIL);
@@ -3276,7 +3309,12 @@ export default class ProceduralTextureFactory {
         const map = this._createWrappedTexture(canvas, 1, 1, true);
         map.magFilter = THREE.NearestFilter;
         map.minFilter = THREE.LinearMipmapLinearFilter;
-        if (UNLIT) return new THREE.MeshBasicMaterial({map, vertexColors: true});
+        // Lit rather than unlit. A `MeshBasicMaterial` here reads as a purer artifact -- it
+        // ignores the scene and keeps burning at constant value while the room falls away -- but
+        // it also takes the flashlight out of the interaction and puts a floor under the
+        // Atrium's darkness, which the sector is built around not having. Lit, the beam sweeping
+        // up a column is the thing that reveals it, and that turned out to matter more than the
+        // purity did.
         return new THREE.MeshStandardMaterial({
             map,
             // The emissive has to run through the map rather than sit as a flat tint, or every

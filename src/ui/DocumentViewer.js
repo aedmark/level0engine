@@ -14,6 +14,29 @@ export default class DocumentViewer {
         this.terminalBrowseIndex = null;
     }
 
+    /**
+     * Renders the claim this document makes and whether anything else in the wing backs it up.
+     *
+     * An unverified claim is printed as an open question so the player knows they are now carrying
+     * weight. A corroboration names both sources, because the mechanic is worthless if the player
+     * cannot see that travelling to a second sector is what paid them.
+     *
+     * @param {Object} fragment - The fragment returned by StoryEngine.getFragment.
+     * @returns {string} A banner to append beneath the document body, or an empty string.
+     */
+    claimBanner(fragment) {
+        if (fragment.ephemera) return '\n\n---\n>> NOT CASE MATERIAL.';
+        if (!fragment.thread) return '';
+        if (fragment.corroboration) {
+            const c = fragment.corroboration;
+            return `\n\n---\n>> CORROBORATED: ${c.label}`
+                + `\n>> SOURCES: ${c.sources.join(' + ')}`
+                + `\n>> CLAIMS SETTLED: [ ${c.resolved} / ${c.resolvable} ]`;
+        }
+        return `\n\n---\n>> UNVERIFIED CLAIM: ${this.getStory().threadLabel(fragment.thread)}`
+            + `\n>> NO SECOND SOURCE ON RECORD.`;
+    }
+
     terminalFooter(fragment) {
         let footer = `\n\n---\nDATA RECOVERED: [ ${fragment.progress.found} / ${fragment.progress.total} ]`;
         footer += this.getStory().collected.length > 1
@@ -53,7 +76,15 @@ export default class DocumentViewer {
                 const zone = e.detail ? e.detail.zone : null;
                 const fragment = this.getStory().getFragment(docId, zone);
                 const isTerminal = docId && String(docId).startsWith('PC_');
-                let fullText = fragment.text + (isTerminal
+                // Charge the read where the data lives. Re-reads return an assignment with no
+                // `thread` field, so a player cannot farm tension or refunds off one sticky note.
+                if (fragment.thread !== undefined || fragment.ephemera) {
+                    document.dispatchEvent(new CustomEvent('somatic-document-read', {detail: fragment}));
+                    if (fragment.corroboration) {
+                        document.dispatchEvent(new CustomEvent('somatic-corroboration', {detail: fragment.corroboration}));
+                    }
+                }
+                let fullText = fragment.text + this.claimBanner(fragment) + (isTerminal
                     ? this.terminalFooter(fragment)
                     : `\n\n---\nDATA RECOVERED: [ ${fragment.progress.found} / ${fragment.progress.total} ]`);
                 this.terminalBrowseIndex = null;
@@ -133,7 +164,6 @@ export default class DocumentViewer {
                 this.acoustics.triggerSomaticEvent('door', 1.0, 0.3);
             } else if (docOverlay && docOverlay.style.display !== 'none') {
                 docOverlay.style.display = 'none';
-                this.player.coherence = Math.max(0.0, this.player.coherence - 0.15);
                 this.acoustics.triggerSomaticEvent('item', 1.0, 0.2);
             }
         });
