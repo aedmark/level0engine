@@ -1996,10 +1996,20 @@ export default class Environment {
             // Wetter cells grow wider colonies. This is the last place size varies, and it means
             // a run through the middle of a damp zone visibly thickens toward the centre.
             const sx = (0.6 + random() * 0.7) * anchor.weight * (0.85 + damp * 0.4);
-            const slide = anchor.slide + (random() - 0.5) * anchor.jitter;
+            const half = (1.5 * sx) * 0.42;
+            // A corner patch is placed by its far edge rather than its centre.
+            //
+            // Fixed slide put the centre 0.15 from the cell boundary while `half` runs to about
+            // 1.10, so the visible colony hung up to 0.95 out past the wall it was painted on --
+            // and the companion decal on the perpendicular face did the same. Two quads
+            // overhanging the same corner at ninety degrees do not wrap it, they splay off it as
+            // a dovetail. Solving for the edge instead pins it exactly on the corner line at
+            // every size, so the pair meet there and the growth turns the crease.
+            const slide = anchor.corner
+                ? anchor.toward * Math.max(0, cell / 2 - half)
+                : anchor.slide + (random() - 0.5) * anchor.jitter;
             const px = cx + sinY * out + cosY * slide;
             const pz = cz + cosY * out - sinY * slide;
-            const half = (1.5 * sx) * 0.42;
             const inward = 0.25;
             let hung = true;
             for (let e = -1; e <= 1; e++) {
@@ -2023,19 +2033,26 @@ export default class Environment {
             addGeometry(mold);
 
             if (anchor.corner) {
-                const sx_adj = (0.6 + random() * 0.7) * anchor.weight * (0.85 + damp * 0.4);
-                const flip_adj = random() > 0.5 ? 1 : -1;
                 const f_adj = (face + anchor.toward + 4) % 4;
                 const rotY_adj = f_adj * (Math.PI / 2);
                 const sinY_adj = Math.sin(rotY_adj), cosY_adj = Math.cos(rotY_adj);
-                const slide_adj = -anchor.slide + (random() - 0.5) * anchor.jitter;
+                // The perpendicular face has to actually have a wall behind it. This was placed
+                // unconditionally, so a corner anchor could hang its companion on a face that was
+                // open -- a colony growing on nothing, at right angles to a real one.
+                if (!solidBehind(cx + sinY_adj * (out - 0.25), cz + cosY_adj * (out - 0.25))) continue;
+                // Same width as its partner, deliberately. Rolling a second scale here meant the
+                // two halves of one colony met the corner at different extents and stepped against
+                // each other across the crease. Only the texture variant and the mirror still
+                // vary, which is enough to stop the pair reading as one shape copied twice.
+                const slide_adj = -slide;
+                const flip_adj = random() > 0.5 ? 1 : -1;
                 const px_adj = cx + sinY_adj * out + cosY_adj * slide_adj;
                 const pz_adj = cz + cosY_adj * out - sinY_adj * slide_adj;
 
                 const mold_adj = new THREE.Mesh(geos[Math.floor(random() * geos.length)], this.moldCreepMat);
                 mold_adj.position.set(px_adj, BOTTOM + geoH / 2, pz_adj);
                 mold_adj.rotation.y = rotY_adj;
-                mold_adj.scale.set(flip_adj * sx_adj, 1, 1);
+                mold_adj.scale.set(flip_adj * sx, 1, 1);
                 addGeometry(mold_adj);
             }
         }
