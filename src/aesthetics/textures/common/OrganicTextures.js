@@ -225,7 +225,11 @@ export default class OrganicTextures {
     }
 
     static _buildMoldCreepAtlas(masterNoise) {
-        const COLS = 3, ROWS = 2;
+        // 12 colonies instead of 6 (4x3 instead of 3x2). Palette and footprint are no longer a
+        // hand-authored lookup table matched 1:1 to a tile index — they're rolled per tile off a
+        // seeded RNG, so each colony's hue, seat count, and how far it spreads/climbs all vary
+        // independently instead of reusing the same six silhouettes (flipped and rescaled) forever.
+        const COLS = 4, ROWS = 3;
         const TILE_W = 256, TILE_H = 224;
         const PAD = 8;
         const SEEP_FRAC = 0.14;
@@ -233,37 +237,40 @@ export default class OrganicTextures {
         const AW = COLS * TILE_W, AH = ROWS * TILE_H;
         const {canvas, ctx} = TextureMechanics._createContext(AW, AH, false);
 
-        const PALETTES = [
+        // A few base mildew hues (olive-khaki, cooler grey-green, sooty grey, rust-tinged brown) to
+        // jitter away from per tile, rather than one fixed swatch repeated with tiny tweaks.
+        const HUE_BASES = [
             {halo: [118, 116, 92], body: [76, 78, 58], core: [46, 50, 38], seep: [20, 17, 12]},
-            {halo: [112, 112, 98], body: [70, 72, 64], core: [43, 46, 44], seep: [17, 18, 17]},
-            {halo: [120, 116, 86], body: [76, 74, 52], core: [48, 48, 32], seep: [23, 19, 11]},
             {halo: [106, 114, 96], body: [64, 74, 58], core: [40, 49, 41], seep: [15, 20, 16]},
-            {halo: [118, 114, 90], body: [74, 72, 54], core: [46, 47, 34], seep: [22, 18, 12]},
-            {halo: [114, 112, 90], body: [72, 74, 56], core: [44, 47, 36], seep: [19, 18, 13]}
-        ];
-
-        const FOOTPRINTS = [
-            {seats: 1, spread: 0.22, reach: 0.22},
-            {seats: 2, spread: 0.32, reach: 0.32},
-            {seats: 3, spread: 0.44, reach: 0.46},
-            {seats: 2, spread: 0.52, reach: 0.28},
-            {seats: 3, spread: 0.56, reach: 0.50},
-            {seats: 1, spread: 0.30, reach: 0.60}
+            {halo: [112, 110, 112], body: [66, 65, 70], core: [38, 38, 43], seep: [14, 13, 17]},
+            {halo: [120, 108, 80], body: [80, 68, 46], core: [50, 41, 27], seep: [24, 17, 10]}
         ];
 
         for (let v = 0; v < COLS * ROWS; v++) {
             const ox = (v % COLS) * TILE_W;
             const oy = Math.floor(v / COLS) * TILE_H;
+            const rand = TextureMechanics._seededRandom(31775902 + v * 7919);
+            const base = HUE_BASES[v % HUE_BASES.length];
+            const jitterC = (c) => c.map(ch => Math.max(0, Math.min(255, Math.round(ch + (rand() - 0.5) * 18))));
+            const pal = {
+                halo: jitterC(base.halo), body: jitterC(base.body),
+                core: jitterC(base.core), seep: jitterC(base.seep)
+            };
+            // sizeClass biases this colony toward either a tight freckle or a sprawling climber,
+            // so the atlas covers the full range a real mildew patch does instead of clustering
+            // around one "typical" size.
+            const sizeClass = rand();
+            const fp = {
+                seats: 1 + Math.floor(rand() * (sizeClass > 0.55 ? 4 : 3)),
+                spread: 0.16 + rand() * 0.16 + sizeClass * 0.26,
+                reach: 0.16 + rand() * 0.14 + sizeClass * 0.42
+            };
             ctx.save();
             ctx.beginPath();
             ctx.rect(ox + PAD, oy + PAD, TILE_W - PAD * 2, TILE_H - PAD * 2);
             ctx.clip();
             ctx.translate(ox, oy);
-            this._growMoldColony(
-                ctx, ox, oy, TILE_W, TILE_H, PAD, SEEP_FRAC,
-                TextureMechanics._seededRandom(31775902 + v * 7919),
-                PALETTES[v], FOOTPRINTS[v]
-            );
+            this._growMoldColony(ctx, ox, oy, TILE_W, TILE_H, PAD, SEEP_FRAC, rand, pal, fp);
             ctx.restore();
         }
 
@@ -276,6 +283,22 @@ export default class OrganicTextures {
         const UW = RIGHT - LEFT, UH = BOT - TOP;
         const JOINT = BOT - UH * SEEP_FRAC;
         const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a.toFixed(3)})`;
+
+        // The tile is hard-clipped at LEFT/RIGHT/TOP (ctx.clip() in the caller), and a colony that
+        // is still at meaningful density when it hits that line reads as a sliced-off edge rather
+        // than a patch that petered out on its own. This makes density taper toward zero well
+        // before the clip line so there's nothing left for the clip (or the atlas feathering) to
+        // truncate — the shape runs out of steam organically instead of hitting a wall.
+        const EDGE_SIDE = UW * 0.24, EDGE_TOP = UH * 0.32;
+        const smooth = (t) => t * t * (3 - 2 * t);
+        const edgeFactor = (x, y) => {
+            let k = 1;
+            const dl = x - LEFT, dr = RIGHT - x, dt = y - TOP;
+            if (dl < EDGE_SIDE) k *= smooth(Math.max(0, dl / EDGE_SIDE));
+            if (dr < EDGE_SIDE) k *= smooth(Math.max(0, dr / EDGE_SIDE));
+            if (dt < EDGE_TOP) k *= smooth(Math.max(0, dt / EDGE_TOP));
+            return k;
+        };
 
         const anchor = 0.5 + (rand() - 0.5) * 0.34;
         const seats = [];
@@ -295,9 +318,10 @@ export default class OrganicTextures {
                 const r = s.spread * (0.6 + rand() * 1.0);
                 const hx = s.x + (rand() - 0.5) * s.spread * 1.8;
                 const hy = JOINT - Math.pow(rand(), 1.6) * s.reach * 1.3;
+                const ek = edgeFactor(hx, hy);
                 const g = ctx.createRadialGradient(hx, hy, 0, hx, hy, r);
-                g.addColorStop(0, rgba(pal.halo, 0.009 + rand() * 0.007));
-                g.addColorStop(0.5, rgba(pal.halo, 0.004));
+                g.addColorStop(0, rgba(pal.halo, (0.009 + rand() * 0.007) * ek));
+                g.addColorStop(0.5, rgba(pal.halo, 0.004 * ek));
                 g.addColorStop(1, rgba(pal.halo, 0));
                 ctx.fillStyle = g;
                 ctx.beginPath();
@@ -315,9 +339,10 @@ export default class OrganicTextures {
                 const bx = s.x + off * s.spread * 1.15;
                 const bw = s.spread * (0.10 + rand() * 0.16);
                 const bh = matH * (0.35 + rand() * 2.3) * density;
-                ctx.fillStyle = rgba(pal.body, (0.032 + rand() * 0.048) * density);
+                const by = JOINT - bh * 0.25;
+                ctx.fillStyle = rgba(pal.body, (0.032 + rand() * 0.048) * density * edgeFactor(bx, by));
                 ctx.beginPath();
-                ctx.ellipse(bx, JOINT - bh * 0.25, bw, bh, 0, 0, Math.PI * 2);
+                ctx.ellipse(bx, by, bw, bh, 0, 0, Math.PI * 2);
                 ctx.fill();
             }
         }
@@ -340,16 +365,21 @@ export default class OrganicTextures {
                 let guard = 0;
                 while (r > 1.3 && y > JOINT - ceiling && y < JOINT + matH && guard++ < 90) {
                     const climbed = Math.min(1, (JOINT - y) / Math.max(1, s.reach));
-                    ctx.fillStyle = rgba(pal.body, 0.017 * (1 - climbed * 0.6) + 0.005);
+                    const ek = edgeFactor(x, y);
+                    // A tendril that wanders into the taper zone doesn't just get dimmer, it also
+                    // decays faster and is more likely to give up outright — like it's running out
+                    // of damp surface to spread across, rather than being erased by an invisible wall.
+                    ctx.fillStyle = rgba(pal.body, (0.017 * (1 - climbed * 0.6) + 0.005) * ek);
                     ctx.beginPath();
                     ctx.arc(x, y, r, 0, Math.PI * 2);
                     ctx.fill();
-                    if (r > 2.2) lobeStamps.push({x, y, r, climbed});
+                    if (r > 2.2 && ek > 0.15) lobeStamps.push({x, y, r, climbed});
                     ang += (rand() - 0.5) * 0.85 + (target - ang) * 0.12;
                     const step = r * (0.42 + rand() * 0.3);
                     x += Math.cos(ang) * step;
                     y += Math.sin(ang) * step;
-                    r *= decay;
+                    r *= decay * (0.4 + 0.6 * ek);
+                    if (ek < 0.04) break;
                 }
             }
         }
@@ -366,7 +396,9 @@ export default class OrganicTextures {
                 const len = 3 + rand() * 11;
                 for (let step = 0; step < len; step++) {
                     const t = step / len;
-                    ctx.fillStyle = rgba(pal.body, 0.022 * (1 - t) + 0.004);
+                    const ek = edgeFactor(x, y);
+                    if (ek < 0.04) break;
+                    ctx.fillStyle = rgba(pal.body, (0.022 * (1 - t) + 0.004) * ek);
                     ctx.beginPath();
                     ctx.arc(x, y, 1.4 * (1 - t * 0.7) + 0.35, 0, Math.PI * 2);
                     ctx.fill();
@@ -379,11 +411,19 @@ export default class OrganicTextures {
 
         const img = ctx.getImageData(ox, oy, W, H);
         const px = img.data;
-        const CORE_TOP = JOINT - (UH * 0.34);
-        for (let y = 0; y < H; y++) {
-            if (y < CORE_TOP) continue;
-            const depth = Math.min(1, (y - CORE_TOP) / Math.max(1, (JOINT - CORE_TOP) * 0.7));
-            for (let x = 0; x < W; x++) {
+        const CORE_TOP_BASE = JOINT - (UH * 0.34);
+        // A perfectly flat threshold line reads as a drawn boundary no matter how soft the alpha
+        // blend either side of it is. Wobbling it per-column with a couple of mismatched sine
+        // waves gives the wet/dry line an irregular, dripped edge instead of a ruler-straight one.
+        const jPhaseA = rand() * Math.PI * 2, jPhaseB = rand() * Math.PI * 2;
+        const jAmpA = UH * (0.03 + rand() * 0.03), jAmpB = UH * (0.015 + rand() * 0.02);
+        for (let x = 0; x < W; x++) {
+            const coreTop = CORE_TOP_BASE
+                + Math.sin(x * 0.045 + jPhaseA) * jAmpA
+                + Math.sin(x * 0.12 + jPhaseB) * jAmpB;
+            for (let y = Math.max(0, Math.floor(coreTop)); y < H; y++) {
+                const depth = Math.min(1, (y - coreTop) / Math.max(1, (JOINT - coreTop) * 0.7));
+                if (depth <= 0) continue;
                 const i = (y * W + x) * 4;
                 const a = px[i + 3] / 255;
                 if (a < 0.42) continue;
@@ -407,9 +447,10 @@ export default class OrganicTextures {
                 if (falloff <= 0) continue;
                 const bw = wide * (0.05 + rand() * 0.13);
                 const bh = BAND * (0.10 + rand() * 0.22);
-                ctx.fillStyle = rgba(pal.seep, (0.07 + rand() * 0.13) * falloff);
+                const by = JOINT + bh * (0.5 + rand() * 0.7);
+                ctx.fillStyle = rgba(pal.seep, (0.07 + rand() * 0.13) * falloff * edgeFactor(bx, by));
                 ctx.beginPath();
-                ctx.ellipse(bx, JOINT + bh * (0.5 + rand() * 0.7), bw, bh, 0, 0, Math.PI * 2);
+                ctx.ellipse(bx, by, bw, bh, 0, 0, Math.PI * 2);
                 ctx.fill();
             }
 
@@ -420,8 +461,9 @@ export default class OrganicTextures {
                 if (falloff <= 0) continue;
                 const rw = 1.2 + rand() * 3.5;
                 const reach = BAND * (0.4 + rand() * 0.75);
+                const ek = edgeFactor(rx, JOINT);
                 const g = ctx.createLinearGradient(0, JOINT, 0, JOINT + reach);
-                g.addColorStop(0, rgba(pal.seep, 0.34 * falloff));
+                g.addColorStop(0, rgba(pal.seep, 0.34 * falloff * ek));
                 g.addColorStop(1, rgba(pal.seep, 0));
                 ctx.fillStyle = g;
                 ctx.beginPath();
@@ -434,7 +476,7 @@ export default class OrganicTextures {
             const s = seats[Math.floor(rand() * seats.length)];
             const x = s.x + (rand() - 0.5) * s.spread * 3.0;
             const y = JOINT - Math.pow(rand(), 2.2) * s.reach * 1.7;
-            ctx.fillStyle = rgba(pal.body, 0.028 + rand() * 0.05);
+            ctx.fillStyle = rgba(pal.body, (0.028 + rand() * 0.05) * edgeFactor(x, y));
             ctx.beginPath();
             ctx.arc(x, y, 0.4 + rand() * 1.0, 0, Math.PI * 2);
             ctx.fill();

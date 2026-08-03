@@ -604,6 +604,11 @@ export default class StructuralBlueprints {
                         this.rottedTileMat = this.ceilMat.clone();
                         this.rottedTileMat.color.setHex(0x93856b);
                         this.rottedTileMat.roughness = 0.95;
+                        // Fallen/dangling tile debris is small, thin, and sits directly under the
+                        // single big shadow-casting overhead light — it was throwing long, hard
+                        // shadow blobs across the floor that read as a rendering glitch rather than
+                        // a scattering of light ceiling tile.
+                        this.rottedTileMat.userData = { noShadow: true };
                         this.sharedAssets.add(this.rottedTileMat.uuid);
                     }
                     if (!this.ceilingHoleMat) {
@@ -766,10 +771,12 @@ export default class StructuralBlueprints {
                             this.rottedTileMat = this.ceilMat.clone();
                             this.rottedTileMat.color.setHex(0x93856b);
                             this.rottedTileMat.roughness = 0.95;
+                            this.rottedTileMat.userData = { noShadow: true };
                             this.sharedAssets.add(this.rottedTileMat.uuid);
                         }
                         if (!this.ceilingHoleMat) {
                             this.ceilingHoleMat = new THREE.MeshBasicMaterial({color: 0x060504});
+                            this.ceilingHoleMat.userData = { noShadow: true };
                             this.sharedAssets.add(this.ceilingHoleMat.uuid);
                         }
                         const tileCount = 4 + Math.floor(poiRandom() * 4);
@@ -1009,20 +1016,37 @@ export default class StructuralBlueprints {
                         const cx = x * this.cellSize;
                         const cz = z * this.cellSize;
                         const half = this.cellSize / 2;
-                        const floorGeo = this._planeGeo(this.cellSize, this.cellSize);
-                        const floor = new THREE.Mesh(floorGeo, this.tileMat);
+                        let floor;
+                        if (this.checkpointFloorMat) {
+                            // checkpointFloorMat's texture is baked with a 14x14 repeat sized for
+                            // the sector's own full-macro-zone floor slab, where one repeat spans
+                            // exactly one cellSize. The shared, cached cellSize-square plane
+                            // defaults to plain 0..1 UVs, which would cram all 14 repeats into this
+                            // one small room instead of the single repeat it should show, so this
+                            // floor gets its own (uncached) geometry with UVs pre-scaled to match.
+                            const floorGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize);
+                            const uv = floorGeo.attributes.uv;
+                            for (let i = 0; i < uv.count; i++) {
+                                uv.setXY(i, uv.getX(i) / 14, uv.getY(i) / 14);
+                            }
+                            uv.needsUpdate = true;
+                            floor = new THREE.Mesh(floorGeo, this.checkpointFloorMat);
+                        } else {
+                            floor = new THREE.Mesh(this._planeGeo(this.cellSize, this.cellSize), this.tileMat);
+                        }
                         floor.rotation.x = -Math.PI / 2;
                         floor.position.set(cx, 0.01, cz);
                         addGeometry(floor);
-                        const wBack = buildWall(this.cellSize, 0.5, this.woodMat);
+                        const oasisWallMat = this.checkpointWallMat || this.woodMat;
+                        const wBack = buildWall(this.cellSize, 0.5, oasisWallMat);
                         wBack.position.set(cx, 1.5, cz - half + 0.25);
                         wBack.userData.isEntityBlocker = true;
                         addGeometry(wBack);
-                        const wLeft = buildWall(0.5, this.cellSize, this.woodMat);
+                        const wLeft = buildWall(0.5, this.cellSize, oasisWallMat);
                         wLeft.position.set(cx - half + 0.25, 1.5, cz);
                         wLeft.userData.isEntityBlocker = true;
                         addGeometry(wLeft);
-                        const wRight = buildWall(0.5, this.cellSize, this.woodMat);
+                        const wRight = buildWall(0.5, this.cellSize, oasisWallMat);
                         wRight.position.set(cx + half - 0.25, 1.5, cz);
                         wRight.userData.isEntityBlocker = true;
                         addGeometry(wRight);
@@ -1047,7 +1071,7 @@ export default class StructuralBlueprints {
                         aGlow.scale.set(0.15, 0.15, 0.15);
                         aGlow.position.y = 0.01;
                         almondGroup.add(aGlow);
-                        almondGroup.position.set(cx - 0.3, 0.825, cz);
+                        almondGroup.position.set(cx - 0.3, 0.93, cz);
                         almondGroup.rotation.y = (random() - 0.5) * 0.8;
                         almondGroup.userData = {type: 'almond', chunkHash: hash, active: true};
                         chunkGroup.add(almondGroup);
@@ -1060,7 +1084,7 @@ export default class StructuralBlueprints {
                         bGlow.scale.set(0.20, 0.20, 0.20);
                         bGlow.position.y = 0.01;
                         batGroup.add(bGlow);
-                        batGroup.position.set(cx + 0.3, 0.825, cz);
+                        batGroup.position.set(cx + 0.3, 0.93, cz);
                         batGroup.rotation.y = (random() - 0.5) * 0.8;
                         batGroup.userData = {type: 'battery', chunkHash: hash, active: true};
                         chunkGroup.add(batGroup);

@@ -422,17 +422,17 @@ export default class SurfaceTextures {
 
         for (const s of [1.16, 1.10, 1.05]) {
             path(s, 0);
-            ctx.fillStyle = rgba(pal.field, 0.055);
+            ctx.fillStyle = rgba(pal.field, 0.085);
             ctx.fill();
         }
 
         const fronts = [1.0, 0.82, 0.63, 0.42];
         for (let i = 0; i < fronts.length; i++) {
             path(fronts[i], i);
-            ctx.fillStyle = rgba(pal.field, 0.11);
+            ctx.fillStyle = rgba(pal.field, 0.17);
             ctx.fill();
             if (i === fronts.length - 1) break;
-            for (const [w, a] of [[11, 0.06], [6, 0.10], [2.5, 0.18]]) {
+            for (const [w, a] of [[11, 0.10], [6, 0.16], [2.5, 0.27]]) {
                 path(fronts[i], i);
                 ctx.lineWidth = w;
                 ctx.strokeStyle = rgba(pal.ring, a * (1 - i * 0.18));
@@ -442,7 +442,7 @@ export default class SurfaceTextures {
 
         const hx = cx + (rand() - 0.5) * R * 0.5, hy = cy + (rand() - 0.5) * R * 0.5;
         const heart = ctx.createRadialGradient(hx, hy, 0, hx, hy, R * 0.34);
-        heart.addColorStop(0, rgba(pal.ring, 0.30));
+        heart.addColorStop(0, rgba(pal.ring, 0.44));
         heart.addColorStop(1, rgba(pal.ring, 0));
         path(0.62, 2);
         ctx.fillStyle = heart;
@@ -454,7 +454,7 @@ export default class SurfaceTextures {
             const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr;
             const rad = 3 + rand() * 13;
             const g = ctx.createRadialGradient(px, py, 0, px, py, rad);
-            g.addColorStop(0, rgba(pal.ring, 0.03 + rand() * 0.04));
+            g.addColorStop(0, rgba(pal.ring, 0.05 + rand() * 0.07));
             g.addColorStop(1, rgba(pal.ring, 0));
             ctx.fillStyle = g;
             ctx.beginPath();

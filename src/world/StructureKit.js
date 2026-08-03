@@ -24,7 +24,7 @@ export default class StructureKit {
 
     createChunkHelpers(hash, chunkGroup, stagingMeshes, random) {
         const env = this.env;
-        let hasOasis = random() > 0.95;
+        let hasOasis = random() > 0.75;
         const helpers = {
             random,
             runSalt32: env._runSalt32 || 0,
