@@ -27,11 +27,32 @@ export default class WardenEntity {
 
     _buildMesh() {
         const mat = new THREE.MeshStandardMaterial({color: 0x14161a, roughness: 0.55, metalness: 0.35});
-        const legGeo = new THREE.CylinderGeometry(0.32, 0.4, 1.6, 8);
-        this.legs = new THREE.Mesh(legGeo, mat);
-        this.legs.position.y = 0.8;
-        this.legs.castShadow = true;
-        this.group.add(this.legs);
+        this.base = new THREE.Group();
+        this.group.add(this.base);
+
+        const skirtGeo = new THREE.CylinderGeometry(0.3, 0.62, 0.5, 12);
+        const skirt = new THREE.Mesh(skirtGeo, mat);
+        skirt.position.y = 0.55;
+        skirt.castShadow = true;
+        this.base.add(skirt);
+
+        this.hoverGlowMat = new THREE.MeshBasicMaterial({color: 0xdadada, transparent: true, opacity: 0.6});
+        const glowRingGeo = new THREE.TorusGeometry(0.55, 0.045, 8, 20);
+        this.glowRing = new THREE.Mesh(glowRingGeo, this.hoverGlowMat);
+        this.glowRing.rotation.x = Math.PI / 2;
+        this.glowRing.position.y = 0.3;
+        this.base.add(this.glowRing);
+
+        const nodeGeo = new THREE.SphereGeometry(0.07, 8, 8);
+        this.hoverNodes = [];
+        for (let i = 0; i < 3; i++) {
+            const angle = (i / 3) * Math.PI * 2;
+            const node = new THREE.Mesh(nodeGeo, this.hoverGlowMat);
+            node.position.set(Math.cos(angle) * 0.5, 0.28, Math.sin(angle) * 0.5);
+            this.base.add(node);
+            this.hoverNodes.push(node);
+        }
+
         this.upperBody = new THREE.Group();
         this.group.add(this.upperBody);
         const torsoGeo = new THREE.CylinderGeometry(0.58, 0.32, 1.4, 8);
@@ -45,6 +66,38 @@ export default class WardenEntity {
             shoulder.position.set(side * 0.58, 2.85, 0);
             shoulder.castShadow = true;
             this.upperBody.add(shoulder);
+        }
+        const upperArmGeo = new THREE.CylinderGeometry(0.1, 0.12, 0.6, 6);
+        const forearmGeo = new THREE.CylinderGeometry(0.08, 0.1, 0.55, 6);
+        const handGeo = new THREE.BoxGeometry(0.16, 0.18, 0.14);
+        this.arms = [];
+        for (const side of [-1, 1]) {
+            const shoulderPivot = new THREE.Group();
+            shoulderPivot.position.set(side * 0.58, 2.85, 0);
+            shoulderPivot.rotation.z = side * 0.12;
+            this.upperBody.add(shoulderPivot);
+
+            const upperArm = new THREE.Mesh(upperArmGeo, mat);
+            upperArm.position.y = -0.3;
+            upperArm.castShadow = true;
+            shoulderPivot.add(upperArm);
+
+            const elbowPivot = new THREE.Group();
+            elbowPivot.position.y = -0.6;
+            elbowPivot.rotation.x = 0.15;
+            shoulderPivot.add(elbowPivot);
+
+            const forearm = new THREE.Mesh(forearmGeo, mat);
+            forearm.position.y = -0.275;
+            forearm.castShadow = true;
+            elbowPivot.add(forearm);
+
+            const hand = new THREE.Mesh(handGeo, mat);
+            hand.position.y = -0.64;
+            hand.castShadow = true;
+            elbowPivot.add(hand);
+
+            this.arms.push({shoulderPivot, elbowPivot, side});
         }
         const headGeo = new THREE.BoxGeometry(0.4, 0.38, 0.4);
         this.head = new THREE.Mesh(headGeo, mat);
@@ -83,7 +136,7 @@ export default class WardenEntity {
         const clamped = this._clampToBounds(x, z);
         this.group.position.set(clamped.x, y, clamped.z);
         this.target.copy(this.group.position);
-        this.legs.visible = true;
+        this.base.visible = true;
         this.upperBody.visible = true;
         this.light.intensity = 2.0;
         this.light.shadow.autoUpdate = true;
@@ -92,11 +145,14 @@ export default class WardenEntity {
             this.eyeMat.color.setHex(0xdadada);
             this.eyeMat.opacity = 0.55;
         }
+        if (this.hoverGlowMat) {
+            this.hoverGlowMat.color.setHex(0xdadada);
+        }
     }
 
     deactivate() {
         this.isActive = false;
-        this.legs.visible = false;
+        this.base.visible = false;
         this.upperBody.visible = false;
         this.light.intensity = 0;
         this.light.shadow.autoUpdate = false;
@@ -188,6 +244,7 @@ export default class WardenEntity {
                 this.eyeMat.color.setHex(0xff0000);
                 this.eyeMat.opacity = 1.0;
             }
+            if (this.hoverGlowMat) this.hoverGlowMat.color.setHex(0xff0000);
             this.player.stamina = 0.0;
             this.player.exhaustion = Math.min(this.player.exhaustion + delta * 2.0, 1.0);
             this.player.coherence = Math.max(0.0, this.player.coherence - (delta * 0.02));
@@ -199,6 +256,7 @@ export default class WardenEntity {
                 this.eyeMat.color.setHex(0xdadada);
                 this.eyeMat.opacity = 0.55;
             }
+            if (this.hoverGlowMat) this.hoverGlowMat.color.setHex(0xdadada);
             if (Math.random() < 0.02) {
                 this.target.x = playerPos.x + (Math.random() - 0.5) * 15.0;
                 this.target.z = playerPos.z + (Math.random() - 0.5) * 15.0;
@@ -267,7 +325,20 @@ export default class WardenEntity {
         const yaw = Math.sin(time * 0.8) * (Math.PI / 3);
         const SWEEP_RADIUS = 10.0;
         this.lightTarget.position.set(Math.sin(yaw) * SWEEP_RADIUS, 0, Math.cos(yaw) * SWEEP_RADIUS);
-        this.group.position.y = Math.sin(time * 4.0) * 0.05;
+        this.group.position.y = Math.sin(time * 4.0) * 0.08;
         if (this.upperBody) this.upperBody.rotation.y = yaw * 0.6;
+        if (this.arms) {
+            const swing = Math.sin(time * 3.2) * 0.18;
+            for (const arm of this.arms) {
+                arm.shoulderPivot.rotation.x = swing * arm.side;
+            }
+        }
+        if (this.base) {
+            this.base.rotation.x = Math.sin(time * 2.1) * 0.03;
+            this.base.rotation.z = Math.sin(time * 1.7 + 1.3) * 0.03;
+        }
+        if (this.hoverGlowMat) {
+            this.hoverGlowMat.opacity = 0.5 + Math.sin(time * 5.0) * 0.2;
+        }
     }
 }

@@ -100,6 +100,37 @@ export default class MaterialLibrary {
         env.observerMat = new THREE.MeshBasicMaterial({color: 0x010101, transparent: true, opacity: 0.85});
         env.observerGeo = new THREE.CylinderGeometry(0.15, 0.1, 1.9, 8);
         env.observers = [];
+        const cwCanvas = document.createElement('canvas');
+        cwCanvas.width = cwCanvas.height = 128;
+        const cctx = cwCanvas.getContext('2d');
+        cctx.fillStyle = '#4a2c1a';
+        cctx.fillRect(0, 0, 128, 128);
+        for (let i = 0; i < 1500; i++) {
+            cctx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.15)';
+            cctx.fillRect(Math.random() * 128, Math.random() * 128, 2, 2);
+        }
+        cctx.globalCompositeOperation = 'destination-out';
+        const cols = 6, rows = 6;
+        const sx = 128 / cols, sy = 128 / rows;
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+                const ox = (y % 2 === 0) ? 0 : sx / 2;
+                cctx.beginPath();
+                cctx.arc(x * sx + ox, y * sy + sy / 2, 5, 0, Math.PI * 2);
+                cctx.fill();
+            }
+        }
+        const tex = new THREE.CanvasTexture(cwCanvas);
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(12, 12);
+        env.catwalkMat = new THREE.MeshStandardMaterial({
+            map: tex,
+            transparent: true,
+            alphaTest: 0.5,
+            metalness: 0.8,
+            roughness: 0.6,
+            side: THREE.DoubleSide
+        });
         env.sharedAssets = new Set();
         Object.values(env).forEach(v => {
             if (v && v.isGeometry) env.sharedAssets.add(v.uuid);

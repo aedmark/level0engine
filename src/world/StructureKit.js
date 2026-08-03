@@ -261,8 +261,9 @@ export default class StructureKit {
                 const isShoulder = isShoulderNS || isShoulderEW;
                 if (isDoorwayNS || isDoorwayEW) {
                     const wMat = wallMat || env.sharedWallMat;
-                    const aMat = env.metalMat || env.structMat;
-                    const outerMat = env.sharedWallMat;
+                    const isVoidSector = sectorId === "CHASM";
+                    const aMat = isVoidSector ? wMat : (env.metalMat || env.structMat);
+                    const outerMat = isVoidSector ? wMat : env.sharedWallMat;
                     const buildMat = (isNS) => {
                         return [
                             isNS ? aMat : (localX === edge ? outerMat : wMat),
@@ -321,7 +322,7 @@ export default class StructureKit {
                     return true;
                 }
                 const wMat = wallMat || env.sharedWallMat;
-                const outerWMat = env.sharedWallMat;
+                const outerWMat = sectorId === "CHASM" ? wMat : env.sharedWallMat;
                 const w = env.cellSize + 0.02;
                 const d = env.cellSize + 0.02;
                 const cx = x * env.cellSize;

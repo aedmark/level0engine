@@ -438,7 +438,7 @@ export default class SetPieces {
         return true;
     }
 
-    buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling) {
+    buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling, maze) {
         const env = this.env;
         const edge = env.chunkSize - 1;
         const sides = [
@@ -485,6 +485,51 @@ export default class SetPieces {
                             env.addGeometry ? env.addGeometry(trim2) : chunkGroup.add(trim2);
                         }
                     }
+                }
+            }
+            if (sectorId === "CHASM") {
+                if (!env.blackIronMat) env.blackIronMat = new THREE.MeshStandardMaterial({
+                    color: 0x151515,
+                    roughness: 0.7,
+                    metalness: 0.9
+                });
+                const railOffset = env.cellSize / 2 - 0.2;
+                const railLen = env.cellSize;
+                const icx = innerCellX * env.cellSize;
+                const icz = innerCellZ * env.cellSize;
+                const innerLocalX = innerCellX - startX;
+                const innerLocalZ = innerCellZ - startZ;
+                const checkVoid = (nx, nz) => {
+                    if (nx < 0 || nx >= env.chunkSize || nz < 0 || nz >= env.chunkSize) return false;
+                    return !maze || maze[nx][nz];
+                };
+                const buildEntranceRail = (rx, rz, isZAligned) => {
+                    const top = new THREE.Mesh(
+                        env._boxGeo(isZAligned ? 0.08 : railLen, 0.08, isZAligned ? railLen : 0.08),
+                        env.blackIronMat
+                    );
+                    top.position.set(rx, 1.15, rz);
+                    ctx.addGeometry(top);
+                    const mid = new THREE.Mesh(
+                        env._boxGeo(isZAligned ? 0.05 : railLen, 0.05, isZAligned ? railLen : 0.05),
+                        env.blackIronMat
+                    );
+                    mid.position.set(rx, 0.6, rz);
+                    ctx.addGeometry(mid);
+                    for (let p = -railLen / 2 + 0.5; p < railLen / 2; p += 1.5) {
+                        const post = new THREE.Mesh(env._boxGeo(0.08, 1.2, 0.08), env.blackIronMat);
+                        post.position.set(isZAligned ? rx : rx + p, 0.6, isZAligned ? rz + p : rz);
+                        ctx.addGeometry(post);
+                    }
+                };
+                if (spansX) {
+                    if (checkVoid(innerLocalX - 1, innerLocalZ)) buildEntranceRail(icx - railOffset, icz, true);
+                    if (checkVoid(innerLocalX + 1, innerLocalZ)) buildEntranceRail(icx + railOffset, icz, true);
+                    if (checkVoid(innerLocalX, innerLocalZ + inDir)) buildEntranceRail(icx, icz + inDir * railOffset, false);
+                } else {
+                    if (checkVoid(innerLocalX, innerLocalZ - 1)) buildEntranceRail(icx, icz - railOffset, false);
+                    if (checkVoid(innerLocalX, innerLocalZ + 1)) buildEntranceRail(icx, icz + railOffset, false);
+                    if (checkVoid(innerLocalX + inDir, innerLocalZ)) buildEntranceRail(icx + inDir * railOffset, icz, true);
                 }
             }
             env._buildAirlock(chunkGroup, hash, outer.x * env.cellSize, outer.z * env.cellSize, spansX, sectorId, outSign);
@@ -763,9 +808,10 @@ export default class SetPieces {
                 env.geoCache.set(floorGeo.uuid, true);
             }
             if (needsFloor) {
-                const floor = new THREE.Mesh(floorGeo, env.tileMat);
+                const fMat = sectorId === "CHASM" ? (env.catwalkMat || env.tileMat) : env.tileMat;
+                const floor = new THREE.Mesh(floorGeo, fMat);
                 floor.rotation.x = -Math.PI / 2;
-                floor.position.set(cx, 0.01, cz);
+                floor.position.set(cx, sectorId === "CHASM" ? 0 : 0.01, cz);
                 addGeometry(floor);
             }
             if (needsCeiling) {

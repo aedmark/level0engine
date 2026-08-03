@@ -889,9 +889,16 @@
         <input type="range" id="volumeSlider" min="0" max="100" value="100">
         <label>Gamma (Exposure)</label>
         <input type="range" id="gammaSlider" min="10" max="300" value="120">
+        <label>Anti-Aliasing (Requires Refresh)</label>
+        <select id="aaSelect">
+            <option value="0">Off (Max Performance)</option>
+            <option value="2">2x MSAA</option>
+            <option value="4">4x MSAA</option>
+            <option value="8">8x MSAA</option>
+        </select>
         <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; cursor: pointer;">
-            <input type="checkbox" id="aaToggle" style="width: auto; margin: 0;">
-            Enable Anti-Aliasing (Requires Refresh)
+            <input type="checkbox" id="fxaaToggle" checked style="width: auto; margin: 0;">
+            Enable FXAA (Requires Refresh)
         </label>
         <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; cursor: pointer;">
             <input type="checkbox" id="postToggle" checked style="width: auto; margin: 0;">

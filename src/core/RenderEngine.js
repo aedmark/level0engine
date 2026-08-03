@@ -10,6 +10,7 @@ export default class RenderEngine {
         this.aspectRatio = 1.3333333333;
         this.resolutionScale = RenderEngine.getSavedResolutionScale();
         this.enablePostProcessing = RenderEngine.getSavedPostProcess();
+        this.enableFXAA = RenderEngine.getSavedFXAA();
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0xa89f68);
         this.scene.fog = new THREE.FogExp2(0xa89f68, 0.05);
@@ -17,7 +18,7 @@ export default class RenderEngine {
         this.camera.position.y = 1.6;
         const logDepth = !new URLSearchParams(window.location.search).has('nologdepth');
         this.renderer = new THREE.WebGLRenderer({
-            antialias: RenderEngine.getSavedAA(),
+            antialias: RenderEngine.getSavedAA() > 0,
             powerPreference: "high-performance",
             logarithmicDepthBuffer: logDepth
         });
@@ -50,11 +51,90 @@ export default class RenderEngine {
         this.globalShadowLight.shadow.bias = -0.0005;
         this.scene.add(this.globalShadowLight);
         this.scene.add(this.globalShadowLight.target);
-        this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
+        const aaSamples = RenderEngine.getSavedAA();
+        if (aaSamples > 0) {
+            this.target = new THREE.WebGLMultisampleRenderTarget(window.innerWidth, window.innerHeight, {
+                minFilter: THREE.LinearFilter,
+                magFilter: THREE.LinearFilter
+            });
+            this.target.samples = aaSamples;
+        } else {
+            this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
+                minFilter: THREE.LinearFilter,
+                magFilter: THREE.LinearFilter
+            });
+        }
+        // FXAA resolve pass. MSAA (above) only smooths geometric silhouette edges; it does
+        // nothing for texture/shader aliasing (fine repeating detail, distant thin lines).
+        // FXAA operates on the final rasterized image via luma-contrast edge detection, so it
+        // catches both. Runs as its own offscreen pass so the CRT/VHS shader always samples an
+        // already-resolved image.
+        this.fxaaTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
             minFilter: THREE.LinearFilter,
-            magFilter: THREE.LinearFilter,
-            samples: RenderEngine.getSavedAA() ? 4 : 0
+            magFilter: THREE.LinearFilter
         });
+        this.fxaaScene = new THREE.Scene();
+        this.fxaaCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        this.fxaaMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                tDiffuse: {value: this.target.texture},
+                resolution: {value: new THREE.Vector2(1 / window.innerWidth, 1 / window.innerHeight)}
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                uniform vec2 resolution;
+                varying vec2 vUv;
+                void main() {
+                    float FXAA_SPAN_MAX = 8.0;
+                    float FXAA_REDUCE_MUL = 1.0 / 8.0;
+                    float FXAA_REDUCE_MIN = 1.0 / 128.0;
+                    vec3 luma = vec3(0.299, 0.587, 0.114);
+
+                    vec3 rgbNW = texture2D(tDiffuse, vUv + (vec2(-1.0, -1.0) * resolution)).rgb;
+                    vec3 rgbNE = texture2D(tDiffuse, vUv + (vec2(1.0, -1.0) * resolution)).rgb;
+                    vec3 rgbSW = texture2D(tDiffuse, vUv + (vec2(-1.0, 1.0) * resolution)).rgb;
+                    vec3 rgbSE = texture2D(tDiffuse, vUv + (vec2(1.0, 1.0) * resolution)).rgb;
+                    vec3 rgbM  = texture2D(tDiffuse, vUv).rgb;
+
+                    float lumaNW = dot(rgbNW, luma);
+                    float lumaNE = dot(rgbNE, luma);
+                    float lumaSW = dot(rgbSW, luma);
+                    float lumaSE = dot(rgbSE, luma);
+                    float lumaM  = dot(rgbM, luma);
+
+                    float lumaMin = min(lumaM, min(min(lumaNW, lumaNE), min(lumaSW, lumaSE)));
+                    float lumaMax = max(lumaM, max(max(lumaNW, lumaNE), max(lumaSW, lumaSE)));
+
+                    vec2 dir;
+                    dir.x = -((lumaNW + lumaNE) - (lumaSW + lumaSE));
+                    dir.y = ((lumaNW + lumaSW) - (lumaNE + lumaSE));
+
+                    float dirReduce = max((lumaNW + lumaNE + lumaSW + lumaSE) * (0.25 * FXAA_REDUCE_MUL), FXAA_REDUCE_MIN);
+                    float rcpDirMin = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce);
+                    dir = clamp(dir * rcpDirMin, vec2(-FXAA_SPAN_MAX), vec2(FXAA_SPAN_MAX)) * resolution;
+
+                    vec3 rgbA = 0.5 * (
+                        texture2D(tDiffuse, vUv + dir * (1.0 / 3.0 - 0.5)).rgb +
+                        texture2D(tDiffuse, vUv + dir * (2.0 / 3.0 - 0.5)).rgb);
+                    vec3 rgbB = rgbA * 0.5 + 0.25 * (
+                        texture2D(tDiffuse, vUv + dir * -0.5).rgb +
+                        texture2D(tDiffuse, vUv + dir * 0.5).rgb);
+
+                    float lumaB = dot(rgbB, luma);
+                    vec3 result = (lumaB < lumaMin || lumaB > lumaMax) ? rgbA : rgbB;
+                    gl_FragColor = vec4(result, 1.0);
+                }
+            `
+        });
+        const fxaaPlane = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.fxaaMaterial);
+        this.fxaaScene.add(fxaaPlane);
         this.postScene = new THREE.Scene();
         this.postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
         this.exhaustion = 0.0;
@@ -242,11 +322,13 @@ export default class RenderEngine {
     static getSavedAA() {
         try {
             const raw = localStorage.getItem('level0_state');
-            if (!raw) return false;
+            if (!raw) return 0;
             const state = JSON.parse(raw);
-            return state.aa === true;
+            if (state.aa === true) return 4;
+            if (state.aa === false) return 0;
+            return parseInt(state.aa) || 0;
         } catch (e) {
-            return false;
+            return 0;
         }
     }
 
@@ -256,6 +338,17 @@ export default class RenderEngine {
             if (!raw) return true;
             const state = JSON.parse(raw);
             return state.post !== false;
+        } catch (e) {
+            return true;
+        }
+    }
+
+    static getSavedFXAA() {
+        try {
+            const raw = localStorage.getItem('level0_state');
+            if (!raw) return true;
+            const state = JSON.parse(raw);
+            return state.fxaa !== false;
         } catch (e) {
             return true;
         }
@@ -310,6 +403,8 @@ export default class RenderEngine {
         const renderH = Math.floor(h * scale);
         this.renderer.setSize(renderW, renderH, false);
         this.target.setSize(renderW, renderH);
+        this.fxaaTarget.setSize(renderW, renderH);
+        this.fxaaMaterial.uniforms.resolution.value.set(1 / renderW, 1 / renderH);
     }
 
     get delta() {
@@ -334,6 +429,14 @@ export default class RenderEngine {
         if (this.enablePostProcessing) {
             this.renderer.setRenderTarget(this.target);
             this.renderer.render(this.scene, this.camera);
+            if (this.enableFXAA) {
+                this.fxaaMaterial.uniforms.tDiffuse.value = this.target.texture;
+                this.renderer.setRenderTarget(this.fxaaTarget);
+                this.renderer.render(this.fxaaScene, this.fxaaCamera);
+                this.postMaterial.uniforms.tDiffuse.value = this.fxaaTarget.texture;
+            } else {
+                this.postMaterial.uniforms.tDiffuse.value = this.target.texture;
+            }
             this.postMaterial.uniforms.time.value = this.time;
             this.postMaterial.uniforms.exhaustion.value = this.exhaustion;
             this.postMaterial.uniforms.squeeze.value = this.squeeze || 0.0;
@@ -352,6 +455,16 @@ export default class RenderEngine {
             }
             this.renderer.setRenderTarget(null);
             this.renderer.render(this.postScene, this.postCamera);
+        } else if (this.enableFXAA) {
+            this.renderer.setRenderTarget(this.target);
+            this.renderer.render(this.scene, this.camera);
+            this.fxaaMaterial.uniforms.tDiffuse.value = this.target.texture;
+            this.renderer.setRenderTarget(null);
+            this.renderer.render(this.fxaaScene, this.fxaaCamera);
+            if (this.heatTarget !== undefined) {
+                if (this.currentHeat === undefined) this.currentHeat = 0.0;
+                this.currentHeat += (this.heatTarget - this.currentHeat) * 0.016 * 2.0;
+            }
         } else {
             this.renderer.setRenderTarget(null);
             this.renderer.render(this.scene, this.camera);

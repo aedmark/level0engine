@@ -796,14 +796,39 @@ export default class Environment {
                 skirt.castShadow = true;
                 chunkGroup.add(skirt);
             }
+            if (isChasm) {
+                const floorVoidY = -100.0;
+                const floorVoid = new THREE.Mesh(this._planeGeo(span, span), shroudMat);
+                floorVoid.rotation.x = -Math.PI / 2;
+                floorVoid.position.set(cxw0, floorVoidY, czw0);
+                chunkGroup.add(floorVoid);
+                const lowerSkirtBottom = floorVoidY - 0.15;
+                const lowerSkirtTop = 0.15;
+                const lowerSkirtCenterY = (lowerSkirtBottom + lowerSkirtTop) / 2;
+                const lowerSkirtHeight = lowerSkirtTop - lowerSkirtBottom;
+                const lowerSkirtGeo = this._planeGeo(span, lowerSkirtHeight);
+                for (let side = 0; side < 4; side++) {
+                    const lowerSkirt = new THREE.Mesh(lowerSkirtGeo, shroudMat);
+                    if (side === 0) lowerSkirt.position.set(cxw0, lowerSkirtCenterY, czw0 - skirtInset);
+                    else if (side === 1) lowerSkirt.position.set(cxw0, lowerSkirtCenterY, czw0 + skirtInset);
+                    else if (side === 2) {
+                        lowerSkirt.position.set(cxw0 - skirtInset, lowerSkirtCenterY, czw0);
+                        lowerSkirt.rotation.y = Math.PI / 2;
+                    } else {
+                        lowerSkirt.position.set(cxw0 + skirtInset, lowerSkirtCenterY, czw0);
+                        lowerSkirt.rotation.y = Math.PI / 2;
+                    }
+                    chunkGroup.add(lowerSkirt);
+                }
+            }
         }
         const occupied = new Set();
         ctx.markOccupied = (ox, oz) => occupied.add(`${ox},${oz}`);
         ctx.isOccupied = (ox, oz) => occupied.has(`${ox},${oz}`);
         if (isMacroStructure && activeSector) {
             const hallwayNeedsFloor = activeSector.id === "CHASM";
-            const hallwayNeedsCeiling = activeSector.id !== "ARCHIVE" && activeSector.id !== "IMPOUND" && activeSector.id !== "ATRIUM";
-            this._buildEntranceHallways(chunkGroup, hash, startX, startZ, activeSector.id, ctx, hallwayNeedsFloor, hallwayNeedsCeiling);
+            const hallwayNeedsCeiling = activeSector.id !== "ARCHIVE" && activeSector.id !== "IMPOUND" && activeSector.id !== "ATRIUM" && activeSector.id !== "CHASM";
+            this._buildEntranceHallways(chunkGroup, hash, startX, startZ, activeSector.id, ctx, hallwayNeedsFloor, hallwayNeedsCeiling, sectorMaze);
             const edge = this.chunkSize - 1;
             let shellStartTime = performance.now();
             for (let x = startX; x < startX + this.chunkSize; x++) {
@@ -1818,8 +1843,8 @@ export default class Environment {
         return isBroken ? this._pooledMazeLightMats.broken[this._mazePoolIndex] : this._pooledMazeLightMats.normal[this._mazePoolIndex];
     }
 
-    _buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling) {
-        return this.setPieces.buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling);
+    _buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling, maze) {
+        return this.setPieces.buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling, maze);
     }
 
     _buildAirlock(chunkGroup, hash, dcx, dcz, spansX, sectorId, outSign) {

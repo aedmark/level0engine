@@ -38,7 +38,12 @@ export default class SaveManager {
             document.getElementById('renderDistSelect').value = state.renderDist !== undefined ? state.renderDist : "1";
             document.getElementById('volumeSlider').value = state.vol !== undefined ? state.vol : "100";
             document.getElementById('gammaSlider').value = state.gamma || "120";
-            document.getElementById('aaToggle').checked = state.aa === true;
+            let aaVal = "0";
+            if (state.aa === true) aaVal = "4";
+            else if (state.aa === false) aaVal = "0";
+            else if (state.aa !== undefined) aaVal = state.aa.toString();
+            document.getElementById('aaSelect').value = aaVal;
+            document.getElementById('fxaaToggle').checked = state.fxaa !== false;
             document.getElementById('postToggle').checked = state.post !== false;
             document.getElementById('headBobToggle').checked = state.headBob !== false;
             this.engine.aspectRatio = state.aspect === 'auto' ? 'auto' : parseFloat(state.aspect || 1.3333333333);
@@ -80,7 +85,8 @@ export default class SaveManager {
             renderDist: document.getElementById('renderDistSelect').value,
             vol: document.getElementById('volumeSlider').value,
             gamma: document.getElementById('gammaSlider').value,
-            aa: document.getElementById('aaToggle').checked,
+            aa: document.getElementById('aaSelect').value,
+            fxaa: document.getElementById('fxaaToggle').checked,
             post: document.getElementById('postToggle').checked,
             headBob: document.getElementById('headBobToggle').checked
         };

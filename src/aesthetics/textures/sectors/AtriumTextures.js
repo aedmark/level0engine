@@ -251,7 +251,7 @@ export default class AtriumTextures {
             map,
             emissiveMap: map,
             emissive: 0xffffff,
-            emissiveIntensity: 0.14,
+            emissiveIntensity: 0.05,
             roughness: 0.92,
             metalness: 0.0,
             vertexColors: true

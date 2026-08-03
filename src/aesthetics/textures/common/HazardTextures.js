@@ -30,9 +30,9 @@ export default class HazardTextures {
         const hazardMat = new THREE.MeshStandardMaterial({
             color: 0xffcc00,
             bumpMap: hazardBumpTexture,
-            bumpScale: 0.05,
-            roughness: 0.8,
-            metalness: 0.2
+            bumpScale: 0.001,
+            roughness: 0.001,
+            metalness: 0.001
         });
         const {canvas: glowCanvas, ctx: glowCtx} = TextureMechanics._createContext(256, 256, false);
         const glowGrad = glowCtx.createRadialGradient(128, 128, 0, 128, 128, 128);
