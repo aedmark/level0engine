@@ -1723,9 +1723,13 @@ export default class Environment {
             for (const sign of [-1, 1]) {
                 const ax = c * sign, az = -s * sign;
                 if (solidBehind(cx + s * cell + ax * cell, cz + c * cell + az * cell)) {
-                    found.push({slide: sign * (cell / 2 - 0.15), toward: sign, jitter: 0.14, weight: 1.35, corner: true});
+                    if (random() < 0.75) {
+                        found.push({slide: sign * (cell / 2 - 0.15), toward: sign, jitter: 0.25, weight: 1.3 + (random() * 0.4 - 0.2), corner: true});
+                    }
                 } else if (!solidBehind(cx + s * (out - 0.25) + ax * cell, cz + c * (out - 0.25) + az * cell)) {
-                    found.push({slide: sign * (cell / 2 - 0.7), toward: sign, jitter: 0.3, weight: 1.1, corner: false});
+                    if (random() < 0.3) {
+                        found.push({slide: sign * (cell / 2 - 0.7), toward: sign, jitter: 0.5, weight: 1.0 + (random() * 0.4 - 0.2), corner: false});
+                    }
                 }
             }
             return found;
@@ -1756,8 +1760,13 @@ export default class Environment {
         const rotY = face * (Math.PI / 2);
         const sinY = Math.sin(rotY), cosY = Math.cos(rotY);
 
-        if (damp > 0.66) anchors.push({slide: (random() - 0.5) * (cell - 2.2), toward: 0, jitter: 0.5, weight: 0.95});
-        else if (!anchors.length) return;
+        if (damp > 0.55) {
+            const count = Math.floor(random() * 3);
+            for(let k=0; k<count; k++) {
+                anchors.push({slide: (random() - 0.5) * (cell - 1.5), toward: 0, jitter: 0.6, weight: 0.85 + random() * 0.3, corner: false});
+            }
+        }
+        if (!anchors.length) return;
 
         for (const anchor of anchors) {
             const flip = random() > 0.5 ? 1 : -1;

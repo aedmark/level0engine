@@ -291,9 +291,9 @@ export default class OrganicTextures {
         // truncate — the shape runs out of steam organically instead of hitting a wall.
         const EDGE_SIDE = UW * 0.24, EDGE_TOP = UH * 0.32;
         const smooth = (t) => t * t * (3 - 2 * t);
-        const edgeFactor = (x, y) => {
+        const edgeFactor = (x, y, r = 0) => {
             let k = 1;
-            const dl = x - LEFT, dr = RIGHT - x, dt = y - TOP;
+            const dl = (x - r) - LEFT, dr = RIGHT - (x + r), dt = (y - r) - TOP;
             if (dl < EDGE_SIDE) k *= smooth(Math.max(0, dl / EDGE_SIDE));
             if (dr < EDGE_SIDE) k *= smooth(Math.max(0, dr / EDGE_SIDE));
             if (dt < EDGE_TOP) k *= smooth(Math.max(0, dt / EDGE_TOP));
@@ -318,7 +318,7 @@ export default class OrganicTextures {
                 const r = s.spread * (0.6 + rand() * 1.0);
                 const hx = s.x + (rand() - 0.5) * s.spread * 1.8;
                 const hy = JOINT - Math.pow(rand(), 1.6) * s.reach * 1.3;
-                const ek = edgeFactor(hx, hy);
+                const ek = edgeFactor(hx, hy, r);
                 const g = ctx.createRadialGradient(hx, hy, 0, hx, hy, r);
                 g.addColorStop(0, rgba(pal.halo, (0.009 + rand() * 0.007) * ek));
                 g.addColorStop(0.5, rgba(pal.halo, 0.004 * ek));
@@ -340,7 +340,7 @@ export default class OrganicTextures {
                 const bw = s.spread * (0.10 + rand() * 0.16);
                 const bh = matH * (0.35 + rand() * 2.3) * density;
                 const by = JOINT - bh * 0.25;
-                ctx.fillStyle = rgba(pal.body, (0.032 + rand() * 0.048) * density * edgeFactor(bx, by));
+                ctx.fillStyle = rgba(pal.body, (0.032 + rand() * 0.048) * density * edgeFactor(bx, by, bw));
                 ctx.beginPath();
                 ctx.ellipse(bx, by, bw, bh, 0, 0, Math.PI * 2);
                 ctx.fill();
@@ -365,7 +365,7 @@ export default class OrganicTextures {
                 let guard = 0;
                 while (r > 1.3 && y > JOINT - ceiling && y < JOINT + matH && guard++ < 90) {
                     const climbed = Math.min(1, (JOINT - y) / Math.max(1, s.reach));
-                    const ek = edgeFactor(x, y);
+                    const ek = edgeFactor(x, y, r);
                     // A tendril that wanders into the taper zone doesn't just get dimmer, it also
                     // decays faster and is more likely to give up outright — like it's running out
                     // of damp surface to spread across, rather than being erased by an invisible wall.
@@ -396,7 +396,7 @@ export default class OrganicTextures {
                 const len = 3 + rand() * 11;
                 for (let step = 0; step < len; step++) {
                     const t = step / len;
-                    const ek = edgeFactor(x, y);
+                    const ek = edgeFactor(x, y, 2);
                     if (ek < 0.04) break;
                     ctx.fillStyle = rgba(pal.body, (0.022 * (1 - t) + 0.004) * ek);
                     ctx.beginPath();
@@ -448,7 +448,8 @@ export default class OrganicTextures {
                 const bw = wide * (0.05 + rand() * 0.13);
                 const bh = BAND * (0.10 + rand() * 0.22);
                 const by = JOINT + bh * (0.5 + rand() * 0.7);
-                ctx.fillStyle = rgba(pal.seep, (0.07 + rand() * 0.13) * falloff * edgeFactor(bx, by));
+                const ek = edgeFactor(bx, by, bw);
+                ctx.fillStyle = rgba(pal.seep, (0.04 + rand() * 0.08) * falloff * ek);
                 ctx.beginPath();
                 ctx.ellipse(bx, by, bw, bh, 0, 0, Math.PI * 2);
                 ctx.fill();

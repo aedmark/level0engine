@@ -1,5 +1,13 @@
 # Level 0 Engine Changelog
 
+## [v0.7.6] - 2026-08-02
+
+_The Structural Extraction_
+
+### Notes
+
+- Extracted architectural geberatuib code into blueprints folder.
+
 ## [v0.7.5] - 2026-08-02
 
 _Bedside Manner_
