@@ -2,11 +2,6 @@ import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
 
-/**
- * A procedural sector generator for the atrium: the interior of a shopping mall, built on
- * top of the sector's blank-white-void groundwork rather than discarding it.
- *.
- */
 export const AtriumSector = (env, ctx) => {
     const {
         random,
@@ -84,21 +79,6 @@ export const AtriumSector = (env, ctx) => {
     const SMEAR_TOP_Y = STRUCTURE_TOP_Y;
     const SMEAR_SOURCE_SPAN = 1.15;
     const SMEAR_SEGMENTS = 24;
-    /**
-     * The column the smear is drawn on. Cached per orientation, so every aisle in the sector
-     * shares two geometries and `_compileInstances` can batch them.
-     *
-     * Two things are rewritten off the stock box. `uv.y` is re-derived from each vertex's own
-     * height as `rise / SMEAR_SOURCE_SPAN` rather than left as the 0..1 the box ships with --
-     * that is what pushes v past 1 almost immediately and hands the rest of the column to
-     * `ClampToEdgeWrapping`. And vertex colours carry a falloff to black with height, because
-     * clamping means the texture cannot supply a vertical gradient by definition: every row
-     * above the canvas is the same row. Without it the smear arrives at 50 metres as bright as
-     * it left the shelf and reads as a solid painted mast.
-     *
-     * The exponent is above 1 so the column loses most of its value in its first third and then
-     * trails, which is what makes it read as receding rather than as merely ending.
-     */
     const smearGeo = (alongZ, runSpan) => env._cacheGeo(`atriumSmear_${alongZ ? 'z' : 'x'}`, () => {
         const h = SMEAR_TOP_Y - AISLE_DETAIL_TOP_Y;
         const g = new THREE.BoxGeometry(

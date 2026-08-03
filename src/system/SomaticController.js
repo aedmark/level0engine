@@ -1,23 +1,8 @@
-/**
- * A centralized event bus listener for all physical ("somatic") events in the game world.
- *
- * Instead of passing the `acoustics` engine into every single door, entity,
- * or player script, we use a global event bus (`document.dispatchEvent`). The SomaticController
- * listens for these events and routes them to the audio or UI systems. This decoupled architecture
- * prevents circular dependencies and makes adding new sounds trivial.
- */
 export default class SomaticController {
     constructor(acoustics) {
         this.acoustics = acoustics;
     }
 
-    /**
-     * Binds all global somatic event listeners to the DOM.
-     *
-     * Browsers require a user interaction (like a click or keypress) before
-     * allowing audio to play. We attach a one-time `{once: true}` listener to the first click/key
-     * to "boot" the Web Audio API context.
-     */
     bindEvents() {
         const bootAudio = () => this.acoustics.init();
         document.addEventListener('click', bootAudio, {once: true});
@@ -56,8 +41,6 @@ export default class SomaticController {
             }
         });
         document.addEventListener('somatic-breaker', (e) => this.acoustics.triggerSomaticEvent('breaker', e.detail.distSq, e.detail.intensity));
-        // The palm reader waking up borrows the item chirp rather than inventing a voice for itself.
-        // A dedicated synth for a 1.2 second acknowledgement is a sound designer's reflex, not a need.
         document.addEventListener('somatic-scan-start', (e) => this.acoustics.triggerSomaticEvent('item', e.detail.distSq, e.detail.intensity));
         document.addEventListener('somatic-item', (e) => this.acoustics.triggerSomaticEvent('item', e.detail.distSq, e.detail.intensity));
     }

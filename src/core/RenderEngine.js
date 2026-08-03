@@ -1,16 +1,4 @@
-/**
- * Wraps Three.js to provide the core graphics pipeline, post-processing, and viewport scaling.
- *
- * Educational Note: This engine utilizes a "deferred" or "post-processing" style pipeline.
- * Instead of drawing directly to the screen, we draw the 3D scene into an off-screen buffer
- * (`this.target`). We then map that buffer onto a 2D plane (`postPlane`) and run a custom
- * GLSL fragment shader over it to apply CRT curves, chromatic aberration, and paranoia tearing.
- */
 export default class RenderEngine {
-    /**
-     * Bootstraps the WebGL pipeline, establishes the Three.js scene, configures
-     * the volumetric fog patch, and compiles the post-processing shader stack.
-     */
     constructor() {
         if (!THREE.__radialFogPatched) {
             THREE.ShaderChunk.fog_vertex = THREE.ShaderChunk.fog_vertex.replace(
@@ -71,17 +59,6 @@ export default class RenderEngine {
         this.postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
         this.exhaustion = 0.0;
         this.currentHeat = 0.0;
-        /**
-         * The Somatic Shader. Handles all post-processing effects including:
-         * CRT curvature, chromatic aberration, exhaustion vignettes, paranoia tearing,
-         * blink state, heat waves, and anomalous visual corruption.
-         *
-         *  A ShaderMaterial lets us write raw WebGL (GLSL) code.
-         * `uniforms` are variables passed from the CPU (JavaScript) to the GPU (GLSL)
-         * every frame. By feeding our player's metabolic stats (panic, exhaustion)
-         * into these uniforms, the shader mathematically warps the pixels on the GPU,
-         * which is vastly faster than trying to calculate screen-distortion on the CPU.
-         */
         this.postMaterial = new THREE.ShaderMaterial({
             uniforms: {
                 tDiffuse: {value: this.target.texture},
@@ -250,19 +227,6 @@ export default class RenderEngine {
         setTimeout(() => this.resize(), 0);
     }
 
-    /**
-     * Reads the internal resolution scale the player last explicitly chose via the
-     * settings menu, persisted by SaveManager as `res` inside the `level0_state`
-     * localStorage blob. Falls back to 1.0 (native) whenever no saved state exists yet,
-     * storage is unavailable (e.g. private browsing), or the stored value is malformed --
-     * mirroring the `parseFloat(state.res) || 1.0` fallback SaveManager.loadState() uses.
-     *
-     * Read directly from localStorage (rather than waiting on SaveManager) because
-     * RenderEngine is constructed before SaveManager exists, and the render target/canvas
-     * need the correct size on the very first frame instead of being resized a moment later.
-     *
-     * @returns {number} The resolution scale to boot with.
-     */
     static getSavedResolutionScale() {
         try {
             const raw = localStorage.getItem('level0_state');
@@ -275,11 +239,6 @@ export default class RenderEngine {
         }
     }
 
-    /**
-     * Reads the anti-aliasing preference from localStorage.
-     * Defaults to false for performance.
-     * @returns {boolean} Whether AA should be enabled.
-     */
     static getSavedAA() {
         try {
             const raw = localStorage.getItem('level0_state');
@@ -291,11 +250,6 @@ export default class RenderEngine {
         }
     }
 
-    /**
-     * Reads the post-processing preference from localStorage.
-     * Defaults to true for full fidelity.
-     * @returns {boolean} Whether post-processing should be enabled.
-     */
     static getSavedPostProcess() {
         try {
             const raw = localStorage.getItem('level0_state');
@@ -329,10 +283,6 @@ export default class RenderEngine {
         }
     }
 
-    /**
-     * Calculates the canvas dimensions while enforcing the target aspect ratio.
-     * Scales the internal render target to match pixel ratios.
-     */
     resize() {
         let w = window.innerWidth;
         let h = window.innerHeight;
@@ -362,9 +312,6 @@ export default class RenderEngine {
         this.target.setSize(renderW, renderH);
     }
 
-    /**
-     * @returns {number} The time delta in seconds since the last frame, capped at 0.1s.
-     */
     get delta() {
         const now = performance.now();
         if (!this._lastTime) this._lastTime = now;
@@ -373,20 +320,11 @@ export default class RenderEngine {
         return diff;
     }
 
-    /**
-     * @returns {number} Global elapsed time since engine boot, in seconds.
-     */
     get time() {
         if (!this._startTime) this._startTime = performance.now();
         return (performance.now() - this._startTime) / 1000;
     }
 
-    /**
-     * The core rendering pipeline execution.
-     * 1. Renders the main scene into a raw diffuse texture.
-     * 2. Pumps telemetry data into the somatic shader uniforms.
-     * 3. Renders the final post-processed composition to the screen.
-     */
     render() {
         if (this.globalShadowLight) {
             this.globalShadowLight.position.set(this.camera.position.x, 15.0, this.camera.position.z);

@@ -1,26 +1,4 @@
-/**
- * A handheld magnetic compass that points at the nearest sector threshold.
- *
- * The radar and this instrument are deliberately opposites. The radar knows exactly which breaker
- * it wants and refuses to say which way it is, reports a bare distance, and scrambles to `ERR!_m`
- * the moment the Anomaly leans on it. The compass knows nothing about objectives, cannot be
- * scrambled, and only ever answers one question: which way is the nearest way in.
- *
- * That division is the point. Losing the signal used to mean a random walk, because a shrinking
- * number gives you no vector to walk along. Now a lost signal means walking to a sector, which is
- * a fixed landmark you can always re-orient from, and picking the hunt back up from a known place.
- * The unreliable instrument stays unreliable; the honest one is honest about a different question.
- *
- * Built as held geometry parented to the camera rather than as a HUD overlay, so it inherits head
- * bob, lean, squeeze FOV and the post-processing stack for free, and so it is subject to the
- * darkness like everything else. Only the needle carries luminous paint.
- */
 export default class Compass {
-    /**
-     * @param {Object} engine - RenderEngine, for the camera and scene.
-     * @param {Object} environment - Environment, for the live `macroZones` registry.
-     * @param {Object} player - PlayerController, for velocity sway and reading state.
-     */
     constructor(engine, environment, player) {
         this.engine = engine;
         this.environment = environment;
@@ -40,13 +18,6 @@ export default class Compass {
         });
     }
 
-    /**
-     * Skin. Mottled rather than flat, because a single albedo across a hand at arm's length reads
-     * as a mannequin no matter how good the geometry underneath it is.
-     *
-     * @returns {THREE.CanvasTexture}
-     * @private
-     */
     _skinTexture() {
         const S = 128;
         const canvas = document.createElement('canvas');
@@ -79,21 +50,6 @@ export default class Compass {
         return tex;
     }
 
-    /**
-     * Builds one finger as a chain of nested joints.
-     *
-     * Each joint carries its own rotation and hangs the next joint off the far end of its segment,
-     * so the curls compound the way knuckles do rather than each segment bending about the palm.
-     * A sphere sits at every joint, which is most of what stops a finger reading as three
-     * disconnected sticks.
-     *
-     * @param {number[]} lengths - Segment lengths, proximal to distal.
-     * @param {number[]} curls - Per-joint bend in radians. Positive curls toward the viewer.
-     * @param {number} rad - Segment radius at the base; tapers distally.
-     * @param {THREE.Material} skin
-     * @returns {THREE.Group}
-     * @private
-     */
     _finger(lengths, curls, rad, skin) {
         const root = new THREE.Group();
         let parent = root;
@@ -122,20 +78,6 @@ export default class Compass {
         return root;
     }
 
-    /**
-     * The right hand cradling the case, plus wrist and sleeve.
-     *
-     * Laid out in the rig's own frame: +X right, +Y up the dial face, +Z toward the eye. The palm
-     * is a slab sitting behind the case, four fingers rise off its far edge and curl forward over
-     * the top rim, and the thumb comes up across the near-left edge. Fingertips land at roughly
-     * y 0.088 against a case rim at 0.085, so they break the silhouette of the bezel without
-     * covering the dial.
-     *
-     * The sleeve matters more than it sounds. A bare forearm running off the bottom of the frame
-     * reads as a floating limb; a cuff terminates the arm at a garment and the eye accepts it.
-     *
-     * @private
-     */
     _buildHand() {
         const hand = new THREE.Group();
         const skinTex = this._skinTexture();
@@ -191,15 +133,6 @@ export default class Compass {
         return hand;
     }
 
-    /**
-     * Draws the dial face pixel by pixel, in keeping with the rest of the engine's textures.
-     *
-     * Aged cream rather than white, because a white dial in a corridor lit at ambient 0.65 is the
-     * brightest thing on screen and pulls the eye off the world it is meant to help you read.
-     *
-     * @returns {THREE.CanvasTexture}
-     * @private
-     */
     _dialTexture() {
         const S = 256;
         const canvas = document.createElement('canvas');
@@ -261,10 +194,6 @@ export default class Compass {
         return tex;
     }
 
-    /**
-     * Assembles the instrument and parents it to the camera.
-     * @private
-     */
     _build() {
         const cam = this.engine.camera;
         if (!cam.parent) this.engine.scene.add(cam);
@@ -345,16 +274,6 @@ export default class Compass {
         cam.add(this.rig);
     }
 
-    /**
-     * Nearest point on the nearest loaded sector's footprint.
-     *
-     * Reuses the same AABB clamp the exit-phase Annex routing already runs, which resolves to the
-     * threshold you would actually walk through rather than the zone's centre — a bearing to the
-     * middle of a sealed box would point you at a wall.
-     *
-     * @returns {{x: number, z: number}|null}
-     * @private
-     */
     _nearestThreshold() {
         const env = this.environment;
         const p = this.engine.camera.position;
@@ -391,15 +310,6 @@ export default class Compass {
         return best;
     }
 
-    /**
-     * Ticks the needle and the sway.
-     *
-     * The needle is a damped spring rather than a lerp, so it overshoots a hard turn and settles,
-     * which is what a real card does and what stops it reading as a HUD element that happens to be
-     * drawn in perspective. With no sector loaded there is nothing to point at and it wanders.
-     *
-     * @param {number} delta - Frame time in seconds.
-     */
     update(delta) {
         if (!this.rig) return;
         const dt = Math.min(delta, 0.05);

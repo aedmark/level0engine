@@ -2,14 +2,6 @@ import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 import {buildBreakerPodium, PODIUM_PLATE_Y} from './BreakerPodium.js';
 
-/**
- * A weighted factory for generating the "NORMAL" sector's architectural variations.
- *
- * When the base maze generation says "build a wall here", this matrix
- * is queried. Instead of just building a flat block every time, it uses `random()` thresholds
- * (like `prob: 0.95`, `prob: 0.86`) to occasionally build archways, half-walls, pillared
- * supports, or collapsed ceilings. This breaks up the monotony of the maze.
- */
 export default class StructuralBlueprints {
     static getStructuralMatrix(ctx) {
         const {

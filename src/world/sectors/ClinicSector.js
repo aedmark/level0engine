@@ -2,14 +2,6 @@ import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
 
-/**
- * A procedural sector generator characterized by hospital beds, IV drips, and collapsed ceilings.
- *
- * This sector showcases "set dressing" overrides. While the base maze
- * generates walls, this script uses `random()` thresholds to occasionally replace a standard
- * hallway tile with a "collapsed ceiling" event, injecting scattered rubble and rebar
- * geometry directly into the chunk's `THREE.Group`.
- */
 export const ClinicSector = (env, ctx) => {
     const {
         random,
@@ -44,10 +36,6 @@ export const ClinicSector = (env, ctx) => {
                 mesh.updateMatrixWorld(true);
                 stagingMeshes.push(mesh);
             };
-            /**
-             * Hangs a crash rail on every face of a ward wall that a corridor can actually see,
-             * at the height `_buildClinicWall` has always centred its scuffing on.
-             */
             const railFaces = (px, pz, lx, lz, at) => {
                 const mat = env.clinicRailMat;
                 if (!mat) return;

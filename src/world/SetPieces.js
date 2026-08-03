@@ -1,29 +1,8 @@
-/**
- * A collection of highly detailed, deterministic, multi-mesh prefabs (like Airlocks and Checkpoint Rooms).
- *
- * While most of the maze is generated via simple `buildWall` calls,
- * sometimes we want complex interactive set pieces. This file handles assembling those
- * complex prefabs (like `doorGroup` assemblies) and correctly registering them with the
- * physics system (`spatialGrid`) and interactivity manager (`interactiveDoors`, `airlocks`).
- */
 export default class SetPieces {
     constructor(env) {
         this.env = env;
     }
 
-    /**
-     * Constructs a highly detailed checkpoint room (often used at sector boundaries).
-     * This set piece includes a door frame, a functional hinged door, shelving, cartons,
-     * and sometimes interactable items (batteries, almond water).
-     *
-     * @param {number} x - Global chunk X coordinate.
-     * @param {number} z - Global chunk Z coordinate.
-     * @param {number} localX - Local X coordinate within the chunk.
-     * @param {number} localZ - Local Z coordinate within the chunk.
-     * @param {boolean} flankV - If true, the room flanks vertically (along the Z axis); otherwise horizontally (X axis).
-     * @param {Function} ckHash - Deterministic hash function for this chunk.
-     * @param {Object} ctx - Builder context containing utility methods (buildWall, addGeometry, chunkGroup, hash).
-     */
     buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, ctx) {
         const env = this.env;
         const {buildWall, addGeometry, addFurniture, chunkGroup, hash, stagingMeshes, getLightMaterial} = ctx;
@@ -35,14 +14,6 @@ export default class SetPieces {
         const doorW = 1.4, doorT = 0.1;
         const frameMat = env.annexFrameMat || env.metalMat;
         const leafMat = env.annexDoorMat || env.doorMat;
-        /**
-         * Painted trim, staged straight onto the mesh list instead of through `addGeometry`.
-         *
-         * The hazard stripe below hangs at 2.43, and `PlayerController` forces a crouch under 2.43
-         * of headroom because anything lower is a duct you are meant to crawl. A painted stripe is
-         * not a duct. Registering it as collision meant every side room in the sector could only be
-         * entered doubled over, through a doorway whose actual header clears at 2.65.
-         */
         const decor = (m) => {
             m.userData.chunkHash = hash;
             m.updateMatrixWorld(true);
@@ -204,15 +175,6 @@ export default class SetPieces {
         }
     }
 
-    /**
-     * Constructs a central, decorative column for checkpoint areas, complete with
-     * computer screens, cables, and structural supports.
-     *
-     * @param {number} x - Global chunk X coordinate.
-     * @param {number} z - Global chunk Z coordinate.
-     * @param {number} hash - The deterministic hash ID of the chunk.
-     * @param {Object} ctx - Builder context (addGeometry, stagingMeshes).
-     */
     buildCheckpointColumn(x, z, hash, ctx) {
         const env = this.env;
         const {addGeometry, stagingMeshes} = ctx;
@@ -293,36 +255,6 @@ export default class SetPieces {
         }
     }
 
-    /**
-     * Checkpoint's own ceiling fixture: a caged fluorescent tube, the "under surveillance"
-     * cold-white security-corridor light this sector uses instead of the generic recessed panel
-     * every other sector's hallways share (the same panel Checkpoint itself used to borrow) --
-     * a wire guard cage over a long tube reads as a security/institutional fixture at a glance,
-     * distinct from the flush square panel everywhere else. Used for both Checkpoint's hallway
-     * cells (`CheckpointSector.js`) and its side rooms (`buildCheckpointRoom` below), so both
-     * share one fixture design.
-     *
-     * Fully self-contained: registers its own meshes (via `stagingMeshes`, so identical parts
-     * across every fixture in the chunk merge into a handful of `InstancedMesh`es the same way
-     * ordinary wall geometry does) and its own `fixtureData` entry, so call sites only need to
-     * supply a position, orientation, and a bit of per-fixture variance.
-     *
-     * @param {THREE.Group} chunkGroup - The root mesh group for the chunk.
-     * @param {number} hash - The deterministic hash ID of the chunk.
-     * @param {Array} stagingMeshes - This chunk's pre-instancing mesh buffer.
-     * @param {number} px - World X position (fixture center).
-     * @param {number} pz - World Z position (fixture center).
-     * @param {number} rotY - Y rotation in radians; 0 runs the tube along X, PI/2 along Z --
-     * callers pass whichever matches the hallway/room's own long axis.
-     * @param {number} flickerOffset - Per-fixture flicker phase, for LumenGrid.
-     * @param {boolean} isFaulty - Whether this fixture flickers/dims like a failing tube.
-     * @param {Function} getLightMaterial - The chunk-cached `(colorHex, emissiveHex, isBroken)`
-     * emissive-material pool from `StructureKit.createChunkHelpers` (`ctx.getLightMaterial`).
-     * @param {number} [colorHex=0xd8e6ff] - Base color of the tube, overridable so other sectors
-     * can borrow this fixture's geometry with their own light color (e.g. Server's red).
-     * @param {number} [emissiveHex=0xc8ddff] - Emissive color of the tube.
-     * @param {number} [intensity=0.975] - Base/target/current light intensity for this fixture.
-     */
     buildCheckpointCageLight(chunkGroup, hash, stagingMeshes, px, pz, rotY, flickerOffset, isFaulty, getLightMaterial, colorHex = 0xd8e6ff, emissiveHex = 0xc8ddff, intensity = 0.975) {
         const env = this.env;
         const cageMat = env.structuralSteelMat || env.pittedMetalMat || env.metalMat;
@@ -381,16 +313,6 @@ export default class SetPieces {
         });
     }
 
-    /**
-     * Spawns random debris or vehicles specific to the IMPOUND sector (cars, machines, tire stacks).
-     * Used to populate large open areas.
-     *
-     * @param {number} px - Global world X position.
-     * @param {number} pz - Global world Z position.
-     * @param {string} kind - The type of item to build ('car', 'machine', or default tire stack).
-     * @param {Object} ctx - Builder context (addFurniture, chunkGroup, hash, random).
-     * @returns {boolean} True if the item was successfully built.
-     */
     buildImpoundItem(px, pz, kind, ctx) {
         const env = this.env;
         const {addFurniture, chunkGroup, hash, random} = ctx;
@@ -516,19 +438,6 @@ export default class SetPieces {
         return true;
     }
 
-    /**
-     * Builds the four connecting hallways that link a chunk to its adjacent chunks.
-     * Often called by sector builders to ensure the 7x7 cross pattern is open.
-     *
-     * @param {THREE.Group} chunkGroup - The root mesh group for the chunk.
-     * @param {number} hash - The deterministic hash ID of the chunk.
-     * @param {number} startX - Global start X coordinate of the chunk.
-     * @param {number} startZ - Global start Z coordinate of the chunk.
-     * @param {string} sectorId - The ID of the sector being built.
-     * @param {Object} ctx - Builder context (markOccupied).
-     * @param {boolean} needsFloor - Whether to generate floor tiles for the hallways.
-     * @param {boolean} needsCeiling - Whether to generate ceiling tiles for the hallways.
-     */
     buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling) {
         const env = this.env;
         const edge = env.chunkSize - 1;
@@ -586,18 +495,6 @@ export default class SetPieces {
         }
     }
 
-    /**
-     * Assembles a complex airlock structure with two sliding doors and an interaction switch.
-     * The airlock logic manages cycling between sectors.
-     *
-     * @param {THREE.Group} chunkGroup - The root mesh group for the chunk.
-     * @param {number} hash - The deterministic hash ID of the chunk.
-     * @param {number} dcx - Center X position of the airlock.
-     * @param {number} dcz - Center Z position of the airlock.
-     * @param {boolean} spansX - If true, the airlock spans the X axis; otherwise it spans the Z axis.
-     * @param {string} sectorId - The ID of the sector.
-     * @param {number} outSign - Direction multiplier indicating which way is "out" (1 or -1).
-     */
     buildAirlock(chunkGroup, hash, dcx, dcz, spansX, sectorId, outSign) {
         const env = this.env;
         if (!env.airlockRedMat) {
@@ -716,7 +613,6 @@ export default class SetPieces {
         const WALL_T = 0.12;
         const DOOR_TOP = 2.6;
 
-        // Along-axis is the direction of travel; cross-axis is the doorway's width.
         const along = (n) => spansX ? [0, n] : [n, 0];
         const shellPiece = (w, h, d, x, y, z, mat, solid) => {
             const mesh = bWall(w, h, d, mat);
@@ -739,8 +635,6 @@ export default class SetPieces {
             return mesh;
         };
 
-        // Side walls. These now carry the collision the host sector's corridor walls used to,
-        // because those are no longer built across the airlock cell.
         for (const side of [-1, 1]) {
             const [ox, oz] = spansX ? [side * SHELL_HALF, 0] : [0, side * SHELL_HALF];
             shellPiece(
@@ -753,8 +647,6 @@ export default class SetPieces {
         shellPiece(SHELL_SPAN, 0.06, SHELL_SPAN, midX, 0.03, midZ, shellMat, false);
         shellPiece(SHELL_SPAN, 0.10, SHELL_SPAN, midX, ROOF_BOTTOM + 0.05, midZ, shellMat, false);
 
-        // Headers, filling the gap between each doorway's top and the roof so the doors read as set
-        // into the shell rather than hung in front of it.
         for (const end of [-1, 1]) {
             const [ox, oz] = along(end * halfDepth);
             shellPiece(
@@ -785,9 +677,6 @@ export default class SetPieces {
             chunkGroup, hash, cageStaging, midX, midZ, spansX ? 0 : Math.PI / 2,
             0, false, getLightMaterial, 0xeaf6ff, 0xcfe9ff, 0.45
         );
-        // `buildCheckpointCageLight` stages its meshes for instancing with world matrices already
-        // baked in. This builder adds straight to the chunk group, so the transform has to be
-        // decomposed back out or every part collapses onto the chunk origin.
         for (const mesh of cageStaging) {
             const world = mesh.matrixWorld.clone();
             mesh.castShadow = false;
@@ -811,9 +700,6 @@ export default class SetPieces {
             switchGroup.position.set(midX, 1.3, midZ + SWITCH_OFFSET);
         }
         switchGroup.add(switchBase, switchButton);
-        // `button` is named rather than reached for by child index. The cycle logic wants to recolour
-        // it every frame, and an index would silently start painting the housing the moment anything
-        // else is added to this group.
         switchGroup.userData = {isAirlockSwitch: true, entityOpen: false, chunkHash: hash, button: switchButton};
         chunkGroup.add(switchGroup);
         if (!env.interactables) env.interactables = [];
@@ -838,19 +724,6 @@ export default class SetPieces {
         env.airlocks.push(airlock);
     }
 
-    /**
-     * Generates a simple modular hallway segment, including walls, floor, and ceiling.
-     *
-     * @param {THREE.Group} chunkGroup - The root mesh group for the chunk.
-     * @param {number} hash - The deterministic hash ID of the chunk.
-     * @param {number} cx - Center X position.
-     * @param {number} cz - Center Z position.
-     * @param {boolean} spansX - If true, the hallway walls run along the X axis.
-     * @param {boolean} needsFloor - Whether to generate a floor tile.
-     * @param {boolean} needsCeiling - Whether to generate a ceiling tile.
-     * @param {string} sectorId - The ID of the sector (affects ceiling material).
-     * @param {boolean} buildWalls - Default true; if false, only floor/ceiling are generated.
-     */
     buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId, buildWalls = true) {
         const env = this.env;
         const addGeometry = (mesh) => {
@@ -929,32 +802,6 @@ export default class SetPieces {
         }
     }
 
-    /**
-     * Uses a recursive backtracker algorithm to carve out a maze pattern within a chunk.
-     *
-     * Used to also force the entire center row/column open -- a literal plus-shaped
-     * clearing -- and punch 20 extra random single-cell holes on top of that, to guarantee
-     * every consumer got an entrance path without having to reason about the maze's own
-     * connectivity. In practice that meant every sector built on this generator (Archive,
-     * Server, Maintenance, Impound, Chasm, Clinic, Incinerator) showed the exact same giant
-     * open cross in the same spot every time -- boring and predictable well before anyone
-     * would notice it's structurally identical between chunks. Checkpoint is the one place a
-     * literal crossroads is actually the intended design (see CheckpointSector.js's own
-     * hand-built corridor-and-rooms layout, generated independently of this function
-     * entirely); everywhere else should read as an actual maze.
-     *
-     * Connectivity doesn't need the cross at all: a recursive backtracker visits every
-     * reachable cell of matching parity from its start by construction, so (7,7) and every
-     * odd/odd room cell out to the edge of its search space are already guaranteed connected
-     * to each other. The only genuine gap is the one-cell distance between the outermost
-     * odd/odd room cell and the boundary-adjacent even cell that the algorithm's fixed step
-     * size never reaches on two of the four sides -- bridged with four single-width spurs
-     * below, one drilled straight in from each possible doorway approach until it merges with
-     * the carved interior, instead of blowing the whole center open.
-     *
-     * @param {Function} randomFn - A deterministic random number generator.
-     * @returns {boolean[][]} A 2D array representing the maze grid, where false is a path and true is a wall.
-     */
     generateSectorMaze(randomFn) {
         const env = this.env;
         const maze = Array(env.chunkSize).fill(undefined).map(() => Array(env.chunkSize).fill(true));

@@ -2,14 +2,6 @@ import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
 
-/**
- * A procedural sector generator characterized by massive rusted pipes and glowing ember grilles.
- *
- * Notice how the ceiling ductwork uses continuous connection logic (`throughNS`,
- * `throughEW`). By checking the maze walls to the North, South, East, and West, the generator
- * can decide whether to spawn a straight pipe, an elbow joint, or a 4-way intersection,
- * ensuring the pipe networks always look structurally sound across chunk boundaries.
- */
 export const IncineratorSector = (env, ctx) => {
     const {
         random,
@@ -19,14 +11,6 @@ export const IncineratorSector = (env, ctx) => {
         hash,
         stagingMeshes
     } = ctx;
-    /**
-     * Ceiling trim, visible but not solid.
-     *
-     * The sector's headroom rule is a distinction rather than a height: a duct that physically
-     * drops into the gallery is meant to be ducked under, and a grille flush in the ceiling is
-     * meant to be walked beneath without noticing it. The risers stay collidable for exactly that
-     * reason. Anything that only reads as ceiling goes through here.
-     */
     const decor = (m) => {
         m.userData.chunkHash = hash;
         m.updateMatrixWorld(true);

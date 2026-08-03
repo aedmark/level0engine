@@ -1,18 +1,5 @@
 import {buildCaseFiles, THREADS} from './CaseFiles.js';
 
-/**
- * A procedural narrative generator that constructs a coherent lore state per playthrough.
- *
- * The seed dictates the cast, the access code, and which of three findings is true, so every note,
- * terminal and tape in a run points at one consistent conclusion. This class owns the dealing:
- * which object gets which document, in what order, and what that costs. The documents themselves
- * live in CaseFiles.js.
- *
- * The unit of verification is the SECTOR. A claim asserted by one sector is rumour and sits on the
- * player's flashlight ceiling as unresolved tension. The same claim asserted by a second, different
- * sector settles and refunds. That single rule is what couples the case file to the maze: the price
- * of knowing anything is measured in how far you walked to confirm it.
- */
 export default class StoryEngine {
     constructor(seed) {
         this.seed = (seed || 1) >>> 0;
@@ -58,10 +45,6 @@ export default class StoryEngine {
         this._anchorCodeFragments();
     }
 
-    /**
-     * Loads the authored case files for this seed and indexes them for dealing.
-     * @private
-     */
     _buildLibrary() {
         const files = buildCaseFiles({
             cast: this.cast,
@@ -94,10 +77,6 @@ export default class StoryEngine {
         }
     }
 
-    /**
-     * Shuffles each sector's pool so discovery order varies, deterministically per seed.
-     * @private
-     */
     _shuffleLibrary() {
         for (const key in this.library) {
             const arr = this.library[key];
@@ -108,15 +87,6 @@ export default class StoryEngine {
         }
     }
 
-    /**
-     * Floats every document carrying the access code toward the front of its own pool.
-     *
-     * The records room is the one hard lock in the wing, so a run where all five CODE documents
-     * shuffle to the back is a run the player cannot open. Selecting on the thread tag rather than
-     * on substrings of the prose means adding another code-bearing memo needs no change here.
-     *
-     * @private
-     */
     _anchorCodeFragments() {
         const LEGS = ['CIPHER', 'EPOCH', 'PEN'];
         for (const key in this.library) {
@@ -131,17 +101,6 @@ export default class StoryEngine {
         }
     }
 
-    /**
-     * Retrieves the story fragment bound to a specific object, assigning one on first contact.
-     *
-     * Assignments are permanent: a note re-read says the same thing, and re-reads return no thread
-     * field, so tension and refunds cannot be farmed off one sticky note. Terminals ignore all of
-     * this and browse the recovered archive instead.
-     *
-     * @param {string} docId - The unique identifier of the interactable object.
-     * @param {string} [zone] - The sector the object was found in.
-     * @returns {Object} The fragment text, collection progress, thread, and any corroboration.
-     */
     getFragment(docId, zone) {
         const idStr = String(docId || 'X');
         if (idStr.startsWith('FINALE')) {
@@ -211,19 +170,6 @@ export default class StoryEngine {
         };
     }
 
-    /**
-     * Files a freshly read document against the claim it makes, and reports a corroboration the
-     * first time two independent SECTORS assert the same claim.
-     *
-     * Two impound tags naming the same missing person do not corroborate each other. Neither does a
-     * tape and a memo pulled from the same room. Verification is priced in traversal, which is the
-     * entire reason the sector rather than the document category is the unit here.
-     *
-     * @param {string} text - The exact template text just read.
-     * @param {string} sector - The sector it was recovered from.
-     * @returns {Object|null} The corroboration payload, or null if nothing resolved this read.
-     * @private
-     */
     _registerThread(text, sector) {
         this.sectorsRead.add(sector);
         const thread = this.threadOf.get(text);
@@ -246,13 +192,6 @@ export default class StoryEngine {
         };
     }
 
-    /**
-     * The claim a thread makes, phrased as the player would file it.
-     *
-     * CIPHER, EPOCH and PEN deliberately name the shape of the answer and never the answer. The
-     * banner tells you that you now know how the lock is built, or which year, or which pen. It
-     * does not do the arithmetic, because doing the arithmetic is the puzzle.
-     */
     threadLabel(thread) {
         return {
             CIPHER: 'RECORDS LOCK — POUR YEAR, THEN OPEN PEN',
@@ -265,29 +204,12 @@ export default class StoryEngine {
         }[thread] || thread;
     }
 
-    /**
-     * Whether the player has settled all three legs of the records room lock.
-     *
-     * Nothing gates the keypad on this: a player who works the code out from one unconfirmed memo
-     * is welcome to type it in. This exists so the keypad can tell them which legs they are still
-     * missing when they get it wrong, rather than just buzzing at them.
-     *
-     * @returns {{cipher: boolean, epoch: boolean, pen: boolean, complete: boolean}}
-     */
     lockProgress() {
         const has = (t) => (this.threadSectors.get(t) || new Set()).size > 0;
         const cipher = has('CIPHER'), epoch = has('EPOCH'), pen = has('PEN');
         return {cipher, epoch, pen, complete: cipher && epoch && pen};
     }
 
-    /**
-     * How many distinct sectors have contributed to a settled claim.
-     *
-     * This is the number the Inquest should be gated on. A finding assembled inside one wing is not
-     * a finding, it is a hunch with letterhead.
-     *
-     * @returns {number}
-     */
     caseStrength() {
         const contributing = new Set();
         this.threadSectors.forEach((sectors, thread) => {
@@ -296,7 +218,6 @@ export default class StoryEngine {
         return contributing.size;
     }
 
-    /** Claims asserted by at least one sector and not yet confirmed by a second. */
     openThreads() {
         const open = [];
         this.threadSectors.forEach((sectors, thread) => {

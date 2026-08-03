@@ -11,30 +11,11 @@ import InteractionController from '../player/InteractionController.js';
 import {setPodiumScan, setPodiumSpent, SCAN_DURATION} from '../world/BreakerPodium.js';
 import RenderEngine from './RenderEngine.js';
 
-/**
- * The god-class memory manager and procedural generation orchestrator.
- *
- * Educational Note: In a traditional game engine (like Unity or Unreal), levels are built in
- * an editor and loaded entirely into memory. Because LEVEL 0 is infinitely procedural,
- * this class acts like a memory garbage collector. It dynamically loads "chunks" of the maze
- * as the player walks near them, and unloads them as the player walks away, keeping the
- * memory footprint tiny even in an infinite world.
- */
 export default class Environment {
     get anomaly() {
         return this.entityManager ? this.entityManager.activeEntity : null;
     }
 
-    /**
-     * Initializes the environment memory structures and spatial grid.
-     *
-     * Educational Note: We use a `SpatialHashGrid` and manual `Map`s for chunks rather than
-     * simply throwing everything into `this.scene`. This allows us to query "what objects
-     * are within 5 meters of the player" in O(1) time without iterating over thousands of meshes.
-     *
-     * @param {Object} engine - The core RenderEngine instance.
-     * @param {Object} player - The PlayerController instance.
-     */
     constructor(engine, player) {
         this.engine = engine;
         this.scene = engine.scene;
@@ -401,7 +382,6 @@ export default class Environment {
                 return;
             }
             if (hit && hit.userData.type === 'breaker') {
-                // The wall boxes are a flick of the wrist. Only the objective switches ask for a palm.
                 if (!hit.userData.active) return;
                 hit.userData.active = false;
                 this._triggerBreaker(hit);
@@ -438,11 +418,6 @@ export default class Environment {
         });
     }
 
-    /**
-     * The core spatial-hashing update loop. Triggers chunk loading/unloading dynamically
-     * based on player proximity. Discards stale chunks to maintain 60fps.
-     * @param {THREE.Vector3} playerPos - The current camera position.
-     */
     updateChunks(playerPos) {
         const activeCellSize = this.cellSize || 4;
         const chunkW = this.chunkSize * activeCellSize;
@@ -543,15 +518,6 @@ export default class Environment {
         }
     }
 
-    /**
-     * Removes every entry belonging to a dead chunk from `arr`, in place. Functionally
-     * equivalent to `arr = arr.filter(item => !deadHashes.has(getHash(item)))`, but reuses
-     * `arr`'s existing backing storage instead of allocating a new array every call -- see the
-     * call site in `updateChunks` for why that matters here specifically.
-     * @param {Array} arr - The array to prune, mutated in place.
-     * @param {Set<string>} deadHashes - Chunk hashes that were just unloaded.
-     * @param {Function} getHash - Extracts an item's owning chunk hash.
-     */
     _pruneDeadChunkEntries(arr, deadHashes, getHash) {
         let write = 0;
         for (let read = 0; read < arr.length; read++) {
@@ -671,29 +637,6 @@ export default class Environment {
         }
     }
 
-    /**
-     * Generates one 16x16-cell chunk's geometry from scratch: floor/ceiling, walls, furniture,
-     * lighting, and (for the ~40% of chunks chosen as a macro structure) an entire hand-authored
-     * sector like CHASM or ARCHIVE.
-     *
-     * Educational Note: This method is split into two phases, a "shell" and an "interior," and
-     * only macro-structure chunks ever pause between them. The shell -- floor/ceiling, the
-     * sector's perimeter wall, and its entrance airlock(s) -- always finishes in this same call,
-     * because the player needs to be able to see and walk up to a sector from outside before
-     * they've chosen to enter it. The interior -- the hundreds of sector-specific meshes that
-     * make, say, CHASM's catwalks and pillars -- is handed off to `_buildChunkInterior` instead
-     * of running immediately. For an ordinary maze chunk that happens immediately, in the same
-     * call. For a macro chunk, the arguments are parked in `_pendingMacroContent` and this method
-     * returns early; the interior only actually runs once the player presses that sector's
-     * airlock switch (`beginMacroChunkContent`), and the airlock's inner door is held shut until
-     * it finishes (`isMacroChunkContentReady`, checked in InteractionController.updateAirlock).
-     * The effect: a sector's full cost is paid once, at the one moment the game can plausibly
-     * hide it behind an in-fiction loading beat, instead of silently during ordinary exploration.
-     * @param {number} chunkX - Chunk-space X coordinate (world X divided by chunkSize*cellSize).
-     * @param {number} chunkZ - Chunk-space Z coordinate.
-     * @param {string} hash - This chunk's unique key, e.g. `"3,-1"`, used everywhere (spatial
-     * grid, fixture/wall arrays, airlocks) to tag which chunk an object belongs to for cleanup.
-     */
     async buildChunk(chunkX, chunkZ, hash) {
         const chunkGroup = new THREE.Group();
         this.scene.add(chunkGroup);
@@ -894,13 +837,6 @@ export default class Environment {
         await this._buildChunkInterior(interiorArgs);
     }
 
-    /**
-     * Runs the per-cell interior generation pass for a chunk -- the expensive part of
-     * `buildChunk` that macro-structure chunks defer until their airlock is activated (see
-     * `beginMacroChunkContent`). Ordinary maze chunks call this immediately from `buildChunk`.
-     * Bails out early if the chunk gets unloaded mid-build (e.g. the player walked away from a
-     * still-pending macro chunk, or wandered back out of an airlock before it finished loading).
-     */
     async _buildChunkInterior(args) {
         const {
             hash, chunkGroup, stagingMeshes, ctx, random, chunkX, chunkZ, startX, startZ,
@@ -910,12 +846,6 @@ export default class Environment {
         const cy = Math.cos(this.baseSeed * 0.5) * 0.8;
         let chunkBreakerCount = 0;
         const breakerPositions = [];
-        // Which cells resolved to solid wall, recorded as the loop goes. Breaker boxes hang flush on
-        // the yellow walls now, and a prop that mounts on a wall has to know where one is. Only the
-        // west and north neighbours are ever safe to ask about — the east and south cells have not
-        // been decided yet — so a breaker takes whichever of those two is solid and is skipped
-        // entirely when neither is. Placement is probabilistic across a whole chunk, so losing the
-        // occasional candidate cell costs nothing and beats burying a switch inside a wall.
         const wallCells = new Set();
         const isWallCell = (wx, wz) => wallCells.has(`${wx},${wz}`);
         let chunkStartTime = performance.now();
@@ -938,9 +868,6 @@ export default class Environment {
                 if (ctx.isOccupied(x, z)) continue;
                 ctx.markOccupied(x, z);
                 let zx = x * 0.15;
-                // See `wallCells` below: this loop is x-outer, z-inner, so by the time any cell is
-                // resolved its west and north neighbours already are too. That is what makes
-                // wall-mounting possible here without a second pass over the chunk.
                 let zy = z * 0.15;
                 let iter = 0;
                 let zx2 = zx * zx;
@@ -967,9 +894,6 @@ export default class Environment {
                 const isSpawnClear = (chunkX === 0 && chunkZ === 0) && (localX <= 3 && localZ <= 3);
                 if (isBlocker) isWall = true;
                 if (isArtery || isSpawnClear) isWall = false;
-                // How wet this cell is. Shared by the mould on the walls, the mould in the carpet
-                // and the water stains overhead, so the three co-locate into one damp area with
-                // a cause instead of three unrelated scatters. See `_dampAt`.
                 const damp = this._dampAt(x, z);
                 if (isWall) {
                     wallCells.add(`${x},${z}`);
@@ -979,10 +903,6 @@ export default class Environment {
                     this._placeWallMold(x, z, random, ctx.addGeometry, damp);
                 } else {
                     let hasTallObstacle = false;
-                    // Carpet mould, on its own roll so the divider below keeps the odds it had.
-                    // Common inside a damp area and close to absent outside one; it used to be a
-                    // flat one-in-ten everywhere, which is why stained ceiling tiles sat over
-                    // clean carpet and mouldy carpet sat under sound ceilings.
                     const stainRoll = random();
                     const floorRoll = random();
                     if (stainRoll < (damp > 0.60 ? 0.32 : 0.035)) {
@@ -995,10 +915,6 @@ export default class Environment {
                         stain.rotation.y = rotY;
                         stain.scale.set(scale, scale, scale);
                         ctx.addGeometry(stain);
-                        // The tile the water came through. Placed near enough above the carpet
-                        // stain to read as its cause -- the old version rotated the offsets into
-                        // a different corner of the cell, so the drip and the puddle were never
-                        // in the same place and neither explained the other.
 
                     } else if (floorRoll > 0.80 && !isArtery) {
                         hasTallObstacle = true;
@@ -1049,7 +965,6 @@ export default class Environment {
                     } else if (!hasTallObstacle && random() > 0.95 && chunkBreakerCount < 3 && !isArtery) {
                         const px = x * this.cellSize;
                         const pz = z * this.cellSize;
-                        // North face first, then west. Nothing else has been decided yet.
                         const mountSide = isWallCell(x, z - 1) ? 'N' : (isWallCell(x - 1, z) ? 'W' : null);
                         let isTooClose = mountSide === null;
                         for (let b = 0; b < breakerPositions.length; b++) {
@@ -1070,9 +985,6 @@ export default class Environment {
                         if (!isTooClose) {
                             chunkBreakerCount++;
                             breakerPositions.push({x: px, z: pz});
-                            // Flush against the neighbouring wall's face, which sits half a cell away.
-                            // The small standoff keeps the housing off the wall's own mould decals
-                            // rather than z-fighting with them.
                             const half = this.cellSize / 2;
                             const breakerGroup = new THREE.Group();
                             if (mountSide === 'N') {
@@ -1109,15 +1021,6 @@ export default class Environment {
         }
     }
 
-    /**
-     * Kicks off the deferred interior build for a macro-structure chunk (see `buildChunk`).
-     * Called from InteractionController.updateAirlock the moment an entrance airlock's outer
-     * door starts opening from outside (OUTER_OPENING) -- as early as possible, so the build has
-     * the most wall-clock time to finish before the player reaches the inner door. A no-op if
-     * the chunk was never gated, its content is already building/built, or it's since been
-     * unloaded -- so it's safe to call repeatedly (e.g. every frame OUTER_OPENING is active).
-     * @param {string} hash - The chunk hash to begin building content for.
-     */
     beginMacroChunkContent(hash) {
         const args = this._pendingMacroContent.get(hash);
         if (!args) return;
@@ -1125,12 +1028,6 @@ export default class Environment {
         this._buildChunkInterior(args).catch(err => console.error('Macro chunk content build failed:', err));
     }
 
-    /**
-     * @param {string} hash - The chunk hash to check.
-     * @returns {boolean} False only while a gated macro chunk's interior is still queued or
-     * actively building. True for ordinary (never-gated) chunks, completed macro interiors, and
-     * chunks that no longer exist (so a stale airlock never blocks forever).
-     */
     isMacroChunkContentReady(hash) {
         if (this._pendingMacroContent.has(hash)) return false;
         const chunkGroup = this.activeChunks.get(hash);
@@ -1142,18 +1039,6 @@ export default class Environment {
         return this.interactionController.updateInteractives(playerPos, delta);
     }
 
-    /**
-     * Determines which macro zone the player currently occupies, applying the +/-10 unit
-     * hysteresis buffer against `_stickySectorId` so the sector doesn't flicker right at a
-     * boundary. Also resolves any pending door-forced sector and flags first Annex entry.
-     *
-     * This used to be computed inline inside `updateLights`, which runs after `updateEntity`
-     * each frame -- so entity routing (which entity is active, e.g. the Anomaly vs. the Warden)
-     * was always working off the *previous* frame's sector. Resolving it once here, up front,
-     * lets both `updateEntity` and `updateLights` agree on the same, current-frame answer.
-     * @param {THREE.Vector3} cameraPos - The current camera position.
-     * @returns {{activeSector: string, targetFog: number}}
-     */
     _resolveActiveSector(cameraPos) {
         let activeSector = "NORMAL";
         let targetFog = this._sectorFog("NORMAL");
@@ -1189,19 +1074,11 @@ export default class Environment {
         return {activeSector, targetFog};
     }
 
-    /**
-     * Routes entity tick commands to the EntityManager based on the sticky sector.
-     */
     updateEntity(playerPos, delta, time) {
         this._sectorFrame = this._resolveActiveSector(playerPos);
         return this.entityManager.update(delta, time, this._stickySectorId || 'NORMAL');
     }
 
-    /**
-     * Evaluates spatial grid chunks to determine active sector, blends sector fog,
-     * and modulates light intensity or triggers random breaker/flicker events.
-     * @param {number} time - Global runtime elapsed.
-     */
     updateLights(time) {
         const isChasm = this._stickySectorId === 'CHASM';
         if (this.fixtureData) {
@@ -1591,11 +1468,6 @@ export default class Environment {
         };
     }
 
-    /**
-     * Triggers the procedural generation pipeline. Builds the environment, distributes light fixtures,
-     * and spawns interactive elements.
-     * @param {boolean} isWarp - True if the player is being warped across coordinates.
-     */
     generate(isWarp = false) {
         const flash = document.getElementById('flash-overlay');
         if (flash) {
@@ -1768,45 +1640,11 @@ export default class Environment {
         }
     }
 
-    /**
-     * How wet this cell is, from 0 (bone dry) to 1 (a leak has been running for years).
-     *
-     * Every damp feature in the building samples this one function: wall mould, the mould in the
-     * carpet, and the water stains in the ceiling tiles. Before it existed each of the three was
-     * an independent coin flip, and independent coin flips is precisely what "randomly growing in
-     * neatly contained splotches with no clear point of origin" describes. Nothing caused
-     * anything. A stained ceiling tile sat above clean carpet, and mould grew on a dry wall
-     * twenty metres from the nearest sign of water.
-     *
-     * Two properties matter and both come from using noise rather than a roll.
-     *
-     * It is *smooth*, so neighbouring cells hold similar values. A wet region is therefore a
-     * region, and wall cells running through it all qualify together -- which is the chain. The
-     * low octave sets out damp zones roughly nine cells across, about the size of a few rooms,
-     * and the high octave breaks their edges up so a zone is not an ellipse.
-     *
-     * It is *positional*, hashed straight from world cell coordinates rather than drawn from the
-     * chunk PRNG. A chunk PRNG is consumed in build order, so the same cell would get different
-     * values depending on which chunk claimed it and every damp zone would be sliced apart at
-     * the chunk seams. This way a cell's wetness is the same fact no matter who asks.
-     *
-     * @param {number} x - Cell X in world grid coordinates.
-     * @param {number} z - Cell Z in world grid coordinates.
-     * @returns {number} Dampness in 0..1, centred near 0.5.
-     */
     _dampAt(x, z) {
         return this._dampOctave(x * 0.11, z * 0.11) * 0.62
             + this._dampOctave(x * 0.31, z * 0.31) * 0.38;
     }
 
-    /**
-     * One octave of smoothed value noise: bilinear between four hashed lattice corners, with the
-     * interpolant run through a smoothstep so the field has no creases along the lattice lines.
-     *
-     * @param {number} fx - Sample X in lattice units.
-     * @param {number} fz - Sample Z in lattice units.
-     * @returns {number} Noise in 0..1.
-     */
     _dampOctave(fx, fz) {
         const x0 = Math.floor(fx), z0 = Math.floor(fz);
         const tx = fx - x0, tz = fz - z0;
@@ -1820,70 +1658,14 @@ export default class Environment {
         return top + ((c + (d - c) * sx) - top) * sz;
     }
 
-    /**
-     * Integer coordinate hash. `Math.imul` throughout: the products overflow 32 bits by design
-     * and plain `*` would round them off as doubles, which costs the low bits that carry all the
-     * decorrelation.
-     *
-     * @param {number} ix - Lattice X.
-     * @param {number} iz - Lattice Z.
-     * @returns {number} A well-distributed value in 0..1.
-     */
     _dampHash(ix, iz) {
         let h = Math.imul(ix | 0, 374761393) ^ Math.imul(iz | 0, 668265263);
         h = Math.imul(h ^ (h >>> 13), 1274126177);
         return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
     }
 
-    /**
-     * Rolls a wall cell for a patch of rising damp and, if it wins, hangs one decal on a single
-     * randomly chosen face.
-     *
-     * The damp used to be painted into the wallpaper tile, which repeats four times per wall
-     * segment and on every segment in the game -- so the tide line appeared at a fixed period
-     * forever and read as pattern rather than as decay. Nothing about the stain itself was
-     * wrong; a tiling texture is simply the wrong container for a feature that is supposed to be
-     * occasional.
-     *
-     * One face, not four. Three of the four would usually be buried against neighbouring wall
-     * cells anyway, and picking a single face means a cell that rolled damp still has clean
-     * sides -- the gaps are as much of the read as the patches.
-     *
-     * Faces buried against an adjacent wall simply never get seen. That is the deliberate
-     * trade: the alternative is threading neighbour occupancy down into this call, and a decal
-     * that is invisible costs one quad inside an instanced batch.
-     *
-     * Every patch draws from a six-tile atlas and rolls its variant here rather than per cell,
-     * so the two patches that can share a face are different organisms. Before the atlas there
-     * was one texture in the entire world and a mirror was the only thing distinguishing two
-     * patches in the same line of sight, which is not enough at any distance you can walk to.
-     *
-     * ## Where it grows
-     *
-     * Whether a cell qualifies is read from `_dampAt` rather than rolled. The field is smooth,
-     * so a wet region qualifies as a region and the wall cells running through it grow mould
-     * together -- a run down a corridor instead of a scatter of unrelated splotches.
-     *
-     * Where on the face it grows is decided by the collision geometry. Mould needs somewhere for
-     * water to sit and air not to move, and on a corridor wall that is an inside corner: two
-     * faces meeting, no airflow in the crease, and the skirting mitre leaking behind both. So
-     * corners are found by probing the diagonal neighbour, the ends of wall runs are found by
-     * probing along the face, and patches are hung there by preference.
-     *
-     * Mid-face growth is not removed, but it now requires the cell to be genuinely soaked. That
-     * is the fix for a patch appearing halfway along a clean wall with nothing in frame to have
-     * caused it: at that point the whole wall is wet and the patch has an explanation.
-     *
-     * @param {number} x - Cell X in world grid coordinates.
-     * @param {number} z - Cell Z in world grid coordinates.
-     * @param {Function} random - The chunk's seeded PRNG.
-     * @param {Function} addGeometry - The chunk ctx's geometry sink.
-     * @param {number} damp - This cell's value from `_dampAt`.
-     */
     _placeWallMold(x, z, random, addGeometry, damp) {
         if (!this.moldCreepMat || !this.moldCreepGeos || !this.moldCreepGeos.length) return;
-        // Jittered so the boundary of a damp zone frays instead of ending on a contour line.
-        // Without it the outermost ring of a zone is a visibly smooth arc of mouldy walls.
         if (damp + (random() - 0.5) * 0.12 < 0.545) return;
         const out = (this.cellSize / 2) + 0.03;
         const cx = x * this.cellSize;
@@ -1895,13 +1677,6 @@ export default class Environment {
         const geoH = this.moldCreepHeight;
         const BOTTOM = BOARD_TOP - geoH * this.moldCreepSeepFrac;
 
-        /**
-         * Is there solid material immediately behind this point? Measured against the spatial
-         * grid, which `addGeometry` has already populated for this cell by the time we run.
-         *
-         * Invisible blockers are rejected deliberately. They are collision volumes with no
-         * surface -- a decal hung on one is a stain floating in a doorway.
-         */
         const solidBehind = (px, pz) => {
             probe.set(px, BOARD_TOP + 0.15, pz);
             const boxes = this.spatialGrid.getNearby(px, pz, 0.6);
@@ -1916,33 +1691,12 @@ export default class Environment {
         const cell = this.cellSize;
         const geos = this.moldCreepGeos;
 
-        /**
-         * Where along `face` the mould has a reason to be.
-         *
-         * `sign` runs along the face, matching the sense of `slide` below. For each end:
-         *
-         *   corner -- the diagonal cell (one out, one along) is solid, so a perpendicular face
-         *             meets ours in an inside crease. Still water, dead air, and two skirting
-         *             runs mitred together with a gap behind the joint. This is where mould
-         *             starts in a real building and it is the strongest anchor we have.
-         *
-         *   runEnd -- our own wall does not continue along the face. An exposed end takes damp
-         *             from two sides and gets knocked by trolleys, so the paper is open there.
-         *
-         * Both are asked of the collision geometry rather than the maze flags, for the same
-         * reason the face test is: `isWall` says the maze wanted a wall, and the structural
-         * blueprint that built the cell is free to have hollowed it into an archway.
-         */
         const anchorsOn = (f) => {
             const r = f * (Math.PI / 2);
             const s = Math.sin(r), c = Math.cos(r);
             const found = [];
             for (const sign of [-1, 1]) {
                 const ax = c * sign, az = -s * sign;
-                // Close enough that the colony runs into the crease and is clipped by the
-                // perpendicular wall rather than stopping short of it. At 0.55 back it ended a
-                // hand's width from the corner, which reads as a patch that happens to be near a
-                // corner instead of one that started there.
                 if (solidBehind(cx + s * cell + ax * cell, cz + c * cell + az * cell)) {
                     found.push({slide: sign * (cell / 2 - 0.15), toward: sign, jitter: 0.14, weight: 1.35, corner: true});
                 } else if (!solidBehind(cx + s * (out - 0.25) + ax * cell, cz + c * (out - 0.25) + az * cell)) {
@@ -1960,10 +1714,6 @@ export default class Environment {
             order[j] = t;
         }
 
-        // Faces are tried in shuffled order, but a face with an anchor beats one without.
-        // Choosing the first solid face and then asking whether it happened to have a corner
-        // leaves the anchoring to a coin toss, and a cell sitting in a corner whose mould landed
-        // on its blank face is the exact failure this is meant to remove.
         let face = -1;
         let anchors = [];
         for (const f of order) {
@@ -1981,30 +1731,13 @@ export default class Environment {
         const rotY = face * (Math.PI / 2);
         const sinY = Math.sin(rotY), cosY = Math.cos(rotY);
 
-        // A soaked cell also grows between its anchors, which is what closes a corridor run into
-        // a chain rather than a string of beads at the corners.
-        //
-        // A merely damp cell with no corner and no wall end grows nothing at all. That is the
-        // case that used to produce a splotch stranded halfway along a clean wall with nothing in
-        // frame to have caused it -- the growth is still allowed there, but only once the cell is
-        // wet enough that the whole wall explains it.
         if (damp > 0.66) anchors.push({slide: (random() - 0.5) * (cell - 2.2), toward: 0, jitter: 0.5, weight: 0.95});
         else if (!anchors.length) return;
 
         for (const anchor of anchors) {
             const flip = random() > 0.5 ? 1 : -1;
-            // Wetter cells grow wider colonies. This is the last place size varies, and it means
-            // a run through the middle of a damp zone visibly thickens toward the centre.
             const sx = (0.6 + random() * 0.7) * anchor.weight * (0.85 + damp * 0.4);
             const half = (1.5 * sx) * 0.42;
-            // A corner patch is placed by its far edge rather than its centre.
-            //
-            // Fixed slide put the centre 0.15 from the cell boundary while `half` runs to about
-            // 1.10, so the visible colony hung up to 0.95 out past the wall it was painted on --
-            // and the companion decal on the perpendicular face did the same. Two quads
-            // overhanging the same corner at ninety degrees do not wrap it, they splay off it as
-            // a dovetail. Solving for the edge instead pins it exactly on the corner line at
-            // every size, so the pair meet there and the growth turns the crease.
             const slide = anchor.corner
                 ? anchor.toward * Math.max(0, cell / 2 - half)
                 : anchor.slide + (random() - 0.5) * anchor.jitter;
@@ -2013,10 +1746,6 @@ export default class Environment {
             const inward = 0.25;
             let hung = true;
             for (let e = -1; e <= 1; e++) {
-                // The end facing the anchor is not probed. A corner patch is meant to overhang
-                // into the crease, and out there the probe lands in the *next* cell along the
-                // face -- which is frequently open, so probing it rejected exactly the patches
-                // the corner detection had just gone to the trouble of finding.
                 if (e === anchor.toward && e !== 0) continue;
                 const ex = px + cosY * half * e - sinY * inward;
                 const ez = pz - sinY * half * e - cosY * inward;
@@ -2036,14 +1765,7 @@ export default class Environment {
                 const f_adj = (face + anchor.toward + 4) % 4;
                 const rotY_adj = f_adj * (Math.PI / 2);
                 const sinY_adj = Math.sin(rotY_adj), cosY_adj = Math.cos(rotY_adj);
-                // The perpendicular face has to actually have a wall behind it. This was placed
-                // unconditionally, so a corner anchor could hang its companion on a face that was
-                // open -- a colony growing on nothing, at right angles to a real one.
                 if (!solidBehind(cx + sinY_adj * (out - 0.25), cz + cosY_adj * (out - 0.25))) continue;
-                // Same width as its partner, deliberately. Rolling a second scale here meant the
-                // two halves of one colony met the corner at different extents and stepped against
-                // each other across the crease. Only the texture variant and the mirror still
-                // vary, which is enough to stop the pair reading as one shape copied twice.
                 const slide_adj = -slide;
                 const flip_adj = random() > 0.5 ? 1 : -1;
                 const px_adj = cx + sinY_adj * out + cosY_adj * slide_adj;
@@ -2147,17 +1869,6 @@ export default class Environment {
         return 2;
     }
 
-    /**
-     * Puts a hand on the reader and starts the clock.
-     *
-     * Nothing is committed here. The breaker is not marked spent, no lights are touched, and the
-     * chunk's blackout state is untouched until the scan actually completes. An aborted scan must
-     * leave the world exactly as it found it, which is only cheap to guarantee if the abort path
-     * has nothing to undo.
-     *
-     * @param {THREE.Group} podium - The breaker fixture under the crosshair.
-     * @private
-     */
     _beginBreakerScan(podium) {
         if (this.breakerScan && this.breakerScan.podium === podium) return;
         this._abortBreakerScan();
@@ -2166,10 +1877,6 @@ export default class Environment {
         document.dispatchEvent(new CustomEvent('somatic-scan-start', {detail: {distSq: 1.0, intensity: 0.5}}));
     }
 
-    /**
-     * Drops the scan and resets the reader.
-     * @private
-     */
     _abortBreakerScan() {
         const scan = this.breakerScan;
         if (!scan) return;
@@ -2177,26 +1884,10 @@ export default class Environment {
         if (!scan.podium.userData.active) setPodiumScan(scan.podium, 0);
     }
 
-    /**
-     * Advances a live scan and enforces the three ways it can fail.
-     *
-     * The reader wants continuous contact: release the key, look away, or walk out of arm's reach and
-     * the print is lost. That last one matters more than it sounds. Without a distance check the
-     * player could start a scan and back down the corridor while it finished, which turns a moment of
-     * deliberate vulnerability into a fire-and-forget.
-     *
-     * @param {THREE.Vector3} playerPos
-     * @param {number} delta - Frame time in seconds.
-     * @private
-     */
     _updateBreakerScan(playerPos, delta) {
         const scan = this.breakerScan;
         if (!scan) return;
         const podium = scan.podium;
-        // `exit_switch` reads `active` backwards from every other interactable: false means the
-        // objective is still outstanding, true means it has been filed. The radar depends on that
-        // convention (`active === false` is how it picks its target), so the scan bends to it rather
-        // than the other way round. A truthy `active` here means the switch is already done.
         if (podium.userData.active || !podium.parent) {
             this._abortBreakerScan();
             return;
@@ -2227,17 +1918,6 @@ export default class Environment {
         }
     }
 
-    /**
-     * Files a completed palm print against one of the objective breakers.
-     *
-     * This is the old `exit_switch` interact branch, unchanged in effect. The one repair: it used to
-     * recolour `children[0]` and allocate a fresh material to do it, which bound the objective's
-     * completion feedback to an array index. The podium names its status bead in `userData`, so the
-     * lamp can move without silently painting whatever geometry happened to be built first.
-     *
-     * @param {THREE.Group} podium
-     * @private
-     */
     _activateExitSwitch(podium) {
         this.player.objectives.fixed++;
         this.player.updateObjectives();
@@ -2248,15 +1928,6 @@ export default class Environment {
         }
     }
 
-    /**
-     * Throws the breaker: kills or restores every tracked fixture in the chunk.
-     *
-     * Lifted verbatim out of the interact handler when the fixture became a podium. The switch's
-     * effect on the world did not change and should not have; only what it costs to reach it did.
-     *
-     * @param {THREE.Group} podium
-     * @private
-     */
     _triggerBreaker(podium) {
                 const chunkHash = podium.userData.chunkHash;
                 const isBlackout = this.blackoutChunks.has(chunkHash);
@@ -2359,20 +2030,6 @@ export default class Environment {
         return pallet;
     }
 
-    /**
-     * Builds a hanging bowl light fixture: a wire dropping from the ceiling, an upward-facing
-     * rusted dome "bowl", and a bulb recessed at its peak, registered into `fixtureData` as an
-     * `isArchiveLight` fixture. Originally written for the Archive stacks and later copy-pasted
-     * verbatim into the Atrium's aisle maze (see AtriumSector.js's own `buildHangingLight`, which
-     * now just forwards here) -- consolidated since both call sites wanted the exact same
-     * fixture, just at different coordinates.
-     * @param {THREE.Group} chunkGroup - The chunk's scene group to add meshes into.
-     * @param {string} hash - The owning chunk's hash, stamped onto the bulb/fixture for cleanup.
-     * @param {number} cx - World-space X to center the fixture on.
-     * @param {number} cz - World-space Z to center the fixture on.
-     * @param {Function} random - The chunk's seeded PRNG, used for the fixture's flicker offset.
-     * @param {Function} getLightMaterial - The chunk ctx's light-material factory.
-     */
     _buildHangingBowlLight(chunkGroup, hash, cx, cz, random, getLightMaterial) {
         const bowlRadius = 0.4;
         const rimY = 2.65;
@@ -2421,16 +2078,6 @@ export default class Environment {
         });
     }
 
-    /**
-     * Builds a massive frosted globe light fixture for the Atrium. A large 1.5m diameter
-     * emissive sphere suspended by a thick matte black pipe from the void canopy.
-     * @param {THREE.Group} chunkGroup - The chunk's scene group to add meshes into.
-     * @param {string} hash - The owning chunk's hash.
-     * @param {number} cx - World-space X.
-     * @param {number} cz - World-space Z.
-     * @param {Function} random - PRNG.
-     * @param {Function} getLightMaterial - Material factory.
-     */
     _buildAtriumLight(chunkGroup, hash, cx, cz, random, getLightMaterial) {
         const globeRadius = 0.75;
         const pipeLen = 14.0; 
@@ -2466,24 +2113,6 @@ export default class Environment {
         });
     }
 
-    /**
-     * Builds a recessed ceiling light panel: a shared panel mesh with the active face swapped
-     * for a colored light material, registered into `fixtureData`. AnnexSector, BoardroomSector,
-     * and ClinicSector each hand-rolled this same fixture with only the color, base intensity,
-     * and faulty-chance varying -- those stay as parameters, everything else is identical.
-     * @param {THREE.Group} chunkGroup - The chunk's scene group to add the panel mesh into.
-     * @param {string} hash - The owning chunk's hash, stamped onto the fixture for cleanup.
-     * @param {number} px - World-space X to center the panel on.
-     * @param {number} pz - World-space Z to center the panel on.
-     * @param {Function} random - The chunk's seeded PRNG (consumed in the same order every
-     *   caller already used: flicker offset first, then faulty roll).
-     * @param {Function} getLightMaterial - The chunk ctx's light-material factory.
-     * @param {number} colorHex - The lit face's base color.
-     * @param {number} emissiveHex - The lit face's emissive color.
-     * @param {number} intensity - Base/target/current intensity while lit.
-     * @param {number} faultyThreshold - `random() > faultyThreshold` gates whether this fixture
-     *   starts out faulty (flickering) -- higher threshold means rarer.
-     */
     _buildCeilingPanelLight(chunkGroup, hash, px, pz, random, getLightMaterial, colorHex, emissiveHex, intensity, faultyThreshold) {
         const activeMat = getLightMaterial(colorHex, emissiveHex, false);
         const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
@@ -2502,17 +2131,6 @@ export default class Environment {
         });
     }
 
-    /**
-     * Registers an already-built, already-positioned mesh (or group) as a world interactable:
-     * pushes it onto `interactables`, computes its world-space bounding box, stamps the box with
-     * the owning chunk's hash for later cleanup, and inserts it into the spatial grid. This exact
-     * five-line tail was hand-rolled after nearly every document/prop spawn across the sector
-     * files -- consolidated here since none of it varies per call site except the mesh and hash.
-     * @param {THREE.Object3D} mesh - The already-added, already-positioned interactable.
-     * @param {string} hash - The owning chunk's hash.
-     * @returns {THREE.Box3} The box that was inserted into the spatial grid, in case a caller
-     *   needs it (mirrors what every inline version already stashed on `mesh.userData.box`).
-     */
     _registerInteractable(mesh, hash) {
         if (!this.interactables) this.interactables = [];
         this.interactables.push(mesh);
@@ -2523,31 +2141,6 @@ export default class Environment {
         return box;
     }
 
-    /**
-     * Builds the "open corner has exposed pipework" dressing shared by MaintenanceSector and
-     * ServerSector: a horizontal pipe run along whichever of a cell's E/S faces are open, plus a
-     * mount + junction fitting anchored at the corner whenever any of the four faces are open.
-     * Both sectors run this at slightly different heights and a different corner offset, so those
-     * stay parameters; `onJunction` lets a caller layer sector-specific extras onto the junction
-     * (Maintenance rolls a chance of a valve wheel/leak stain/caution cone here; Server doesn't),
-     * invoked at the exact point in the sequence the original inline code invoked its own extras,
-     * so seeded-RNG call order is unaffected.
-     * @param {THREE.Group} chunkGroup - The chunk's scene group (unused directly here, kept for
-     *   parity with other StructureKit-style helpers/future extras).
-     * @param {Function} addGeometry - The chunk ctx's geometry-registration helper.
-     * @param {Function} random - The chunk's seeded PRNG.
-     * @param {number} x - Cell-space X of this corner.
-     * @param {number} z - Cell-space Z of this corner.
-     * @param {boolean} openE - Whether the cell's east face is open (spawns the east pipe run).
-     * @param {boolean} openS - Whether the south face is open (spawns the south pipe run).
-     * @param {boolean} openN - Whether the north face is open (contributes to the mount gate).
-     * @param {boolean} openW - Whether the west face is open (contributes to the mount gate).
-     * @param {number} offset - Corner anchor offset (differs per sector: Maintenance vs. Server).
-     * @param {number} pipeY - Y height for the E/S pipe runs.
-     * @param {number} mountY - Y height for the corner mount fitting.
-     * @param {number} junctionY - Y height for the junction fitting.
-     * @param {Function} [onJunction] - Optional callback invoked after the junction is built.
-     */
     _buildPipeCornerDressing(chunkGroup, addGeometry, random, x, z, openE, openS, openN, openW, offset, pipeY, mountY, junctionY, onJunction) {
         let hasPipes = false;
         if (openE) {
@@ -2584,23 +2177,6 @@ export default class Environment {
         return this.structureKit.planeGeo(w, h);
     }
 
-    /**
-     * True for materials that clad architecture rather than dress a prop.
-     *
-     * `_compileInstances` gives every instance in a batch a random tint in the 0.85-1.0 range,
-     * warm-skewed, so a row of identical crates doesn't read as a photocopy. On a crate that is
-     * variation. On a wall it is a defect: two adjacent cells of the same continuous surface get
-     * different tints and the join between them becomes a hard vertical seam, darker AND browner
-     * on one side, which is the giveaway that it is a tint and not a shadow.
-     *
-     * This used to be a hardcoded triple of sharedWallMat/headerMat/marbleMat. Every sector that
-     * has since grown its own wall material -- Clinic, Annex, Impound, Archive, Boardroom,
-     * Checkpoint -- has been getting seams. Matching on the naming convention the codebase
-     * already follows means the next sector to add one is covered without anyone remembering to.
-     *
-     * @param {THREE.Material} mat - The batch's material.
-     * @returns {boolean} True if the batch should be left untinted.
-     */
     _isArchitectural(mat) {
         if (!mat || Array.isArray(mat)) return false;
         if (!this._architecturalMats) {
@@ -2622,16 +2198,6 @@ export default class Environment {
         return (s && s.fog !== undefined) ? s.fog : 0.05;
     }
 
-    /**
-     * Computes the union bounding box of every generated macro-zone tagged with the given
-     * sector id. Sector-locked hazards (the Warden, the Archivist, the Ember) use this to
-     * leash themselves to their home sector, so an aggressive pursuit -- or an open door --
-     * can't walk them out into the hallway where they'd collide with whatever hazard owns
-     * that territory instead.
-     * @param {string} sectorId
-     * @returns {{minX: number, maxX: number, minZ: number, maxZ: number}|null} Null if no
-     * generated zone currently carries that sector id (e.g. called before the world exists).
-     */
     getSectorBounds(sectorId) {
         let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
         let found = false;

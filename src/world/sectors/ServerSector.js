@@ -2,14 +2,6 @@ import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
 
-/**
- * A procedural sector generator characterized by towering server racks.
- *
- * Here, the base maze walls are completely replaced. Instead of spawning
- * standard plaster walls, this module spawns `env.serverMat` (metallic server racks) anywhere
- * the maze array indicates a wall, instantly changing the aesthetic of the labyrinth without
- * having to write a completely new maze generation algorithm.
- */
 export const ServerSector = (env, ctx) => {
     const {
         random,

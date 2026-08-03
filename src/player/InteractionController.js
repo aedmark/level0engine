@@ -1,10 +1,3 @@
-/**
- * Manages all physical interactions between the player, entities, and the environment.
- *
- * Decoupling interaction logic (like doors, lights, and airlocks) from
- * the main Environment/Player classes prevents those classes from becoming massive "God Objects".
- * This controller acts as a state machine orchestrator for moving parts in the level.
- */
 export default class InteractionController {
     constructor(env) {
         this.env = env;
@@ -12,10 +5,6 @@ export default class InteractionController {
         this._lookDir = new THREE.Vector3();
     }
 
-    /**
-     * Instantly shatters a light fixture, breaking the bulb and plunging the area into darkness.
-     * @param {Object} fixture - The mesh object representing the light fixture.
-     */
     shatterFixture(fixture) {
         const env = this.env;
         fixture.isDead = true;
@@ -32,16 +21,6 @@ export default class InteractionController {
         }
     }
 
-    /**
-     * Updates the state and animation of a standard sliding door (e.g., blast doors, elevator doors).
-     *
-     * We use easing functions (`t * t * (3 - 2 * t)`) to give the doors weight
-     * and momentum, rather than just snapping them open linearly.
-     *
-     * @param {THREE.Group} door - The door group.
-     * @param {THREE.Vector3} playerPos - The player's current position.
-     * @param {number} delta - Time elapsed since last frame.
-     */
     updateSliderDoor(door, playerPos, delta) {
         const env = this.env;
         const ud = door.userData;
@@ -101,17 +80,6 @@ export default class InteractionController {
         }
     }
 
-    /**
-     * Master update loop for all interactable objects in the environment.
-     *
-     * This handles raycast-less "look at" detection by taking the dot product
-     * between the camera's forward vector and the vector pointing from the player to the object.
-     * If the dot product is close to 1.0, the player is looking directly at it. This is significantly
-     * faster than firing raycasts every frame.
-     *
-     * @param {THREE.Vector3} playerPos - The player's position.
-     * @param {number} delta - Time elapsed since last frame.
-     */
     updateInteractives(playerPos, delta) {
         const env = this.env;
         if (!env._prevPlayerPos) env._prevPlayerPos = playerPos.clone();
@@ -355,11 +323,6 @@ export default class InteractionController {
         }
     }
 
-    /**
-     * Updates an individual door belonging to an airlock sequence.
-     * @param {Object} doorObj - The airlock door data wrapper.
-     * @param {number} delta - Time elapsed since last frame.
-     */
     updateAirlockDoor(doorObj, delta) {
         const env = this.env;
         const ud = doorObj.data;
@@ -397,27 +360,6 @@ export default class InteractionController {
         ud.entityOpen = false;
     }
 
-    /**
-     * State machine for airlock sequences.
-     *
-     * Airlocks serve as hidden loading zones and sector transitions.
-     * By locking the player inside a small chamber while "cycling", the engine has time to
-     * load/unload sector assets, swap audio profiles, and change global fog settings
-     * without the player seeing the geometry pop in or out.
-     *
-     * Educational Note: `CYCLING`'s fixed `cycleDuration` alone only ever guaranteed a minimum
-     * wait, not a maximum -- it had no idea whether the room on the other side of the door
-     * actually existed yet. Entering a sector (`openedFrom === 'OUTSIDE'`) now also requires
-     * `env.isMacroChunkContentReady(airlock.chunkHash)`, which mirrors the moment
-     * `env.beginMacroChunkContent` was fired back in `OUTER_OPENING` -- as early as possible, so
-     * the build gets maximum wall-clock time before it's needed. So the chamber holds the
-     * player for however long is longer: the scripted cycle, or the actual build. See
-     * `Environment.buildChunk` for why a sector's interior is built lazily in the first place.
-     *
-     * @param {Object} airlock - The airlock data structure.
-     * @param {THREE.Vector3} playerPos - The player's position.
-     * @param {number} delta - Time elapsed since last frame.
-     */
     updateAirlock(airlock, playerPos, delta) {
         const env = this.env;
         const axis = airlock.spansX ? 'z' : 'x';
@@ -550,9 +492,6 @@ export default class InteractionController {
                 break;
         }
         const isReadyToPass = airlock.state === 'EXIT_INNER' || airlock.state === 'EXIT_OUTER' || airlock.state === 'OUTER_OPENING' || airlock.state === 'INNER_OPENING';
-        // This was computed and then dropped on the floor, so the call button has never actually
-        // changed colour. With the shell stripped back to doors and a button, the button is now the
-        // only thing in the chamber reporting state, so it needs to work.
         const targetMat = isReadyToPass ? env.airlockGreenMat : env.airlockRedMat;
         const button = airlock.switchGrp && airlock.switchGrp.userData.button;
         if (button && button.material !== targetMat) button.material = targetMat;

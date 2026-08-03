@@ -1,50 +1,5 @@
-/**
- * The authored contents of the cold case, separated from the machinery that deals them.
- *
- * StoryEngine owns shuffling, assignment, thread bookkeeping and progress. This file owns what the
- * documents actually say. They are split because they change for different reasons and at different
- * rates: the dealing logic is stable, the prose is not, and a writer editing a memo should never
- * have to read a Fisher-Yates shuffle to find it.
- *
- * Every pool is keyed by the sector that holds it, because the sector is the unit of verification.
- * A claim is settled when two DIFFERENT sectors assert it, so the tag arrays below are the map of
- * what a run can prove and how far the player must walk to prove it.
- */
-
-/**
- * Threads are the checkable claims the facility makes about itself.
- *
- * CIPHER   how the records room lock is constructed, never the digits themselves
- * EPOCH    the year the slab was poured, the first half of the lock
- * PEN      which impound pen has been standing open, the second half of the lock
- * LOST     what happened to the missing staffer
- * GEOMETRY the floor plan does not hold still
- * HUM      the sound in the walls carries information
- * TELL     the seeded foreshadow of this run's actual finding
- *
- * CIPHER, EPOCH and PEN are the three legs of the door. No document anywhere in the wing prints
- * the access code. The rule is stated in one place, the year in another, the pen in a third, and
- * the player does the arithmetic. Each leg is sourced from at least three sectors so no shuffle can
- * produce a run where the records room cannot be opened.
- *
- * A null tag marks a document that sets atmosphere without asserting anything checkable. Those
- * carry tension permanently and can never be settled, which is deliberate.
- */
 export const THREADS = ['CIPHER', 'EPOCH', 'PEN', 'LOST', 'GEOMETRY', 'HUM', 'TELL'];
 
-/**
- * Builds every document, tape and finale for one seed.
- *
- * @param {Object} ctx - The seeded facts of this run.
- * @param {Object} ctx.cast - Named staff: lead, custodian, archivist, lost.
- * @param {string} ctx.project - The project codename.
- * @param {number} ctx.siteYear - The year the slab was poured. First half of the lock.
- * @param {number} ctx.pen - The impound pen number. Second half of the lock.
- * @param {number} ctx.hours - The hour count the incident is measured against.
- * @param {number} ctx.seed - The raw run seed, used for observation numbering.
- * @param {number} ctx.truth - Which of the three findings is true this run.
- * @returns {{library: Object, tapes: Object, tags: Object, finales: string[]}}
- */
 export function buildCaseFiles(ctx) {
     const c = ctx.cast;
     const P = ctx.project;
@@ -142,13 +97,6 @@ export function buildCaseFiles(ctx) {
         DEFAULT: ['HUM', 'GEOMETRY', 'HUM', 'LOST', null]
     };
 
-    /**
-     * One tape per sector, dealt only to TAPE_ objects found in that sector.
-     *
-     * Tapes are sector-bound so a recorder is a texture of the room it sits in rather than a
-     * separate channel that lets one sector corroborate itself. Every tape carries a thread, so a
-     * recorder is always a real second source for somewhere else.
-     */
     const tapes = {
         ANNEX: {
             text: `TAPE — ANNEX, DESK DRAWER: [LOUD STATIC] ...${c.lead} here. The corridor walls are absorbing sound. I yelled for ${c.custodian} earlier and the echo... didn't come back. It just stopped. [CLICK]`,
@@ -202,12 +150,6 @@ export function buildCaseFiles(ctx) {
         `RECORDS ROOM — SEALED FILE\nPROJECT ${P} — FINDING OF FACT\n\nThe hum is a carrier wave. ${c.archivist} proved it in the stacks: the documents rearrange along it. The building is not haunted. The building is TRANSMITTING — inventory, floor plans, personnel files — somewhere. We are not test subjects.\n\nWe are the payload.`
     ];
 
-    /**
-     * The seeded tell. Five sectors carry one document apiece pointing at this run's actual finding.
-     * Spreading it this wide is what makes the verdict reachable by deduction: a player who settles
-     * TELL from three separate sectors has triangulated the answer without ever opening the records
-     * room, which is the whole reason the thread exists.
-     */
     const foreshadow = [
         {
             ANNEX: `SITE SURVEY ADDENDUM — PRE-CONSTRUCTION\nAUTHOR: ${c.lead}\n\nThe soil report keeps flagging the same anomaly at survey depth, dated eleven years before ground was broken here. Facilities insists it's a scanning error. I have stopped asking why the error has a heartbeat.`,
@@ -232,17 +174,6 @@ export function buildCaseFiles(ctx) {
         }
     ];
 
-    /**
-     * Ephemera: paper that is not case material.
-     *
-     * These carry no thread, settle nothing, cost nothing, and never appear in the terminal
-     * archive. They exist in the extraction bunker because by the time a player is standing there
-     * they have thrown three breakers, assembled a lock out of three sectors and carried a key
-     * across the wing, and the correct thing to hand someone at that point is not more evidence.
-     *
-     * The whole run is a building that will not tell you anything straight. This is the one room
-     * where the paperwork is just people.
-     */
     const ephemera = {
         EXIT: [
             `SHIFT ROTA — EXTRACTION POINT, WEEK 12\n\nMON  ${c.custodian}\nTUE  ${c.custodian}\nWED  ${c.custodian}\nTHU  ${c.custodian}\nFRI  ${c.custodian}\n\nIn the margin, different pen: "I have asked four times for a second name on this list."`,

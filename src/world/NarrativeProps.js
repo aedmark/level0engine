@@ -1,25 +1,8 @@
-/**
- * Shared paper and tape placement for sector generators.
- *
- * Annex, Archive and Impound each hand-place their documents into furniture they own — a desk, a
- * shelf, a chainlink pen — and should keep doing that, because a report lying on the desk it was
- * written at reads better than one on the floor. Every other sector has no such furniture to hang
- * paper off, so this drops it on open floor instead.
- *
- * The one hard rule: a sector generator must only call this from a branch it already knows is
- * walkable. This module has no view of the maze and will happily place a document inside a wall if
- * asked to. Callers pass cells they have already cleared.
- */
-
 const DOC_CHANCE = 0.014;
 const TAPE_CHANCE = 0.005;
 const MAX_DOCS_PER_CHUNK = 3;
 const MAX_TAPES_PER_CHUNK = 1;
 
-/**
- * Per-chunk placement budget. Keyed by chunk hash so a chunk that unloads and rebuilds starts
- * fresh, and so a single sector cannot carpet its floor in paperwork.
- */
 function budget(env, hash) {
     if (!env._paperBudget) env._paperBudget = new Map();
     let b = env._paperBudget.get(hash);
@@ -30,9 +13,6 @@ function budget(env, hash) {
     return b;
 }
 
-/**
- * Builds a tape recorder: a small housing with a live record light.
- */
 function buildRecorder(env, x, z, rotation, y) {
     const group = new THREE.Group();
     if (!env.tapeGeo) {
@@ -51,20 +31,6 @@ function buildRecorder(env, x, z, rotation, y) {
     return group;
 }
 
-/**
- * Places a piece of ephemera unconditionally on a cleared cell.
- *
- * Unlike `placeSectorPaper` this does not roll and is not budgeted, because its callers place it
- * deliberately rather than scattering it. Ephemera is not case material: it carries no thread,
- * settles nothing, costs nothing to read and never enters the terminal archive.
- *
- * @param {Object} env - The Environment instance.
- * @param {Object} ctx - The chunk build context.
- * @param {string} sectorId - Which ephemera pool to draw from.
- * @param {number} cx0 - Cell centre X in world space.
- * @param {number} cz0 - Cell centre Z in world space.
- * @param {number} [y] - Optional surface height, for placing on a table rather than the floor.
- */
 export function placeEphemera(env, ctx, sectorId, cx0, cz0, y) {
     const {random, chunkGroup, hash} = ctx;
     if (!env.documentGeo || !chunkGroup) return;
@@ -86,20 +52,6 @@ export function placeEphemera(env, ctx, sectorId, cx0, cz0, y) {
     env._registerInteractable(note, hash);
 }
 
-/**
- * Rolls for a document or a recorder on one cleared floor cell.
- *
- * @param {Object} env - The Environment instance.
- * @param {Object} ctx - The chunk build context (supplies random, chunkGroup, hash).
- * @param {string} sectorId - The sector this cell belongs to. Becomes the document's zone, which
- *                            is what StoryEngine uses as the unit of corroboration.
- * @param {number} cx0 - Cell centre X in world space.
- * @param {number} cz0 - Cell centre Z in world space.
- * @param {number} [y] - Surface height. Defaults to the floor; pass a table top to land paper on it.
- * @param {number} [spread] - Half-width of the scatter. Shrink it when placing onto furniture so
- *                            nothing hangs off the edge of a desk.
- * @returns {boolean} True if anything was placed.
- */
 export function placeSectorPaper(env, ctx, sectorId, cx0, cz0, y, spread) {
     const {random, chunkGroup, hash} = ctx;
     if (!env.documentGeo || !chunkGroup) return false;

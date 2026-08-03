@@ -1,12 +1,5 @@
 import SECTORS, {DEFAULT_REVERB} from '../world/Sectors.js';
 
-/**
- * Nudges a single AudioParam toward `target` via `setTargetAtTime`, but only if it actually
- * moved since the last call (tracked in `engine._cache`) -- skips the WebAudio scheduling call
- * entirely when nothing changed. Hoisted to module scope and passed `engine`/`time` explicitly
- * rather than declared as a closure inside `Mixer.update()`, since `update()` runs every frame
- * and a fresh closure was otherwise being allocated on the hottest audio path for no reason.
- */
 function setMixParam(engine, time, key, param, target, timeConstant) {
     if (Math.abs((engine._cache.get(key) || -999) - target) > 0.001) {
         param.setTargetAtTime(target, time + 0.02, timeConstant);
@@ -14,38 +7,11 @@ function setMixParam(engine, time, key, param, target, timeConstant) {
     }
 }
 
-/**
- * Which sectors run the muzak sequencer, and what the tape sounds like in each.
- *
- * The chord set, melody, and scheduler are shared -- only these four numbers differ, which is
- * what lets one recording read as two different buildings. ANNEX is a working speaker in a
- * corridor. ATRIUM is the same tape heard across a concourse big enough to swallow it: the
- * cutoff is pulled down until the melody is more suggestion than tune, the tempo drags, and
- * the wow is deep enough that you can hear the transport failing.
- *
- * A table rather than a branch, so adding a third sector is a line of data and not another
- * arm of a conditional that has to be read in full to be trusted.
- *
- * @typedef {Object} MuzakProfile
- * @property {number} gain - Target `muzakGain`, the bus level for the whole sequencer.
- * @property {number} beat - Seconds per step. The melody is sixteen steps long.
- * @property {number} cutoff - `muzakFilter` lowpass corner. This is the distance cue.
- * @property {number} wobble - `muzakLFOGain`, in Hz of pitch deviation. This is the tape wear.
- *
- * @type {Object.<string, MuzakProfile>}
- */
 const MUZAK_PROFILES = {
     ANNEX: {gain: 1.2, beat: 0.50, cutoff: 500, wobble: 15},
     ATRIUM: {gain: 0.9, beat: 0.72, cutoff: 210, wobble: 34}
 };
 
-/**
- * Mixer
- *
- * Modulates the parameters of the Web Audio nodes in real-time based on player telemetry.
- * It blends procedural ambiance, kinetic filters (footsteps, exertion), and somatic
- * events depending on the active sector and the player's physical/mental state.
- */
 export default class Mixer {
     static update(engine, telemetry) {
         if (!engine.initialized || !engine.mainGain || engine.ctx.state === 'suspended') return;

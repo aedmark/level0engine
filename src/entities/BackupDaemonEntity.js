@@ -1,19 +1,6 @@
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 
-/**
- * The Server sector's dedicated hazard.
- *
- * Unlike every other hazard in this file, the Backup Daemon never touches the player directly --
- * it has no capture radius at all. It rides the ceiling near Server's own hanging cable props
- * (registered in `env.hangingCables` by ServerSector.js), shadowing the direction the player is
- * actually moving rather than their current position, and tries to get *ahead* of them along that
- * heading instead of tailing behind. Once it's near a stretch of cable ahead of the player, it
- * energizes it (swaps the cable's shared decorative material for `env.cableEnergizedMat`). Contact
- * with a lit cable is the actual hazard: a "zap" that displaces the player to a random safe nearby
- * point, never a wall and never outside a currently-loaded chunk, instead of the death/consumption
- * every other hazard in this file uses.
- */
 export default class BackupDaemonEntity {
     constructor(scene, camera, player, environment) {
         this.scene = scene;
@@ -56,31 +43,11 @@ export default class BackupDaemonEntity {
         this.scene.add(this.group);
     }
 
-    /**
-     * Shows or hides the daemon's visible body parts, leaving `group` (and therefore `this.light`,
-     * its child) untouched -- see ArchivistEntity._setBodyVisible() for the full explanation of
-     * why `group` stays visible permanently and only the mesh children + light intensity toggle
-     * instead. The daemon used to be the one hazard in this file that never got this fix: it hid
-     * via a plain `group.visible = false/true` in reset()/deactivate() despite a comment nearby
-     * claiming it already mirrored the others, which meant `this.light` popped in and out of the
-     * scene's active light list on every SERVER sector entry/exit -- the exact shader-recompile
-     * cost the other three hazards were specifically rewritten to avoid.
-     */
     _setBodyVisible(visible) {
         this.core.visible = visible;
         for (const spark of this.sparks) spark.mesh.visible = visible;
     }
 
-    /**
-     * Builds one pooled "energized cable" slot: a small non-shadow point light for the glow plus
-     * a handful of crackling shard meshes, positioned independently of the daemon's own body since
-     * a lit cable and the daemon itself are rarely in the same spot. Pre-built (MAX_LIT of them,
-     * see the constructor) rather than created/destroyed per cable so lighting and un-lighting a
-     * cable is just moving a light and flipping mesh.visible flags, never a shader recompile --
-     * see Warden's own deactivate() for why that specifically matters for lights: the group and
-     * light stay permanently in the scene graph, only the light's intensity and the shards'
-     * individual visibility ever toggle.
-     */
     _buildSparkSlot() {
         if (!this._sparkGeo) this._sparkGeo = new THREE.TetrahedronGeometry(0.05, 0);
         if (!this._sparkMat) this._sparkMat = new THREE.MeshBasicMaterial({color: 0xffd83c});
@@ -101,13 +68,6 @@ export default class BackupDaemonEntity {
         return {group, light, shards, cycleTimer: 0};
     }
 
-    /**
-     * Fires one synchronized burst: every shard in this slot launches together along a single
-     * freshly-rolled direction (with a little per-shard angular spread and speed variance so it
-     * doesn't read as one rigid clump), then falls under gravity same as before. The direction
-     * itself only gets re-rolled here, once per burst -- that's what makes each new cycle shoot
-     * off a different way instead of every shard picking its own independent heading.
-     */
     _launchBurst(slot) {
         const angle = Math.random() * Math.PI * 2;
         slot.shards.forEach(s => {
@@ -142,12 +102,6 @@ export default class BackupDaemonEntity {
         });
     }
 
-    /**
-     * Resets the daemon to a starting position near the ceiling and clears tracking state.
-     * @param {number} x - World X to spawn at.
-     * @param {number} y - Ignored; the daemon always rides at its own fixed ceiling height.
-     * @param {number} z - World Z to spawn at.
-     */
     reset(x, y, z) {
         this.isActive = true;
         this.graceTimer = 3.0;
@@ -160,11 +114,6 @@ export default class BackupDaemonEntity {
         this.light.intensity = 0.7;
     }
 
-    /**
-     * Hides the daemon and de-energizes anything it left lit, without discarding `group`/`light`
-     * the way EntityManager's fallback path would -- mirrors Warden/Archivist/Incinerator's own
-     * deactivate() so switching sectors doesn't force a shader recompile.
-     */
     deactivate() {
         this.isActive = false;
         this._setBodyVisible(false);
@@ -236,11 +185,6 @@ export default class BackupDaemonEntity {
         return null;
     }
 
-    /**
-     * Drops any energized cable the daemon has drifted away from, then energizes the nearest
-     * un-lit cable still within reach -- capped at 2 simultaneously lit cables so the whole
-     * ceiling doesn't light up at once.
-     */
     _refreshLitCables() {
         for (let i = this._litCables.length - 1; i >= 0; i--) {
             const entry = this._litCables[i];
@@ -306,10 +250,6 @@ export default class BackupDaemonEntity {
         document.dispatchEvent(new CustomEvent('somatic-breaker', {detail: {distSq: 1.0, intensity: 1.6}}));
     }
 
-    /**
-     * Finds a random point that's inside a currently-loaded chunk and not overlapping any
-     * isEntityBlocker box -- never a wall, never a stretch of unloaded/ungenerated world.
-     */
     _findSafeTeleport(playerPos) {
         const cellSize = this.env.cellSize || 4;
         const chunkSize = this.env.chunkSize || 16;
@@ -353,14 +293,6 @@ export default class BackupDaemonEntity {
         }
     }
 
-    /**
-     * Animates every currently-active spark slot: a flickering point light (real illumination,
-     * not a fake bloom sprite -- this engine has no post-process bloom pass to fake it with) plus
-     * a burst of shards that falls under gravity from the cable's own height. Bursts repeat on a
-     * random interval, and only once every shard from the previous one has landed (see
-     * _launchBurst) -- so it reads as the cable throwing off a fresh shower every so often, each
-     * one kicked off in its own new direction, rather than one continuous drizzle.
-     */
     _animateSparks(delta, time) {
         const gravity = 5.0;
         for (let i = 0; i < this._litSlots.length; i++) {

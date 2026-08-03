@@ -11,15 +11,6 @@ import {AnnexSector} from './sectors/AnnexSector.js';
 import {AtriumSector} from './sectors/AtriumSector.js';
 import {CheckpointSector} from './sectors/CheckpointSector.js';
 
-/**
- * A factory class that aggregates all procedural sector generators.
- *
- * This file acts as the central registry for "themed" maze chunks.
- * When `Environment.js` generates a new chunk, it can query this matrix to pick a
- * generator (like `ArchiveSector` or `ClinicSector`) to override the default
- * structural generation. By decoupling the generation logic into separate files,
- * we keep the core `Environment` class clean and modular.
- */
 export default class SectorBlueprints {
     static getSectorMatrix(ctx) {
         return [

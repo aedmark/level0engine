@@ -1,40 +1,9 @@
-/**
- * The power breaker, rebuilt as a podium.
- *
- * The old fixture was a flat panel bolted to a three-meter pillar. It read as a texture swatch on a
- * column rather than as a thing a person built and another person operates. This is the same switch
- * with the same effect on the same chunk, given a body: a plinth you stand at, a console head angled
- * up toward the face of whoever is reading it, and a palm reader that wants a hand on it long enough
- * to be sure the hand is yours.
- *
- * The mast is load-bearing in the design sense, not the structural one. Cutting the pillar down to
- * hip height would make breakers invisible at fog distance and turn the radar hunt into a stumble.
- * The conduit runs from the head to the ceiling so the fixture still has a silhouette you can read
- * down a corridor, and so the podium has a reason to be standing where it is: the power comes down
- * to it from above.
- *
- * Everything here is cached through `env._cacheGeo`. A chunk can hold three of these and the world
- * holds many chunks, so per-instance geometry would be a slow leak dressed up as detail.
- */
-
 const PLATE_W = 0.30;
 const PLATE_H = 0.32;
-// Positive, so the head's top face rolls toward the podium's local +Z and therefore toward whoever
-// is standing at it. A negative tilt here angles the reader at the far wall and hides the print,
-// which is exactly as useless as it sounds.
 const HEAD_TILT = 0.46;
 const HEAD_Y = 1.02;
 const CEILING_Y = 3.0;
 
-/**
- * Draws the palm reader's etched hand outline.
- *
- * Dark field, luminous print. Used as both albedo and emissive map so the outline stays legible when
- * the plate is idle at low emissive intensity and blooms when the scan drives that intensity up,
- * without needing a second material or a texture swap mid-interaction.
- *
- * @returns {THREE.CanvasTexture}
- */
 function handprintTexture() {
     const S = 128;
     const canvas = document.createElement('canvas');
@@ -97,11 +66,6 @@ function handprintTexture() {
     return tex;
 }
 
-/**
- * Lazily installs the shared podium geometry and materials on the environment.
- *
- * @param {Object} env - Environment, used for its geometry cache and base materials.
- */
 function ensureAssets(env) {
     if (env.podiumAssets) return env.podiumAssets;
 
@@ -117,9 +81,6 @@ function ensureAssets(env) {
         mastGeo: env._cacheGeo('podiumMast', () =>
             new THREE.CylinderGeometry(0.05, 0.055, CEILING_Y - HEAD_Y - 0.05, 8)),
         bandGeo: env._cacheGeo('podiumBand', () => new THREE.CylinderGeometry(0.072, 0.072, 0.05, 8)),
-        // The facility is warm amber everywhere. A neutral grey shell reads as an asset borrowed from
-        // some other game and dropped in the corridor, so the podium is tinted into the same family
-        // as the walls it stands between and separated from them by value rather than by hue.
         shellMat: new THREE.MeshStandardMaterial({
             color: 0x8a8168, roughness: 0.68, metalness: 0.5
         }),
@@ -146,26 +107,9 @@ function ensureAssets(env) {
     return assets;
 }
 
-/**
- * Builds one breaker podium, positioned at its own origin.
- *
- * The returned group carries the same `userData` contract the old pillar breaker did — `type`,
- * `chunkHash`, `active` — so `Environment`'s interact handler and the blackout logic need no
- * knowledge that the fixture changed shape. The extra handles (`plate`, `sweep`, `bead`) are what
- * the scan animation drives.
- *
- * @param {Object} env - Environment.
- * @param {number|string} hash - Chunk hash this breaker cuts power to.
- * @param {Function} [random] - Seeded RNG for cosmetic variation. Defaults to Math.random.
- * @returns {THREE.Group}
- */
 export function buildBreakerPodium(env, hash, random = Math.random) {
     const a = ensureAssets(env);
     const podium = new THREE.Group();
-    // The group's origin sits at the reader plate, not on the floor. Interaction is resolved by the
-    // dot product between the camera's forward vector and the vector to an interactable's origin,
-    // so an origin down at the player's feet would fail the >0.75 test at every sane standing
-    // distance. Everything below is authored floor-relative and hung off a body offset up to meet it.
     const body = new THREE.Group();
     body.position.y = -HEAD_Y;
     podium.add(body);
@@ -233,16 +177,6 @@ export function buildBreakerPodium(env, hash, random = Math.random) {
     return podium;
 }
 
-/**
- * Drives the podium's read-out from a normalised scan value.
- *
- * Called every frame while a scan is live and once on abort. Keeping the visual response in one
- * place means the abort path and the completion path cannot drift out of agreement about what a
- * given progress value should look like.
- *
- * @param {THREE.Group} podium
- * @param {number} t - Scan progress, 0 to 1.
- */
 export function setPodiumScan(podium, t) {
     const ud = podium.userData;
     if (!ud || !ud.plate) return;
@@ -256,11 +190,6 @@ export function setPodiumScan(podium, t) {
     }
 }
 
-/**
- * Locks the podium into its spent state: reader dark, status bead green, no sweep.
- *
- * @param {THREE.Group} podium
- */
 export function setPodiumSpent(podium) {
     const ud = podium.userData;
     if (!ud || !ud.plate) return;
@@ -274,8 +203,6 @@ export function setPodiumSpent(podium) {
     }
 }
 
-/** World-space height of the reader plate, which is also the podium group's origin. */
 export const PODIUM_PLATE_Y = HEAD_Y;
 
-/** Seconds of continuous contact the reader needs before it accepts a print. */
 export const SCAN_DURATION = 1.2;

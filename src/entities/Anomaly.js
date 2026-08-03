@@ -2,10 +2,6 @@ import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 import {isRayPathBlocked, computeAxisBlocking} from './HazardUtils.js';
 
-/**
- * The base predatory hazard in the engine. It handles core logic for tracking,
- * pathfinding, player perception (sight/sound), and locomotion.
- */
 export default class Anomaly {
     constructor(scene, camera, player, environment) {
         this.scene = scene;
@@ -68,12 +64,6 @@ export default class Anomaly {
         this.scene.add(this.group);
     }
 
-    /**
-     * Resets the anomaly to a specific position and resets its tracking state.
-     * @param {number} x - The X coordinate to spawn at.
-     * @param {number} y - The Y coordinate to spawn at.
-     * @param {number} z - The Z coordinate to spawn at.
-     */
     reset(x, y, z) {
         this.isActive = true;
         this.breadcrumbs = [];
@@ -88,18 +78,6 @@ export default class Anomaly {
         this.group.visible = true;
     }
 
-    /**
-     * ARCHIVE, IMPOUND, and INCINERATOR each have their own dedicated hazard (the Archivist,
-     * the Warden, the Ember) that leashes itself inside its home sector via
-     * `Environment.getSectorBounds`. The Anomaly is EntityManager's fallback for every other
-     * sector, but nothing stopped it from physically wandering into one of those three sectors'
-     * territory while roaming or pursuing -- `EntityManager` only swaps *which* entity is
-     * active based on the player's own current sector, it has no idea where the Anomaly itself
-     * is standing. Refreshed on a slow throttle (sector geometry streams in over time, so a
-     * one-shot fetch at construction could stay permanently empty for a sector not yet built).
-     * @param {number} time - Current elapsed game time, used to throttle the refresh.
-     * @param {boolean} [force] - Bypass the throttle (used on reset, so a respawn never lands inside).
-     */
     _refreshForbiddenBounds(time, force) {
         if (this._nextBoundsCheck === undefined) this._nextBoundsCheck = 0;
         if (!force && time < this._nextBoundsCheck) return;
@@ -110,9 +88,6 @@ export default class Anomaly {
             .filter(Boolean);
     }
 
-    /**
-     * Returns the forbidden-sector bounds box containing (x, z), if any, expanded by `margin`.
-     */
     _findForbiddenBounds(x, z, margin = 0) {
         if (!this._forbiddenBounds) return null;
         for (let i = 0; i < this._forbiddenBounds.length; i++) {
@@ -124,11 +99,6 @@ export default class Anomaly {
         return null;
     }
 
-    /**
-     * If (x, z) falls inside a forbidden sector's bounds, pushes it back out to the nearest edge.
-     * Used as a hard safety net -- movement is already blocked from walking in, but a spawn or
-     * far-distance recovery teleport picks a position without any awareness of these zones.
-     */
     _pushOutsideBounds(x, z) {
         const b = this._findForbiddenBounds(x, z);
         if (!b) return {x, z};
@@ -144,14 +114,6 @@ export default class Anomaly {
         return {x, z: b.maxZ + margin};
     }
 
-    /**
-     * Updates the anomaly's state, AI logic, and position.
-     * @param {number} delta - Time elapsed since the last frame.
-     * @param {number} time - Total elapsed time.
-     * @param {string} [activeSector] - The player's current sector id, or "NORMAL" while out in
-     * the plain connecting maze/hallways. See the sector-gate check just below for why this matters.
-     * @returns {Object|null} A state object (e.g., {consumed: true}) if the player is caught, otherwise null.
-     */
     update(delta, time, activeSector) {
         if (!this.isActive) {
             if (this.player.anomalyPressure > 0) this.player.anomalyPressure = 0;

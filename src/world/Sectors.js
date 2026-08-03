@@ -1,10 +1,3 @@
-/**
- * The default parameters for procedural footstep generation (synthesized via Web Audio API).
- *
- * Instead of loading hundreds of .wav files for footsteps on different
- * surfaces, this engine synthesizes them procedurally. This saves memory and allows for
- * infinite dynamic variation based on the player's momentum and the sector's acoustics.
- */
 export const DEFAULT_FOLEY = {
     oscFreq: 60,
     filterType: 'lowpass',
@@ -13,13 +6,6 @@ export const DEFAULT_FOLEY = {
     attack: 0.04,
     decay: 0.18
 };
-/**
- * Baseline behaviour for the volumetric dust cloud that follows the camera.
- *
- * Sectors override this wholesale (same convention as `DEFAULT_FOLEY`): a sector either
- * supplies a complete `dust` block or inherits this one. Nothing is merged key-by-key,
- * so every override below is readable in isolation without chasing a prototype chain.
- */
 export const DEFAULT_DUST = {
     drift: 'vertical',
     driftY: -0.0025,
@@ -30,12 +16,6 @@ export const DEFAULT_DUST = {
     crawlSize: 0.08,
     color: 0xffffff
 };
-/**
- * Baseline behaviour for the secondary exhaust/vapour cloud.
- *
- * Most sectors never show it (`opacity: 0.0`); the Incinerator and Server halls are the
- * only two that turn it on, so the defaults describe the dormant case.
- */
 export const DEFAULT_EXHAUST = {
     opacity: 0.0,
     color: 0x00ffcc,
@@ -45,105 +25,16 @@ export const DEFAULT_EXHAUST = {
     pulseRate: 12.0,
     pulseDepth: 0.02
 };
-/**
- * Baseline room acoustics for any sector that does not name its own `reverb`.
- *
- * Same wholesale-override convention as the blocks above: a sector supplies a complete reverb
- * block or inherits this one. A plain drywall corridor with something soft on the floor.
- */
 export const DEFAULT_REVERB = {
     rt60: 0.8,
     predelay: 0.012,
     wet: 0.14
 };
 
-/**
- * Fill light for any sector that does not name its own `ambient`.
- *
- * Deliberately low. The engine used to sit at 0.80 here, which lit every room evenly from
- * nowhere and left the ceiling fixtures with nothing to do -- surfaces read flat and the
- * pools of light under working fixtures barely registered. Keeping this dim is what makes
- * a lit panel feel like it is doing the work.
- */
 export const DEFAULT_AMBIENT = 0.65;
 
-/**
- * Floor for the ambient term. Never fully black, so an unlit room still resolves as a room
- * rather than a void once the player's eyes have nothing else to go on.
- */
 export const MIN_AMBIENT = 0.005;
 
-/**
- * Configuration dictionary mapping sector IDs to their specific atmospheric properties.
- *
- * This object acts as the "DNA" for the engine's dynamic atmosphere.
- * As the player walks from a 'NORMAL' chunk into an 'INCINERATOR' chunk, the `RenderEngine`
- * and `Foley` system smoothly interpolate these values.
- *
- * @typedef {Object} FoleyConfig
- * @property {number} oscFreq - Base oscillator frequency for the footstep impact.
- * @property {string} filterType - Biquad filter type ('lowpass', 'highpass', 'bandpass').
- * @property {number} filterFreq - Frequency cutoff for the biquad filter.
- * @property {number} gain - Master volume of the footstep.
- * @property {number} attack - Fade-in time (in seconds) for the footstep envelope.
- * @property {number} decay - Fade-out time (in seconds) for the footstep envelope.
- *
- * @typedef {Object} AmbienceConfig
- * @property {number} noise - White noise intensity.
- * @property {number} peace - Smooths out harsh frequencies.
- * @property {number} rumble - Low frequency oscillator gain (LFO).
- * @property {number} freq - Base cutoff frequency for the ambient rumble.
- * @property {number} freqOcc - Frequency occlusion (how muffled the ambient sound gets).
- * @property {number} whine - High-frequency sine wave intensity (e.g., electrical whine).
- * @property {number} whineOcc - High-frequency occlusion.
- * @property {boolean} dynamicWhine - If true, the whine modulates in pitch over time.
- *
- * @typedef {Object} DustConfig
- * @property {'vertical'|'horizontal'} drift - 'vertical' moves particles on Y; 'horizontal' pushes them along X/Z.
- * @property {number} driftY - Y units per frame when drift is 'vertical'. Positive rises, negative settles.
- * @property {number} [turbulence] - 0..1 spread of per-particle speed. 0 is a rigid sheet,
- *   higher values scatter the speeds so an updraft reads as moving air. Ignored when 0.
- * @property {number} baseOpacity - Material opacity while standing.
- * @property {number} crawlOpacity - Material opacity while crawling (the choking effect).
- * @property {number} baseSize - Point size while standing.
- * @property {number} crawlSize - Point size while crawling.
- * @property {number} color - Hex tint lerped into the point material.
- *
- * @typedef {Object} ExhaustConfig
- * @property {number} opacity - Target opacity. 0.0 keeps the cloud dormant.
- * @property {number} color - Hex tint lerped into the point material.
- * @property {number} spinY - Yaw rotation rate, multiplied by elapsed time.
- * @property {number} spinX - Pitch rotation rate, multiplied by elapsed time.
- * @property {number} baseSize - Point size before the pulse is added.
- * @property {number} pulseRate - Angular frequency of the size pulse.
- * @property {number} pulseDepth - Amplitude of the size pulse.
- *
- * @typedef {Object} ReverbConfig
- * @property {number} rt60 - Reverberation time in seconds: how long the tail takes to fall
- *   60dB. The standard measure of how long a room rings, so these can be authored against
- *   real acoustic intuition rather than tuned blind. A padded cell is around 0.35, a domestic
- *   room 0.5, a concrete stairwell 2, a cathedral 4 and up.
- * @property {number} predelay - Seconds of silence before the tail begins, standing in for the
- *   travel time out to the first wall and back. The ear reads this as distance to the nearest
- *   surface, which makes it a stronger size cue than `rt60` on its own -- a small room with a
- *   long tail sounds like a cupboard full of springs, not like a hall.
- * @property {number} wet - Convolver return level. Since the impulse responses are
- *   equal-power normalised, this is comparable across sectors: 0.30 in one room is about as
- *   present as 0.30 in another regardless of their tail lengths.
- * @property {number} [fog] - Fog density for WebGL shader volumetric rendering.
- * @property {number} [fogColor] - Hex color code for the fog rendering.
- * @property {number} [ambient] - Hemisphere-light intensity for this sector. This is fill
- *   light only: the lower it is, the more the sector's own fixtures have to carry the room.
- *   Falls back to `DEFAULT_AMBIENT` when omitted, and is scaled down further by the player's
- *   accumulated darkness pressure at runtime.
- * @property {DustConfig} [dust] - Overrides the dust cloud for this sector.
- * @property {ExhaustConfig} [exhaust] - Overrides the exhaust cloud for this sector.
- * @property {AmbienceConfig} [ambience] - Parameters for the procedural drone synthesizer.
- * @property {FoleyConfig} [foley] - Overrides the procedural footstep synthesis for this sector.
- * @property {ReverbConfig} [reverb] - Overrides the convolution room for this sector.
- *
- * @type {Object.<string, SectorConfig>}
- */
 const SECTORS = {
     NORMAL: {
         fog: 0.03,

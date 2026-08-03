@@ -1,9 +1,5 @@
 import Vec3 from '../math/Vec3.js';
 
-/**
- * A passive entity that spawns in the archive sector. Scatters when approached,
- * but drops documents when observed by the flashlight for a prolonged period.
- */
 export default class ArchivistEntity {
     constructor(scene, camera, player, environment) {
         this.scene = scene;
@@ -70,22 +66,6 @@ export default class ArchivistEntity {
         this.scene.add(this.group);
     }
 
-    /**
-     * Shows or hides the Archivist's visible body parts, leaving `group` (and therefore
-     * `this.light`, its child) untouched.
-     *
-     * This used to be a plain `this.group.visible = true/false`, toggled not
-     * just on sector entry/exit but constantly during ordinary ARCHIVE play -- every hide/flee
-     * cycle (`hideTimer`/`fleeTimer` in update()) hid the whole group, `this.light` included.
-     * Three.js excludes an invisible object's entire subtree from the current frame's light list,
-     * so every one of those cycles changed the scene's active light count and forced a shader
-     * recompile across every standard-lit material in the scene -- the same mechanism the
-     * Incinerator/Maintenance chunk-streaming stutter and the Warden/Impound entity-switch
-     * stutter turned out to share, just firing far more often here since it's tied to routine
-     * behavior instead of a rarer sector transition. `group` now stays visible permanently;
-     * only the meshes toggle, so the light is always present in the scene -- just dark when
-     * `intensity` is zeroed alongside it.
-     */
     _setBodyVisible(visible) {
         this.core.visible = visible;
         this.wingL.visible = visible;
@@ -93,22 +73,12 @@ export default class ArchivistEntity {
         for (const mote of this.motes) mote.visible = visible;
     }
 
-    /**
-     * Hides the Archivist and silences its light without removing either from the scene graph.
-     * Called by EntityManager when another entity type becomes active.
-     */
     deactivate() {
         this.isActive = false;
         this._setBodyVisible(false);
         this.light.intensity = 0;
     }
 
-    /**
-     * Resets the entity and spawns it at the given coordinates.
-     * @param {number} x - The X coordinate to spawn at.
-     * @param {number} y - The Y coordinate to spawn at.
-     * @param {number} z - The Z coordinate to spawn at.
-     */
     reset(x, y, z) {
         this.isActive = true;
         this.graceTimer = 10.0;
@@ -125,10 +95,6 @@ export default class ArchivistEntity {
         this.observeTimer = 0;
     }
 
-    /**
-     * Clamps a world-space (x, z) into the Archivist's home sector, if bounds are known.
-     * Called on every reset and every wander tick.
-     */
     _clampToBounds(x, z) {
         if (!this._bounds) return {x, z};
         const margin = 1.5;
@@ -138,12 +104,6 @@ export default class ArchivistEntity {
         };
     }
 
-    /**
-     * Updates the entity's behavior, tracking observation and scatter mechanics.
-     * @param {number} delta - Time elapsed since the last frame.
-     * @param {number} time - Total elapsed time.
-     * @returns {Object|null} Returns null; the archivist does not attack or consume the player.
-     */
     update(delta, time) {
         if (!this.isActive) {
             return null;
@@ -261,9 +221,6 @@ export default class ArchivistEntity {
         return null;
     }
 
-    /**
-     * Spawns an interactable document drop in the world when successfully observed.
-     */
     dropDocument() {
         this.droppedDoc = true;
         const docMat = new THREE.MeshBasicMaterial({color: 0xffffff});

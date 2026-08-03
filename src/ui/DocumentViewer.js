@@ -1,10 +1,3 @@
-/**
- * Manages the overlay UI for reading notes, terminals, and listening to tapes.
- *
- * This class uses CSS classes (`terminal-mode`, `tape-mode`) applied to a single
- * overlay element to radically change the presentation of the text. This is much more efficient
- * than having five different DOM overlays for different item types.
- */
 export default class DocumentViewer {
     constructor(player, acoustics, getStoryFn) {
         this.player = player;
@@ -14,16 +7,6 @@ export default class DocumentViewer {
         this.terminalBrowseIndex = null;
     }
 
-    /**
-     * Renders the claim this document makes and whether anything else in the wing backs it up.
-     *
-     * An unverified claim is printed as an open question so the player knows they are now carrying
-     * weight. A corroboration names both sources, because the mechanic is worthless if the player
-     * cannot see that travelling to a second sector is what paid them.
-     *
-     * @param {Object} fragment - The fragment returned by StoryEngine.getFragment.
-     * @returns {string} A banner to append beneath the document body, or an empty string.
-     */
     claimBanner(fragment) {
         if (fragment.ephemera) return '\n\n---\n>> NOT CASE MATERIAL.';
         if (!fragment.thread) return '';
@@ -45,13 +28,6 @@ export default class DocumentViewer {
         return footer;
     }
 
-    /**
-     * Binds the event listeners for opening, closing, and navigating documents.
-     *
-     * Notice the typewriter effect for terminals and tapes using `setInterval`.
-     * Audio blips are synced to the character rendering rate, with a random chance to skip a blip
-     * to make it sound organic rather than perfectly robotic.
-     */
     bindEvents() {
         document.addEventListener('somatic-doc-nav', (e) => {
             if (this.terminalBrowseIndex === null) return;

@@ -1,24 +1,4 @@
-/**
- * Handles updating the DOM-based heads-up display (HUD).
- *
- *  While Three.js can render UI in 3D (WebGL), it is almost always better
- * for performance and accessibility to overlay standard HTML/CSS elements on top of the canvas.
- * This class maps the player's internal state (stamina, battery, coherence) to those HTML elements.
- */
 export default class UIManager {
-    /**
-     * Ticks the UI logic, updating progress bars and counters.
-     *
-     * DOM updates are notoriously slow. To prevent the UI from bottlenecking
-     * the 60FPS WebGL render loop, we aggressively throttle DOM updates. We only tick the UI
-     * 10 times a second (`< 0.1` return), and we cache the last written values (`_last`) so we
-     * never write to `innerHTML` or `style` unless the value actually changed.
-     *
-     * @param {number} time - Total elapsed time.
-     * @param {Object} engine - The core engine instance.
-     * @param {Object} player - The player controller instance.
-     * @param {Object} environment - The environment instance.
-     */
     static update(time, engine, player, environment) {
         if (time - (this._lastUpdate || 0) < 0.1) return;
         this._lastUpdate = time;
@@ -52,9 +32,6 @@ export default class UIManager {
         }
         if (this.scanRing && environment) {
             const scan = environment.breakerScan;
-            // Quantised to whole percent. The ring is a conic gradient, so writing the custom property
-            // dirties a paint every time it changes; sub-percent precision would buy nothing visible
-            // and cost a repaint on every single frame of every scan.
             const pct = scan ? Math.round(scan.t * 100) : -1;
             if (this.scanRing._lastPct !== pct) {
                 const live = pct >= 0;

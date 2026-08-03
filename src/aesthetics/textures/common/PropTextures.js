@@ -593,7 +593,6 @@ export default class PropTextures {
             bCtx.stroke();
         }
 
-        // Very slight vertical falloff so a tall panel is not perfectly flat top to bottom.
         const grad = ctx.createLinearGradient(0, 0, 0, S);
         grad.addColorStop(0, 'rgba(255, 255, 255, 0.05)');
         grad.addColorStop(0.55, 'rgba(255, 255, 255, 0)');
@@ -619,21 +618,6 @@ export default class PropTextures {
         });
     }
 
-    /**
-     * The airlock door leaf: same stainless family as the shell, deliberately not the same tint.
-     *
-     * A door finished identically to the frame it sits in disappears into it — the whole assembly
-     * reads as one blank slab, which is exactly what happened when both wore `stainlessMat`. This
-     * runs several stops darker so the leaf reads as a separate moving part set into a brighter
-     * surround, the way a lift door does.
-     *
-     * The warning triangle is the one that used to live in the titanium texture and was lost when
-     * the doors were stripped back. It is baked into the map rather than added as geometry because
-     * the panel's UVs already map it once per leaf, which is where it belongs.
-     *
-     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
-     * @returns {THREE.MeshStandardMaterial}
-     */
     static _buildStainlessDoorMaterial(masterNoise) {
         const W = 256, H = 336;
         const rand = TextureMechanics._seededRandom(66192384);
@@ -641,8 +625,6 @@ export default class PropTextures {
         const {canvas: bumpCanvas, ctx: bCtx} = TextureMechanics._createContext(W, H);
         bCtx.fillStyle = '#8c8c8c';
         bCtx.fillRect(0, 0, W, H);
-
-        // Darker than the shell's rgb(196,203,212), same cool cast.
         ctx.fillStyle = 'rgb(148, 156, 166)';
         ctx.fillRect(0, 0, W, H);
 
@@ -659,8 +641,6 @@ export default class PropTextures {
             ctx.stroke();
         }
 
-        // Warning triangle, upright, upper-middle. Kept as a dark tint rather than a solid fill so
-        // the brushed grain still runs through it and it reads as painted onto steel.
         const apexY = 96, baseY = 212, halfW = 72;
         ctx.fillStyle = 'rgba(24, 28, 34, 0.42)';
         ctx.beginPath();
@@ -679,15 +659,11 @@ export default class PropTextures {
         bCtx.lineTo(W / 2 - halfW, baseY);
         bCtx.closePath();
         bCtx.fill();
-
-        // The exclamation stroke inside it.
         ctx.fillStyle = 'rgba(20, 24, 30, 0.5)';
         ctx.fillRect(W / 2 - 7, apexY + 44, 14, 44);
         ctx.beginPath();
         ctx.arc(W / 2, apexY + 102, 8, 0, Math.PI * 2);
         ctx.fill();
-
-        // The dark band the original carried below the triangle.
         ctx.fillStyle = 'rgba(28, 32, 38, 0.22)';
         ctx.fillRect(0, 250, W, 14);
 

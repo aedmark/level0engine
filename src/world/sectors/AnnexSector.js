@@ -1,13 +1,6 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
-/**
- * A procedural sector generator characterized by tight, office-like corridors and keypad-locked doors.
- *
- * This module uses a localized cellular automaton-like rule set. It evaluates
- * its local `x` and `z` coordinates to determine if it should be a hallway or an office, and
- * places doors/keypads accordingly based on the deterministic RNG seed passed in the `ctx`.
- */
 export const AnnexSector = (env, ctx) => {
     const {
         random,

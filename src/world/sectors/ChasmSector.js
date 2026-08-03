@@ -2,14 +2,6 @@ import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
 
-/**
- * A procedural sector generator characterized by vast, bottomless drops and precarious catwalks.
- *
- * This sector demonstrates how "voids" are handled in the spatial grid.
- * If a tile is empty, instead of generating floor/walls, it inserts a `voidBox` into the
- * `SpatialHashGrid` with a Y-depth of -100. If the player steps into this box, gravity
- * accelerates them downwards until they hit a kill plane.
- */
 export const ChasmSector = (env, ctx) => {
     const {
         random,

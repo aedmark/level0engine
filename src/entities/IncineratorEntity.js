@@ -2,10 +2,6 @@ import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 import {isRayPathBlocked, computeAxisBlocking} from './HazardUtils.js';
 
-/**
- * A highly aggressive, heat-based entity ("The Ember") found in the incinerator sector.
- * Freezes when observed but radiates lethal heat that drains stamina. Charges when unobserved.
- */
 export default class IncineratorEntity {
     constructor(scene, camera, player, environment) {
         this.scene = scene;
@@ -137,14 +133,6 @@ export default class IncineratorEntity {
         this.scene.add(this.group);
     }
 
-    /**
-     * Builds the pooled ember-burst emitter, ported from BackupDaemonEntity's cable-spark
-     * effect (see that file for the original): a handful of shards that launch together in a
-     * shared random direction, fall under gravity, and land -- then wait out a random interval
-     * before firing again. Here there's only ever one emission point (the flame itself, not a
-     * pool of cables), so it's a single always-on slot anchored near the flame's tip rather than
-     * BackupDaemon's array of pooled slots activated per lit cable.
-     */
     _buildEmberSlot() {
         if (!this._emberGeo) {
             this._emberGeo = new THREE.TetrahedronGeometry(0.06, 0);
@@ -230,11 +218,6 @@ export default class IncineratorEntity {
         });
     }
 
-    /**
-     * Shows or hides the Ember's visible body parts, leaving `group` (and therefore `this.light`,
-     * its child) untouched -- see WardenEntity.deactivate()/ArchivistEntity._setBodyVisible() for
-     * the full explanation of why this can't just be `group.visible = true/false` anymore.
-     */
     _setBodyVisible(visible) {
         for (const lick of this.licks) lick.visible = visible;
         this.lureStalk.visible = visible;
@@ -252,22 +235,12 @@ export default class IncineratorEntity {
         }
     }
 
-    /**
-     * Hides the Ember and silences its light without removing either from the scene graph.
-     * Called by EntityManager when another entity type becomes active.
-     */
     deactivate() {
         this.isActive = false;
         this._setBodyVisible(false);
         this.light.intensity = 0;
     }
 
-    /**
-     * Resets the entity and spawns it at the given coordinates, resetting heat levels.
-     * @param {number} x - The X coordinate to spawn at.
-     * @param {number} y - The Y coordinate to spawn at.
-     * @param {number} z - The Z coordinate to spawn at.
-     */
     reset(x, y, z) {
         this.isActive = true;
         this.graceTimer = 3.0;
@@ -281,11 +254,6 @@ export default class IncineratorEntity {
         this.light.intensity = 1.1;
     }
 
-    /**
-     * Clamps a world-space (x, z) into the Ember's home sector, if bounds are known.
-     * Called on every reset and every locomotion tick so it can never wander -- or be
-     * chased -- out through an open door into the hallway.
-     */
     _clampToBounds(x, z) {
         if (!this._bounds) return {x, z};
         const margin = 1.5;
@@ -295,12 +263,6 @@ export default class IncineratorEntity {
         };
     }
 
-    /**
-     * Updates the entity's behavior, including the weeping angel mechanic, heat radiation, and pursuit.
-     * @param {number} delta - Time elapsed since the last frame.
-     * @param {number} time - Total elapsed time.
-     * @returns {Object|null} Returns a state object (e.g., {consumed: true}) if the player is caught, otherwise null.
-     */
     update(delta, time) {
         if (!this.isActive) {
             return null;
@@ -442,13 +404,6 @@ export default class IncineratorEntity {
         this.group.position.z = clamped.z;
     }
 
-    /**
-     * Tracks actual ground-plane movement direction frame to frame (not `this.target`, which can
-     * point straight into whatever it's currently sliding along after a collision). Runs once per
-     * active update() tick, before grace/pursuit branch off, so `this._heading` is always current
-     * for `_animate()` to build the slither off of -- it just holds its last value while stationary
-     * instead of collapsing to a zero vector.
-     */
     _updateHeading() {
         if (!this._hasLastPos) {
             this._lastPosX = this.group.position.x;

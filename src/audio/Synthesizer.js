@@ -1,35 +1,4 @@
-/**
- * Synthesizer
- * Initializes and wires up the web audio graph nodes for continuous, atmospheric sound synthesis.
- * Handles sub-bass rumbling, kinetic whine, paranoia drones, sector ambiance, and noise generation.
- */
 export default class Synthesizer {
-    /**
-     * Synthesises a room impulse response: decorrelated stereo noise under an exponential
-     * decay envelope, generated rather than loaded, in keeping with the rest of this engine.
-     *
-     * The envelope is `0.001 ^ t` over the normalised tail, which reaches exactly -60dB at
-     * `t = 1`. That makes `decay` literally RT60 in seconds -- the standard measure of how
-     * long a room rings -- rather than an arbitrary tuning scalar, so the sector table can be
-     * authored against real acoustic intuition (a padded cell is 0.4s, a cathedral is 4s).
-     *
-     * Left and right are filled from independent noise so the tail is decorrelated, which is
-     * what makes a reverb sound wide instead of like a mono wash pasted across the middle.
-     *
-     * The pre-delay is silence before the tail begins: the gap between a sound and its first
-     * reflection off a wall, which the ear reads as distance to that wall. It is the cheapest
-     * available cue for room size and is worth more than the decay time for that purpose.
-     *
-     * Deliberately absent: discrete early reflections. A smooth noise tail is a diffuse field
-     * with no geometry in it, which suits featureless concrete better than it would a room
-     * full of hard parallel surfaces. Adding a handful of sparse taps before the tail is the
-     * obvious next refinement if any sector needs to sound like a specific shape.
-     *
-     * @param {AudioContext} ctx - The audio context, for sample rate and buffer allocation.
-     * @param {number} decay - RT60 in seconds. Time for the tail to fall 60dB.
-     * @param {number} predelay - Seconds of silence before the tail starts.
-     * @returns {AudioBuffer} A two-channel impulse response.
-     */
     static buildImpulseResponse(ctx, decay, predelay) {
         const rate = ctx.sampleRate;
         const preSamples = Math.max(0, Math.floor(predelay * rate));
@@ -47,10 +16,6 @@ export default class Synthesizer {
         return buffer;
     }
 
-    /**
-     * Injects, connects, and starts all persistent Web Audio graph nodes into the engine.
-     * @param {AcousticEngine} engine - The main acoustic engine instance to populate.
-     */
     static injectNodes(engine) {
         const ctx = engine.ctx;
         engine.masterGain = ctx.createGain();

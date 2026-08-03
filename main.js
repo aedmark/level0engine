@@ -23,11 +23,6 @@ let sectorHuntActive = false;
 const saveManager = new SaveManager(engine, player, environment, acoustics);
 const somatic = new SomaticController(acoustics);
 
-/**
- * Lazy loads or retrieves the cached StoryEngine instance.
- * Rebuilds the narrative tree if the base seed changes.
- * @returns {StoryEngine} The active narrative instance.
- */
 function getStory() {
     if (!getStory._cache || getStory._lastSeed !== environment.baseSeed) {
         getStory._cache = new StoryEngine(environment.baseSeed);
@@ -36,19 +31,11 @@ function getStory() {
     return getStory._cache;
 }
 
-/**
- * Forces a soft-reset of the environment by mutating the seed string,
- * effectively plunging the player into a blackout/regenerated zone.
- */
 function triggerBlackout() {
     const seedInput = document.getElementById('seedInput');
     seedInput.value = seedInput.value + " NULL";
 }
 
-/**
- * Increments the floor layer (FL-X) inside the seed, appending it
- * if it doesn't already exist. Prepares the environment for descent/ascent.
- */
 function triggerAscension() {
     const seedInput = document.getElementById('seedInput');
     const parts = seedInput.value.split(" FL-");
@@ -147,10 +134,6 @@ document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e
     if (uiLayer) uiLayer.style.opacity = '1';
 });
 
-/**
- * The primary render loop. Orchestrates WebGL rendering, physics/collision hashing,
- * entity ticks, player input handling, and shader uniform updates.
- */
 function animate() {
     requestAnimationFrame(animate);
     const delta = engine.delta;

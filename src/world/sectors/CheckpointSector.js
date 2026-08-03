@@ -2,14 +2,6 @@ import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
 
-/**
- * A procedural sector generator characterized by decontamination showers, hazmat gear, and security gates.
- *
- * Notice the heavy use of deterministic RNG here (using `ckHash` and `hash`).
- * Because chunks are generated and destroyed dynamically as the player moves, a chunk MUST
- * generate identically every time the player walks into it. We seed the RNG with the chunk's
- * global X/Z coordinates so that a hazmat suit placed here will always be placed here.
- */
 export const CheckpointSector = (env, ctx) => {
     const {
         random,

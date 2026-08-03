@@ -1,14 +1,6 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
-/**
- * A procedural sector generator characterized by dense, labyrinthine library shelves.
- *
- * Unlike the Annex which defines its own walls based on coordinates,
- * the Archive borrows the output of the global maze generator (`maze` argument).
- * It interprets the maze walls as massive metal shelving units, turning a simple 2D
- * maze array into a 3D physical environment.
- */
 export const ArchiveSector = (env, ctx) => {
     const {
         random,
@@ -100,18 +92,6 @@ export const ArchiveSector = (env, ctx) => {
                     }
                 }
             };
-            /**
-             * Picks a position along a shelf run for a prop of half-width `halfWidth`, clear of
-             * the book row already occupying `[rowMin, rowMax]`.
-             *
-             * Returns null when the row leaves no gap wide enough -- a shelf packed end to end
-             * with books genuinely has nowhere to put a box, and the caller stops rather than
-             * forcing one in.
-             *
-             * The side is chosen in proportion to the free width on each side. Picking a side
-             * first and a position second would put half the boxes into whatever sliver remains
-             * behind a row that has been slid hard against one end.
-             */
             const slideClearOfRow = (rowMin, rowMax, runHalf, halfWidth) => {
                 const loLeft = -runHalf + halfWidth;
                 const hiLeft = rowMin - halfWidth;

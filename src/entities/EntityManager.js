@@ -4,18 +4,7 @@ import WardenEntity from './WardenEntity.js';
 import IncineratorEntity from './IncineratorEntity.js';
 import BackupDaemonEntity from './BackupDaemonEntity.js';
 
-/**
- * Orchestrates the spawning, despawning, and updating of all active entities
- * based on the player's current sector. Ensures only one entity type is active at a time.
- */
 export default class EntityManager {
-    /**
-     * Initializes the entity manager and instantiates all unique entity types.
-     * @param {THREE.Scene} scene - The main Three.js scene.
-     * @param {THREE.PerspectiveCamera} camera - The main camera.
-     * @param {Player} player - The player controller instance.
-     * @param {Environment} environment - The main environment instance.
-     */
     constructor(scene, camera, player, environment) {
         this.scene = scene;
         this.camera = camera;
@@ -40,13 +29,6 @@ export default class EntityManager {
         this.activeEntity = null;
     }
 
-    /**
-     * Updates the active entity and handles sector-based entity transitions.
-     * @param {number} delta - Time elapsed since the last frame (in seconds).
-     * @param {number} time - Total elapsed time.
-     * @param {string} activeSector - The player's current sector identifier.
-     * @returns {Object|null} Any UI state or jump scare state triggered by the active entity.
-     */
     update(delta, time, activeSector) {
         let targetType = 'DEFAULT';
         if (activeSector === 'ARCHIVE') {

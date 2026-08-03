@@ -1,12 +1,5 @@
 import SECTORS, {DEFAULT_FOLEY} from '../world/Sectors.js';
 
-/**
- * Static spawnVoice argument tuples for every foley type except 'step'. These are constant
- * literals -- unlike 'step', none of them read from the current sector's foley profile -- so
- * they're hoisted to module scope instead of being rebuilt inside `Foley.trigger()` on every
- * single somatic event (footsteps, doors, ambient stingers fire often, easily several times a
- * second during normal play).
- */
 const VOICES = {
     'shuffle': ['sine', 10, 10, 0.1, 0.15, 0.15, 0.45, {type: 'bandpass', start: 1500, end: 400, ramp: 0.4}],
     'door': ['square', 120, 30, 0.3, 0.08, 0.03, 0.5, {type: 'lowpass', start: 1000, end: 100, ramp: 0.4}],
@@ -37,19 +30,7 @@ const VOICES = {
     'car_horn': ['square', 320, 310, 0.1, 0.35, 0.05, 0.65, null],
     'valve_turn': ['square', 300, 600, 0.05, 0.06, 0.02, 0.1, {type: 'bandpass', start: 1200, end: 600, ramp: 0.1}]
 };
-/**
- * Foley
- * Handles spatialized, procedural sound effects (foley) using the Web Audio API.
- * Synthesizes transient sounds like footsteps, doors, whispers, and environmental interactions.
- */
 export default class Foley {
-    /**
-     * Triggers a localized procedural sound effect.
-     * @param {AcousticEngine} engine - The main acoustic engine instance.
-     * @param {string} type - The identifier of the sound to play (e.g., 'step', 'door', 'whisper').
-     * @param {number} distanceSq - Squared distance from the listener, used for attenuation.
-     * @param {number} intensity - Scalar defining the amplitude or force of the sound.
-     */
     static trigger(engine, type, distanceSq, intensity) {
         if (!engine.initialized || engine.ctx.state === 'suspended') return;
         if (distanceSq > 1600.0) return;
@@ -104,13 +85,6 @@ export default class Foley {
         }
     }
 
-    /**
-     * Plays a single note or chord of the elevator/ambient muzak system.
-     * @param {AcousticEngine} engine - The main acoustic engine instance.
-     * @param {number} freq - The frequency of the note to play.
-     * @param {number} time - The AudioContext time at which the note should begin.
-     * @param {boolean} [isChord=false] - Whether the note is part of a chord (changes oscillator type and gain).
-     */
     static playMuzakNote(engine, freq, time, isChord = false) {
         if (!engine.muzakGain || engine.ctx.state === 'suspended') return;
         const osc = engine.ctx.createOscillator();
