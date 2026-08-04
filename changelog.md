@@ -1,5 +1,20 @@
 # Level 0 Engine Changelog
 
+## [v0.7.8] - 2026-08-04
+
+_Narrative Unbound & Archive Aesthetics_
+
+### Added
+
+- **[AESTHETICS] Detailed Archive Books:** Refined Archive shelf geometry so that the ends of book rows display actual book faces or bookend plates instead of flat spine textures.
+- **[WORLD] Dynamic Narrative Loading:** Completely stripped out hardcoded case files and names. The engine now dynamically loads `library.json`, `tapes.json`, `finales.json`, `foreshadow.json`, `ephemera.json`, `tags.json`, and `names.json` at runtime, meaning lore can be expanded without touching code.
+- **[WORLD] Smart Token Replacement:** The narrative system now uses a custom string template parser that deeply iterates over the loaded JSON text and intelligently substitutes character names and procedural math equations on the fly.
+- **[DOCUMENTATION] Narrative Guide:** Added `data/HowTo.md` detailing how to use and extend the dynamic narrative JSON structures.
+
+### Changed
+
+- **[AESTHETICS] Subtler Archive Floors:** The scuff and smudge bump mapping on the Archive floors was adjusted. They are no longer heavily embossed like crayon marks, but are instead faint and reflective, catching the flashlight realistically similar to the Clinic floors.
+
 ## [v0.7.7] - 2026-08-03
 
 _Context-Aware Generation_

@@ -1,0 +1,73 @@
+{
+  "ANNEX": [
+    "GEOMETRY",
+    "GEOMETRY",
+    "CIPHER",
+    "GEOMETRY",
+    "LOST"
+  ],
+  "ARCHIVE": [
+    "LOST",
+    "GEOMETRY",
+    "HUM",
+    "CIPHER"
+  ],
+  "IMPOUND": [
+    "PEN",
+    "GEOMETRY",
+    "PEN"
+  ],
+  "INCINERATOR": [
+    "HUM",
+    "CIPHER",
+    "GEOMETRY",
+    "EPOCH"
+  ],
+  "BOARDROOM": [
+    "GEOMETRY",
+    "GEOMETRY",
+    "LOST",
+    "EPOCH"
+  ],
+  "SERVER": [
+    "GEOMETRY",
+    "HUM",
+    "HUM"
+  ],
+  "CHECKPOINT": [
+    "LOST",
+    "LOST",
+    "CIPHER",
+    "EPOCH"
+  ],
+  "ATRIUM": [
+    "GEOMETRY",
+    "LOST",
+    "HUM",
+    "EPOCH"
+  ],
+  "CLINIC": [
+    "LOST",
+    "HUM",
+    "LOST",
+    "PEN"
+  ],
+  "MAINTENANCE": [
+    "GEOMETRY",
+    "CIPHER",
+    "HUM"
+  ],
+  "CHASM": [
+    "GEOMETRY",
+    "LOST",
+    "LOST",
+    "PEN"
+  ],
+  "DEFAULT": [
+    "HUM",
+    "GEOMETRY",
+    "HUM",
+    "LOST",
+    null
+  ]
+}

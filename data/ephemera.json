@@ -1,0 +1,12 @@
+{
+  "EXIT": [
+    "SHIFT ROTA \u2014 EXTRACTION POINT, WEEK 12\n\nMON  ${c.custodian}\nTUE  ${c.custodian}\nWED  ${c.custodian}\nTHU  ${c.custodian}\nFRI  ${c.custodian}\n\nIn the margin, different pen: \"I have asked four times for a second name on this list.\"",
+    "COFFEE FUND \u2014 HONESTY BOX\n\nBalance carried forward: 340\nContributions this month: 0\nWithdrawals this month: 0\n\nTaped underneath: \"Nobody has taken any and nobody has added any since ${c.lost} stopped coming up. I am not closing the account.\"",
+    "LAMINATED, WALL-MOUNTED BESIDE THE CAR\n\nDEBRIEF SCRIPT \u2014 READ ALOUD, DO NOT PARAPHRASE\n1. \"You are at the extraction point.\"\n2. \"You are going up.\"\n3. \"Do not describe what you saw until you are asked.\"\n\nStep 4 has been scratched out so thoroughly it has gone through the lamination.",
+    "BIRTHDAY CARD, UNSEALED\n\nFront: a cartoon of a filing cabinet wearing a party hat.\nInside, eleven signatures in eleven different pens, and under them in ${c.archivist}'s hand: \"Many happy returns, and I mean RETURNS, ${c.custodian}. Sign yourself out this time.\"",
+    "MAINTENANCE COMPLAINT \u2014 CAR MUSIC\n\nThe hold music in the elevator car is nine seconds long and loops with a click. Over a full ascent you will hear it four hundred times. I have submitted this eleven times. Please. It is nine seconds.",
+    "LOST AND FOUND \u2014 EXTRACTION DESK\n\n1 \u00d7 reading glasses, lens cracked\n1 \u00d7 wedding ring, cold\n3 \u00d7 single gloves, all left hand\n1 \u00d7 cassette, unlabelled, snapped\n2 \u00d7 mug, identical, both chipped in the same place\n\nUnclaimed items are held ninety days and then held indefinitely, because nobody has ever come to the desk.",
+    "TAPED INSIDE THE SUPPLY LOCKER, HAND-DRAWN\n\nA six-panel diagram showing how to fold a hazmat suit so it fits the shelf. Panel five is just an arrow and the word \"PATIENCE.\" Panel six is the folded suit, drawn with visible pride, and initialled.",
+    "NOTE LEFT ON THE EXTRACTION CONSOLE\nFROM: ${c.custodian}\n\nIf you are reading this you got out, which means you got further than most and further than me. There is water in the locker. Take it, it is not rationed up here.\n\nI keep this desk. It is the only part of the building I am sure of. Go up."
+  ]
+}

@@ -10,14 +10,15 @@ export default class StoryEngine {
     static NAMES_DATA = { FIRST: [], LAST: [], PROJECT_NAMES: [] };
     static CASES_DATA = {};
 
-    static async loadData(namesUrl, casesUrl) {
+    static async loadData(dataDir = './data') {
         try {
-            const [namesRes, casesRes] = await Promise.all([
-                fetch(namesUrl),
-                fetch(casesUrl)
-            ]);
-            StoryEngine.NAMES_DATA = await namesRes.json();
-            StoryEngine.CASES_DATA = await casesRes.json();
+            const files = ['names', 'library', 'tags', 'tapes', 'finales', 'foreshadow', 'ephemera'];
+            const fetches = files.map(f => fetch(`${dataDir}/${f}.json`).then(res => res.json()));
+            
+            const [names, library, tags, tapes, finales, foreshadow, ephemera] = await Promise.all(fetches);
+            
+            StoryEngine.NAMES_DATA = names;
+            StoryEngine.CASES_DATA = { library, tags, tapes, finales, foreshadow, ephemera };
         } catch (e) {
             console.error("Failed to load narrative data:", e);
         }
