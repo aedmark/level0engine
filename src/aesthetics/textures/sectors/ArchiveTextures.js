@@ -62,21 +62,126 @@ export default class ArchiveTextures {
                 floorCtx.fillRect(tx * tileSize, ty * tileSize, tileSize, tileSize);
             }
         }
+        const {canvas: bumpCanvas, ctx: bCtx} = TextureMechanics._createContext(256, 256);
+        bCtx.fillStyle = '#ffffff';
+        bCtx.fillRect(0, 0, 256, 256);
+
+        const {canvas: roughCanvas, ctx: rCtx} = TextureMechanics._createContext(256, 256);
+        rCtx.fillStyle = 'rgb(166, 166, 166)';
+        rCtx.fillRect(0, 0, 256, 256);
+
+        const rand = TextureMechanics._seededRandom(81723);
+        const wrapped = (x, y, reach, fn) => TextureMechanics._wrapDraw(256, x, y, reach, fn);
+
         floorCtx.globalAlpha = 0.18;
         floorCtx.drawImage(masterNoise, 0, 0, 256, 256);
         floorCtx.globalAlpha = 1.0;
-        for (let i = 0; i < 70; i++) {
-            floorCtx.strokeStyle = `rgba(20, 15, 10, ${Math.random() * 0.12})`;
-            floorCtx.lineWidth = 0.5 + Math.random() * 1.5;
-            floorCtx.beginPath();
-            const sx = Math.random() * 256, sy = Math.random() * 256;
-            floorCtx.moveTo(sx, sy);
-            floorCtx.lineTo(sx + (Math.random() - 0.5) * 30, sy + (Math.random() - 0.5) * 30);
-            floorCtx.stroke();
+        
+        bCtx.globalAlpha = 0.18;
+        bCtx.drawImage(masterNoise, 0, 0, 256, 256);
+        bCtx.globalAlpha = 1.0;
+
+        floorCtx.lineCap = 'round';
+        bCtx.lineCap = 'round';
+        rCtx.lineCap = 'round';
+
+        // Arcs (big sweeps)
+        for (let s = 0; s < 8; s++) {
+            const cx = rand() * 256, cy = rand() * 256;
+            const baseR = 8 + rand() * 23;
+            const arcs = 1 + Math.floor(rand() * 2);
+            for (let a = 0; a < arcs; a++) {
+                const r = baseR + a * (1.2 + rand() * 1.8);
+                const start = rand() * Math.PI * 2;
+                const sweep = 0.7 + rand() * 2.2;
+                wrapped(cx, cy, r + 6, (px, py) => {
+                    const w = 0.5 + rand() * 0.6;
+                    floorCtx.strokeStyle = `rgba(30, 25, 20, ${0.03 + rand() * 0.05})`;
+                    floorCtx.lineWidth = w;
+                    floorCtx.beginPath();
+                    floorCtx.arc(px, py, r, start, start + sweep);
+                    floorCtx.stroke();
+                    rCtx.strokeStyle = `rgba(80, 80, 80, ${0.2 + rand() * 0.2})`;
+                    rCtx.lineWidth = w + 0.3;
+                    rCtx.beginPath();
+                    rCtx.arc(px, py, r, start, start + sweep);
+                    rCtx.stroke();
+                });
+            }
         }
+
+        // Lines (streaks)
+        for (let t = 0; t < 4; t++) {
+            const x = rand() * 256, y = rand() * 256;
+            const angle = rand() * Math.PI * 2;
+            const len = 30 + rand() * 75;
+            const gap = 6 + rand() * 8;
+            const nx = -Math.sin(angle) * gap, ny = Math.cos(angle) * gap;
+            for (const [sx, sy] of [[0, 0], [nx, ny]]) {
+                wrapped(x + sx, y + sy, len + 30, (px, py) => {
+                    const w = 0.5 + rand() * 0.7;
+                    floorCtx.strokeStyle = `rgba(30, 25, 20, ${0.03 + rand() * 0.04})`;
+                    floorCtx.lineWidth = w;
+                    floorCtx.beginPath();
+                    floorCtx.moveTo(px, py);
+                    floorCtx.lineTo(px + Math.cos(angle) * len, py + Math.sin(angle) * len);
+                    floorCtx.stroke();
+                    rCtx.strokeStyle = `rgba(80, 80, 80, ${0.2 + rand() * 0.2})`;
+                    rCtx.lineWidth = w + 0.3;
+                    rCtx.beginPath();
+                    rCtx.moveTo(px, py);
+                    rCtx.lineTo(px + Math.cos(angle) * len, py + Math.sin(angle) * len);
+                    rCtx.stroke();
+                });
+            }
+        }
+
+        // Shoe Curves
+        for (let c = 0; c < 5; c++) {
+            const cx = rand() * 256, cy = rand() * 256;
+            const marks = 1 + Math.floor(rand() * 2);
+            for (let m = 0; m < marks; m++) {
+                const x = cx + (rand() - 0.5) * 40, y = cy + (rand() - 0.5) * 40;
+                const len = 5 + rand() * 15;
+                const angle = rand() * Math.PI * 2;
+                const bow = (rand() - 0.5) * 10;
+                wrapped(x, y, len + 24, (px, py) => {
+                    const w = 0.6 + rand() * 1.0;
+                    floorCtx.strokeStyle = `rgba(20, 15, 10, ${0.04 + rand() * 0.05})`;
+                    floorCtx.lineWidth = w;
+                    floorCtx.beginPath();
+                    floorCtx.moveTo(px, py);
+                    floorCtx.quadraticCurveTo(
+                        px + Math.cos(angle) * len * 0.5 - Math.sin(angle) * bow,
+                        py + Math.sin(angle) * len * 0.5 + Math.cos(angle) * bow,
+                        px + Math.cos(angle) * len,
+                        py + Math.sin(angle) * len
+                    );
+                    floorCtx.stroke();
+                    rCtx.strokeStyle = `rgba(70, 70, 70, ${0.25 + rand() * 0.2})`;
+                    rCtx.lineWidth = w + 0.4;
+                    rCtx.beginPath();
+                    rCtx.moveTo(px, py);
+                    rCtx.quadraticCurveTo(
+                        px + Math.cos(angle) * len * 0.5 - Math.sin(angle) * bow,
+                        py + Math.sin(angle) * len * 0.5 + Math.cos(angle) * bow,
+                        px + Math.cos(angle) * len,
+                        py + Math.sin(angle) * len
+                    );
+                    rCtx.stroke();
+                });
+            }
+        }
+
         floorCtx.strokeStyle = 'rgba(0,0,0,0.2)';
         floorCtx.lineWidth = 1;
+        bCtx.strokeStyle = '#9a9a9a';
+        bCtx.lineWidth = 1.5;
+        rCtx.strokeStyle = '#b0b0b0';
+        rCtx.lineWidth = 2.0;
+
         for (let t = 0; t <= tiles; t++) {
+            // Diffuse tile lines
             floorCtx.beginPath();
             floorCtx.moveTo(0, t * tileSize);
             floorCtx.lineTo(256, t * tileSize);
@@ -85,14 +190,39 @@ export default class ArchiveTextures {
             floorCtx.moveTo(t * tileSize, 0);
             floorCtx.lineTo(t * tileSize, 256);
             floorCtx.stroke();
+
+            // Bump tile lines
+            bCtx.beginPath();
+            bCtx.moveTo(0, t * tileSize);
+            bCtx.lineTo(256, t * tileSize);
+            bCtx.stroke();
+            bCtx.beginPath();
+            bCtx.moveTo(t * tileSize, 0);
+            bCtx.lineTo(t * tileSize, 256);
+            bCtx.stroke();
+            
+            // Roughness tile lines
+            rCtx.beginPath();
+            rCtx.moveTo(0, t * tileSize);
+            rCtx.lineTo(256, t * tileSize);
+            rCtx.stroke();
+            rCtx.beginPath();
+            rCtx.moveTo(t * tileSize, 0);
+            rCtx.lineTo(t * tileSize, 256);
+            rCtx.stroke();
         }
+
         const archiveFloorTexture = TextureMechanics._createWrappedTexture(floorCanvas, 14, 14);
+        const archiveFloorBump = TextureMechanics._createWrappedTexture(bumpCanvas, 14, 14);
+        const archiveFloorRough = TextureMechanics._createWrappedTexture(roughCanvas, 14, 14);
+
         const archiveFloorMat = new THREE.MeshStandardMaterial({
             map: archiveFloorTexture,
-            roughness: 0.65,
-            metalness: 0.02,
-            bumpMap: archiveFloorTexture,
-            bumpScale: 0.006
+            roughnessMap: archiveFloorRough,
+            roughness: 1.0,
+            metalness: 0.05,
+            bumpMap: archiveFloorBump,
+            bumpScale: 0.015
         });
         const {canvas: pCanvas, ctx: pCtx} = TextureMechanics._createContext(64, 64);
         pCtx.fillStyle = '#f0eee6';
@@ -177,7 +307,45 @@ export default class ArchiveTextures {
         const bkTex = new THREE.CanvasTexture(bkc);
         bkTex.wrapS = bkTex.wrapT = THREE.RepeatWrapping;
         bkTex.repeat.set(3, 1);
-        const bookRowMat = new THREE.MeshStandardMaterial({map: bkTex, roughness: 0.9, metalness: 0.0});
+        const bookRowSpineMat = new THREE.MeshStandardMaterial({map: bkTex, roughness: 0.9, metalness: 0.0});
+
+        const endCanvas = document.createElement('canvas');
+        endCanvas.width = 64;
+        endCanvas.height = 128;
+        const endCtx = endCanvas.getContext('2d');
+        endCtx.fillStyle = '#2a2624';
+        endCtx.fillRect(0, 0, 64, 128);
+        endCtx.globalAlpha = 0.3;
+        endCtx.drawImage(masterNoise, 0, 0, 64, 128);
+        endCtx.globalAlpha = 1.0;
+        endCtx.fillStyle = '#1e1b19';
+        endCtx.fillRect(4, 4, 56, 120);
+        const endTex = new THREE.CanvasTexture(endCanvas);
+        const bookRowEndMat = new THREE.MeshStandardMaterial({map: endTex, roughness: 0.8, emissive: 0x1E1B19, emissiveIntensity: 0.2},);
+
+        const topCanvas = document.createElement('canvas');
+        topCanvas.width = 256;
+        topCanvas.height = 64;
+        const topCtx = topCanvas.getContext('2d');
+        topCtx.fillStyle = '#dcd8d0';
+        topCtx.fillRect(0, 0, 256, 64);
+        topCtx.fillStyle = 'rgba(0,0,0,0.2)';
+        for (let i = 0; i < 256; i += 4) {
+            topCtx.fillRect(i, 0, 1, 64);
+        }
+        const topTex = new THREE.CanvasTexture(topCanvas);
+        topTex.wrapS = topTex.wrapT = THREE.RepeatWrapping;
+        topTex.repeat.set(3, 1);
+        const bookRowTopMat = new THREE.MeshStandardMaterial({map: topTex, roughness: 1.0});
+
+        const bookRowMat = [
+            bookRowEndMat,
+            bookRowEndMat,
+            bookRowTopMat,
+            bookRowTopMat,
+            bookRowSpineMat,
+            bookRowSpineMat
+        ];
         return {
             archiveWallMat, archiveFloorMat, paperMat, paperGeo, coffeeStainMat, coffeeStainGeo, bookMatSets,
             bookRowMat

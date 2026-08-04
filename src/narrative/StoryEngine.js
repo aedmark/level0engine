@@ -7,6 +7,22 @@
 import {buildCaseFiles, THREADS} from './CaseFiles.js';
 
 export default class StoryEngine {
+    static NAMES_DATA = { FIRST: [], LAST: [], PROJECT_NAMES: [] };
+    static CASES_DATA = {};
+
+    static async loadData(namesUrl, casesUrl) {
+        try {
+            const [namesRes, casesRes] = await Promise.all([
+                fetch(namesUrl),
+                fetch(casesUrl)
+            ]);
+            StoryEngine.NAMES_DATA = await namesRes.json();
+            StoryEngine.CASES_DATA = await casesRes.json();
+        } catch (e) {
+            console.error("Failed to load narrative data:", e);
+        }
+    }
+
     constructor(seed) {
         this.seed = (seed || 1) >>> 0;
         let s = (this.seed ^ 0x9e3779b9) >>> 0;
@@ -15,8 +31,10 @@ export default class StoryEngine {
             return s / 4294967296.0;
         };
         const pick = (arr) => arr[Math.floor(this.rand() * arr.length)];
-        const FIRST = ['Marion', 'Edward', 'Hollis', 'Petra', 'Vernon', 'Gordon', 'Cassandra', 'Ada', 'Ruth', 'Kai', 'Andrew', 'Jess', 'Emile', 'Casper', 'Lena', 'Howard', 'Iris', 'Salvador'];
-        const LAST = ['Vance', 'Okafor', 'Lindqvist', 'Marsh', 'Delacroix', 'Edmark', "Edwards", 'Crownover', 'Bloom', 'Pleimart', 'Kessler', 'Antoun', 'Reyes', 'Whitlock'];
+        
+        const FIRST = StoryEngine.NAMES_DATA.FIRST;
+        const LAST = StoryEngine.NAMES_DATA.LAST;
+        
         const used = new Set();
         const mkName = () => {
             let n;
@@ -31,7 +49,7 @@ export default class StoryEngine {
         const archivist = mkName();
         const lost = mkName();
         this.cast = {lead, custodian, archivist, lost};
-        this.projectName = pick(['THRESHOLD', 'LONG HALLWAY', 'WALLPAPER', 'EVENING SHIFT', 'HUM', 'PATIENT DOOR', 'YELLOW FIELD']);
+        this.projectName = pick(StoryEngine.NAMES_DATA.PROJECT_NAMES);
         this.truth = Math.floor(this.rand() * 3);
         this.penNumber = 3 + Math.floor(this.rand() * 19);
         this.siteYear = 1971 + Math.floor(this.rand() * 28);
@@ -60,7 +78,7 @@ export default class StoryEngine {
             hours: this.hours,
             seed: this.seed,
             truth: this.truth
-        });
+        }, StoryEngine.CASES_DATA);
         this.library = files.library;
         this.tapes = files.tapes;
         this.finales = files.finales;

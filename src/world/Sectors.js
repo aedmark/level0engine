@@ -60,7 +60,7 @@ const SECTORS = {
     },
     ARCHIVE: {
         fog: 0.07, fogColor: 0x000000,
-        ambient: 0.42,
+        ambient: 0.50,
         ambience: {
             noise: 0.06,
             peace: 0.0,

@@ -43,7 +43,7 @@ export default class SaveManager {
             document.getElementById('shadowSelect').value = state.shadows || "high";
             document.getElementById('renderDistSelect').value = state.renderDist !== undefined ? state.renderDist : "1";
             document.getElementById('volumeSlider').value = state.vol !== undefined ? state.vol : "100";
-            document.getElementById('gammaSlider').value = state.gamma || "120";
+            document.getElementById('gammaSlider').value = state.gamma || "50";
             let aaVal = "0";
             if (state.aa === true) aaVal = "4";
             else if (state.aa === false) aaVal = "0";
@@ -56,7 +56,7 @@ export default class SaveManager {
             this.engine.resolutionScale = parseFloat(state.res) || 1.0;
             this.engine.enablePostProcessing = state.post !== false;
             this.engine.camera.fov = Number(state.fov) || 75;
-            this.engine.baseExposure = (Number(state.gamma) || 120) / 100;
+            this.engine.baseExposure = (Number(state.gamma) || 50) / 100;
             this.acoustics.masterVolume = (state.vol !== undefined ? Number(state.vol) : 100) / 100;
             this.engine.camera.updateProjectionMatrix();
             this.player.speedMultiplier = (Number(state.speed) || 100) / 100;

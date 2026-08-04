@@ -12,6 +12,8 @@ import InquestController from './src/ui/InquestController.js';
 import UIManager from './src/ui/UIManager.js';
 import {DebugHUD} from './src/ui/DebugHUD.js';
 
+// Pre-load narrative data before booting the engine
+await StoryEngine.loadData('./data/names.json', './data/cases.json');
 const engine = new RenderEngine();
 const acoustics = new AcousticEngine();
 window.acoustics = acoustics;
