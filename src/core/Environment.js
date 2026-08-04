@@ -1478,13 +1478,13 @@ export default class Environment {
             this.engine.ambientLight.intensity += (targetAmbient - this.engine.ambientLight.intensity) * 0.05;
             if (this.engine.globalShadowLight) {
                 let targetShadow = this._stickySectorId === "SERVER" ? 0.05 : 0.40;
-                if (this._stickySectorId === "ATRIUM") targetShadow = 0.0;
+                if (this._stickySectorId === "ATRIUM" || this._stickySectorId === "CLINIC") targetShadow = 0.0;
                 targetShadow = Math.max(0.0, targetShadow - (darknessPressure * 0.4));
                 this.engine.globalShadowLight.intensity += (targetShadow - this.engine.globalShadowLight.intensity) * 0.05;
             }
             if (this.glowMat) {
                 let targetGlowOpacity = Math.max(0.0, 1.0 - (darknessPressure * 0.4));
-                if (this._stickySectorId === "IMPOUND" || this._stickySectorId === "CHASM" || this._stickySectorId === "ATRIUM") targetGlowOpacity = 0.0;
+                if (this._stickySectorId === "IMPOUND" || this._stickySectorId === "CHASM" || this._stickySectorId === "ATRIUM" || this._stickySectorId === "CLINIC") targetGlowOpacity = 0.0;
                 else if (this._stickySectorId === "ARCHIVE") targetGlowOpacity = 0.15;
                 else if (this._stickySectorId === "INCINERATOR") targetGlowOpacity = 0.1;
                 this.glowMat.opacity += (targetGlowOpacity - this.glowMat.opacity) * 0.1;

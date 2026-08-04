@@ -321,7 +321,7 @@ export const ServerSector = (env, ctx) => {
                         random() * 500,
                         random() > 0.6,
                         ctx.getLightMaterial,
-                        0xE273FF, 0xC963FF, 0.8
+                        0xE273FF, 0xC963FF, 1.0
                     );
                 }
             }

@@ -141,7 +141,7 @@ const SECTORS = {
     },
     CLINIC: {
         fog: 0.05,
-        ambient: 0.1,
+        ambient: 0.3,
         ambience: {
             noise: 0.1,
             peace: 0.0,
@@ -194,8 +194,8 @@ const SECTORS = {
         reverb: {rt60: 1.3, predelay: 0.012, wet: 0.18}
     },
     CHASM: {
-        fog: 0.22, fogColor: 0x031B3B,
-        ambient: 0.03,
+        fog: 0.20, fogColor: 0x050733,
+        ambient: 0.1,
         ambience: {
             noise: 0.25,
             peace: 0.0,
