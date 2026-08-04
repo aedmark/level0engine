@@ -53,11 +53,19 @@ function ensureClinicFurnitureMats(env) {
     });
     env.clinicPlasticMat = new THREE.MeshStandardMaterial({color: 0xd6d2c4, roughness: 0.55, metalness: 0.05});
     env.clinicMonitorScreenMat = new THREE.MeshBasicMaterial({map: ecgScreenTexture()});
+    env.clinicVinylMat = new THREE.MeshStandardMaterial({color: 0x415a54, roughness: 0.75, metalness: 0.02});
+    env.clinicTireMat = new THREE.MeshStandardMaterial({color: 0x1c1c1c, roughness: 0.85, metalness: 0.0});
+    env.clinicBasinMat = new THREE.MeshStandardMaterial({
+        color: 0xd6d2c4, roughness: 0.5, metalness: 0.05, side: THREE.DoubleSide
+    });
     env.sharedAssets.add(env.clinicBedFrameMat.uuid);
     env.sharedAssets.add(env.clinicMattressMat.uuid);
     env.sharedAssets.add(env.clinicBagMat.uuid);
     env.sharedAssets.add(env.clinicPlasticMat.uuid);
     env.sharedAssets.add(env.clinicMonitorScreenMat.uuid);
+    env.sharedAssets.add(env.clinicVinylMat.uuid);
+    env.sharedAssets.add(env.clinicTireMat.uuid);
+    env.sharedAssets.add(env.clinicBasinMat.uuid);
 }
 
 export function buildClinicBed(env) {
@@ -161,4 +169,237 @@ export function buildBedpan(env) {
     basin.position.y = 0.045;
     basin.castShadow = true;
     return basin;
+}
+
+export function buildWheelchair(env) {
+    ensureClinicFurnitureMats(env);
+    const group = new THREE.Group();
+    const frameMat = env.metalMat;
+    const seatMat = env.clinicVinylMat;
+    const tireMat = env.clinicTireMat;
+
+    const seat = new THREE.Mesh(env._boxGeo(0.46, 0.04, 0.44), seatMat);
+    seat.position.set(0, 0.5, 0.05);
+    group.add(seat);
+    const back = new THREE.Mesh(env._boxGeo(0.46, 0.5, 0.04), seatMat);
+    back.position.set(0, 0.78, -0.19);
+    back.rotation.x = -0.12;
+    group.add(back);
+
+    const railGeo = env._cacheGeo('wcRail', () => new THREE.CylinderGeometry(0.018, 0.018, 0.5, 6));
+    for (const side of [-1, 1]) {
+        const rail = new THREE.Mesh(railGeo, frameMat);
+        rail.rotation.x = Math.PI / 2;
+        rail.position.set(side * 0.24, 0.48, 0.05);
+        group.add(rail);
+    }
+
+    const RAIL_Y = 0.48, FRAME_X = 0.24, FRONT_Z = 0.32, REAR_Z = -0.05, CHASSIS_Y = 0.16;
+
+    const armGeo = env._boxGeo(0.04, 0.04, 0.34);
+    const armPostGeo = env._cacheGeo('wcArmPost', () => new THREE.CylinderGeometry(0.016, 0.016, 0.63 - RAIL_Y + 0.02, 6));
+    for (const side of [-1, 1]) {
+        const arm = new THREE.Mesh(armGeo, frameMat);
+        arm.position.set(side * 0.25, 0.63, 0.02);
+        group.add(arm);
+        const p1 = new THREE.Mesh(armPostGeo, frameMat);
+        p1.position.set(side * 0.25, (RAIL_Y + 0.63) / 2, 0.15);
+        group.add(p1);
+        const p2 = new THREE.Mesh(armPostGeo, frameMat);
+        p2.position.set(side * 0.25, (RAIL_Y + 0.63) / 2, -0.11);
+        group.add(p2);
+    }
+
+    const handleBar = new THREE.Mesh(env._cacheGeo('wcHandleBar', () => new THREE.CylinderGeometry(0.014, 0.014, 0.42, 8)), frameMat);
+    handleBar.rotation.z = Math.PI / 2;
+    handleBar.position.set(0, 1.0, -0.28);
+    group.add(handleBar);
+    const handleMountGeo = env._cacheGeo('wcHandleMount', () => new THREE.CylinderGeometry(0.012, 0.012, 0.1, 6));
+    for (const side of [-1, 1]) {
+        const mount = new THREE.Mesh(handleMountGeo, frameMat);
+        mount.rotation.x = Math.PI / 2.3;
+        mount.position.set(side * 0.17, 0.98, -0.23);
+        group.add(mount);
+    }
+
+    const bigWheelGeo = env._cacheGeo('wcBigWheel', () => new THREE.CylinderGeometry(0.29, 0.29, 0.04, 20));
+    const hubGeo = env._cacheGeo('wcHub', () => new THREE.CylinderGeometry(0.06, 0.06, 0.045, 10));
+    const rimGeo = env._cacheGeo('wcRim', () => new THREE.TorusGeometry(0.24, 0.008, 6, 16));
+    for (const side of [-1, 1]) {
+        const wheel = new THREE.Mesh(bigWheelGeo, tireMat);
+        wheel.rotation.z = Math.PI / 2;
+        wheel.position.set(side * 0.29, 0.29, -0.05);
+        group.add(wheel);
+        const hub = new THREE.Mesh(hubGeo, frameMat);
+        hub.rotation.z = Math.PI / 2;
+        hub.position.set(side * 0.29, 0.29, -0.05);
+        group.add(hub);
+        const rim = new THREE.Mesh(rimGeo, frameMat);
+        rim.rotation.y = Math.PI / 2;
+        rim.position.set(side * (0.29 + 0.025), 0.29, -0.05);
+        group.add(rim);
+    }
+
+    const chassisGeo = env._cacheGeo('wcChassis', () => new THREE.CylinderGeometry(0.016, 0.016, FRONT_Z - REAR_Z, 6));
+    const postGeo = env._cacheGeo('wcPost', () => new THREE.CylinderGeometry(0.016, 0.016, RAIL_Y - CHASSIS_Y, 6));
+    const axleBracketGeo = env._cacheGeo('wcAxleBracket', () => new THREE.CylinderGeometry(0.014, 0.014, 0.29 - FRAME_X, 6));
+    for (const side of [-1, 1]) {
+        const chassis = new THREE.Mesh(chassisGeo, frameMat);
+        chassis.rotation.x = Math.PI / 2;
+        chassis.position.set(side * FRAME_X, CHASSIS_Y, (FRONT_Z + REAR_Z) / 2);
+        group.add(chassis);
+
+        const frontPost = new THREE.Mesh(postGeo, frameMat);
+        frontPost.position.set(side * FRAME_X, (RAIL_Y + CHASSIS_Y) / 2, FRONT_Z);
+        group.add(frontPost);
+
+        const rearPost = new THREE.Mesh(postGeo, frameMat);
+        rearPost.position.set(side * FRAME_X, (RAIL_Y + CHASSIS_Y) / 2, REAR_Z);
+        group.add(rearPost);
+
+        const axleBracket = new THREE.Mesh(axleBracketGeo, frameMat);
+        axleBracket.rotation.z = Math.PI / 2;
+        axleBracket.position.set(side * (FRAME_X + 0.025), 0.29, REAR_Z);
+        group.add(axleBracket);
+    }
+
+    const casterGeo = env._cacheGeo('wcCaster', () => new THREE.CylinderGeometry(0.06, 0.06, 0.03, 10));
+    const forkGeo = env._cacheGeo('wcFork', () => new THREE.CylinderGeometry(0.012, 0.012, CHASSIS_Y - 0.06, 6));
+    for (const side of [-1, 1]) {
+        const caster = new THREE.Mesh(casterGeo, tireMat);
+        caster.rotation.z = Math.PI / 2;
+        caster.position.set(side * FRAME_X, 0.06, FRONT_Z);
+        group.add(caster);
+        const fork = new THREE.Mesh(forkGeo, frameMat);
+        fork.position.set(side * FRAME_X, (CHASSIS_Y + 0.06) / 2, FRONT_Z);
+        group.add(fork);
+    }
+
+    const footZ = 0.42;
+    const footPlate = new THREE.Mesh(env._boxGeo(0.36, 0.02, 0.14), frameMat);
+    footPlate.position.set(0, CHASSIS_Y, footZ);
+    group.add(footPlate);
+    const footStrutGeo = env._cacheGeo('wcFootStrut', () => new THREE.CylinderGeometry(0.014, 0.014, footZ - FRONT_Z, 6));
+    for (const side of [-1, 1]) {
+        const strut = new THREE.Mesh(footStrutGeo, frameMat);
+        strut.rotation.x = Math.PI / 2;
+        strut.position.set(side * 0.12, CHASSIS_Y, (footZ + FRONT_Z) / 2);
+        group.add(strut);
+    }
+
+    group.scale.setScalar(1.4);
+    group.traverse((m) => {
+        if (m.isMesh) m.castShadow = true;
+    });
+    return group;
+}
+
+export function buildWaitingBench(env) {
+    ensureClinicFurnitureMats(env);
+    const group = new THREE.Group();
+    const frameMat = env.metalMat;
+    const padMat = env.clinicVinylMat;
+    const width = 1.8, seatH = 0.46, depth = 0.5;
+
+    const padGeo = env._boxGeo(0.56, 0.06, depth - 0.06);
+    for (let i = 0; i < 3; i++) {
+        const pad = new THREE.Mesh(padGeo, padMat);
+        pad.position.set(-width / 2 + 0.3 + i * 0.6, seatH, 0);
+        group.add(pad);
+    }
+    const backGeo = env._boxGeo(0.56, 0.42, 0.05);
+    for (let i = 0; i < 3; i++) {
+        const back = new THREE.Mesh(backGeo, padMat);
+        back.position.set(-width / 2 + 0.3 + i * 0.6, seatH + 0.24, -depth / 2 + 0.05);
+        back.rotation.x = -0.06;
+        group.add(back);
+    }
+
+    const railGeo = env._cacheGeo('benchRail', () => new THREE.BoxGeometry(width, 0.04, 0.06));
+    const rail = new THREE.Mesh(railGeo, frameMat);
+    rail.position.set(0, seatH - 0.05, depth / 2 - 0.05);
+    group.add(rail);
+    const railBack = new THREE.Mesh(railGeo, frameMat);
+    railBack.position.set(0, seatH - 0.05, -depth / 2 + 0.05);
+    group.add(railBack);
+
+    const legGeo = env._cacheGeo('benchLeg', () => new THREE.CylinderGeometry(0.02, 0.02, seatH, 6));
+    for (const lx of [-width / 2 + 0.12, width / 2 - 0.12]) {
+        for (const lz of [depth / 2 - 0.08, -depth / 2 + 0.08]) {
+            const leg = new THREE.Mesh(legGeo, frameMat);
+            leg.position.set(lx, seatH / 2, lz);
+            group.add(leg);
+        }
+    }
+    const centerLeg = new THREE.Mesh(legGeo, frameMat);
+    centerLeg.position.set(0, seatH / 2, depth / 2 - 0.08);
+    group.add(centerLeg);
+    const centerLegBack = new THREE.Mesh(legGeo, frameMat);
+    centerLegBack.position.set(0, seatH / 2, -depth / 2 + 0.08);
+    group.add(centerLegBack);
+
+    const armGeo = env._boxGeo(0.04, 0.16, depth - 0.1);
+    const armPostGeo = env._cacheGeo('benchArmPost', () => new THREE.CylinderGeometry(0.02, 0.02, 0.24, 6));
+    for (const ax of [-width / 2 + 0.6, -width / 2 + 1.2]) {
+        const arm = new THREE.Mesh(armGeo, frameMat);
+        arm.position.set(ax, seatH + 0.16, 0);
+        group.add(arm);
+        const post = new THREE.Mesh(armPostGeo, frameMat);
+        post.position.set(ax, seatH - 0.03, 0);
+        group.add(post);
+    }
+
+    group.scale.setScalar(1.4);
+    group.traverse((m) => {
+        if (m.isMesh) m.castShadow = true;
+    });
+    return group;
+}
+
+export function buildWaterFountain(env) {
+    ensureClinicFurnitureMats(env);
+    const group = new THREE.Group();
+    const bodyMat = env.clinicPlasticMat;
+    const metalTrim = env.metalMat;
+
+    const plate = new THREE.Mesh(env._boxGeo(0.34, 0.5, 0.04), bodyMat);
+    plate.position.set(0, 0.95, -0.02);
+    group.add(plate);
+
+    const basinRadius = 0.1;
+    const basinY = 0.74;
+    const basin = new THREE.Mesh(
+        env._cacheGeo('fountainBasin', () => new THREE.SphereGeometry(basinRadius, 14, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2)),
+        env.clinicBasinMat
+    );
+    basin.position.set(0, basinY, 0.11);
+    group.add(basin);
+
+    const grille = new THREE.Mesh(env._cacheGeo('fountainGrille', () => new THREE.CylinderGeometry(0.065, 0.065, 0.008, 10)), metalTrim);
+    grille.position.set(0, basinY - basinRadius + 0.03, 0.11);
+    group.add(grille);
+
+    // spout: horizontal stub out of the housing, then a short drop that hangs over the basin rim
+    const spoutArm = new THREE.Mesh(env._cacheGeo('fountainSpoutArm', () => new THREE.CylinderGeometry(0.012, 0.012, 0.07, 8)), metalTrim);
+    spoutArm.rotation.x = Math.PI / 2;
+    spoutArm.position.set(0, 0.86, 0.035);
+    group.add(spoutArm);
+    const spoutDrop = new THREE.Mesh(env._cacheGeo('fountainSpoutDrop', () => new THREE.CylinderGeometry(0.01, 0.01, 0.1, 8)), metalTrim);
+    spoutDrop.position.set(0, 0.81, 0.07);
+    group.add(spoutDrop);
+
+    const button = new THREE.Mesh(env._cacheGeo('fountainButton', () => new THREE.CylinderGeometry(0.025, 0.025, 0.012, 8)), metalTrim);
+    button.rotation.x = Math.PI / 2;
+    button.position.set(0.1, 1.0, 0.005);
+    group.add(button);
+
+    const bracket = new THREE.Mesh(env._boxGeo(0.22, 0.06, 0.16), metalTrim);
+    bracket.position.set(0, basinY - basinRadius - 0.02, 0.06);
+    group.add(bracket);
+
+    group.scale.setScalar(1.5);
+    group.traverse((m) => {
+        if (m.isMesh) m.castShadow = true;
+    });
+    return group;
 }

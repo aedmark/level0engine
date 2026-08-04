@@ -563,4 +563,126 @@ export default class IncineratorTextures {
             emissiveMap: TextureMechanics._createWrappedTexture(eCanvas)
         };
     }
+
+    static _buildIncineratorAssets(masterNoise) {
+        const dpCanvas = document.createElement('canvas');
+        dpCanvas.width = dpCanvas.height = 256;
+        const dpc = dpCanvas.getContext('2d');
+        dpc.fillStyle = '#33343a';
+        dpc.fillRect(0, 0, 256, 256);
+        for (let i = 0; i < 60; i++) {
+            dpc.fillStyle = `rgba(0,0,0,${0.04 + Math.random() * 0.08})`;
+            dpc.fillRect(Math.random() * 256, Math.random() * 256, 2 + Math.random() * 30, 1 + Math.random() * 3);
+        }
+        for (let gy = 0; gy < 8; gy++) {
+            for (let gx = 0; gx < 8; gx++) {
+                dpc.save();
+                dpc.translate(gx * 32 + 16, gy * 32 + 16);
+                dpc.rotate(((gx + gy) % 2 === 0) ? Math.PI / 4 : -Math.PI / 4);
+                for (let k = -1; k <= 1; k++) {
+                    dpc.fillStyle = '#4a4c55';
+                    dpc.strokeStyle = '#22232a';
+                    dpc.beginPath();
+                    dpc.rect(-10, k * 9 - 2.5, 20, 5);
+                    dpc.fill();
+                    dpc.stroke();
+                    dpc.fillStyle = 'rgba(255,255,255,0.10)';
+                    dpc.fillRect(-10, k * 9 - 2.5, 20, 1.5);
+                }
+                dpc.restore();
+            }
+        }
+        const dpTex = new THREE.CanvasTexture(dpCanvas);
+        dpTex.wrapS = dpTex.wrapT = THREE.RepeatWrapping;
+        dpTex.repeat.set(14, 14);
+        const diamondPlateMat = new THREE.MeshStandardMaterial({
+            map: dpTex, bumpMap: dpTex, bumpScale: 0.05, metalness: 0.25, roughness: 0.75
+        });
+        const ccv = document.createElement('canvas');
+        ccv.width = ccv.height = 256;
+        const cpx = ccv.getContext('2d');
+        cpx.fillStyle = '#191411';
+        cpx.fillRect(0, 0, 256, 256);
+        for (let py = 0; py < 4; py++) {
+            for (let px = 0; px < 4; px++) {
+                const shade = 18 + Math.floor(Math.random() * 14);
+                cpx.fillStyle = `rgb(${shade + 6},${shade},${Math.max(0, shade - 4)})`;
+                cpx.fillRect(px * 64 + 1, py * 64 + 1, 62, 62);
+                cpx.fillStyle = '#0d0b09';
+                [[6, 6], [58, 6], [6, 58], [58, 58], [32, 6], [6, 32], [58, 32], [32, 58]].forEach(rv => {
+                    cpx.beginPath();
+                    cpx.arc(px * 64 + rv[0], py * 64 + rv[1], 2.2, 0, Math.PI * 2);
+                    cpx.fill();
+                });
+                cpx.fillStyle = 'rgba(255,255,255,0.06)';
+                [[6, 6], [58, 6], [6, 58], [58, 58]].forEach(rv => {
+                    cpx.beginPath();
+                    cpx.arc(px * 64 + rv[0] - 0.7, py * 64 + rv[1] - 0.7, 1.0, 0, Math.PI * 2);
+                    cpx.fill();
+                });
+            }
+        }
+        cpx.strokeStyle = '#0a0908';
+        cpx.lineWidth = 2;
+        for (let i = 0; i <= 4; i++) {
+            cpx.beginPath();
+            cpx.moveTo(i * 64, 0);
+            cpx.lineTo(i * 64, 256);
+            cpx.stroke();
+            cpx.beginPath();
+            cpx.moveTo(0, i * 64);
+            cpx.lineTo(256, i * 64);
+            cpx.stroke();
+        }
+        for (let i = 0; i < 10; i++) {
+            const sx = Math.random() * 256, sy = Math.random() * 256, sr = 20 + Math.random() * 45;
+            const sGrad = cpx.createRadialGradient(sx, sy, 2, sx, sy, sr);
+            sGrad.addColorStop(0, 'rgba(0,0,0,0.55)');
+            sGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            cpx.fillStyle = sGrad;
+            cpx.fillRect(sx - sr, sy - sr, sr * 2, sr * 2);
+        }
+        cpx.strokeStyle = 'rgba(220,80,20,0.5)';
+        cpx.lineWidth = 1;
+        for (let i = 0; i < 6; i++) {
+            let ex = Math.random() * 256, ey = Math.random() * 256;
+            cpx.beginPath();
+            cpx.moveTo(ex, ey);
+            for (let s = 0; s < 5; s++) {
+                ex += (Math.random() - 0.5) * 22;
+                ey += (Math.random() - 0.5) * 22;
+                cpx.lineTo(ex, ey);
+            }
+            cpx.stroke();
+        }
+        const ceilTex = new THREE.CanvasTexture(ccv);
+        ceilTex.wrapS = ceilTex.wrapT = THREE.RepeatWrapping;
+        ceilTex.repeat.set(7, 7);
+        const incinCeilingMat = new THREE.MeshStandardMaterial({
+            map: ceilTex, bumpMap: ceilTex, bumpScale: 0.03, metalness: 0.3, roughness: 0.9
+        });
+        const sg = this._buildSightGlass(masterNoise);
+        const gr = this._buildEmberGrate(masterNoise);
+        return {
+            diamondPlateMat,
+            incinFloorMat: this._buildIncineratorFloor(masterNoise),
+            incinWallMat: this._buildIncineratorWall(masterNoise),
+            incinCeilingMat,
+            emberLightMat: new THREE.MeshStandardMaterial({
+                map: sg.map, emissiveMap: sg.emissiveMap,
+                color: 0xffffff, emissive: 0xff6a22, emissiveIntensity: 1.0,
+                roughness: 0.34, metalness: 0.0
+            }),
+            emberLightBrokenMat: new THREE.MeshStandardMaterial({
+                map: sg.map, emissiveMap: sg.emissiveMap,
+                color: 0x6b5a4e, emissive: 0x1d0e06, emissiveIntensity: 1.0,
+                roughness: 0.5, metalness: 0.0
+            }),
+            emberGrateMat: new THREE.MeshStandardMaterial({
+                map: gr.map, emissiveMap: gr.emissiveMap,
+                color: 0xffffff, emissive: 0xff5a18, emissiveIntensity: 1.15,
+                roughness: 0.86, metalness: 0.0
+            })
+        };
+    }
 }

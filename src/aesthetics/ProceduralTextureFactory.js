@@ -14,7 +14,6 @@ import MaintenanceTextures from './textures/sectors/MaintenanceTextures.js';
 import ArchiveTextures from './textures/sectors/ArchiveTextures.js';
 import CheckpointTextures from './textures/sectors/CheckpointTextures.js';
 import IncineratorTextures from './textures/sectors/IncineratorTextures.js';
-import ExtendedTextures from './textures/sectors/ExtendedTextures.js';
 
 export default class ProceduralTextureFactory {
     static async generateAssets() {
@@ -46,7 +45,9 @@ export default class ProceduralTextureFactory {
         await TextureMechanics._yield();
         const checkpointAssets = CheckpointTextures._buildCheckpointAssets(masterNoise);
         await TextureMechanics._yield();
-        const extendedAssets = ExtendedTextures._buildExtendedAssets(masterNoise);
+        const incineratorAssets = IncineratorTextures._buildIncineratorAssets(masterNoise);
+        await TextureMechanics._yield();
+        const cartonAssets = PropTextures._buildCartons();
         const assets = {
             ...extras,
             ...structAssets,
@@ -61,7 +62,8 @@ export default class ProceduralTextureFactory {
             ...maintenanceAssets,
             ...archiveAssets,
             ...checkpointAssets,
-            ...extendedAssets
+            ...incineratorAssets,
+            ...cartonAssets
         };
         const markSRGB = (texture) => {
             if ('colorSpace' in texture) {

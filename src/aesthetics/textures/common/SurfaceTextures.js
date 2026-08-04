@@ -98,7 +98,7 @@ export default class SurfaceTextures {
             tiles.push({
                 replaced,
                 age: replaced ? 0.24 + rand() * 0.16 : 0.52 + rand() * 0.44,
-                stain: replaced ? 0 : (rand() > 0.72 ? 0.6 + rand() * 0.4 : 0),
+                stain: 0,
                 chip: !replaced && rand() > 0.82,
                 chipCorner: Math.floor(rand() * 4)
             });
@@ -179,36 +179,7 @@ export default class SurfaceTextures {
         ctx.putImageData(img, 0, 0);
         bCtx.putImageData(bImg, 0, 0);
 
-        const PALETTES = [
-            {field: [156, 126, 74], ring: [116, 86, 44]},
-            {field: [148, 128, 88], ring: [104, 84, 50]},
-            {field: [162, 122, 66], ring: [124, 82, 36]},
-            {field: [142, 124, 92], ring: [100, 82, 56]}
-        ];
 
-        for (let ty = 0; ty < ROWS; ty++) {
-            for (let tx = 0; tx < COLS; tx++) {
-                const t = tiles[ty * COLS + tx];
-                if (!t.stain) continue;
-                const ox = tx * TW, oy = ty * TH;
-                const cx = TW * (0.28 + rand() * 0.44);
-                const cy = TH * (0.28 + rand() * 0.44);
-                const r = Math.min(TW, TH) * (0.20 + rand() * 0.20) * t.stain;
-                
-                const scale = r / 120;
-                
-                ctx.save();
-                ctx.beginPath();
-                ctx.rect(ox, oy, TW, TH);
-                ctx.clip();
-                ctx.translate(ox + cx - 128 * scale, oy + cy - 128 * scale);
-                ctx.scale(scale, scale);
-                
-                const pal = PALETTES[Math.floor(rand() * PALETTES.length)];
-                this._drawCeilingStain(ctx, 256, 8, rand, pal);
-                ctx.restore();
-            }
-        }
 
         for (let ty = 0; ty < ROWS; ty++) {
             for (let tx = 0; tx < COLS; tx++) {
@@ -352,114 +323,5 @@ export default class SurfaceTextures {
         return {canvas, bumpCanvas};
     }
 
-    static _buildCeilingStainAtlas() {
-        const COLS = 2, ROWS = 2, TILE = 256, PAD = 8;
-        const AW = COLS * TILE, AH = ROWS * TILE;
-        const {canvas, ctx} = TextureMechanics._createContext(AW, AH, false);
 
-        const PALETTES = [
-            {field: [156, 126, 74], ring: [116, 86, 44]},
-            {field: [148, 128, 88], ring: [104, 84, 50]},
-            {field: [162, 122, 66], ring: [124, 82, 36]},
-            {field: [142, 124, 92], ring: [100, 82, 56]}
-        ];
-
-        for (let v = 0; v < COLS * ROWS; v++) {
-            const ox = (v % COLS) * TILE, oy = Math.floor(v / COLS) * TILE;
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(ox + PAD, oy + PAD, TILE - PAD * 2, TILE - PAD * 2);
-            ctx.clip();
-            ctx.translate(ox, oy);
-            this._drawCeilingStain(ctx, TILE, PAD, TextureMechanics._seededRandom(60413 + v * 5171), PALETTES[v]);
-            ctx.restore();
-        }
-        return {canvas, cols: COLS, rows: ROWS, tile: TILE, pad: PAD};
-    }
-
-    static _drawCeilingStain(ctx, S, PAD, rand, pal) {
-        const R = S / 2 - PAD;
-        const cx = S / 2 + (rand() - 0.5) * S * 0.10;
-        const cy = S / 2 + (rand() - 0.5) * S * 0.10;
-        const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a.toFixed(3)})`;
-
-        const harm = [];
-        for (let i = 0; i < 6; i++) {
-            harm.push({k: 2 + i, amp: (0.115 - i * 0.014) * (0.4 + rand()), ph: rand() * Math.PI * 2});
-        }
-
-        const jit = [];
-        for (let i = 0; i < 5; i++) {
-            jit.push({
-                ph: (rand() - 0.5) * 1.1 * i,
-                amp: 0.82 + rand() * 0.36,
-                k: 3 + Math.floor(rand() * 4),
-                ph2: rand() * Math.PI * 2,
-                extra: 0.04 + rand() * 0.07
-            });
-        }
-
-        const shape = (a, f) => {
-            const j = jit[f];
-            let r = 1;
-            for (const h of harm) r += Math.sin(a * h.k + h.ph + j.ph) * h.amp * j.amp;
-            r += Math.sin(a * j.k + j.ph2) * j.extra;
-            return Math.max(0.35, r);
-        };
-        let norm = 0;
-        for (let i = 0; i < 180; i++) norm = Math.max(norm, shape(i / 180 * Math.PI * 2, 0));
-
-        const path = (scale, f) => {
-            ctx.beginPath();
-            for (let i = 0; i <= 128; i++) {
-                const a = i / 128 * Math.PI * 2;
-                const rr = R * scale * shape(a, f) / norm;
-                const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
-                if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
-            }
-            ctx.closePath();
-        };
-
-        for (const s of [1.16, 1.10, 1.05]) {
-            path(s, 0);
-            ctx.fillStyle = rgba(pal.field, 0.085);
-            ctx.fill();
-        }
-
-        const fronts = [1.0, 0.82, 0.63, 0.42];
-        for (let i = 0; i < fronts.length; i++) {
-            path(fronts[i], i);
-            ctx.fillStyle = rgba(pal.field, 0.17);
-            ctx.fill();
-            if (i === fronts.length - 1) break;
-            for (const [w, a] of [[11, 0.10], [6, 0.16], [2.5, 0.27]]) {
-                path(fronts[i], i);
-                ctx.lineWidth = w;
-                ctx.strokeStyle = rgba(pal.ring, a * (1 - i * 0.18));
-                ctx.stroke();
-            }
-        }
-
-        const hx = cx + (rand() - 0.5) * R * 0.5, hy = cy + (rand() - 0.5) * R * 0.5;
-        const heart = ctx.createRadialGradient(hx, hy, 0, hx, hy, R * 0.34);
-        heart.addColorStop(0, rgba(pal.ring, 0.44));
-        heart.addColorStop(1, rgba(pal.ring, 0));
-        path(0.62, 2);
-        ctx.fillStyle = heart;
-        ctx.fill();
-
-        for (let i = 0; i < 90; i++) {
-            const a = rand() * Math.PI * 2;
-            const rr = R * Math.sqrt(rand()) * shape(a, 0) / norm;
-            const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr;
-            const rad = 3 + rand() * 13;
-            const g = ctx.createRadialGradient(px, py, 0, px, py, rad);
-            g.addColorStop(0, rgba(pal.ring, 0.05 + rand() * 0.07));
-            g.addColorStop(1, rgba(pal.ring, 0));
-            ctx.fillStyle = g;
-            ctx.beginPath();
-            ctx.arc(px, py, rad, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    }
 }

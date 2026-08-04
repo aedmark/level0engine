@@ -892,56 +892,81 @@ export default class Environment {
                 }
                 if (ctx.isOccupied(x, z)) continue;
                 ctx.markOccupied(x, z);
-                let zx = x * 0.15;
-                let zy = z * 0.15;
-                let iter = 0;
-                let zx2 = zx * zx;
-                let zy2 = zy * zy;
-                while (zx2 + zy2 < 4 && iter < 15) {
-                    zy = 2 * zx * zy + cy;
-                    zx = zx2 - zy2 + cx;
-                    zx2 = zx * zx;
-                    zy2 = zy * zy;
-                    iter++;
+                if (!ctx.isWall) {
+                    const isWallGrid = new Map();
+                    ctx.isWall = (wx, wz) => {
+                        const key = `${wx},${wz}`;
+                        if (isWallGrid.has(key)) return isWallGrid.get(key);
+                        let zx = wx * 0.15;
+                        let zy = wz * 0.15;
+                        let iter = 0;
+                        let zx2 = zx * zx;
+                        let zy2 = zy * zy;
+                        while (zx2 + zy2 < 4 && iter < 15) {
+                            zy = 2 * zx * zy + cy;
+                            zx = zx2 - zy2 + cx;
+                            zx2 = zx * zx;
+                            zy2 = zy * zy;
+                            iter++;
+                        }
+                        let isW = iter > 6;
+                        const flipSeed = (this.baseSeed + (wx * 104729) + (wz * 1299827)) >>> 0;
+                        const flipRand = ((flipSeed * 1664525 + 1013904223) >>> 0) / 4294967296.0;
+                        if (flipRand > 0.70) isW = !isW;
+                        
+                        const cx_id = Math.floor(wx / this.chunkSize);
+                        const cz_id = Math.floor(wz / this.chunkSize);
+                        const lx = wx - (cx_id * this.chunkSize);
+                        const lz = wz - (cz_id * this.chunkSize);
+                        const inNRing = lz === 3 && lx >= 3 && lx <= 11;
+                        const inSRing = lz === 11 && lx >= 3 && lx <= 11;
+                        const inWRing = lx === 3 && lz >= 3 && lz <= 11;
+                        const inERing = lx === 11 && lz >= 3 && lz <= 11;
+                        const inNPath = lx === 7 && lz <= 3;
+                        const inSPath = lx === 7 && lz >= 11;
+                        const inWPath = lz === 7 && lx <= 3;
+                        const inEPath = lz === 7 && lx >= 11;
+                        const isArtery = inNRing || inSRing || inWRing || inERing || inNPath || inSPath || inWPath || inEPath;
+                        const isBlocker = lx >= 5 && lx <= 9 && lz >= 5 && lz <= 9;
+                        const isSpawnClear = (cx_id === 0 && cz_id === 0) && (lx <= 3 && lz <= 3);
+                        if (isBlocker) isW = true;
+                        if (isArtery || isSpawnClear) isW = false;
+                        
+                        isWallGrid.set(key, isW);
+                        return isW;
+                    };
+                    ctx.setWall = (wx, wz, val) => isWallGrid.set(`${wx},${wz}`, val);
+                    const forcedStructuresGrid = new Map();
+                    ctx.forceStructure = (wx, wz, name) => forcedStructuresGrid.set(`${wx},${wz}`, name);
+                    ctx.getForcedStructure = (wx, wz) => forcedStructuresGrid.get(`${wx},${wz}`);
                 }
-                let isWall = iter > 6;
-                if (random() > 0.70) isWall = !isWall;
-                const inNRing = localZ === 3 && localX >= 3 && localX <= 11;
-                const inSRing = localZ === 11 && localX >= 3 && localX <= 11;
-                const inWRing = localX === 3 && localZ >= 3 && localZ <= 11;
-                const inERing = localX === 11 && localZ >= 3 && localZ <= 11;
-                const inNPath = localX === 7 && localZ <= 3;
-                const inSPath = localX === 7 && localZ >= 11;
-                const inWPath = localZ === 7 && localX <= 3;
-                const inEPath = localZ === 7 && localX >= 11;
-                const isArtery = inNRing || inSRing || inWRing || inERing || inNPath || inSPath || inWPath || inEPath;
-                const isBlocker = localX >= 5 && localX <= 9 && localZ >= 5 && localZ <= 9;
-                const isSpawnClear = (chunkX === 0 && chunkZ === 0) && (localX <= 3 && localZ <= 3);
-                if (isBlocker) isWall = true;
-                if (isArtery || isSpawnClear) isWall = false;
+                let isWall = ctx.isWall(x, z);
                 const damp = this._dampAt(x, z);
                 if (isWall) {
                     wallCells.add(`${x},${z}`);
+                    const forcedName = ctx.getForcedStructure && ctx.getForcedStructure(x, z);
                     const structRoll = random();
-                    const structure = structuralMatrix.find(s => structRoll >= s.prob);
-                    if (structure) structure.build(x, z);
-                    this._placeWallMold(x, z, random, ctx.addGeometry, damp);
+                    const structure = forcedName ? structuralMatrix.find(s => s.name === forcedName) : structuralMatrix.find(s => structRoll >= s.prob);
+                    if (structure) {
+                        structure.build(x, z);
+                    } else {
+                        const wall = ctx.buildWall(this.cellSize, this.cellSize, this.sharedWallMat);
+                        wall.position.set(x * this.cellSize, 1.5, z * this.cellSize);
+                        ctx.addGeometry(wall);
+                    }
                 } else {
                     let hasTallObstacle = false;
-                    const stainRoll = random();
+                    const inNRing = localZ === 3 && localX >= 3 && localX <= 11;
+                    const inSRing = localZ === 11 && localX >= 3 && localX <= 11;
+                    const inWRing = localX === 3 && localZ >= 3 && localZ <= 11;
+                    const inERing = localX === 11 && localZ >= 3 && localZ <= 11;
+                    const inNPath = localX === 7 && localZ <= 3;
+                    const inSPath = localX === 7 && localZ >= 11;
+                    const inWPath = localZ === 7 && localX <= 3;
+                    const inEPath = localZ === 7 && localX >= 11;
+                    const isArtery = inNRing || inSRing || inWRing || inERing || inNPath || inSPath || inWPath || inEPath;
                     const floorRoll = random();
-                    if (stainRoll < (damp > 0.60 ? 0.32 : 0.035)) {
-                        const offsetX = (random() - 0.5) * 2.0;
-                        const offsetZ = (random() - 0.5) * 2.0;
-                        const rotY = random() * Math.PI * 2;
-                        const scale = (0.4 + (random() * 0.6)) * (0.8 + damp * 0.5);
-                        const stain = new THREE.Mesh(this.moldGeo, this.moldMat);
-                        stain.position.set(x * this.cellSize + offsetX, 0.01, z * this.cellSize + offsetZ);
-                        stain.rotation.y = rotY;
-                        stain.scale.set(scale, scale, scale);
-                        ctx.addGeometry(stain);
-
-                    } else if (floorRoll > 0.80 && !isArtery) {
+                    if (floorRoll > 0.80 && !isArtery) {
                         hasTallObstacle = true;
                         const divW = random() > 0.5 ? this.cellSize * 0.8 : this.cellSize * 0.2;
                         const divD = divW === this.cellSize * 0.8 ? this.cellSize * 0.2 : this.cellSize * 0.8;
@@ -1609,7 +1634,7 @@ export default class Environment {
                 compileStartTime = performance.now();
             }
             const group = groups[i];
-            const isDecal = !Array.isArray(group.material) && (group.material === this.moldMat || group.material === this.ceilingStainMat || group.material === this.glowMat || group.material === this.moldCreepMat);
+            const isDecal = !Array.isArray(group.material) && (group.material === this.glowMat);
             if (group.meshes.length > 1 && !Array.isArray(group.material)) {
                 const iMesh = new THREE.InstancedMesh(group.geometry, group.material, group.meshes.length);
                 if (!isDecal) {
@@ -1689,130 +1714,7 @@ export default class Environment {
         return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
     }
 
-    _placeWallMold(x, z, random, addGeometry, damp) {
-        if (!this.moldCreepMat || !this.moldCreepGeos || !this.moldCreepGeos.length) return;
-        if (damp + (random() - 0.5) * 0.12 < 0.545) return;
-        const out = (this.cellSize / 2) + 0.03;
-        const cx = x * this.cellSize;
-        const cz = z * this.cellSize;
-        if (!this._moldProbe) this._moldProbe = new THREE.Vector3();
-        const probe = this._moldProbe;
-        const BOARD_TOP = 3.02 * (512 - 480) / 512;
 
-        const geoH = this.moldCreepHeight;
-        const BOTTOM = BOARD_TOP - geoH * this.moldCreepSeepFrac;
-
-        const solidBehind = (px, pz) => {
-            probe.set(px, BOARD_TOP + 0.15, pz);
-            const boxes = this.spatialGrid.getNearby(px, pz, 0.6);
-            for (let i = 0; i < boxes.length; i++) {
-                const b = boxes[i];
-                if (b.isInvisibleBlocker) continue;
-                if (b.containsPoint && b.containsPoint(probe)) return true;
-            }
-            return false;
-        };
-
-        const cell = this.cellSize;
-        const geos = this.moldCreepGeos;
-
-        const anchorsOn = (f) => {
-            const r = f * (Math.PI / 2);
-            const s = Math.sin(r), c = Math.cos(r);
-            const found = [];
-            for (const sign of [-1, 1]) {
-                const ax = c * sign, az = -s * sign;
-                if (solidBehind(cx + s * cell + ax * cell, cz + c * cell + az * cell)) {
-                    if (random() < 0.75) {
-                        found.push({slide: sign * (cell / 2 - 0.15), toward: sign, jitter: 0.25, weight: 1.3 + (random() * 0.4 - 0.2), corner: true});
-                    }
-                } else if (!solidBehind(cx + s * (out - 0.25) + ax * cell, cz + c * (out - 0.25) + az * cell)) {
-                    if (random() < 0.3) {
-                        found.push({slide: sign * (cell / 2 - 0.7), toward: sign, jitter: 0.5, weight: 1.0 + (random() * 0.4 - 0.2), corner: false});
-                    }
-                }
-            }
-            return found;
-        };
-
-        const order = [0, 1, 2, 3];
-        for (let i = 3; i > 0; i--) {
-            const j = Math.floor(random() * (i + 1));
-            const t = order[i];
-            order[i] = order[j];
-            order[j] = t;
-        }
-
-        let face = -1;
-        let anchors = [];
-        for (const f of order) {
-            const r = f * (Math.PI / 2);
-            if (!solidBehind(cx + Math.sin(r) * (out - 0.25), cz + Math.cos(r) * (out - 0.25))) continue;
-            const found = anchorsOn(f);
-            if (found.length) {
-                face = f;
-                anchors = found;
-                break;
-            }
-            if (face < 0) face = f;
-        }
-        if (face < 0) return;
-        const rotY = face * (Math.PI / 2);
-        const sinY = Math.sin(rotY), cosY = Math.cos(rotY);
-
-        if (damp > 0.55) {
-            const count = Math.floor(random() * 3);
-            for(let k=0; k<count; k++) {
-                anchors.push({slide: (random() - 0.5) * (cell - 1.5), toward: 0, jitter: 0.6, weight: 0.85 + random() * 0.3, corner: false});
-            }
-        }
-        if (!anchors.length) return;
-
-        for (const anchor of anchors) {
-            const flip = random() > 0.5 ? 1 : -1;
-            const sx = (0.6 + random() * 0.7) * anchor.weight * (0.85 + damp * 0.4);
-            const half = (1.5 * sx) * 0.42;
-            const slide = anchor.corner
-                ? anchor.toward * Math.max(0, cell / 2 - half)
-                : anchor.slide + (random() - 0.5) * anchor.jitter;
-            const px = cx + sinY * out + cosY * slide;
-            const pz = cz + cosY * out - sinY * slide;
-            const inward = 0.25;
-            let hung = true;
-            for (let e = -1; e <= 1; e++) {
-                if (e === anchor.toward && e !== 0) continue;
-                const ex = px + cosY * half * e - sinY * inward;
-                const ez = pz - sinY * half * e - cosY * inward;
-                if (!solidBehind(ex, ez)) {
-                    hung = false;
-                    break;
-                }
-            }
-            if (!hung) continue;
-            const mold = new THREE.Mesh(geos[Math.floor(random() * geos.length)], this.moldCreepMat);
-            mold.position.set(px, BOTTOM + geoH / 2, pz);
-            mold.rotation.y = rotY;
-            mold.scale.set(flip * sx, 1, 1);
-            addGeometry(mold);
-
-            if (anchor.corner) {
-                const f_adj = (face + anchor.toward + 4) % 4;
-                const rotY_adj = f_adj * (Math.PI / 2);
-                const sinY_adj = Math.sin(rotY_adj), cosY_adj = Math.cos(rotY_adj);
-                if (!solidBehind(cx + sinY_adj * (out - 0.25), cz + cosY_adj * (out - 0.25))) continue;
-                const slide_adj = -slide;
-                const flip_adj = random() > 0.5 ? 1 : -1;
-                const px_adj = cx + sinY_adj * out + cosY_adj * slide_adj;
-                const pz_adj = cz + cosY_adj * out - sinY_adj * slide_adj;
-
-                const mold_adj = new THREE.Mesh(geos[Math.floor(random() * geos.length)], this.moldCreepMat);
-                mold_adj.position.set(px_adj, BOTTOM + geoH / 2, pz_adj);
-                mold_adj.rotation.y = rotY_adj;
-                mold_adj.scale.set(flip_adj * sx, 1, 1);
-                addGeometry(mold_adj);
-            }
-        }
-    }
 
     _createChunkHelpers(hash, chunkGroup, stagingMeshes, random) {
         return this.structureKit.createChunkHelpers(hash, chunkGroup, stagingMeshes, random);
@@ -2039,130 +1941,19 @@ export default class Environment {
     }
 
     _buildPallet() {
-        if (!this.palletWoodMat) {
-            this.palletWoodMat = new THREE.MeshStandardMaterial({color: 0x8b7355, roughness: 0.9});
-            if (this.sharedAssets) this.sharedAssets.add(this.palletWoodMat.uuid);
-        }
-        const pallet = new THREE.Group();
-        const slatGeo = this._boxGeo(1.5, 0.025, 0.18);
-        const runnerGeo = this._boxGeo(0.12, 0.12, 1.4);
-        for (let i = 0; i < 5; i++) {
-            const topSlat = new THREE.Mesh(slatGeo, this.palletWoodMat);
-            topSlat.position.set(0, 0.1575, -0.6 + (i * 0.3));
-            pallet.add(topSlat);
-        }
-        for (let i = 0; i < 3; i++) {
-            const botSlat = new THREE.Mesh(slatGeo, this.palletWoodMat);
-            botSlat.position.set(0, 0.0125, -0.6 + (i * 0.6));
-            pallet.add(botSlat);
-        }
-        for (let i = 0; i < 3; i++) {
-            const runner = new THREE.Mesh(runnerGeo, this.palletWoodMat);
-            runner.position.set(-0.6 + (i * 0.6), 0.085, 0);
-            pallet.add(runner);
-        }
-        return pallet;
+        return this.setPieces.buildPallet();
     }
 
     _buildHangingBowlLight(chunkGroup, hash, cx, cz, random, getLightMaterial) {
-        const bowlRadius = 0.4;
-        const rimY = 2.65;
-        const domeTopY = rimY + bowlRadius;
-        const wireLen = 3.0;
-        const wireGeo = this._cacheGeo('archiveWire', () => new THREE.CylinderGeometry(0.012, 0.012, wireLen, 5));
-        const wire = new THREE.Mesh(wireGeo, this.metalMat);
-        wire.position.set(cx, domeTopY + wireLen / 2, cz);
-        chunkGroup.add(wire);
-        wire.updateMatrixWorld(true);
-        this.walls.push(wire);
-        const bowlGeo = this._cacheGeo('archiveBowl', () => new THREE.SphereGeometry(bowlRadius, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2));
-        if (!this.archiveBowlMat) {
-            this.archiveBowlMat = this.rustMat.clone();
-            this.archiveBowlMat.side = THREE.DoubleSide;
-            this.sharedAssets.add(this.archiveBowlMat.uuid);
-        }
-        const bowl = new THREE.Mesh(bowlGeo, this.archiveBowlMat);
-        bowl.position.set(cx, rimY, cz);
-        chunkGroup.add(bowl);
-        bowl.updateMatrixWorld(true);
-        this.walls.push(bowl);
-        const bulbRadius = 0.08;
-        const bulbGeo = this._cacheGeo('archiveBulb', () => new THREE.SphereGeometry(bulbRadius, 8, 6));
-        const bulbMat = getLightMaterial(0xd8b276, 0xc89858, false);
-        bulbMat.map = null;
-        bulbMat.emissiveMap = null;
-        const bulbY = domeTopY - bulbRadius;
-        const bulb = new THREE.Mesh(bulbGeo, bulbMat);
-        bulb.position.set(cx, bulbY, cz);
-        bulb.userData.chunkHash = hash;
-        chunkGroup.add(bulb);
-        bulb.updateMatrixWorld(true);
-        this.walls.push(bulb);
-        this.fixtureData.push({
-            chunkHash: hash,
-            position: new THREE.Vector3(cx, bulbY, cz),
-            flickerOffset: random() * 500,
-            material: bulbMat,
-            isFaulty: true,
-            isArchiveLight: true,
-            isShadowCaster: true,
-            baseIntensity: 1.5,
-            targetIntensity: 1.5,
-            currentIntensity: 1.5
-        });
+        return this.setPieces.buildHangingBowlLight(chunkGroup, hash, cx, cz, random, getLightMaterial);
     }
 
     _buildAtriumLight(chunkGroup, hash, cx, cz, random, getLightMaterial) {
-        const globeRadius = 0.75;
-        const pipeLen = 14.0; 
-        const pipeGeo = this._cacheGeo('atriumPipe', () => new THREE.CylinderGeometry(0.04, 0.04, pipeLen, 8));
-        
-        if (!this.atriumPipeMat) {
-            this.atriumPipeMat = new THREE.MeshStandardMaterial({color: 0x111111, roughness: 0.8, metalness: 0.5});
-            this.sharedAssets.add(this.atriumPipeMat.uuid);
-        }
-        
-        const pipe = new THREE.Mesh(pipeGeo, this.atriumPipeMat);
-        const globeY = 4.2 + globeRadius;
-        pipe.position.set(cx, globeY + pipeLen / 2, cz);
-        chunkGroup.add(pipe);
-        pipe.updateMatrixWorld(true);
-        this.walls.push(pipe);
-        
-        const globeGeo = this._cacheGeo('atriumGlobe', () => new THREE.SphereGeometry(globeRadius, 24, 16));
-        const activeMat = getLightMaterial(0xfff8ee, 0xffeebb, false);
-        const globe = new THREE.Mesh(globeGeo, activeMat);
-        globe.position.set(cx, globeY, cz);
-        chunkGroup.add(globe);
-        
-        this.fixtureData.push({
-            chunkHash: hash,
-            position: new THREE.Vector3(cx, globeY, cz),
-            flickerOffset: random() * 500,
-            material: activeMat,
-            isFaulty: random() > 0.95,
-            baseIntensity: 0.9,
-            targetIntensity: 0.9,
-            currentIntensity: 0.9
-        });
+        return this.setPieces.buildAtriumLight(chunkGroup, hash, cx, cz, random, getLightMaterial);
     }
 
     _buildCeilingPanelLight(chunkGroup, hash, px, pz, random, getLightMaterial, colorHex, emissiveHex, intensity, faultyThreshold) {
-        const activeMat = getLightMaterial(colorHex, emissiveHex, false);
-        const panel = new THREE.Mesh(this.sharedPanelGeo, [this.baseHousingMat, this.baseHousingMat, this.baseHousingMat, activeMat, this.baseHousingMat, this.baseHousingMat]);
-        panel.position.set(px, 2.98, pz);
-        chunkGroup.add(panel);
-        this.walls.push(panel);
-        this.fixtureData.push({
-            chunkHash: hash,
-            position: new THREE.Vector3(px, 2.8, pz),
-            flickerOffset: random() * 500,
-            material: activeMat,
-            isFaulty: random() > faultyThreshold,
-            baseIntensity: intensity,
-            targetIntensity: intensity,
-            currentIntensity: intensity
-        });
+        return this.setPieces.buildCeilingPanelLight(chunkGroup, hash, px, pz, random, getLightMaterial, colorHex, emissiveHex, intensity, faultyThreshold);
     }
 
     _registerInteractable(mesh, hash) {
@@ -2176,31 +1967,7 @@ export default class Environment {
     }
 
     _buildPipeCornerDressing(chunkGroup, addGeometry, random, x, z, openE, openS, openN, openW, offset, pipeY, mountY, junctionY, onJunction) {
-        let hasPipes = false;
-        if (openE) {
-            const pipeE = new THREE.Mesh(this.pipeGeo, this.pipeMat || this.rustMat);
-            pipeE.position.set(x * this.cellSize + (this.cellSize / 2) + offset, pipeY, z * this.cellSize + offset);
-            addGeometry(pipeE);
-            hasPipes = true;
-        }
-        if (openS) {
-            const pipeS = new THREE.Mesh(this.pipeGeo, this.pipeMat || this.rustMat);
-            pipeS.rotation.y = Math.PI / 2;
-            pipeS.position.set(x * this.cellSize + offset, pipeY, z * this.cellSize + (this.cellSize / 2) + offset);
-            addGeometry(pipeS);
-            hasPipes = true;
-        }
-        if (hasPipes || openN || openW) {
-            const mount = new THREE.Mesh(this.pipeMountGeo, this.pipeMat || this.rustMat);
-            mount.position.set(x * this.cellSize + offset, mountY, z * this.cellSize + offset);
-            addGeometry(mount);
-            if (random() > 0.1) {
-                const junction = new THREE.Mesh(this.pipeJunctionGeo, this.pipeMat || this.rustMat);
-                junction.position.set(x * this.cellSize + offset, junctionY, z * this.cellSize + offset);
-                addGeometry(junction);
-                if (onJunction) onJunction();
-            }
-        }
+        return this.setPieces.buildPipeCornerDressing(chunkGroup, addGeometry, random, x, z, openE, openS, openN, openW, offset, pipeY, mountY, junctionY, onJunction);
     }
 
     _boxGeo(w, h, d) {

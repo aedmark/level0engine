@@ -7,11 +7,37 @@ export const TunnelBurstProfile = (env, ctx) => {
         name: "TUNNEL BURST",
         prob: 0.10, build: (x, z) => {
             const typeRoll = random();
-            const dirZ = random() > 0.5;
+            const nC = ctx.isWall && !ctx.isWall(x, z - 1);
+            const sC = ctx.isWall && !ctx.isWall(x, z + 1);
+            const wC = ctx.isWall && !ctx.isWall(x - 1, z);
+            const eC = ctx.isWall && !ctx.isWall(x + 1, z);
+
+            let dirZ = random() > 0.5;
+            if (nC || sC) dirZ = true;
+            else if (wC || eC) dirZ = false;
+            
+            if (!nC && !wC && !sC && !eC) {
+                // Completely buried, no clear entrance. Abort and build solid wall.
+                const wall = ctx.buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
+                wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);
+                addGeometry(wall);
+                return;
+            }
+
             const rawBurst = Math.floor(random() * 4) + 1;
             const modX = ((x % env.chunkSize) + env.chunkSize) % env.chunkSize;
             const modZ = ((z % env.chunkSize) + env.chunkSize) % env.chunkSize;
             const burstLength = Math.min(rawBurst, dirZ ? env.chunkSize - modZ : env.chunkSize - modX);
+
+            if (ctx.setWall) {
+                if (dirZ) {
+                    if (!nC) ctx.setWall(x, z - 1, false);
+                    ctx.setWall(x, z + burstLength, false);
+                } else {
+                    if (!wC) ctx.setWall(x - 1, z, false);
+                    ctx.setWall(x + burstLength, z, false);
+                }
+            }
             if (typeRoll > 0.66) {
                 const tunnelW = 1.2;
                 const tunnelH = 0.7;

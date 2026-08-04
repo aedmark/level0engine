@@ -4,7 +4,7 @@ static _createContext(width, height, opaque = true) {
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
-        return {canvas, ctx: canvas.getContext('2d', opaque ? {alpha: false} : undefined)};
+        return {canvas, ctx: canvas.getContext('2d', opaque ? {alpha: false, willReadFrequently: true} : {willReadFrequently: true})};
     }
 
     static _seededRandom(seed) {

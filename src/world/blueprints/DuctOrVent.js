@@ -6,8 +6,33 @@ export const DuctOrVentProfile = (env, ctx) => {
     return {
         name: "DUCT OR VENT",
         prob: 0.40, build: (x, z) => {
-            const face = Math.floor(random() * 4);
-            const tunnelOnZ = (face === 0 || face === 1);
+            const nC = ctx.isWall && !ctx.isWall(x, z - 1);
+            const sC = ctx.isWall && !ctx.isWall(x, z + 1);
+            const wC = ctx.isWall && !ctx.isWall(x - 1, z);
+            const eC = ctx.isWall && !ctx.isWall(x + 1, z);
+
+            let isCorner = false;
+            let tunnelOnZ = false;
+            let flipX = 1, flipZ = 1;
+
+            if (nC && sC && !wC && !eC) { isCorner = false; tunnelOnZ = true; }
+            else if (wC && eC && !nC && !sC) { isCorner = false; tunnelOnZ = false; }
+            else if (nC && eC) { isCorner = true; flipX = 1; flipZ = -1; }
+            else if (sC && eC) { isCorner = true; flipX = 1; flipZ = 1; }
+            else if (nC && wC) { isCorner = true; flipX = -1; flipZ = -1; }
+            else if (sC && wC) { isCorner = true; flipX = -1; flipZ = 1; }
+            else if (nC) { isCorner = false; tunnelOnZ = true; if (ctx.setWall) ctx.setWall(x, z + 1, false); }
+            else if (wC) { isCorner = false; tunnelOnZ = false; if (ctx.setWall) ctx.setWall(x + 1, z, false); }
+            else if (sC) { isCorner = false; tunnelOnZ = true; if (ctx.setWall) ctx.setWall(x, z + 1, false); }
+            else if (eC) { isCorner = false; tunnelOnZ = false; if (ctx.setWall) ctx.setWall(x + 1, z, false); }
+            else {
+                isCorner = true; flipX = 1; flipZ = 1;
+                if (ctx.setWall) {
+                    ctx.setWall(x + 1, z, false);
+                    ctx.setWall(x, z + 1, false);
+                }
+            }
+
             const isFloorLevel = random() > 0.3;
             if (isFloorLevel) {
                 const holeW = 1.2;
@@ -18,11 +43,8 @@ export const DuctOrVentProfile = (env, ctx) => {
                 const liningH = 0.05;
                 const sideH = holeH - (liningH * 2);
                 const sideOffsetLining = (holeW / 2) - (liningH / 2);
-                const isCorner = random() > 0.4;
                 if (isCorner) {
                     if (ctx.markOccupied) ctx.markOccupied(x, z);
-                    const flipX = random() > 0.5 ? 1 : -1;
-                    const flipZ = random() > 0.5 ? 1 : -1;
                     const outer = buildWall(sideW, sideW, env.sharedWallMat);
                     outer.position.set(x * env.cellSize - (flipX * (env.cellSize / 2 - sideW / 2)), 1.5, z * env.cellSize - (flipZ * (env.cellSize / 2 - sideW / 2)));
                     addGeometry(outer);
@@ -126,6 +148,7 @@ export const DuctOrVentProfile = (env, ctx) => {
                             else ctx.addGrate(segX * env.cellSize - grateOffset, 0.35, segZ * env.cellSize, true);
                         }
                         if (i === burstLength - 1) {
+                            if (ctx.setWall) ctx.setWall(segX + (tunnelOnZ ? 0 : 1), segZ + (tunnelOnZ ? 1 : 0), false);
                             if (tunnelOnZ) ctx.addGrate(segX * env.cellSize, 0.35, segZ * env.cellSize + grateOffset, false);
                             else ctx.addGrate(segX * env.cellSize + grateOffset, 0.35, segZ * env.cellSize, true);
                         }
@@ -135,28 +158,24 @@ export const DuctOrVentProfile = (env, ctx) => {
                 const wall = new THREE.Mesh(env.sharedWallGeo, env.sharedWallMat);
                 wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);
                 addGeometry(wall);
-                const fCx = Math.sin(env.baseSeed) * 0.8;
-                const fCy = Math.cos(env.baseSeed * 0.5) * 0.8;
-                const probablyOpen = (nx, nz) => {
-                    let fzx = nx * 0.15, fzy = nz * 0.15, fiter = 0;
-                    let fzx2 = fzx * fzx, fzy2 = fzy * fzy;
-                    while (fzx2 + fzy2 < 4 && fiter < 15) {
-                        fzy = 2 * fzx * fzy + fCy;
-                        fzx = fzx2 - fzy2 + fCx;
-                        fzx2 = fzx * fzx;
-                        fzy2 = fzy * fzy;
-                        fiter++;
-                    }
-                    return fiter <= 6;
-                };
                 const openFaces = [];
-                if (probablyOpen(x, z + 1)) openFaces.push(0);
-                if (probablyOpen(x, z - 1)) openFaces.push(1);
-                if (probablyOpen(x + 1, z)) openFaces.push(2);
-                if (probablyOpen(x - 1, z)) openFaces.push(3);
-                const ventFace = openFaces.length > 0
-                    ? openFaces[Math.floor(random() * openFaces.length)]
-                    : face;
+                if (ctx.isWall && !ctx.isWall(x, z + 1)) openFaces.push(0);
+                if (ctx.isWall && !ctx.isWall(x, z - 1)) openFaces.push(1);
+                if (ctx.isWall && !ctx.isWall(x + 1, z)) openFaces.push(2);
+                if (ctx.isWall && !ctx.isWall(x - 1, z)) openFaces.push(3);
+                
+                let ventFace;
+                if (openFaces.length > 0) {
+                    ventFace = openFaces[Math.floor(random() * openFaces.length)];
+                } else {
+                    ventFace = Math.floor(random() * 4);
+                    if (ctx.setWall) {
+                        if (ventFace === 0) ctx.setWall(x, z + 1, false);
+                        else if (ventFace === 1) ctx.setWall(x, z - 1, false); // Though z-1 is already processed, we can try
+                        else if (ventFace === 2) ctx.setWall(x + 1, z, false);
+                        else if (ventFace === 3) ctx.setWall(x - 1, z, false); // Though x-1 is already processed
+                    }
+                }
                 const ventGeo = env._boxGeo(1.2, 0.6, 0.05);
                 const vent = new THREE.Mesh(ventGeo, env.wallVentMat);
                 const finalOffset = (env.cellSize / 2) + 0.06;

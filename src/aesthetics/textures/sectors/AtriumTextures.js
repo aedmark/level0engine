@@ -190,7 +190,57 @@ export default class AtriumTextures {
             metalness: 0.2
         });
         const atriumSmearMat = this._buildAtriumSmear();
-        return {marbleMat, shelfMat, atriumSmearMat};
+        const flc = document.createElement('canvas');
+        flc.width = flc.height = 128;
+        const flx = flc.getContext('2d');
+        flx.fillStyle = '#2c3d24';
+        flx.fillRect(0, 0, 128, 128);
+        const leafShades = ['#3a5230', '#243620', '#4a6238', '#31452a', '#556b3e'];
+        for (let i = 0; i < 260; i++) {
+            flx.fillStyle = leafShades[Math.floor(Math.random() * leafShades.length)];
+            flx.beginPath();
+            flx.arc(Math.random() * 128, Math.random() * 128, 3 + Math.random() * 7, 0, Math.PI * 2);
+            flx.fill();
+        }
+        flx.fillStyle = 'rgba(0,0,0,0.18)';
+        for (let i = 0; i < 40; i++) {
+            flx.fillRect(Math.random() * 128, Math.random() * 128, 2 + Math.random() * 10, 1 + Math.random() * 3);
+        }
+        const flTex = new THREE.CanvasTexture(flc);
+        flTex.wrapS = flTex.wrapT = THREE.RepeatWrapping;
+        const foliageMat = new THREE.MeshStandardMaterial({map: flTex, roughness: 0.95, metalness: 0.0});
+        const fvc = document.createElement('canvas');
+        fvc.width = 256;
+        fvc.height = 128;
+        const fvx = fvc.getContext('2d');
+        const fvGrad = fvx.createLinearGradient(0, 0, 0, 128);
+        fvGrad.addColorStop(0, '#000000');
+        fvGrad.addColorStop(0.55, '#020402');
+        fvGrad.addColorStop(1, '#060c05');
+        fvx.fillStyle = fvGrad;
+        fvx.fillRect(0, 0, 256, 128);
+        const fvRows = [
+            {c: '#0a120a', n: 90, hMin: 18, hMax: 34},
+            {c: '#0e1a0b', n: 55, hMin: 30, hMax: 52},
+            {c: '#132410', n: 32, hMin: 46, hMax: 74}
+        ];
+        for (let ri = 0; ri < fvRows.length; ri++) {
+            const row = fvRows[ri];
+            fvx.strokeStyle = row.c;
+            for (let i = 0; i < row.n; i++) {
+                const sx0 = Math.random() * 256;
+                const sh = row.hMin + Math.random() * (row.hMax - row.hMin);
+                fvx.lineWidth = 1 + Math.random() * 2;
+                fvx.beginPath();
+                fvx.moveTo(sx0, 128);
+                fvx.lineTo(sx0 + (Math.random() - 0.5) * 6, 128 - sh);
+                fvx.stroke();
+            }
+        }
+        const fvTex = new THREE.CanvasTexture(fvc);
+        fvTex.wrapS = fvTex.wrapT = THREE.RepeatWrapping;
+        const farVoidMat = new THREE.MeshBasicMaterial({map: fvTex});
+        return {marbleMat, shelfMat, atriumSmearMat, foliageMat, farVoidMat};
     }
 
     static _buildAtriumSmear() {

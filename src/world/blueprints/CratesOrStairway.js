@@ -41,7 +41,31 @@ export const CratesOrStairwayProfile = (env, ctx) => {
                 }
             } else {
                 const isMagic = random() > 0.75;
-                const dir = Math.floor(random() * 4);
+                
+                const nC = ctx.isWall && !ctx.isWall(x, z - 1);
+                const sC = ctx.isWall && !ctx.isWall(x, z + 1);
+                const wC = ctx.isWall && !ctx.isWall(x - 1, z);
+                const eC = ctx.isWall && !ctx.isWall(x + 1, z);
+                
+                const openDirs = [];
+                if (sC) openDirs.push(0);
+                if (eC) openDirs.push(1);
+                if (nC) openDirs.push(2);
+                if (wC) openDirs.push(3);
+                
+                let dir;
+                if (openDirs.length > 0) {
+                    dir = openDirs[Math.floor(random() * openDirs.length)];
+                } else {
+                    dir = Math.floor(random() * 4);
+                    if (ctx.setWall) {
+                        if (dir === 0) ctx.setWall(x, z + 1, false);
+                        else if (dir === 1) ctx.setWall(x + 1, z, false);
+                        else if (dir === 2) ctx.setWall(x, z - 1, false);
+                        else if (dir === 3) ctx.setWall(x - 1, z, false);
+                    }
+                }
+
                 const isZ = dir % 2 === 0;
                 const w1 = buildWall(isZ ? 0.5 : env.cellSize, isZ ? env.cellSize : 0.5, env.sharedWallMat);
                 w1.position.set(x * env.cellSize + (isZ ? -(env.cellSize / 2) + 0.25 : 0), 1.5, z * env.cellSize + (isZ ? 0 : -(env.cellSize / 2) + 0.25));

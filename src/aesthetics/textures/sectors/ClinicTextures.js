@@ -283,7 +283,7 @@ export default class ClinicTextures {
             tiles.push({
                 replaced,
                 age: replaced ? 0.05 + rand() * 0.12 : 0.35 + rand() * 0.65,
-                stain: replaced ? 0 : (rand() > 0.55 ? 1 + rand() : 0)
+                stain: 0
             });
         }
 
@@ -353,37 +353,7 @@ export default class ClinicTextures {
             }
             ctx.closePath();
         };
-        for (let ty = 0; ty < ROWS; ty++) {
-            for (let tx = 0; tx < COLS; tx++) {
-                const t = tiles[ty * COLS + tx];
-                if (!t.stain) continue;
-                const ox = tx * TW, oy = ty * TH;
-                const blooms = 1 + Math.floor(rand() * 2);
-                for (let b = 0; b < blooms; b++) {
-                    const cx = ox + TW * (0.25 + rand() * 0.5);
-                    const cy = oy + TH * (0.2 + rand() * 0.6);
-                    const rMax = Math.min(TW, TH) * (0.22 + rand() * 0.22) * t.stain;
-                    let dx = 0, dy = 0;
-                    for (let ring = 3; ring >= 1; ring--) {
-                        const r = rMax * (ring / 3);
-                        dx += (rand() - 0.5) * r * 0.28;
-                        dy += (rand() - 0.5) * r * 0.28;
-                        island(cx + dx, cy + dy, r, 0.26, rand() * Math.PI * 2, 2 + Math.floor(rand() * 3));
-                        ctx.fillStyle = `rgba(163, 128, 84, ${0.07 + (3 - ring) * 0.05})`;
-                        ctx.fill();
-                        if (ring !== 2) {
-                            ctx.strokeStyle = `rgba(129, 96, 56, ${0.18 + (3 - ring) * 0.07})`;
-                            ctx.lineWidth = 0.9 + rand() * 1.1;
-                            ctx.stroke();
-                        }
-                    }
-                    island(cx + dx * 1.3, cy + dy * 1.3, rMax * 0.26, 0.34,
-                        rand() * Math.PI * 2, 2 + Math.floor(rand() * 3));
-                    ctx.fillStyle = `rgba(140, 104, 62, 0.15)`;
-                    ctx.fill();
-                }
-            }
-        }
+
 
         for (let ty = 0; ty < ROWS; ty++) {
             for (let tx = 0; tx < COLS; tx++) {

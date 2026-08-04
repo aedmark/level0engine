@@ -61,6 +61,41 @@ export default class BoardroomTextures {
             bumpMap: boardWallTexture,
             bumpScale: 0.008
         });
-        return {boardWallMat};
+        const btc = document.createElement('canvas');
+        btc.width = btc.height = 256;
+        const btx = btc.getContext('2d');
+        btx.fillStyle = '#b3aea4';
+        btx.fillRect(0, 0, 256, 256);
+        for (let ty = 0; ty < 2; ty++) {
+            for (let tx = 0; tx < 2; tx++) {
+                const sh = 172 + Math.floor(Math.random() * 14);
+                btx.fillStyle = `rgb(${sh},${sh - 3},${sh - 10})`;
+                btx.fillRect(tx * 128 + 2, ty * 128 + 2, 124, 124);
+            }
+        }
+        for (let i = 0; i < 40; i++) {
+            btx.fillStyle = `rgba(255,255,255,${0.02 + Math.random() * 0.04})`;
+            btx.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 40, 1);
+        }
+        btx.strokeStyle = '#8d887e';
+        btx.lineWidth = 3;
+        btx.strokeRect(0, 0, 256, 256);
+        btx.beginPath();
+        btx.moveTo(128, 0);
+        btx.lineTo(128, 256);
+        btx.stroke();
+        btx.beginPath();
+        btx.moveTo(0, 128);
+        btx.lineTo(256, 128);
+        btx.stroke();
+        const btTex = new THREE.CanvasTexture(btc);
+        btTex.wrapS = btTex.wrapT = THREE.RepeatWrapping;
+        btTex.repeat.set(14, 14);
+        const boardTileMat = new THREE.MeshStandardMaterial({map: btTex, roughness: 0.6, metalness: 0.1});
+        const glassMat = new THREE.MeshStandardMaterial({
+            color: 0xbfe3ef, transparent: true, opacity: 0.22,
+            roughness: 0.08, metalness: 0.1, depthWrite: false
+        });
+        return {boardWallMat, boardTileMat, glassMat};
     }
 }

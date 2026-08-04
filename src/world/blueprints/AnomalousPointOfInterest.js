@@ -112,10 +112,7 @@ export const AnomalousPointOfInterestProfile = (env, ctx) => {
                 glow.userData.chunkHash = hash;
                 glow.updateMatrixWorld(true);
                 ctx.stagingMeshes.push(glow);
-                const mold = new THREE.Mesh(env.moldGeo, env.moldMat);
-                mold.position.set(cx, 0.015, cz);
-                mold.rotation.y = poiRandom() * Math.PI * 2;
-                addGeometry(mold);
+
             } else if (flavor === 3) {
                 const table = buildTable(cx, 0, cz);
                 table.rotation.x = Math.PI;

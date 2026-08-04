@@ -116,7 +116,7 @@ export default class SetPieces {
             for (const [f, l, y] of spots) if (ckHash(localX + l * 3, localZ + f * 3, 4) > 0.25) carton(f, l, y);
         } else if (roll < 0.70) {
             const [px, pz] = at(1.3, -0.6);
-            const pallet = env._buildPallet();
+            const pallet = this.buildPallet();
             pallet.position.set(px, 0, pz);
             addFurniture(pallet);
             for (let c = 0; c < 3; c++) for (let s = 0; s < 1 + Math.floor(ckHash(localX + c, localZ, c + 1) * 3); s++)
@@ -879,5 +879,165 @@ export default class SetPieces {
         drillToCarved(1, 7, 1, 0);
         drillToCarved(env.chunkSize - 2, 7, -1, 0);
         return maze;
+    }
+
+    buildPallet() {
+        const env = this.env;
+        if (!env.palletWoodMat) {
+            env.palletWoodMat = new THREE.MeshStandardMaterial({color: 0x8b7355, roughness: 0.9});
+            if (env.sharedAssets) env.sharedAssets.add(env.palletWoodMat.uuid);
+        }
+        const pallet = new THREE.Group();
+        const slatGeo = env._boxGeo(1.5, 0.025, 0.18);
+        const runnerGeo = env._boxGeo(0.12, 0.12, 1.4);
+        for (let i = 0; i < 5; i++) {
+            const topSlat = new THREE.Mesh(slatGeo, env.palletWoodMat);
+            topSlat.position.set(0, 0.1575, -0.6 + (i * 0.3));
+            pallet.add(topSlat);
+        }
+        for (let i = 0; i < 3; i++) {
+            const botSlat = new THREE.Mesh(slatGeo, env.palletWoodMat);
+            botSlat.position.set(0, 0.0125, -0.6 + (i * 0.6));
+            pallet.add(botSlat);
+        }
+        for (let i = 0; i < 3; i++) {
+            const runner = new THREE.Mesh(runnerGeo, env.palletWoodMat);
+            runner.position.set(-0.6 + (i * 0.6), 0.085, 0);
+            pallet.add(runner);
+        }
+        return pallet;
+    }
+
+    buildHangingBowlLight(chunkGroup, hash, cx, cz, random, getLightMaterial) {
+        const env = this.env;
+        const bowlRadius = 0.4;
+        const rimY = 2.65;
+        const domeTopY = rimY + bowlRadius;
+        const wireLen = 3.0;
+        const wireGeo = env._cacheGeo('archiveWire', () => new THREE.CylinderGeometry(0.012, 0.012, wireLen, 5));
+        const wire = new THREE.Mesh(wireGeo, env.metalMat);
+        wire.position.set(cx, domeTopY + wireLen / 2, cz);
+        chunkGroup.add(wire);
+        wire.updateMatrixWorld(true);
+        env.walls.push(wire);
+        const bowlGeo = env._cacheGeo('archiveBowl', () => new THREE.SphereGeometry(bowlRadius, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2));
+        if (!env.archiveBowlMat) {
+            env.archiveBowlMat = env.rustMat.clone();
+            env.archiveBowlMat.side = THREE.DoubleSide;
+            env.sharedAssets.add(env.archiveBowlMat.uuid);
+        }
+        const bowl = new THREE.Mesh(bowlGeo, env.archiveBowlMat);
+        bowl.position.set(cx, rimY, cz);
+        chunkGroup.add(bowl);
+        bowl.updateMatrixWorld(true);
+        env.walls.push(bowl);
+        const bulbRadius = 0.08;
+        const bulbGeo = env._cacheGeo('archiveBulb', () => new THREE.SphereGeometry(bulbRadius, 8, 6));
+        const bulbMat = getLightMaterial(0xd8b276, 0xc89858, false);
+        bulbMat.map = null;
+        bulbMat.emissiveMap = null;
+        const bulbY = domeTopY - bulbRadius;
+        const bulb = new THREE.Mesh(bulbGeo, bulbMat);
+        bulb.position.set(cx, bulbY, cz);
+        bulb.userData.chunkHash = hash;
+        chunkGroup.add(bulb);
+        bulb.updateMatrixWorld(true);
+        env.walls.push(bulb);
+        env.fixtureData.push({
+            chunkHash: hash,
+            position: new THREE.Vector3(cx, bulbY, cz),
+            flickerOffset: random() * 500,
+            material: bulbMat,
+            isFaulty: true,
+            isArchiveLight: true,
+            isShadowCaster: true,
+            baseIntensity: 1.5,
+            targetIntensity: 1.5,
+            currentIntensity: 1.5
+        });
+    }
+
+    buildAtriumLight(chunkGroup, hash, cx, cz, random, getLightMaterial) {
+        const env = this.env;
+        const globeRadius = 0.75;
+        const pipeLen = 14.0;
+        const pipeGeo = env._cacheGeo('atriumPipe', () => new THREE.CylinderGeometry(0.04, 0.04, pipeLen, 8));
+
+        if (!env.atriumPipeMat) {
+            env.atriumPipeMat = new THREE.MeshStandardMaterial({color: 0x111111, roughness: 0.8, metalness: 0.5});
+            env.sharedAssets.add(env.atriumPipeMat.uuid);
+        }
+
+        const pipe = new THREE.Mesh(pipeGeo, env.atriumPipeMat);
+        const globeY = 4.2 + globeRadius;
+        pipe.position.set(cx, globeY + pipeLen / 2, cz);
+        chunkGroup.add(pipe);
+        pipe.updateMatrixWorld(true);
+        env.walls.push(pipe);
+
+        const globeGeo = env._cacheGeo('atriumGlobe', () => new THREE.SphereGeometry(globeRadius, 24, 16));
+        const activeMat = getLightMaterial(0xfff8ee, 0xffeebb, false);
+        const globe = new THREE.Mesh(globeGeo, activeMat);
+        globe.position.set(cx, globeY, cz);
+        chunkGroup.add(globe);
+
+        env.fixtureData.push({
+            chunkHash: hash,
+            position: new THREE.Vector3(cx, globeY, cz),
+            flickerOffset: random() * 500,
+            material: activeMat,
+            isFaulty: random() > 0.95,
+            baseIntensity: 0.9,
+            targetIntensity: 0.9,
+            currentIntensity: 0.9
+        });
+    }
+
+    buildCeilingPanelLight(chunkGroup, hash, px, pz, random, getLightMaterial, colorHex, emissiveHex, intensity, faultyThreshold) {
+        const env = this.env;
+        const activeMat = getLightMaterial(colorHex, emissiveHex, false);
+        const panel = new THREE.Mesh(env.sharedPanelGeo, [env.baseHousingMat, env.baseHousingMat, env.baseHousingMat, activeMat, env.baseHousingMat, env.baseHousingMat]);
+        panel.position.set(px, 2.98, pz);
+        chunkGroup.add(panel);
+        env.walls.push(panel);
+        env.fixtureData.push({
+            chunkHash: hash,
+            position: new THREE.Vector3(px, 2.8, pz),
+            flickerOffset: random() * 500,
+            material: activeMat,
+            isFaulty: random() > faultyThreshold,
+            baseIntensity: intensity,
+            targetIntensity: intensity,
+            currentIntensity: intensity
+        });
+    }
+
+    buildPipeCornerDressing(chunkGroup, addGeometry, random, x, z, openE, openS, openN, openW, offset, pipeY, mountY, junctionY, onJunction) {
+        const env = this.env;
+        let hasPipes = false;
+        if (openE) {
+            const pipeE = new THREE.Mesh(env.pipeGeo, env.pipeMat || env.rustMat);
+            pipeE.position.set(x * env.cellSize + (env.cellSize / 2) + offset, pipeY, z * env.cellSize + offset);
+            addGeometry(pipeE);
+            hasPipes = true;
+        }
+        if (openS) {
+            const pipeS = new THREE.Mesh(env.pipeGeo, env.pipeMat || env.rustMat);
+            pipeS.rotation.y = Math.PI / 2;
+            pipeS.position.set(x * env.cellSize + offset, pipeY, z * env.cellSize + (env.cellSize / 2) + offset);
+            addGeometry(pipeS);
+            hasPipes = true;
+        }
+        if (hasPipes || openN || openW) {
+            const mount = new THREE.Mesh(env.pipeMountGeo, env.pipeMat || env.rustMat);
+            mount.position.set(x * env.cellSize + offset, mountY, z * env.cellSize + offset);
+            addGeometry(mount);
+            if (random() > 0.1) {
+                const junction = new THREE.Mesh(env.pipeJunctionGeo, env.pipeMat || env.rustMat);
+                junction.position.set(x * env.cellSize + offset, junctionY, z * env.cellSize + offset);
+                addGeometry(junction);
+                if (onJunction) onJunction();
+            }
+        }
     }
 }

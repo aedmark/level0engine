@@ -143,6 +143,38 @@ export default class ArchiveTextures {
             const covMat = new THREE.MeshStandardMaterial({map: covTex, roughness: 0.8});
             return [pageMat, pageMat, covMat, covMat, pageMat, covMat];
         });
-        return {archiveWallMat, archiveFloorMat, paperMat, paperGeo, coffeeStainMat, coffeeStainGeo, bookMatSets};
+        const bkc = document.createElement('canvas');
+        bkc.width = 256;
+        bkc.height = 128;
+        const bkx = bkc.getContext('2d');
+        bkx.fillStyle = '#17130f';
+        bkx.fillRect(0, 0, 256, 128);
+        const spinePalette = ['#6b3a34', '#3e4a63', '#5a5e46', '#7a6748', '#54504e', '#463b52', '#70543a', '#33413e'];
+        let spineX = 0;
+        while (spineX < 252) {
+            const sw = 6 + Math.floor(Math.random() * 9);
+            if (Math.random() > 0.08) {
+                const sh = 96 + Math.floor(Math.random() * 28);
+                bkx.fillStyle = spinePalette[Math.floor(Math.random() * spinePalette.length)];
+                bkx.fillRect(spineX, 128 - sh, sw, sh);
+                bkx.fillStyle = 'rgba(255,255,255,0.08)';
+                bkx.fillRect(spineX, 128 - sh, 1, sh);
+                bkx.fillStyle = 'rgba(0,0,0,0.35)';
+                bkx.fillRect(spineX + sw - 1, 128 - sh, 1, sh);
+                if (Math.random() > 0.5) {
+                    bkx.fillStyle = 'rgba(210,190,140,0.35)';
+                    bkx.fillRect(spineX + 1, 128 - sh + 8 + Math.floor(Math.random() * 20), sw - 2, 2);
+                }
+            }
+            spineX += sw + 1;
+        }
+        const bkTex = new THREE.CanvasTexture(bkc);
+        bkTex.wrapS = bkTex.wrapT = THREE.RepeatWrapping;
+        bkTex.repeat.set(3, 1);
+        const bookRowMat = new THREE.MeshStandardMaterial({map: bkTex, roughness: 0.9, metalness: 0.0});
+        return {
+            archiveWallMat, archiveFloorMat, paperMat, paperGeo, coffeeStainMat, coffeeStainGeo, bookMatSets,
+            bookRowMat
+        };
     }
 }

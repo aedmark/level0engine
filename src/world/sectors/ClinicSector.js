@@ -1,7 +1,10 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
-import {buildClinicBed, buildIVPole, buildHeartMonitor, buildBedpan} from '../ClinicFurniture.js';
+import {
+    buildClinicBed, buildIVPole, buildHeartMonitor, buildBedpan,
+    buildWheelchair, buildWaitingBench, buildWaterFountain
+} from '../ClinicFurniture.js';
 
 export const ClinicSector = (env, ctx) => {
     const {
@@ -22,6 +25,16 @@ export const ClinicSector = (env, ctx) => {
             if (ctx.buildPerimeter(x, z, localX, localZ, env.clinicWallMat || env.sharedWallMat, "CLINIC")) return;
             const cx0 = x * env.cellSize, cz0 = z * env.cellSize;
             const wallAt = (lx, lz) => (lx < 0 || lx > 15 || lz < 0 || lz > 15) ? true : (maze ? maze[lx][lz] === true : false);
+            const cardinalDirs = [{dx: 0, dz: -1}, {dx: 0, dz: 1}, {dx: -1, dz: 0}, {dx: 1, dz: 0}];
+            const isRoomApproach = (lx, lz) => {
+                for (const d of cardinalDirs) {
+                    const nx = lx + d.dx, nz = lz + d.dz;
+                    if (!wallAt(nx, nz)) continue;
+                    const nOpen = cardinalDirs.filter((d2) => !wallAt(nx + d2.dx, nz + d2.dz));
+                    if (nOpen.length === 1 && nOpen[0].dx === -d.dx && nOpen[0].dz === -d.dz) return true;
+                }
+                return false;
+            };
             const RUN = env.cellSize - 0.1, RAIL_Y = 0.95, FACE = env.cellSize / 2 + 0.025;
             const geo = (key, w, h, d) => {
                 let g = env.geoCache.get(key);
@@ -161,7 +174,7 @@ export const ClinicSector = (env, ctx) => {
                     addFurniture(bp);
                 }
                 if (random() < 0.85) {
-                    env._buildCeilingPanelLight(chunkGroup, hash, cx0, cz0, random, ctx.getLightMaterial, 0xe6f0ee, 0xd6e4dc, 1.7, 0.6);
+                    env._buildCeilingPanelLight(chunkGroup, hash, cx0, cz0, random, ctx.getLightMaterial, 0xe6f0ee, 0xd6e4dc, 0.9, 0.6);
                 }
             };
             if (maze && maze[localX][localZ]) {
@@ -180,7 +193,37 @@ export const ClinicSector = (env, ctx) => {
             placeSectorPaper(env, ctx, "CLINIC", cx0, cz0);
             const gateApproach = (localX === 7 && (localZ <= 2 || localZ >= 13)) || (localZ === 7 && (localX <= 2 || localX >= 13));
             if (!gateApproach && (localX + localZ) % 2 === 0 && random() > 0.5) {
-                env._buildCeilingPanelLight(chunkGroup, hash, cx0, cz0, random, ctx.getLightMaterial, 0xe6f0ee, 0xd6e4dc, 1.7, 0.6);
+                env._buildCeilingPanelLight(chunkGroup, hash, cx0, cz0, random, ctx.getLightMaterial, 0xe6f0ee, 0xd6e4dc, 0.8, 0.6);
+            }
+
+            const roomApproach = isRoomApproach(localX, localZ);
+            if (!gateApproach && !roomApproach) {
+                const wallDirs = [{dx: 1, dz: 0}, {dx: -1, dz: 0}, {dx: 0, dz: 1}, {dx: 0, dz: -1}]
+                    .filter((d) => wallAt(localX + d.dx, localZ + d.dz));
+                if (wallDirs.length) {
+                    const roll = random();
+                    if (roll > 0.9) {
+                        const d = wallDirs[Math.floor(random() * wallDirs.length)];
+                        const rotY = Math.atan2(-d.dx, -d.dz);
+                        const fountain = buildWaterFountain(env);
+                        fountain.position.set(cx0 + d.dx * (FACE - 0.15), 0, cz0 + d.dz * (FACE - 0.15));
+                        fountain.rotation.y = rotY;
+                        addFurniture(fountain);
+                    } else if (roll > 0.78) {
+                        const d = wallDirs[Math.floor(random() * wallDirs.length)];
+                        const rotY = Math.atan2(-d.dx, -d.dz);
+                        const bench = buildWaitingBench(env);
+                        bench.position.set(cx0 + d.dx * (FACE - 0.42), 0, cz0 + d.dz * (FACE - 0.42));
+                        bench.rotation.y = rotY;
+                        addFurniture(bench);
+                    }
+                }
+            }
+            if (!gateApproach && !roomApproach && random() > 0.93) {
+                const wheelchair = buildWheelchair(env);
+                wheelchair.position.set(cx0 + (random() - 0.5) * 2.4, 0, cz0 + (random() - 0.5) * 2.4);
+                wheelchair.rotation.y = random() * Math.PI * 2;
+                addFurniture(wheelchair);
             }
         }
     };

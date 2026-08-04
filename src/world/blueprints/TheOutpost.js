@@ -52,10 +52,35 @@ export const TheOutpostProfile = (env, ctx) => {
             const cotX = (dir === 1) ? -0.8 : (dir === 3 ? 0.8 : 0);
             const cotZ = (dir === 0) ? 0.8 : (dir === 2 ? -0.8 : 0);
             const cotRot = (dir === 0 || dir === 2) ? Math.PI / 2 : 0;
-            const cotFrame = new THREE.Mesh(env._boxGeo(1.0, 0.5, 2.0), env.structMat);
-            cotFrame.position.set(cx + cotX, 0.25, cz + cotZ);
-            cotFrame.rotation.y = cotRot;
-            addGeometry(cotFrame);
+            const addCotPart = (geo, mat, dx, dy, dz) => {
+                const mesh = new THREE.Mesh(geo, mat);
+                const s = Math.sin(cotRot);
+                const c = Math.cos(cotRot);
+                mesh.position.set(cx + cotX + (dx * c + dz * s), dy, cz + cotZ + (-dx * s + dz * c));
+                mesh.rotation.y = cotRot;
+                addGeometry(mesh);
+            };
+
+            const cotMat = env.fabricMat.clone();
+            cotMat.color.setHex(0x4b5320);
+
+            addCotPart(env._boxGeo(0.8, 0.02, 1.8), cotMat, 0, 0.4, 0);
+            const legGeo = env._boxGeo(0.06, 0.4, 0.06);
+            addCotPart(legGeo, env.woodMat, -0.37, 0.2, -0.87);
+            addCotPart(legGeo, env.woodMat, 0.37, 0.2, -0.87);
+            addCotPart(legGeo, env.woodMat, -0.37, 0.2, 0.87);
+            addCotPart(legGeo, env.woodMat, 0.37, 0.2, 0.87);
+            const sideRailGeo = env._boxGeo(0.06, 0.06, 1.8);
+            addCotPart(sideRailGeo, env.woodMat, -0.37, 0.37, 0);
+            addCotPart(sideRailGeo, env.woodMat, 0.37, 0.37, 0);
+            const endRailGeo = env._boxGeo(0.8, 0.06, 0.06);
+            addCotPart(endRailGeo, env.woodMat, 0, 0.37, -0.87);
+            addCotPart(endRailGeo, env.woodMat, 0, 0.37, 0.87);
+
+            const bagMat = env.fabricMat.clone();
+            bagMat.color.setHex(0x3a4b60);
+            addCotPart(env._boxGeo(0.7, 0.12, 0.35), bagMat, 0, 0.47, -0.7);
+
             const almondGroup = new THREE.Group();
             const almondMesh = env.almondPrefab.clone();
             almondGroup.add(almondMesh);
@@ -63,7 +88,9 @@ export const TheOutpostProfile = (env, ctx) => {
             aGlow.scale.set(0.15, 0.15, 0.15);
             aGlow.position.y = 0.01;
             almondGroup.add(aGlow);
-            almondGroup.position.set(cx + cotX, 0.5, cz + cotZ);
+            const as = Math.sin(cotRot), ac = Math.cos(cotRot);
+            const adx = 0.2, adz = 0.2;
+            almondGroup.position.set(cx + cotX + (adx * ac + adz * as), 0.41, cz + cotZ + (-adx * as + adz * ac));
             almondGroup.rotation.y = random() * Math.PI;
             almondGroup.userData = {type: 'almond', chunkHash: hash, active: true};
             chunkGroup.add(almondGroup);

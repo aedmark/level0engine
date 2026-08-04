@@ -263,7 +263,7 @@ export default class StructureKit {
                     const wMat = wallMat || env.sharedWallMat;
                     const isVoidSector = sectorId === "CHASM";
                     const aMat = isVoidSector ? wMat : (env.metalMat || env.structMat);
-                    const outerMat = isVoidSector ? wMat : env.sharedWallMat;
+                    const outerMat = env.sharedWallMat;
                     const buildMat = (isNS) => {
                         return [
                             isNS ? aMat : (localX === edge ? outerMat : wMat),
@@ -322,7 +322,7 @@ export default class StructureKit {
                     return true;
                 }
                 const wMat = wallMat || env.sharedWallMat;
-                const outerWMat = sectorId === "CHASM" ? wMat : env.sharedWallMat;
+                const outerWMat = env.sharedWallMat;
                 const w = env.cellSize + 0.02;
                 const d = env.cellSize + 0.02;
                 const cx = x * env.cellSize;
