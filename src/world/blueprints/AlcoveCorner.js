@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Generates a corner alcove layout with an optional chair.
+ * [WHY] Adds spatial variety to the generated level, avoiding repetitive open spaces.
+ * [STATE] Stateless; returns a configuration object with a build function.
+ * [DEPENDS] Depends on env properties like cellSize, sharedWallMat, and context functions like random, buildWall, buildChair.
+ */
 export const AlcoveCornerProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, buildChair, addFurniture} = ctx;
     return {

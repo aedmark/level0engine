@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Spawns boxes/crates or a strange descending stairway geometry.
+ * [WHY] Adds prop scatter or pseudo-impossible geometry to enrich the level's visual storytelling and layout complexity.
+ * [STATE] Stateless profile.
+ * [DEPENDS] Access to environment geometry pools (cartonGeo, etc.) and wall state.
+ */
 export const CratesOrStairwayProfile = (env, ctx) => {
     const {random, buildWall, addGeometry} = ctx;
     return {

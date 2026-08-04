@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Central procedural generator for highly reusable prop materials (wood, pipes, breaker panels, stainless steel).
+ * [WHY] Complex layered props require bespoke noise and wear patterns, generated procedurally to minimize asset footprint.
+ * [STATE] Stateless factory module.
+ * [DEPENDS] Uses TextureMechanics and Canvas API; builds assets consumed by specific sector generators.
+ */
 import TextureMechanics from '../TextureMechanics.js';
 
 export default class PropTextures {
@@ -378,20 +384,6 @@ export default class PropTextures {
         });
     }
 
-    /**
-     * Welded steel for the breaker box housings.
-     *
-     * These used to wear `pittedMetalMat`, which carries `metalness: 0.75`. A metal that rough-and-
-     * shiny needs an environment map to have anything to reflect, and this engine has none, so the
-     * housings resolved to near-black rectangles hanging on lit yellow walls. The pipes read
-     * correctly because `_buildPipeMaterial` sits at `metalness: 0.05` and lets the scene lights do
-     * the work. This is that same alloy — identical base value, roughness and metalness — authored
-     * for a flat panel instead of a cylinder: a welded flange around the rim, four bolt heads, and
-     * a brushed face, rather than a vertical seam and pipe collars.
-     *
-     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
-     * @returns {THREE.MeshStandardMaterial}
-     */
     static _buildBreakerPanelMaterial(masterNoise) {
         const W = 256, H = 320;
         const rand = TextureMechanics._seededRandom(51873109);
@@ -532,21 +524,6 @@ export default class PropTextures {
         });
     }
 
-    /**
-     * Brushed stainless for the airlock shell and its doors.
-     *
-     * Bright and clean on purpose: this is the one place in the facility that is supposed to feel
-     * maintained. The grain runs in one direction only, because that is what distinguishes brushed
-     * stainless from every other grey surface here — a random speckle reads as concrete, a
-     * directional grain reads as milled metal.
-     *
-     * Metalness stays low for the same reason it does everywhere else in this engine: there is no
-     * environment map, so a physically-honest stainless value would resolve to a dark slab. The
-     * brightness comes from a high base value and a tight roughness instead.
-     *
-     * @param {HTMLCanvasElement} masterNoise - Shared grain overlay.
-     * @returns {THREE.MeshStandardMaterial}
-     */
     static _buildStainlessMaterial(masterNoise) {
         const S = 512;
         const rand = TextureMechanics._seededRandom(30514877);
@@ -557,8 +534,6 @@ export default class PropTextures {
         ctx.fillStyle = 'rgb(196, 203, 212)';
         ctx.fillRect(0, 0, S, S);
 
-        // The brush runs vertically: wall panels and lift doors are hung the way the sheet was
-        // drawn, and a horizontal grain on a door reads as clapboard.
         for (let i = 0; i < 2600; i++) {
             const y = rand() * S;
             const x = rand() * S;
@@ -574,7 +549,6 @@ export default class PropTextures {
             ctx.stroke();
         }
 
-        // A few deeper scores. Even a well-kept lift picks these up at trolley height.
         for (let i = 0; i < 18; i++) {
             const y = rand() * S;
             const x = rand() * S;

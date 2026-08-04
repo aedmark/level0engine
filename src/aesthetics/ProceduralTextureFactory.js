@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Asynchronously generates procedural textures by composing multiple texture modules.
+ * [WHY] Replaces static image assets with generated canvases to reduce load times and bandwidth.
+ * [STATE] Stateless factory class.
+ * [DEPENDS] Relies on TextureMechanics, multiple texture generation modules, and THREE.js.
+ */
 import TextureMechanics from './textures/TextureMechanics.js';
 import StructuralTextures from './textures/common/StructuralTextures.js';
 import SurfaceTextures from './textures/common/SurfaceTextures.js';

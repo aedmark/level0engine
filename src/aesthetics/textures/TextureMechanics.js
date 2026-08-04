@@ -1,4 +1,9 @@
-
+/**
+ * [ROLE] Low-level utility for canvas creation, noise generation, and texture wrapping.
+ * [WHY] Provides core operations needed by procedural texture generators, abstracting away canvas boilerplate.
+ * [STATE] Stateless utility class.
+ * [DEPENDS] Interacts with the DOM Canvas API and THREE.js.
+ */
 export default class TextureMechanics {
 static _createContext(width, height, opaque = true) {
         const canvas = document.createElement('canvas');

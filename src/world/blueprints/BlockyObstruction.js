@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Generates central blocks or cross-shaped obstacles within a cell.
+ * [WHY] Breaks up line of sight and player movement to make navigation more maze-like.
+ * [STATE] Stateless blueprint generator.
+ * [DEPENDS] Environment size properties and context geometry builders.
+ */
 export const BlockyObstructionProfile = (env, ctx) => {
     const {random, buildWall, addGeometry} = ctx;
     return {

@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Spawns a rare, messy room variant with scattered papers, fallen tiles, and skewed chairs.
+ * [WHY] Injects narrative decay/abandonment to break the monotony of neat, repetitive rooms.
+ * [STATE] Stateless profile, pushes multiple small meshes to the staging arrays for batching.
+ * [DEPENDS] Specialized geometry (fallen tiles, documents, holes) and context mesh collections.
+ */
 export const SettlingFieldProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, buildChair, addFurniture, hash, stagingMeshes} = ctx;
     return {

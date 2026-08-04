@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Maps physical inputs (keyboard/mouse) to logical player actions.
+ * [WHY] Abstracts browser input events and pointer lock into a unified, queryable state object.
+ * [STATE] Stateful, tracks key states and pointer lock status.
+ * [DEPENDS] DOM events (keydown, keyup, mousemove, pointerlock).
+ */
 const PREVENT_KEYS = new Set(['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyV', 'KeyQ', 'KeyF', 'KeyE', 'KeyG', 'KeyZ', 'Space', 'Tab']);
 export default class SomaticInput {
     constructor(camera) {
@@ -111,8 +117,6 @@ export default class SomaticInput {
             document.dispatchEvent(new Event('somatic-toggle-compass'));
         }
         if (event.code === 'KeyE') {
-            // Held interactions exist now (the breaker podiums want a sustained palm print), so the
-            // browser's auto-repeat must not read as a stream of fresh presses.
             if (event.repeat) return;
             if (this.state.isReading) {
                 document.dispatchEvent(new Event('somatic-close-document'));

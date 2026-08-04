@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Spawns a physical, interactable hinged door inside a frame.
+ * [WHY] Creates discrete room divisions and requires player interaction, controlling pacing.
+ * [STATE] Stateless builder, but pushes door entities into environment tracking arrays (interactiveDoors, spatialGrid).
+ * [DEPENDS] Shared geometry, chunk groups, grid hashes, and door materials.
+ */
 export const HingedDoorwayProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, chunkGroup, hash} = ctx;
     return {

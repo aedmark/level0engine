@@ -2,6 +2,12 @@ import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 import {placeEphemera} from '../NarrativeProps.js';
 
+/**
+ * [ROLE] Defines the generation logic for the "Exit" sector.
+ * [WHY] Serves as the objective/end-point of a level, containing the elevator structure necessary for level transition.
+ * [STATE] Stateless factory. Returns a builder object that modifies the world generation environment.
+ * [DEPENDS] Inserts an active exit interactable into the `env.interactables` list and bounding boxes into `env.spatialGrid`.
+ */
 export const ExitSector = (env, ctx) => {
     const {
         random,

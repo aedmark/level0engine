@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Controls the UI logic for the 'Inquest' terminal phase where players verify story claims.
+ * [WHY] Drives the core gameplay loop transition between levels based on deductive choices.
+ * [STATE] Stateful. Holds references to the pending exit door and prevents multiple inquest submissions.
+ * [DEPENDS] DOM elements (`inquest-overlay`), CustomEvents (`somatic-inquest`), `player`, `environment`.
+ */
 export default class InquestController {
     constructor(player, acoustics, engine, environment, getStoryFn, onAscension, onBlackout) {
         this.player = player;

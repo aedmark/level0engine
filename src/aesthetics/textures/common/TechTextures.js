@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Generates emissive and tech-oriented materials for screens, buttons, and servers.
+ * [WHY] Interactive and functional props require specialized emissive masks and tech detailing.
+ * [STATE] Stateless factory module.
+ * [DEPENDS] Uses TextureMechanics and Canvas API.
+ */
 import TextureMechanics from '../TextureMechanics.js';
 
 export default class TechTextures {

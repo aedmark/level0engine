@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Constructs the internal audio node graph and impulse responses.
+ * [WHY] Isolates the complex boilerplate of creating and routing Web Audio API nodes for the engine.
+ * [STATE] Stateless utility class. Modifies the engine instance to inject nodes.
+ * [DEPENDS] Web Audio API context.
+ */
 export default class Synthesizer {
     static buildImpulseResponse(ctx, decay, predelay) {
         const rate = ctx.sampleRate;

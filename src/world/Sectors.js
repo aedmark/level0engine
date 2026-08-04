@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Defines environmental parameters (fog, ambient light, audio, dust) for each sector type.
+ * [WHY] Used to seamlessly transition visual and auditory themes when moving between different zones in the game.
+ * [STATE] Stateless configuration object.
+ * [DEPENDS] None.
+ */
 export const DEFAULT_FOLEY = {
     oscFreq: 60,
     filterType: 'lowpass',

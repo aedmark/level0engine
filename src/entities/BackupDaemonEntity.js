@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Ceiling-bound hazard entity.
+ * [WHY] An environmental threat that travels along cables and punishes players for not paying attention to their surroundings.
+ * [STATE] Stateful. Holds three.js meshes, cable references, and attack cooldowns.
+ * [DEPENDS] three.js (implicit), environment hanging cables data, Math utils.
+ */
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 

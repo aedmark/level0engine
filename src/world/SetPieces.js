@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Constructs large predefined multi-mesh structures like checkpoints, airlocks, and specific room layouts.
+ * [WHY] To inject recognizable, hand-crafted spatial elements into the procedurally generated world.
+ * [STATE] Stateless builder class. Mutates the provided `chunkGroup`, `env.interactables`, `env.airlocks`, and spatial grid.
+ * [DEPENDS] Requires `THREE` globally, `env` object, and a context object `ctx` with building utilities.
+ */
 export default class SetPieces {
     constructor(env) {
         this.env = env;

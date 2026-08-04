@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Axis-aligned bounding box math utility for spatial queries.
+ * [WHY] Provides efficient intersection tests for collision detection and culling.
+ * [STATE] Stateful, holds min and max coordinates.
+ * [DEPENDS] Vec3 class.
+ */
 import Vec3 from './Vec3.js';
 
 export default class AABB {

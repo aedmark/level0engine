@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Manages and delegates to sector-specific entities.
+ * [WHY] Coordinates which entity is spawned based on the active sector, isolating lifecycle logic from the main game loop.
+ * [STATE] Stateful. Instantiates and holds references to all entity types.
+ * [DEPENDS] All entity classes, environment data.
+ */
 import Anomaly from './Anomaly.js';
 import ArchivistEntity from './ArchivistEntity.js';
 import WardenEntity from './WardenEntity.js';

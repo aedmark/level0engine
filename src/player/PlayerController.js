@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Main controller for player movement, physics, and vital stats.
+ * [WHY] Handles complex first-person mechanics like stamina, panic, physical size (crouching/squeezing), and collision.
+ * [STATE] Stateful, tracks velocity, stamina, coherence, inventory, and objectives.
+ * [DEPENDS] SomaticInput, AABB math, spatial grid, DOM elements, somatic-* events.
+ */
 import SomaticInput from './SomaticInput.js';
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';

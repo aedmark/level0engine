@@ -1,5 +1,14 @@
+/**
+ * [ROLE] Central coordinator for Three.js rendering.
+ * [WHY] Isolates Three.js boilerplate and scene graph management from game logic.
+ * [STATE] Stateful singleton-like. Owns Scene, Camera, and WebGLRenderer.
+ * [DEPENDS] Expects #canvas-container in the DOM. Reads from window.localStorage for graphics settings.
+ */
 export default class RenderEngine {
     constructor() {
+        // [WHY] Standard Three.js fog is linear/depth-based which looks bad when looking up/down in large sectors.
+        // [HOW] Regex replacement of depth calculation in the built-in shader chunk to use radial distance.
+        // [HACK] We monkey-patch the global THREE.ShaderChunk so it applies to all materials without custom shaders.
         if (!THREE.__radialFogPatched) {
             THREE.ShaderChunk.fog_vertex = THREE.ShaderChunk.fog_vertex.replace(
                 /vFogDepth\s*=\s*-\s*mvPosition\.z\s*;/,
@@ -64,11 +73,6 @@ export default class RenderEngine {
                 magFilter: THREE.LinearFilter
             });
         }
-        // FXAA resolve pass. MSAA (above) only smooths geometric silhouette edges; it does
-        // nothing for texture/shader aliasing (fine repeating detail, distant thin lines).
-        // FXAA operates on the final rasterized image via luma-contrast edge detection, so it
-        // catches both. Runs as its own offscreen pass so the CRT/VHS shader always samples an
-        // already-resolved image.
         this.fxaaTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
             minFilter: THREE.LinearFilter,
             magFilter: THREE.LinearFilter

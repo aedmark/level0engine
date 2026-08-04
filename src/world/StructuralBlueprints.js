@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Aggregates and sorts structural blueprint profiles (architectural variants) by probability.
+ * [WHY] To randomly but consistently select different architectural configurations for world generation.
+ * [STATE] Caches a sorted index array statically on the class.
+ * [DEPENDS] Imports individual blueprint scripts.
+ */
 import {RandomPillarProfile} from './blueprints/RandomPillar.js';
 import {PipeClusterProfile} from './blueprints/PipeCluster.js';
 import {WideHeaderGapProfile} from './blueprints/WideHeaderGap.js';

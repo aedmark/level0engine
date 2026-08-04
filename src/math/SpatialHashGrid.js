@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Spatial partitioning grid for fast proximity queries.
+ * [WHY] Accelerates collision detection and interaction checks by limiting scope to nearby objects.
+ * [STATE] Stateful, maintains a map of cells and chunk associations.
+ * [DEPENDS] AABB objects, generic 3D objects with position data.
+ */
 export default class SpatialHashGrid {
     constructor(cellSize) {
         this.cellSize = cellSize;

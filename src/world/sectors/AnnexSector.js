@@ -1,6 +1,12 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
+/**
+ * [ROLE] Defines the generation logic for the "Annex" sector.
+ * [WHY] Provides office-like spaces, corridors, and interactive elements (keypads, doors) to simulate an administrative area.
+ * [STATE] Stateless factory. Returns a builder object that modifies the world generation environment.
+ * [DEPENDS] Depends on `env` and `ctx` provided by the sector generation pipeline, utilizing builder functions for geometry and interactions.
+ */
 export const AnnexSector = (env, ctx) => {
     const {
         random,

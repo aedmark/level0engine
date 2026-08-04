@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Translates game telemetry into continuous audio node parameters.
+ * [WHY] Creates dynamic, reactive ambience that responds to player state, location, and tension.
+ * [STATE] Stateless utility class. Mutates the state of the provided engine instance.
+ * [DEPENDS] AcousticEngine nodes, Telemetry data, Sectors data.
+ */
 import SECTORS, {DEFAULT_REVERB} from '../world/Sectors.js';
 
 function setMixParam(engine, time, key, param, target, timeConstant) {

@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Provides a utility toolkit for procedural generation scripts, offering common functions for geometry, caching, and building parts.
+ * [WHY] Reduces duplication in procedural generation algorithms by wrapping caching logic and common boilerplate.
+ * [STATE] Class instance wraps the `env` object. Helper methods mutate the environment (spatial grid, staging meshes, etc.).
+ * [DEPENDS] Requires `THREE` globally and an active environment object `env`.
+ */
 export default class StructureKit {
     constructor(env) {
         this.env = env;

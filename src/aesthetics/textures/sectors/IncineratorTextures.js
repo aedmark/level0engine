@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Generates specialized procedural textures specific to the Incinerator sector.
+ * [WHY] Sector-specific aesthetics require unique material generation without bloating the global texture pools.
+ * [STATE] Stateless factory module.
+ * [DEPENDS] Uses TextureMechanics and Canvas API.
+ */
 import TextureMechanics from '../TextureMechanics.js';
 
 export default class IncineratorTextures {

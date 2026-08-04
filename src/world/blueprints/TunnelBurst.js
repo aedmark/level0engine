@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Forces a linear string of tunnel segments or ventilation shafts.
+ * [WHY] Creates localized claustrophobic crawlspaces that disrupt normal room flow.
+ * [STATE] Alters context wall state across multiple tiles (a "burst" of blocks).
+ * [DEPENDS] Chunk boundary logic, wall setting context functions, AABB grids, and environmental grates.
+ */
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 

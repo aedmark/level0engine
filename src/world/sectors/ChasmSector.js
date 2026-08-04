@@ -2,6 +2,12 @@ import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
 
+/**
+ * [ROLE] Defines the generation logic for the "Chasm" sector.
+ * [WHY] Creates vast, empty spaces with catwalks and massive pillars to break up tight corridors and add vertical scale.
+ * [STATE] Stateless factory. Returns a builder object that modifies the world generation environment.
+ * [DEPENDS] Modifies `env`'s spatial grid for void areas and manages unique fixture data like lighthouses.
+ */
 export const ChasmSector = (env, ctx) => {
     const {
         random,

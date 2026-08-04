@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Generates foundational floor and surface materials (carpet, tiles, concrete, vents).
+ * [WHY] Large unbroken surfaces need high-resolution, non-repeating noise patterns to look realistic.
+ * [STATE] Stateless factory module.
+ * [DEPENDS] Uses TextureMechanics and Canvas API.
+ */
 import TextureMechanics from '../TextureMechanics.js';
 import ClinicTextures from '../sectors/ClinicTextures.js';
 import AtriumTextures from '../sectors/AtriumTextures.js';

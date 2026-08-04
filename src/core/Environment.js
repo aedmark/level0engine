@@ -11,6 +11,12 @@ import InteractionController from '../player/InteractionController.js';
 import {setPodiumScan, setPodiumSpent, SCAN_DURATION} from '../world/BreakerPodium.js';
 import RenderEngine from './RenderEngine.js';
 
+/**
+ * [ROLE] Central manager for procedural world generation, chunk management, and entity orchestration.
+ * [WHY] Serves as the bedrock of the 3D world, linking the renderer to the abstract rules of the maze.
+ * [STATE] Highly stateful. Owns chunks, entities, spatial hashing, rendering configuration, and event tracking.
+ * [DEPENDS] THREE.js globally, DOM inputs/events, and various local manager classes (RenderEngine, EntityManager).
+ */
 export default class Environment {
     get anomaly() {
         return this.entityManager ? this.entityManager.activeEntity : null;

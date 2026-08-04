@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Generates somatic and environmental sound events.
+ * [WHY] Procedurally synthesizes short sound effects (footsteps, doors) to avoid relying on external audio assets.
+ * [STATE] Stateless utility class. Operates on the provided audio engine context.
+ * [DEPENDS] AcousticEngine nodes, Web Audio API, Sectors data.
+ */
 import SECTORS, {DEFAULT_FOLEY} from '../world/Sectors.js';
 
 const VOICES = {

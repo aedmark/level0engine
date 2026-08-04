@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Spawns anomalous, rare structural set pieces or events in the world layout.
+ * [WHY] Creates unsettling or unique areas that stand out from typical generation to build atmosphere.
+ * [STATE] Stateless blueprint profile, but modifies global env tracking arrays (e.g., _globalSwitches, pointsOfInterest) when built.
+ * [DEPENDS] Depends on context functions, player state, and world environment tracking collections.
+ */
 export const AnomalousPointOfInterestProfile = (env, ctx) => {
     const {buildWall, addGeometry, buildChair, buildTable, addFurniture, chunkGroup, hash} = ctx;
     return {

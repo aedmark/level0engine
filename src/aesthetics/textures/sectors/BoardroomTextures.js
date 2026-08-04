@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Generates specialized procedural textures specific to the Boardroom sector.
+ * [WHY] Sector-specific aesthetics require unique material generation without bloating the global texture pools.
+ * [STATE] Stateless factory module.
+ * [DEPENDS] Uses TextureMechanics and Canvas API.
+ */
 import TextureMechanics from '../TextureMechanics.js';
 
 export default class BoardroomTextures {
@@ -125,7 +131,6 @@ export default class BoardroomTextures {
         bctx.fillStyle = '#393636';
         bctx.fillRect(0, 0, 256, 256);
 
-        // Acoustic pinholes
         bctx.fillStyle = '#2b2d33';
         for(let i = 0; i < 3000; i++) {
             bctx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
@@ -135,7 +140,6 @@ export default class BoardroomTextures {
             bctx.fillRect(Math.random() * 256, Math.random() * 256, 1, 1);
         }
 
-        // Ceiling grid rails
         bctx.strokeStyle = '#1a1c20';
         bctx.lineWidth = 4;
         for (let ty = 0; ty < 2; ty++) {
@@ -144,14 +148,13 @@ export default class BoardroomTextures {
             }
         }
 
-        // Subtle ambient grime
         bctx.globalAlpha = 0.08;
         bctx.drawImage(masterNoise, 0, 0, 256, 256);
         bctx.globalAlpha = 1.0;
 
         const bcTex = new THREE.CanvasTexture(bcCanvas);
         bcTex.wrapS = bcTex.wrapT = THREE.RepeatWrapping;
-        bcTex.repeat.set(40, 40); // 2x2 grid repeating 40 times = 80 tiles (5 tiles per cell)
+        bcTex.repeat.set(40, 40);
 
         const boardCeilingMat = new THREE.MeshStandardMaterial({
             map: bcTex,

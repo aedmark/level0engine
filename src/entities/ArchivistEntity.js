@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Docile flying entity.
+ * [WHY] Provides a passive environmental interaction that drops items when observed by the player.
+ * [STATE] Stateful. Manages own three.js group, mesh animations, and state timers.
+ * [DEPENDS] three.js (implicit), environment data, Math utils.
+ */
 import Vec3 from '../math/Vec3.js';
 
 export default class ArchivistEntity {

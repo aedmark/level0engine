@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Generates small crouch-level ducts or wall vents.
+ * [WHY] Allows alternative traversal routes or decorative wall features, enhancing level verticality and interconnectedness.
+ * [STATE] Stateless generation profile.
+ * [DEPENDS] Wall matrices, AABB grid for entity collision, and context wall manipulation functions.
+ */
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 

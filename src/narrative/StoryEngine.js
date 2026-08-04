@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Manages the progression and state of the procedural narrative.
+ * [WHY] Controls which narrative threads are exposed, tracks player discoveries, and dictates the final truth state.
+ * [STATE] Stateful, manages a library of text, player progress, and randomized parameters.
+ * [DEPENDS] CaseFiles.js for content generation.
+ */
 import {buildCaseFiles, THREADS} from './CaseFiles.js';
 
 export default class StoryEngine {

@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Generates textures for natural or agricultural materials (fabric, moss, corn, dirt, night sky).
+ * [WHY] Enables dynamic variation in organic surfaces through procedural generation, avoiding tiling artifacts.
+ * [STATE] Stateless factory module.
+ * [DEPENDS] Uses TextureMechanics and Canvas API; creates THREE.js materials.
+ */
 import TextureMechanics from '../TextureMechanics.js';
 import SurfaceTextures from './SurfaceTextures.js';
 

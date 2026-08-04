@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Updates the general heads-up display elements like health, stamina, crosshair, and inventory.
+ * [WHY] Isolates DOM manipulation from the core game loop, updating only when values change to save CPU.
+ * [STATE] Static class. Caches previous DOM states/values internally to avoid redundant DOM writes.
+ * [DEPENDS] Multiple DOM elements (e.g. `coords`, `battery-level`, `crosshair`, `vhs-time`).
+ */
 export default class UIManager {
     static update(time, engine, player, environment) {
         if (time - (this._lastUpdate || 0) < 0.1) return;

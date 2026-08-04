@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Central registry and initializer for shared materials and geometries.
+ * [WHY] To reduce draw calls and memory overhead by instancing common aesthetic assets across the environment.
+ * [STATE] Singleton-like utility. Modifies the passed environment object with shared resources.
+ * [DEPENDS] Depends on THREE.js and the provided environment state for texture injection.
+ */
 export default class MaterialLibrary {
     static injectMaterials(env) {
         if (env.sharedWallGeo) return;

@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Generates a low-clearance archway structure in a single cell.
+ * [WHY] Alters vertical space to induce claustrophobia and break up flat ceilings.
+ * [STATE] Stateless blueprint profile.
+ * [DEPENDS] Environment materials, geometry builders, and cell dimensions.
+ */
 export const CompressionArchwayProfile = (env, ctx) => {
     const {random, buildWall, addGeometry} = ctx;
     return {

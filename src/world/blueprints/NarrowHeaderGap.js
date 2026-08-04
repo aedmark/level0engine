@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Constructs a narrow passage with a lowered header (ceiling beam).
+ * [WHY] Tightens the space to frame an entryway or restrict sightlines subtly.
+ * [STATE] Stateless blueprint generator.
+ * [DEPENDS] Environment cell size and header materials.
+ */
 export const NarrowHeaderGapProfile = (env, ctx) => {
     const {random, buildWall, addGeometry} = ctx;
     return {

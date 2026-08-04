@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Handles persisting and restoring game state.
+ * [WHY] Allows players to save configurations and progress using browser local storage.
+ * [STATE] Stateful, tracks an interval for autosaving.
+ * [DEPENDS] Engine state, player state, environment, DOM UI elements (sliders, toggles), localStorage.
+ */
 export default class SaveManager {
     constructor(engine, player, environment, acoustics) {
         this.engine = engine;

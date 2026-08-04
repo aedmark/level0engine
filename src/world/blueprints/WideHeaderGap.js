@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Creates a wide doorway-like passage with a ceiling header beam.
+ * [WHY] Subtly sections off areas while maintaining a wide, inviting flow compared to narrow gaps.
+ * [STATE] Stateless structural builder.
+ * [DEPENDS] Standard wall materials and cell dimensions.
+ */
 export const WideHeaderGapProfile = (env, ctx) => {
     const {buildWall, addGeometry} = ctx;
     return {

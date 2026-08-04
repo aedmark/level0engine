@@ -1,3 +1,9 @@
+/**
+ * [ROLE] 3D vector math primitive.
+ * [WHY] Provides foundational 3D math operations without heavy external library dependencies.
+ * [STATE] Stateful, holds x, y, and z coordinates.
+ * [DEPENDS] None.
+ */
 export default class Vec3 {
     constructor(x = 0, y = 0, z = 0) {
         this.x = x;
