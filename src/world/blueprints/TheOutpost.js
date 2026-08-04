@@ -5,7 +5,7 @@ export const TheOutpostProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, chunkGroup, hash} = ctx;
     return {
         name: "THE OUTPOST",
-        prob: 0.01, build: (x, z) => {
+        prob: 0.02, build: (x, z) => {
             const cx = x * env.cellSize;
             const cz = z * env.cellSize;
             if (ctx.markOccupied) ctx.markOccupied(x, z);

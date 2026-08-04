@@ -2,7 +2,7 @@ export const BlockyObstructionProfile = (env, ctx) => {
     const {random, buildWall, addGeometry} = ctx;
     return {
         name: "BLOCKY OBSTRUCTION",
-        prob: 0.35, build: (x, z) => {
+        prob: 0.36, build: (x, z) => {
             const isStraight = random() > 0.5;
             const blockW = 1.85;
             const offset = 1.075;
