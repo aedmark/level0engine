@@ -652,10 +652,10 @@ export default class SetPieces {
         };
         const outerDoor = buildDoor(outerX, outerZ);
         const innerDoor = buildDoor(innerX, innerZ);
-        const SHELL_HALF = 2.0;
-        const SHELL_SPAN = SHELL_HALF * 2;
+        const SHELL_HALF = 1.875;
+        const SHELL_SPAN = 4.0;
         const SHELL_H = 3.0;
-        const WALL_T = 0.12;
+        const WALL_T = 0.28;
         const DOOR_TOP = 2.6;
 
         const along = (n) => spansX ? [0, n] : [n, 0];

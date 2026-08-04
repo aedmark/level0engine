@@ -45,9 +45,6 @@ export default class MaterialLibrary {
         env.serverCeilingMat = env.serverFloorMat.clone();
         env.serverCeilingMat.metalness = 0.0;
         env.serverCeilingMat.roughness = 0.95;
-        env.boardCeilingMat = env.clinicMat.clone();
-        env.boardCeilingMat.metalness = 0.0;
-        env.boardCeilingMat.roughness = 0.95;
         env.breakerBaseGeo = new THREE.BoxGeometry(0.6, 0.8, 0.20);
         env.breakerDoorGeo = new THREE.BoxGeometry(0.6, 0.8, 0.05);
         env.breakerDoorGeo.translate(0.3, 0, 0);

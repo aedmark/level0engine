@@ -55,6 +55,14 @@ export default class SaveManager {
             this.engine.camera.updateProjectionMatrix();
             this.player.speedMultiplier = (Number(state.speed) || 100) / 100;
             this.player.enableHeadBob = state.headBob !== false;
+            
+            if (state.macroChunks) {
+                this.environment._macroChunkHashes = new Set(state.macroChunks);
+            }
+            if (state.discoveredSectors) {
+                this.environment.discoveredSectors = new Map(state.discoveredSectors);
+            }
+            
             return state;
         } catch (e) {
             console.warn("Mnemonic Arcade corrupted. Pruning state.");
@@ -88,7 +96,9 @@ export default class SaveManager {
             aa: document.getElementById('aaSelect').value,
             fxaa: document.getElementById('fxaaToggle').checked,
             post: document.getElementById('postToggle').checked,
-            headBob: document.getElementById('headBobToggle').checked
+            headBob: document.getElementById('headBobToggle').checked,
+            macroChunks: Array.from(this.environment._macroChunkHashes),
+            discoveredSectors: Array.from(this.environment.discoveredSectors.entries())
         };
         localStorage.setItem('level0_state', JSON.stringify(state));
     }

@@ -98,7 +98,7 @@ const SECTORS = {
     },
     BOARDROOM: {
         fog: 0.02, fogColor: 0xa0bbd6,
-        ambient: 0.2,
+        ambient: 0.85, groundColor: 0x8899aa,
         ambience: {
             noise: 0.05,
             peace: 0.0,
@@ -216,8 +216,8 @@ const SECTORS = {
         reverb: {rt60: 4.5, predelay: 0.085, wet: 0.38}
     },
     ATRIUM: {
-        fog: 0.12, fogColor: 0x000000,
-        ambient: 0.00,
+        fog: 0.08, fogColor: 0x000000,
+        ambient: 0.05,
         ambience: {
             noise: 0.13,
             peace: 0.0,
@@ -239,7 +239,7 @@ const SECTORS = {
     },
     ANNEX: {
         fog: 0.03,
-        ambient: 0.15,
+        ambient: 0.55, groundColor: 0x666255,
         ambience: {
             noise: 0.03,
             peace: 0.0,

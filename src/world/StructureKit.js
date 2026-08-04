@@ -252,6 +252,8 @@ export default class StructureKit {
             buildPerimeter: (x, z, localX, localZ, wallMat, sectorId, height = 3.0) => {
                 const isPerimeter = localX === 0 || localX === env.chunkSize - 1 || localZ === 0 || localZ === env.chunkSize - 1;
                 if (!isPerimeter) return false;
+                const cx = x * env.cellSize;
+                const cz = z * env.cellSize;
                 if (sectorId && helpers.markOccupied) helpers.markOccupied(x, z);
                 const edge = env.chunkSize - 1;
                 const isDoorwayNS = (localZ === 0 || localZ === edge) && localX === 7;
@@ -266,12 +268,12 @@ export default class StructureKit {
                     const outerMat = env.sharedWallMat;
                     const buildMat = (isNS) => {
                         return [
-                            isNS ? aMat : (localX === edge ? outerMat : wMat),
-                            isNS ? aMat : (localX === 0 ? outerMat : wMat),
+                            isNS ? aMat : wMat,
+                            isNS ? aMat : wMat,
                             wMat,
                             aMat,
-                            !isNS ? aMat : (localZ === edge ? outerMat : wMat),
-                            !isNS ? aMat : (localZ === 0 ? outerMat : wMat)
+                            !isNS ? aMat : wMat,
+                            !isNS ? aMat : wMat
                         ];
                     };
                     const jambW = 0.25;
@@ -325,18 +327,23 @@ export default class StructureKit {
                 const outerWMat = env.sharedWallMat;
                 const w = env.cellSize + 0.02;
                 const d = env.cellSize + 0.02;
-                const cx = x * env.cellSize;
-                const cz = z * env.cellSize;
                 const wallHeight = isShoulder ? height : height + 2.0;
                 const multiMat = [
-                    localX === edge ? outerWMat : wMat,
+                    localX === env.chunkSize - 1 ? outerWMat : wMat,
                     localX === 0 ? outerWMat : wMat,
                     wMat,
                     wMat,
-                    localZ === edge ? outerWMat : wMat,
+                    localZ === env.chunkSize - 1 ? outerWMat : wMat,
                     localZ === 0 ? outerWMat : wMat
                 ];
                 const pushWallSegment = (segW, segH, segD, segCx, segCz) => {
+                    let offsetX = 0;
+                    let offsetZ = 0;
+                    if (localX === 0) offsetX = 0.02;
+                    if (localX === env.chunkSize - 1) offsetX = -0.02;
+                    if (localZ === 0) offsetZ = 0.02;
+                    if (localZ === env.chunkSize - 1) offsetZ = -0.02;
+                    
                     const key = `perim_${segW}_${segH}_${segD}`;
                     let geo = env.geoCache.get(key);
                     if (!geo) {
@@ -354,7 +361,7 @@ export default class StructureKit {
                         env.geoCache.set(geo.uuid, true);
                     }
                     const wall = new THREE.Mesh(geo, multiMat);
-                    wall.position.set(segCx, segH / 2, segCz);
+                    wall.position.set(segCx + offsetX, segH / 2, segCz + offsetZ);
                     wall.castShadow = true;
                     wall.receiveShadow = true;
                     wall.userData.chunkHash = hash;

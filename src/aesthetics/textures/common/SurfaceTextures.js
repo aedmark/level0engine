@@ -58,8 +58,8 @@ export default class SurfaceTextures {
         cbCtx.strokeStyle = '#000000';
         cbCtx.lineWidth = 4;
         cbCtx.strokeRect(0, 0, 256, 256);
-        const clinicTex = TextureMechanics._createWrappedTexture(clinicCanvas, 32, 32);
-        const clinicBumpTex = TextureMechanics._createWrappedTexture(clinicBumpCanvas, 32, 32);
+        const clinicTex = TextureMechanics._createWrappedTexture(clinicCanvas, 80, 80);
+        const clinicBumpTex = TextureMechanics._createWrappedTexture(clinicBumpCanvas, 80, 80);
         const clinicMat = new THREE.MeshStandardMaterial({
             map: clinicTex,
             bumpMap: clinicBumpTex,

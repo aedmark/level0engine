@@ -47,6 +47,8 @@ export default class ImpoundTextures {
         impoundWallTexture.repeat.set(4, 1);
         const impoundWallMat = new THREE.MeshStandardMaterial({
             map: impoundWallTexture,
+            emissive: 0x111111,
+            emissiveIntensity: 0.5,
             roughness: 0.85,
             metalness: 0.35,
             bumpMap: impoundWallTexture,

@@ -45,6 +45,7 @@ export default class Environment {
         this._exhaustColor = new THREE.Color();
         this.blackoutChunks = new Set();
         this.macroZones = new Map();
+        this.discoveredSectors = new Map();
         this.pointsOfInterest = [];
         this._breakerHuntHops = undefined;
         this.breakerScan = null;
@@ -77,8 +78,8 @@ export default class Environment {
         Object.assign(this, assets);
         const {carpetTexture, ceilingTexture, ceilingBumpTexture} = assets;
         carpetTexture.repeat.set(16, 16);
-        ceilingTexture.repeat.set(16, 16);
-        ceilingBumpTexture.repeat.set(16, 16);
+        ceilingTexture.repeat.set(20, 20);
+        ceilingBumpTexture.repeat.set(20, 20);
         this.carpetMat = new THREE.MeshStandardMaterial({
             map: carpetTexture,
             roughness: 1.0,
@@ -654,24 +655,30 @@ export default class Environment {
         const ctx = this._createChunkHelpers(hash, chunkGroup, stagingMeshes, random);
         const startX = chunkX * this.chunkSize;
         const startZ = chunkZ * this.chunkSize;
-        let isMacroStructure = random() > 0.60 &&
-            Math.max(Math.abs(chunkX), Math.abs(chunkZ)) >= this.macroSpawnExclusionRadius;
-        if (isMacroStructure) {
-            const spacing = this.macroMinSpacingChunks;
-            let tooCloseToAnotherMacro = false;
-            for (let dx = -spacing; dx <= spacing && !tooCloseToAnotherMacro; dx++) {
-                for (let dz = -spacing; dz <= spacing; dz++) {
-                    if (dx === 0 && dz === 0) continue;
-                    if (this._macroChunkHashes.has(`${chunkX + dx},${chunkZ + dz}`)) {
-                        tooCloseToAnotherMacro = true;
-                        break;
+        let isMacroStructure = false;
+        if (this.discoveredSectors.has(hash)) {
+            isMacroStructure = true;
+            this._macroChunkHashes.add(hash);
+        } else {
+            isMacroStructure = random() > 0.60 &&
+                Math.max(Math.abs(chunkX), Math.abs(chunkZ)) >= this.macroSpawnExclusionRadius;
+            if (isMacroStructure) {
+                const spacing = this.macroMinSpacingChunks;
+                let tooCloseToAnotherMacro = false;
+                for (let dx = -spacing; dx <= spacing && !tooCloseToAnotherMacro; dx++) {
+                    for (let dz = -spacing; dz <= spacing; dz++) {
+                        if (dx === 0 && dz === 0) continue;
+                        if (this._macroChunkHashes.has(`${chunkX + dx},${chunkZ + dz}`)) {
+                            tooCloseToAnotherMacro = true;
+                            break;
+                        }
                     }
                 }
-            }
-            if (tooCloseToAnotherMacro) {
-                isMacroStructure = false;
-            } else {
-                this._macroChunkHashes.add(hash);
+                if (tooCloseToAnotherMacro) {
+                    isMacroStructure = false;
+                } else {
+                    this._macroChunkHashes.add(hash);
+                }
             }
         }
         const structuralMatrix = isMacroStructure ? null : TheArchitect.getStructuralMatrix.call(this, ctx);
@@ -685,20 +692,26 @@ export default class Environment {
             const isExitPhase = this.player && this.player.objectives && this.player.objectives.fixed >= this.player.objectives.total &&
                 this.player.inventory.hasExitKey && !this.player.objectives.escaped;
             const poolKey = isExitPhase ? 'exit' : 'normal';
-            if (!this._sectorBags) this._sectorBags = {};
-            if (!this._sectorBags[poolKey] || this._sectorBags[poolKey].length === 0) {
-                const ids = sectorMatrix
-                    .filter(s => isExitPhase ? s.id !== "CHECKPOINT" : s.id !== "EXIT")
-                    .map(s => s.id);
-                for (let i = ids.length - 1; i > 0; i--) {
-                    const j = Math.floor(random() * (i + 1));
-                    const tmp = ids[i];
-                    ids[i] = ids[j];
-                    ids[j] = tmp;
+            let activeSectorId;
+            if (this.discoveredSectors.has(hash)) {
+                activeSectorId = this.discoveredSectors.get(hash);
+            } else {
+                if (!this._sectorBags) this._sectorBags = {};
+                if (!this._sectorBags[poolKey] || this._sectorBags[poolKey].length === 0) {
+                    const ids = sectorMatrix
+                        .filter(s => isExitPhase ? s.id !== "CHECKPOINT" : s.id !== "EXIT")
+                        .map(s => s.id);
+                    for (let i = ids.length - 1; i > 0; i--) {
+                        const j = Math.floor(random() * (i + 1));
+                        const tmp = ids[i];
+                        ids[i] = ids[j];
+                        ids[j] = tmp;
+                    }
+                    this._sectorBags[poolKey] = ids;
                 }
-                this._sectorBags[poolKey] = ids;
+                activeSectorId = this._sectorBags[poolKey].pop();
+                this.discoveredSectors.set(hash, activeSectorId);
             }
-            const activeSectorId = this._sectorBags[poolKey].pop();
             activeSector = sectorMatrix.find(s => s.id === activeSectorId);
             if (activeSector && activeSector.id === "IMPOUND") cHeight = 20.0;
             this.macroZones.set(hash, {
@@ -1476,15 +1489,23 @@ export default class Environment {
             const sectorAmbient = row && row.ambient !== undefined ? row.ambient : DEFAULT_AMBIENT;
             const targetAmbient = Math.max(MIN_AMBIENT, sectorAmbient * (1.0 - darknessPressure * 0.5));
             this.engine.ambientLight.intensity += (targetAmbient - this.engine.ambientLight.intensity) * 0.05;
+            
+            if (this.engine.ambientLight.isHemisphereLight) {
+                const targetGroundHex = row && row.groundColor !== undefined ? row.groundColor : 0x3d3520;
+                if (!this._targetGroundColor) this._targetGroundColor = new THREE.Color();
+                this._targetGroundColor.setHex(targetGroundHex);
+                this.engine.ambientLight.groundColor.lerp(this._targetGroundColor, 0.05);
+            }
+            
             if (this.engine.globalShadowLight) {
                 let targetShadow = this._stickySectorId === "SERVER" ? 0.05 : 0.40;
-                if (this._stickySectorId === "ATRIUM" || this._stickySectorId === "CLINIC") targetShadow = 0.0;
+                if (this._stickySectorId === "ATRIUM" || this._stickySectorId === "CLINIC" || this._stickySectorId === "BOARDROOM" || this._stickySectorId === "ANNEX") targetShadow = 0.0;
                 targetShadow = Math.max(0.0, targetShadow - (darknessPressure * 0.4));
                 this.engine.globalShadowLight.intensity += (targetShadow - this.engine.globalShadowLight.intensity) * 0.05;
             }
             if (this.glowMat) {
                 let targetGlowOpacity = Math.max(0.0, 1.0 - (darknessPressure * 0.4));
-                if (this._stickySectorId === "IMPOUND" || this._stickySectorId === "CHASM" || this._stickySectorId === "ATRIUM" || this._stickySectorId === "CLINIC") targetGlowOpacity = 0.0;
+                if (this._stickySectorId === "IMPOUND" || this._stickySectorId === "CHASM" || this._stickySectorId === "ATRIUM" || this._stickySectorId === "CLINIC" || this._stickySectorId === "BOARDROOM" || this._stickySectorId === "ANNEX") targetGlowOpacity = 0.0;
                 else if (this._stickySectorId === "ARCHIVE") targetGlowOpacity = 0.15;
                 else if (this._stickySectorId === "INCINERATOR") targetGlowOpacity = 0.1;
                 this.glowMat.opacity += (targetGlowOpacity - this.glowMat.opacity) * 0.1;
@@ -1552,6 +1573,7 @@ export default class Environment {
         this.interactiveDoors = [];
         this.airlocks = [];
         this.macroZones.clear();
+        this.discoveredSectors.clear();
         this.spatialGrid.clear();
         this.currentChunkCoords = {x: null, z: null, qx: null, qz: null};
         this.blackoutChunks.clear();

@@ -66,7 +66,7 @@ export const BoardroomSector = (env, ctx) => {
             }
             const bowlHere = isBowl(x, z, localX, localZ);
             const post = (px, pz, thick = 0.22) => {
-                const p = buildWall(thick, thick, env.metalMat, 3.0);
+                const p = buildWall(thick, thick, env.boardFrameMat || env.metalMat, 3.0);
                 p.position.set(px, 1.5, pz);
                 addGeometry(p);
             };
@@ -83,10 +83,10 @@ export const BoardroomSector = (env, ctx) => {
                 addGeometry(g);
             };
             const rails = (alongX, px, pz, len) => {
-                const sill = buildWall(alongX ? len : 0.22, alongX ? 0.22 : len, env.metalMat, 0.12);
+                const sill = buildWall(alongX ? len : 0.22, alongX ? 0.22 : len, env.boardFrameMat || env.metalMat, 0.12);
                 sill.position.set(px, 0.06, pz);
                 addGeometry(sill);
-                const head = buildWall(alongX ? len : 0.22, alongX ? 0.22 : len, env.metalMat, 0.3);
+                const head = buildWall(alongX ? len : 0.22, alongX ? 0.22 : len, env.boardFrameMat || env.metalMat, 0.3);
                 head.position.set(px, 2.83, pz);
                 addGeometry(head);
             };

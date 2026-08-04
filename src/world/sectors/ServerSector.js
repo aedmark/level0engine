@@ -120,6 +120,9 @@ export const ServerSector = (env, ctx) => {
                         ix = 0;
                         iz = -1;
                     }
+                    if (maze && maze[localX + ix] && maze[localX + ix][localZ + iz]) {
+                        return;
+                    }
                     const inset = (env.cellSize / 2) + 0.45;
                     const px = x * env.cellSize + ix * inset;
                     const pz = z * env.cellSize + iz * inset;

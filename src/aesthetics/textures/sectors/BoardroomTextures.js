@@ -90,12 +90,80 @@ export default class BoardroomTextures {
         btx.stroke();
         const btTex = new THREE.CanvasTexture(btc);
         btTex.wrapS = btTex.wrapT = THREE.RepeatWrapping;
-        btTex.repeat.set(14, 14);
+        btTex.repeat.set(40, 40);
         const boardTileMat = new THREE.MeshStandardMaterial({map: btTex, roughness: 0.6, metalness: 0.1});
         const glassMat = new THREE.MeshStandardMaterial({
             color: 0xbfe3ef, transparent: true, opacity: 0.22,
             roughness: 0.08, metalness: 0.1, depthWrite: false
         });
-        return {boardWallMat, boardTileMat, glassMat};
+
+        const frameCanvas = document.createElement('canvas');
+        frameCanvas.width = frameCanvas.height = 256;
+        const ftx = frameCanvas.getContext('2d');
+        ftx.fillStyle = '#808080';
+        ftx.fillRect(0, 0, 256, 256);
+        for (let i = 0; i < 300; i++) {
+            ftx.fillStyle = `rgba(0, 0, 0, ${0.05 + Math.random() * 0.1})`;
+            ftx.beginPath();
+            ftx.arc(Math.random() * 256, Math.random() * 256, 2 + Math.random() * 15, 0, Math.PI * 2);
+            ftx.fill();
+        }
+        const frameBumpTex = new THREE.CanvasTexture(frameCanvas);
+        frameBumpTex.wrapS = frameBumpTex.wrapT = THREE.RepeatWrapping;
+        const boardFrameMat = new THREE.MeshStandardMaterial({
+            color: 0x111111,
+            roughness: 0.65,
+            metalness: 0.8,
+            bumpMap: frameBumpTex,
+            bumpScale: 0.015
+        });
+
+        const bcCanvas = document.createElement('canvas');
+        bcCanvas.width = bcCanvas.height = 256;
+        const bctx = bcCanvas.getContext('2d');
+        
+        bctx.fillStyle = '#393636';
+        bctx.fillRect(0, 0, 256, 256);
+
+        // Acoustic pinholes
+        bctx.fillStyle = '#2b2d33';
+        for(let i = 0; i < 3000; i++) {
+            bctx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
+        }
+        bctx.fillStyle = '#3f4249';
+        for(let i = 0; i < 1500; i++) {
+            bctx.fillRect(Math.random() * 256, Math.random() * 256, 1, 1);
+        }
+
+        // Ceiling grid rails
+        bctx.strokeStyle = '#1a1c20';
+        bctx.lineWidth = 4;
+        for (let ty = 0; ty < 2; ty++) {
+            for (let tx = 0; tx < 2; tx++) {
+                bctx.strokeRect(tx * 128, ty * 128, 128, 128);
+            }
+        }
+
+        // Subtle ambient grime
+        bctx.globalAlpha = 0.08;
+        bctx.drawImage(masterNoise, 0, 0, 256, 256);
+        bctx.globalAlpha = 1.0;
+
+        const bcTex = new THREE.CanvasTexture(bcCanvas);
+        bcTex.wrapS = bcTex.wrapT = THREE.RepeatWrapping;
+        bcTex.repeat.set(40, 40); // 2x2 grid repeating 40 times = 80 tiles (5 tiles per cell)
+
+        const boardCeilingMat = new THREE.MeshStandardMaterial({
+            map: bcTex,
+            emissiveMap: bcTex,
+            emissive: 0x606a75,
+            emissiveIntensity: 2.0,
+            roughness: 0.95,
+            metalness: 0.0,
+            bumpMap: bcTex,
+            bumpScale: 0.005
+        });
+
+        return {boardWallMat, boardTileMat, glassMat, boardFrameMat, boardCeilingMat};
     }
 }
