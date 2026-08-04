@@ -47,19 +47,6 @@ export default class RenderEngine {
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
         this.ambientLight = new THREE.HemisphereLight(0xfff5c2, 0x3d3520, 0.45);
         this.scene.add(this.ambientLight);
-        this.globalShadowLight = new THREE.SpotLight(0xfff5c2, 0.40);
-        this.globalShadowLight.angle = 1.0;
-        this.globalShadowLight.penumbra = 0.8;
-        this.globalShadowLight.distance = 30.0;
-        this.globalShadowLight.decay = 0.5;
-        this.globalShadowLight.castShadow = shadowQuality !== 'off';
-        this.globalShadowLight.shadow.mapSize.width = shadowQuality === 'low' ? 512 : 1024;
-        this.globalShadowLight.shadow.mapSize.height = shadowQuality === 'low' ? 512 : 1024;
-        this.globalShadowLight.shadow.camera.near = 1.0;
-        this.globalShadowLight.shadow.camera.far = 30.0;
-        this.globalShadowLight.shadow.bias = -0.0005;
-        this.scene.add(this.globalShadowLight);
-        this.scene.add(this.globalShadowLight.target);
         const aaSamples = RenderEngine.getSavedAA();
         if (aaSamples > 0) {
             this.target = new THREE.WebGLMultisampleRenderTarget(window.innerWidth, window.innerHeight, {
@@ -425,11 +412,6 @@ export default class RenderEngine {
     }
 
     render() {
-        if (this.globalShadowLight) {
-            this.globalShadowLight.position.set(this.camera.position.x, 15.0, this.camera.position.z);
-            this.globalShadowLight.target.position.set(this.camera.position.x, 0.0, this.camera.position.z);
-        }
-        
         if (this.enablePostProcessing) {
             this.renderer.setRenderTarget(this.target);
             this.renderer.render(this.scene, this.camera);

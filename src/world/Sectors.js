@@ -37,7 +37,7 @@ export const DEFAULT_REVERB = {
     wet: 0.14
 };
 
-export const DEFAULT_AMBIENT = 0.65;
+export const DEFAULT_AMBIENT = 1.00;
 
 export const MIN_AMBIENT = 0.005;
 
@@ -60,7 +60,7 @@ const SECTORS = {
     },
     ARCHIVE: {
         fog: 0.07, fogColor: 0x000000,
-        ambient: 0.58,
+        ambient: 0.42,
         ambience: {
             noise: 0.06,
             peace: 0.0,
@@ -119,8 +119,8 @@ const SECTORS = {
         reverb: {rt60: 0.7, predelay: 0.011, wet: 0.12}
     },
     SERVER: {
-        fog: 0.01, fogColor: 0x380159,
-        ambient: 0.08,
+        fog: 0.02, fogColor: 0x380159,
+        ambient: 0.20,
         ambience: {
             noise: 0.1,
             peace: 0.0,
@@ -223,7 +223,7 @@ const SECTORS = {
     },
     ATRIUM: {
         fog: 0.08, fogColor: 0x000000,
-        ambient: 0.05,
+        ambient: 0.1,
         ambience: {
             noise: 0.13,
             peace: 0.0,
@@ -245,7 +245,7 @@ const SECTORS = {
     },
     ANNEX: {
         fog: 0.03,
-        ambient: 0.55, groundColor: 0x666255,
+        ambient: 0.45, groundColor: 0x666255,
         ambience: {
             noise: 0.03,
             peace: 0.0,

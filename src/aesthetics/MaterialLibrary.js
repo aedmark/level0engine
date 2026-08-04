@@ -43,14 +43,10 @@ export default class MaterialLibrary {
         env.wallVentMat = env.ventMat.clone();
         env.wallVentMat.map = env.ventMat.map.clone();
         env.wallVentMat.map.repeat.set(1, 1);
-        env.serverFloorMat = env.ventMat.clone();
-        env.serverFloorMat.map = env.ventMat.map.clone();
-        env.serverFloorMat.map.repeat.set(64, 32);
-        env.serverFloorMat.metalness = 0.2;
-        env.serverFloorMat.roughness = 0.85;
-        env.serverCeilingMat = env.serverFloorMat.clone();
-        env.serverCeilingMat.metalness = 0.0;
-        env.serverCeilingMat.roughness = 0.95;
+        env.wallVentMat.userData = { noShadow: true };
+        // serverFloorMat and serverCeilingMat are injected from ProceduralTextureFactory
+        env.serverFloorMat.map.repeat.set(32, 32);
+        env.serverCeilingMat.map.repeat.set(32, 32);
         env.breakerBaseGeo = new THREE.BoxGeometry(0.6, 0.8, 0.20);
         env.breakerDoorGeo = new THREE.BoxGeometry(0.6, 0.8, 0.05);
         env.breakerDoorGeo.translate(0.3, 0, 0);

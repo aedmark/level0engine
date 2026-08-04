@@ -6,6 +6,7 @@ _Context-Aware Generation_
 
 ### Added
 
+- **[AESTHETICS] Bespoke Server Textures:** The Server Sector used to simply recycle standard vent textures for both its floor and ceiling, which looked overly emissive and bright. It now features two brand new, custom-drawn procedural textures: a dark perforated raised floor tile texture for the ground, and a dark slotted acoustic panel texture for the ceiling.
 - **[WORLD] The Vents Are Context-Aware:** `DuctOrVent` and `TunnelBurst` procedural structures now dynamically query the generated wall grid around them to orient their openings toward clear floor cells, meaning they no longer randomly point into solid walls. If placed inside a thick wall segment, they will forcefully carve a pathway through the adjacent generation grid to guarantee an exit on the other side, turning useless dead-end crevices into functional secret passages that bridge rooms. If a tunnel evaluates that it is completely buried with no accessible entrance at all, it smartly aborts generation and defaults back to a solid wall block rather than spawning a dead end.
 - **[WORLD] Doors Hide Complete Micro-Sectors:** `HingedDoorway.js` has been upgraded to a Micro-Sector Generator. Instead of just placing a door in a wall that opens to whatever random hallway the engine spawned behind it, a doorway will now intentionally hijack the generator and carve out a fully enclosed 2x2 to 4x4 room into the grid space behind it, bordering it off with solid walls so the room is hermetically sealed and hidden from the rest of the maze until the door is opened.
 - **[WORLD] Recursive Corridors:** Added a `ctx.forceStructure` command into the core loop of `Environment.js` that allows blueprints to enforce rules onto cells yet to be generated. When a hidden doorway room is generated, it now has a 30% chance to forcefully spawn *another* door on its back wall, which will in turn carve out its own hidden room, chaining together into deep, recursive corridors of interconnected mystery rooms hidden entirely behind the facade of the mundane maze walls.
@@ -17,6 +18,8 @@ _Context-Aware Generation_
 
 ### Fixed
 
+- **[WORLD] Annex Airlocks Cleared:** Fixed an issue where `AnnexSector` was blindly running perimeter generation across doorway coordinates and blocking the airlocks with yellow walls. Added explicit `isDoorway` guard clauses to ensure those cells remain completely open.
+- **[AESTHETICS] Server Ceiling Shadows:** Corrected an issue where the new Server Ceiling texture remained pitch black except under direct flashlight illumination. The ceiling now uses its own texture as an `emissiveMap` with a subtle cool-grey glow, providing just enough ambient definition to prevent it from getting lost in the dark while preserving realistic shadow contrast.
 - **[WORLD] Stairs No Longer Spawn Trapped:** Fixed a bug where `CratesOrStairway` structures would often generate fully encased by 4 solid walls. Stairways now utilize the same context-aware grid checking as vents, intelligently rotating to face an open path, or carving one if necessary, ensuring the steps are always accessible.
 
 

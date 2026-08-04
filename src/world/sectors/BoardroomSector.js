@@ -211,8 +211,8 @@ export const BoardroomSector = (env, ctx) => {
                         ret.position.set(alongX ? retLat : retFace, 1.5, alongX ? retFace : retLat);
                         addGeometry(ret);
                     }
-                    const adjLen = len - (extNeg === 0 ? 0.1 : 0) - (extPos === 0 ? 0.1 : 0);
-                    const adjLatC = latC + (extNeg === 0 ? 0.05 : 0) - (extPos === 0 ? 0.05 : 0);
+                    const adjLen = len - (extNeg === 0 ? 0.5 : 0) - (extPos === 0 ? 0.5 : 0);
+                    const adjLatC = latC + (extNeg === 0 ? 0.25 : 0) - (extPos === 0 ? 0.25 : 0);
                     const isDoorFace = myEgress.door && myEgress.door[0] === dx && myEgress.door[1] === dz;
                     if (bowlHere) {
                         glassFace(alongX, faceC, adjLatC, adjLen, false);
@@ -229,8 +229,8 @@ export const BoardroomSector = (env, ctx) => {
                     const faceC = alongX ? bz + 2 : bx + 2;
                     const len = env.cellSize + extNeg + extPos;
                     const latC = (alongX ? bx : bz) + (extPos - extNeg) / 2;
-                    const adjLen = len - (extNeg === 0 ? 0.1 : 0) - (extPos === 0 ? 0.1 : 0);
-                    const adjLatC = latC + (extNeg === 0 ? 0.05 : 0) - (extPos === 0 ? 0.05 : 0);
+                    const adjLen = len - (extNeg === 0 ? 0.5 : 0) - (extPos === 0 ? 0.5 : 0);
+                    const adjLatC = latC + (extNeg === 0 ? 0.25 : 0) - (extPos === 0 ? 0.25 : 0);
                     const neighborBowl = isBowl(x + dx, z + dz, nlx, nlz);
                     if (bowlHere || neighborBowl) {
                         glassFace(alongX, faceC, adjLatC, adjLen, false);
@@ -306,19 +306,27 @@ export const BoardroomSector = (env, ctx) => {
                     }
                 }
                 if (random() > 0.55) {
-                    const crtGroup = new THREE.Group();
-                    const body = new THREE.Mesh(env.terminalBodyGeo, env.baseHousingMat);
-                    body.position.set(0, 0.2, 0);
-                    const screen = new THREE.Mesh(env._boxGeo(0.45, 0.35, 0.05), env.crtScreenMat);
-                    screen.position.set(0, 0.2, 0.26);
-                    crtGroup.add(body, screen);
-                    crtGroup.position.set(bx, 0.825, bz);
-                    crtGroup.rotation.y = random() * Math.PI * 2;
-                    chunkGroup.add(crtGroup);
-                    crtGroup.updateMatrixWorld(true);
-                    body.userData.chunkHash = hash;
-                    screen.userData.chunkHash = hash;
-                    stagingMeshes.push(body, screen);
+                    const phoneGroup = new THREE.Group();
+                    const phoneGeo = env._cacheGeo('confPhone', () => {
+                        const g = new THREE.CylinderGeometry(0.18, 0.20, 0.05, 3);
+                        g.translate(0, 0.025, 0);
+                        return g;
+                    });
+                    const phoneBody = new THREE.Mesh(phoneGeo, env.boardFrameMat || env.baseHousingMat);
+                    const speakerGeo = env._cacheGeo('confSpeaker', () => {
+                        const g = new THREE.CylinderGeometry(0.07, 0.07, 0.052, 16);
+                        g.translate(0, 0.026, 0);
+                        return g;
+                    });
+                    const speaker = new THREE.Mesh(speakerGeo, env.crtScreenMat || env.baseHousingMat);
+                    phoneGroup.add(phoneBody, speaker);
+                    phoneGroup.position.set(bx, 0.96, bz);
+                    phoneGroup.rotation.y = random() * Math.PI * 2;
+                    chunkGroup.add(phoneGroup);
+                    phoneGroup.updateMatrixWorld(true);
+                    phoneBody.userData.chunkHash = hash;
+                    speaker.userData.chunkHash = hash;
+                    stagingMeshes.push(phoneBody, speaker);
                 }
             } else if (dress < 0.57) {
                 const felled = buildChair(bx + (random() - 0.5) * 2.0, 0, bz + (random() - 0.5) * 2.0, random() * Math.PI * 2);

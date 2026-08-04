@@ -58,14 +58,14 @@ export default class BoardroomTextures {
         wallCtx.fillRect(0, 476, 512, 4);
         wallCtx.fillStyle = 'rgba(0,0,0,0.12)';
         wallCtx.fillRect(255, 0, 2, 512);
-        const boardWallTexture = TextureMechanics._createWrappedTexture(wallCanvas, 4, 1, true);
+        const boardWallTexture = TextureMechanics._createWrappedTexture(wallCanvas, 1.75, 1, true);
         const boardWallMat = new THREE.MeshStandardMaterial({
             map: boardWallTexture,
-            color: 0xffffff,
+            color: 0xA9D2FC,
             roughness: 0.7,
             metalness: 0.05,
             bumpMap: boardWallTexture,
-            bumpScale: 0.008
+            bumpScale: 0.018
         });
         const btc = document.createElement('canvas');
         btc.width = btc.height = 256;
@@ -120,6 +120,8 @@ export default class BoardroomTextures {
             color: 0x111111,
             roughness: 0.65,
             metalness: 0.8,
+            emissive: 0x000000,
+            emissiveIntensity: 0.2,
             bumpMap: frameBumpTex,
             bumpScale: 0.015
         });

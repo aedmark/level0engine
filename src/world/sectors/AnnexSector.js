@@ -22,6 +22,13 @@ export const AnnexSector = (env, ctx) => {
         foundationMat: env.annexFloorMat || env.sharedWallMat,
         ceilingMat: env.annexCeilingMat || env.sharedWallMat,
         build: (x, z, localX, localZ) => {
+            const edge = env.chunkSize - 1;
+            const isDoorwayNS = localX === 7 && (localZ === 0 || localZ === edge);
+            const isDoorwayEW = localZ === 7 && (localX === 0 || localX === edge);
+            const isDoorway = isDoorwayNS || isDoorwayEW;
+
+            if (isDoorway) return;
+
             if (ctx.buildPerimeter(x, z, localX, localZ, env.annexWallMat || env.sharedWallMat, "ANNEX")) return;
             const ox = x * env.cellSize, oz = z * env.cellSize;
             const isCorr = (lx, lz) => lx > 0 && lx < env.chunkSize - 1 && lz > 0 && lz < env.chunkSize - 1 &&

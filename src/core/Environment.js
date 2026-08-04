@@ -1272,8 +1272,8 @@ export default class Environment {
         const PUPIL_CONSTRICT_RATE = 0.80;
         const PUPIL_DILATE_RATE = 0.28;
         const PUPIL_SATURATION = 0.25;
-        const PUPIL_MAX_ATTENUATION = 0.85;
-        const PUPIL_MAX_DIM = 0.30;
+        const PUPIL_MAX_ATTENUATION = 0.90;
+        const PUPIL_MAX_DIM = 0.40;
         const dt = this._lastGlareTime === undefined
             ? 0.016
             : Math.min(0.1, Math.max(0.0, time - this._lastGlareTime));
@@ -1501,13 +1501,6 @@ export default class Environment {
                 if (!this._targetGroundColor) this._targetGroundColor = new THREE.Color();
                 this._targetGroundColor.setHex(targetGroundHex);
                 this.engine.ambientLight.groundColor.lerp(this._targetGroundColor, 0.05);
-            }
-            
-            if (this.engine.globalShadowLight) {
-                let targetShadow = this._stickySectorId === "SERVER" ? 0.05 : 0.40;
-                if (this._stickySectorId === "ATRIUM" || this._stickySectorId === "CLINIC" || this._stickySectorId === "BOARDROOM" || this._stickySectorId === "ANNEX") targetShadow = 0.0;
-                targetShadow = Math.max(0.0, targetShadow - (darknessPressure * 0.4));
-                this.engine.globalShadowLight.intensity += (targetShadow - this.engine.globalShadowLight.intensity) * 0.05;
             }
             if (this.glowMat) {
                 let targetGlowOpacity = Math.max(0.0, 1.0 - (darknessPressure * 0.4));
