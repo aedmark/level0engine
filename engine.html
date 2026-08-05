@@ -107,7 +107,7 @@
             box-sizing: border-box;
         }
 
-        .btn:hover {
+        .btn:hover, .btn.virtual-hover {
             background: #d4c382;
             color: #111;
         }
@@ -120,7 +120,7 @@
             background: #4a452a;
         }
 
-        #captureBtn:hover {
+        #captureBtn:hover, #captureBtn.virtual-hover {
             background: #d4c382;
         }
 
@@ -211,7 +211,7 @@
             transition: all 0.15s;
         }
 
-        .inquest-opt:hover {
+        .inquest-opt:hover, .inquest-opt.virtual-hover {
             border-color: #d4c382;
             background: #26261a;
         }
@@ -294,7 +294,7 @@
             transition: all 0.1s;
         }
 
-        .kp-btn:hover {
+        .kp-btn:hover, .kp-btn.virtual-hover {
             background: #d4c382;
             color: #111;
         }
@@ -465,17 +465,130 @@
         }
         
         #document-overlay.clipboard-mode::before {
-            content: "";
+            content: '';
             position: absolute;
-            top: -35px;
+            top: -15px;
             left: 50%;
             transform: translateX(-50%);
-            width: 120px;
+            width: 80px;
             height: 25px;
-            background-color: #a0a0a0;
-            border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
-            border: 1px solid #777;
+            background-color: #c0c0c0;
+            border-radius: 5px;
+            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2), 0 2px 5px rgba(0,0,0,0.3);
+            z-index: 2001;
+        }
+
+        /* --- JOURNAL PDA OVERLAY --- */
+        #journal-overlay {
+            display: none;
+            position: absolute;
+            top: 10%;
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            max-width: 900px;
+            background-color: #1a0a00;
+            border: 2px solid #ffb000;
+            border-radius: 8px;
+            box-shadow: 0 0 40px rgba(255, 176, 0, 0.4), inset 0 0 20px rgba(255, 176, 0, 0.1);
+            color: #ffb000;
+            font-family: 'Courier New', Courier, monospace;
+            z-index: 2000;
+            overflow: hidden;
+            flex-direction: row;
+        }
+
+        #journal-overlay.active {
+            display: flex;
+        }
+
+        #journal-overlay::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(rgba(255, 176, 0, 0.05) 50%, transparent 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 2001;
+        }
+
+        #journal-sidebar {
+            width: 35%;
+            border-right: 2px solid #ffb000;
+            display: flex;
+            flex-direction: column;
+            background-color: rgba(26, 10, 0, 0.9);
+            z-index: 2002;
+        }
+
+        .journal-header {
+            padding: 1rem;
+            border-bottom: 2px solid #ffb000;
+            font-weight: bold;
+            font-size: 1.2rem;
+            text-align: center;
+            letter-spacing: 2px;
+            background-color: #ffb000;
+            color: #1a0a00;
+            text-transform: uppercase;
+        }
+
+        #journal-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+
+        .journal-entry-btn {
+            display: block;
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(255, 176, 0, 0.3);
+            color: #ffb000;
+            font-family: 'Courier New', Courier, monospace;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.1s;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .journal-entry-btn:hover, .journal-entry-btn.virtual-hover {
+            background-color: rgba(255, 176, 0, 0.15);
+        }
+
+        .journal-entry-btn.selected {
+            background-color: #ffb000;
+            color: #1a0a00;
+            font-weight: bold;
+        }
+
+        #journal-content-pane {
+            flex-grow: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            position: relative;
+            background-color: rgba(26, 10, 0, 0.95);
+            z-index: 2002;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            text-shadow: 0 0 3px rgba(255, 176, 0, 0.6);
+        }
+
+        .journal-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: rgba(255, 176, 0, 0.5);
+            font-style: italic;
         }
 
         #document-content {
@@ -745,6 +858,25 @@
             cursor: pointer;
         }
 
+        #virtual-cursor {
+            display: none;
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background-color: rgba(255, 176, 0, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 10000;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(255, 176, 0, 0.6);
+            mix-blend-mode: exclusion;
+        }
+        
+        #virtual-cursor.active {
+            display: block;
+        }
+
         #menuToggleBtn {
             position: absolute;
             top: 1.5rem;
@@ -756,6 +888,7 @@
     </style>
 </head>
 <body>
+<div id="virtual-cursor"></div>
 <div id="screen-wrapper">
     <div id="canvas-container"></div>
     <div id="flash-overlay">
@@ -764,6 +897,16 @@
     <div id="document-overlay">
         <div id="document-content"></div>
         <div class="document-footer">[ PRESS 'E' TO CLOSE ]</div>
+    </div>
+    
+    <div id="journal-overlay">
+        <div id="journal-sidebar">
+            <div class="journal-header">DATA ARCHIVE</div>
+            <ul id="journal-list"></ul>
+        </div>
+        <div id="journal-content-pane">
+            <div class="journal-placeholder">Select an entry to read.</div>
+        </div>
     </div>
     <div id="keypad-overlay">
         <div class="keypad-header">SECURITY OVERRIDE</div>
@@ -825,7 +968,7 @@
 <div id="ui-layer">
     <button id="menuToggleBtn" class="btn">MENU</button>
     <div class="control-panel">
-        <h1>LEVEL 0 ENGINE v0.7.9</h1>
+        <h1>LEVEL 0 ENGINE v0.8.0</h1>
         <div class="instructions">
             <p align="center">WASD to Move | Shift to Run<br>'E' to Interact | 'C' to Crouch<br>'Q' to Squeeze | 'V' to Blink<br>'F' for
                 Flashlight | '1' Use Battery<br>'2' Use Water | LMB to Look<br>RMB to Lean</p><br>

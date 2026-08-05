@@ -4,7 +4,7 @@
  * [STATE] Stateful, tracks key states and pointer lock status.
  * [DEPENDS] DOM events (keydown, keyup, mousemove, pointerlock).
  */
-const PREVENT_KEYS = new Set(['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyV', 'KeyQ', 'KeyF', 'KeyE', 'KeyG', 'KeyZ', 'Space', 'Tab']);
+const PREVENT_KEYS = new Set(['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA', 'ArrowDown', 'KeyS', 'ArrowRight', 'KeyD', 'KeyM', 'KeyC', 'KeyX', 'KeyV', 'KeyQ', 'KeyF', 'KeyE', 'KeyG', 'KeyZ', 'Space', 'Tab', 'KeyJ']);
 export default class SomaticInput {
     constructor(camera) {
         this.camera = camera;
@@ -19,6 +19,9 @@ export default class SomaticInput {
             isReading: false,
             flyUp: false
         };
+        this.cursorX = window.innerWidth / 2;
+        this.cursorY = window.innerHeight / 2;
+        this.hoveredElement = null;
         this.suppressCrouchToggle = false;
         this.isLocked = false;
         this.lockFallback = false;
@@ -63,6 +66,12 @@ export default class SomaticInput {
             }
         });
         document.addEventListener('mousedown', (e) => {
+            if (this.state.isReading && e.button === 0) {
+                if (this.hoveredElement) {
+                    this.hoveredElement.click();
+                }
+                return;
+            }
             if (this.lockFallback && e.button === 0 && !this.state.isReading) this._dragLook = true;
             if ((this.isLocked || this.lockFallback) && e.button === 2) this.state.isPeeking = true;
         });
@@ -115,6 +124,9 @@ export default class SomaticInput {
         }
         if (event.code === 'KeyM' && !this.state.isReading) {
             document.dispatchEvent(new Event('somatic-toggle-compass'));
+        }
+        if (event.code === 'KeyJ') {
+            document.dispatchEvent(new Event('somatic-journal-toggle'));
         }
         if (event.code === 'KeyE') {
             if (event.repeat) return;
@@ -207,6 +219,36 @@ export default class SomaticInput {
 
     _onMouseMove(e) {
         if (!this.isLocked && !(this.lockFallback && this._dragLook)) return;
+        
+        if (this.state.isReading) {
+            this.cursorX += e.movementX;
+            this.cursorY += e.movementY;
+            this.cursorX = Math.max(0, Math.min(window.innerWidth, this.cursorX));
+            this.cursorY = Math.max(0, Math.min(window.innerHeight, this.cursorY));
+            
+            const vCursor = document.getElementById('virtual-cursor');
+            if (vCursor) {
+                vCursor.style.left = this.cursorX + 'px';
+                vCursor.style.top = this.cursorY + 'px';
+                
+                // Hide cursor temporarily to let elementFromPoint see what's underneath
+                vCursor.style.display = 'none';
+                const element = document.elementFromPoint(this.cursorX, this.cursorY);
+                vCursor.style.display = '';
+                
+                if (element !== this.hoveredElement) {
+                    if (this.hoveredElement) {
+                        this.hoveredElement.classList.remove('virtual-hover');
+                    }
+                    this.hoveredElement = element;
+                    if (this.hoveredElement) {
+                        this.hoveredElement.classList.add('virtual-hover');
+                    }
+                }
+            }
+            return;
+        }
+
         if (this.state.isPeeking) {
             this.state.targetLean -= e.movementX * 0.002;
             this.state.targetLean = Math.max(-0.5, Math.min(0.5, this.state.targetLean));

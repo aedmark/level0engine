@@ -29,6 +29,7 @@ export default class KeypadController {
                     document.dispatchEvent(new Event('somatic-keypad-success'));
                     const kp = document.getElementById('keypad-overlay');
                     if (kp) kp.style.display = 'none';
+                    document.getElementById('virtual-cursor').classList.remove('active');
                     this.player.input.state.isReading = false;
                 }, 500);
             } else {
@@ -59,7 +60,11 @@ export default class KeypadController {
             if (this.player.input.state.isReading) return;
             this.player.input.state.isReading = true;
             this.player.input.state.isRunning = false;
-            if (document.pointerLockElement) document.exitPointerLock();
+            
+            this.player.input.cursorX = window.innerWidth / 2;
+            this.player.input.cursorY = window.innerHeight / 2;
+            document.getElementById('virtual-cursor').classList.add('active');
+            
             this.currentKeypadInput = "";
             const display = document.getElementById('keypad-display');
             if (display) {

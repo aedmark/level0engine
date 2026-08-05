@@ -50,7 +50,11 @@ export default class DocumentViewer {
             if (this.player.input.state.isReading) return;
             this.player.input.state.isReading = true;
             this.player.input.state.isRunning = false;
-            if (document.pointerLockElement) document.exitPointerLock();
+            
+            this.player.input.cursorX = window.innerWidth / 2;
+            this.player.input.cursorY = window.innerHeight / 2;
+            document.getElementById('virtual-cursor').classList.add('active');
+            
             const docOverlay = document.getElementById('document-overlay');
             const docContent = document.getElementById('document-content');
             if (docContent) {
@@ -144,6 +148,7 @@ export default class DocumentViewer {
                 this.acoustics.triggerSomaticEvent('door', 1.0, 0.3);
             } else if (docOverlay && docOverlay.style.display !== 'none') {
                 docOverlay.style.display = 'none';
+                document.getElementById('virtual-cursor').classList.remove('active');
                 this.acoustics.triggerSomaticEvent('item', 1.0, 0.2);
             }
         });

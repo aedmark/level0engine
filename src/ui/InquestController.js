@@ -31,6 +31,7 @@ export default class InquestController {
             this.acoustics.triggerSomaticEvent('tape_click', 1.0, 0.6);
             setTimeout(() => {
                 document.getElementById('inquest-overlay').style.display = 'none';
+                document.getElementById('virtual-cursor').classList.remove('active');
                 this.player.input.state.isReading = false;
                 exitRef.userData.active = false;
                 this.player.objectives.escaped = true;
@@ -63,6 +64,7 @@ export default class InquestController {
             this.acoustics.triggerSomaticEvent('breaker', 1.0, 0.8);
             setTimeout(() => {
                 document.getElementById('inquest-overlay').style.display = 'none';
+                document.getElementById('virtual-cursor').classList.remove('active');
                 this.player.input.state.isReading = false;
                 this.onBlackout();
                 this.player.resetMetabolism();
@@ -76,7 +78,11 @@ export default class InquestController {
             if (this.player.input.state.isReading) return;
             this.player.input.state.isReading = true;
             this.player.input.state.isRunning = false;
-            if (document.pointerLockElement) document.exitPointerLock();
+            
+            this.player.input.cursorX = window.innerWidth / 2;
+            this.player.input.cursorY = window.innerHeight / 2;
+            document.getElementById('virtual-cursor').classList.add('active');
+            
             this.pendingExit = e.detail.exitRef;
             this.inquestLocked = false;
             const story = this.getStory();

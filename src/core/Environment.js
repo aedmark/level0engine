@@ -203,10 +203,25 @@ export default class Environment {
         this.generate();
         const toggleBtn = document.getElementById('menuToggleBtn');
         const toggleMenu = (e) => {
-            e.preventDefault();
+            if (e && e.preventDefault) e.preventDefault();
             const panel = document.querySelector('.control-panel');
             const isHidden = window.getComputedStyle(panel).display === 'none';
             panel.style.display = isHidden ? 'block' : 'none';
+            
+            if (this.player && this.player.input) {
+                // We do NOT use the virtual cursor for the complex settings menu
+                // because native form elements (select, range) require the OS mouse.
+                this.player.input.state.isReading = isHidden;
+                if (isHidden) {
+                    if (document.pointerLockElement) {
+                        document.exitPointerLock();
+                    }
+                    const vc = document.getElementById('virtual-cursor');
+                    if (vc) vc.classList.remove('active');
+                } else {
+                    document.body.requestPointerLock()?.catch(() => {});
+                }
+            }
         };
         toggleBtn.addEventListener('pointerdown', toggleMenu);
         document.addEventListener('keydown', (e) => {

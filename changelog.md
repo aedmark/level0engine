@@ -1,5 +1,15 @@
 # Level 0 Engine Changelog
 
+## [v0.8.0] - 2026-08-05
+
+_The Seamless UI Update_
+
+### Added
+
+- **[UI] In-Engine Virtual Cursor:** Overhauled the pointer lock system. Opening menus (Journal, Keypad, Documents, Inquest) no longer drops the browser's pointer lock. Instead, the engine intercepts mouse movement to drive a custom, glowing amber virtual cursor. This allows for seamless interactions with in-game UI overlays without the jarring appearance of the OS cursor, significantly improving immersion.
+- **[UI] Seamless Settings Menu:** Adjusted the pause/settings menu (`Tab`) to smartly drop pointer lock so users can natively interact with complex HTML form elements (like sliders and dropdowns), and automatically request pointer lock again when the menu closes, immediately returning the player to the action.
+- **[UI] Personal Journal System:** Introduced an amber PDA-style Journal overlay (`J` key) that dynamically tracks and lists all collected story fragments and data recovered throughout the facility. Players can now review the lore they've discovered at any time.
+
 ## [v0.7.9] - 2026-08-04
 
 _Atrium Clutter & Room Connectivity_

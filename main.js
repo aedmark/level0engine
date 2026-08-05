@@ -7,6 +7,7 @@ import StoryEngine from './src/narrative/StoryEngine.js';
 import SaveManager from './src/system/SaveManager.js';
 import SomaticController from './src/system/SomaticController.js';
 import DocumentViewer from './src/ui/DocumentViewer.js';
+import JournalViewer from './src/ui/JournalViewer.js';
 import KeypadController from './src/ui/KeypadController.js';
 import InquestController from './src/ui/InquestController.js';
 import UIManager from './src/ui/UIManager.js';
@@ -58,6 +59,7 @@ function ensurePendingContentAtPlayer() {
 }
 
 const docViewer = new DocumentViewer(player, acoustics, getStory);
+const journalViewer = new JournalViewer(player, acoustics, getStory);
 const keypad = new KeypadController(player, acoustics, getStory);
 const inquest = new InquestController(player, acoustics, engine, environment, getStory, triggerAscension, triggerBlackout);
 const savedState = saveManager.loadState();
