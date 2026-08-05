@@ -1,4 +1,4 @@
-# Level 0 Engine: Procedural Liminal Space Simulator v0.8.0
+# Level 0 Engine: Procedural Liminal Space Simulator v0.8.1
 
 <img src="./screenshot21.png">
 
@@ -22,6 +22,13 @@ This engine is built on absolute architectural minimalism and efficiency:
 - **The Quantum Observer Effect & Decoys:** The Anomaly actively hunts via line-of-sight and utilizes short-term spatial memory. It is also attracted to dropped UV tags, allowing for intentional misdirection. Catching the entity within a 30-degree cone of your flashlight mathematically freezes it in place. This angers it. And if it catches you, the engine executes a void blackout, mutates your seed string, and procedurally rebuilds a new reality.
 - **Illumination & Systemic Cascades:** Traversal requires managing a heavy, incandescent flashlight that recharges from kinetic energy by sprinting in the dark or violently shaking your camera to crank out voltage. Players can find and interact with articulated **Surge Breakers** in the environment. Pulling a breaker triggers a catastrophic localized illumination cascade, shattering the bulbs and plunging the sector's atmospheric fog into a true, pitch-black void before executing a flickering reboot sequence.
 - **Native Post-Processing:** The engine features a custom `WebGLRenderTarget` pipeline, applying dynamic Chromatic Aberration, crawling static, CRT scanlines, claustrophobic vignettes, and somatic retinal blurring. The optical feed is directly tethered to the Anomaly's proximity pressure, violently degrading into horizontal V-Hold tearing and desaturated static as the entity enters striking distance.
+
+## Archive Editor (Lore Customization)
+
+The engine ships with a built-in, zero-dependency Archive Editor to visually manage the procedural narrative payloads (`library.json`, `finales.json`, `names.json`, etc.) without touching raw code.
+1. Navigate to the `lore-editor/` directory in your terminal.
+2. Run `node server.js` to boot the backend.
+3. Open your browser to `http://localhost:3000`.
 
 ## Usage
 

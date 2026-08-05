@@ -1,5 +1,16 @@
 # Level 0 Engine Changelog
 
+## [v0.8.1] - 2026-08-05
+
+_The Archive Editor Update_
+
+### Added
+
+- **[TOOLING] Zero-Dependency Archive Editor:** Replaced the bloated 500MB Node.js/Next.js lore editor with a hyper-lightweight, zero-dependency Vanilla JS, CSS, and Node.js stack. The `lore-editor` directory now contains just two core files (`server.js` and `editor.html`), reducing the entire footprint to under 20KB while preserving the sleek glassmorphism UI.
+- **[WORLD] Dynamic Finale Generation:** Extracted the hardcoded bounds in `StoryEngine.js`. The engine now dynamically calculates its random seed limits directly from the length of `finales.json`. Adding a 4th or 5th ending into `finales.json` will automatically throw it into the selection pool on the next boot without requiring any code changes.
+- **[UI] Inline Tag Editor for Library:** `tags.json` is no longer managed as a standalone dictionary of raw text boxes. The Archive Editor now surfaces "Thread Tag" fields directly inside the `library.json` entry view. Editing a narrative entry seamlessly manages its corresponding tag in the background, preventing engine desyncs.
+- **[UI] Visual Form for Names:** Replaced the cumbersome array-of-entries tree view for `names.json` with a bespoke, visually clean list interface. Users can scroll, add, and remove strings via a pinned input bar instead of manipulating raw JSON objects.
+- **[UI] Finale Hint Box Extraction:** Re-architected `finales.json` to be an array of objects (`{option, text}`) so the `option` property can cleanly power the final Verdict button text. The editor's Foreshadow view has been upgraded to parse this new structure for its Target Finale hints.
 ## [v0.8.0] - 2026-08-05
 
 _The Seamless UI Update_
