@@ -1,15 +1,15 @@
 import * as OfficeFurniture from '../OfficeFurniture.js';
 
 /**
- * [ROLE] Spawns various office amenities (water coolers, potted plants, filing cabinets) in a cell.
+ * [ROLE] Spawns lounge amenities (couches, potted plants) in a cell.
  * [WHY] Populates the generic maze with recognizable props to enhance the office atmosphere.
  * [STATE] Stateless generator.
  * [DEPENDS] OfficeFurniture builder functions and context.
  */
 export const OfficeAmenitiesProfile = (env, ctx) => {
-    const {random, addFurniture} = ctx;
+    const {random, addFurniture, buildCouch, buildWall, addGeometry} = ctx;
     return {
-        name: "OFFICE AMENITIES",
+        name: "LOUNGE AMENITIES",
         prob: 0.15, build: (x, z) => {
             const cx = x * env.cellSize;
             const cz = z * env.cellSize;
@@ -19,12 +19,17 @@ export const OfficeAmenitiesProfile = (env, ctx) => {
             const pz = cz + (random() - 0.5) * 1.5;
             
             const roll = random();
-            if (roll > 0.5) {
-                const rotY = random() * Math.PI * 2;
-                addFurniture(OfficeFurniture.buildWaterCooler(env, px, 0, pz, rotY));
+            if (roll > 0.9) {
+                if (random() > 0.5 && buildCouch) {
+                    const rotY = random() * Math.PI * 2;
+                    addFurniture(buildCouch(px, 0, pz, rotY));
+                } else {
+                    addFurniture(OfficeFurniture.buildPottedPlant(env, px, 0, pz));
+                }
             } else {
-                const rotY = random() * Math.PI * 2;
-                addFurniture(OfficeFurniture.buildFilingCabinet(env, random, px, 0, pz, rotY));
+                const wall = buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
+                wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);
+                addGeometry(wall);
             }
         }
     };

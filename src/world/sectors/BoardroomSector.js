@@ -67,8 +67,9 @@ export const BoardroomSector = (env, ctx) => {
                     }
                     if (rotY !== null && random() > 0.45) {
                         const roll = random();
-                        if (roll > 0.6) addFurniture(ctx.buildCouch(bx, 0, bz, rotY));
-                        else if (roll > 0.3) addFurniture(OfficeFurniture.buildWaterCooler(env, bx, 0, bz, rotY));
+                        if (roll > 0.7) addFurniture(ctx.buildCouch(bx, 0, bz, rotY));
+                        else if (roll > 0.4) addFurniture(OfficeFurniture.buildWaterCooler(env, bx, 0, bz, rotY));
+                        else if (roll > 0.2) addFurniture(OfficeFurniture.buildFilingCabinet(env, random, bx, 0, bz, rotY));
                         else addFurniture(OfficeFurniture.buildPottedPlant(env, bx, 0, bz));
                     }
                 }

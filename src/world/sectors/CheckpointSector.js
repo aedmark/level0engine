@@ -282,19 +282,6 @@ export const CheckpointSector = (env, ctx) => {
                 } else if (dress < 0.58) {
                     const s = clearSide(random() > 0.5 ? 1 : -1);
                     if (s) avCart(s);
-                } else if (dress < 0.72) {
-                    const s = clearSide(random() > 0.5 ? 1 : -1);
-                    if (s) {
-                        const [ax, az] = lat(s, 1.5);
-                        const rot = alongZ ? (s < 0 ? Math.PI/2 : -Math.PI/2) : (s < 0 ? 0 : Math.PI);
-                        addFurniture(OfficeFurniture.buildWaterCooler(env, ax, 0, az, rot));
-                    }
-                } else if (dress < 0.78) {
-                    const s = clearSide(random() > 0.5 ? 1 : -1);
-                    if (s) {
-                        const [ax, az] = lat(s, 1.5);
-                        addFurniture(OfficeFurniture.buildFilingCabinet(env, random, ax, 0, az, Math.PI / 2));
-                    }
                 } else if (dress < 0.84) {
                     if (!anyDoor) deconSheet();
                 } else if (dress < 0.95) {

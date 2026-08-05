@@ -111,21 +111,21 @@ export const DuctOrVentProfile = (env, ctx) => {
                         const segX = x + (tunnelOnZ ? 0 : i);
                         const segZ = z + (tunnelOnZ ? i : 0);
                         if (ctx.markOccupied) ctx.markOccupied(segX, segZ);
-                        const w1 = tunnelOnZ ? sideW : env.cellSize;
-                        const d1 = tunnelOnZ ? env.cellSize : sideW;
+                        const w1 = tunnelOnZ ? sideW : env.cellSize - 0.02;
+                        const d1 = tunnelOnZ ? env.cellSize - 0.02 : sideW;
                         const side1 = buildWall(w1, d1, env.sharedWallMat);
                         side1.position.set(segX * env.cellSize + (tunnelOnZ ? -sideOffset : 0), 1.5, segZ * env.cellSize + (tunnelOnZ ? 0 : -sideOffset));
                         addGeometry(side1);
                         const side2 = buildWall(w1, d1, env.sharedWallMat);
                         side2.position.set(segX * env.cellSize + (tunnelOnZ ? sideOffset : 0), 1.5, segZ * env.cellSize + (tunnelOnZ ? 0 : sideOffset));
                         addGeometry(side2);
-                        const topW = tunnelOnZ ? holeW : env.cellSize;
-                        const topD = tunnelOnZ ? env.cellSize : holeW;
+                        const topW = tunnelOnZ ? holeW : env.cellSize - 0.02;
+                        const topD = tunnelOnZ ? env.cellSize - 0.02 : holeW;
                         const top = buildWall(topW, topD, env.sharedWallMat, topH, holeH);
                         top.position.set(segX * env.cellSize, holeH + (topH / 2), segZ * env.cellSize);
                         addGeometry(top);
-                        const linW = tunnelOnZ ? holeW : env.cellSize + 0.02;
-                        const linD = tunnelOnZ ? env.cellSize + 0.02 : holeW;
+                        const linW = tunnelOnZ ? holeW : env.cellSize - 0.02;
+                        const linD = tunnelOnZ ? env.cellSize - 0.02 : holeW;
                         const liningFloor = buildWall(linW, linD, env.ductMat, liningH);
                         liningFloor.position.set(segX * env.cellSize, liningH / 2, segZ * env.cellSize);
                         addGeometry(liningFloor);
@@ -184,7 +184,7 @@ export const DuctOrVentProfile = (env, ctx) => {
                 }
                 const ventGeo = env._boxGeo(1.2, 0.6, 0.05);
                 const vent = new THREE.Mesh(ventGeo, env.wallVentMat);
-                const finalOffset = (env.cellSize / 2) + 0.06;
+                const finalOffset = (env.cellSize / 2) + 0.01;
                 if (ventFace === 0) {
                     vent.position.set(x * env.cellSize, 2.6, z * env.cellSize + finalOffset);
                 } else if (ventFace === 1) {
