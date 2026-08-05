@@ -26,15 +26,15 @@ This engine is built on absolute architectural minimalism and efficiency:
 ## Archive Editor (Lore Customization)
 
 The engine ships with a built-in, zero-dependency Archive Editor to visually manage the procedural narrative payloads (`library.json`, `finales.json`, `names.json`, etc.) without touching raw code.
-1. Navigate to the `lore-editor/` directory in your terminal.
-2. Run `node server.js` to boot the backend.
-3. Open your browser to `http://localhost:3000`.
+1. Double-click `start_editor.bat` (Windows) or run `./start_editor.sh` (Mac/Linux).
+2. The editor will automatically open in your default browser at `http://localhost:3000`.
+3. Use `stop_servers.bat` or `./stop_servers.sh` when you are done to shut down the backend.
 
 ## Usage
 
 1. Clone the repository or install as a PWA on supported browsers.
-2. Serve the directory using a local web server (e.g., `python -m http.server`, `npx http-server`, or VSCode Live Server). _Note: Opening `index.html` directly via the `file://` protocol will fail due to strict ES6 module CORS policies._
-3. Open the localhost URL in any modern web browser.
+2. Double-click `start_engine.bat` (Windows) or run `./start_engine.sh` (Mac/Linux) to boot the local server. The game will automatically open in your default browser at `http://localhost:8080`. _Note: Opening `index.html` directly via the `file://` protocol will fail due to strict ES6 module CORS policies._
+3. When you are finished, you can run `stop_servers.bat` or `./stop_servers.sh` to safely spin down the local servers.
 4. **Desktop Controls:**
 - `Left-Click`: Engage a Pointer Lock (Look around)
 - `Right-Click` (Hold): Kinematic Peek (Physically lean your camera 80cm around corners)

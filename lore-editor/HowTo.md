@@ -41,9 +41,9 @@ The engine supports dynamic string replacement so that the text adapts to the sp
 
 To add new documents, you no longer need to edit these files manually! The engine now ships with a built-in **Archive Editor**.
 
-1. Navigate to `lore-editor/` in your terminal.
-2. Run `node server.js` to boot up the zero-dependency backend.
-3. Open your browser to `http://localhost:3000`.
+1. Double-click `start_editor.bat` (Windows) or run `./start_editor.sh` (Mac/Linux).
+2. The editor will automatically open in your default browser at `http://localhost:3000`.
+3. Use `stop_servers.bat` or `./stop_servers.sh` when you are done to shut down the backend.
 
 The sleek Archive Editor allows you to visually explore the entire data structure:
 * **library.json**: You can edit the narrative text and seamlessly assign "Thread Tags" inline (the editor updates `tags.json` automatically in the background!).
