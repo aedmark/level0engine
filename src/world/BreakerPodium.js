@@ -209,6 +209,21 @@ export function setPodiumSpent(podium) {
     }
 }
 
+export function setPodiumBroken(podium) {
+    const ud = podium.userData;
+    if (!ud || !ud.plate) return;
+    ud.type = 'broken_breaker';
+    ud.active = false;
+    ud.scan = 0;
+    ud.plate.material.emissiveIntensity = 0.02;
+    ud.sweep.material.opacity = 0.0;
+    if (ud.bead) {
+        ud.bead.material.color.setHex(0x333333);
+        ud.bead.material.emissive.setHex(0x000000);
+        ud.bead.material.emissiveIntensity = 0;
+    }
+}
+
 export const PODIUM_PLATE_Y = HEAD_Y;
 
 export const SCAN_DURATION = 1.2;

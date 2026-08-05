@@ -732,6 +732,55 @@ export default class PropTextures {
         return TextureMechanics._createWrappedTexture(canvas, 1, 1);
     }
 
+    static generateFernTexture() {
+        const {canvas, ctx} = TextureMechanics._createContext(512, 512, false);
+        ctx.clearRect(0, 0, 512, 512);
+
+        ctx.strokeStyle = '#1a260d';
+        ctx.fillStyle = '#293d14';
+        
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(256, 512);
+        ctx.quadraticCurveTo(270, 256, 256, 16);
+        ctx.stroke();
+
+        const drawLeaf = (x, y, angle, length, width) => {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.quadraticCurveTo(length / 2, -width, length, 0);
+            ctx.quadraticCurveTo(length / 2, width, 0, 0);
+            ctx.fill();
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(0,0);
+            ctx.quadraticCurveTo(length/2, 0, length * 0.9, 0);
+            ctx.strokeStyle = '#1e2e10';
+            ctx.stroke();
+            ctx.restore();
+        };
+
+        for (let y = 480; y > 32; y -= 16) {
+            const progress = (512 - y) / 512;
+            const length = 160 * (1 - progress * 0.8) + (Math.random() * 20 - 10);
+            const width = 18 * (1 - Math.pow(progress, 2) * 0.6);
+            
+            const stemX = 256 + Math.sin(progress * Math.PI) * 14;
+            
+            drawLeaf(stemX, y, -0.4 - progress, length, width);
+            drawLeaf(stemX, y, Math.PI + 0.4 + progress, length, width);
+        }
+
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.anisotropy = 4;
+        tex.minFilter = THREE.LinearMipmapLinearFilter;
+        return tex;
+    }
+
     static _buildCartons() {
         const fbc = document.createElement('canvas');
         fbc.width = fbc.height = 128;

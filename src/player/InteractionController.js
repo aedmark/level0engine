@@ -100,6 +100,7 @@ export default class InteractionController {
         if (env.camera) env.camera.getWorldDirection(this._camDir);
         const checkObj = (obj) => {
             if (obj.userData.isSlider && !obj.userData.isAirlockDoor) return;
+            if (obj.userData.active === false) return;
             const worldPos = (typeof obj.getWorldPosition === 'function') ? obj.getWorldPosition(this._objWorldPos) : obj.position;
             const distSq = worldPos.distanceToSquared(playerPos);
             if (distSq < closestDistSq) {
@@ -763,6 +764,8 @@ export default class InteractionController {
                     document.dispatchEvent(new Event('somatic-pickup-almond'));
                 }
             } else if (hit && hit.userData.type === 'document' && hit.userData.active) {
+                hit.userData.active = false;
+                hit.visible = false;
                 document.dispatchEvent(new CustomEvent('somatic-read', {
                     detail: {docId: hit.userData.docId, zone: hit.userData.zone || null}
                 }));

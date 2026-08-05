@@ -538,7 +538,95 @@ export default class ChunkManager {
                     const forcedStructuresGrid = new Map();
                     ctx.forceStructure = (wx, wz, name) => forcedStructuresGrid.set(`${wx},${wz}`, name);
                     ctx.getForcedStructure = (wx, wz) => forcedStructuresGrid.get(`${wx},${wz}`);
+                    
+                    if (!isMacroStructure) {
+                        const size = env.chunkSize;
+                        const grid = new Int8Array(size * size);
+                        const q = [];
+                        
+                        for (let lx = 0; lx < size; lx++) {
+                            for (let lz = 0; lz < size; lz++) {
+                                if (!ctx.isWall(startX + lx, startZ + lz)) {
+                                    grid[lz * size + lx] = 1; // Empty
+                                    if (lx === 7 || lz === 7 || lx === 3 || lx === 11 || lz === 3 || lz === 11) {
+                                        grid[lz * size + lx] = 2; // Artery
+                                        q.push({lx, lz});
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Flood-fill from arteries
+                        const dirs = [{x:1,z:0}, {x:-1,z:0}, {x:0,z:1}, {x:0,z:-1}];
+                        while (q.length > 0) {
+                            const {lx, lz} = q.pop();
+                            for (const d of dirs) {
+                                const nx = lx + d.x, nz = lz + d.z;
+                                if (nx >= 0 && nx < size && nz >= 0 && nz < size && grid[nz * size + nx] === 1) {
+                                    grid[nz * size + nx] = 2;
+                                    q.push({lx: nx, lz: nz});
+                                }
+                            }
+                        }
+                        
+                        // Find enclosed pockets
+                        for (let lx = 0; lx < size; lx++) {
+                            for (let lz = 0; lz < size; lz++) {
+                                if (grid[lz * size + lx] === 1) {
+                                    const pocket = [];
+                                    const pq = [{lx, lz}];
+                                    grid[lz * size + lx] = 3;
+                                    pocket.push({lx, lz});
+                                    
+                                    let touchesEdge = false;
+                                    while (pq.length > 0) {
+                                        const curr = pq.pop();
+                                        if (curr.lx === 0 || curr.lx === size - 1 || curr.lz === 0 || curr.lz === size - 1) {
+                                            touchesEdge = true;
+                                        }
+                                        for (const d of dirs) {
+                                            const nx = curr.lx + d.x, nz = curr.lz + d.z;
+                                            if (nx >= 0 && nx < size && nz >= 0 && nz < size && grid[nz * size + nx] === 1) {
+                                                grid[nz * size + nx] = 3;
+                                                pocket.push({lx: nx, lz: nz});
+                                                pq.push({lx: nx, lz: nz});
+                                            }
+                                        }
+                                    }
+                                    
+                                    if (touchesEdge) continue; // Likely connects in next chunk
+                                    
+                                    // Find shortest wall to artery network
+                                    let bestWall = null;
+                                    for (const p of pocket) {
+                                        for (const d of dirs) {
+                                            const nx = p.lx + d.x, nz = p.lz + d.z;
+                                            if (nx > 0 && nx < size - 1 && nz > 0 && nz < size - 1 && grid[nz * size + nx] === 0) {
+                                                const nnx = nx + d.x, nnz = nz + d.z;
+                                                if (nnx >= 0 && nnx < size && nnz >= 0 && nnz < size && grid[nnz * size + nnx] === 2) {
+                                                    bestWall = {lx: nx, lz: nz};
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        if (bestWall) break;
+                                    }
+                                    
+                                    if (bestWall) {
+                                        ctx.setWall(startX + bestWall.lx, startZ + bestWall.lz, false);
+                                        ctx.forceStructure(startX + bestWall.lx, startZ + bestWall.lz, 'breach');
+                                        grid[bestWall.lz * size + bestWall.lx] = 2;
+                                        for (const p of pocket) grid[p.lz * size + p.lx] = 2;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
+                
+                // WARNING: The following if/else block controls cell evaluation for walls vs empty space.
+                // Do NOT accidentally remove the `} else {` block here, as it will break variable scoping 
+                // and cause syntax errors if block-scoped variables share names across the branches.
                 let isWall = ctx.isWall(x, z);
                 const damp = env._dampAt(x, z);
                 if (isWall) {
@@ -555,6 +643,100 @@ export default class ChunkManager {
                     }
                 } else {
                     let hasTallObstacle = false;
+                    const forcedName = ctx.getForcedStructure && ctx.getForcedStructure(x, z);
+                    if (forcedName === 'breach') {
+                        hasTallObstacle = true;
+                        const breachType = random();
+                        const isRotated = isWallCell(x - 1, z) || isWallCell(x + 1, z);
+                        const rot = isRotated ? Math.PI / 2 : 0;
+                        const px = x * env.cellSize;
+                        const pz = z * env.cellSize;
+                        
+                        const addGroupToStaging = (grp) => {
+                            grp.position.set(px, 0, pz);
+                            grp.rotation.y = rot;
+                            grp.updateMatrixWorld(true);
+                            grp.traverse(child => {
+                                if (child.isMesh) {
+                                    child.userData.isEntityBlocker = true; // ensure wall pieces block entities
+                                    ctx.addGeometry(child);
+                                }
+                            });
+                        };
+                        
+                        if (breachType > 0.6) {
+                            // Door frame
+                            if (!env.doorFrameGeo) {
+                                const g = new THREE.Group();
+                                const pGeo = new THREE.BoxGeometry(0.2, 3.0, 0.6);
+                                const p1 = new THREE.Mesh(pGeo, env.pittedMetalMat || env.metalMat);
+                                p1.position.set(-1.2, 1.5, 0);
+                                g.add(p1);
+                                const p2 = new THREE.Mesh(pGeo, env.pittedMetalMat || env.metalMat);
+                                p2.position.set(1.2, 1.5, 0);
+                                g.add(p2);
+                                const tGeo = new THREE.BoxGeometry(2.6, 0.2, 0.6);
+                                const t1 = new THREE.Mesh(tGeo, env.pittedMetalMat || env.metalMat);
+                                t1.position.set(0, 2.9, 0);
+                                g.add(t1);
+                                env.doorFrameGeo = g;
+                            }
+                            const frame = env.doorFrameGeo.clone();
+                            addGroupToStaging(frame);
+                        } else if (breachType > 0.3) {
+                            // Vent opening
+                            const wallG = new THREE.Group();
+                            const bGeo = new THREE.BoxGeometry(env.cellSize, 0.6, env.cellSize);
+                            const b1 = new THREE.Mesh(bGeo, env.sharedWallMat);
+                            b1.position.set(0, 0.3, 0);
+                            wallG.add(b1);
+                            
+                            const sGeo = new THREE.BoxGeometry((env.cellSize - 1.2) / 2, 2.4, env.cellSize);
+                            const s1 = new THREE.Mesh(sGeo, env.sharedWallMat);
+                            s1.position.set(-(env.cellSize/2) + sGeo.parameters.width/2, 1.8, 0);
+                            const s2 = new THREE.Mesh(sGeo, env.sharedWallMat);
+                            s2.position.set((env.cellSize/2) - sGeo.parameters.width/2, 1.8, 0);
+                            wallG.add(s1);
+                            wallG.add(s2);
+                            
+                            const tGeo = new THREE.BoxGeometry(1.2, 3.0 - 1.8, env.cellSize);
+                            const t1 = new THREE.Mesh(tGeo, env.sharedWallMat);
+                            t1.position.set(0, 1.8 + tGeo.parameters.height/2, 0);
+                            wallG.add(t1);
+                            
+                            const grateGeo = new THREE.BoxGeometry(1.16, 1.16, 0.1);
+                            const grateMat = env.cartLatticeMat || env.pittedMetalMat;
+                            const grate = new THREE.Mesh(grateGeo, grateMat);
+                            grate.position.set(0, 1.2, 0);
+                            grate.rotation.x = Math.PI / 2 + 0.4;
+                            grate.position.z = 1.0;
+                            wallG.add(grate);
+                            
+                            addGroupToStaging(wallG);
+                        } else {
+                            // Crevice / broken wall
+                            const wallG = new THREE.Group();
+                            const sGeo1 = new THREE.BoxGeometry(1.0, 3.0, env.cellSize);
+                            const sGeo2 = new THREE.BoxGeometry(1.4, 3.0, env.cellSize);
+                            const s1 = new THREE.Mesh(sGeo1, env.sharedWallMat);
+                            s1.position.set(-1.5, 1.5, 0);
+                            s1.rotation.y = (random() - 0.5) * 0.4;
+                            const s2 = new THREE.Mesh(sGeo2, env.sharedWallMat);
+                            s2.position.set(1.3, 1.5, 0);
+                            s2.rotation.y = (random() - 0.5) * 0.4;
+                            wallG.add(s1);
+                            wallG.add(s2);
+                            
+                            const tGeo = new THREE.BoxGeometry(1.6, 1.0, env.cellSize);
+                            const t1 = new THREE.Mesh(tGeo, env.sharedWallMat);
+                            t1.position.set(0, 2.5, 0);
+                            t1.rotation.z = (random() - 0.5) * 0.4;
+                            wallG.add(t1);
+                            
+                            addGroupToStaging(wallG);
+                        }
+                    }
+                    
                     const inNRing = localZ === 3 && localX >= 3 && localX <= 11;
                     const inSRing = localZ === 11 && localX >= 3 && localX <= 11;
                     const inWRing = localX === 3 && localZ >= 3 && localZ <= 11;
@@ -565,7 +747,7 @@ export default class ChunkManager {
                     const inEPath = localZ === 7 && localX >= 11;
                     const isArtery = inNRing || inSRing || inWRing || inERing || inNPath || inSPath || inWPath || inEPath;
                     const floorRoll = random();
-                    if (floorRoll > 0.80 && !isArtery) {
+                    if (!hasTallObstacle && floorRoll > 0.80 && !isArtery) {
                         hasTallObstacle = true;
                         const divW = random() > 0.5 ? env.cellSize * 0.8 : env.cellSize * 0.2;
                         const divD = divW === env.cellSize * 0.8 ? env.cellSize * 0.2 : env.cellSize * 0.8;

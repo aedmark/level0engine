@@ -26,6 +26,7 @@ export default class ProceduralTextureFactory {
         const masterNoise = TextureMechanics._generateMasterNoise();
         const extras = {
             pegboardTex: PropTextures.generatePegboardTexture(),
+            fernTex: PropTextures.generateFernTexture(),
         };
         const structAssets = StructuralTextures._buildStructuralAssets(masterNoise);
         await TextureMechanics._yield();

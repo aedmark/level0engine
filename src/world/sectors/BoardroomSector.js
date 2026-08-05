@@ -1,5 +1,6 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
+import * as OfficeFurniture from '../OfficeFurniture.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
 
 /**
@@ -65,7 +66,10 @@ export const BoardroomSector = (env, ctx) => {
                         rotY = (localZ < 7) ? 0 : Math.PI;
                     }
                     if (rotY !== null && random() > 0.45) {
-                        addFurniture(buildCouch(bx, 0, bz, rotY));
+                        const roll = random();
+                        if (roll > 0.6) addFurniture(ctx.buildCouch(bx, 0, bz, rotY));
+                        else if (roll > 0.3) addFurniture(OfficeFurniture.buildWaterCooler(env, bx, 0, bz, rotY));
+                        else addFurniture(OfficeFurniture.buildPottedPlant(env, bx, 0, bz));
                     }
                 }
                 return;

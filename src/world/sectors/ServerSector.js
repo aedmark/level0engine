@@ -1,6 +1,7 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
+import * as OfficeFurniture from '../OfficeFurniture.js';
 
 /**
  * [ROLE] Defines the generation logic for the "Server" sector.
@@ -13,6 +14,7 @@ export const ServerSector = (env, ctx) => {
         random,
         buildWall,
         addGeometry,
+        addFurniture,
         chunkGroup,
         hash,
         stagingMeshes
@@ -66,34 +68,7 @@ export const ServerSector = (env, ctx) => {
         bench.rotation.y = faceYaw;
         chunkGroup.add(bench);
     };
-    const buildFilingCabinet = (px, pz, faceYaw) => {
-        const cab = new THREE.Group();
-        const body = new THREE.Mesh(env._boxGeo(0.5, 1.3, 0.6), env.cabinetMat);
-        body.position.y = 0.65;
-        cab.add(body);
-        const drawerCount = 3 + Math.floor(random() * 2);
-        const drawerH = 1.2 / drawerCount;
-        for (let i = 0; i < drawerCount; i++) {
-            const handle = new THREE.Mesh(env._boxGeo(0.22, 0.03, 0.03), env.metalMat);
-            handle.position.set(0, 0.08 + i * drawerH, 0.315);
-            cab.add(handle);
-        }
-        if (random() > 0.55) {
-            const body2 = new THREE.Mesh(env._boxGeo(0.5, 1.0, 0.6), env.cabinetMat);
-            body2.position.set(0.55, 0.5, 0);
-            cab.add(body2);
-            const drawerCount2 = 2 + Math.floor(random() * 2);
-            const drawerH2 = 0.9 / drawerCount2;
-            for (let i = 0; i < drawerCount2; i++) {
-                const handle = new THREE.Mesh(env._boxGeo(0.22, 0.03, 0.03), env.metalMat);
-                handle.position.set(0.55, 0.08 + i * drawerH2, 0.315);
-                cab.add(handle);
-            }
-        }
-        cab.position.set(px, 0, pz);
-        cab.rotation.y = faceYaw;
-        chunkGroup.add(cab);
-    };
+
     return {
         id: "SERVER",
         foundationMat: env.serverFloorMat,
@@ -133,7 +108,7 @@ export const ServerSector = (env, ctx) => {
                     const px = x * env.cellSize + ix * inset;
                     const pz = z * env.cellSize + iz * inset;
                     if (random() > 0.5) buildWorkbench(px, pz, faceYaw);
-                    else buildFilingCabinet(px, pz, faceYaw);
+                    else addFurniture(OfficeFurniture.buildFilingCabinet(env, random, px, 0, pz, faceYaw));
                 }
                 return;
             }

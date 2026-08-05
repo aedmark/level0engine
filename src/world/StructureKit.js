@@ -97,6 +97,13 @@ export default class StructureKit {
                 }
                 return new THREE.Mesh(geo, mat);
             },
+            /**
+             * Adds a single Mesh to the chunk's staging array for instancing and adds it to the spatial grid.
+             * WARNING: MUST be a THREE.Mesh. Passing a THREE.Group will crash the compiler when it reads `geometry.boundingBox`.
+             * If you have a Group, traverse it and pass its mesh children individually!
+             * @param {THREE.Mesh} mesh - The mesh to add
+             * @param {boolean} [isWarp=false] - Whether this object acts as a warp zone
+             */
             addGeometry: (mesh, isWarp = false) => {
                 mesh.userData.chunkHash = hash;
                 mesh.updateMatrixWorld(true);
@@ -150,7 +157,7 @@ export default class StructureKit {
                         }
                     }
                 }
-                const grateGeo = this.boxGeo(blocksX ? 0.05 : 1.16, 0.65, blocksX ? 1.16 : 0.05);
+                const grateGeo = this.boxGeo(blocksX ? 0.05 : 1.08, 0.58, blocksX ? 1.08 : 0.05);
                 const grate = new THREE.Mesh(grateGeo, env.wallVentMat);
                 grate.position.set(px, py, pz);
                 grate.userData = {type: 'grate', active: true, chunkHash: hash, blocksX: blocksX};
@@ -163,12 +170,13 @@ export default class StructureKit {
                 grate.userData.box = grateBox;
                 env.spatialGrid.insert(grateBox);
             },
-            buildChair: (x, y, z, rotY) => {
+            buildChair: (x, y, z, rotY, matOverride = null) => {
                 const group = new THREE.Group();
-                const seat = new THREE.Mesh(env.cushionGeo, env.fabricMat);
+                const mat = matOverride || env.fabricMat;
+                const seat = new THREE.Mesh(env.cushionGeo, mat);
                 seat.position.set(0, 0.4, 0);
                 group.add(seat);
-                const back = new THREE.Mesh(env.backrestGeo, env.fabricMat);
+                const back = new THREE.Mesh(env.backrestGeo, mat);
                 back.position.set(0, 0.8, -0.3);
                 group.add(back);
                 const l1 = new THREE.Mesh(env.legGeo, env.structMat);

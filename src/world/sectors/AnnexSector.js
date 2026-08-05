@@ -1,5 +1,8 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
+import * as OfficeFurniture from '../OfficeFurniture.js';
+import * as ClinicFurniture from '../ClinicFurniture.js';
+import { buildBreakerPodium, setPodiumBroken } from '../BreakerPodium.js';
 
 /**
  * [ROLE] Defines the generation logic for the "Annex" sector.
@@ -33,9 +36,79 @@ export const AnnexSector = (env, ctx) => {
             const ox = x * env.cellSize, oz = z * env.cellSize;
             const isCorr = (lx, lz) => lx > 0 && lx < env.chunkSize - 1 && lz > 0 && lz < env.chunkSize - 1 &&
                 (lx === 7 || lz === 3 || lz === 7 || lz === 11);
+                
+            const isOffice = (lx, lz) => !isCorr(lx, lz) && lx > 0 && lx < env.chunkSize - 1 && lz > 0 && lz < env.chunkSize - 1 &&
+                (isCorr(lx, lz - 1) || isCorr(lx, lz + 1) || isCorr(lx - 1, lz) || isCorr(lx + 1, lz));
+
+            const spawnWallFurniture = (cx, cz, wDx, wDz) => {
+                const px = cx + wDx * (env.cellSize / 2 - 0.4);
+                const pz = cz + wDz * (env.cellSize / 2 - 0.4);
+                let faceYaw = 0;
+                if (wDx === -1) faceYaw = Math.PI / 2;
+                else if (wDx === 1) faceYaw = -Math.PI / 2;
+                else if (wDz === -1) faceYaw = 0;
+                else if (wDz === 1) faceYaw = Math.PI;
+
+                const roll = random();
+                let obj;
+                if (roll < 0.09) {
+                    obj = OfficeFurniture.buildWaterCooler(env, px, 0, pz, faceYaw);
+                } else if (roll < 0.18) {
+                    obj = OfficeFurniture.buildPottedPlant(env, px, 0, pz);
+                } else if (roll < 0.27) {
+                    obj = OfficeFurniture.buildFilingCabinet(env, random, px, 0, pz, faceYaw);
+                } else if (roll < 0.36) {
+                    obj = ClinicFurniture.buildWaitingBench(env);
+                    obj.position.set(px, 0, pz);
+                    obj.rotation.y = faceYaw;
+                } else if (roll < 0.45) {
+                    const bbPx = cx + wDx * (env.cellSize / 2 - 0.05);
+                    const bbPz = cz + wDz * (env.cellSize / 2 - 0.05);
+                    obj = OfficeFurniture.buildBulletinBoard(env, random, bbPx, 1.5, bbPz, faceYaw);
+                } else if (roll < 0.54) {
+                    obj = ClinicFurniture.buildClinicBed(env);
+                    obj.position.set(px, 0, pz);
+                    obj.rotation.y = faceYaw;
+                } else if (roll < 0.63) {
+                    obj = ClinicFurniture.buildIVPole(env);
+                    obj.position.set(px, 0, pz);
+                } else if (roll < 0.72) {
+                    obj = ClinicFurniture.buildHeartMonitor(env);
+                    obj.position.set(px, 0, pz);
+                    obj.rotation.y = faceYaw;
+                } else if (roll < 0.81) {
+                    obj = ClinicFurniture.buildWheelchair(env);
+                    obj.position.set(px, 0, pz);
+                    obj.rotation.y = faceYaw;
+                } else if (roll < 0.90) {
+                    obj = ClinicFurniture.buildWaterFountain(env);
+                    obj.position.set(px, 0, pz);
+                    obj.rotation.y = faceYaw;
+                } else {
+                    obj = buildBreakerPodium(env, hash, random);
+                    obj.position.set(px, 0, pz);
+                    obj.rotation.y = faceYaw;
+                    setPodiumBroken(obj);
+                }
+                
+                if (obj) addFurniture(obj);
+            };
+
             if (isCorr(localX, localZ)) {
                 if ((localX + localZ) % 2 === 0 && random() > 0.1) {
                     env._buildCeilingPanelLight(chunkGroup, hash, ox, oz, random, ctx.getLightMaterial, 0xd6cc98, 0xffeebb, 0.32, 0.8);
+                }
+                const r = random();
+                if (r > 0.4) {
+                    let wallDx = 0, wallDz = 0;
+                    if (!isCorr(localX - 1, localZ) && !isOffice(localX - 1, localZ)) { wallDx = -1; }
+                    else if (!isCorr(localX + 1, localZ) && !isOffice(localX + 1, localZ)) { wallDx = 1; }
+                    else if (!isCorr(localX, localZ - 1) && !isOffice(localX, localZ - 1)) { wallDz = -1; }
+                    else if (!isCorr(localX, localZ + 1) && !isOffice(localX, localZ + 1)) { wallDz = 1; }
+                    
+                    if (wallDx !== 0 || wallDz !== 0) {
+                        spawnWallFurniture(ox, oz, wallDx, wallDz);
+                    }
                 }
                 return;
             }
@@ -52,8 +125,6 @@ export const AnnexSector = (env, ctx) => {
                 return;
             }
             const dd = corrEdges[Math.floor(random() * corrEdges.length)];
-            const isOffice = (lx, lz) => !isCorr(lx, lz) && lx > 0 && lx < env.chunkSize - 1 && lz > 0 && lz < env.chunkSize - 1 &&
-                (isCorr(lx, lz - 1) || isCorr(lx, lz + 1) || isCorr(lx - 1, lz) || isCorr(lx + 1, lz));
             const edges = [[0, -1], [0, 1], [-1, 0], [1, 0]];
             for (let ei = 0; ei < edges.length; ei++) {
                 const ex = edges[ei][0], ez = edges[ei][1];
@@ -109,14 +180,25 @@ export const AnnexSector = (env, ctx) => {
             }
             const doorW = 1.4, doorT = 0.1;
             let doorGeo, doorMesh;
-            const annexDoorMat = env.annexDoorMat || env.doorMat;
+            let doorMatArr;
             if (spansX) {
+                const mat = env.annexDoorMat || env.doorMat;
+                if (Array.isArray(mat) && mat.length >= 6) {
+                    doorMatArr = [...mat];
+                    if (dd[1] === -1) {
+                        doorMatArr[4] = mat[5];
+                        doorMatArr[5] = mat[4];
+                    }
+                } else {
+                    doorMatArr = mat;
+                }
+
                 doorGeo = env._cacheGeo('hingedDoor:X', () => {
                     const g = new THREE.BoxGeometry(doorW, 2.65, doorT);
                     g.translate(doorW / 2, 0, doorT / 2);
                     return g;
                 });
-                doorMesh = new THREE.Mesh(doorGeo, annexDoorMat);
+                doorMesh = new THREE.Mesh(doorGeo, doorMatArr);
                 doorMesh.position.set(wx - doorW / 2, 1.325, wz);
                 doorMesh.userData = (isOpenable || isKeypad) ? {
                     chunkHash: hash,
@@ -124,12 +206,23 @@ export const AnnexSector = (env, ctx) => {
                     currentRot: 0
                 } : {chunkHash: hash};
             } else {
+                const mat = env.annexDoorMatZ || env.annexDoorMat || env.doorMat;
+                if (Array.isArray(mat) && mat.length >= 6) {
+                    doorMatArr = [...mat];
+                    if (dd[0] === -1) {
+                        doorMatArr[0] = mat[1];
+                        doorMatArr[1] = mat[0];
+                    }
+                } else {
+                    doorMatArr = mat;
+                }
+
                 doorGeo = env._cacheGeo('hingedDoor:Z', () => {
                     const g = new THREE.BoxGeometry(doorT, 2.65, doorW);
                     g.translate(doorT / 2, 0, doorW / 2);
                     return g;
                 });
-                doorMesh = new THREE.Mesh(doorGeo, annexDoorMat);
+                doorMesh = new THREE.Mesh(doorGeo, doorMatArr);
                 doorMesh.position.set(wx, 1.325, wz - doorW / 2);
                 doorMesh.userData = (isOpenable || isKeypad) ? {
                     chunkHash: hash,
@@ -298,6 +391,14 @@ export const AnnexSector = (env, ctx) => {
                     fb.position.set(cbx + (random() - 0.5) * 0.08, 0.25 + ci * 0.5, cbz + (random() - 0.5) * 0.08);
                     fb.rotation.y = cbYaw + (random() - 0.5) * 0.3;
                     addGeometry(fb);
+                }
+            }
+            
+            if (random() > 0.25) {
+                const validWalls = [[0, -1], [0, 1], [-1, 0], [1, 0]].filter(w => w[0] !== dd[0] || w[1] !== dd[1]);
+                if (validWalls.length > 0) {
+                    const fw = validWalls[Math.floor(random() * validWalls.length)];
+                    spawnWallFurniture(ox, oz, fw[0], fw[1]);
                 }
             }
         }

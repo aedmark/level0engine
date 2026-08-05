@@ -1,5 +1,25 @@
 # Level 0 Engine Changelog
 
+## [v0.7.9] - 2026-08-04
+
+_Atrium Clutter & Room Connectivity_
+
+### Added
+
+- **[WORLD] Guaranteed Room Connectivity:** The procedural generation algorithm now runs a topological flood-fill pass on every generated chunk immediately after the fractal noise walls are carved. Any completely isolated rooms or empty pockets that got sealed off are identified, and the generator forces open the thinnest wall separating them from the main maze.
+- **[WORLD] Breach Geometries:** The holes punched by the connectivity pass are populated with one of three randomized "breach" structures: a formal heavy iron doorway frame, a floor-level ventilation grating you must crouch through, or a jagged, misaligned wall crevice. You will no longer find completely inaccessible rooms on the minimap.
+- **[AESTHETICS] Atrium Environmental Clutter:** The Atrium aisles now feature a variety of abandoned clutter that randomly spawns in empty spaces to enhance the chaotic supermarket vibe:
+  - Scattered soup cans with procedural red-and-white retro labels.
+  - Spilled paper grocery sacks (reusing the carpet bump map for wrinkly texture) with contents spilling outward in a cone.
+  - Abandoned, scaled-up shopping carts.
+  - Knocked-over shopping carts lying on their sides with spilled cans.
+  - Piles of forgotten promotional flyers littering the floor.
+
+### Fixed
+
+- **[WORLD] Spawning Inside Solid Walls:** Fixed an issue where the player's initial warp coordinates were hardcoded to the exact center of the starting chunk. Because every chunk's center acts as a guaranteed solid "blocker" to break up sightlines, the initial safe-spawn logic would push the player into the nearest randomly generated noise pocket, occasionally leaving them permanently trapped. The spawn point has been relocated to the designated 4x4 safe zone in the corner of the chunk that always connects directly to the main artery pathways.
+- **[WORLD] Missing ChunkManager Else Block:** Restored a missing closing bracket in `ChunkManager.js` that caused an `Unexpected end of input` and `Identifier has already been declared` syntax errors when isolating empty space generation logic from wall cell generation.
+
 ## [v0.7.8] - 2026-08-04
 
 _Narrative Unbound & Archive Aesthetics_

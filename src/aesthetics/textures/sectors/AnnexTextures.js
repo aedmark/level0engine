@@ -98,18 +98,15 @@ export default class AnnexTextures {
             doorCtx.stroke();
         }
         const doorTexture = new THREE.CanvasTexture(doorCanvas);
-        const {canvas: doorBackCanvas, ctx: doorBackCtx} = TextureMechanics._createContext(256, 512);
-        doorBackCtx.translate(256, 0);
-        doorBackCtx.scale(-1, 1);
-        doorBackCtx.drawImage(doorCanvas, 0, 0);
-        const doorBackTexture = new THREE.CanvasTexture(doorBackCanvas);
+        
         const annexDoorMatFront = new THREE.MeshStandardMaterial({map: doorTexture, roughness: 0.7, metalness: 0.1,emissive: 0x222222, emissiveIntensity: 0.5,});
         const annexDoorMatBack = new THREE.MeshStandardMaterial({
-            map: doorBackTexture,
+            map: doorTexture,
             roughness: 0.7,
             metalness: 0.1
         });
         const annexDoorMat = [annexEdgeMat, annexEdgeMat, annexEdgeMat, annexEdgeMat, annexDoorMatFront, annexDoorMatBack];
+        const annexDoorMatZ = [annexDoorMatFront, annexDoorMatBack, annexEdgeMat, annexEdgeMat, annexEdgeMat, annexEdgeMat];
         const annexFrameMat = new THREE.MeshStandardMaterial({color: 0x53585c, roughness: 0.7, metalness: 0.2});
         const {canvas: annexWallCanvas, ctx: annexWallCtx} = TextureMechanics._createContext(512, 512);
         annexWallCtx.fillStyle = '#cccccc';
@@ -259,6 +256,6 @@ export default class AnnexTextures {
             bumpMap: annexFloorTexture,
             bumpScale: 0.03
         });
-        return {annexDoorMat, annexFrameMat, annexWallMat, annexFloorMat, annexCeilingMat};
+        return {annexDoorMat, annexDoorMatZ, annexFrameMat, annexWallMat, annexFloorMat, annexCeilingMat};
     }
 }

@@ -24,6 +24,7 @@ import {AnomalousPointOfInterestProfile} from './blueprints/AnomalousPointOfInte
 import {WreckedFurniturePileProfile} from './blueprints/WreckedFurniturePile.js';
 import {TheOutpostProfile} from './blueprints/TheOutpost.js';
 import {TheOasisProfile} from './blueprints/TheOasis.js';
+import {OfficeAmenitiesProfile} from './blueprints/OfficeAmenities.js';
 
 export default class StructuralBlueprints {
     static getStructuralMatrix(ctx) {
@@ -47,7 +48,8 @@ export default class StructuralBlueprints {
             AnomalousPointOfInterestProfile(this, ctx),
             WreckedFurniturePileProfile(this, ctx),
             TheOutpostProfile(this, ctx),
-            TheOasisProfile(this, ctx)
+            TheOasisProfile(this, ctx),
+            OfficeAmenitiesProfile(this, ctx)
         ];
         if (!StructuralBlueprints._sortedIndices) {
             StructuralBlueprints._sortedIndices = matrix
