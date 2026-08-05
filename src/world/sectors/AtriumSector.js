@@ -523,6 +523,8 @@ export const AtriumSector = (env, ctx) => {
                 ctx.chunkGroup.add(sky);
             }
             if (maze && maze[localX][localZ]) {
+                if (!env.aisleCells) env.aisleCells = new Set();
+                env.aisleCells.add(`${x},${z}`);
                 buildAisleWallSegment(maze, localX, localZ, x * env.cellSize, z * env.cellSize);
             } else {
                 const roll = random();

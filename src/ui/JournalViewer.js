@@ -176,12 +176,12 @@ export default class JournalViewer {
         this.acoustics.triggerSomaticEvent('terminal_blip', 1.0, 0.2);
         
         const text = this.getStory().collected[index];
-        this.contentPane.innerText = '';
+        this.contentPane.textContent = '';
         
         let i = 0;
         this.typeWriterInterval = setInterval(() => {
             if (i < text.length) {
-                this.contentPane.innerText += text.charAt(i);
+                this.contentPane.textContent += text.charAt(i);
                 if (text.charAt(i) !== ' ' && text.charAt(i) !== '\n' && Math.random() > 0.4) {
                     this.acoustics.triggerSomaticEvent('terminal_blip', 0.5, 0.1);
                 }

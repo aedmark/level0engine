@@ -180,7 +180,7 @@ export default class LumenGrid {
                 }
                 if (!fixture.isFake) {
                     fixture.distSq = distSq;
-                    fixture._biasedDistSq = fixture.hasShadow ? distSq - 40.0 : distSq;
+                    fixture._biasedDistSq = fixture.hasShadow ? distSq - 120.0 : distSq;
                     if (this._prevActive.has(fixture)) fixture._biasedDistSq -= 30.0;
                     this._insertFixture(fixture);
                 }
@@ -264,8 +264,9 @@ export default class LumenGrid {
 
         let intensityScalar;
         if (isShadowCaster && this._pendingShadowSlots.has(index)) {
-            fixture._currentScalar = 0.0;
-            intensityScalar = 0.0;
+            // Do not force the light to 0.0. Let it render with the slightly stale shadow map
+            // for the 1-3 frames it is pending. This prevents the glaring "pop in" flash.
+            intensityScalar = fixture._currentScalar;
         } else {
             fixture._currentScalar += (targetScalar - fixture._currentScalar) * 0.05;
             intensityScalar = fixture._currentScalar;

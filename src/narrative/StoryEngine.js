@@ -219,7 +219,7 @@ export default class StoryEngine {
 
     threadLabel(thread) {
         return {
-            CIPHER: 'RECORDS LOCK — POUR YEAR, THEN OPEN PEN',
+            CIPHER: 'RECORDS LOCK',
             EPOCH: `THE SLAB WAS POURED IN ${this.siteYear}`,
             PEN: `PEN ${this.penNumber} HAS NEVER BEEN SHUT`,
             LOST: `THE DISPOSITION OF ${this.cast.lost.toUpperCase()}`,

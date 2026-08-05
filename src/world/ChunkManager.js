@@ -472,6 +472,8 @@ export default class ChunkManager {
         const breakerPositions = [];
         const wallCells = new Set();
         const isWallCell = (wx, wz) => wallCells.has(`${wx},${wz}`);
+        const solidWallCells = new Set();
+        const isSolidWallCell = (wx, wz) => solidWallCells.has(`${wx},${wz}`);
         let chunkStartTime = performance.now();
         for (let x = startX; x < startX + env.chunkSize; x++) {
             for (let z = startZ; z < startZ + env.chunkSize; z++) {
@@ -678,6 +680,7 @@ export default class ChunkManager {
                     if (structure) {
                         structure.build(x, z);
                     } else {
+                        solidWallCells.add(`${x},${z}`);
                         const wall = ctx.buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
                         wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);
                         ctx.addGeometry(wall);
@@ -837,7 +840,7 @@ export default class ChunkManager {
                     } else if (!hasTallObstacle && random() > 0.95 && chunkBreakerCount < 3 && !isArtery) {
                         const px = x * env.cellSize;
                         const pz = z * env.cellSize;
-                        const mountSide = isWallCell(x, z - 1) ? 'N' : (isWallCell(x - 1, z) ? 'W' : null);
+                        const mountSide = isSolidWallCell(x, z - 1) ? 'N' : (isSolidWallCell(x - 1, z) ? 'W' : null);
                         let isTooClose = mountSide === null;
                         for (let b = 0; b < breakerPositions.length; b++) {
                             const dx = px - breakerPositions[b].x;
