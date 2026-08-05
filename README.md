@@ -39,8 +39,9 @@ This engine is built on absolute architectural minimalism and efficiency:
 - `E`: Somatic Interact (Doors, security keypads, documents, terminals, Surge Breakers, items)
 - `Arrow Keys`: Browse the recovered archive while a terminal is open (`◄`/`▲` previous file, `►`/`▼` next file)
 - `T`: Spray UV Decoy Breadcrumb (Mark your path and distract the Anomaly)
+- `J`: Open Personal Journal (Amber PDA)
 - `M`: Raise/lower the Threshold Compass (Bearing to the nearest sector threshold)
-- `Tab`: Toggle the settings menu
+- `Tab`: Toggle the settings menu (Drops pointer lock to allow OS mouse interaction)
 - `Z`: Sector Warp (Debug: teleport to the first step inside the active macro-zone's northern blast door path)
 - `G`: God Mode (Debug: invincible to the Anomaly and the void, noclip ghost flight — `Space` ascends, `C` held descends, sprint for speed)
 - `` ` ``: Debug HUD (Seed, sector, chunk, FPS, draw calls, anomaly distance, POI and objective state)
@@ -63,7 +64,7 @@ _Level 0 is a desktop-only experience. Mobile/touch support was removed in v0.4.
 - **Ultraviolet Breadcrumbs:** Spray a glowing, high-visibility UV paint decal on walls (via surface-normal raycasting) to map the labyrinth and prevent circling.
 - **Somatic Collisions:** High-speed kinematic impacts against structural geometry violently jolt the camera, bleed momentum, and trigger acoustic foley events. Kinematic vectors are decoupled, allowing you to seamlessly graze and slide along walls without losing perpendicular momentum.
 - **Interactive Doors & Blast Thresholds:** Wood-grain doors swing open precisely 90 degrees away from your approach vector — except in the Research Annex, where every door is a heavy steel fire door with a wired-glass observation window, a scuffed kick plate, and a stenciled placard, framed in matching brushed steel instead of wood. Macro zones seal themselves behind a single proximity-triggered sliding blast door sitting flush on the zone's true boundary, with pneumatic grind, hazard-striped panels, a metal transition awning, and its own heavier mechanical voice — a hydraulic hiss grinding into a low metal thud — distinct from a hinged door's creak. In the Research Annex, most doors are permanently locked and visually identical to the ones that open — the only way to know is to try. One per wing carries a glowing keypad.
-- **The Case File:** Notes, laptops, tape recorders, and property tags, all dealt from the seed's own story and stuck permanently to the object you found them on. Every document names the claim it makes and whether anything else in the wing backs it up, and a corroboration names both of its sources. Progress is tracked as a DATA RECOVERED readout, and any terminal can replay everything you've found in discovery order.
+- **The Case File:** Notes, laptops, tape recorders, and property tags, all dealt from the seed's own story and stuck permanently to the object you found them on. Every document names the claim it makes and whether anything else in the wing backs it up, and a corroboration names both of its sources. Progress is tracked as a DATA RECOVERED readout, and any terminal can replay everything you've found in discovery order. You can also press `J` at any time to open your Personal Journal (Amber PDA) to review all collected lore without losing immersion, thanks to the in-engine Virtual Cursor system which keeps the OS pointer locked while you browse.
 - **Claustrophobic Bottlenecks:** Corporate partitions have been excised in favor of absolute liminal emptiness and brutalist friction. The labyrinth dynamically generates blind L-shaped doglegs and tight 0.3-unit gaps. You must physically compress your body ('Q') to slide through them, restricting traversal speed.
 - **Claustrophobic Particulates:** The volumetric dust cloud dynamically spikes in opacity and particle size when the player physically crawls through vents, simulating a choking atmosphere.
 
@@ -93,5 +94,5 @@ Zero-dependency ES6 modules, organized by concern:
 - **Player:** `PlayerController.js` (metabolics and kinematics), `SomaticInput.js` (raw input translated into semantic intents), `InteractionController.js` (door/airlock/light state machines).
 - **Narrative:** `StoryEngine.js` (the seeded cold-case machinery: dealing, sticky assignment, thread bookkeeping, corroboration), `CaseFiles.js` (what the documents actually say, kept apart from the machinery because prose and dealing logic change for different reasons and at different rates).
 - **Audio:** `AcousticEngine.js` (the DSP core), `Synthesizer.js` (the persistent Web Audio graph), `Mixer.js` (real-time parameter modulation from telemetry/sector/somatic state), `Foley.js` (spatialized transient SFX).
-- **UI:** `UIManager.js` (HUD), `DebugHUD.js`, `DocumentViewer.js`, `InquestController.js`, `KeypadController.js`.
+- **UI:** `UIManager.js` (HUD), `DebugHUD.js`, `DocumentViewer.js`, `JournalViewer.js`, `InquestController.js`, `KeypadController.js`.
 - **System:** `SaveManager.js` (persistence via `localStorage`), `SomaticController.js` (the environmental event bus routing physical/world events to audio and UI).
