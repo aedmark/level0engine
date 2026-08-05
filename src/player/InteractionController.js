@@ -9,6 +9,8 @@ export default class InteractionController {
         this.env = env;
         this._camDir = new THREE.Vector3();
         this._lookDir = new THREE.Vector3();
+        this._objWorldPos = new THREE.Vector3();
+        this.setupEventListeners();
     }
 
     shatterFixture(fixture) {
@@ -31,14 +33,15 @@ export default class InteractionController {
         const env = this.env;
         const ud = door.userData;
         if (ud.isAirlockDoor) return;
-        const pDistSq = playerPos.distanceToSquared(door.position);
+        const worldPos = (typeof door.getWorldPosition === 'function') ? door.getWorldPosition(this._objWorldPos) : door.position;
+        const pDistSq = playerPos.distanceToSquared(worldPos);
         const entityOpen = ud.entityOpen === true;
         ud.entityOpen = false;
         if (pDistSq > 900.0 && ud.progress === 0 && !entityOpen) return;
         const shouldOpen = entityOpen || pDistSq < 20.0;
         const target = shouldOpen ? 1.0 : 0.0;
         const travelAxis = ud.spansX ? 'z' : 'x';
-        const playerOutside = ((playerPos[travelAxis] - door.position[travelAxis]) * ud.outSign) > 0;
+        const playerOutside = ((playerPos[travelAxis] - worldPos[travelAxis]) * ud.outSign) > 0;
         if (target !== ud.lastTarget) {
             ud.lastTarget = target;
             if (target === 1.0) ud.openedFromOutside = playerOutside;
@@ -97,9 +100,10 @@ export default class InteractionController {
         if (env.camera) env.camera.getWorldDirection(this._camDir);
         const checkObj = (obj) => {
             if (obj.userData.isSlider && !obj.userData.isAirlockDoor) return;
-            const distSq = obj.position.distanceToSquared(playerPos);
+            const worldPos = (typeof obj.getWorldPosition === 'function') ? obj.getWorldPosition(this._objWorldPos) : obj.position;
+            const distSq = worldPos.distanceToSquared(playerPos);
             if (distSq < closestDistSq) {
-                this._lookDir.subVectors(obj.position, playerPos).normalize();
+                this._lookDir.subVectors(worldPos, playerPos).normalize();
                 if (this._camDir.dot(this._lookDir) > 0.75) {
                     closestDistSq = distSq;
                     lookingAtHit = true;
@@ -109,17 +113,18 @@ export default class InteractionController {
         if (env.interactables) env.interactables.forEach(checkObj);
         if (env.interactiveDoors) env.interactiveDoors.forEach(checkObj);
         env.isLookingAtInteractable = lookingAtHit;
-        env._updateBreakerScan(playerPos, delta);
+        this.updateBreakerScan(playerPos, delta);
         if (env.airlocks) {
-            env.airlocks.forEach(airlock => env._updateAirlock(airlock, playerPos, delta));
+            env.airlocks.forEach(airlock => this.updateAirlock(airlock, playerPos, delta));
         }
         env.interactiveDoors.forEach(door => {
             if (door.userData.isSlider) {
-                env._updateSliderDoor(door, playerPos, delta);
+                this.updateSliderDoor(door, playerPos, delta);
                 return;
             }
             if (door.userData.codeLocked) door.userData.entityOpen = false;
-            const pDistSq = playerPos.distanceToSquared(door.position);
+            const worldPos = (typeof door.getWorldPosition === 'function') ? door.getWorldPosition(this._objWorldPos) : door.position;
+            const pDistSq = playerPos.distanceToSquared(worldPos);
             if (pDistSq > 400.0 && !door.userData.isLatched && !door.userData.entityOpen) return;
             const playerOpen = door.userData.playerOpen === true;
             const entityOpen = door.userData.entityOpen === true;
@@ -134,10 +139,10 @@ export default class InteractionController {
                     const swingAngle = Math.PI / 2.2;
                     let desiredRot;
                     if (isZDoor) {
-                        const approachZ = triggerPos.z - door.position.z;
+                        const approachZ = triggerPos.z - worldPos.z;
                         desiredRot = approachZ < 0 ? (door.userData.closedRot + swingAngle) : (door.userData.closedRot - swingAngle);
                     } else {
-                        const approachX = triggerPos.x - door.position.x;
+                        const approachX = triggerPos.x - worldPos.x;
                         desiredRot = approachX < 0 ? (door.userData.closedRot - swingAngle) : (door.userData.closedRot + swingAngle);
                     }
                     door.userData.latchedRot = desiredRot;
@@ -501,7 +506,275 @@ export default class InteractionController {
         const targetMat = isReadyToPass ? env.airlockGreenMat : env.airlockRedMat;
         const button = airlock.switchGrp && airlock.switchGrp.userData.button;
         if (button && button.material !== targetMat) button.material = targetMat;
-        env._updateAirlockDoor(airlock.outerDoor, delta);
-        env._updateAirlockDoor(airlock.innerDoor, delta);
+        this.updateAirlockDoor(airlock.outerDoor, delta);
+        this.updateAirlockDoor(airlock.innerDoor, delta);
+    }
+
+
+    rollHuntHops() {
+        const r = Math.random();
+        if (r < 0.10) return 0;
+        if (r < 0.60) return 1;
+        return 2;
+    }
+
+    beginBreakerScan(podium) {
+        const env = this.env;
+        if (env.breakerScan && env.breakerScan.podium === podium) return;
+        this.abortBreakerScan();
+        env.breakerScan = {podium: podium, t: 0, held: true};
+        if (podium.userData.setScan) podium.userData.setScan(podium, 0); 
+        document.dispatchEvent(new CustomEvent('somatic-scan-start', {detail: {distSq: 1.0, intensity: 0.5}}));
+    }
+
+    abortBreakerScan() {
+        const env = this.env;
+        const scan = env.breakerScan;
+        if (!scan) return;
+        env.breakerScan = null;
+        if (!scan.podium.userData.active && scan.podium.userData.setScan) scan.podium.userData.setScan(scan.podium, 0);
+    }
+
+    updateBreakerScan(playerPos, delta) {
+        const env = this.env;
+        const scan = env.breakerScan;
+        if (!scan) return;
+        const podium = scan.podium;
+        if (podium.userData.active || !podium.parent) {
+            this.abortBreakerScan();
+            return;
+        }
+        if (!scan.held) {
+            this.abortBreakerScan();
+            return;
+        }
+        if (podium.position.distanceToSquared(playerPos) > 9.0) {
+            this.abortBreakerScan();
+            return;
+        }
+        if (env.camera) {
+            env.camera.getWorldDirection(this._camDir);
+            env._scanAim = env._scanAim || new THREE.Vector3();
+            env._scanAim.subVectors(podium.position, playerPos).normalize();
+            if (this._camDir.dot(env._scanAim) < 0.70) {
+                this.abortBreakerScan();
+                return;
+            }
+        }
+        scan.t = Math.min(1, scan.t + delta / 3.0);
+        if (podium.userData.setScan) podium.userData.setScan(podium, scan.t);
+        if (scan.t >= 1) {
+            env.breakerScan = null;
+            podium.userData.active = true;
+            if (podium.userData.setSpent) podium.userData.setSpent(podium);
+            this.activateExitSwitch(podium);
+        }
+    }
+
+    activateExitSwitch(podium) {
+        const env = this.env;
+        env.player.objectives.fixed++;
+        env.player.updateObjectives();
+        env._breakerHuntHops = this.rollHuntHops();
+        document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 0.1, intensity: 1.5}}));
+        if (env.engine.ambientLight) {
+            env.engine.ambientLight.intensity = 2.0;
+        }
+    }
+
+    triggerBreaker(podium) {
+        const env = this.env;
+        const chunkHash = podium.userData.chunkHash;
+        const isBlackout = env.blackoutChunks.has(chunkHash);
+        if (podium.userData.door && !podium.userData.doorOpen) {
+            podium.userData.door.rotation.y = -Math.PI / 1.5;
+            podium.userData.doorOpen = true;
+        }
+        document.dispatchEvent(new CustomEvent('somatic-breaker', {detail: {distSq: 1.0, intensity: 2.0}}));
+        if (!isBlackout) {
+            env.blackoutChunks.add(chunkHash);
+            env.fixtureData.forEach(fixture => {
+                if (fixture.chunkHash === chunkHash && !fixture.isDead && !fixture.isLighthouse && !fixture.isArchiveLight) {
+                    fixture.originalFaulty = fixture.isFaulty;
+                    fixture.baseIntensity = 2.5;
+                    fixture.targetIntensity = 2.5;
+                    fixture.currentIntensity = 2.5;
+                    fixture.isDead = true;
+                    if (fixture.isFake && fixture.material) fixture.material.emissiveIntensity = 2.0;
+                    if (fixture.material && fixture.material.color && !fixture.originalColor) {
+                        fixture.originalColor = fixture.material.color.getHex();
+                        fixture.originalEmissive = fixture.material.emissive.getHex();
+                    }
+                    clearTimeout(fixture.flickerTimer);
+                    clearTimeout(fixture.restoreTimer);
+                    fixture.flickerTimer = setTimeout(() => {
+                        fixture.baseIntensity = 0.0;
+                        fixture.targetIntensity = 0.0;
+                        fixture.currentIntensity = 0.0;
+                        if (fixture.material && fixture.originalColor) {
+                            fixture.material.color.setHex(0x333333);
+                            fixture.material.emissive.setHex(0x000000);
+                            fixture.material.emissiveIntensity = 0.0;
+                        }
+                        if (fixture.lightObj) fixture.lightObj.intensity = 0.0;
+                    }, 200 + Math.random() * 600);
+                    fixture.restoreTimer = setTimeout(() => {
+                        env.blackoutChunks.delete(chunkHash);
+                        fixture.isDead = false;
+                        fixture.isFaulty = fixture.originalFaulty !== undefined ? fixture.originalFaulty : false;
+                        fixture.baseIntensity = fixture.isFake ? 0.0 : 0.6;
+                        fixture.targetIntensity = fixture.baseIntensity;
+                        fixture.currentIntensity = fixture.baseIntensity;
+                        if (fixture.material && fixture.originalColor) {
+                            fixture.material.color.setHex(fixture.originalColor);
+                            fixture.material.emissive.setHex(fixture.originalEmissive);
+                            if (fixture.isFake) fixture.material.emissiveIntensity = 0.4;
+                        }
+                        if (fixture.lightObj) fixture.lightObj.intensity = fixture.baseIntensity;
+                    }, 25000 + Math.random() * 10000);
+                }
+            });
+        } else {
+            env.blackoutChunks.delete(chunkHash);
+            env.fixtureData.forEach(fixture => {
+                if (fixture.chunkHash === chunkHash && !fixture.isLighthouse && !fixture.isArchiveLight) {
+                    clearTimeout(fixture.flickerTimer);
+                    clearTimeout(fixture.restoreTimer);
+                    fixture.isDead = false;
+                    fixture.isFaulty = fixture.originalFaulty !== undefined ? fixture.originalFaulty : false;
+                    fixture.baseIntensity = fixture.isFake ? 0.0 : 0.6;
+                    fixture.targetIntensity = fixture.baseIntensity;
+                    fixture.currentIntensity = fixture.baseIntensity;
+                    if (fixture.material && fixture.originalColor) {
+                        fixture.material.color.setHex(fixture.originalColor);
+                        fixture.material.emissive.setHex(fixture.originalEmissive);
+                        if (fixture.isFake) fixture.material.emissiveIntensity = 0.4;
+                    }
+                }
+            });
+        }
+    }
+
+
+    setupEventListeners() {
+        const env = this.env;
+        env._interactDir = new THREE.Vector3();
+        
+        document.addEventListener('somatic-interact', (e) => {
+            let hit = null;
+            let closestDistSq = 9.0;
+            const checkObj = (obj) => {
+                if (obj.userData.isSlider && !obj.userData.isAirlockDoor) return;
+                const worldPos = (typeof obj.getWorldPosition === 'function') ? obj.getWorldPosition(this._objWorldPos) : obj.position;
+                const distSq = worldPos.distanceToSquared(e.detail.position);
+                if (distSq < closestDistSq) {
+                    env._interactDir.subVectors(worldPos, e.detail.position).normalize();
+                    if (e.detail.direction.dot(env._interactDir) > 0.75) {
+                        closestDistSq = distSq;
+                        hit = obj;
+                    }
+                }
+            };
+            if (env.interactables) env.interactables.forEach(checkObj);
+            if (env.interactiveDoors) env.interactiveDoors.forEach(checkObj);
+            if (hit && hit.userData.isAirlockDoor) {
+                hit.userData.playerOpen = true;
+                return;
+            }
+            if (hit && hit.userData.isAirlockSwitch) {
+                hit.userData.playerOpen = true;
+                return;
+            }
+            if (hit && hit.userData.codeLocked) {
+                env._keypadDoor = hit;
+                document.dispatchEvent(new CustomEvent('somatic-keypad', {detail: {}}));
+                return;
+            }
+            if (hit && hit.userData.closedRot !== undefined) {
+                hit.userData.playerOpen = !hit.userData.playerOpen;
+                document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 1.0, intensity: 0.5}}));
+                return;
+            }
+            if (hit && hit.userData.type === 'valve') {
+                if (hit.userData.active) return;
+                hit.userData.active = true;
+                document.dispatchEvent(new CustomEvent('somatic-valve', {detail: {distSq: 1.0, intensity: 1.5}}));
+                if (!env.steamTex) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 64;
+                    canvas.height = 64;
+                    const ctx = canvas.getContext('2d');
+                    const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+                    grad.addColorStop(0, 'rgba(200, 220, 255, 0.5)');
+                    grad.addColorStop(0.4, 'rgba(200, 220, 255, 0.15)');
+                    grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(0, 0, 64, 64);
+                    env.steamTex = new THREE.CanvasTexture(canvas);
+                    env.steamMatTemplate = new THREE.SpriteMaterial({
+                        map: env.steamTex, color: 0xffffff, transparent: true,
+                        depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.5
+                    });
+                }
+                const steamGroup = new THREE.Group();
+                const steamCount = 20;
+                for (let i = 0; i < steamCount; i++) {
+                    const sprite = new THREE.Sprite(env.steamMatTemplate.clone());
+                    sprite.userData = {
+                        life: Math.random(),
+                        speed: 2.0 + Math.random() * 2.0,
+                        spreadX: (Math.random() - 0.5) * 1.5,
+                        spreadZ: (Math.random() - 0.5) * 1.5,
+                        baseScale: 0.3 + Math.random() * 0.3
+                    };
+                    sprite.position.set(0, sprite.userData.life * 1.5, 0);
+                    steamGroup.add(sprite);
+                }
+                hit.add(steamGroup);
+                if (!env.steamGroups) env.steamGroups = [];
+                env.steamGroups.push({group: steamGroup});
+                return;
+            }
+            if (hit && hit.userData.type === 'breaker') {
+                if (!hit.userData.active) return;
+                hit.userData.active = false;
+                this.triggerBreaker(hit);
+            } else if (hit && hit.userData.type === 'exit_switch') {
+                if (!hit.userData.active) this.beginBreakerScan(hit);
+            } else if (hit && hit.userData.type === 'grate' && hit.userData.active) {
+                hit.userData.active = false;
+                document.dispatchEvent(new CustomEvent('somatic-vent', {detail: {distSq: 1.0, intensity: 1.5}}));
+            } else if (hit && hit.userData.type === 'exit_key' && hit.userData.active) {
+                hit.userData.active = false;
+                hit.visible = false;
+                env.player.inventory.hasExitKey = true;
+                env.player.updateObjectives();
+                document.dispatchEvent(new CustomEvent('somatic-item', {detail: {distSq: 1.0, intensity: 0.8}}));
+            } else if (hit && hit.userData.type === 'battery' && hit.userData.active) {
+                if (env.player.inventory.batteries < env.player.MAX_BATTERIES) {
+                    hit.userData.active = false;
+                    hit.visible = false;
+                    document.dispatchEvent(new Event('somatic-pickup-battery'));
+                }
+            } else if (hit && hit.userData.type === 'almond' && hit.userData.active) {
+                if (env.player.inventory.almondWater < env.player.MAX_ALMOND_WATER) {
+                    hit.userData.active = false;
+                    hit.visible = false;
+                    document.dispatchEvent(new Event('somatic-pickup-almond'));
+                }
+            } else if (hit && hit.userData.type === 'document' && hit.userData.active) {
+                document.dispatchEvent(new CustomEvent('somatic-read', {
+                    detail: {docId: hit.userData.docId, zone: hit.userData.zone || null}
+                }));
+            } else if (hit && hit.userData.type === 'exit' && hit.userData.active) {
+                document.dispatchEvent(new CustomEvent('somatic-inquest', {detail: {exitRef: hit}}));
+            }
+        });
+        
+        document.addEventListener('somatic-interact-release', () => {
+            if (env.breakerScan) {
+                env.breakerScan.held = false;
+            }
+        });
     }
 }

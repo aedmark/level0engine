@@ -104,6 +104,8 @@ export default class HazardTextures {
         });
         const rustMat = new THREE.MeshStandardMaterial({color: 0x3a1c14, roughness: 1.0, metalness: 0.3});
         const metalMat = new THREE.MeshStandardMaterial({color: 0x999999, roughness: 0.35, metalness: 0.95});
+        const paintedSteelMat = new THREE.MeshStandardMaterial({color: 0x666666, roughness: 0.2, metalness: 0.2});
+
         const {canvas: pittedCanvas, ctx: pittedCtx} = TextureMechanics._createContext(256, 256);
         pittedCtx.fillStyle = '#6e6d68';
         pittedCtx.fillRect(0, 0, 256, 256);
@@ -223,6 +225,7 @@ export default class HazardTextures {
             voidMat,
             rustMat,
             metalMat,
+            paintedSteelMat,
             pittedMetalMat,
             almondMat,
             titaniumMat,

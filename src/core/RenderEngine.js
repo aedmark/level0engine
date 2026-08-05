@@ -38,7 +38,7 @@ export default class RenderEngine {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         const gammaSlider = document.getElementById('gammaSlider');
-        this.baseExposure = gammaSlider ? Number(gammaSlider.value) / 100 : 0.5;
+        this.baseExposure = gammaSlider ? Number(gammaSlider.value) / 100 : 0.80;
         this.renderer.toneMappingExposure = this.baseExposure;
         if ('outputColorSpace' in this.renderer) {
             this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -236,7 +236,7 @@ export default class RenderEngine {
                     vec2 sampleUv = uv + heatOffset;
                     vec3 col;
                     vec3 fauxHalation;
-                    if (caShift < 0.0001) {
+                    if (stressLevel < 0.02) {
                         vec4 tex = texture2D(tDiffuse, sampleUv);
                         col = tex.rgb;
                         fauxHalation = tex.rgb * 0.6;
@@ -408,8 +408,9 @@ export default class RenderEngine {
     }
 
     get time() {
-        if (!this._startTime) this._startTime = performance.now();
-        return (performance.now() - this._startTime) / 1000;
+        const now = performance.now();
+        if (!this._startTime) this._startTime = now;
+        return (now - this._startTime) / 1000;
     }
 
     render() {

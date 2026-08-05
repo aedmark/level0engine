@@ -240,15 +240,28 @@ export default class StructureKit {
                 const top = new THREE.Mesh(topGeo, env.woodMat);
                 top.position.set(0, 1.125, 0);
                 group.add(top);
+                const baseMat = env.paintedSteelMat || env.metalMat;
                 const pedGeo = env._cacheGeo('deskPed15', () => new THREE.BoxGeometry(0.6, 1.08, 1.14));
-                const pedL = new THREE.Mesh(pedGeo, env.metalMat);
+                const pedL = new THREE.Mesh(pedGeo, baseMat);
                 pedL.position.set(-0.87, 0.54, 0);
                 group.add(pedL);
-                const pedR = new THREE.Mesh(pedGeo, env.metalMat);
+                const pedR = new THREE.Mesh(pedGeo, baseMat);
                 pedR.position.set(0.87, 0.54, 0);
                 group.add(pedR);
+                const drawerGeo = env._cacheGeo('deskDrawer', () => new THREE.BoxGeometry(0.56, 0.48, 0.04));
+                const handleGeo = env._cacheGeo('deskHandle', () => new THREE.BoxGeometry(0.12, 0.02, 0.03));
+                for (const px of [-0.87, 0.87]) {
+                    for (const dy of [0.28, 0.80]) {
+                        const drawer = new THREE.Mesh(drawerGeo, baseMat);
+                        drawer.position.set(px, dy, 0.57 + 0.02);
+                        group.add(drawer);
+                        const handle = new THREE.Mesh(handleGeo, env.metalMat);
+                        handle.position.set(px, dy + 0.15, 0.57 + 0.04 + 0.015);
+                        group.add(handle);
+                    }
+                }
                 const modGeo = env._cacheGeo('deskMod15', () => new THREE.BoxGeometry(2.25, 0.75, 0.075));
-                const modPanel = new THREE.Mesh(modGeo, env.metalMat);
+                const modPanel = new THREE.Mesh(modGeo, baseMat);
                 modPanel.position.set(0, 0.675, -0.525);
                 group.add(modPanel);
                 group.position.set(x, y, z);

@@ -38,7 +38,7 @@ export const ArchiveSector = (env, ctx) => {
                 const g = new THREE.Group();
                 const shelfGeo = env._cacheGeo('cartShelf125', () => new THREE.BoxGeometry(1.25, 0.0625, 0.625));
                 for (let i = 0; i < 3; i++) {
-                    const shelf = new THREE.Mesh(shelfGeo, env.metalMat);
+                    const shelf = new THREE.Mesh(shelfGeo, env.paintedSteelMat);
                     shelf.position.y = 0.25 + i * 0.5;
                     g.add(shelf);
                     if (random() > 0.3) {
@@ -51,7 +51,7 @@ export const ArchiveSector = (env, ctx) => {
                 const postGeo = env._cacheGeo('cartPost125', () => new THREE.CylinderGeometry(0.025, 0.025, 1.25, 8));
                 for (let px = -1; px <= 1; px += 2) {
                     for (let pz = -1; pz <= 1; pz += 2) {
-                        const post = new THREE.Mesh(postGeo, env.metalMat);
+                        const post = new THREE.Mesh(postGeo, env.paintedSteelMat);
                         post.position.set(px * 0.6, 0.625, pz * 0.2875);
                         g.add(post);
                     }
