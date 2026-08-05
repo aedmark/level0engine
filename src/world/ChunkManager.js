@@ -556,6 +556,47 @@ export default class ChunkManager {
                             }
                         }
                         
+                        // Carve path for airlocks
+                        if (env.airlocks) {
+                            for (const airlock of env.airlocks) {
+                                const chunkCx = (startX + size/2) * env.cellSize;
+                                const chunkCz = (startZ + size/2) * env.cellSize;
+                                const dx = airlock.chamberCenter.x - chunkCx;
+                                const dz = airlock.chamberCenter.z - chunkCz;
+                                
+                                if (Math.abs(dx) <= size * env.cellSize && Math.abs(dz) <= size * env.cellSize) {
+                                    const wox = Math.round(airlock.outerPos.x / env.cellSize);
+                                    const woz = Math.round(airlock.outerPos.z / env.cellSize);
+                                    
+                                    let clearX = [];
+                                    let clearZ = [];
+                                    if (airlock.spansX) {
+                                        clearX = [wox - 1, wox, wox + 1];
+                                        const dir = airlock.outSign;
+                                        clearZ = [woz, woz + dir, woz + dir * 2, woz + dir * 3];
+                                    } else {
+                                        clearZ = [woz - 1, woz, woz + 1];
+                                        const dir = airlock.outSign;
+                                        clearX = [wox, wox + dir, wox + dir * 2, wox + dir * 3];
+                                    }
+                                    
+                                    for (const cx of clearX) {
+                                        for (const cz of clearZ) {
+                                            const lx = cx - startX;
+                                            const lz = cz - startZ;
+                                            if (lx >= 0 && lx < size && lz >= 0 && lz < size) {
+                                                ctx.setWall(cx, cz, false);
+                                                if (grid[lz * size + lx] !== 2) {
+                                                    grid[lz * size + lx] = 2;
+                                                    q.push({lx, lz});
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
                         // Flood-fill from arteries
                         const dirs = [{x:1,z:0}, {x:-1,z:0}, {x:0,z:1}, {x:0,z:-1}];
                         while (q.length > 0) {
