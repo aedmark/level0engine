@@ -49,7 +49,7 @@ const server = http.createServer((req, res) => {
                         res.writeHead(500, { 'Content-Type': 'application/json' });
                         return res.end(JSON.stringify({ error: 'Cannot read data dir' }));
                     }
-                    const jsonFiles = files.filter(f => f.endsWith('.json'));
+                    const jsonFiles = files.filter(f => f.endsWith('.json') && f !== 'tags.json');
                     res.writeHead(200, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ files: jsonFiles }));
                 });

@@ -1,7 +1,7 @@
 {
   "ANNEX": [
     {
-      "text": "TAPE RECORDER FOUND IN ANNEX: [LOUD STATIC] ...${c.lead} here. The corridor walls are absorbing sound. I yelled for ${c.custodian} earlier and the echo... didn't come back. It just stopped. [CLICK]",
+      "text": "[LOUD STATIC]\n\n...${c.lead} here. The corridor walls are absorbing sound. I yelled for ${c.custodian} earlier and the echo didn't come back.\n\n...\n\nIt just stopped.\n\n[CLICK]",
       "thread": "GEOMETRY"
     }
   ],

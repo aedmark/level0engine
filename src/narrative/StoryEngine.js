@@ -51,7 +51,7 @@ export default class StoryEngine {
         const lost = mkName();
         this.cast = {lead, custodian, archivist, lost};
         this.projectName = pick(StoryEngine.NAMES_DATA.PROJECT_NAMES);
-        this.truth = Math.floor(this.rand() * 3);
+        this.truth = Math.floor(this.rand() * StoryEngine.CASES_DATA.finales.length);
         this.penNumber = 3 + Math.floor(this.rand() * 19);
         this.siteYear = 1971 + Math.floor(this.rand() * 28);
         this.accessCode = String(this.siteYear).slice(2) + String(this.penNumber).padStart(2, '0');
@@ -131,9 +131,9 @@ export default class StoryEngine {
         if (idStr.startsWith('FINALE')) {
             if (!this.readTemplates.has('FINALE')) {
                 this.readTemplates.add('FINALE');
-                this.collected.push(this.finales[this.truth]);
+                this.collected.push(this.finales[this.truth].text);
             }
-            return {text: this.finales[this.truth], progress: this.progress()};
+            return {text: this.finales[this.truth].text, progress: this.progress()};
         }
         const isTerminal = idStr.startsWith('PC_');
         const assignKey = idStr + '|' + (zone || '');
@@ -254,11 +254,7 @@ export default class StoryEngine {
     getVerdicts() {
         const c = this.cast;
         return {
-            options: [
-                'CONTAINMENT REVIEW: There was no breach. The specimen predates the site. It grew a laboratory around itself.',
-                'PERSONNEL FINDING: ' + c.lost + ' is alive. Every locked door was sealed by hand, from the inside. It is trapped in here with ' + c.lost + '.',
-                'TRANSMISSION AUDIT: The hum is a carrier wave. The building is broadcasting its own contents somewhere. The staff are the payload.'
-            ],
+            options: this.finales.map(f => f.option),
             truth: this.truth,
             finaleRead: this.readTemplates.has('FINALE'),
             tellCorroborated: this.corroborated.has('TELL'),

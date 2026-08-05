@@ -2,9 +2,9 @@
   "ANNEX": [
     "ASYNC RESEARCH REPORT #${ctx.seed * ctx.hours % 666}\n${P}\nAUTHOR: ${c.lead}\n\nIt doesn't use the doors.\nIt doesn't need the doors.\n\nWhy did we build more doors?",
     "INTERNAL MAIL — UNSENT\nFROM: ${c.lost}\nTO: ${c.lead}\n\nYou keep saying \"containment\" like the word still means something here. I measured my office again last night. It has been growing by four centimeters a week. I have stopped reporting it because you have stopped reading these.",
-    "IT BULLETIN #${ctx.seed * (3 + ctx.siteYear) % 420}\nFROM: FACILITIES (${c.custodian})\n\nThe records room lock has been reset AGAIN and I am NOT posting the number. It is built the way it has always been built: the year they poured the slab, then the pen that will not stay shut. Two digits each, in that order. If you do not know both halves you have no business in that room.",
-    "PROJECT ${P} — OBSERVATION ${100 + (ctx.seed % 800)}\nAUTHOR: ${c.lead}\n\nThe architectural shift is directly proportional to the observer's heart rate. The walls aren't moving; the space between them is breathing. ${c.lost} disagrees. ${c.lost} has been in the halls ${hrs} hours and I no longer weight ${c.lost}'s disagreements in my decision making.",
-    "STICKY NOTE:\n\nIf my door is locked and my laptop is on, I have gone to the pens. If my door is locked and my laptop is gone, so am I. — ${c.lost}"
+    "IT BULLETIN # ${ctx.seed * (3 + ctx.siteYear) % 420}\nFROM: FACILITIES (${c.custodian})\n\nThe records room lock has been reset AGAIN and I am NOT posting the number. It is built the way it has always been built: the year they poured the slab, then the pen that will not stay shut. Two digits each, in that order. If you do not know both halves you have no business in that room.",
+    "${P} — OBSERVATION ${100 + (ctx.seed % 800)}\nAUTHOR: ${c.lead}\n\nThe architectural shift is directly proportional to the observer's heart rate. The walls aren't moving; the space between them is breathing. ${c.lost} disagrees. ${c.lost} has been in the halls ${hrs} hours and I no longer weight ${c.lost}'s disagreements in my decision making.",
+    "STICKY NOTE:\n\nIf my door is locked and my laptop is here: I have gone to the pens.\n\nIf my door is locked and my laptop is gone: so am I.\n\n— ${c.lost}"
   ],
   "ARCHIVE": [
     "PERSONNEL RECORD: ${LOST}\nSTATUS: SEE ADDENDUM\nADDENDUM: MISSING\nADDENDUM 2: The addendum is not missing. The addendum was reclassified. — ${c.archivist}",

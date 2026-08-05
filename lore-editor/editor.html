@@ -100,11 +100,11 @@
 
         /* Editor Section */
         .editor-section {
-            flex: 1; display: flex; flex-direction: column; padding: 32px; z-index: 10; position: relative;
+            flex: 1; display: flex; flex-direction: column; padding: 32px; z-index: 10; position: relative; min-height: 0;
         }
         
         #editor-container {
-            flex: 1; display: flex; flex-direction: column; animation: fadeIn 0.3s ease-out; display: none;
+            flex: 1; display: flex; flex-direction: column; animation: fadeIn 0.3s ease-out; display: none; min-height: 0;
         }
 
         .editor-header-top {
@@ -115,7 +115,7 @@
 
         .editor-pane-wrapper {
             flex: 1; display: flex; flex-direction: column; background: var(--bg-panel); border-radius: 12px;
-            border: 1px solid var(--border); overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); backdrop-filter: blur(12px);
+            border: 1px solid var(--border); overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); backdrop-filter: blur(12px); min-height: 0;
         }
 
         .editor-pane-header {
@@ -131,7 +131,7 @@
         .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .editor-pane-body {
-            display: flex; flex: 1; overflow: hidden;
+            display: flex; flex: 1; overflow: hidden; min-height: 0;
         }
 
         /* Tree Nav */
@@ -185,7 +185,7 @@
 
         /* Main Editor Area */
         .editor-main {
-            flex: 1; padding: 24px; background: linear-gradient(to bottom right, #0a0a0a, #111); display: flex; flex-direction: column; overflow: hidden;
+            flex: 1; padding: 24px; background: linear-gradient(to bottom right, #0a0a0a, #111); display: flex; flex-direction: column; overflow: hidden; min-height: 0;
         }
         
         .editor-title { font-size: 1.25rem; font-weight: 300; color: white; margin-bottom: 16px; display: flex; align-items: baseline; gap: 12px; }
@@ -291,7 +291,7 @@
 
                         <!-- Editor Main -->
                         <div class="editor-main">
-                            <div id="editor-content-area" style="display:none; height: 100%; flex-direction: column;">
+                            <div id="editor-content-area" style="display:none; flex: 1; min-height: 0; flex-direction: column; overflow: hidden;">
                                 <div class="editor-title" id="editor-title"></div>
                                 
                                 <div id="hint-box">
@@ -303,9 +303,14 @@
                                     <input type="text" id="tag-input" placeholder="e.g. GEOMETRY, HUM, LOST">
                                 </div>
 
-                                <div class="textarea-container">
+                                <div class="textarea-container" id="textarea-container">
                                     <div class="textarea-glow"></div>
                                     <textarea id="main-textarea"></textarea>
+                                </div>
+                                <div id="names-container" style="display:none; flex: 1; flex-direction: column; overflow-y: auto; gap: 8px; min-height: 0; padding-right: 8px;"></div>
+                                <div id="names-add-box" style="display:none; margin-top: 16px; align-items: center; gap: 8px;">
+                                    <input type="text" id="names-input" placeholder="Add new entry..." style="flex:1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;">
+                                    <button onclick="addNameEntry()" style="padding: 8px 16px; background: rgba(255,255,255,0.1); border: none; color: white; border-radius: 4px; cursor: pointer;">Add</button>
                                 </div>
                             </div>
                             <div id="editor-empty-state" style="flex:1; display:flex; align-items:center; justify-content:center; text-align:center;">
@@ -468,6 +473,16 @@
                     const catData = fileData[cat];
                     const isCatArray = Array.isArray(catData);
                     
+                    if (selectedFile === 'names.json') {
+                         const isChildActive = selectedCategory === cat;
+                         html += `<div class="tree-item-row group">
+                            <button class="tree-btn ${isChildActive ? 'active bold' : ''}" onclick="selectNode(null, '${cat}')">
+                                ▶ ${cat}
+                            </button>
+                        </div>`;
+                        return;
+                    }
+                    
                     html += `<div class="tree-item">
                         <div class="tree-item-row group">
                             <button class="tree-btn ${isExpanded ? 'active bold' : ''}" onclick="toggleCat('${cat}')">
@@ -544,8 +559,9 @@
 
         function addEntry(cat) {
             if (cat) {
-                if (!Array.isArray(fileData[cat])) fileData[cat] = [fileData[cat], ""];
-                else fileData[cat].push("");
+                const template = selectedFile === 'tapes.json' ? { text: "", thread: "UNCLASSIFIED" } : "";
+                if (!Array.isArray(fileData[cat])) fileData[cat] = [fileData[cat], template];
+                else fileData[cat].push(template);
                 expandedCategory = cat;
                 selectedCategory = cat;
                 selectedIndex = fileData[cat].length - 1;
@@ -641,28 +657,54 @@
             if (selectedFile === 'foreshadow.json' && linkedData && selectedIndex !== null) {
                 hintBox.style.display = 'block';
                 document.getElementById('hint-title').innerText = `Target Finale (Index ${selectedIndex})`;
-                document.getElementById('hint-text').innerText = linkedData[selectedIndex] || '';
+                document.getElementById('hint-text').innerText = linkedData[selectedIndex]?.option || '';
             } else {
                 hintBox.style.display = 'none';
             }
 
-            // Tag Box (Library)
+            if (selectedFile === 'names.json') {
+                document.getElementById('textarea-container').style.display = 'none';
+                document.getElementById('tag-box').style.display = 'none';
+                document.getElementById('names-container').style.display = 'flex';
+                document.getElementById('names-add-box').style.display = 'flex';
+                renderNamesList();
+                return;
+            } else {
+                document.getElementById('textarea-container').style.display = 'flex';
+                document.getElementById('names-container').style.display = 'none';
+                document.getElementById('names-add-box').style.display = 'none';
+            }
+
+            // Tag Box (Library & Tapes)
             const tagBox = document.getElementById('tag-box');
             const tagInput = document.getElementById('tag-input');
             if (selectedFile === 'library.json' && linkedData && selectedCategory && selectedIndex !== null) {
                 tagBox.style.display = 'flex';
                 tagInput.value = linkedData[selectedCategory]?.[selectedIndex] || '';
+            } else if (selectedFile === 'tapes.json' && selectedCategory && selectedIndex !== null) {
+                tagBox.style.display = 'flex';
+                tagInput.value = val.thread || '';
             } else {
                 tagBox.style.display = 'none';
             }
 
             const isString = typeof val === 'string';
-            mainTextarea.value = isString ? val : JSON.stringify(val, null, 2);
+            if (selectedFile === 'tapes.json' && selectedCategory && selectedIndex !== null) {
+                mainTextarea.value = val.text || '';
+            } else {
+                mainTextarea.value = isString ? val : JSON.stringify(val, null, 2);
+            }
         }
 
         // Input Listeners
         mainTextarea.addEventListener('input', (e) => {
             let val = e.target.value;
+            
+            if (selectedFile === 'tapes.json' && selectedCategory && selectedIndex !== null) {
+                fileData[selectedCategory][selectedIndex].text = val;
+                return;
+            }
+
             const original = getCurrentEditorData();
             if (typeof original !== 'string') {
                 try { val = JSON.parse(val); } catch(e){} // wait for valid json
@@ -678,9 +720,12 @@
         });
 
         document.getElementById('tag-input').addEventListener('input', (e) => {
-            if (selectedCategory && selectedIndex !== null && linkedData) {
+            const val = e.target.value;
+            if (selectedFile === 'library.json' && selectedCategory && selectedIndex !== null && linkedData) {
                 if (!linkedData[selectedCategory]) linkedData[selectedCategory] = [];
-                linkedData[selectedCategory][selectedIndex] = e.target.value;
+                linkedData[selectedCategory][selectedIndex] = val;
+            } else if (selectedFile === 'tapes.json' && selectedCategory && selectedIndex !== null) {
+                fileData[selectedCategory][selectedIndex].thread = val;
             }
         });
 
@@ -711,6 +756,34 @@
                 alert('Save failed: ' + err.message);
                 btn.innerText = 'Save Changes';
                 btn.disabled = false;
+            }
+        }
+
+        // Names Logic
+        function renderNamesList() {
+            const arr = fileData[selectedCategory] || [];
+            let html = '';
+            arr.forEach((name, i) => {
+                html += `<div style="flex-shrink: 0; display:flex; justify-content:space-between; align-items:center; padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); border-radius: 4px;">
+                    <span style="font-family: var(--font-mono); font-size: 0.875rem;">${name}</span>
+                    <button onclick="deleteNameEntry(${i})" style="background:transparent; border:none; color:var(--accent-red); cursor:pointer;">×</button>
+                </div>`;
+            });
+            document.getElementById('names-container').innerHTML = html;
+        }
+        function addNameEntry() {
+            const input = document.getElementById('names-input');
+            const val = input.value.trim();
+            if (val && selectedCategory) {
+                fileData[selectedCategory].push(val);
+                input.value = '';
+                renderNamesList();
+            }
+        }
+        function deleteNameEntry(i) {
+            if (selectedCategory) {
+                fileData[selectedCategory].splice(i, 1);
+                renderNamesList();
             }
         }
 
