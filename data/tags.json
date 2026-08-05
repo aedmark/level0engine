@@ -43,8 +43,7 @@
   "ATRIUM": [
     "GEOMETRY",
     "LOST",
-    "HUM",
-    "EPOCH"
+    "HUM"
   ],
   "CLINIC": [
     "LOST",
@@ -60,8 +59,7 @@
   "CHASM": [
     "GEOMETRY",
     "LOST",
-    "LOST",
-    "PEN"
+    "LOST"
   ],
   "DEFAULT": [
     "HUM",

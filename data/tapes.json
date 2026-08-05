@@ -7,61 +7,61 @@
   ],
   "ARCHIVE": [
     {
-      "text": "TAPE RECORDER FOUND IN ARCHIVE: [PAGES TURNING, THEN CLOSE BREATHING] ...the codes were never to keep us out. The records lock is the pour year and the open pen, two digits each, and I am saying it out loud onto tape because paper here gets reclassified and I have watched it happen. [CLICK]",
+      "text": "[PAGES TURNING, CLOSE BREATHING]\n\n...the codes were never to keep us out. The records lock is the pour year and the open pen, two digits each, and I am saying it out loud onto tape because paper here gets reclassified and I have watched it happen. Twice.\n\n[CLICK]",
       "thread": "CIPHER"
     }
   ],
   "IMPOUND": [
     {
-      "text": "TAPE RECORDER FOUND IN IMPOUND, PEN ${pen}: [CHAINLINK SHIVERING] ...I found ${c.lost}'s recorder in the cage. It's still spinning. There's no tape inside it. I'm recording this onto the outside of that, somehow. [CLICK]",
+      "text": "[CHAINLINK SHIVERING]\n\n...I found ${c.lost}'s recorder in the cage. It's still spinning. There's no tape inside it. I'm recording this onto the outside of it, somehow.\n\n[CLICK]",
       "thread": "LOST"
     }
   ],
   "INCINERATOR": [
     {
-      "text": "TAPE RECORDER FOUND IN INCINERATOR, BAY 2: [ROAR OF COMBUSTION, THEN IT DROPS OUT ENTIRELY] ...hour ${hrs}. ${c.archivist} was right. Kill the burners and the sound underneath them doesn't stop. It isn't a machine; it's alive and it breathes. [STATIC]",
+      "text": "[ROAR OF COMBUSTION, THEN IT DROPS OUT ENTIRELY]\n\n... for ${hrs} hours. ${c.archivist} was right. Kill the burners and the sound underneath them doesn't stop. It isn't a machine; it's alive and it breathes. [STATIC]",
       "thread": "HUM"
     }
   ],
   "BOARDROOM": [
     {
-      "text": "TAPE RECORDER FOUND IN BOARDROOM: [CHAIRS BEING PULLED OUT, COUNTED ALOUD] ...eleven. [PAUSE] Eleven of us came in. Somebody tell me why there are twelve of us now, and why can't I tell which one of you is not supposed to be here? [CLICK]",
+      "text": "[CHAIRS BEING PULLED OUT, COUNTED ALOUD] ...eleven.\n\n[PAUSE]\n\nEleven of us came in. Somebody tell me why there are twelve of us now, and why can't I tell which one of you is not supposed to be here?\n\n[CLICK]",
       "thread": "GEOMETRY"
     }
   ],
   "SERVER": [
     {
-      "text": "TAPE RECORDER FOUND IN SERVER FARM: [FAN NOISE, THEN SUDDEN SILENCE] ...there. Fans are off. You can hear it now. Like I said, that's not the cooling unit. That's a carrier signal and it's been hiding under the fan noise this whole time. [STATIC]",
+      "text": "[FAN NOISE, THEN SUDDEN SILENCE]\n\n...there. Fans are off. You can hear it now. Like I said, that's not the cooling unit. That's a carrier signal and it's been hiding under the fan noise this whole time.\n\n[STATIC]",
       "thread": "HUM"
     }
   ],
   "CHECKPOINT": [
     {
-      "text": "TAPE RECORDER FOUND IN CHECKPOINT: [GATE CYCLING REPEATEDLY, NOBODY PASSING] ...forty-one out, forty in, and the gate is still counting. ${c.lost} scanned in at hour ${hrs} and the machine still thinks they're inside. So do I. [CLICK]",
+      "text": "[GATE CYCLING REPEATEDLY, NOBODY PASSING]\n\n...forty-one out, forty in, and the gate is still counting.\n\n${c.lost} scanned in at hour ${hrs} and the machine still thinks they're inside.\n\nSo do I.\n\n[CLICK]",
       "thread": "LOST"
     }
   ],
   "ATRIUM": [
     {
-      "text": "TAPE RECORDER FOUND IN ATRIUM: [A CART WHEEL TICKING, FAR BELOW] ...I walked up. That's the part I need on record. There is no stair to this tier and I walked up, and I can see the aisles from here, and they are not where the planogram says they are. [CLICK]",
+      "text": "[A CART WHEEL TICKING, FAR BELOW]\n\n...I walked up. That's the part I need on record. There is no stair to this tier and I walked up, and I can see the aisles from here, and they are not where the planogram says they are.\n\n[CLICK]",
       "thread": "GEOMETRY"
     }
   ],
   "CLINIC": [
     {
-      "text": "TAPE RECORDER FOUND IN CLINIC: [PEN ON PAPER, UNHURRIED] ...I'm holding the chart. Nobody is holding the pen. It's ${c.lost}'s hand, I'd know it anywhere, and it is writing down what I'm saying while I say it. [CLICK]",
+      "text": "[PEN ON PAPER, UNHURRIED]\n\n...I'm holding the chart, not the pen. That's ${c.lost}'s hand, I'd know it anywhere, and it is writing down what I'm saying while I say it.\n\n[CLICK]",
       "thread": "LOST"
     }
   ],
   "MAINTENANCE": [
     {
-      "text": "TAPE RECORDER FOUND IN MAINTENANCE: [TAPE MEASURE RUNNING OUT, THEN RETRACTING] ...one hundred and six down. [PAUSE] Ninety-eight up. Same shaft. I'm going to keep doing this until one of us gives up. [CLICK]",
+      "text": "TAPE MEASURE RUNNING OUT, THEN RETRACTING]\n\n...one hundred and six down.\n\n[PAUSE]\n\nNinety-eight up. Same shaft.\n\nI'm going to keep doing this until one of us gives up.\n\n[CLICK]",
       "thread": "GEOMETRY"
     }
   ],
   "CHASM": [
     {
-      "text": "TAPE RECORDER FOUND IN CHASM: [WIND, AND A LONG DROP UNDER IT] ...there's somebody on the far catwalk. I'm looking straight at them. That span was cut for scrap before we opened. They just waved at me with ${c.lost}'s arm. [STATIC]",
+      "text": "[WIND, AND A LONG DROP UNDER IT]\n\n...there's somebody on the far catwalk. I'm looking straight at them. That span was cut for scrap before we opened. They just waved at me with ${c.lost}'s arm.\n\n[STATIC]",
       "thread": "LOST"
     }
   ]
