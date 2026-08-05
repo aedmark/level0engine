@@ -1,73 +1,73 @@
 {
   "ANNEX": [
-    "ASYNC RESEARCH REPORT #${ctx.seed * ctx.hours % 666}\n PROJECT ${P}\nAUTHOR: ${c.lead}\n\nIt doesn't use the doors.\nIt doesn't need the doors.\nWhy did we build doors?",
-    "INTERNAL MAIL \u2014 UNSENT\nFROM: ${c.lost}\nTO: ${c.lead}\n\nYou keep saying \"containment\" like the word still means something here. I measured my office again last night. It has been growing by four centimeters a week. I have stopped reporting it because you have stopped reading these.",
+    "ASYNC RESEARCH REPORT #${ctx.seed * ctx.hours % 666}\n${P}\nAUTHOR: ${c.lead}\n\nIt doesn't use the doors.\nIt doesn't need the doors.\n\nWhy did we build more doors?",
+    "INTERNAL MAIL — UNSENT\nFROM: ${c.lost}\nTO: ${c.lead}\n\nYou keep saying \"containment\" like the word still means something here. I measured my office again last night. It has been growing by four centimeters a week. I have stopped reporting it because you have stopped reading these.",
     "IT BULLETIN #${ctx.seed * (3 + ctx.siteYear) % 420}\nFROM: FACILITIES (${c.custodian})\n\nThe records room lock has been reset AGAIN and I am NOT posting the number. It is built the way it has always been built: the year they poured the slab, then the pen that will not stay shut. Two digits each, in that order. If you do not know both halves you have no business in that room.",
-    "PROJECT ${P} \u2014 OBSERVATION ${100 + (ctx.seed % 800)}\nAUTHOR: ${c.lead}\n\nThe architectural shift is directly proportional to the observer's heart rate. The walls aren't moving; the space between them is breathing. ${c.lost} disagrees. ${c.lost} has been in the halls ${hrs} hours and I no longer weight ${c.lost}'s disagreements in my decision making.",
-    "STICKY NOTE:\n\nIf my door is locked and my laptop is on, I have gone to the pens. If my door is locked and my laptop is gone, so am I. \u2014 ${c.lost}"
+    "PROJECT ${P} — OBSERVATION ${100 + (ctx.seed % 800)}\nAUTHOR: ${c.lead}\n\nThe architectural shift is directly proportional to the observer's heart rate. The walls aren't moving; the space between them is breathing. ${c.lost} disagrees. ${c.lost} has been in the halls ${hrs} hours and I no longer weight ${c.lost}'s disagreements in my decision making.",
+    "STICKY NOTE:\n\nIf my door is locked and my laptop is on, I have gone to the pens. If my door is locked and my laptop is gone, so am I. — ${c.lost}"
   ],
   "ARCHIVE": [
-    "PERSONNEL RECORD: ${LOST}\nSTATUS: SEE ADDENDUM\nADDENDUM: MISSING\nADDENDUM 2: The addendum is not missing. The addendum was reclassified. \u2014 ${c.archivist}",
-    "REQUISITION SLIP\nREQUESTED: 1 (one) additional copy of the floor plan\nDENIED. REASON: The floor plan is a living document. Duplication causes drift. \u2014 ${c.archivist}",
+    "PERSONNEL RECORD: ${LOST}\nSTATUS: SEE ADDENDUM\nADDENDUM: MISSING\nADDENDUM 2: The addendum is not missing. The addendum was reclassified. — ${c.archivist}",
+    "REQUISITION SLIP\nREQUESTED: 1 (one) additional copy of the floor plan\nDENIED. REASON: The floor plan is a living document. Duplication causes drift. — ${c.archivist}",
     "SHELVING MEMO\nFROM: ${c.archivist}\n\nStop filing the ${P} reports under FICTION. I know it's ${c.custodian}. The whispering in the stacks is NOT the documents, and even if it were, they would not appreciate the joke.",
-    "BURN ORDER \u2014 PARTIAL\nAUTHORIZED: ${c.lead}\n\nAll ${P} correspondence prior to hour ${hrs}. The crew asked me for the records room number and I told them what I tell everyone: it is the pour year and the open pen, two digits apiece, and I am not doing the sum for them. Somebody wants something read before it burns and it will not be me."
+    "BURN ORDER — PARTIAL\nAUTHORIZED: ${c.lead}\n\nAll ${P} correspondence prior to hour ${hrs}. The crew asked me for the records room number and I told them what I tell everyone: it is the pour year and the open pen, two digits apiece, and I am not doing the sum for them. Somebody wants something read before it burns and it will not be me."
   ],
   "IMPOUND": [
-    "PROPERTY TAG \u2014 PEN ${pen}\nITEM: One (1) wedding ring, still warm.\nOWNER: ${c.lost}\nCLAIM STATUS: OWNER MUST CLAIM IN PERSON.",
-    "PROPERTY TAG \u2014 PEN ${pen}1\nITEM: Office chair, one caster missing.\nNOTE FROM ${c.custodian}: It rolls back to the pen by morning. Stopped chasing it. Fence holds.",
+    "PROPERTY TAG — PEN ${pen}\nITEM: One (1) wedding ring, still warm.\nOWNER: ${c.lost}\nCLAIM STATUS: OWNER MUST CLAIM IN PERSON.",
+    "PROPERTY TAG — PEN ${pen}1\nITEM: Office chair, one caster missing.\nNOTE FROM ${c.custodian}: It rolls back to the pen by morning. Stopped chasing it. Fence holds.",
     "IMPOUND LEDGER, FINAL PAGE\n\nHour ${hrs}: ${c.custodian} logged IN one (1) personal effect belonging to ${c.lost}.\nHour ${hrs}: ${c.custodian} logged OUT.\nThere is no second entry. The gate to pen ${pen} has been ajar since."
   ],
   "INCINERATOR": [
-    "COMBUSTION LOG \u2014 GALLERY 2\nOPERATOR: ${c.custodian}\n\nBurned four carts of ${P} paper at hour ${hrs}. Charge weight in, charge weight out. Ash came up eleven kilos heavy. I weighed it twice. We are burning less than we are producing and the difference is going somewhere with a scale under it.",
-    "POSTED ABOVE THE CHARGE DOOR, HANDWRITTEN\n\nIT IS THE POUR YEAR AND THE OPEN PEN. TWO DIGITS EACH. IN THAT ORDER. STOP ASKING ME FOR IT AND STOP BRINGING SEALED BOXES DOWN HERE. \u2014 ${c.custodian}",
-    "FLUE INSPECTION \u2014 DEFERRED\n\nThe stack runs eleven storeys on the drawing and nine in the building. Contractor says the drawing is wrong. Contractor has been paid. I have measured the outside of this structure twice now and I would like someone to tell me which two floors I am standing between.",
-    "SCRAP INTAKE \u2014 DATED PLATE\n\nCut the original boiler plate out of gallery 1 today. Foundry stamp on the back reads ${year}, same as the slab, and it went in before the walls did. Logged for melt. I did not melt it."
+    "COMBUSTION LOG — GALLERY 2\nOPERATOR: ${c.custodian}\n\nBurned four carts of ${P} paper at hour ${hrs}. Charge weight in, charge weight out. Ash came up eleven kilos heavy. I weighed it twice. We are burning less than we are producing and the difference is going somewhere with a scale under it.",
+    "POSTED ABOVE THE CHARGE DOOR, HANDWRITTEN\n\nIT IS THE POUR YEAR AND THE OPEN PEN. TWO DIGITS EACH. IN THAT ORDER. STOP ASKING ME FOR IT AND STOP BRINGING SEALED BOXES DOWN HERE. — ${c.custodian}",
+    "FLUE INSPECTION — DEFERRED\n\nThe stack runs eleven storeys on the drawing and nine in the building. Contractor says the drawing is wrong. Contractor has been paid. I have measured the outside of this structure twice now and I would like someone to tell me which two floors I am standing between.",
+    "SCRAP INTAKE — DATED PLATE\n\nCut the original boiler plate out of gallery 1 today. Foundry stamp on the back reads ${year}, same as the slab, and it went in before the walls did. Logged for melt. I did not melt it."
   ],
   "BOARDROOM": [
-    "MINUTES \u2014 QUARTERLY REVIEW, PROJECT ${P}\nCHAIR: ${c.lead}\n\nMotion to extend the perimeter survey: carried.\nMotion to extend it again after the first survey returned a different perimeter: carried.\nMotion to stop surveying: carried unanimously, and nobody would say why.",
+    "MINUTES — QUARTERLY REVIEW, PROJECT ${P}\nCHAIR: ${c.lead}\n\nMotion to extend the perimeter survey: carried.\nMotion to extend it again after the first survey returned a different perimeter: carried.\nMotion to stop surveying: carried unanimously, and nobody would say why.",
     "SEATING CHART, AMENDED IN PENCIL\n\nTwelve chairs. Eleven names. The twelfth was never assigned and has never been empty at the start of a meeting. ${c.lead} asked us to stop counting.",
-    "PERFORMANCE NOTE \u2014 CONFIDENTIAL\nSUBJECT: ${c.lost}\n\nSubject's last review flagged \"excessive interest in the building itself.\" Subject was reassigned to the pens. Subject requested the reassignment in writing, in advance, before it was proposed.",
-    "FOUNDING CHARTER \u2014 FRAMED, EAST WALL\n\nIncorporated ${year}. Slab poured the same season, per the contractor's certificate hanging beside it. Every other date in this building has been amended at least once. The board has never permitted this one to be touched, and nobody in the room will say why that matters."
+    "PERFORMANCE NOTE — CONFIDENTIAL\nSUBJECT: ${c.lost}\n\nSubject's last review flagged \"excessive interest in the building itself.\" Subject was reassigned to the pens. Subject requested the reassignment in writing, in advance, before it was proposed.",
+    "FOUNDING CHARTER — FRAMED, EAST WALL\n\nIncorporated ${year}. Slab poured the same season, per the contractor's certificate hanging beside it. Every other date in this building has been amended at least once. The board has never permitted this one to be touched, and nobody in the room will say why that matters."
   ],
   "SERVER": [
-    "RACK 14 \u2014 THERMAL EXCEPTION\n\nCold aisle is holding. Hot aisle is holding. The room between them is four degrees warmer than either, which is not a thing a room is allowed to do. Filed with facilities. Facilities filed it back.",
-    "OUTBOUND TRAFFIC SUMMARY \u2014 UNSIGNED\n\nSustained upstream at hour ${hrs} with no session open and no user logged. Payload is not encrypted, it is just not anything. The carrier tone sits at the same frequency as the fan wash and I only found it because I turned the fans OFF and it was still there.",
-    "TAPED TO THE CONSOLE\n\nDo not reboot rack 9. I know what the ticket says. Rack 9 has not been powered since the site opened and it is still warm. \u2014 ${c.custodian}"
+    "RACK 14 — THERMAL EXCEPTION\n\nCold aisle is holding. Hot aisle is holding. The room between them is four degrees warmer than either, which is not a thing a room is allowed to do. Filed with facilities. Facilities filed it back.",
+    "OUTBOUND TRAFFIC SUMMARY — UNSIGNED\n\nSustained upstream at hour ${hrs} with no session open and no user logged. Payload is not encrypted, it is just not anything. The carrier tone sits at the same frequency as the fan wash and I only found it because I turned the fans OFF and it was still there.",
+    "TAPED TO THE CONSOLE\n\nDo not reboot rack 9. I know what the ticket says. Rack 9 has not been powered since the site opened and it is still warm. — ${c.custodian}"
   ],
   "CHECKPOINT": [
-    "DECON GATE LOG \u2014 LANE 3\n\nHour ${hrs}: ${c.lost} scanned IN.\nNo corresponding OUT.\nLane 3 has processed forty-one OUT scans since, against forty IN. ${c.archivist} says the discrepancy is a rounding error. There is no rounding in a turnstile.",
-    "POSTED AT THE SUIT RACK\n\nCount your gear on the way back. If you return with a suit you did not sign out, hang it and say nothing. If you return with two, come find me. \u2014 ${c.custodian}",
+    "DECON GATE LOG — LANE 3\n\nHour ${hrs}: ${c.lost} scanned IN.\nNo corresponding OUT.\nLane 3 has processed forty-one OUT scans since, against forty IN. ${c.archivist} says the discrepancy is a rounding error. There is no rounding in a turnstile.",
+    "POSTED AT THE SUIT RACK\n\nCount your gear on the way back. If you return with a suit you did not sign out, hang it and say nothing. If you return with two, come find me. — ${c.custodian}",
     "BADGE OFFICE MEMO\n\nStop coming to the gate for the records number. Nobody here has it because nobody anywhere has it. It is assembled, not issued: pour year, then the pen that stands open, two digits each. The last three people who wanted it went to the annex to be told and one of them is still there being told.",
-    "COMMISSIONING PLAQUE \u2014 PHOTOGRAPHED FOR THE FILE\n\nMounted inside lane 1, brass, unpolished since installation.\n\"THIS FACILITY COMMISSIONED ${year}.\"\nThe plaque is the only date on site that has never been revised."
+    "COMMISSIONING PLAQUE — PHOTOGRAPHED FOR THE FILE\n\nMounted inside lane 1, brass, unpolished since installation.\n\"THIS FACILITY COMMISSIONED ${year}.\"\nThe plaque is the only date on site that has never been revised."
   ],
   "ATRIUM": [
-    "SHELF PLANOGRAM \u2014 REVISION 6\n\nAisles run north to south on the plan. They have run east to west since the second revision. I have stopped issuing revisions. The aisles are not being moved; the plan is being corrected after the fact by somebody who gets here before I do.",
-    "LOST PROPERTY SLIP \u2014 BALCONY TIER 9\nFOUND: One (1) staff badge, ${c.lost}, face down on a table set for two.\nNOTE: Tier 9 has no stair, no lift and no floor plan entry. Slip filed by ${c.custodian}, who declines to say how he got up there.",
-    "PA SYSTEM \u2014 SCHEDULED ANNOUNCEMENT, TRANSCRIBED\n\n\"The atrium will close in fifteen minutes.\" Plays at fifteen minute intervals. Has never once counted down. ${c.archivist} timed it against the hum and they are the same wave.",
-    "FLOOR MEDALLION \u2014 TIER 1, CENTRE\n\nBrass inlay set into the terrazzo, walked over by everyone, read by nobody: \"POURED ${year}.\" ${c.custodian} keeps it polished. He says it is the only part of the building he is confident is telling the truth."
+    "SHELF PLANOGRAM — REVISION 6\n\nAisles run north to south on the plan. They have run east to west since the second revision. I have stopped issuing revisions. The aisles are not being moved; the plan is being corrected after the fact by somebody who gets here before I do.",
+    "LOST PROPERTY SLIP — BALCONY TIER 9\nFOUND: One (1) staff badge, ${c.lost}, face down on a table set for two.\nNOTE: Tier 9 has no stair, no lift and no floor plan entry. Slip filed by ${c.custodian}, who declines to say how he got up there.",
+    "PA SYSTEM — SCHEDULED ANNOUNCEMENT, TRANSCRIBED\n\n\"The atrium will close in fifteen minutes.\" Plays at fifteen minute intervals. Has never once counted down. ${c.archivist} timed it against the hum and they are the same wave.",
+    "FLOOR MEDALLION — TIER 1, CENTRE\n\nBrass inlay set into the terrazzo, walked over by everyone, read by nobody: \"POURED ${year}.\" ${c.custodian} keeps it polished. He says it is the only part of the building he is confident is telling the truth."
   ],
   "CLINIC": [
-    "INTAKE FORM \u2014 INCOMPLETE\nPATIENT: ${c.lost}\nPRESENTING: \"Spatial disagreement.\"\nNOTES: Patient could describe the route here accurately and could not walk it twice. Patient was calm about this. I was not.",
-    "AUDIOLOGY REFERRAL \u2014 DECLINED\n\nSix staff reporting a persistent low tone. All six pass the hearing screen. The tone is not in their ears. I have written that sentence four times now and it does not get easier to file.",
+    "INTAKE FORM — INCOMPLETE\nPATIENT: ${c.lost}\nPRESENTING: \"Spatial disagreement.\"\nNOTES: Patient could describe the route here accurately and could not walk it twice. Patient was calm about this. I was not.",
+    "AUDIOLOGY REFERRAL — DECLINED\n\nSix staff reporting a persistent low tone. All six pass the hearing screen. The tone is not in their ears. I have written that sentence four times now and it does not get easier to file.",
     "WARD ROUND, HOUR ${hrs}\n\nBed four's chart updates overnight in handwriting that matches ${c.lost}'s. Bed four has been empty since intake closed. I am no longer asking who is writing it. I am asking what they are recording.",
-    "DISCHARGE NOTE \u2014 RETURNED UNDELIVERABLE\nPATIENT: ${c.lost}\nFORWARDING ADDRESS AS GIVEN BY PATIENT: \"Pen ${pen}. It's the one that won't shut. Leave it.\"\n\nPatient gave this address on intake, before the pen was logged open. I have checked the ledger twice."
+    "DISCHARGE NOTE — RETURNED UNDELIVERABLE\nPATIENT: ${c.lost}\nFORWARDING ADDRESS AS GIVEN BY PATIENT: \"Pen ${pen}. It's the one that won't shut. Leave it.\"\n\nPatient gave this address on intake, before the pen was logged open. I have checked the ledger twice."
   ],
   "MAINTENANCE": [
-    "SHAFT SURVEY \u2014 ABANDONED AT LEVEL 0\n\nRun the tape down and it reads one hundred and six metres. Run it back up and it reads ninety-eight. Same tape, same shaft, same afternoon. I am not filing a work order against arithmetic.",
+    "SHAFT SURVEY — ABANDONED AT LEVEL 0\n\nRun the tape down and it reads one hundred and six metres. Run it back up and it reads ninety-eight. Same tape, same shaft, same afternoon. I am not filing a work order against arithmetic.",
     "KEY CABINET AUDIT\nFROM: ${c.custodian}\n\nEvery key accounted for. The records room is not on this list because it does not take a key, it takes the sum: the year of the pour and the pen standing open, two digits each. I have never once written the answer down and I am not starting in an audit.",
-    "DUCT INSPECTION \u2014 SECTION 12\n\nThe return line carries a tone at the far end that does not come from any plant on the drawing. Cut the fans, tone stays. Cut the power, tone stays. I have stopped cutting things."
+    "DUCT INSPECTION — SECTION 12\n\nThe return line carries a tone at the far end that does not come from any plant on the drawing. Cut the fans, tone stays. Cut the power, tone stays. I have stopped cutting things."
   ],
   "CHASM": [
-    "CATWALK LOAD CERTIFICATE \u2014 VOID\n\nSpan certified at twenty-two metres. Span measures thirty-one under load and twenty-two unloaded, which is backwards, and I would like that noted before anybody walks it again.",
-    "RAIL NOTICE, WIRED TO THE HANDRAIL\n\nDo not lean out and look for the bottom. There is one. That is not the problem. The problem is how long you will stand there once you have found it. \u2014 ${c.custodian}",
-    "SIGHTING REPORT \u2014 GRATING LEVEL\n\n${c.custodian} reports a figure on the opposing catwalk at hour ${hrs}, matching ${c.lost}, moving away and unhurried. Opposing catwalk was struck for scrap before the site opened. Its anchors are still in the wall.",
-    "SALVAGE MANIFEST \u2014 HAULED UP FROM THE FLOOR OF THE VOID\n\nOne (1) chainlink gate assembly, stencilled PEN ${pen}, hinges sheared outward. Impound is four hundred metres of solid rock from this drop and I would very much like somebody to explain how its gate got down here."
+    "CATWALK LOAD CERTIFICATE — VOID\n\nSpan certified at twenty-two metres. Span measures thirty-one under load and twenty-two unloaded, which is backwards, and I would like that noted before anybody walks it again.",
+    "RAIL NOTICE, WIRED TO THE HANDRAIL\n\nDo not lean out and look for the bottom. There is one. That is not the problem. The problem is how long you will stand there once you have found it. — ${c.custodian}",
+    "SIGHTING REPORT — GRATING LEVEL\n\n${c.custodian} reports a figure on the opposing catwalk at hour ${hrs}, matching ${c.lost}, moving away and unhurried. Opposing catwalk was struck for scrap before the site opened. Its anchors are still in the wall.",
+    "SALVAGE MANIFEST — HAULED UP FROM THE FLOOR OF THE VOID\n\nOne (1) chainlink gate assembly, stencilled PEN ${pen}, hinges sheared outward. Impound is four hundred metres of solid rock from this drop and I would very much like somebody to explain how its gate got down here."
   ],
   "DEFAULT": [
     "INCIDENT LOG\n\nSubject exhibited extreme paranoia after ${hrs} hours. Claimed the hum of the fluorescent lights was a linguistic sequence. We cut the power, but the humming didn't stop.",
     "MAINTENANCE REQUEST\nFILED BY: ${c.custodian}\n\nPlease send someone to Level 0. The carpet is damp again. Also, stop leaving geometry in the negative coordinate space. The renderer is screaming.",
     "MEMO\n\nIf you hear it scraping, stand still. If you hear it breathing, turn off the light. If you hear it laughing, close your eyes.",
-    "SHIFT HANDOVER \u2014 PROJECT ${P}\n\n${c.lead} says the exits are a motivational tool. ${c.archivist} says the exits are load-bearing. ${c.lost} said the exits are a rumor the building spreads about itself. ${c.lost} was smiling when they said it. Nobody has seen that smile since.",
-    "CAFETERIA NOTICE\n\nThe almond water is not a beverage. The almond water is a countermeasure. Ration accordingly. \u2014 FACILITIES"
+    "SHIFT HANDOVER — PROJECT ${P}\n\n${c.lead} says the exits are a motivational tool. ${c.archivist} says the exits are load-bearing. ${c.lost} said the exits are a rumor the building spreads about itself. ${c.lost} was smiling when they said it. Nobody has seen that smile since.",
+    "CAFETERIA NOTICE\n\nThe almond water is not a beverage. The almond water is a countermeasure. Ration accordingly. — FACILITIES"
   ]
 }

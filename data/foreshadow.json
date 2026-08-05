@@ -1,23 +1,23 @@
 [
   {
-    "ANNEX": "SITE SURVEY ADDENDUM \u2014 PRE-CONSTRUCTION\nAUTHOR: ${c.lead}\n\nThe soil report keeps flagging the same anomaly at survey depth, dated eleven years before ground was broken here. Facilities insists it's a scanning error. I have stopped asking why the error has a heartbeat.",
-    "ARCHIVE": "BLUEPRINT REVISION LOG, PAGE 1\n\nOriginal architect's notes, margin, undated: \"Building AROUND it, not over it. Do not disturb the center.\" No further revisions on file. No original architect on file either. \u2014 ${c.archivist}",
-    "SERVER": "HARDWARE PROVENANCE \u2014 RACK 9\n\nNo purchase order. No install ticket. No serial in any inventory we hold. Rack 9 appears on the earliest floor plan we have, which is dated before the slab was poured, and the slab was poured around it.",
-    "CLINIC": "TISSUE SAMPLE \u2014 LOGGED, NEVER TAKEN\n\nSample 001 predates the clinic's commissioning by nine years. Chain of custody begins with a signature nobody can match to a person. The sample is not from a patient. Read the site survey. The sample is from the site.",
-    "CHASM": "ANCHOR SURVEY \u2014 LOAD BEARING\n\nThe catwalk anchors are set into a face that is older than the excavation that supposedly exposed it. We did not cut this void. We found it, and we hung walkways in it, and we wrote \"excavation\" on the invoice."
+    "ANNEX": "SITE SURVEY ADDENDUM — PRE-CONSTRUCTION\nAUTHOR: ${c.lead}\n\nThe soil report keeps flagging the same anomaly at survey depth, dated eleven years before ground was broken here. Facilities insists it's a scanning error. I have stopped asking why the error has a heartbeat.",
+    "ARCHIVE": "BLUEPRINT REVISION LOG, PAGE 1\n\nOriginal architect's notes, margin, undated: \"Building AROUND it, not over it. Do not disturb the center.\" No further revisions on file. No original architect on file either. — ${c.archivist}",
+    "SERVER": "HARDWARE PROVENANCE — RACK 9\n\nNo purchase order. No install ticket. No serial in any inventory we hold. Rack 9 appears on the earliest floor plan we have, which is dated before the slab was poured, and the slab was poured around it.",
+    "CLINIC": "TISSUE SAMPLE — LOGGED, NEVER TAKEN\n\nSample 001 predates the clinic's commissioning by nine years. Chain of custody begins with a signature nobody can match to a person. The sample is not from a patient. Read the site survey. The sample is from the site.",
+    "CHASM": "ANCHOR SURVEY — LOAD BEARING\n\nThe catwalk anchors are set into a face that is older than the excavation that supposedly exposed it. We did not cut this void. We found it, and we hung walkways in it, and we wrote \"excavation\" on the invoice."
   },
   {
-    "ANNEX": "INTERNAL MAIL \u2014 UNSENT\nFROM: ${c.custodian}\nTO: ${c.lead}\n\n${c.lost} asked me for chalk last week. Not a pen, not a marker. Chalk. I didn't think anything of it until I found the supply boxes empty.",
+    "ANNEX": "INTERNAL MAIL — UNSENT\nFROM: ${c.custodian}\nTO: ${c.lead}\n\n${c.lost} asked me for chalk last week. Not a pen, not a marker. Chalk. I didn't think anything of it until I found the supply boxes empty.",
     "ARCHIVE": "SHELVING MEMO, ADDENDUM\nFROM: ${c.archivist}\n\nWe keep finding doors sealed from a side that has no handle. ${c.lost} filed the original blueprints personally. ${c.lost} would know exactly which side that is.",
-    "SERVER": "BADGE AUDIT \u2014 RACK ROOM DOOR\n\n${c.lost}'s credential is still cycling. Forty-one reads since the disappearance, all from the inside face of doors we have logged as sealed. The credential is not cloned. It is being carried.",
-    "CLINIC": "SUPPLY VARIANCE \u2014 WARD STORES\n\nGauze, water and ration bars run short on a fortnightly cycle nobody has authorised. Nothing else moves. Whoever is taking it is taking exactly what one person needs and is being careful not to be greedy about it.",
-    "CHASM": "CATWALK ACCESS PLATE \u2014 RESEALED\n\nPlate 6 was cut open from the underside and bolted shut again from the underside, which requires somebody to be down there when it closed and to still be down there now. Bolts are hand-tight. Whoever did it expects to come back through."
+    "SERVER": "BADGE AUDIT — RACK ROOM DOOR\n\n${c.lost}'s credential is still cycling. Forty-one reads since the disappearance, all from the inside face of doors we have logged as sealed. The credential is not cloned. It is being carried.",
+    "CLINIC": "SUPPLY VARIANCE — WARD STORES\n\nGauze, water and ration bars run short on a fortnightly cycle nobody has authorised. Nothing else moves. Whoever is taking it is taking exactly what one person needs and is being careful not to be greedy about it.",
+    "CHASM": "CATWALK ACCESS PLATE — RESEALED\n\nPlate 6 was cut open from the underside and bolted shut again from the underside, which requires somebody to be down there when it closed and to still be down there now. Bolts are hand-tight. Whoever did it expects to come back through."
   },
   {
     "ANNEX": "IT BULLETIN, ADDENDUM\nFROM: FACILITIES (${c.custodian})\n\nOutbound network traffic spiked again last night. Nobody was logged in. The packets are personnel files.\nOurs.",
-    "ARCHIVE": "REQUISITION SLIP, DENIED\nREQUESTED: Explanation for the antenna array logged under \"HVAC.\"\nDENIED. REASON: It is HVAC. It regulates something. We were never told what. \u2014 ${c.archivist}",
-    "SERVER": "UPSTREAM CAPTURE \u2014 HOUR ${hrs}\n\nDecoded a frame. It is an inventory. It lists the racks, the wing, the staff roster and the contents of the records room, in that order, formatted for something that is not us and reads bottom-up.",
+    "ARCHIVE": "REQUISITION SLIP, DENIED\nREQUESTED: Explanation for the antenna array logged under \"HVAC.\"\nDENIED. REASON: It is HVAC. It regulates something. We were never told what. — ${c.archivist}",
+    "SERVER": "UPSTREAM CAPTURE — HOUR ${hrs}\n\nDecoded a frame. It is an inventory. It lists the racks, the wing, the staff roster and the contents of the records room, in that order, formatted for something that is not us and reads bottom-up.",
     "CLINIC": "AUDIOLOGY, FINAL ENTRY\n\nThe tone is amplitude modulated. I plotted six hours of it against the personnel index and the peaks land on the roll call. It is not a symptom. It is a manifest, and we are being read out on it.",
-    "CHASM": "ARRAY SURVEY \u2014 VOID FACE\n\nWhat the drawings call structural bracing across the chasm face is a phased element, correctly spaced for the carrier frequency, aimed up the shaft and out. The building is not haunted. The building has an antenna and we hung catwalks off it."
+    "CHASM": "ARRAY SURVEY — VOID FACE\n\nWhat the drawings call structural bracing across the chasm face is a phased element, correctly spaced for the carrier frequency, aimed up the shaft and out. The building is not haunted. The building has an antenna and we hung catwalks off it."
   }
 ]

@@ -582,6 +582,48 @@
             text-shadow: 0 0 3px rgba(255, 176, 0, 0.6);
         }
 
+        .journal-group-header {
+            padding: 0.5rem 1rem;
+            background-color: rgba(255, 176, 0, 0.1);
+            color: rgba(255, 176, 0, 0.7);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+            border-top: 1px solid rgba(255, 176, 0, 0.3);
+            border-bottom: 1px solid rgba(255, 176, 0, 0.3);
+            margin-top: 0.5rem;
+        }
+        
+        .journal-group-header:first-child {
+            margin-top: 0;
+            border-top: none;
+        }
+
+        .verified-thread {
+            color: #ffb000;
+            background-color: rgba(255, 176, 0, 0.2);
+            text-shadow: 0 0 5px rgba(255, 176, 0, 0.8);
+        }
+
+        .glitch-text {
+            animation: journalGlitch 2s infinite linear alternate-reverse;
+            color: #ff5555;
+            text-shadow: 2px 0 red, -2px 0 cyan;
+        }
+        
+        .glitch-item {
+            border-left: 2px solid #ff5555;
+        }
+
+        @keyframes journalGlitch {
+            0% { transform: skewX(0deg); opacity: 1; }
+            5% { transform: skewX(2deg); opacity: 0.8; text-shadow: 2px 0 red, -2px 0 cyan; }
+            10% { transform: skewX(-2deg); opacity: 1; }
+            15% { transform: skewX(0deg); opacity: 1; text-shadow: none; }
+            100% { transform: skewX(0deg); opacity: 1; }
+        }
+
         .journal-placeholder {
             display: flex;
             align-items: center;

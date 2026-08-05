@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Archive Editor</title>
+    <style>
+        :root {
+            --bg-dark: #050505;
+            --bg-panel: #0a0a0a;
+            --bg-glass: rgba(0,0,0,0.4);
+            --border: rgba(255,255,255,0.1);
+            --text-main: #e5e7eb;
+            --text-muted: #6b7280;
+            --accent-red: #dc2626;
+            --accent-amber: #fbbf24;
+            --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            background-image: radial-gradient(ellipse at top right, #1a1a1a, var(--bg-dark), var(--bg-dark));
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* App Layout */
+        #app {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        /* Background Effects */
+        .glow-red {
+            position: absolute; top: 0; right: 0; width: 400px; height: 400px;
+            background: rgba(127, 29, 29, 0.1); border-radius: 50%; filter: blur(100px); pointer-events: none;
+        }
+        .glow-white {
+            position: absolute; bottom: 0; left: 0; width: 500px; height: 500px;
+            background: rgba(255, 255, 255, 0.03); border-radius: 50%; filter: blur(120px); pointer-events: none;
+        }
+
+        /* Main Sidebar (Files) */
+        .sidebar-main {
+            width: 256px;
+            border-right: 1px solid var(--border);
+            background: #050505;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        .sidebar-header h1 {
+            font-size: 1.25rem; font-weight: 900; letter-spacing: -0.05em; text-transform: uppercase;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%; background: var(--accent-red); animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        .sidebar-header p {
+            font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 8px;
+        }
+
+        .file-list {
+            padding: 16px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+        }
+        .file-list h2 {
+            font-size: 10px; font-weight: bold; color: #4b5563; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; padding: 0 8px;
+        }
+        .file-btn {
+            width: 100%; text-align: left; padding: 12px 16px; border-radius: 8px; font-family: var(--font-mono); font-size: 0.875rem;
+            color: var(--text-muted); background: transparent; border: 1px solid transparent; cursor: pointer; transition: 0.3s;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .file-btn:hover { color: #d1d5db; background: rgba(255,255,255,0.05); }
+        .file-btn.active { background: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.05); box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+        .file-btn svg { opacity: 0.5; width: 14px; height: 14px; }
+
+        /* Editor Section */
+        .editor-section {
+            flex: 1; display: flex; flex-direction: column; padding: 32px; z-index: 10; position: relative;
+        }
+        
+        #editor-container {
+            flex: 1; display: flex; flex-direction: column; animation: fadeIn 0.3s ease-out; display: none;
+        }
+
+        .editor-header-top {
+            margin-bottom: 24px;
+        }
+        .editor-header-top h2 { font-size: 1.875rem; font-weight: 300; letter-spacing: -0.025em; margin-bottom: 4px; }
+        .editor-header-top p { font-size: 0.875rem; color: var(--text-muted); font-family: var(--font-mono); }
+
+        .editor-pane-wrapper {
+            flex: 1; display: flex; flex-direction: column; background: var(--bg-panel); border-radius: 12px;
+            border: 1px solid var(--border); overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); backdrop-filter: blur(12px);
+        }
+
+        .editor-pane-header {
+            display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--border); background: var(--bg-glass);
+        }
+        .editor-pane-header h2 { font-size: 0.875rem; font-weight: 600; letter-spacing: 0.1em; color: rgba(255,255,255,0.8); text-transform: uppercase; }
+        
+        .save-btn {
+            padding: 8px 16px; background: white; color: black; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em;
+            border: none; border-radius: 4px; cursor: pointer; transition: 0.2s; box-shadow: 0 0 15px rgba(255,255,255,0.3);
+        }
+        .save-btn:hover { background: #e5e5e5; box-shadow: 0 0 25px rgba(255,255,255,0.5); }
+        .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .editor-pane-body {
+            display: flex; flex: 1; overflow: hidden;
+        }
+
+        /* Tree Nav */
+        .tree-nav {
+            width: 288px; border-right: 1px solid var(--border); background: rgba(0,0,0,0.2); display: flex; flex-direction: column;
+        }
+        .tree-header-small {
+            padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;
+        }
+        .tree-header-small h3 { font-size: 0.75rem; font-weight: bold; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.1em; }
+        .add-cat-btn { background: transparent; border: none; color: rgba(255,255,255,0.4); font-size: 0.75rem; cursor: pointer; transition: 0.2s; }
+        .add-cat-btn:hover { color: white; }
+
+        .tree-content { flex: 1; overflow-y: auto; padding: 8px; }
+
+        /* Tree Items */
+        .tree-item-row {
+            display: flex; align-items: center; margin-bottom: 4px;
+        }
+        .tree-btn {
+            flex: 1; text-align: left; padding: 8px 12px; font-size: 0.875rem; border-radius: 6px; font-family: var(--font-mono);
+            background: transparent; border: 1px solid transparent; color: #9ca3af; cursor: pointer; transition: 0.2s;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .tree-btn:hover { background: rgba(255,255,255,0.05); color: #d1d5db; }
+        .tree-btn.active { background: rgba(255,255,255,0.1); color: white; font-weight: 500; border-color: rgba(255,255,255,0.1); }
+        .tree-btn.bold { font-weight: bold; letter-spacing: 0.025em; font-family: var(--font-sans); }
+
+        .delete-btn {
+            opacity: 0; padding: 8px; background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 1rem; line-height: 1; transition: 0.2s;
+        }
+        .delete-btn:hover { color: #f87171; }
+        .tree-item-row:hover .delete-btn { opacity: 1; }
+
+        .tree-children {
+            padding-left: 24px; padding-right: 8px; padding-top: 4px; padding-bottom: 8px; margin-left: 16px;
+            border-left: 1px solid rgba(255,255,255,0.05); margin-bottom: 8px; margin-top: 4px; display: flex; flex-direction: column; gap: 4px;
+        }
+        .tree-child-btn {
+            width: 100%; text-align: left; padding: 6px 12px; font-size: 0.75rem; border-radius: 4px; font-family: var(--font-mono);
+            background: transparent; border: none; color: #9ca3af; cursor: pointer; transition: 0.2s;
+        }
+        .tree-child-btn:hover { background: rgba(255,255,255,0.05); color: #d1d5db; }
+        .tree-child-btn.active { background: rgba(255,255,255,0.1); color: white; }
+
+        .add-btn {
+            width: 100%; padding: 8px; margin-top: 8px; border: 1px dashed rgba(255,255,255,0.1); border-radius: 4px; background: transparent;
+            color: rgba(255,255,255,0.4); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; transition: 0.2s;
+        }
+        .add-btn:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.8); }
+
+        /* Main Editor Area */
+        .editor-main {
+            flex: 1; padding: 24px; background: linear-gradient(to bottom right, #0a0a0a, #111); display: flex; flex-direction: column; overflow: hidden;
+        }
+        
+        .editor-title { font-size: 1.25rem; font-weight: 300; color: white; margin-bottom: 16px; display: flex; align-items: baseline; gap: 12px; }
+        .editor-subtitle { font-size: 0.875rem; font-family: var(--font-mono); color: var(--text-muted); }
+
+        /* Linked Data Display */
+        #hint-box {
+            margin-bottom: 16px; padding: 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; display: none;
+        }
+        #hint-box h4 { font-size: 0.75rem; color: var(--accent-red); font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+        #hint-box p { font-size: 0.875rem; font-family: var(--font-mono); color: #d1d5db; white-space: pre-wrap; line-height: 1.6; }
+
+        #tag-box {
+            margin-bottom: 16px; display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.05); padding: 12px; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; display: none;
+        }
+        #tag-box h4 { font-size: 0.75rem; color: var(--accent-amber); font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; }
+        #tag-input {
+            background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 4px 12px;
+            font-size: 0.875rem; color: var(--accent-amber); font-family: var(--font-mono); width: 256px;
+        }
+        #tag-input:focus { outline: none; border-color: rgba(251,191,36,0.5); }
+
+        .textarea-container {
+            flex: 1; position: relative; display: flex; flex-direction: column;
+        }
+        .textarea-glow {
+            position: absolute; top: -2px; left: -2px; right: -2px; bottom: -2px;
+            background: linear-gradient(to right, rgba(127,29,29,0.2), rgba(255,255,255,0.05));
+            border-radius: 8px; filter: blur(4px); pointer-events: none; opacity: 0.5;
+        }
+        textarea {
+            width: 100%; height: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px;
+            padding: 24px; color: #e5e7eb; font-family: var(--font-mono); font-size: 0.875rem; line-height: 1.6;
+            resize: none; position: relative; z-index: 1; transition: 0.2s;
+        }
+        textarea:focus { outline: none; border-color: rgba(255,255,255,0.3); box-shadow: 0 0 0 1px rgba(255,255,255,0.3); }
+
+        /* Welcome Message */
+        #welcome-msg {
+            flex: 1; display: flex; align-items: center; justify-content: center; text-align: center;
+        }
+        #welcome-msg .icon-box {
+            width: 64px; height: 64px; background: rgba(255,255,255,0.05); border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+        #welcome-msg h2 { font-size: 1.25rem; font-weight: 500; margin-bottom: 8px; }
+        #welcome-msg p { font-size: 0.875rem; color: var(--text-muted); font-family: var(--font-mono); max-width: 320px; line-height: 1.6; }
+
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="glow-red"></div>
+        <div class="glow-white"></div>
+        
+        <!-- Sidebar -->
+        <aside class="sidebar-main">
+            <div class="sidebar-header">
+                <h1><div class="status-dot"></div> Archive Editor</h1>
+                <p>System Override</p>
+            </div>
+            <div class="file-list" id="file-list">
+                <h2>Data Nodes</h2>
+                <!-- Files rendered here -->
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="editor-section">
+            <!-- Welcome -->
+            <div id="welcome-msg">
+                <div>
+                    <div class="icon-box">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#4b5563;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    </div>
+                    <h2>Awaiting Input</h2>
+                    <p>Select a data node from the archive to begin modification.</p>
+                </div>
+            </div>
+
+            <!-- Editor Container -->
+            <div id="editor-container">
+                <div class="editor-header-top">
+                    <h2 id="display-filename">file.json</h2>
+                    <p>Modifying engine payload parameters</p>
+                </div>
+                
+                <div class="editor-pane-wrapper">
+                    <div class="editor-pane-header">
+                        <h2>Editor</h2>
+                        <button class="save-btn" id="save-btn" onclick="handleSave()">Save Changes</button>
+                    </div>
+                    <div class="editor-pane-body">
+                        <!-- Tree Nav -->
+                        <div class="tree-nav">
+                            <div class="tree-header-small">
+                                <h3>Navigation</h3>
+                                <button class="add-cat-btn" id="add-cat-btn" onclick="addCategory()" style="display:none;">+ CAT</button>
+                            </div>
+                            <div class="tree-content" id="tree-content">
+                                <!-- Tree rendered here -->
+                            </div>
+                        </div>
+
+                        <!-- Editor Main -->
+                        <div class="editor-main">
+                            <div id="editor-content-area" style="display:none; height: 100%; flex-direction: column;">
+                                <div class="editor-title" id="editor-title"></div>
+                                
+                                <div id="hint-box">
+                                    <h4 id="hint-title">Target Finale</h4>
+                                    <p id="hint-text"></p>
+                                </div>
+                                <div id="tag-box">
+                                    <h4>Thread Tag</h4>
+                                    <input type="text" id="tag-input" placeholder="e.g. GEOMETRY, HUM, LOST">
+                                </div>
+
+                                <div class="textarea-container">
+                                    <div class="textarea-glow"></div>
+                                    <textarea id="main-textarea"></textarea>
+                                </div>
+                            </div>
+                            <div id="editor-empty-state" style="flex:1; display:flex; align-items:center; justify-content:center; text-align:center;">
+                                <p style="font-size:0.875rem; color:var(--text-muted); font-family:var(--font-mono); text-transform:uppercase; letter-spacing:0.1em;">Select an entry from the navigation tree to edit.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // State
+        let files = [];
+        let selectedFile = null;
+        let fileData = null;
+        let linkedData = null;
+        
+        let expandedCategory = null;
+        let selectedCategory = null;
+        let selectedIndex = null;
+        
+        const fileListEl = document.getElementById('file-list');
+        const treeContentEl = document.getElementById('tree-content');
+        const mainTextarea = document.getElementById('main-textarea');
+        const addCatBtn = document.getElementById('add-cat-btn');
+
+        // Init
+        async function init() {
+            try {
+                const res = await fetch('/api/data');
+                const data = await res.json();
+                if (data.files) {
+                    files = data.files;
+                    renderFileList();
+                }
+            } catch (err) {
+                console.error('Failed to load files', err);
+            }
+        }
+
+        // Render File List
+        function renderFileList() {
+            let html = '<h2>Data Nodes</h2>';
+            files.forEach(f => {
+                const isActive = f === selectedFile;
+                html += `<button class="file-btn ${isActive ? 'active' : ''}" onclick="selectFile('${f}')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    ${f}
+                </button>`;
+            });
+            fileListEl.innerHTML = html;
+        }
+
+        // Select File
+        async function selectFile(f) {
+            selectedFile = f;
+            fileData = null;
+            linkedData = null;
+            expandedCategory = null;
+            selectedCategory = null;
+            selectedIndex = null;
+            renderFileList();
+
+            document.getElementById('welcome-msg').style.display = 'none';
+            document.getElementById('editor-container').style.display = 'flex';
+            document.getElementById('display-filename').innerText = f;
+            document.getElementById('tree-content').innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:8px;">Decrypting node...</div>';
+            document.getElementById('editor-content-area').style.display = 'none';
+            document.getElementById('editor-empty-state').style.display = 'flex';
+
+            try {
+                const res = await fetch(`/api/data?file=${f}`);
+                const data = await res.json();
+                fileData = data.content;
+
+                // Load linked data
+                if (f === 'library.json') await loadLinked('tags.json');
+                if (f === 'foreshadow.json') await loadLinked('finales.json');
+
+                initializeSelection();
+                renderTree();
+                renderEditor();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function loadLinked(f) {
+            try {
+                const res = await fetch(`/api/data?file=${f}`);
+                const data = await res.json();
+                linkedData = data.content;
+            } catch (e) { console.error(e); }
+        }
+
+        function isArrayRoot() { return Array.isArray(fileData); }
+        function isObjectRoot() { return !isArrayRoot() && fileData !== null && typeof fileData === 'object'; }
+
+        function initializeSelection() {
+            if (isArrayRoot()) {
+                if (fileData.length > 0) selectedIndex = 0;
+            } else if (isObjectRoot()) {
+                const keys = Object.keys(fileData);
+                if (keys.length > 0) {
+                    expandedCategory = keys[0];
+                    selectedCategory = keys[0];
+                    if (Array.isArray(fileData[keys[0]]) && fileData[keys[0]].length > 0) {
+                        selectedIndex = 0;
+                    }
+                }
+            }
+        }
+
+        // Render Tree
+        function renderTree() {
+            if (!fileData) return;
+            let html = '';
+            
+            if (isArrayRoot()) {
+                addCatBtn.style.display = 'none';
+                
+                fileData.forEach((item, i) => {
+                    const isItemObj = item !== null && typeof item === 'object' && !Array.isArray(item);
+                    const isExpanded = expandedCategory === String(i);
+                    const isActiveRow = (!isItemObj && selectedIndex === i && selectedCategory === null) || (isItemObj && isExpanded);
+                    
+                    html += `<div class="tree-item">
+                        <div class="tree-item-row group">
+                            <button class="tree-btn ${isActiveRow ? 'active' : ''} ${isItemObj ? 'bold' : ''}" onclick="clickArrayRow(${i}, ${isItemObj})">
+                                ${isItemObj ? (isExpanded ? '▼ ' : '▶ ') : ''}${selectedFile === 'foreshadow.json' ? 'Finale Group' : 'Entry'} ${i}
+                            </button>
+                            <button class="delete-btn" onclick="deleteEntry(null, ${i})">×</button>
+                        </div>`;
+                    
+                    if (isItemObj && isExpanded) {
+                        html += `<div class="tree-children">`;
+                        Object.keys(item).forEach(key => {
+                            const isChildActive = selectedIndex === i && selectedCategory === key;
+                            html += `<div class="tree-item-row group">
+                                <button class="tree-child-btn ${isChildActive ? 'active' : ''}" onclick="selectNode(${i}, '${key}')">
+                                    ${key}
+                                </button>
+                                <button class="delete-btn" style="padding:4px; font-size:12px;" onclick="deleteLocation(${i}, '${key}')">×</button>
+                            </div>`;
+                        });
+                        html += `<button class="add-btn" onclick="addLocation(${i})">+ Add Location</button>`;
+                        html += `</div>`;
+                    }
+                    html += `</div>`;
+                });
+                html += `<button class="add-btn" onclick="addEntry(null)">+ Add Entry</button>`;
+                
+            } else if (isObjectRoot()) {
+                addCatBtn.style.display = 'block';
+                
+                Object.keys(fileData).forEach(cat => {
+                    const isExpanded = expandedCategory === cat;
+                    const catData = fileData[cat];
+                    const isCatArray = Array.isArray(catData);
+                    
+                    html += `<div class="tree-item">
+                        <div class="tree-item-row group">
+                            <button class="tree-btn ${isExpanded ? 'active bold' : ''}" onclick="toggleCat('${cat}')">
+                                ${isExpanded ? '▼ ' : '▶ '} ${cat}
+                            </button>
+                            ${isExpanded && isCatArray ? `<button class="add-btn" style="width:auto; margin:0; border:none;" onclick="addEntry('${cat}')">+</button>` : ''}
+                        </div>`;
+                    
+                    if (isExpanded) {
+                        html += `<div class="tree-children">`;
+                        if (isCatArray) {
+                            if (catData.length === 0) {
+                                html += `<div style="font-size:10px; color:#6b7280; padding:4px;">No entries</div>`;
+                            } else {
+                                catData.forEach((_, i) => {
+                                    const isChildActive = selectedCategory === cat && selectedIndex === i;
+                                    html += `<div class="tree-item-row group">
+                                        <button class="tree-child-btn ${isChildActive ? 'active' : ''}" onclick="selectNode(${i}, '${cat}')">
+                                            Entry ${i}
+                                        </button>
+                                        <button class="delete-btn" style="padding:4px; font-size:12px;" onclick="deleteEntry('${cat}', ${i})">×</button>
+                                    </div>`;
+                                });
+                            }
+                        } else {
+                            const isChildActive = selectedCategory === cat && selectedIndex === null;
+                            html += `<button class="tree-child-btn ${isChildActive ? 'active' : ''}" onclick="selectNode(null, '${cat}')">Raw Object</button>`;
+                        }
+                        html += `</div>`;
+                    }
+                    html += `</div>`;
+                });
+            }
+            
+            treeContentEl.innerHTML = html;
+        }
+
+        // Actions
+        function clickArrayRow(i, isItemObj) {
+            if (isItemObj) {
+                expandedCategory = (expandedCategory === String(i)) ? null : String(i);
+                if (expandedCategory !== String(i)) {
+                    selectedIndex = i;
+                    selectedCategory = null;
+                }
+            } else {
+                selectedIndex = i;
+                selectedCategory = null;
+            }
+            renderTree();
+            renderEditor();
+        }
+
+        function toggleCat(cat) {
+            expandedCategory = (expandedCategory === cat) ? null : cat;
+            renderTree();
+        }
+
+        function selectNode(index, cat = null) {
+            selectedIndex = index;
+            selectedCategory = cat;
+            renderTree();
+            renderEditor();
+        }
+
+        function addCategory() {
+            const cat = prompt("Enter new category:");
+            if (cat && !fileData[cat]) {
+                fileData[cat] = [];
+                expandedCategory = cat;
+                renderTree();
+            }
+        }
+
+        function addEntry(cat) {
+            if (cat) {
+                if (!Array.isArray(fileData[cat])) fileData[cat] = [fileData[cat], ""];
+                else fileData[cat].push("");
+                expandedCategory = cat;
+                selectedCategory = cat;
+                selectedIndex = fileData[cat].length - 1;
+                
+                if (selectedFile === 'library.json' && linkedData) {
+                    if (!linkedData[cat]) linkedData[cat] = [];
+                    if (!Array.isArray(linkedData[cat])) linkedData[cat] = [linkedData[cat], "UNCLASSIFIED"];
+                    else linkedData[cat].push("UNCLASSIFIED");
+                }
+            } else {
+                const template = (fileData.length > 0 && typeof fileData[0] === 'object' && !Array.isArray(fileData[0])) ? {} : "";
+                fileData.push(template);
+                selectedIndex = fileData.length - 1;
+                if (typeof template === 'object') {
+                    expandedCategory = String(selectedIndex);
+                    selectedCategory = null;
+                }
+            }
+            renderTree();
+            renderEditor();
+        }
+
+        function deleteEntry(cat, i) {
+            if (!confirm("Delete entry?")) return;
+            if (cat) {
+                fileData[cat].splice(i, 1);
+                if (selectedFile === 'library.json' && linkedData && Array.isArray(linkedData[cat])) {
+                    linkedData[cat].splice(i, 1);
+                }
+            } else {
+                fileData.splice(i, 1);
+            }
+            selectedIndex = null;
+            renderTree();
+            renderEditor();
+        }
+
+        function addLocation(i) {
+            const key = prompt("Enter location key:");
+            if (key && !fileData[i][key]) {
+                fileData[i][key] = "";
+                selectedIndex = i;
+                selectedCategory = key;
+                renderTree();
+                renderEditor();
+            }
+        }
+
+        function deleteLocation(i, key) {
+            if (!confirm("Delete location?")) return;
+            delete fileData[i][key];
+            if (selectedIndex === i && selectedCategory === key) {
+                selectedCategory = null;
+            }
+            renderTree();
+            renderEditor();
+        }
+
+        // Editor Render & Update
+        function getCurrentEditorData() {
+            if (isArrayRoot() && selectedIndex !== null) {
+                if (selectedCategory) return fileData[selectedIndex][selectedCategory];
+                return fileData[selectedIndex];
+            } else if (isObjectRoot() && selectedCategory) {
+                if (selectedIndex !== null && Array.isArray(fileData[selectedCategory])) {
+                    return fileData[selectedCategory][selectedIndex];
+                }
+                return fileData[selectedCategory];
+            }
+            return null;
+        }
+
+        function renderEditor() {
+            const val = getCurrentEditorData();
+            if (val === null || val === undefined) {
+                document.getElementById('editor-content-area').style.display = 'none';
+                document.getElementById('editor-empty-state').style.display = 'flex';
+                return;
+            }
+
+            document.getElementById('editor-content-area').style.display = 'flex';
+            document.getElementById('editor-empty-state').style.display = 'none';
+
+            let title = 'Array Data';
+            if (selectedCategory) title = selectedCategory;
+            else if (selectedFile === 'foreshadow.json') title = 'Finale Group';
+            
+            let subtitle = selectedIndex !== null ? `/ Entry ${selectedIndex}` : '';
+            document.getElementById('editor-title').innerHTML = `${title} <span class="editor-subtitle">${subtitle}</span>`;
+
+            // Hint Box (Foreshadow)
+            const hintBox = document.getElementById('hint-box');
+            if (selectedFile === 'foreshadow.json' && linkedData && selectedIndex !== null) {
+                hintBox.style.display = 'block';
+                document.getElementById('hint-title').innerText = `Target Finale (Index ${selectedIndex})`;
+                document.getElementById('hint-text').innerText = linkedData[selectedIndex] || '';
+            } else {
+                hintBox.style.display = 'none';
+            }
+
+            // Tag Box (Library)
+            const tagBox = document.getElementById('tag-box');
+            const tagInput = document.getElementById('tag-input');
+            if (selectedFile === 'library.json' && linkedData && selectedCategory && selectedIndex !== null) {
+                tagBox.style.display = 'flex';
+                tagInput.value = linkedData[selectedCategory]?.[selectedIndex] || '';
+            } else {
+                tagBox.style.display = 'none';
+            }
+
+            const isString = typeof val === 'string';
+            mainTextarea.value = isString ? val : JSON.stringify(val, null, 2);
+        }
+
+        // Input Listeners
+        mainTextarea.addEventListener('input', (e) => {
+            let val = e.target.value;
+            const original = getCurrentEditorData();
+            if (typeof original !== 'string') {
+                try { val = JSON.parse(val); } catch(e){} // wait for valid json
+            }
+            
+            if (isArrayRoot()) {
+                if (selectedCategory) fileData[selectedIndex][selectedCategory] = val;
+                else fileData[selectedIndex] = val;
+            } else if (isObjectRoot()) {
+                if (selectedIndex !== null) fileData[selectedCategory][selectedIndex] = val;
+                else fileData[selectedCategory] = val;
+            }
+        });
+
+        document.getElementById('tag-input').addEventListener('input', (e) => {
+            if (selectedCategory && selectedIndex !== null && linkedData) {
+                if (!linkedData[selectedCategory]) linkedData[selectedCategory] = [];
+                linkedData[selectedCategory][selectedIndex] = e.target.value;
+            }
+        });
+
+        // Save
+        async function handleSave() {
+            const btn = document.getElementById('save-btn');
+            btn.disabled = true;
+            btn.innerText = 'Saving...';
+            
+            try {
+                await fetch('/api/data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file: selectedFile, content: fileData })
+                });
+
+                if (selectedFile === 'library.json' && linkedData) {
+                    await fetch('/api/data', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ file: 'tags.json', content: linkedData })
+                    });
+                }
+                
+                btn.innerText = 'Saved!';
+                setTimeout(() => { btn.innerText = 'Save Changes'; btn.disabled = false; }, 2000);
+            } catch (err) {
+                alert('Save failed: ' + err.message);
+                btn.innerText = 'Save Changes';
+                btn.disabled = false;
+            }
+        }
+
+        // Start
+        init();
+    </script>
+</body>
+</html>

@@ -99,25 +99,63 @@ export default class JournalViewer {
             return;
         }
 
+        // Group by thread
+        const groups = {};
         story.collected.forEach((text, index) => {
-            const li = document.createElement('li');
-            const btn = document.createElement('button');
-            btn.className = 'journal-entry-btn';
-            
-            // Extract the first line as a title
-            let title = text.split('\n')[0].trim();
-            if (title.length > 35) title = title.substring(0, 32) + '...';
-            if (!title) title = `ENTRY ${index + 1}`;
-            
-            // Strip out ">>" if present for cleaner look
-            title = title.replace(/^>>\s*/, '');
-            
-            btn.innerText = title;
-            btn.onclick = () => this.selectEntry(index, btn);
-            
-            li.appendChild(btn);
-            this.listEl.appendChild(li);
+            const threadId = story.threadOf.get(text);
+            const key = threadId || 'UNCLASSIFIED';
+            if (!groups[key]) groups[key] = [];
+            groups[key].push({ text, index, threadId });
         });
+
+        // Render groups
+        for (const [key, items] of Object.entries(groups)) {
+            // Create a group header
+            const header = document.createElement('div');
+            header.className = 'journal-group-header';
+            
+            if (key === 'UNCLASSIFIED') {
+                header.innerText = '[ UNCLASSIFIED DATA ]';
+            } else {
+                let label = story.threadLabel(key);
+                header.innerText = label;
+                
+                if (key === 'TELL') {
+                    header.classList.add('glitch-text');
+                }
+                
+                if (story.corroborated.has(key)) {
+                    header.innerText += ' [VERIFIED]';
+                    header.classList.add('verified-thread');
+                }
+            }
+            this.listEl.appendChild(header);
+
+            // Render items in group
+            items.forEach(item => {
+                const li = document.createElement('li');
+                const btn = document.createElement('button');
+                btn.className = 'journal-entry-btn';
+                
+                // Extract the first line as a title
+                let title = item.text.split('\n')[0].trim();
+                if (title.length > 35) title = title.substring(0, 32) + '...';
+                if (!title) title = `ENTRY ${item.index + 1}`;
+                
+                // Strip out ">>" if present for cleaner look
+                title = title.replace(/^>>\s*/, '');
+                
+                if (key === 'TELL') {
+                    btn.classList.add('glitch-item');
+                }
+
+                btn.innerText = title;
+                btn.onclick = () => this.selectEntry(item.index, btn);
+                
+                li.appendChild(btn);
+                this.listEl.appendChild(li);
+            });
+        }
     }
 
     selectEntry(index, btnEl = null) {
