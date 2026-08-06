@@ -8,7 +8,7 @@ export const CompressionArchwayProfile = (env, ctx) => {
     const {random, buildWall, addGeometry} = ctx;
     return {
         name: "THE COMPRESSION ARCHWAY",
-        prob: 0.03, build: (x, z) => {
+        prob: 0.031, build: (x, z) => {
             const cx = x * env.cellSize;
             const cz = z * env.cellSize;
             if (ctx.markOccupied) ctx.markOccupied(x, z);

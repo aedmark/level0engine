@@ -525,10 +525,10 @@ export default class ChunkManager {
                         const inSRing = lz === 11 && lx >= 3 && lx <= 11;
                         const inWRing = lx === 3 && lz >= 3 && lz <= 11;
                         const inERing = lx === 11 && lz >= 3 && lz <= 11;
-                        const inNPath = lx === 7 && lz <= 3;
-                        const inSPath = lx === 7 && lz >= 11;
-                        const inWPath = lz === 7 && lx <= 3;
-                        const inEPath = lz === 7 && lx >= 11;
+                        const inNPath = lx >= 6 && lx <= 8 && lz <= 3;
+                        const inSPath = lx >= 6 && lx <= 8 && lz >= 11;
+                        const inWPath = lz >= 6 && lz <= 8 && lx <= 3;
+                        const inEPath = lz >= 6 && lz <= 8 && lx >= 11;
                         const isArtery = inNRing || inSRing || inWRing || inERing || inNPath || inSPath || inWPath || inEPath;
                         const isBlocker = lx >= 5 && lx <= 9 && lz >= 5 && lz <= 9;
                         const isSpawnClear = (cx_id === 0 && cz_id === 0) && (lx <= 3 && lz <= 3);

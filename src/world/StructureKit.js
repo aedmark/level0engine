@@ -97,6 +97,81 @@ export default class StructureKit {
                 }
                 return new THREE.Mesh(geo, mat);
             },
+            buildCylinder: (radiusTop, radiusBottom, height, radialSegments, mat) => {
+                const key = `cyl_${radiusTop}_${radiusBottom}_${height}_${radialSegments}`;
+                let geo = env.geoCache.get(key);
+                if (!geo) {
+                    geo = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, radialSegments);
+                    env.geoCache.set(key, geo);
+                    env.geoCache.set(geo.uuid, true);
+                }
+                return new THREE.Mesh(geo, mat);
+            },
+            buildArchCutout: (radius, thickness, outerY, depth, mat) => {
+                const key = `archCutout_${radius}_${thickness}_${outerY}_${depth}`;
+                let geo = env.geoCache.get(key);
+                if (!geo) {
+                    const shape = new THREE.Shape();
+                    const outerX = radius + thickness;
+                    shape.moveTo(-outerX, 0);
+                    shape.lineTo(-outerX, outerY);
+                    shape.lineTo(outerX, outerY);
+                    shape.lineTo(outerX, 0);
+                    
+                    const hole = new THREE.Path();
+                    hole.moveTo(radius, 0);
+                    hole.absarc(0, 0, radius, 0, Math.PI, false);
+                    hole.lineTo(radius, 0);
+                    shape.holes.push(hole);
+                    
+                    geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false, curveSegments: 16 });
+                    geo.center(); // Center the geometry geometry.boundingBox
+                    env.geoCache.set(key, geo);
+                    env.geoCache.set(geo.uuid, true);
+                }
+                return new THREE.Mesh(geo, mat);
+            },
+            buildCurvedCornerBlock: (size, mat) => {
+                const key = `curvedCorner_${size}`;
+                let geo = env.geoCache.get(key);
+                if (!geo) {
+                    const shape = new THREE.Shape();
+                    // Draw a square with a concave cutout at the bottom-left corner
+                    shape.moveTo(size, 0);
+                    shape.lineTo(size, size);
+                    shape.lineTo(0, size);
+                    // Arc from (0, size) to (size, 0) centered at (0, 0) with radius = size
+                    shape.absarc(0, 0, size, Math.PI/2, 0, true); 
+                    
+                    geo = new THREE.ExtrudeGeometry(shape, { depth: 3.0, bevelEnabled: false, curveSegments: 16 });
+                    
+                    const pos = geo.attributes.position;
+                    const uv = geo.attributes.uv;
+                    for (let i = 0; i < pos.count; i++) {
+                        const x = pos.getX(i);
+                        const y = pos.getY(i);
+                        const z = pos.getZ(i);
+                        
+                        let s = 0;
+                        if (x > size - 0.01) {
+                            s = (size * Math.PI / 2) + y;
+                        } else if (y > size - 0.01) {
+                            s = (size * Math.PI / 2) + size + (size - x);
+                        } else {
+                            const angle = Math.atan2(y, x);
+                            s = size * (Math.PI / 2 - angle);
+                        }
+                        
+                        uv.setXY(i, s / env.cellSize, z / 3.0);
+                    }
+                    uv.needsUpdate = true;
+                    
+                    geo.center();
+                    env.geoCache.set(key, geo);
+                    env.geoCache.set(geo.uuid, true);
+                }
+                return new THREE.Mesh(geo, mat);
+            },
             /**
              * Adds a single Mesh to the chunk's staging array for instancing and adds it to the spatial grid.
              * WARNING: MUST be a THREE.Mesh. Passing a THREE.Group will crash the compiler when it reads `geometry.boundingBox`.

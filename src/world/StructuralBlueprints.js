@@ -24,6 +24,9 @@ import {WreckedFurniturePileProfile} from './blueprints/WreckedFurniturePile.js'
 import {TheOutpostProfile} from './blueprints/TheOutpost.js';
 import {TheOasisProfile} from './blueprints/TheOasis.js';
 import {OfficeAmenitiesProfile} from './blueprints/OfficeAmenities.js';
+import {RoundPillarProfile} from './blueprints/RoundPillar.js';
+import {CurvedArchwayProfile} from './blueprints/CurvedArchway.js';
+import {RoundAlcoveProfile} from './blueprints/RoundAlcove.js';
 
 export default class StructuralBlueprints {
     static getStructuralMatrix(ctx) {
@@ -47,7 +50,10 @@ export default class StructuralBlueprints {
             WreckedFurniturePileProfile(this, ctx),
             TheOutpostProfile(this, ctx),
             TheOasisProfile(this, ctx),
-            OfficeAmenitiesProfile(this, ctx)
+            OfficeAmenitiesProfile(this, ctx),
+            RoundPillarProfile(this, ctx),
+            CurvedArchwayProfile(this, ctx),
+            RoundAlcoveProfile(this, ctx)
         ];
         if (!StructuralBlueprints._sortedIndices) {
             StructuralBlueprints._sortedIndices = matrix
