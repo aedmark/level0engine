@@ -33,8 +33,8 @@ export const CurvedArchwayProfile = (env, ctx) => {
             addGeometry(supportRight);
             
             if (buildArchCutout) {
-                const arch = buildArchCutout(radius, pillarThickness, archHeight, env.cellSize, env.sharedWallMat);
-                arch.position.set(cx, verticalClearance + archHeight / 2, cz);
+                const arch = buildArchCutout(radius, pillarThickness, archHeight, env.cellSize, verticalClearance, env.sharedWallMat);
+                arch.position.set(cx, verticalClearance, cz);
                 if (!isAlignedZ) {
                     arch.rotation.y = Math.PI / 2;
                 }

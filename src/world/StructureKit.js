@@ -107,59 +107,92 @@ export default class StructureKit {
                 }
                 return new THREE.Mesh(geo, mat);
             },
-            buildArchCutout: (radius, thickness, outerY, depth, mat) => {
-                const key = `archCutout_${radius}_${thickness}_${outerY}_${depth}`;
+            buildArchCutout: (radius, thickness, outerY, depth, yOffset, mat) => {
+                const key = `archCutout_${radius}_${thickness}_${outerY}_${depth}_${yOffset}`;
                 let geo = env.geoCache.get(key);
                 if (!geo) {
                     const shape = new THREE.Shape();
                     const outerX = radius + thickness;
+                    
+                    // Single continuous path to avoid triangulation failures
                     shape.moveTo(-outerX, 0);
                     shape.lineTo(-outerX, outerY);
                     shape.lineTo(outerX, outerY);
                     shape.lineTo(outerX, 0);
-                    
-                    const hole = new THREE.Path();
-                    hole.moveTo(radius, 0);
-                    hole.absarc(0, 0, radius, 0, Math.PI, false);
-                    hole.lineTo(radius, 0);
-                    shape.holes.push(hole);
+                    shape.lineTo(radius, 0);
+                    shape.absarc(0, 0, radius, 0, Math.PI, false);
+                    // Automatically closes to (-outerX, 0)
                     
                     geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false, curveSegments: 16 });
-                    geo.center(); // Center the geometry geometry.boundingBox
+                    geo.translate(0, 0, -depth / 2); // Center only in Z. Y rests at 0.
+                    
+                    const pos = geo.attributes.position;
+                    const uv = geo.attributes.uv;
+                    geo.computeVertexNormals();
+                    const norm = geo.attributes.normal;
+                    
+                    for (let i = 0; i < pos.count; i++) {
+                        const x = pos.getX(i);
+                        const y = pos.getY(i);
+                        const z = pos.getZ(i);
+                        const nz = Math.abs(norm.getZ(i));
+                        
+                        if (nz > 0.5) {
+                            uv.setXY(i, x / env.cellSize, (yOffset + y) / 3.0);
+                        } else {
+                            if (Math.abs(x) >= outerX - 0.01 || y >= outerY - 0.01 || y < 0.01) {
+                                uv.setXY(i, z / env.cellSize, (yOffset + y) / 3.0);
+                            } else {
+                                let angle = Math.atan2(y, x);
+                                if (angle < 0) angle += Math.PI * 2;
+                                let dist = radius * angle;
+                                uv.setXY(i, z / env.cellSize, (yOffset + dist) / 3.0);
+                            }
+                        }
+                    }
+                    uv.needsUpdate = true;
+                    
                     env.geoCache.set(key, geo);
                     env.geoCache.set(geo.uuid, true);
                 }
                 return new THREE.Mesh(geo, mat);
             },
             buildCurvedCornerBlock: (size, mat) => {
-                const key = `curvedCorner_${size}`;
+                const t = 0.15; // roughly 6 inches
+                const key = `curvedCorner_${size}_${t}`;
                 let geo = env.geoCache.get(key);
                 if (!geo) {
                     const shape = new THREE.Shape();
-                    // Draw a square with a concave cutout at the bottom-left corner
                     shape.moveTo(size, 0);
                     shape.lineTo(size, size);
                     shape.lineTo(0, size);
-                    // Arc from (0, size) to (size, 0) centered at (0, 0) with radius = size
-                    shape.absarc(0, 0, size, Math.PI/2, 0, true); 
+                    shape.lineTo(0, size - t); // Left edge thickness
+                    shape.absarc(0, 0, size - t, Math.PI/2, 0, true); 
+                    shape.lineTo(size, 0); // Bottom edge thickness
                     
                     geo = new THREE.ExtrudeGeometry(shape, { depth: 3.0, bevelEnabled: false, curveSegments: 16 });
                     
                     const pos = geo.attributes.position;
                     const uv = geo.attributes.uv;
+                    const arcLen = (size - t) * (Math.PI / 2);
+                    
                     for (let i = 0; i < pos.count; i++) {
                         const x = pos.getX(i);
                         const y = pos.getY(i);
                         const z = pos.getZ(i);
                         
                         let s = 0;
-                        if (x > size - 0.01) {
-                            s = (size * Math.PI / 2) + y;
+                        if (x < 0.01) {
+                            s = size - y;
+                        } else if (y < 0.01) {
+                            s = t + arcLen + (x - (size - t));
+                        } else if (x > size - 0.01) {
+                            s = t + arcLen + t + y;
                         } else if (y > size - 0.01) {
-                            s = (size * Math.PI / 2) + size + (size - x);
+                            s = t + arcLen + t + size + (size - x);
                         } else {
                             const angle = Math.atan2(y, x);
-                            s = size * (Math.PI / 2 - angle);
+                            s = t + (size - t) * (Math.PI / 2 - angle);
                         }
                         
                         uv.setXY(i, s / env.cellSize, z / 3.0);
@@ -182,12 +215,14 @@ export default class StructureKit {
             addGeometry: (mesh, isWarp = false) => {
                 mesh.userData.chunkHash = hash;
                 mesh.updateMatrixWorld(true);
-                if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
-                const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
-                box.chunkHash = hash;
-                if (mesh.userData.isEntityBlocker) box.isEntityBlocker = true;
-                if (isWarp) box.isWarpZone = true;
-                env.spatialGrid.insert(box);
+                if (!mesh.userData.noCollision) {
+                    if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+                    const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
+                    box.chunkHash = hash;
+                    if (mesh.userData.isEntityBlocker) box.isEntityBlocker = true;
+                    if (isWarp) box.isWarpZone = true;
+                    env.spatialGrid.insert(box);
+                }
                 stagingMeshes.push(mesh);
             },
             addFurniture: (group) => {
