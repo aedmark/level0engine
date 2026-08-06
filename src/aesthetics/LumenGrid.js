@@ -275,60 +275,84 @@ export default class LumenGrid {
 
     _applyBehaviors(fixture, light, time, fadeEnvelope, intensityScalar) {
         if (fixture.isDead) {
-            light.intensity = 0.0;
-            if (fixture.material) fixture.material.emissiveIntensity = 0.0;
+            this._applyDeadBehavior(fixture, light);
         } else if (fixture.isStrobe) {
-            const strobeFreq = 12.0;
-            const isOn = Math.sin(time * Math.PI * 2 * strobeFreq + fixture.flickerOffset) > 0;
-            fixture.currentIntensity = isOn ? fixture.baseIntensity * 1.5 : 0.0;
-            light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
-            if (fixture.material) fixture.material.emissiveIntensity = (isOn ? 1.5 : 0.0) * fadeEnvelope;
+            this._applyStrobeBehavior(fixture, light, time, fadeEnvelope, intensityScalar);
         } else if (fixture.isPulse) {
-            const pulseFreq = 0.5;
-            const pulseVal = (Math.sin(time * Math.PI * 2 * pulseFreq + fixture.flickerOffset) + 1.0) / 2.0;
-            const eased = pulseVal * pulseVal * (3.0 - 2.0 * pulseVal);
-            fixture.currentIntensity = fixture.baseIntensity * (0.3 + 0.7 * eased);
-            light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
-            if (fixture.material) fixture.material.emissiveIntensity = (0.2 + 0.8 * eased) * fadeEnvelope;
+            this._applyPulseBehavior(fixture, light, time, fadeEnvelope, intensityScalar);
         } else if (fixture.isTowBeacon && !fixture.hasShadow) {
-            const pulseVal = (Math.sin(time * fixture.sweepSpeed + fixture.sweepPhase) + 1.0) / 2.0;
-            const eased = pulseVal * pulseVal;
-            fixture.currentIntensity = fixture.baseIntensity * (0.2 + 1.3 * eased);
-            light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
-            if (fixture.material) fixture.material.emissiveIntensity = (0.5 + 1.5 * eased) * fadeEnvelope;
+            this._applyTowBeaconBehavior(fixture, light, time, fadeEnvelope, intensityScalar);
         } else if (fixture.isFaulty) {
-            if (fixture._nextFlicker === undefined) {
-                fixture._nextFlicker = time + 0.5 + Math.random() * 4.0;
-                fixture._flickering = false;
-            }
-            if (!fixture._flickering && time >= fixture._nextFlicker) {
-                fixture._flickering = true;
-                fixture._flickerUntil = time + 0.04 + Math.random() * 0.12;
-                fixture._flickerDepth = Math.random() < 0.3 ? 0.0 : 0.05 + Math.random() * 0.3;
-            } else if (fixture._flickering && time >= fixture._flickerUntil) {
-                fixture._flickering = false;
-                fixture._nextFlicker = Math.random() < 0.4
-                    ? time + 0.03 + Math.random() * 0.1
-                    : time + 1.0 + Math.random() * 6.0;
-            }
-            const flickerScale = fixture._flickering ? fixture._flickerDepth : 1.0;
-            fixture.currentIntensity = fixture.baseIntensity * flickerScale;
-            light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
-            if (fixture.material) {
-                const peakEmissive = fixture.emissiveIntensity !== undefined
-                    ? fixture.emissiveIntensity * flickerScale
-                    : fixture.currentIntensity * 0.6;
-                fixture.material.emissiveIntensity = Math.max(0.05, peakEmissive) * fadeEnvelope;
-            }
+            this._applyFaultyBehavior(fixture, light, time, fadeEnvelope, intensityScalar);
         } else {
-            const normalIntensity = fixture.currentIntensity !== undefined ? fixture.currentIntensity : fixture.baseIntensity;
-            light.intensity = (normalIntensity + (Math.sin(time * 120.0 + fixture.flickerOffset) * 0.02)) * fadeEnvelope * intensityScalar;
-            if (fixture.material) {
-                const baseEmissive = fixture.isLighthouse
-                    ? 5.0
-                    : (fixture.emissiveIntensity !== undefined ? fixture.emissiveIntensity : 0.4);
-                fixture.material.emissiveIntensity = baseEmissive * fadeEnvelope;
-            }
+            this._applyDefaultBehavior(fixture, light, time, fadeEnvelope, intensityScalar);
+        }
+    }
+
+    _applyDeadBehavior(fixture, light) {
+        light.intensity = 0.0;
+        if (fixture.material) fixture.material.emissiveIntensity = 0.0;
+    }
+
+    _applyStrobeBehavior(fixture, light, time, fadeEnvelope, intensityScalar) {
+        const strobeFreq = 12.0;
+        const isOn = Math.sin(time * Math.PI * 2 * strobeFreq + fixture.flickerOffset) > 0;
+        fixture.currentIntensity = isOn ? fixture.baseIntensity * 1.5 : 0.0;
+        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
+        if (fixture.material) fixture.material.emissiveIntensity = (isOn ? 1.5 : 0.0) * fadeEnvelope;
+    }
+
+    _applyPulseBehavior(fixture, light, time, fadeEnvelope, intensityScalar) {
+        const pulseFreq = 0.5;
+        const pulseVal = (Math.sin(time * Math.PI * 2 * pulseFreq + fixture.flickerOffset) + 1.0) / 2.0;
+        const eased = pulseVal * pulseVal * (3.0 - 2.0 * pulseVal);
+        fixture.currentIntensity = fixture.baseIntensity * (0.3 + 0.7 * eased);
+        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
+        if (fixture.material) fixture.material.emissiveIntensity = (0.2 + 0.8 * eased) * fadeEnvelope;
+    }
+
+    _applyTowBeaconBehavior(fixture, light, time, fadeEnvelope, intensityScalar) {
+        const pulseVal = (Math.sin(time * fixture.sweepSpeed + fixture.sweepPhase) + 1.0) / 2.0;
+        const eased = pulseVal * pulseVal;
+        fixture.currentIntensity = fixture.baseIntensity * (0.2 + 1.3 * eased);
+        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
+        if (fixture.material) fixture.material.emissiveIntensity = (0.5 + 1.5 * eased) * fadeEnvelope;
+    }
+
+    _applyFaultyBehavior(fixture, light, time, fadeEnvelope, intensityScalar) {
+        if (fixture._nextFlicker === undefined) {
+            fixture._nextFlicker = time + 0.5 + Math.random() * 4.0;
+            fixture._flickering = false;
+        }
+        if (!fixture._flickering && time >= fixture._nextFlicker) {
+            fixture._flickering = true;
+            fixture._flickerUntil = time + 0.04 + Math.random() * 0.12;
+            fixture._flickerDepth = Math.random() < 0.3 ? 0.0 : 0.05 + Math.random() * 0.3;
+        } else if (fixture._flickering && time >= fixture._flickerUntil) {
+            fixture._flickering = false;
+            fixture._nextFlicker = Math.random() < 0.4
+                ? time + 0.03 + Math.random() * 0.1
+                : time + 1.0 + Math.random() * 6.0;
+        }
+        const flickerScale = fixture._flickering ? fixture._flickerDepth : 1.0;
+        fixture.currentIntensity = fixture.baseIntensity * flickerScale;
+        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
+        if (fixture.material) {
+            const peakEmissive = fixture.emissiveIntensity !== undefined
+                ? fixture.emissiveIntensity * flickerScale
+                : fixture.currentIntensity * 0.6;
+            fixture.material.emissiveIntensity = Math.max(0.05, peakEmissive) * fadeEnvelope;
+        }
+    }
+
+    _applyDefaultBehavior(fixture, light, time, fadeEnvelope, intensityScalar) {
+        const normalIntensity = fixture.currentIntensity !== undefined ? fixture.currentIntensity : fixture.baseIntensity;
+        light.intensity = (normalIntensity + (Math.sin(time * 120.0 + fixture.flickerOffset) * 0.02)) * fadeEnvelope * intensityScalar;
+        if (fixture.material) {
+            const baseEmissive = fixture.isLighthouse
+                ? 5.0
+                : (fixture.emissiveIntensity !== undefined ? fixture.emissiveIntensity : 0.4);
+            fixture.material.emissiveIntensity = baseEmissive * fadeEnvelope;
         }
     }
 }

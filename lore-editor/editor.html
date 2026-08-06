@@ -208,6 +208,12 @@
         }
         #tag-input:focus { outline: none; border-color: rgba(251,191,36,0.5); }
 
+        .var-btn {
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 4px 8px;
+            color: var(--accent-amber); font-family: var(--font-mono); font-size: 0.75rem; cursor: pointer; transition: 0.2s;
+        }
+        .var-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+
         .textarea-container {
             flex: 1; position: relative; display: flex; flex-direction: column;
         }
@@ -217,7 +223,7 @@
             border-radius: 8px; filter: blur(4px); pointer-events: none; opacity: 0.5;
         }
         textarea {
-            width: 100%; height: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px;
+            width: 100%; flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px;
             padding: 24px; color: #e5e7eb; font-family: var(--font-mono); font-size: 0.875rem; line-height: 1.6;
             resize: none; position: relative; z-index: 1; transition: 0.2s;
         }
@@ -300,12 +306,16 @@
                                 </div>
                                 <div id="tag-box">
                                     <h4>Thread Tag</h4>
-                                    <input type="text" id="tag-input" placeholder="e.g. GEOMETRY, HUM, LOST">
+                                    <input type="text" id="tag-input" list="tag-suggestions" placeholder="e.g. GEOMETRY, HUM, LOST">
+                                    <datalist id="tag-suggestions"></datalist>
                                 </div>
 
                                 <div class="textarea-container" id="textarea-container">
-                                    <div class="textarea-glow"></div>
-                                    <textarea id="main-textarea"></textarea>
+                                    <div id="variable-toolbar" style="display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;"></div>
+                                    <div style="position: relative; flex: 1; display: flex;">
+                                        <div class="textarea-glow"></div>
+                                        <textarea id="main-textarea"></textarea>
+                                    </div>
                                 </div>
                                 <div id="names-container" style="display:none; flex: 1; flex-direction: column; overflow-y: auto; gap: 8px; min-height: 0; padding-right: 8px;"></div>
                                 <div id="names-add-box" style="display:none; margin-top: 16px; align-items: center; gap: 8px;">
@@ -329,6 +339,7 @@
         let selectedFile = null;
         let fileData = null;
         let linkedData = null;
+        let namesData = null;
         
         let expandedCategory = null;
         let selectedCategory = null;
@@ -342,6 +353,13 @@
         // Init
         async function init() {
             try {
+                const namesRes = await fetch('/api/data?file=names.json');
+                const nData = await namesRes.json();
+                if (nData.content) {
+                    namesData = nData.content;
+                    renderVariableToolbar();
+                }
+
                 const res = await fetch('/api/data');
                 const data = await res.json();
                 if (data.files) {
@@ -393,6 +411,7 @@
                 if (f === 'foreshadow.json') await loadLinked('finales.json');
 
                 initializeSelection();
+                updateTagSuggestions();
                 renderTree();
                 renderEditor();
             } catch (err) {
@@ -483,15 +502,18 @@
                         return;
                     }
                     
+                    const isPrimitive = typeof catData !== 'object' || catData === null;
+                    const isActivePrim = selectedCategory === cat && isPrimitive;
+                    
                     html += `<div class="tree-item">
                         <div class="tree-item-row group">
-                            <button class="tree-btn ${isExpanded ? 'active bold' : ''}" onclick="toggleCat('${cat}')">
-                                ${isExpanded ? '▼ ' : '▶ '} ${cat}
+                            <button class="tree-btn ${(isExpanded && !isPrimitive) || isActivePrim ? 'active bold' : ''}" onclick="${isPrimitive ? `selectNode(null, '${cat}')` : `toggleCat('${cat}')`}">
+                                ${isPrimitive ? '• ' : (isExpanded ? '▼ ' : '▶ ')} ${cat}
                             </button>
                             ${isExpanded && isCatArray ? `<button class="add-btn" style="width:auto; margin:0; border:none;" onclick="addEntry('${cat}')">+</button>` : ''}
                         </div>`;
                     
-                    if (isExpanded) {
+                    if (isExpanded && !isPrimitive) {
                         html += `<div class="tree-children">`;
                         if (isCatArray) {
                             if (catData.length === 0) {
@@ -572,7 +594,12 @@
                     else linkedData[cat].push("UNCLASSIFIED");
                 }
             } else {
-                const template = (fileData.length > 0 && typeof fileData[0] === 'object' && !Array.isArray(fileData[0])) ? {} : "";
+                let template;
+                if (selectedFile === 'foreshadow.json') {
+                    template = { "ANNEX": "", "ARCHIVE": "", "SERVER": "", "CLINIC": "", "CHASM": "" };
+                } else {
+                    template = (fileData.length > 0 && typeof fileData[0] === 'object' && !Array.isArray(fileData[0])) ? {} : "";
+                }
                 fileData.push(template);
                 selectedIndex = fileData.length - 1;
                 if (typeof template === 'object') {
@@ -662,7 +689,8 @@
                 hintBox.style.display = 'none';
             }
 
-            if (selectedFile === 'names.json') {
+            const isNamesArray = selectedFile === 'names.json' && Array.isArray(val);
+            if (isNamesArray) {
                 document.getElementById('textarea-container').style.display = 'none';
                 document.getElementById('tag-box').style.display = 'none';
                 document.getElementById('names-container').style.display = 'flex';
@@ -750,6 +778,11 @@
                     });
                 }
                 
+                if (selectedFile === 'names.json') {
+                    namesData = fileData;
+                    renderVariableToolbar();
+                }
+                
                 btn.innerText = 'Saved!';
                 setTimeout(() => { btn.innerText = 'Save Changes'; btn.disabled = false; }, 2000);
             } catch (err) {
@@ -785,6 +818,70 @@
                 fileData[selectedCategory].splice(i, 1);
                 renderNamesList();
             }
+        }
+
+        // Tags Logic
+        function updateTagSuggestions() {
+            const tagSet = new Set();
+            if (selectedFile === 'library.json' && linkedData) {
+                Object.values(linkedData).forEach(arr => {
+                    if (Array.isArray(arr)) arr.forEach(t => tagSet.add(t));
+                });
+            }
+            if (selectedFile === 'tapes.json' && isObjectRoot()) {
+                Object.values(fileData).forEach(arr => {
+                    if (Array.isArray(arr)) arr.forEach(t => { if(t.thread) tagSet.add(t.thread); });
+                });
+            }
+            const defaults = ['GEOMETRY', 'HUM', 'LOST', 'CIPHER', 'PEN', 'EPOCH', 'UNCLASSIFIED'];
+            defaults.forEach(t => tagSet.add(t));
+            
+            const dl = document.getElementById('tag-suggestions');
+            dl.innerHTML = '';
+            tagSet.forEach(t => {
+                if (t) {
+                    const opt = document.createElement('option');
+                    opt.value = t;
+                    dl.appendChild(opt);
+                }
+            });
+        }
+
+        // Variable Insertion
+        function renderVariableToolbar() {
+            const tb = document.getElementById('variable-toolbar');
+            if (!tb || !namesData) return;
+            let html = '';
+            
+            const roles = namesData.ROLES || ["lead", "custodian", "archivist", "lost"];
+            roles.forEach(r => {
+                html += `<button class="var-btn" onclick="insertVar('\$\{c.${r}}')">\$\{c.${r}}</button>`;
+            });
+
+            const core = ['P', 'hrs', 'pen', 'year', 'ctx.seed'];
+            core.forEach(v => {
+                html += `<button class="var-btn" onclick="insertVar('\$\{${v}}')">\$\{${v}}</button>`;
+            });
+
+            const custom = namesData.VARS || {};
+            if (custom && typeof custom === 'object' && !Array.isArray(custom)) {
+                Object.keys(custom).forEach(v => {
+                    html += `<button class="var-btn" onclick="insertVar('\$\{${v}}')">\$\{${v}}</button>`;
+                });
+            }
+
+            tb.innerHTML = html;
+        }
+
+        function insertVar(v) {
+            const ta = document.getElementById('main-textarea');
+            if(!ta || ta.style.display === 'none') return;
+            const start = ta.selectionStart;
+            const end = ta.selectionEnd;
+            ta.value = ta.value.substring(0, start) + v + ta.value.substring(end);
+            ta.selectionStart = ta.selectionEnd = start + v.length;
+            ta.focus();
+            ta.dispatchEvent(new Event('input'));
         }
 
         // Start

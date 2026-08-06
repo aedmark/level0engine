@@ -4,7 +4,7 @@
  * [STATE] Stateful, manages a library of text, player progress, and randomized parameters.
  * [DEPENDS] CaseFiles.js for content generation.
  */
-import {buildCaseFiles, THREADS} from './CaseFiles.js';
+import {buildCaseFiles} from './CaseFiles.js';
 
 export default class StoryEngine {
     static NAMES_DATA = { FIRST: [], LAST: [], PROJECT_NAMES: [] };
@@ -12,13 +12,13 @@ export default class StoryEngine {
 
     static async loadData(dataDir = './data') {
         try {
-            const files = ['names', 'library', 'tags', 'tapes', 'finales', 'foreshadow', 'ephemera'];
+            const files = ['names', 'library', 'tags', 'tapes', 'finales', 'foreshadow', 'ephemera', 'threads'];
             const fetches = files.map(f => fetch(`${dataDir}/${f}.json`).then(res => res.json()));
             
-            const [names, library, tags, tapes, finales, foreshadow, ephemera] = await Promise.all(fetches);
+            const [names, library, tags, tapes, finales, foreshadow, ephemera, threads] = await Promise.all(fetches);
             
             StoryEngine.NAMES_DATA = names;
-            StoryEngine.CASES_DATA = { library, tags, tapes, finales, foreshadow, ephemera };
+            StoryEngine.CASES_DATA = { library, tags, tapes, finales, foreshadow, ephemera, threads };
         } catch (e) {
             console.error("Failed to load narrative data:", e);
         }
@@ -45,11 +45,11 @@ export default class StoryEngine {
             used.add(n);
             return n;
         };
-        const lead = mkName();
-        const custodian = mkName();
-        const archivist = mkName();
-        const lost = mkName();
-        this.cast = {lead, custodian, archivist, lost};
+        this.cast = {};
+        const roles = StoryEngine.NAMES_DATA.ROLES || ["lead", "custodian", "archivist", "lost"];
+        for (const role of roles) {
+            this.cast[role] = mkName();
+        }
         this.projectName = pick(StoryEngine.NAMES_DATA.PROJECT_NAMES);
         this.truth = Math.floor(this.rand() * StoryEngine.CASES_DATA.finales.length);
         this.penNumber = 3 + Math.floor(this.rand() * 19);
@@ -84,6 +84,7 @@ export default class StoryEngine {
         this.tapes = files.tapes;
         this.finales = files.finales;
         this.ephemera = files.ephemera;
+        this.threads = files.threads;
         this.ephemeraDealt = new Map();
         this.trackers = {};
         this.totalTemplates = 0;
@@ -212,21 +213,13 @@ export default class StoryEngine {
             label: this.threadLabel(thread),
             sources: Array.from(sectors),
             resolved: this.corroborated.size,
-            resolvable: THREADS.length,
+            resolvable: Object.keys(this.threads).length,
             sectors: this.caseStrength()
         };
     }
 
     threadLabel(thread) {
-        return {
-            CIPHER: 'RECORDS LOCK',
-            EPOCH: `THE SLAB WAS POURED IN ${this.siteYear}`,
-            PEN: `PEN ${this.penNumber} HAS NEVER BEEN SHUT`,
-            LOST: `THE DISPOSITION OF ${this.cast.lost.toUpperCase()}`,
-            GEOMETRY: 'THE FLOOR PLAN IS NOT FIXED',
-            HUM: 'THE HUM CARRIES INFORMATION',
-            TELL: `PROJECT ${this.projectName} — THE SHAPE OF THE FINDING`
-        }[thread] || thread;
+        return this.threads[thread] || thread;
     }
 
     lockProgress() {
@@ -260,7 +253,7 @@ export default class StoryEngine {
             tellCorroborated: this.corroborated.has('TELL'),
             caseStrength: this.caseStrength(),
             settled: this.corroborated.size,
-            resolvable: THREADS.length,
+            resolvable: Object.keys(this.threads).length,
             project: this.projectName
         };
     }

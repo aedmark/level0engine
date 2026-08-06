@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Manages atmospheric effects including fog, particles, player vision adaptation, and environmental audio occlusion.
+ * [WHY] These interconnected systems create the game's ambiance and must be updated every frame based on the player's position and sector.
+ * [STATE] Stateful. Tracks active sector effects, current player objectives, and dynamic lighting/glare values.
+ * [DEPENDS] Depends on THREE.js scene, player state, spatial grid, active chunk data, and lumen grid for darkness pressure.
+ */
 import SECTORS, {DEFAULT_DUST, DEFAULT_EXHAUST, DEFAULT_AMBIENT, MIN_AMBIENT} from '../world/Sectors.js';
 
 export default class AtmosphereManager {
@@ -6,6 +12,69 @@ export default class AtmosphereManager {
     }
 
     updateLights(time) {
+        const env = this.env;
+        const cameraPos = env.camera.position;
+
+        this._updateFixtures(time);
+
+        if (!env.audioRaycaster) {
+            env.audioRaycaster = new THREE.Raycaster();
+            env.audioDirection = new THREE.Vector3();
+        }
+
+        const currentChunkHash = `${env.currentChunkCoords.x},${env.currentChunkCoords.z}`;
+        const lumenData = env.lumenGrid.update(cameraPos, env.fixtureData, time, currentChunkHash);
+        const darknessPressure = lumenData.darknessPressure;
+        const nearestFixture = lumenData.nearestFixture;
+        const minLightDistSq = lumenData.minLightDistSq;
+        env.player.darknessPressure = darknessPressure;
+        const minLightDist = nearestFixture ? Math.sqrt(minLightDistSq) : Infinity;
+
+        this._updateGlareAndPupil(time, cameraPos, nearestFixture, minLightDistSq, minLightDist);
+        const isOccluded = this._updateAudioOcclusion(time, cameraPos, nearestFixture, minLightDist);
+        
+        const {activeSector, targetFog} = env._sectorFrame || env._resolveActiveSector(cameraPos);
+        
+        this._updateFogAndAtmosphere(time, darknessPressure, activeSector, targetFog);
+        this._updateParticles(time, cameraPos, activeSector);
+        
+        const anomalyPressure = env.player.anomalyPressure || 0;
+        this._updateObjectives(cameraPos, anomalyPressure);
+        
+        const playerSpeed = Math.sqrt((env.player.velocity.x * env.player.velocity.x) + (env.player.velocity.z * env.player.velocity.z));
+        this._updateFlashlightAndAmbient(darknessPressure, activeSector);
+
+        if (env.fixtureData) {
+            for (let i = 0; i < env.fixtureData.length; i++) {
+                const fix = env.fixtureData[i];
+                if (fix.lightObj) {
+                    fix.lightObj.intensity = fix.currentIntensity;
+                }
+            }
+        }
+
+        let idlingCarDistSq = 999999.0;
+        if (env.idlingCars) {
+            for (let i = 0; i < env.idlingCars.length; i++) {
+                const c = env.idlingCars[i];
+                const d = c.position.distanceToSquared(cameraPos);
+                if (d < idlingCarDistSq) idlingCarDistSq = d;
+            }
+        }
+
+        return {
+            minLightDist,
+            isOccluded,
+            activeSector,
+            anomalyPressure,
+            playerSpeed,
+            playerExhaustion: env.player.exhaustion,
+            isBlackout: env.blackoutChunks.size > 0,
+            idlingCarDistSq
+        };
+    }
+
+    _updateFixtures(time) {
         const env = this.env;
         const isChasm = env._stickySectorId === 'CHASM';
         if (env.fixtureData) {
@@ -45,18 +114,10 @@ export default class AtmosphereManager {
                 }
             }
         }
-        const cameraPos = env.camera.position;
-        if (!env.audioRaycaster) {
-            env.audioRaycaster = new THREE.Raycaster();
-            env.audioDirection = new THREE.Vector3();
-        }
-        const currentChunkHash = `${env.currentChunkCoords.x},${env.currentChunkCoords.z}`;
-        const lumenData = env.lumenGrid.update(cameraPos, env.fixtureData, time, currentChunkHash);
-        const darknessPressure = lumenData.darknessPressure;
-        const nearestFixture = lumenData.nearestFixture;
-        const minLightDistSq = lumenData.minLightDistSq;
-        env.player.darknessPressure = darknessPressure;
-        const minLightDist = nearestFixture ? Math.sqrt(minLightDistSq) : Infinity;
+    }
+
+    _updateGlareAndPupil(time, cameraPos, nearestFixture, minLightDistSq, minLightDist) {
+        const env = this.env;
         if (env.currentGlare === undefined) env.currentGlare = 0.0;
         if (env.currentGlareColor === undefined) env.currentGlareColor = new THREE.Color(1, 1, 1);
         if (!env.engine.glareColor) env.engine.glareColor = new THREE.Color(1, 1, 1);
@@ -147,6 +208,10 @@ export default class AtmosphereManager {
             env.engine.renderer.toneMappingExposure =
                 env.engine.baseExposure * (1.0 - env.pupilAdapt * PUPIL_MAX_DIM);
         }
+    }
+
+    _updateAudioOcclusion(time, cameraPos, nearestFixture, minLightDist) {
+        const env = this.env;
         if (nearestFixture && minLightDist > 1.0) {
             if (time - env.lastAudioOcclusionTime > 0.1) {
                 env.audioDirection.subVectors(nearestFixture.position, cameraPos).normalize();
@@ -171,8 +236,11 @@ export default class AtmosphereManager {
         } else {
             env.currentOcclusionState = false;
         }
-        let isOccluded = env.currentOcclusionState;
-        const {activeSector, targetFog} = env._sectorFrame || env._resolveActiveSector(cameraPos);
+        return env.currentOcclusionState;
+    }
+
+    _updateFogAndAtmosphere(time, darknessPressure, activeSector, targetFog) {
+        const env = this.env;
         if (env.baseFogDensity !== undefined) {
             if (env.currentFogDensity === undefined) env.currentFogDensity = targetFog;
             const userMultiplier = env.baseFogDensity / 0.05;
@@ -198,6 +266,10 @@ export default class AtmosphereManager {
         const colorRate = env._targetFogColor.equals(env._baseFogColor) ? 0.25 : 0.15;
         env.scene.fog.color.lerp(finalTargetColor, colorRate);
         env.scene.background.lerp(finalTargetColor, colorRate);
+    }
+
+    _updateParticles(time, cameraPos, activeSector) {
+        const env = this.env;
         if (env.dustCloud) {
             const dust = (SECTORS[activeSector] && SECTORS[activeSector].dust) || DEFAULT_DUST;
             env.dustCloud.position.copy(cameraPos);
@@ -225,6 +297,7 @@ export default class AtmosphereManager {
             const targetDustSize = isCrawling ? dust.crawlSize : dust.baseSize;
             env.dustCloud.material.opacity += (targetDustOpacity - env.dustCloud.material.opacity) * 0.05;
             env.dustCloud.material.size += (targetDustSize - env.dustCloud.material.size) * 0.05;
+            if (!env._dustColor) env._dustColor = new THREE.Color();
             env._dustColor.setHex(dust.color);
             env.dustCloud.material.color.lerp(env._dustColor, 0.05);
         }
@@ -235,13 +308,17 @@ export default class AtmosphereManager {
             env.exhaustCloud.rotation.x = time * exhaust.spinX;
             const exhaustRate = exhaust.opacity > env.exhaustMat.opacity ? 0.08 : 0.20;
             env.exhaustMat.opacity += (exhaust.opacity - env.exhaustMat.opacity) * exhaustRate;
+            if (!env._exhaustColor) env._exhaustColor = new THREE.Color();
             env._exhaustColor.setHex(exhaust.color);
             env.exhaustMat.color.lerp(env._exhaustColor, 0.05);
             if (env.exhaustMat.opacity > 0.01) {
                 env.exhaustMat.size = exhaust.baseSize + Math.sin(time * exhaust.pulseRate) * exhaust.pulseDepth;
             }
         }
-        const anomalyPressure = env.player.anomalyPressure || 0;
+    }
+
+    _updateObjectives(cameraPos, anomalyPressure) {
+        const env = this.env;
         if (env.interactables && env.player && env.player.updateObjectives) {
             let nearestDistSq = Infinity;
             const isExitPhase = env.player.objectives.fixed >= env.player.objectives.total;
@@ -311,7 +388,6 @@ export default class AtmosphereManager {
                     }
                     
                     if (!env._currentTargetSwitch) {
-                        // Create a virtual breaker if we don't have one and we need more breakers
                         if (!env._virtualBreaker && env.player.objectives && env.player.objectives.fixed < env.player.objectives.total) {
                             const camDir = new THREE.Vector3();
                             env.camera.getWorldDirection(camDir);
@@ -321,7 +397,6 @@ export default class AtmosphereManager {
                             const playerChunkX = Math.floor(cameraPos.x / (env.chunkSize * env.cellSize));
                             const playerChunkZ = Math.floor(cameraPos.z / (env.chunkSize * env.cellSize));
                             
-                            // 3 chunks ahead
                             const targetChunkX = playerChunkX + Math.round(camDir.x * 3);
                             const targetChunkZ = playerChunkZ + Math.round(camDir.z * 3);
                             
@@ -342,9 +417,8 @@ export default class AtmosphereManager {
                                 const dz = cameraPos.z - env._virtualBreaker.worldZ;
                                 const distSq = dx * dx + dz * dz;
                                 
-                                // Relocate if the player walks too far away (e.g. 5 chunks = 300 units -> 90000 distSq)
                                 if (distSq > 100000 && !env._virtualBreaker.spawned) {
-                                    env._virtualBreaker = null; // Will regenerate next frame
+                                    env._virtualBreaker = null; 
                                 } else {
                                     nearestDistSq = distSq;
                                 }
@@ -364,6 +438,10 @@ export default class AtmosphereManager {
             }
             env.player.updateObjectives(signalText);
         }
+    }
+
+    _updateFlashlightAndAmbient(darknessPressure, activeSector) {
+        const env = this.env;
         if (env.flashlight) {
             let targetIntensity = env.player.flashlightActive ? 2.2 : 0.0;
             if (env.player.flashlightActive) {
@@ -375,7 +453,7 @@ export default class AtmosphereManager {
             }
             env.flashlight.intensity += (targetIntensity - env.flashlight.intensity) * 0.4;
         }
-        const playerSpeed = Math.sqrt((env.player.velocity.x * env.player.velocity.x) + (env.player.velocity.z * env.player.velocity.z));
+
         if (env.engine.ambientLight) {
             const row = SECTORS[activeSector];
             const sectorAmbient = row && row.ambient !== undefined ? row.ambient : DEFAULT_AMBIENT;
@@ -396,37 +474,11 @@ export default class AtmosphereManager {
                 env.glowMat.opacity += (targetGlowOpacity - env.glowMat.opacity) * 0.1;
             }
         }
-        if (env.fixtureData) {
-            for (let i = 0; i < env.fixtureData.length; i++) {
-                const fix = env.fixtureData[i];
-                if (fix.lightObj) {
-                    fix.lightObj.intensity = fix.currentIntensity;
-                }
-            }
-        }
-        let idlingCarDistSq = 999999.0;
-        if (env.idlingCars) {
-            for (let i = 0; i < env.idlingCars.length; i++) {
-                const c = env.idlingCars[i];
-                const d = c.position.distanceToSquared(cameraPos);
-                if (d < idlingCarDistSq) idlingCarDistSq = d;
-            }
-        }
-        return {
-            minLightDist,
-            isOccluded,
-            activeSector,
-            anomalyPressure,
-            playerSpeed,
-            playerExhaustion: env.player.exhaustion,
-            isBlackout: env.blackoutChunks.size > 0,
-            idlingCarDistSq
-        };
     }
+
     _sectorFog(id) {
         const env = this.env;
         const s = SECTORS[id];
         return (s && s.fog !== undefined) ? s.fog : 0.05;
     }
-
 }

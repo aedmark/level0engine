@@ -13,21 +13,21 @@
     "CIPHER"
   ],
   "IMPOUND": [
-    "PEN",
+    "CIPHER",
     "GEOMETRY",
-    "PEN"
+    "CIPHER"
   ],
   "INCINERATOR": [
     "HUM",
     "CIPHER",
     "GEOMETRY",
-    "EPOCH"
+    "CIPHER"
   ],
   "BOARDROOM": [
     "GEOMETRY",
     "GEOMETRY",
     "LOST",
-    "EPOCH"
+    "CIPHER"
   ],
   "SERVER": [
     "GEOMETRY",
@@ -38,7 +38,7 @@
     "LOST",
     "LOST",
     "CIPHER",
-    "EPOCH"
+    "CIPHER"
   ],
   "ATRIUM": [
     "GEOMETRY",
@@ -49,7 +49,7 @@
     "LOST",
     "HUM",
     "LOST",
-    "PEN"
+    "CIPHER"
   ],
   "MAINTENANCE": [
     "GEOMETRY",
@@ -65,6 +65,7 @@
     "HUM",
     "GEOMETRY",
     "HUM",
-    "LOST"
+    "LOST",
+    "GEOMETRY"
   ]
 }

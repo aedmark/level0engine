@@ -1,4 +1,13 @@
 {
+  "ROLES": [
+    "lead",
+    "custodian",
+    "archivist",
+    "lost",
+    "engineer",
+    "doctor"
+  ],
+  "VARS": "{\n  \"week\": \"Math.floor(ctx.hours / 168)\"\n}",
   "FIRST": [
     "Marion",
     "Edward",
@@ -37,15 +46,10 @@
     "Whitlock"
   ],
   "PROJECT_NAMES": [
-    "OPERATION: THRESHOLD",
-    "PROKECT \"LONG HALLWAY\"",
-    "THE WALLPAPER PROJECT",
-    "CASE #0499: EVENING SHIFT",
-    "\"HUM\"",
-    "TICKET #32203: MISSING PATIENT DOOR",
-    "OPERATION YELLOW FIELD",
+    "OTHRESHOLD",
+    "INFINITE HALLWAY",
+    "YELLOW WALLPAPER",
     "DIXIELAND",
-    "FLOWER FIELD",
-    "WEIRD SMELL IN THE BOARDROOM"
+    "FERN POT"
   ]
 }

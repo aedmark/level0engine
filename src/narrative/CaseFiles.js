@@ -4,8 +4,6 @@
  * [STATE] Stateless utility functions returning generated objects.
  * [DEPENDS] Procedural seed context, global variables for hours/pen/etc.
  */
-export const THREADS = ['CIPHER', 'EPOCH', 'PEN', 'LOST', 'GEOMETRY', 'HUM', 'TELL'];
-
 export function buildCaseFiles(ctx, data) {
     // We deep clone the JSON data so we don't mutate the static loaded source
     const d = JSON.parse(JSON.stringify(data));
@@ -14,22 +12,32 @@ export function buildCaseFiles(ctx, data) {
     const pen = ctx.pen;
     const hrs = ctx.hours;
     const year = ctx.siteYear;
-    const LOST = c.lost.toUpperCase();
 
     // Helper to replace variables and simple math expressions like ${ctx.seed * ctx.hours % 666}
     const replaceTemplates = (str) => {
         if (typeof str !== 'string') return str;
         
         let s = str;
-        s = s.replace(/\$\{c\.lead\}/g, c.lead);
-        s = s.replace(/\$\{c\.custodian\}/g, c.custodian);
-        s = s.replace(/\$\{c\.archivist\}/g, c.archivist);
-        s = s.replace(/\$\{c\.lost\}/g, c.lost);
+        
+        for (const role in c) {
+            const val = c[role];
+            s = s.replace(new RegExp(`\\$\\{c\\.${role}\\}`, 'g'), val);
+            s = s.replace(new RegExp(`\\$\\{${role.toUpperCase()}\\}`, 'g'), val.toUpperCase());
+        }
+
         s = s.replace(/\$\{P\}/g, P);
         s = s.replace(/\$\{pen\}/g, pen);
         s = s.replace(/\$\{hrs\}/g, hrs);
         s = s.replace(/\$\{year\}/g, year);
-        s = s.replace(/\$\{LOST\}/g, LOST);
+        
+        const customVars = data.names?.VARS || {};
+        for (const varName in customVars) {
+            const expr = customVars[varName];
+            try {
+                const val = new Function('ctx', `return ${expr};`)(ctx);
+                s = s.replace(new RegExp(`\\$\\{${varName}\\}`, 'g'), val);
+            } catch (e) {}
+        }
         
         s = s.replace(/\$\{([^}]+)\}/g, (match, expr) => {
             try {
@@ -60,7 +68,7 @@ export function buildCaseFiles(ctx, data) {
 
     processObj(d);
 
-    const { library, tags, tapes, finales, foreshadow, ephemera } = d;
+    const { library, tags, tapes, finales, foreshadow, ephemera, threads } = d;
 
     const tell = foreshadow[ctx.truth];
     if (tell) {
@@ -72,5 +80,5 @@ export function buildCaseFiles(ctx, data) {
         }
     }
 
-    return { library, tapes, tags, finales, ephemera };
+    return { library, tapes, tags, finales, ephemera, threads };
 }
