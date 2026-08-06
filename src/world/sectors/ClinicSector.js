@@ -5,6 +5,7 @@ import {
     buildClinicBed, buildIVPole, buildHeartMonitor, buildBedpan,
     buildWheelchair, buildWaitingBench, buildWaterFountain
 } from '../ClinicFurniture.js';
+import * as OfficeFurniture from '../OfficeFurniture.js';
 
 /**
  * [ROLE] Defines the generation logic for the "Clinic" sector.
@@ -226,10 +227,15 @@ export const ClinicSector = (env, ctx) => {
                 }
             }
             if (!gateApproach && !roomApproach && random() > 0.93) {
-                const wheelchair = buildWheelchair(env);
-                wheelchair.position.set(cx0 + (random() - 0.5) * 2.4, 0, cz0 + (random() - 0.5) * 2.4);
-                wheelchair.rotation.y = random() * Math.PI * 2;
-                addFurniture(wheelchair);
+                if (random() > 0.5) {
+                    const wheelchair = buildWheelchair(env);
+                    wheelchair.position.set(cx0 + (random() - 0.5) * 2.4, 0, cz0 + (random() - 0.5) * 2.4);
+                    wheelchair.rotation.y = random() * Math.PI * 2;
+                    addFurniture(wheelchair);
+                } else {
+                    const plant = OfficeFurniture.buildPottedPlant(env, cx0 + (random() - 0.5) * 2.4, 0, cz0 + (random() - 0.5) * 2.4);
+                    addFurniture(plant);
+                }
             }
         }
     };

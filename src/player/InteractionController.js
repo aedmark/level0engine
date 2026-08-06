@@ -678,6 +678,12 @@ export default class InteractionController {
             };
             if (env.interactables) env.interactables.forEach(checkObj);
             if (env.interactiveDoors) env.interactiveDoors.forEach(checkObj);
+            
+            if (hit && hit.userData.type === 'seat') {
+                if (env.player) env.player.sit(hit);
+                return;
+            }
+            
             if (hit && hit.userData.isAirlockDoor) {
                 hit.userData.playerOpen = true;
                 return;

@@ -75,11 +75,11 @@ export default class Anomaly {
         this.breadcrumbs = [];
         this.backtrackTimer = 0;
         this.breadcrumbTimer = 0;
-        this.graceTimer = 12.0;
+        this.graceTimer = 90.0;
         this.timeSinceContact = 0;
         this._refreshForbiddenBounds(0, true);
-        const spawn = this._pushOutsideBounds(x, z);
-        this.group.position.set(spawn.x, y, spawn.z);
+        // Park the anomaly far away during the grace period
+        this.group.position.set(x + 10000, -1000, z + 10000);
         this.target.copy(this.group.position);
         this.group.visible = true;
     }

@@ -20,6 +20,7 @@ export default class ClawEntity {
         this.warningTimer = 0;
         this.dropTimer = 0;
         this.snapTimer = 0;
+        this.ascentTimer = 0;
         
         this.group = new THREE.Group();
         this.prongs = [];
@@ -52,19 +53,19 @@ export default class ClawEntity {
             
             const prong = new THREE.Mesh(prongGeo, metalMat);
             prong.position.set(0.35, -0.1, 0);
-            prong.rotation.z = -Math.PI / 8; // Open angle
+            prong.rotation.z = -Math.PI / 12; // Start closed
             
-            // Lower curve of prong
+            // Lower curve of prong (hook inward)
             const tipGeo = new THREE.BoxGeometry(0.1, 0.6, 0.1);
             tipGeo.translate(0, -0.3, 0);
             const tip = new THREE.Mesh(tipGeo, metalMat);
             tip.position.set(0, -1.2, 0);
-            tip.rotation.z = Math.PI / 4;
+            tip.rotation.z = -Math.PI / 3;
             prong.add(tip);
             
             pivot.add(prong);
             this.group.add(pivot);
-            this.prongs.push({ pivot, prong, openRot: -Math.PI / 8, closedRot: Math.PI / 8 });
+            this.prongs.push({ pivot, prong, openRot: Math.PI / 3.5, closedRot: -Math.PI / 12 });
         }
         
         // Warning light (spotlight shining down)
@@ -76,23 +77,41 @@ export default class ClawEntity {
         this.group.add(this.warningLightTarget);
         this.group.add(this.warningLight);
         
-        this.group.visible = false;
+        // Local claw light
+        this.clawLight = new THREE.PointLight(0xffaaaa, 0, 8.0);
+        this.group.add(this.clawLight);
+        
+        if (this.camera) {
+            this.group.position.set(this.camera.position.x, this.camera.position.y + 12.0, this.camera.position.z);
+        }
         this.scene.add(this.group);
     }
 
     deactivate() {
         this.isActive = false;
-        this.group.visible = false;
+        if (this.camera) {
+            this.group.position.set(this.camera.position.x, this.camera.position.y + 12.0, this.camera.position.z);
+        }
         this.warningLight.intensity = 0;
+        this.clawLight.intensity = 0;
+        if (this.player) {
+            this.player.isFrozen = false;
+            this.player.input.isFrozen = false;
+        }
     }
 
-    reset(x, y, z) {
+    reset() {
         this.isActive = true;
         this.state = 'IDLE';
         this.idleTimer = 0;
-        this.group.visible = false;
+        this.group.position.set(this.camera.position.x, this.camera.position.y + 12.0, this.camera.position.z);
         this.warningLight.intensity = 0;
+        this.clawLight.intensity = 0;
         this.lastPlayerPos.copy(this.camera.position);
+        if (this.player) {
+            this.player.isFrozen = false;
+            this.player.input.isFrozen = false;
+        }
     }
 
     update(delta, time, activeSector) {
@@ -105,8 +124,19 @@ export default class ClawEntity {
             const speed = distMoved / delta;
             this.lastPlayerPos.copy(playerPos);
             
+            // Stalk the player silently from above
+            const targetY = playerPos.y + 12.0;
+            this.group.position.x += (playerPos.x - this.group.position.x) * (delta * 2.0);
+            this.group.position.y += (targetY - this.group.position.y) * (delta * 2.0);
+            this.group.position.z += (playerPos.z - this.group.position.z) * (delta * 2.0);
+            
+            // Ensure prongs are closed in IDLE
+            for (let i = 0; i < this.prongs.length; i++) {
+                this.prongs[i].prong.rotation.z = this.prongs[i].closedRot;
+            }
+            
             // Player is slow or still
-            if (speed < 1.5 && !this.player.isGodMode) {
+            if (speed < 2.5 && !this.player.isGodMode) {
                 // Check if in aisle
                 if (this.env && this.env.aisleCells && this.env.cellSize) {
                     const cx = Math.floor(playerPos.x / this.env.cellSize);
@@ -124,18 +154,13 @@ export default class ClawEntity {
                         
                         if (!isCovered) {
                             this.idleTimer += delta;
-                            // Wait 5 seconds before dropping
-                            if (this.idleTimer > 5.0) {
+                            // Wait 2.5 seconds before dropping
+                            if (this.idleTimer > 2.5) {
                                 this.state = 'WARNING';
+                                document.dispatchEvent(new CustomEvent('somatic-claw', { detail: { variant: 'claw_warning', intensity: 1.0 } }));
                                 this.warningTimer = 0;
                                 this.group.position.set(playerPos.x, playerPos.y + 12.0, playerPos.z);
-                                this.group.visible = true;
                                 this.warningLight.intensity = 2.0;
-                                
-                                // Reset prongs to open
-                                for (let i = 0; i < this.prongs.length; i++) {
-                                    this.prongs[i].prong.rotation.z = this.prongs[i].openRot;
-                                }
                             }
                         } else {
                             // Recover safely if they take cover
@@ -159,22 +184,49 @@ export default class ClawEntity {
             
             if (this.warningTimer > 1.2) {
                 this.state = 'DROP';
+                document.dispatchEvent(new CustomEvent('somatic-claw', { detail: { variant: 'claw_drop', intensity: 1.0 } }));
                 this.dropTimer = 0;
                 this.warningLight.intensity = 0;
+                this.clawLight.intensity = 2.0; // Illuminate the claw itself
                 // Snap to player's final position for drop
                 this.dropTargetY = playerPos.y + 1.6; // Hover slightly above ground
+                
+                // Freeze the player for the cutscene
+                if (!this.player.isGodMode) {
+                    this.player.isFrozen = true;
+                    this.player.input.isFrozen = true;
+                }
             }
         } else if (this.state === 'DROP') {
             this.dropTimer += delta;
-            const dropDuration = 0.25; // extremely fast drop
+            const dropDuration = 3.0; // Slow terrifying drop
             const t = Math.min(1.0, this.dropTimer / dropDuration);
-            // Ease in
-            const ease = t * t * t;
+            // Ease in out
+            const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
             
             this.group.position.y = (playerPos.y + 12.0) - ((playerPos.y + 12.0) - this.dropTargetY) * ease;
             
+            // Open prongs slowly as it descends
+            for (let i = 0; i < this.prongs.length; i++) {
+                const p = this.prongs[i];
+                p.prong.rotation.z = p.closedRot + (p.openRot - p.closedRot) * t;
+            }
+            
+            // Force player to look up at the descending claw
+            if (this.player.isFrozen) {
+                this.camera.rotation.x = Math.min(Math.PI / 2.5, this.camera.rotation.x + delta * 2.0);
+            }
+            
+            // If they run away before the drop
+            if (this.lastPlayerPos.distanceToSquared(playerPos) > 4.0) {
+                this.state = 'IDLE';
+                this.idleTimer = 0;
+                // No need to snap, it will smoothly stalk them in IDLE
+            }
+            
             if (t >= 1.0) {
                 this.state = 'SNAP';
+                document.dispatchEvent(new CustomEvent('somatic-claw', { detail: { variant: 'claw_snap', intensity: 1.5 } }));
                 this.snapTimer = 0;
             }
         } else if (this.state === 'SNAP') {
@@ -191,13 +243,44 @@ export default class ClawEntity {
                 // Determine if player escaped during the drop/snap phase
                 const distToPlayerSq = this.group.position.distanceToSquared(playerPos);
                 if (distToPlayerSq < 4.0 && !this.player.isGodMode) {
-                    return {consumed: true};
+                    this.state = 'ASCENT';
+                    document.dispatchEvent(new CustomEvent('somatic-claw', { detail: { variant: 'claw_ascent', intensity: 1.2 } }));
+                    this.ascentTimer = 0;
+                    const flash = document.getElementById('flash-overlay');
+                    if (flash) {
+                        flash.style.transition = 'opacity 3s ease-in';
+                        flash.style.backgroundColor = '#000';
+                        flash.style.opacity = '1';
+                    }
                 } else {
                     // Missed! Retract
                     this.state = 'IDLE';
                     this.idleTimer = 0;
-                    this.group.visible = false;
+                    this.group.position.set(this.camera.position.x, this.camera.position.y + 12.0, this.camera.position.z);
+                    this.clawLight.intensity = 0;
+                    if (this.player) {
+                        this.player.isFrozen = false;
+                        this.player.input.isFrozen = false;
+                    }
                 }
+            }
+        } else if (this.state === 'ASCENT') {
+            this.ascentTimer += delta;
+            const ascentDuration = 3.0;
+            
+            // Drag the player up with the claw
+            const liftSpeed = 8.0; 
+            this.group.position.y += liftSpeed * delta;
+            this.camera.position.y += liftSpeed * delta;
+            
+            // Slowly tilt the camera down so the player looks at the floor as they ascend
+            this.camera.rotation.x -= delta * 1.5;
+            this.camera.rotation.x = Math.max(-Math.PI / 6, this.camera.rotation.x);
+            // Add some violent shake
+            this.camera.rotation.z += (Math.random() - 0.5) * 0.05;
+            
+            if (this.ascentTimer > ascentDuration) {
+                return {consumed: true};
             }
         }
         

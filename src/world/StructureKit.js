@@ -193,6 +193,11 @@ export default class StructureKit {
                 group.add(l4);
                 group.position.set(x, y, z);
                 group.rotation.y = rotY;
+                
+                group.userData = {type: 'seat', active: true};
+                if (!env.interactables) env.interactables = [];
+                env.interactables.push(group);
+                
                 return group;
             },
             buildCouch: (x, y, z, rotY) => {
@@ -223,6 +228,11 @@ export default class StructureKit {
                 group.add(l4);
                 group.position.set(x, y, z);
                 group.rotation.y = rotY;
+                
+                group.userData = {type: 'seat', active: true};
+                if (!env.interactables) env.interactables = [];
+                env.interactables.push(group);
+                
                 return group;
             },
             buildTable: (x, y, z) => {

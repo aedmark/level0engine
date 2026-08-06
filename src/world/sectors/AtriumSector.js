@@ -87,7 +87,8 @@ export const AtriumSector = (env, ctx) => {
     }
     if (!env.brownPaperMat) {
         env.brownPaperMat = new THREE.MeshStandardMaterial({
-            color: 0x8b6546, roughness: 0.9, bumpMap: env.carpetMat ? env.carpetMat.map : null, bumpScale: 0.05
+            color: 0x8b6546, roughness: 0.9, bumpMap: env.carpetMat ? env.carpetMat.map : null, bumpScale: 0.05,
+            side: THREE.DoubleSide
         });
     }
     if (!env.flyerMat) {
@@ -195,11 +196,11 @@ export const AtriumSector = (env, ctx) => {
                 const jitterRange = Math.max(0, slotWidth - 0.5);
                 for (let i = 0; i < boxCount; i++) {
                     const mat = env.productBoxMats[Math.floor(random() * env.productBoxMats.length)];
-                    const box = new THREE.Mesh(env._cacheGeo('aisleProductBox', () => new THREE.BoxGeometry(0.34, 0.28, 0.34)), mat);
+                    const box = new THREE.Mesh(env._cacheGeo('aisleProductBox', () => new THREE.BoxGeometry(0.425, 0.35, 0.425)), mat);
                     const slide = -slotSpan / 2 + slotWidth * (i + 0.5) + (random() - 0.5) * jitterRange;
                     box.position.set(
                         sx + (alongZ ? side * 0.2 : slide),
-                        shelfY + 0.18,
+                        shelfY + 0.175,
                         sz + (alongZ ? slide : side * 0.2)
                     );
                     box.rotation.y = random() * Math.PI * 2;
@@ -217,9 +218,9 @@ export const AtriumSector = (env, ctx) => {
         }
     };
     const buildVendingMachine = (cx, cz) => {
-        const bodyGeo = env._cacheGeo('vendingBody', () => new THREE.BoxGeometry(1.2, 2.0, 1.0));
+        const bodyGeo = env._cacheGeo('vendingBody', () => new THREE.BoxGeometry(1.44, 2.4, 1.2));
         const body = new THREE.Mesh(bodyGeo, env.blackIronMat);
-        body.position.set(cx, 1.0, cz);
+        body.position.set(cx, 1.2, cz);
         const rotY = Math.floor(random() * 4) * (Math.PI / 2);
         body.rotation.y = rotY;
         body.userData.isEntityBlocker = true;
@@ -272,9 +273,11 @@ export const AtriumSector = (env, ctx) => {
             if (env.sharedAssets) env.sharedAssets.add(env.vendingPanelMat.uuid);
         }
 
-        const panelGeo = env._cacheGeo('vendingPanel', () => new THREE.PlaneGeometry(1.2, 2.0));
-        const panel = new THREE.Mesh(panelGeo, env.vendingPanelMat);
-        panel.position.set(0, 0, 0.51);
+        if (!env.vendingPanelGeo) {
+            env.vendingPanelGeo = env._cacheGeo('vendingPanel', () => new THREE.PlaneGeometry(1.44, 2.4));
+        }
+        const panel = new THREE.Mesh(env.vendingPanelGeo, env.vendingPanelMat);
+        panel.position.set(0, 0, 0.605);
         panel.userData.chunkHash = hash;
         body.add(panel);
 
@@ -308,6 +311,10 @@ export const AtriumSector = (env, ctx) => {
             targetIntensity: VENDING_INTENSITY,
             currentIntensity: VENDING_INTENSITY
         });
+        
+        const vendingGlow = new THREE.PointLight(0xccffff, VENDING_INTENSITY, VENDING_REACH);
+        vendingGlow.position.set(0, 0.48, 0.72);
+        body.add(vendingGlow);
     };
     const buildShoppingCart = (cx, cz, overturned = false) => {
         const cart = new THREE.Group();
@@ -399,15 +406,30 @@ export const AtriumSector = (env, ctx) => {
         env.spatialGrid.insert(collider);
     };
 
-    const soupCanGeo = env._cacheGeo('soupCan', () => new THREE.CylinderGeometry(0.04, 0.04, 0.12, 12));
+    const soupCanGeo = env._cacheGeo('soupCan', () => new THREE.CylinderGeometry(0.05, 0.05, 0.15, 12));
     const sackGeo = env._cacheGeo('sackGeo', () => {
-        const g = new THREE.BoxGeometry(0.25, 0.45, 0.2);
+        const g = new THREE.BoxGeometry(0.3125, 0.5625, 0.25, 2, 2, 2);
+        
+        const indices = g.getIndex().array;
+        const normals = g.getAttribute('normal').array;
+        const newIndices = [];
+        for (let i = 0; i < indices.length; i += 3) {
+            const idx = indices[i];
+            const ny = normals[idx * 3 + 1];
+            if (ny < 0.5) { 
+                newIndices.push(indices[i], indices[i+1], indices[i+2]);
+            }
+        }
+        g.setIndex(newIndices);
+        
         const pos = g.attributes.position;
         for (let i = 0; i < pos.count; i++) {
             if (pos.getY(i) > 0) {
-                pos.setX(i, pos.getX(i) * 0.5);
-                pos.setZ(i, pos.getZ(i) * 0.5);
+                pos.setX(i, pos.getX(i) * 0.85);
+                pos.setZ(i, pos.getZ(i) * 0.85);
             }
+            pos.setX(i, pos.getX(i) + (Math.random() - 0.5) * 0.02);
+            pos.setZ(i, pos.getZ(i) + (Math.random() - 0.5) * 0.02);
         }
         g.computeVertexNormals();
         return g;
@@ -438,9 +460,15 @@ export const AtriumSector = (env, ctx) => {
     const buildSpilledGroceries = (cx, cz) => {
         const g = new THREE.Group();
         const sack = new THREE.Mesh(sackGeo, env.brownPaperMat);
-        sack.rotation.x = Math.PI / 2 + (random() - 0.5) * 0.3;
-        sack.rotation.y = random() * Math.PI * 2;
-        sack.position.set(0, 0.1, 0);
+        const isUpright = random() > 0.6;
+        if (isUpright) {
+            sack.rotation.y = random() * Math.PI * 2;
+            sack.position.set(0, 0.28125, 0);
+        } else {
+            sack.rotation.x = Math.PI / 2 + (random() - 0.5) * 0.3;
+            sack.rotation.y = random() * Math.PI * 2;
+            sack.position.set(0, 0.16, 0);
+        }
         g.add(sack);
         
         const count = 3 + Math.floor(random() * 5);
@@ -450,14 +478,14 @@ export const AtriumSector = (env, ctx) => {
             let mesh;
             if (isCan) {
                 mesh = new THREE.Mesh(soupCanGeo, env.soupCanMat);
-                mesh.position.y = 0.04;
+                mesh.position.y = 0.05;
                 mesh.rotation.x = Math.PI / 2;
                 mesh.rotation.z = random() * Math.PI;
             } else {
                 const mat = env.productBoxMats[Math.floor(random() * env.productBoxMats.length)];
-                mesh = new THREE.Mesh(env._cacheGeo('aisleProductBox', () => new THREE.BoxGeometry(0.34, 0.28, 0.34)), mat);
+                mesh = new THREE.Mesh(env._cacheGeo('aisleProductBox', () => new THREE.BoxGeometry(0.425, 0.35, 0.425)), mat);
                 mesh.scale.set(0.6, 0.6, 0.6);
-                mesh.position.y = 0.08;
+                mesh.position.y = 0.1;
                 mesh.rotation.x = (Math.floor(random() * 4) * Math.PI / 2) + (random() > 0.5 ? Math.PI/2 : 0);
                 mesh.rotation.y = random() * Math.PI;
             }

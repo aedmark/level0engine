@@ -146,12 +146,6 @@ export default class LumenGrid {
             const fixture = fixtureData[i];
             const isLH = fixture.isLighthouse;
             
-            if (!isLH && currentChunkHash !== undefined && fixture.chunkHash !== undefined
-                && fixture.chunkHash !== currentChunkHash) {
-                fixture.hasShadow = false;
-                continue;
-            }
-            
             const cullLimit = isLH ? 120.0 : baseCullingLimit;
             const dx = cameraPos.x - fixture.position.x;
             if (dx > cullLimit || dx < -cullLimit) {

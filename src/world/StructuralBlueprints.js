@@ -19,7 +19,6 @@ import {TunnelBurstProfile} from './blueprints/TunnelBurst.js';
 import {TheObserverProfile} from './blueprints/TheObserver.js';
 import {CompressionArchwayProfile} from './blueprints/CompressionArchway.js';
 import {SettlingFieldProfile} from './blueprints/SettlingField.js';
-import {BreakerPodiumSpawnProfile} from './blueprints/BreakerPodiumSpawn.js';
 import {AnomalousPointOfInterestProfile} from './blueprints/AnomalousPointOfInterest.js';
 import {WreckedFurniturePileProfile} from './blueprints/WreckedFurniturePile.js';
 import {TheOutpostProfile} from './blueprints/TheOutpost.js';
@@ -44,7 +43,6 @@ export default class StructuralBlueprints {
             TheObserverProfile(this, ctx),
             CompressionArchwayProfile(this, ctx),
             SettlingFieldProfile(this, ctx),
-            BreakerPodiumSpawnProfile(this, ctx),
             AnomalousPointOfInterestProfile(this, ctx),
             WreckedFurniturePileProfile(this, ctx),
             TheOutpostProfile(this, ctx),

@@ -1,5 +1,31 @@
 # Level 0 Engine Changelog
 
+## [v0.8.3] - 2026-08-05
+
+_The Krull Mechanics Update_
+
+### Added
+
+- **[WORLD] Krull-Style Dynamic Breaker Spawning:** Breaker podiums no longer generate completely at random. The game now actively tracks when the player has earned a breaker (by visiting enough anomalous points of interest). When a breaker is earned, the engine dynamically generates a virtual location 3 chunks ahead of the player's path and seamlessly injects the physical breaker into the environment the moment the player arrives at the targeted chunk.
+- **[WORLD] Virtual Breaker Relocation:** If a player ignores the tracking signal and walks too far away in the opposite direction from an unspawned virtual breaker, the engine will destroy the virtual target and immediately relocate it ahead of their new path to prevent soft-locking.
+- **[AESTHETICS] Fern Shadow Polish:** Disabled shadow casting exclusively on fern leaves to fix a rendering quirk where the alpha-tested transparency layer would cast an ugly rectangular depth shadow. The ceramic pots still cast solid shadows for grounding.
+
+### Fixed
+
+- **[ENTITIES] Anomaly Grace Period:** Fixed a massive oversight where the Anomaly's 12-second grace period was both far too short and resulted in the Anomaly spawning directly in the center of the player's starting chunk. The grace period has been increased to 90 seconds, and the Anomaly is now safely parked far away in the void until the timer expires and it naturally teleports into the maze.
+- **[WORLD] Generic Plant Generation:** Banished ferns and potted plants from the generic, procedural maze pool. They now exclusively spawn in curated locations (the Clinic, the Boardroom, and the Annex) to maintain their aesthetic rarity.
+
+## [v0.8.2] - 2026-08-05
+
+_The Atrium Terror Update_
+
+### Added
+
+- **[ENTITIES] The Atrium Claw:** Added a terrifying new entity to the Atrium sector. If a player stands still or moves too slowly in an aisle without overhead cover, a giant mechanical claw will descend from the ceiling, snatch them up, and pull them into the darkness above.
+- **[AUDIO] Foley Engine Expansions:** Added new synthesized procedural sounds for the mechanical claw (`claw_warning`, `claw_drop`, `claw_snap`, `claw_ascent`) to create a tense and heavy industrial feel during its descent and capture phases.
+- **[ENGINE] Cinematic Camera Lift Fix:** Fixed a major bug where the `PlayerController`'s ground-snapping physics would fight cinematic overrides. The camera physics engine now cleanly disengages when the player is frozen, allowing custom events like the Claw to lift the player freely into the air.
+- **[WORLD] Atrium Scale Pass:** Increased the scale of vending machines by 20% to make them more imposing. Scaled up grocery bags, soup cans, and product boxes by 25% to better fit the shelves and environment.
+- **[WORLD] Grocery Bag Overhaul:** Completely reworked the geometry of the paper grocery bags. They are now generated as open-topped, double-sided meshes with slight randomized crinkles instead of aggressively tapered blocks. They now properly lay flat when spilled and have a 40% chance of spawning upright.
 ## [v0.8.1] - 2026-08-05
 
 _The Archive Editor Update_

@@ -311,14 +311,42 @@ export default class AtmosphereManager {
                     }
                     
                     if (!env._currentTargetSwitch) {
-                        let minDSq = Infinity;
-                        for (let i = 0; i < env.interactables.length; i++) {
-                            const item = env.interactables[i];
-                            if (item.userData.type === 'exit_switch' && item.userData.active === false) {
-                                const dSq = cameraPos.distanceToSquared(item.position);
-                                if (dSq < minDSq) {
-                                    minDSq = dSq;
-                                    env._currentTargetSwitch = item;
+                        // Create a virtual breaker if we don't have one and we need more breakers
+                        if (!env._virtualBreaker && env.player.objectives && env.player.objectives.fixed < env.player.objectives.total) {
+                            const camDir = new THREE.Vector3();
+                            env.camera.getWorldDirection(camDir);
+                            camDir.y = 0;
+                            camDir.normalize();
+                            
+                            const playerChunkX = Math.floor(cameraPos.x / (env.chunkSize * env.cellSize));
+                            const playerChunkZ = Math.floor(cameraPos.z / (env.chunkSize * env.cellSize));
+                            
+                            // 3 chunks ahead
+                            const targetChunkX = playerChunkX + Math.round(camDir.x * 3);
+                            const targetChunkZ = playerChunkZ + Math.round(camDir.z * 3);
+                            
+                            env._virtualBreaker = {
+                                chunkHash: `${targetChunkX},${targetChunkZ}`,
+                                worldX: targetChunkX * (env.chunkSize * env.cellSize) + (env.chunkSize * env.cellSize) / 2,
+                                worldZ: targetChunkZ * (env.chunkSize * env.cellSize) + (env.chunkSize * env.cellSize) / 2,
+                                spawned: false,
+                                mesh: null
+                            };
+                        }
+                        
+                        if (env._virtualBreaker) {
+                            if (env._virtualBreaker.spawned && env._virtualBreaker.mesh) {
+                                env._currentTargetSwitch = env._virtualBreaker.mesh;
+                            } else {
+                                const dx = cameraPos.x - env._virtualBreaker.worldX;
+                                const dz = cameraPos.z - env._virtualBreaker.worldZ;
+                                const distSq = dx * dx + dz * dz;
+                                
+                                // Relocate if the player walks too far away (e.g. 5 chunks = 300 units -> 90000 distSq)
+                                if (distSq > 100000 && !env._virtualBreaker.spawned) {
+                                    env._virtualBreaker = null; // Will regenerate next frame
+                                } else {
+                                    nearestDistSq = distSq;
                                 }
                             }
                         }

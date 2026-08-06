@@ -1,4 +1,5 @@
 import TheArchitect from "../core/TheArchitect.js";
+import {spawnBreakerPodium} from './blueprints/BreakerPodiumSpawn.js';
 export default class ChunkManager {
     constructor(env) {
         this.env = env;
@@ -475,6 +476,7 @@ export default class ChunkManager {
         const solidWallCells = new Set();
         const isSolidWallCell = (wx, wz) => solidWallCells.has(`${wx},${wz}`);
         let chunkStartTime = performance.now();
+        let spawnedVirtualBreaker = false;
         for (let x = startX; x < startX + env.chunkSize; x++) {
             for (let z = startZ; z < startZ + env.chunkSize; z++) {
                 if (!env.activeChunks.has(hash)) return;
@@ -687,6 +689,15 @@ export default class ChunkManager {
                     }
                 } else {
                     let hasTallObstacle = false;
+                    
+                    if (!spawnedVirtualBreaker && env._virtualBreaker && env._virtualBreaker.chunkHash === hash && !env._virtualBreaker.spawned) {
+                        spawnBreakerPodium(env, ctx, x, z);
+                        env._virtualBreaker.spawned = true;
+                        env._virtualBreaker.mesh = env.interactables[env.interactables.length - 1];
+                        spawnedVirtualBreaker = true;
+                        hasTallObstacle = true;
+                    }
+                    
                     const forcedName = ctx.getForcedStructure && ctx.getForcedStructure(x, z);
                     if (forcedName === 'breach') {
                         hasTallObstacle = true;

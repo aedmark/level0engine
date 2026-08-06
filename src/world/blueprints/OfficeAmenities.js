@@ -19,13 +19,9 @@ export const OfficeAmenitiesProfile = (env, ctx) => {
             const pz = cz + (random() - 0.5) * 1.5;
             
             const roll = random();
-            if (roll > 0.9) {
-                if (random() > 0.5 && buildCouch) {
-                    const rotY = random() * Math.PI * 2;
-                    addFurniture(buildCouch(px, 0, pz, rotY));
-                } else {
-                    addFurniture(OfficeFurniture.buildPottedPlant(env, px, 0, pz));
-                }
+            if (roll > 0.9 && buildCouch) {
+                const rotY = random() * Math.PI * 2;
+                addFurniture(buildCouch(px, 0, pz, rotY));
             } else {
                 const wall = buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
                 wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);

@@ -41,7 +41,8 @@ export function buildPottedPlant(env, x, y, z) {
             side: THREE.DoubleSide,
             roughness: 0.9,
             emissive: 0x999999,
-            emissiveIntensity: 0.08
+            emissiveIntensity: 0.08,
+            userData: {noShadow: true}
         });
     }
     const pot = new THREE.Mesh(env.potGeo, env.potMat);

@@ -73,6 +73,9 @@ export default class PlayerController {
         this.currentLean = 0.0;
         this.isBlindFolded = false;
         this.isGodMode = false;
+        this.isFrozen = false;
+        this.isSitting = false;
+        this._preSitPos = new THREE.Vector3();
         this.baseFov = camera.fov;
         this.linguisticDarkMatter = 0.0;
         this.narrativeTension = 0.0;
@@ -197,6 +200,34 @@ export default class PlayerController {
             this._tripStagger = 1.0;
         });
     }
+    
+    sit(seatGroup) {
+        if (this.isSitting || this.isFrozen) return;
+        this.isSitting = true;
+        this.isFrozen = true;
+        this.input.isFrozen = false; // Allow looking around while seated
+        
+        this._preSitPos.copy(this.camera.position);
+        
+        const seatPos = new THREE.Vector3();
+        seatGroup.getWorldPosition(seatPos);
+        
+        // Sit directly above the seat, facing the seat's forward direction (+Z in local space)
+        this.camera.position.set(seatPos.x, seatPos.y + 1.2, seatPos.z);
+        
+        // The seat backrest is at -Z, so the front is +Z.
+        // A camera with 0 Y rotation looks down -Z. So we need to add Math.PI to face +Z.
+        const seatEuler = new THREE.Euler().setFromQuaternion(seatGroup.getWorldQuaternion(new THREE.Quaternion()));
+        this.camera.rotation.y = seatEuler.y + Math.PI;
+        this.camera.rotation.x = 0;
+    }
+    
+    standUp() {
+        if (!this.isSitting) return;
+        this.isSitting = false;
+        this.isFrozen = false;
+        this.camera.position.copy(this._preSitPos);
+    }
 
     update(delta, spatialGrid) {
         delta = Math.min(delta, 0.05);
@@ -213,6 +244,17 @@ export default class PlayerController {
         const damping = Math.exp(-25.0 * delta);
         this.velocity.x *= damping;
         this.velocity.z *= damping;
+        if (this.isFrozen) {
+            this.velocity.x = 0;
+            this.velocity.z = 0;
+            
+            if (this.isSitting && (state.moveForward || state.moveBackward || state.moveLeft || state.moveRight || state.jump)) {
+                this.standUp();
+            } else {
+                state.moveForward = state.moveBackward = state.moveLeft = state.moveRight = false;
+                state.jump = false;
+            }
+        }
         this.direction.z = Number(state.moveForward) - Number(state.moveBackward);
         this.direction.x = Number(state.moveRight) - Number(state.moveLeft);
         if (this.direction.lengthSq() > 0) this.direction.normalize();
@@ -519,6 +561,12 @@ export default class PlayerController {
             const fly = (state.flyUp ? 1 : 0) - (this.input._cKeyDown ? 1 : 0);
             this.camera.position.y += fly * 8.0 * delta;
             this.fallVelocity = 0;
+            this._leanOffset.set(0, 0, 0);
+            return;
+        }
+        if (this.isFrozen) {
+            this.camera.position.x += this._leanOffset.x;
+            this.camera.position.z += this._leanOffset.z;
             this._leanOffset.set(0, 0, 0);
             return;
         }

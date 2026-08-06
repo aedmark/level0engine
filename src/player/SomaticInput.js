@@ -218,6 +218,7 @@ export default class SomaticInput {
     }
 
     _onMouseMove(e) {
+        if (this.isFrozen) return;
         if (!this.isLocked && !(this.lockFallback && this._dragLook)) return;
         
         if (this.state.isReading) {
