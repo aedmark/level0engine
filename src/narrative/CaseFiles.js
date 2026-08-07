@@ -123,7 +123,8 @@ export function buildCaseFiles(ctx, data) {
             const arr = clues[sector];
             for (const item of arr) {
                 if (item.thread && ctx.activePuzzle.LOCK_THREADS[item.thread]) {
-                    if (!item.puzzle || item.puzzle === ctx.activePuzzle.id) {
+                    const puz = item.puzzle;
+                    if (!puz || puz === ctx.activePuzzle.id || (Array.isArray(puz) && puz.includes(ctx.activePuzzle.id))) {
                         injectItem(sector, item);
                     }
                 }

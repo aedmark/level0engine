@@ -364,11 +364,9 @@
                                         <input type="text" id="tag-input" list="tag-suggestions" placeholder="Tag..." />
                                         <datalist id="tag-suggestions"></datalist>
                                     </div>
-                                    <div id="puzzle-container" style="display: none; align-items: center; gap: 8px;" title="The puzzle/lock this clue will help solve.">
-                                        <h4>Puzzle:<span class="help-icon">?</span></h4>
-                                        <select id="puzzle-input" class="var-select">
-                                            <option value="">Any Puzzle</option>
-                                        </select>
+                                    <div id="puzzle-container" style="display: none; align-items: flex-start; gap: 8px;" title="The puzzle/lock this clue will help solve.">
+                                        <h4 style="margin-top:4px;">Puzzle:<span class="help-icon">?</span></h4>
+                                        <div id="puzzle-checkboxes" style="display:flex; flex-direction:column; gap:6px; max-height: 80px; overflow-y:auto; padding: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; min-width: 150px;"></div>
                                     </div>
                                 </div>
 
@@ -896,7 +894,6 @@
                     
                     if (selectedFile === 'clues.json') {
                         document.getElementById('puzzle-container').style.display = 'flex';
-                        document.getElementById('puzzle-input').value = val.puzzle || '';
                         updatePuzzleSuggestions();
                     } else {
                         document.getElementById('puzzle-container').style.display = 'none';
@@ -1209,45 +1206,62 @@
                 const res = await fetch('/api/data?file=puzzles.json');
                 const data = await res.json();
                 const puzzles = data.content || [];
-                const select = document.getElementById('puzzle-input');
-                const currentVal = select.value;
+                const container = document.getElementById('puzzle-checkboxes');
                 
-                let html = '<option value="">Any Puzzle</option>';
+                const valObj = getCurrentEditorData();
+                const puzzleVal = valObj ? valObj.puzzle : null;
+                const isArray = Array.isArray(puzzleVal);
+                
+                let html = '';
                 puzzles.forEach(p => {
                     if (p && p.id) {
-                        html += `<option value="${p.id}">${p.id}</option>`;
+                        const checked = isArray ? puzzleVal.includes(p.id) : (puzzleVal === p.id);
+                        html += `<label style="display:flex; align-items:center; gap:6px; font-size: 0.75rem; font-family: var(--font-mono); color: #d1d5db; cursor: pointer;">
+                            <input type="checkbox" value="${p.id}" ${checked ? 'checked' : ''} onchange="handlePuzzleCheckboxChange()">
+                            ${p.id}
+                        </label>`;
                     }
                 });
-                select.innerHTML = html;
-                select.value = currentVal;
+                if (puzzles.length === 0) {
+                    html = '<div style="font-size:0.75rem; color:#6b7280;">No puzzles found</div>';
+                }
+                container.innerHTML = html;
             } catch (e) {
                 console.error(e);
             }
         }
 
-        document.getElementById('puzzle-input').addEventListener('change', (e) => {
-            const val = e.target.value;
+        function handlePuzzleCheckboxChange() {
+            const container = document.getElementById('puzzle-checkboxes');
+            const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+            const selected = [];
+            checkboxes.forEach(cb => {
+                if (cb.checked) selected.push(cb.value);
+            });
+            
             const original = getCurrentEditorData();
             if (original && typeof original === 'object' && selectedFile === 'clues.json') {
+                const valToSave = selected.length === 0 ? null : (selected.length === 1 ? selected[0] : selected);
+                
                 if (isArrayRoot()) {
                     if (selectedCategory) {
-                        if (val) fileData[selectedIndex][selectedCategory].puzzle = val;
+                        if (valToSave) fileData[selectedIndex][selectedCategory].puzzle = valToSave;
                         else delete fileData[selectedIndex][selectedCategory].puzzle;
                     } else {
-                        if (val) fileData[selectedIndex].puzzle = val;
+                        if (valToSave) fileData[selectedIndex].puzzle = valToSave;
                         else delete fileData[selectedIndex].puzzle;
                     }
                 } else if (isObjectRoot()) {
                     if (selectedIndex !== null) {
-                        if (val) fileData[selectedCategory][selectedIndex].puzzle = val;
+                        if (valToSave) fileData[selectedCategory][selectedIndex].puzzle = valToSave;
                         else delete fileData[selectedCategory][selectedIndex].puzzle;
                     } else {
-                        if (val) fileData[selectedCategory].puzzle = val;
+                        if (valToSave) fileData[selectedCategory].puzzle = valToSave;
                         else delete fileData[selectedCategory].puzzle;
                     }
                 }
             }
-        });
+        }
 
         // Tags Logic
         function updateTagSuggestions() {

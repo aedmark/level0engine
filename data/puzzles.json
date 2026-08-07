@@ -3,18 +3,18 @@
     "id": "ORIGINAL_PEN",
     "ACCESS_CODE": "String(ctx.year).slice(2) + String(ctx.pen).padStart(2, '0')",
     "LOCK_THREADS": {
-      "CIPHER": "RULE",
-      "EPOCH": "YEAR",
-      "PEN": "PEN"
+      "EPOCH": "EPOCH",
+      "PEN": "PEN",
+      "CIPHER": "CIPHER"
     }
   },
   {
     "id": "HOUR_PUZZLE",
     "ACCESS_CODE": "String(ctx.hours).slice(0, 2) + String(ctx.pen).padStart(2, '0')",
     "LOCK_THREADS": {
-      "CIPHER": "RULE",
       "PEN": "PEN",
-      "HOUR": "HOUR"
+      "HOUR": "HOUR",
+      "CIPHER": "CIPHER"
     }
   }
 ]

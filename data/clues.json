@@ -28,9 +28,9 @@
     },
     {
       "type": "tape",
-      "text": "[STATIC, FAST FOOTSTEPS]\n\n...they changed it. The year doesn't work anymore. The building knows how long we've been in here. It's the hours. Hours and the pen. [CLICK]",
+      "text": "[STATIC, FAST FOOTSTEPS]\n\n...they changed it. The year doesn't work anymore. \nThe building knows how long we've been in here.\nIt's the hours.\nHours and the pen.\n\n[CLICK]",
       "thread": "CIPHER",
-      "puzzle": "FLOOR_ID_PUZZLE"
+      "puzzle": "HOUR_PUZZLE"
     }
   ],
   "INCINERATOR": [
@@ -46,7 +46,10 @@
       "text": "[OFFICE MEMO]\n\nStop coming to the gate for the records number. Nobody here has it because nobody anywhere has it.\n\nThe last three people who wanted it went to the annex to be told and one of them is still there.",
       "type": "document",
       "thread": "CIPHER",
-      "puzzle": "ORIGINAL_PEN"
+      "puzzle": [
+        "ORIGINAL_PEN",
+        "HOUR_PUZZLE"
+      ]
     }
   ],
   "MAINTENANCE": [
