@@ -125,6 +125,13 @@ export default class StoryEngine {
         this.finales = files.finales;
         this.threads = files.threads;
         
+        // Override TELL thread title/desc based on active finale
+        const activeFinale = this.finales[this.truth];
+        if (activeFinale && this.threads['TELL']) {
+            if (activeFinale.tell_title) this.threads['TELL'].title = activeFinale.tell_title;
+            if (activeFinale.tell_description) this.threads['TELL'].description = activeFinale.tell_description;
+        }
+        
         this.ephemeraDealt = new Map();
         this.laptopsDealt = new Map();
         this.clipboardsDealt = new Map();
@@ -173,11 +180,19 @@ export default class StoryEngine {
     getFragment(docId, zone) {
         const idStr = String(docId || 'X');
         if (idStr.startsWith('FINALE')) {
+            const finaleObj = this.finales[this.truth];
+            const finaleText = finaleObj.text;
             if (!this.readTemplates.has('FINALE')) {
                 this.readTemplates.add('FINALE');
-                this.collected.push(this.finales[this.truth].text);
+                this.collected.push(finaleText);
+                if (finaleObj.thread) this.threadOf.set(finaleText, finaleObj.thread);
             }
-            return {text: this.finales[this.truth].text, progress: this.progress()};
+            return {
+                text: finaleText, 
+                progress: this.progress(),
+                thread: finaleObj.thread || null,
+                corroboration: this._registerThread(finaleText, 'FINALE')
+            };
         }
         const isTerminal = idStr.startsWith('PC_');
         const assignKey = idStr + '|' + (zone || '');
@@ -200,6 +215,7 @@ export default class StoryEngine {
             const text = obj.text;
             this.assignments.set(assignKey, text);
             this.collected.push(text);
+            if (obj.thread) this.threadOf.set(text, obj.thread);
             return {
                 text, 
                 progress: this.progress(), 
@@ -216,6 +232,7 @@ export default class StoryEngine {
             const text = obj.text;
             this.assignments.set(assignKey, text);
             this.collected.push(text);
+            if (obj.thread) this.threadOf.set(text, obj.thread);
             return {
                 text, 
                 progress: this.progress(), 
@@ -232,6 +249,7 @@ export default class StoryEngine {
             const text = obj.text;
             this.assignments.set(assignKey, text);
             this.collected.push(text);
+            if (obj.thread) this.threadOf.set(text, obj.thread);
             return {
                 text, 
                 progress: this.progress(), 

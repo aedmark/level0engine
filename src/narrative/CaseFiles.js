@@ -144,6 +144,7 @@ export function buildCaseFiles(ctx, data) {
     const tell = foreshadow[ctx.truth];
     if (tell) {
         for (const sector in tell) {
+            if (sector === 'nickname' || sector === 'text' || sector === 'description') continue;
             const itemOrArr = tell[sector];
             if (Array.isArray(itemOrArr)) {
                 for (const item of itemOrArr) {

@@ -374,6 +374,16 @@
                                         <textarea id="option-textarea"></textarea>
                                     </div>
                                 </div>
+                                <div id="finale-meta-container" class="textarea-container" style="display:none; flex: 0.25; margin-bottom: 8px;">
+                                    <h4 style="margin-bottom: 2px;">TELL Thread Override Title</h4>
+                                    <div style="position: relative; flex: 1; display: flex; margin-bottom: 8px;">
+                                        <input type="text" id="tell-title-input" style="width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;" />
+                                    </div>
+                                    <h4 style="margin-bottom: 2px;">TELL Thread Override Description</h4>
+                                    <div style="position: relative; flex: 1; display: flex;">
+                                        <textarea id="tell-desc-textarea" style="height: 60px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem; width: 100%;"></textarea>
+                                    </div>
+                                </div>
                                 <div class="textarea-container" id="textarea-container">
                                     <div id="variable-toolbar" style="display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;"></div>
                                     <h4 id="main-textarea-label" style="display:none; margin-bottom: 2px;">Final Document</h4>
@@ -909,7 +919,7 @@
                     template = { "ANNEX": {text:"", thread:"TELL", type:"document"}, "ARCHIVE": {text:"", thread:"TELL", type:"document"}, "SERVER": {text:"", thread:"TELL", type:"document"}, "CLINIC": {text:"", thread:"TELL", type:"document"}, "CHASM": {text:"", thread:"TELL", type:"document"} };
                     if (linkedData) linkedData.push({ option: "", text: "" });
                 } else if (selectedFile === 'finales.json') {
-                    template = { option: "", text: "" };
+                    template = { option: "NEW FINALE OPTION", text: "NEW FINALE TEXT", thread: "TELL", tell_title: "", tell_description: "" };
                     if (linkedData) linkedData.push({ "ANNEX": {text:"", thread:"TELL", type:"document"}, "ARCHIVE": {text:"", thread:"TELL", type:"document"}, "SERVER": {text:"", thread:"TELL", type:"document"}, "CLINIC": {text:"", thread:"TELL", type:"document"}, "CHASM": {text:"", thread:"TELL", type:"document"} });
                 } else {
                     template = (fileData.length > 0 && typeof fileData[0] === 'object' && !Array.isArray(fileData[0])) ? {} : "";
@@ -1096,12 +1106,14 @@
                     }
 
                     if (selectedFile === 'finales.json') {
-                        document.getElementById('option-container').style.display = isFinaleGroup ? 'flex' : 'none';
-                        if (isFinaleGroup) {
-                            document.getElementById('option-textarea').value = val.option || '';
-                        }
+                        document.getElementById('option-container').style.display = 'flex';
+                        document.getElementById('finale-meta-container').style.display = 'flex';
+                        document.getElementById('option-textarea').value = val.option || '';
+                        document.getElementById('tell-title-input').value = val.tell_title || '';
+                        document.getElementById('tell-desc-textarea').value = val.tell_description || '';
                     } else {
                         document.getElementById('option-container').style.display = 'none';
+                        document.getElementById('finale-meta-container').style.display = 'none';
                     }
 
                     if (isFinaleGroup) {
@@ -1130,6 +1142,7 @@
             } else {
                 tagBox.style.display = 'none';
                 document.getElementById('option-container').style.display = 'none';
+                document.getElementById('finale-meta-container').style.display = 'none';
                 document.getElementById('main-textarea-label').style.display = 'none';
                 if (document.getElementById('main-textarea-hint')) document.getElementById('main-textarea-hint').style.display = 'none';
             }
@@ -1146,12 +1159,34 @@
 
         // Input Listeners
         document.getElementById('option-textarea').addEventListener('input', (e) => {
-            const val = e.target.value;
+            let val = e.target.value;
             const original = getCurrentEditorData();
             if (original && typeof original === 'object' && selectedFile === 'finales.json') {
                 if (isArrayRoot()) {
                     if (selectedCategory) fileData[selectedIndex][selectedCategory].option = val;
                     else fileData[selectedIndex].option = val;
+                }
+            }
+        });
+
+        document.getElementById('tell-title-input').addEventListener('input', (e) => {
+            let val = e.target.value;
+            const original = getCurrentEditorData();
+            if (original && typeof original === 'object' && selectedFile === 'finales.json') {
+                if (isArrayRoot()) {
+                    if (selectedCategory) fileData[selectedIndex][selectedCategory].tell_title = val;
+                    else fileData[selectedIndex].tell_title = val;
+                }
+            }
+        });
+
+        document.getElementById('tell-desc-textarea').addEventListener('input', (e) => {
+            let val = e.target.value;
+            const original = getCurrentEditorData();
+            if (original && typeof original === 'object' && selectedFile === 'finales.json') {
+                if (isArrayRoot()) {
+                    if (selectedCategory) fileData[selectedIndex][selectedCategory].tell_description = val;
+                    else fileData[selectedIndex].tell_description = val;
                 }
             }
         });
@@ -1171,7 +1206,7 @@
                     return;
                 }
                 const isFinaleGroup = isArrayRoot() && !selectedCategory && ['foreshadow.json', 'finales.json'].includes(selectedFile);
-                const textKey = (selectedFile === 'threads.json' || isFinaleGroup) ? 'description' : 'text';
+                const textKey = (selectedFile === 'threads.json' || (isFinaleGroup && selectedFile === 'foreshadow.json')) ? 'description' : 'text';
                 if (isArrayRoot()) {
                     if (selectedCategory) fileData[selectedIndex][selectedCategory][textKey] = val;
                     else fileData[selectedIndex][textKey] = val;
