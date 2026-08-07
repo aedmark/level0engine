@@ -1,6 +1,9 @@
 import TheArchitect from "../core/TheArchitect.js";
 import {spawnBreakerPodium} from './blueprints/BreakerPodiumSpawn.js';
 import {WallBreachProfile} from './blueprints/WallBreach.js';
+import {CrawlspaceHallProfile} from './blueprints/CrawlspaceHall.js';
+import {CreviceHallProfile} from './blueprints/CreviceHall.js';
+import {RideQueueHallProfile} from './blueprints/RideQueueHall.js';
 export default class ChunkManager {
     constructor(env) {
         this.env = env;
@@ -496,10 +499,64 @@ export default class ChunkManager {
                 if (ctx.isOccupied(x, z)) continue;
                 ctx.markOccupied(x, z);
                 if (!ctx.isWall) {
+                    const forcedStructuresGrid = new Map();
                     const isWallGrid = new Map();
+                    
+                    const pathThemeRoll = random();
+                    let pathTheme = null;
+                    if (pathThemeRoll > 0.75) pathTheme = 'CRAWLSPACE_HALL';
+                    else if (pathThemeRoll > 0.50) pathTheme = 'CREVICE_HALL';
+                    else if (pathThemeRoll > 0.25) pathTheme = 'RIDE_QUEUE_HALL';
+
+                    const cX = startX + Math.floor(env.chunkSize/2);
+                    const cZ = startZ + Math.floor(env.chunkSize/2);
+                    const pathGrid = new Map();
+                    
+                    const carvePath = (tx, tz) => {
+                        let currX = cX;
+                        let currZ = cZ;
+                        let failsafe = 0;
+                        while ((currX !== tx || currZ !== tz) && failsafe < 200) {
+                            pathGrid.set(`${currX},${currZ}`, true);
+                            const dx = tx - currX;
+                            const dz = tz - currZ;
+                            if (Math.abs(dx) > Math.abs(dz)) {
+                                currX += Math.sign(dx);
+                                if (random() > 0.5 && dz !== 0) currZ += Math.sign(dz);
+                                else if (random() > 0.8) currZ += (random() > 0.5 ? 1 : -1);
+                            } else {
+                                currZ += Math.sign(dz);
+                                if (random() > 0.5 && dx !== 0) currX += Math.sign(dx);
+                                else if (random() > 0.8) currX += (random() > 0.5 ? 1 : -1);
+                            }
+                            failsafe++;
+                        }
+                        pathGrid.set(`${tx},${tz}`, true);
+                    };
+                    
+                    carvePath(startX + 7, startZ);
+                    carvePath(startX + 7, startZ + env.chunkSize - 1);
+                    carvePath(startX, startZ + 7);
+                    carvePath(startX + env.chunkSize - 1, startZ + 7);
+                    
+                    if (env.airlocks) {
+                        for (const airlock of env.airlocks) {
+                            const chunkCx = (startX + env.chunkSize/2) * env.cellSize;
+                            const chunkCz = (startZ + env.chunkSize/2) * env.cellSize;
+                            const dx = airlock.chamberCenter.x - chunkCx;
+                            const dz = airlock.chamberCenter.z - chunkCz;
+                            if (Math.abs(dx) <= env.chunkSize * env.cellSize && Math.abs(dz) <= env.chunkSize * env.cellSize) {
+                                const wox = Math.round(airlock.outerPos.x / env.cellSize);
+                                const woz = Math.round(airlock.outerPos.z / env.cellSize);
+                                carvePath(wox, woz);
+                            }
+                        }
+                    }
+
                     ctx.isWall = (wx, wz) => {
                         const key = `${wx},${wz}`;
                         if (isWallGrid.has(key)) return isWallGrid.get(key);
+                        
                         let zx = wx * 0.15;
                         let zy = wz * 0.15;
                         let iter = 0;
@@ -517,41 +574,42 @@ export default class ChunkManager {
                         const flipRand = ((flipSeed * 1664525 + 1013904223) >>> 0) / 4294967296.0;
                         if (flipRand > 0.70) isW = !isW;
 
+                        let isOnPath = pathGrid.has(key);
+                        let isNearPath = isOnPath;
+                        if (!isNearPath) {
+                            for (let ox = -1; ox <= 1; ox++) {
+                                for (let oz = -1; oz <= 1; oz++) {
+                                    if (pathGrid.has(`${wx+ox},${wz+oz}`)) {
+                                        isNearPath = true;
+                                        break;
+                                    }
+                                }
+                                if (isNearPath) break;
+                            }
+                        }
+
+                        if (isNearPath) isW = true;
+
                         const cx_id = Math.floor(wx / env.chunkSize);
                         const cz_id = Math.floor(wz / env.chunkSize);
-                        
-                        // Wobble for organic, curved pathways seamlessly matching at chunk borders
-                        const wobbleX = Math.round(Math.sin(wz * 0.4) * 1.5);
-                        const wobbleZ = Math.round(Math.cos(wx * 0.4) * 1.5);
-                        
                         const lx = wx - (cx_id * env.chunkSize);
                         const lz = wz - (cz_id * env.chunkSize);
-                        
-                        const wlx = lx + wobbleX;
-                        const wlz = lz + wobbleZ;
 
-                        const inNRing = wlz >= 2 && wlz <= 4 && wlx >= 3 && wlx <= 11;
-                        const inSRing = wlz >= 10 && wlz <= 12 && wlx >= 3 && wlx <= 11;
-                        const inWRing = wlx >= 2 && wlx <= 4 && wlz >= 3 && wlz <= 11;
-                        const inERing = wlx >= 10 && wlx <= 12 && wlz >= 3 && wlz <= 11;
-                        
-                        const inNPath = wlx >= 6 && wlx <= 8 && wlz <= 4;
-                        const inSPath = wlx >= 6 && wlx <= 8 && wlz >= 10;
-                        const inWPath = wlz >= 6 && wlz <= 8 && wlx <= 4;
-                        const inEPath = wlz >= 6 && wlz <= 8 && wlx >= 10;
+                        const isSpawnClear = (cx_id === 0 && cz_id === 0) && (lx <= 4 && lz <= 4);
+                        if (isSpawnClear) isW = false;
 
-                        const isArtery = inNRing || inSRing || inWRing || inERing || inNPath || inSPath || inWPath || inEPath;
-                        const isBlocker = lx >= 6 && lx <= 8 && lz >= 6 && lz <= 8; // Smaller blocker to fit tight corridors
-                        const isSpawnClear = (cx_id === 0 && cz_id === 0) && (lx <= 3 && lz <= 3);
-                        
-                        if (isBlocker) isW = true;
-                        if (isArtery || isSpawnClear) isW = false;
+                        if (isOnPath && !isSpawnClear) {
+                            if (pathTheme) {
+                                forcedStructuresGrid.set(key, pathTheme);
+                            }
+                            isW = false;
+                        }
 
                         isWallGrid.set(key, isW);
                         return isW;
                     };
+                    
                     ctx.setWall = (wx, wz, val) => isWallGrid.set(`${wx},${wz}`, val);
-                    const forcedStructuresGrid = new Map();
                     ctx.forceStructure = (wx, wz, name) => forcedStructuresGrid.set(`${wx},${wz}`, name);
                     ctx.getForcedStructure = (wx, wz) => forcedStructuresGrid.get(`${wx},${wz}`);
 
@@ -563,16 +621,15 @@ export default class ChunkManager {
                         for (let lx = 0; lx < size; lx++) {
                             for (let lz = 0; lz < size; lz++) {
                                 if (!ctx.isWall(startX + lx, startZ + lz)) {
-                                    grid[lz * size + lx] = 1; // Empty
+                                    grid[lz * size + lx] = 1;
                                     if (lx === 7 || lz === 7 || lx === 3 || lx === 11 || lz === 3 || lz === 11) {
-                                        grid[lz * size + lx] = 2; // Artery
+                                        grid[lz * size + lx] = 2;
                                         q.push({lx, lz});
                                     }
                                 }
                             }
                         }
 
-                        // Carve path for airlocks
                         if (env.airlocks) {
                             for (const airlock of env.airlocks) {
                                 const chunkCx = (startX + size/2) * env.cellSize;
@@ -602,6 +659,7 @@ export default class ChunkManager {
                                             const lz = cz - startZ;
                                             if (lx >= 0 && lx < size && lz >= 0 && lz < size) {
                                                 ctx.setWall(cx, cz, false);
+                                                ctx.forceStructure(cx, cz, null);
                                                 if (grid[lz * size + lx] !== 2) {
                                                     grid[lz * size + lx] = 2;
                                                     q.push({lx, lz});
@@ -613,77 +671,10 @@ export default class ChunkManager {
                             }
                         }
 
-                        // Flood-fill from arteries
-                        const dirs = [{x:1,z:0}, {x:-1,z:0}, {x:0,z:1}, {x:0,z:-1}];
-                        while (q.length > 0) {
-                            const {lx, lz} = q.pop();
-                            for (const d of dirs) {
-                                const nx = lx + d.x, nz = lz + d.z;
-                                if (nx >= 0 && nx < size && nz >= 0 && nz < size && grid[nz * size + nx] === 1) {
-                                    grid[nz * size + nx] = 2;
-                                    q.push({lx: nx, lz: nz});
-                                }
-                            }
-                        }
 
-                        // Find enclosed pockets
-                        for (let lx = 0; lx < size; lx++) {
-                            for (let lz = 0; lz < size; lz++) {
-                                if (grid[lz * size + lx] === 1) {
-                                    const pocket = [];
-                                    const pq = [{lx, lz}];
-                                    grid[lz * size + lx] = 3;
-                                    pocket.push({lx, lz});
-
-                                    let touchesEdge = false;
-                                    while (pq.length > 0) {
-                                        const curr = pq.pop();
-                                        if (curr.lx === 0 || curr.lx === size - 1 || curr.lz === 0 || curr.lz === size - 1) {
-                                            touchesEdge = true;
-                                        }
-                                        for (const d of dirs) {
-                                            const nx = curr.lx + d.x, nz = curr.lz + d.z;
-                                            if (nx >= 0 && nx < size && nz >= 0 && nz < size && grid[nz * size + nx] === 1) {
-                                                grid[nz * size + nx] = 3;
-                                                pocket.push({lx: nx, lz: nz});
-                                                pq.push({lx: nx, lz: nz});
-                                            }
-                                        }
-                                    }
-
-                                    if (touchesEdge) continue; // Likely connects in next chunk
-
-                                    // Find shortest wall to artery network
-                                    let bestWall = null;
-                                    for (const p of pocket) {
-                                        for (const d of dirs) {
-                                            const nx = p.lx + d.x, nz = p.lz + d.z;
-                                            if (nx > 0 && nx < size - 1 && nz > 0 && nz < size - 1 && grid[nz * size + nx] === 0) {
-                                                const nnx = nx + d.x, nnz = nz + d.z;
-                                                if (nnx >= 0 && nnx < size && nnz >= 0 && nnz < size && grid[nnz * size + nnx] === 2) {
-                                                    bestWall = {lx: nx, lz: nz};
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                        if (bestWall) break;
-                                    }
-
-                                    if (bestWall) {
-                                        ctx.setWall(startX + bestWall.lx, startZ + bestWall.lz, false);
-                                        ctx.forceStructure(startX + bestWall.lx, startZ + bestWall.lz, 'breach');
-                                        grid[bestWall.lz * size + bestWall.lx] = 2;
-                                        for (const p of pocket) grid[p.lz * size + p.lx] = 2;
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
 
-                // WARNING: The following if/else block controls cell evaluation for walls vs empty space.
-                // Do NOT accidentally remove the `} else {` block here, as it will break variable scoping
-                // and cause syntax errors if block-scoped variables share names across the branches.
                 let isWall = ctx.isWall(x, z);
                 const damp = env._dampAt(x, z);
                 if (isWall) {
@@ -734,6 +725,18 @@ export default class ChunkManager {
             hasTallObstacle = true;
             const breachProfile = WallBreachProfile(env, ctx);
             breachProfile.build(x, z, isWallCell);
+        } else if (forcedName === 'CRAWLSPACE_HALL') {
+            hasTallObstacle = true;
+            const crawlProfile = CrawlspaceHallProfile(env, ctx);
+            crawlProfile.build(x, z, isWallCell);
+        } else if (forcedName === 'CREVICE_HALL') {
+            hasTallObstacle = true;
+            const creviceProfile = CreviceHallProfile(env, ctx);
+            creviceProfile.build(x, z, isWallCell);
+        } else if (forcedName === 'RIDE_QUEUE_HALL') {
+            hasTallObstacle = true;
+            const rideProfile = RideQueueHallProfile(env, ctx);
+            rideProfile.build(x, z, isWallCell);
         }
 
         const inNRing = localZ === 3 && localX >= 3 && localX <= 11;

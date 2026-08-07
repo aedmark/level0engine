@@ -1,5 +1,19 @@
 # Level 0 Engine Changelog
 
+## [v0.8.4] - 2026-08-06
+
+_The Microsector Update_
+
+### Added
+
+- **[WORLD] Microsector Generation:** Procedural generation has been entirely overhauled. The generator no longer simply "deletes walls" to hollow out empty pathways. Instead, the Drunkard's Walk algorithm traces continuous routes through the chunk, encases the entire path in thick, inescapable solid rock, and forcefully injects dedicated architectural blueprints into the resulting empty space to create sprawling, unbroken microsectors.
+- **[WORLD] The Crawlspace:** Added the `CRAWLSPACE_HALL` blueprint. Paths generating this theme feature a severely dropped ceiling (1.2m clearance), forcing players to crouch-walk through winding, claustrophobic corridors decorated with overhead pipes.
+- **[WORLD] The Crevice:** Added the `CREVICE_HALL` blueprint. This microsector pushes massive false walls inward and blocks corners with jagged pillars, leaving only a tight 1m-wide gap for players to squeeze through.
+- **[WORLD] The Queue:** Added the `RIDE_QUEUE_HALL` blueprint. This microsector lines the walls with partitioning alcoves, structural pillars, and occasional stanchions to emulate the winding queue lines of a theme park ride.
+
+- **[WORLD] Airlock Clearance Override:** Upgraded the airlock generation loop to forcefully wipe any microsector themes (`CRAWLSPACE_HALL`, etc.) from its clearance zone. This guarantees the 3x3 area immediately in front of an airlock remains a clean, unobstructed hallway even if a procedural microsector path winds its way into the sector boundary.
+- **[WORLD] Native Airlock Pathing:** Removed the legacy "Pocket Recovery" flood-fill algorithm (which was responsible for spawning strange, inaccessible Vents in flat walls). Sector airlocks are now natively integrated into the Drunkard's Walk algorithm, guaranteeing a seamless architectural path directly to the airlock doors.
+
 ## [v0.8.3] - 2026-08-05
 
 _The Krull Mechanics Update_

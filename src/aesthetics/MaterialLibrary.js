@@ -44,7 +44,6 @@ export default class MaterialLibrary {
         env.wallVentMat.map = env.ventMat.map.clone();
         env.wallVentMat.map.repeat.set(1, 1);
         env.wallVentMat.userData = { noShadow: true };
-        // serverFloorMat and serverCeilingMat are injected from ProceduralTextureFactory
         env.serverFloorMat.map.repeat.set(32, 32);
         env.serverCeilingMat.map.repeat.set(32, 32);
         env.breakerBaseGeo = new THREE.BoxGeometry(0.6, 0.8, 0.20);

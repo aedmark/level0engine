@@ -1,6 +1,5 @@
 #!/bin/bash
 echo "Starting Archive Editor..."
-cd lore-editor
 
 # Attempt to open the default web browser in the background
 if command -v xdg-open > /dev/null; then
@@ -10,4 +9,4 @@ elif command -v open > /dev/null; then
 fi
 
 # Start the server
-node server.js
+node editor_server.js

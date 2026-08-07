@@ -114,17 +114,15 @@ export default class StructureKit {
                     const shape = new THREE.Shape();
                     const outerX = radius + thickness;
 
-                    // Single continuous path to avoid triangulation failures
                     shape.moveTo(-outerX, 0);
                     shape.lineTo(-outerX, outerY);
                     shape.lineTo(outerX, outerY);
                     shape.lineTo(outerX, 0);
                     shape.lineTo(radius, 0);
                     shape.absarc(0, 0, radius, 0, Math.PI, false);
-                    // Automatically closes to (-outerX, 0)
 
                     geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false, curveSegments: 16 });
-                    geo.translate(0, 0, -depth / 2); // Center only in Z. Y rests at 0.
+                    geo.translate(0, 0, -depth / 2);
 
                     const pos = geo.attributes.position;
                     const uv = geo.attributes.uv;
@@ -158,7 +156,7 @@ export default class StructureKit {
                 return new THREE.Mesh(geo, mat);
             },
             buildCurvedCornerBlock: (size, mat) => {
-                const t = 0.15; // roughly 6 inches
+                const t = 0.15;
                 const key = `curvedCorner_${size}_${t}`;
                 let geo = env.geoCache.get(key);
                 if (!geo) {
@@ -166,9 +164,9 @@ export default class StructureKit {
                     shape.moveTo(size, 0);
                     shape.lineTo(size, size);
                     shape.lineTo(0, size);
-                    shape.lineTo(0, size - t); // Left edge thickness
+                    shape.lineTo(0, size - t);
                     shape.absarc(0, 0, size - t, Math.PI/2, 0, true);
-                    shape.lineTo(size, 0); // Bottom edge thickness
+                    shape.lineTo(size, 0);
 
                     geo = new THREE.ExtrudeGeometry(shape, { depth: 3.0, bevelEnabled: false, curveSegments: 16 });
 
