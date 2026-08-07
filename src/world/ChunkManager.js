@@ -1,5 +1,6 @@
 import TheArchitect from "../core/TheArchitect.js";
 import {spawnBreakerPodium} from './blueprints/BreakerPodiumSpawn.js';
+import {WallBreachProfile} from './blueprints/WallBreach.js';
 export default class ChunkManager {
     constructor(env) {
         this.env = env;
@@ -469,14 +470,13 @@ export default class ChunkManager {
         } = args;
         const cx = Math.sin(env.baseSeed) * 0.8;
         const cy = Math.cos(env.baseSeed * 0.5) * 0.8;
-        let chunkBreakerCount = 0;
+        const emptyState = { chunkBreakerCount: 0, spawnedVirtualBreaker: false };
         const breakerPositions = [];
         const wallCells = new Set();
         const isWallCell = (wx, wz) => wallCells.has(`${wx},${wz}`);
         const solidWallCells = new Set();
         const isSolidWallCell = (wx, wz) => solidWallCells.has(`${wx},${wz}`);
         let chunkStartTime = performance.now();
-        let spawnedVirtualBreaker = false;
         for (let x = startX; x < startX + env.chunkSize; x++) {
             for (let z = startZ; z < startZ + env.chunkSize; z++) {
                 if (!env.activeChunks.has(hash)) return;
@@ -688,212 +688,10 @@ export default class ChunkManager {
                         ctx.addGeometry(wall);
                     }
                 } else {
-                    let hasTallObstacle = false;
-
-                    if (!spawnedVirtualBreaker && env._virtualBreaker && env._virtualBreaker.chunkHash === hash && !env._virtualBreaker.spawned) {
-                        spawnBreakerPodium(env, ctx, x, z);
-                        env._virtualBreaker.spawned = true;
-                        env._virtualBreaker.mesh = env.interactables[env.interactables.length - 1];
-                        spawnedVirtualBreaker = true;
-                        hasTallObstacle = true;
-                    }
-
-                    const forcedName = ctx.getForcedStructure && ctx.getForcedStructure(x, z);
-                    if (forcedName === 'breach') {
-                        hasTallObstacle = true;
-                        const breachType = random();
-                        const isRotated = isWallCell(x - 1, z) || isWallCell(x + 1, z);
-                        const rot = isRotated ? Math.PI / 2 : 0;
-                        const px = x * env.cellSize;
-                        const pz = z * env.cellSize;
-
-                        const addGroupToStaging = (grp) => {
-                            grp.position.set(px, 0, pz);
-                            grp.rotation.y = rot;
-                            grp.updateMatrixWorld(true);
-                            grp.traverse(child => {
-                                if (child.isMesh) {
-                                    child.userData.isEntityBlocker = true; // ensure wall pieces block entities
-                                    ctx.addGeometry(child);
-                                }
-                            });
-                        };
-
-                        if (breachType > 0.6) {
-                            // Door frame
-                            if (!env.doorFrameGeo) {
-                                const g = new THREE.Group();
-                                const pGeo = new THREE.BoxGeometry(0.2, 3.0, 0.6);
-                                const p1 = new THREE.Mesh(pGeo, env.pittedMetalMat || env.metalMat);
-                                p1.position.set(-1.2, 1.5, 0);
-                                g.add(p1);
-                                const p2 = new THREE.Mesh(pGeo, env.pittedMetalMat || env.metalMat);
-                                p2.position.set(1.2, 1.5, 0);
-                                g.add(p2);
-                                const tGeo = new THREE.BoxGeometry(2.6, 0.2, 0.6);
-                                const t1 = new THREE.Mesh(tGeo, env.pittedMetalMat || env.metalMat);
-                                t1.position.set(0, 2.9, 0);
-                                g.add(t1);
-                                env.doorFrameGeo = g;
-                            }
-                            const frame = env.doorFrameGeo.clone();
-                            addGroupToStaging(frame);
-                        } else if (breachType > 0.3) {
-                            // Vent opening
-                            const wallG = new THREE.Group();
-                            const bGeo = new THREE.BoxGeometry(env.cellSize, 0.6, env.cellSize);
-                            const b1 = new THREE.Mesh(bGeo, env.sharedWallMat);
-                            b1.position.set(0, 0.3, 0);
-                            wallG.add(b1);
-
-                            const sGeo = new THREE.BoxGeometry((env.cellSize - 1.2) / 2, 2.4, env.cellSize);
-                            const s1 = new THREE.Mesh(sGeo, env.sharedWallMat);
-                            s1.position.set(-(env.cellSize/2) + sGeo.parameters.width/2, 1.8, 0);
-                            const s2 = new THREE.Mesh(sGeo, env.sharedWallMat);
-                            s2.position.set((env.cellSize/2) - sGeo.parameters.width/2, 1.8, 0);
-                            wallG.add(s1);
-                            wallG.add(s2);
-
-                            const tGeo = new THREE.BoxGeometry(1.2, 3.0 - 1.8, env.cellSize);
-                            const t1 = new THREE.Mesh(tGeo, env.sharedWallMat);
-                            t1.position.set(0, 1.8 + tGeo.parameters.height/2, 0);
-                            wallG.add(t1);
-
-                            const grateGeo = new THREE.BoxGeometry(1.16, 1.16, 0.1);
-                            const grateMat = env.cartLatticeMat || env.pittedMetalMat;
-                            const grate = new THREE.Mesh(grateGeo, grateMat);
-                            grate.position.set(0, 1.2, 0);
-                            grate.rotation.x = Math.PI / 2 + 0.4;
-                            grate.position.z = 1.0;
-                            wallG.add(grate);
-
-                            addGroupToStaging(wallG);
-                        } else {
-                            // Crevice / broken wall
-                            const wallG = new THREE.Group();
-                            const sGeo1 = new THREE.BoxGeometry(1.0, 3.0, env.cellSize);
-                            const sGeo2 = new THREE.BoxGeometry(1.4, 3.0, env.cellSize);
-                            const s1 = new THREE.Mesh(sGeo1, env.sharedWallMat);
-                            s1.position.set(-1.5, 1.5, 0);
-                            s1.rotation.y = (random() - 0.5) * 0.4;
-                            const s2 = new THREE.Mesh(sGeo2, env.sharedWallMat);
-                            s2.position.set(1.3, 1.5, 0);
-                            s2.rotation.y = (random() - 0.5) * 0.4;
-                            wallG.add(s1);
-                            wallG.add(s2);
-
-                            const tGeo = new THREE.BoxGeometry(1.6, 1.0, env.cellSize);
-                            const t1 = new THREE.Mesh(tGeo, env.sharedWallMat);
-                            t1.position.set(0, 2.5, 0);
-                            t1.rotation.z = (random() - 0.5) * 0.4;
-                            wallG.add(t1);
-
-                            addGroupToStaging(wallG);
-                        }
-                    }
-
-                    const inNRing = localZ === 3 && localX >= 3 && localX <= 11;
-                    const inSRing = localZ === 11 && localX >= 3 && localX <= 11;
-                    const inWRing = localX === 3 && localZ >= 3 && localZ <= 11;
-                    const inERing = localX === 11 && localZ >= 3 && localZ <= 11;
-                    const inNPath = localX === 7 && localZ <= 3;
-                    const inSPath = localX === 7 && localZ >= 11;
-                    const inWPath = localZ === 7 && localX <= 3;
-                    const inEPath = localZ === 7 && localX >= 11;
-                    const isArtery = inNRing || inSRing || inWRing || inERing || inNPath || inSPath || inWPath || inEPath;
-                    const floorRoll = random();
-                    if (!hasTallObstacle && floorRoll > 0.80 && !isArtery) {
-                        hasTallObstacle = true;
-                        const divW = random() > 0.5 ? env.cellSize * 0.8 : env.cellSize * 0.2;
-                        const divD = divW === env.cellSize * 0.8 ? env.cellSize * 0.2 : env.cellSize * 0.8;
-                        const divider = ctx.buildWall(divW, divD, env.sharedWallMat);
-                        divider.position.set(x * env.cellSize, 1.5, z * env.cellSize);
-                        ctx.addGeometry(divider);
-                        if (random() > 0.6) {
-                            const isWide = divW > divD;
-                            const clearX = isWide ? 0.0 : 1.2;
-                            const clearZ = isWide ? 1.2 : 0.0;
-                            const rot = isWide ? 0 : -Math.PI / 2;
-                            const chair = ctx.buildChair(x * env.cellSize + clearX, 0, z * env.cellSize + clearZ, rot);
-                            ctx.addFurniture(chair);
-                        }
-                    }
-                    if (!hasTallObstacle && random() > 0.20) {
-                        const isBroken = random() > 0.60;
-                        const isRotated = random() > 0.5;
-                        const posX = (x * env.cellSize);
-                        const posZ = (z * env.cellSize);
-                        const activeMat = env.getPooledMazeLightMaterial(isBroken);
-                        const matArray = [
-                            env.baseHousingMat, env.baseHousingMat, env.baseHousingMat,
-                            activeMat, env.baseHousingMat, env.baseHousingMat
-                        ];
-                        const panel = new THREE.Mesh(env.sharedPanelGeo, matArray);
-                        panel.position.set(posX, 2.98, posZ);
-                        if (isRotated) panel.rotation.y = Math.PI / 2;
-                        panel.userData.chunkHash = hash;
-                        chunkGroup.add(panel);
-                        env.walls.push(panel);
-                        if (!isBroken) {
-                            const isTracked = random() > 0.85;
-                            env.fixtureData.push({
-                                chunkHash: hash,
-                                position: new THREE.Vector3(posX, 2.8, posZ),
-                                flickerOffset: random() * 500,
-                                material: activeMat,
-                                isFaulty: isTracked ? (random() > 0.75) : false,
-                                baseIntensity: isTracked ? 0.6 : 0.0,
-                                targetIntensity: isTracked ? 0.6 : 0.0,
-                                currentIntensity: isTracked ? 0.6 : 0.0,
-                                isFake: !isTracked
-                            });
-                        }
-                    } else if (!hasTallObstacle && random() > 0.95 && chunkBreakerCount < 3 && !isArtery) {
-                        const px = x * env.cellSize;
-                        const pz = z * env.cellSize;
-                        const mountSide = isSolidWallCell(x, z - 1) ? 'N' : (isSolidWallCell(x - 1, z) ? 'W' : null);
-                        let isTooClose = mountSide === null;
-                        for (let b = 0; b < breakerPositions.length; b++) {
-                            const dx = px - breakerPositions[b].x;
-                            const dz = pz - breakerPositions[b].z;
-                            if (dx * dx + dz * dz < 256.0) {
-                                isTooClose = true;
-                                break;
-                            }
-                        }
-                        if (ctx.playerPos) {
-                            const dxPlayer = px - ctx.playerPos.x;
-                            const dzPlayer = pz - ctx.playerPos.z;
-                            if (dxPlayer * dxPlayer + dzPlayer * dzPlayer < 1600.0) {
-                                isTooClose = true;
-                            }
-                        }
-                        if (!isTooClose) {
-                            chunkBreakerCount++;
-                            breakerPositions.push({x: px, z: pz});
-                            const half = env.cellSize / 2;
-                            const breakerGroup = new THREE.Group();
-                            if (mountSide === 'N') {
-                                breakerGroup.position.set(px, 1.5, pz - half + 0.11);
-                            } else {
-                                breakerGroup.position.set(px - half + 0.11, 1.5, pz);
-                                breakerGroup.rotation.y = Math.PI / 2;
-                            }
-                            const shellMat = env.breakerPanelMat || env.pittedMetalMat;
-                            const breakerBase = new THREE.Mesh(env.breakerBaseGeo, shellMat);
-                            breakerBase.position.set(0, 0, -0.025);
-                            breakerGroup.add(breakerBase);
-                            const breakerDoor = new THREE.Mesh(env.breakerDoorGeo, shellMat);
-                            breakerDoor.position.set(-0.3, 0, 0.102);
-                            const breakerHandle = new THREE.Mesh(env.breakerHandleGeo, env.breakerHandleMat);
-                            breakerHandle.position.set(0.5, 0, 0.05);
-                            breakerDoor.add(breakerHandle);
-                            breakerGroup.add(breakerDoor);
-                            breakerGroup.userData = {type: 'breaker', chunkHash: hash, active: true, door: breakerDoor};
-                            chunkGroup.add(breakerGroup);
-                            env.interactables.push(breakerGroup);
-                        }
-                    }
+                    this._buildEmptyCell({
+                        x, z, env, ctx, random, hash, chunkGroup, localX, localZ,
+                        isWallCell, isSolidWallCell, breakerPositions
+                    }, emptyState);
                 }
             }
         }
@@ -906,6 +704,131 @@ export default class ChunkManager {
             chunkGroup.userData.contentReady = true;
         }
     }
+
+    _buildEmptyCell(args, state) {
+        const { x, z, env, ctx, random, hash, chunkGroup, localX, localZ, isWallCell, isSolidWallCell, breakerPositions } = args;
+        let hasTallObstacle = false;
+
+        if (!state.spawnedVirtualBreaker && env._virtualBreaker && env._virtualBreaker.chunkHash === hash && !env._virtualBreaker.spawned) {
+            spawnBreakerPodium(env, ctx, x, z);
+            env._virtualBreaker.spawned = true;
+            env._virtualBreaker.mesh = env.interactables[env.interactables.length - 1];
+            state.spawnedVirtualBreaker = true;
+            hasTallObstacle = true;
+        }
+
+        const forcedName = ctx.getForcedStructure && ctx.getForcedStructure(x, z);
+        if (forcedName === 'breach') {
+            hasTallObstacle = true;
+            const breachProfile = WallBreachProfile(env, ctx);
+            breachProfile.build(x, z, isWallCell);
+        }
+
+        const inNRing = localZ === 3 && localX >= 3 && localX <= 11;
+        const inSRing = localZ === 11 && localX >= 3 && localX <= 11;
+        const inWRing = localX === 3 && localZ >= 3 && localZ <= 11;
+        const inERing = localX === 11 && localZ >= 3 && localZ <= 11;
+        const inNPath = localX === 7 && localZ <= 3;
+        const inSPath = localX === 7 && localZ >= 11;
+        const inWPath = localZ === 7 && localX <= 3;
+        const inEPath = localZ === 7 && localX >= 11;
+        const isArtery = inNRing || inSRing || inWRing || inERing || inNPath || inSPath || inWPath || inEPath;
+        
+        const floorRoll = random();
+        if (!hasTallObstacle && floorRoll > 0.80 && !isArtery) {
+            hasTallObstacle = true;
+            const divW = random() > 0.5 ? env.cellSize * 0.8 : env.cellSize * 0.2;
+            const divD = divW === env.cellSize * 0.8 ? env.cellSize * 0.2 : env.cellSize * 0.8;
+            const divider = ctx.buildWall(divW, divD, env.sharedWallMat);
+            divider.position.set(x * env.cellSize, 1.5, z * env.cellSize);
+            ctx.addGeometry(divider);
+            if (random() > 0.6) {
+                const isWide = divW > divD;
+                const clearX = isWide ? 0.0 : 1.2;
+                const clearZ = isWide ? 1.2 : 0.0;
+                const rot = isWide ? 0 : -Math.PI / 2;
+                const chair = ctx.buildChair(x * env.cellSize + clearX, 0, z * env.cellSize + clearZ, rot);
+                ctx.addFurniture(chair);
+            }
+        }
+        if (!hasTallObstacle && random() > 0.20) {
+            const isBroken = random() > 0.60;
+            const isRotated = random() > 0.5;
+            const posX = (x * env.cellSize);
+            const posZ = (z * env.cellSize);
+            const activeMat = env.getPooledMazeLightMaterial(isBroken);
+            const matArray = [
+                env.baseHousingMat, env.baseHousingMat, env.baseHousingMat,
+                activeMat, env.baseHousingMat, env.baseHousingMat
+            ];
+            const panel = new THREE.Mesh(env.sharedPanelGeo, matArray);
+            panel.position.set(posX, 2.98, posZ);
+            if (isRotated) panel.rotation.y = Math.PI / 2;
+            panel.userData.chunkHash = hash;
+            chunkGroup.add(panel);
+            env.walls.push(panel);
+            if (!isBroken) {
+                const isTracked = random() > 0.85;
+                env.fixtureData.push({
+                    chunkHash: hash,
+                    position: new THREE.Vector3(posX, 2.8, posZ),
+                    flickerOffset: random() * 500,
+                    material: activeMat,
+                    isFaulty: isTracked ? (random() > 0.75) : false,
+                    baseIntensity: isTracked ? 0.6 : 0.0,
+                    targetIntensity: isTracked ? 0.6 : 0.0,
+                    currentIntensity: isTracked ? 0.6 : 0.0,
+                    isFake: !isTracked
+                });
+            }
+        } else if (!hasTallObstacle && random() > 0.95 && state.chunkBreakerCount < 3 && !isArtery) {
+            const px = x * env.cellSize;
+            const pz = z * env.cellSize;
+            const mountSide = isSolidWallCell(x, z - 1) ? 'N' : (isSolidWallCell(x - 1, z) ? 'W' : null);
+            let isTooClose = mountSide === null;
+            for (let b = 0; b < breakerPositions.length; b++) {
+                const dx = px - breakerPositions[b].x;
+                const dz = pz - breakerPositions[b].z;
+                if (dx * dx + dz * dz < 256.0) {
+                    isTooClose = true;
+                    break;
+                }
+            }
+            if (ctx.playerPos) {
+                const dxPlayer = px - ctx.playerPos.x;
+                const dzPlayer = pz - ctx.playerPos.z;
+                if (dxPlayer * dxPlayer + dzPlayer * dzPlayer < 1600.0) {
+                    isTooClose = true;
+                }
+            }
+            if (!isTooClose) {
+                state.chunkBreakerCount++;
+                breakerPositions.push({x: px, z: pz});
+                const half = env.cellSize / 2;
+                const breakerGroup = new THREE.Group();
+                if (mountSide === 'N') {
+                    breakerGroup.position.set(px, 1.5, pz - half + 0.11);
+                } else {
+                    breakerGroup.position.set(px - half + 0.11, 1.5, pz);
+                    breakerGroup.rotation.y = Math.PI / 2;
+                }
+                const shellMat = env.breakerPanelMat || env.pittedMetalMat;
+                const breakerBase = new THREE.Mesh(env.breakerBaseGeo, shellMat);
+                breakerBase.position.set(0, 0, -0.025);
+                breakerGroup.add(breakerBase);
+                const breakerDoor = new THREE.Mesh(env.breakerDoorGeo, shellMat);
+                breakerDoor.position.set(-0.3, 0, 0.102);
+                const breakerHandle = new THREE.Mesh(env.breakerHandleGeo, env.breakerHandleMat);
+                breakerHandle.position.set(0.5, 0, 0.05);
+                breakerDoor.add(breakerHandle);
+                breakerGroup.add(breakerDoor);
+                breakerGroup.userData = {type: 'breaker', chunkHash: hash, active: true, door: breakerDoor};
+                chunkGroup.add(breakerGroup);
+                env.interactables.push(breakerGroup);
+            }
+        }
+    }
+
     beginMacroChunkContent(hash) {
         const env = this.env;
         const args = env._pendingMacroContent.get(hash);

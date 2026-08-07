@@ -13,7 +13,21 @@ export const CurvedArchwayProfile = (env, ctx) => {
             const cz = z * env.cellSize;
             if (ctx.markOccupied) ctx.markOccupied(x, z);
             
-            const isAlignedZ = random() > 0.5;
+            const neighbors = {
+                px: ctx.isWall(x + 1, z),
+                nx: ctx.isWall(x - 1, z),
+                pz: ctx.isWall(x, z + 1),
+                nz: ctx.isWall(x, z - 1)
+            };
+            
+            let isAlignedZ;
+            if (!neighbors.pz || !neighbors.nz) {
+                isAlignedZ = true; // Opening on Z axis
+            } else if (!neighbors.px || !neighbors.nx) {
+                isAlignedZ = false; // Opening on X axis
+            } else {
+                isAlignedZ = random() > 0.5; // Fallback
+            }
             const pillarThickness = 0.8;
             
             const outerX = env.cellSize / 2;
