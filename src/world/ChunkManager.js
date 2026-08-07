@@ -11,7 +11,7 @@ export default class ChunkManager {
         const chunkW = env.chunkSize * activeCellSize;
         const chunkX = Math.floor(playerPos.x / chunkW);
         const chunkZ = Math.floor(playerPos.z / chunkW);
-        
+
         let quadX = 0;
         let quadZ = 0;
         if (env.renderDistance === 0) {
@@ -21,18 +21,18 @@ export default class ChunkManager {
             quadZ = localZ > chunkW / 2 ? 1 : -1;
         }
 
-        if (env.currentChunkCoords.x === chunkX && 
+        if (env.currentChunkCoords.x === chunkX &&
             env.currentChunkCoords.z === chunkZ &&
             env.currentChunkCoords.qx === quadX &&
             env.currentChunkCoords.qz === quadZ) return;
-            
+
         env.currentChunkCoords.x = chunkX;
         env.currentChunkCoords.z = chunkZ;
         env.currentChunkCoords.qx = quadX;
         env.currentChunkCoords.qz = quadZ;
-        
+
         const chunksToKeep = new Set();
-        
+
         if (env.renderDistance === 0) {
             for (let i = 0; i < 2; i++) {
                 for (let j = 0; j < 2; j++) {
@@ -141,7 +141,7 @@ export default class ChunkManager {
         }
         if (env.isSpawning) {
             env.isSpawning = false;
-            
+
             if (env.needsSafeSpawn) {
                 env.needsSafeSpawn = false;
                 const chunkW = 64;
@@ -149,7 +149,7 @@ export default class ChunkManager {
                 const cZ = Math.floor(env.camera.position.z / chunkW);
                 const baseX = cX * chunkW;
                 const baseZ = cZ * chunkW;
-                
+
                 const testPoints = [{ x: env.camera.position.x, z: env.camera.position.z }];
                 for (let r = 1; r <= 6; r++) {
                     for (let x = -r; x <= r; x++) {
@@ -160,7 +160,7 @@ export default class ChunkManager {
                         }
                     }
                 }
-                
+
                 for (const pt of testPoints) {
                     const radius = 0.5;
                     const nearby = env.spatialGrid.getNearby(pt.x, pt.z, radius);
@@ -516,7 +516,7 @@ export default class ChunkManager {
                         const flipSeed = (env.baseSeed + (wx * 104729) + (wz * 1299827)) >>> 0;
                         const flipRand = ((flipSeed * 1664525 + 1013904223) >>> 0) / 4294967296.0;
                         if (flipRand > 0.70) isW = !isW;
-                        
+
                         const cx_id = Math.floor(wx / env.chunkSize);
                         const cz_id = Math.floor(wz / env.chunkSize);
                         const lx = wx - (cx_id * env.chunkSize);
@@ -534,7 +534,7 @@ export default class ChunkManager {
                         const isSpawnClear = (cx_id === 0 && cz_id === 0) && (lx <= 3 && lz <= 3);
                         if (isBlocker) isW = true;
                         if (isArtery || isSpawnClear) isW = false;
-                        
+
                         isWallGrid.set(key, isW);
                         return isW;
                     };
@@ -542,12 +542,12 @@ export default class ChunkManager {
                     const forcedStructuresGrid = new Map();
                     ctx.forceStructure = (wx, wz, name) => forcedStructuresGrid.set(`${wx},${wz}`, name);
                     ctx.getForcedStructure = (wx, wz) => forcedStructuresGrid.get(`${wx},${wz}`);
-                    
+
                     if (!isMacroStructure) {
                         const size = env.chunkSize;
                         const grid = new Int8Array(size * size);
                         const q = [];
-                        
+
                         for (let lx = 0; lx < size; lx++) {
                             for (let lz = 0; lz < size; lz++) {
                                 if (!ctx.isWall(startX + lx, startZ + lz)) {
@@ -559,7 +559,7 @@ export default class ChunkManager {
                                 }
                             }
                         }
-                        
+
                         // Carve path for airlocks
                         if (env.airlocks) {
                             for (const airlock of env.airlocks) {
@@ -567,11 +567,11 @@ export default class ChunkManager {
                                 const chunkCz = (startZ + size/2) * env.cellSize;
                                 const dx = airlock.chamberCenter.x - chunkCx;
                                 const dz = airlock.chamberCenter.z - chunkCz;
-                                
+
                                 if (Math.abs(dx) <= size * env.cellSize && Math.abs(dz) <= size * env.cellSize) {
                                     const wox = Math.round(airlock.outerPos.x / env.cellSize);
                                     const woz = Math.round(airlock.outerPos.z / env.cellSize);
-                                    
+
                                     let clearX = [];
                                     let clearZ = [];
                                     if (airlock.spansX) {
@@ -583,7 +583,7 @@ export default class ChunkManager {
                                         const dir = airlock.outSign;
                                         clearX = [wox, wox + dir, wox + dir * 2, wox + dir * 3];
                                     }
-                                    
+
                                     for (const cx of clearX) {
                                         for (const cz of clearZ) {
                                             const lx = cx - startX;
@@ -600,7 +600,7 @@ export default class ChunkManager {
                                 }
                             }
                         }
-                        
+
                         // Flood-fill from arteries
                         const dirs = [{x:1,z:0}, {x:-1,z:0}, {x:0,z:1}, {x:0,z:-1}];
                         while (q.length > 0) {
@@ -613,7 +613,7 @@ export default class ChunkManager {
                                 }
                             }
                         }
-                        
+
                         // Find enclosed pockets
                         for (let lx = 0; lx < size; lx++) {
                             for (let lz = 0; lz < size; lz++) {
@@ -622,7 +622,7 @@ export default class ChunkManager {
                                     const pq = [{lx, lz}];
                                     grid[lz * size + lx] = 3;
                                     pocket.push({lx, lz});
-                                    
+
                                     let touchesEdge = false;
                                     while (pq.length > 0) {
                                         const curr = pq.pop();
@@ -638,9 +638,9 @@ export default class ChunkManager {
                                             }
                                         }
                                     }
-                                    
+
                                     if (touchesEdge) continue; // Likely connects in next chunk
-                                    
+
                                     // Find shortest wall to artery network
                                     let bestWall = null;
                                     for (const p of pocket) {
@@ -656,7 +656,7 @@ export default class ChunkManager {
                                         }
                                         if (bestWall) break;
                                     }
-                                    
+
                                     if (bestWall) {
                                         ctx.setWall(startX + bestWall.lx, startZ + bestWall.lz, false);
                                         ctx.forceStructure(startX + bestWall.lx, startZ + bestWall.lz, 'breach');
@@ -668,9 +668,9 @@ export default class ChunkManager {
                         }
                     }
                 }
-                
+
                 // WARNING: The following if/else block controls cell evaluation for walls vs empty space.
-                // Do NOT accidentally remove the `} else {` block here, as it will break variable scoping 
+                // Do NOT accidentally remove the `} else {` block here, as it will break variable scoping
                 // and cause syntax errors if block-scoped variables share names across the branches.
                 let isWall = ctx.isWall(x, z);
                 const damp = env._dampAt(x, z);
@@ -689,7 +689,7 @@ export default class ChunkManager {
                     }
                 } else {
                     let hasTallObstacle = false;
-                    
+
                     if (!spawnedVirtualBreaker && env._virtualBreaker && env._virtualBreaker.chunkHash === hash && !env._virtualBreaker.spawned) {
                         spawnBreakerPodium(env, ctx, x, z);
                         env._virtualBreaker.spawned = true;
@@ -697,7 +697,7 @@ export default class ChunkManager {
                         spawnedVirtualBreaker = true;
                         hasTallObstacle = true;
                     }
-                    
+
                     const forcedName = ctx.getForcedStructure && ctx.getForcedStructure(x, z);
                     if (forcedName === 'breach') {
                         hasTallObstacle = true;
@@ -706,7 +706,7 @@ export default class ChunkManager {
                         const rot = isRotated ? Math.PI / 2 : 0;
                         const px = x * env.cellSize;
                         const pz = z * env.cellSize;
-                        
+
                         const addGroupToStaging = (grp) => {
                             grp.position.set(px, 0, pz);
                             grp.rotation.y = rot;
@@ -718,7 +718,7 @@ export default class ChunkManager {
                                 }
                             });
                         };
-                        
+
                         if (breachType > 0.6) {
                             // Door frame
                             if (!env.doorFrameGeo) {
@@ -745,7 +745,7 @@ export default class ChunkManager {
                             const b1 = new THREE.Mesh(bGeo, env.sharedWallMat);
                             b1.position.set(0, 0.3, 0);
                             wallG.add(b1);
-                            
+
                             const sGeo = new THREE.BoxGeometry((env.cellSize - 1.2) / 2, 2.4, env.cellSize);
                             const s1 = new THREE.Mesh(sGeo, env.sharedWallMat);
                             s1.position.set(-(env.cellSize/2) + sGeo.parameters.width/2, 1.8, 0);
@@ -753,12 +753,12 @@ export default class ChunkManager {
                             s2.position.set((env.cellSize/2) - sGeo.parameters.width/2, 1.8, 0);
                             wallG.add(s1);
                             wallG.add(s2);
-                            
+
                             const tGeo = new THREE.BoxGeometry(1.2, 3.0 - 1.8, env.cellSize);
                             const t1 = new THREE.Mesh(tGeo, env.sharedWallMat);
                             t1.position.set(0, 1.8 + tGeo.parameters.height/2, 0);
                             wallG.add(t1);
-                            
+
                             const grateGeo = new THREE.BoxGeometry(1.16, 1.16, 0.1);
                             const grateMat = env.cartLatticeMat || env.pittedMetalMat;
                             const grate = new THREE.Mesh(grateGeo, grateMat);
@@ -766,7 +766,7 @@ export default class ChunkManager {
                             grate.rotation.x = Math.PI / 2 + 0.4;
                             grate.position.z = 1.0;
                             wallG.add(grate);
-                            
+
                             addGroupToStaging(wallG);
                         } else {
                             // Crevice / broken wall
@@ -781,17 +781,17 @@ export default class ChunkManager {
                             s2.rotation.y = (random() - 0.5) * 0.4;
                             wallG.add(s1);
                             wallG.add(s2);
-                            
+
                             const tGeo = new THREE.BoxGeometry(1.6, 1.0, env.cellSize);
                             const t1 = new THREE.Mesh(tGeo, env.sharedWallMat);
                             t1.position.set(0, 2.5, 0);
                             t1.rotation.z = (random() - 0.5) * 0.4;
                             wallG.add(t1);
-                            
+
                             addGroupToStaging(wallG);
                         }
                     }
-                    
+
                     const inNRing = localZ === 3 && localX >= 3 && localX <= 11;
                     const inSRing = localZ === 11 && localX >= 3 && localX <= 11;
                     const inWRing = localX === 3 && localZ >= 3 && localZ <= 11;
@@ -943,9 +943,9 @@ export default class ChunkManager {
         }
         const dummyColor = new THREE.Color();
         const groups = Array.from(instancedGroups.values());
-        
+
         const tempGroup = new THREE.Group();
-        
+
         for (let i = 0; i < groups.length; i++) {
             if (performance.now() - compileStartTime > 5.0) {
                 await new Promise(resolve => setTimeout(resolve, 0));
@@ -991,7 +991,7 @@ export default class ChunkManager {
                 compileStartTime = performance.now();
             }
         }
-        
+
         if (env.activeChunks.has(hash)) {
             if (typeof env.engine.renderer.compileAsync === 'function') {
                 await env.engine.renderer.compileAsync(tempGroup, env.camera, env.scene);

@@ -113,7 +113,7 @@ export default class StructureKit {
                 if (!geo) {
                     const shape = new THREE.Shape();
                     const outerX = radius + thickness;
-                    
+
                     // Single continuous path to avoid triangulation failures
                     shape.moveTo(-outerX, 0);
                     shape.lineTo(-outerX, outerY);
@@ -122,21 +122,21 @@ export default class StructureKit {
                     shape.lineTo(radius, 0);
                     shape.absarc(0, 0, radius, 0, Math.PI, false);
                     // Automatically closes to (-outerX, 0)
-                    
+
                     geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false, curveSegments: 16 });
                     geo.translate(0, 0, -depth / 2); // Center only in Z. Y rests at 0.
-                    
+
                     const pos = geo.attributes.position;
                     const uv = geo.attributes.uv;
                     geo.computeVertexNormals();
                     const norm = geo.attributes.normal;
-                    
+
                     for (let i = 0; i < pos.count; i++) {
                         const x = pos.getX(i);
                         const y = pos.getY(i);
                         const z = pos.getZ(i);
                         const nz = Math.abs(norm.getZ(i));
-                        
+
                         if (nz > 0.5) {
                             uv.setXY(i, x / env.cellSize, (yOffset + y) / 3.0);
                         } else {
@@ -151,7 +151,7 @@ export default class StructureKit {
                         }
                     }
                     uv.needsUpdate = true;
-                    
+
                     env.geoCache.set(key, geo);
                     env.geoCache.set(geo.uuid, true);
                 }
@@ -167,20 +167,20 @@ export default class StructureKit {
                     shape.lineTo(size, size);
                     shape.lineTo(0, size);
                     shape.lineTo(0, size - t); // Left edge thickness
-                    shape.absarc(0, 0, size - t, Math.PI/2, 0, true); 
+                    shape.absarc(0, 0, size - t, Math.PI/2, 0, true);
                     shape.lineTo(size, 0); // Bottom edge thickness
-                    
+
                     geo = new THREE.ExtrudeGeometry(shape, { depth: 3.0, bevelEnabled: false, curveSegments: 16 });
-                    
+
                     const pos = geo.attributes.position;
                     const uv = geo.attributes.uv;
                     const arcLen = (size - t) * (Math.PI / 2);
-                    
+
                     for (let i = 0; i < pos.count; i++) {
                         const x = pos.getX(i);
                         const y = pos.getY(i);
                         const z = pos.getZ(i);
-                        
+
                         let s = 0;
                         if (x < 0.01) {
                             s = size - y;
@@ -194,11 +194,11 @@ export default class StructureKit {
                             const angle = Math.atan2(y, x);
                             s = t + (size - t) * (Math.PI / 2 - angle);
                         }
-                        
+
                         uv.setXY(i, s / env.cellSize, z / 3.0);
                     }
                     uv.needsUpdate = true;
-                    
+
                     geo.center();
                     env.geoCache.set(key, geo);
                     env.geoCache.set(geo.uuid, true);
@@ -303,11 +303,11 @@ export default class StructureKit {
                 group.add(l4);
                 group.position.set(x, y, z);
                 group.rotation.y = rotY;
-                
+
                 group.userData = {type: 'seat', active: true};
                 if (!env.interactables) env.interactables = [];
                 env.interactables.push(group);
-                
+
                 return group;
             },
             buildCouch: (x, y, z, rotY) => {
@@ -338,11 +338,11 @@ export default class StructureKit {
                 group.add(l4);
                 group.position.set(x, y, z);
                 group.rotation.y = rotY;
-                
+
                 group.userData = {type: 'seat', active: true};
                 if (!env.interactables) env.interactables = [];
                 env.interactables.push(group);
-                
+
                 return group;
             },
             buildTable: (x, y, z) => {
@@ -490,7 +490,7 @@ export default class StructureKit {
                     if (localX === env.chunkSize - 1) offsetX = -0.02;
                     if (localZ === 0) offsetZ = 0.02;
                     if (localZ === env.chunkSize - 1) offsetZ = -0.02;
-                    
+
                     const key = `perim_${segW}_${segH}_${segD}`;
                     let geo = env.geoCache.get(key);
                     if (!geo) {
