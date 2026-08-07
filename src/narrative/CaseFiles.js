@@ -19,18 +19,40 @@ export function buildCaseFiles(ctx, data) {
         
         let s = str;
         
+        let genericFirst = null;
+        let genericLast = null;
+        
+        if (s.includes('${first_name}')) {
+            if (!genericFirst) genericFirst = ctx.params?.FIRST ? ctx.params.FIRST[Math.floor(ctx.rand() * ctx.params.FIRST.length)] : 'John';
+            s = s.replace(/\$\{first_name\}/g, genericFirst);
+        }
+        if (s.includes('${last_name}')) {
+            if (!genericLast) genericLast = ctx.params?.LAST ? ctx.params.LAST[Math.floor(ctx.rand() * ctx.params.LAST.length)] : 'Doe';
+            s = s.replace(/\$\{last_name\}/g, genericLast);
+        }
+        
         for (const role in c) {
             const val = c[role];
-            s = s.replace(new RegExp(`\\$\\{c\\.${role}\\}`, 'g'), val);
-            s = s.replace(new RegExp(`\\$\\{${role.toUpperCase()}\\}`, 'g'), val.toUpperCase());
+            s = s.replace(new RegExp(`\\$\\{c\\.${role}\\}`, 'g'), val.full);
+            s = s.replace(new RegExp(`\\$\\{${role.toUpperCase()}\\}`, 'g'), val.full.toUpperCase());
+            s = s.replace(new RegExp(`\\$\\{c\\.${role}\\.first_name\\}`, 'g'), val.first);
+            s = s.replace(new RegExp(`\\$\\{c\\.${role}\\.last_name\\}`, 'g'), val.last);
+            s = s.replace(new RegExp(`\\$\\{${role}\\.first_name\\}`, 'g'), val.first);
+            s = s.replace(new RegExp(`\\$\\{${role}\\.last_name\\}`, 'g'), val.last);
         }
 
         s = s.replace(/\$\{P\}/g, P);
+        if (ctx.coreVars) {
+            for (const key in ctx.coreVars) {
+                s = s.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), ctx.coreVars[key]);
+            }
+        }
+        // Legacy fallback
         s = s.replace(/\$\{pen\}/g, pen);
         s = s.replace(/\$\{hrs\}/g, hrs);
         s = s.replace(/\$\{year\}/g, year);
         
-        const customVars = data.names?.VARS || {};
+        const customVars = ctx.params?.VARS || {};
         for (const varName in customVars) {
             const expr = customVars[varName];
             try {
@@ -68,17 +90,61 @@ export function buildCaseFiles(ctx, data) {
 
     processObj(d);
 
-    const { library, tags, tapes, finales, foreshadow, ephemera, threads } = d;
+    const { lore, clues, finales, foreshadow, threads } = d;
 
-    const tell = foreshadow[ctx.truth];
-    if (tell) {
-        for (const sector in tell) {
+    const library = {};
+    const tapes = {};
+    const ephemera = {};
+
+    const injectItem = (sector, item) => {
+        const type = item.type || 'document';
+        if (type === 'tape') {
+            tapes[sector] = item;
+        } else if (type === 'note') {
+            if (!ephemera[sector]) ephemera[sector] = [];
+            ephemera[sector].push(item);
+        } else {
             if (!library[sector]) library[sector] = [];
-            if (!tags[sector]) tags[sector] = [];
-            library[sector].push(tell[sector]);
-            tags[sector].push('TELL');
+            library[sector].push(item);
+        }
+    };
+
+    // Inject base lore
+    for (const sector in lore) {
+        const arr = lore[sector];
+        for (const item of arr) {
+            injectItem(sector, item);
         }
     }
 
-    return { library, tapes, tags, finales, ephemera, threads };
+    // Inject clues for active puzzle lock threads
+    if (ctx.activePuzzle && ctx.activePuzzle.LOCK_THREADS) {
+        for (const sector in clues) {
+            const arr = clues[sector];
+            for (const item of arr) {
+                if (item.thread && ctx.activePuzzle.LOCK_THREADS[item.thread]) {
+                    if (!item.puzzle || item.puzzle === ctx.activePuzzle.id) {
+                        injectItem(sector, item);
+                    }
+                }
+            }
+        }
+    }
+
+    // Inject foreshadowing for active truth
+    const tell = foreshadow[ctx.truth];
+    if (tell) {
+        for (const sector in tell) {
+            const itemOrArr = tell[sector];
+            if (Array.isArray(itemOrArr)) {
+                for (const item of itemOrArr) {
+                    injectItem(sector, item);
+                }
+            } else {
+                injectItem(sector, itemOrArr);
+            }
+        }
+    }
+
+    return { library, tapes, finales, ephemera, threads };
 }

@@ -1,23 +1,89 @@
 [
   {
-    "ANNEX": "${P} SITE SURVEY: ADDENDUM, PRE-CONSTRUCTION\nAUTHOR: ${c.lead}\n\nThe soil report keeps flagging the same anomaly at survey depth, dated eleven years before ground was even broken here.\n\nFacilities insists it's a scanning error.\n\nI have stopped asking why the error has a heartbeat.",
-    "ARCHIVE": "${P} BLUEPRINT REVISION: LOG, PAGE 1\n\n[A blueprint that depicts laboratory schematics shrouded by something organic-looking.]\n\n[Sticky Note in the Margin]: \"Do not disturb the center.\"\n\nDRAFT NOTES: Internal review leads in circles. There are no further revisions on file. There are no originals on file, either. Whoever drew these up did not want credit.\n \n— ${c.archivist}",
-    "SERVER": "${P} EQUIPMENT DISCREPANCY REPORT\n\nRACK #{ctx.seed}: No purchase order on file. No install ticket in the database. Serial number placards have been removed. Rack appears on the earliest floor plan we can find, which is dated before the slab was allegedly poured.",
-    "CLINIC": "${P} TISSUE SAMPLE #001:\n\nSample predates the clinic's commissioning by nine years. Chain of custody begins with a signature nobody can match to a living person.\n\nThe sample is not from an patient on record.\n\nThe sample is *from* the site.",
-    "CHASM": "${P} ARCHITECTURAL RESEARCH REPORT: \"CHASM\" ANCHORS\n\nThe catwalk anchors are drilled into a face that dates much older than the excavation project that supposedly exposed it.\n\nWhatever cut out this void did it before anybody we know got here. All we did was find it, hang walkways in it, and then we wrote \"excavation\" on the invoice to cover the expenses.\n\n- ${c.lead}"
+    "ANNEX": {
+      "text": "${P} SITE SURVEY: ADDENDUM, PRE-CONSTRUCTION\nAUTHOR: ${c.lead}\n\nThe soil report keeps flagging the same anomaly at survey depth, dated eleven years before ground was even broken here.\n\nFacilities insists it's a scanning error.\n\nI have stopped asking why the error has a heartbeat.",
+      "thread": "TELL",
+      "type": "document",
+      "title": "SOIL REPORT"
+    },
+    "ARCHIVE": {
+      "text": "${P} BLUEPRINT REVISION: LOG, PAGE 1\n\n[A blueprint that depicts laboratory schematics shrouded by something organic-looking.]\n\n[Sticky Note in the Margin]: \"Do not disturb the center.\"\n\nDRAFT NOTES: Internal review leads in circles. There are no further revisions on file. There are no originals on file, either. Whoever drew these up did not want credit.\n \n— ${c.archivist}",
+      "thread": "TELL",
+      "type": "document",
+      "title": "DO NOT DISTURB"
+    },
+    "SERVER": {
+      "text": "${P} EQUIPMENT DISCREPANCY REPORT\n\nRACK #{ctx.seed}: No purchase order on file. No install ticket in the database. Serial number placards have been removed. Rack appears on the earliest floor plan we can find, which is dated before the slab was allegedly poured.",
+      "thread": "TELL",
+      "type": "document"
+    },
+    "CLINIC": {
+      "text": "${P} TISSUE SAMPLE #001:\n\nSample predates the clinic's commissioning by nine years. Chain of custody begins with a signature nobody can match to a living person.\n\nThe sample is not from an patient on record.\n\nThe sample is *from* the site.",
+      "thread": "TELL",
+      "type": "document"
+    },
+    "CHASM": {
+      "text": "${P} ARCHITECTURAL RESEARCH REPORT: \"CHASM\" ANCHORS\n\nThe catwalk anchors are drilled into a face that dates much older than the excavation project that supposedly exposed it.\n\nWhatever cut out this void did it before anybody we know got here. All we did was find it, hang walkways in it, and then we wrote \"excavation\" on the invoice to cover the expenses.\n\n- ${c.lead}",
+      "thread": "TELL",
+      "type": "document"
+    },
+    "nickname": "Homegrown",
+    "text": "Test"
   },
   {
-    "ANNEX": "INTERNAL SMTP SERVER REPORT: UNSENT MAIL\n\nFROM: ${c.custodian}\nTO: ${c.lead}\nSUBJECT: RE: Supply Demands\n\nNow that you mention it... ${c.lost} asked me for chalk last week. Not a pen, not a marker. Chalk.\n\nI didn't think anything of it until I found the supply boxes empty.\n\nIt certainly would explain why we keep finding notes in chalk everywhere. Do you think it's $(c.lost}?",
-    "ARCHIVE": "SHELVING MEMO\n\nWe keep finding doors sealed from a side that has no handle.\n\n${c.lost} filed the original blueprints personally. ${c.lost} is the only one who would know exactly how to open them.\n\n- ${c.archivist}",
-    "SERVER": "SECURITY BADGE AUDIT: SERVER RACK ROOM ACCESS\n\n${c.lost}'s credentials are still cycling normally. They've had forty-one badge reads since they disappeared, all from the inside face of doors we have logged as sealed.\n\nIt would be impossible for the credentials to be cloned; they are biologically linked to ${c.lost}.\n\nThat badge is being used and carried by ${c.lost}.\n\nOr something in ${c.lost}'s body.\n\n- ${c.custodian}",
-    "CLINIC": "STOCK TAKE: CLINIC WARD STORAGE\n\nGauze, water and ration bars run short on a consistent and weekly cycle that nobody has authorized.\n\nNothing else moves or changes.\n\nWhoever is taking inventory is taking exactly what one person needs and is being careful not to be greedy about it.",
-    "CHASM": "NOTE: CATWALK ACCESS PLATE\n\nPlate 6 was cut open from the underside and bolted shut again from the underside, which would have required somebody to be down there when it closed and to still be down there to close it.\n\nThe bolts are hand-tightened, which means whoever did it expects to come back through here eventually."
+    "ANNEX": {
+      "text": "INTERNAL SMTP SERVER REPORT: UNSENT MAIL\n\nFROM: ${c.custodian}\nTO: ${c.lead}\nSUBJECT: RE: Supply Demands\n\nNow that you mention it... ${c.lost} asked me for chalk last week. Not a pen, not a marker. Chalk.\n\nI didn't think anything of it until I found the supply boxes empty.\n\nIt certainly would explain why we keep finding notes in chalk everywhere. Do you think it's $(c.lost}?",
+      "thread": "TELL",
+      "type": "document"
+    },
+    "ARCHIVE": {
+      "text": "SHELVING MEMO\n\nWe keep finding doors sealed from a side that has no handle.\n\n${c.lost} filed the original blueprints personally. ${c.lost} is the only one who would know exactly how to open them.\n\n- ${c.archivist}",
+      "thread": "TELL",
+      "type": "document"
+    },
+    "SERVER": {
+      "text": "SECURITY BADGE AUDIT: SERVER RACK ROOM ACCESS\n\n${c.lost}'s credentials are still cycling normally. They've had forty-one badge reads since they disappeared, all from the inside face of doors we have logged as sealed.\n\nIt would be impossible for the credentials to be cloned; they are biologically linked to ${c.lost}.\n\nThat badge is being used and carried by ${c.lost}.\n\nOr something in ${c.lost}'s body.\n\n- ${c.custodian}",
+      "thread": "TELL",
+      "type": "document"
+    },
+    "CLINIC": {
+      "text": "STOCK TAKE: CLINIC WARD STORAGE\n\nGauze, water and ration bars run short on a consistent and weekly cycle that nobody has authorized.\n\nNothing else moves or changes.\n\nWhoever is taking inventory is taking exactly what one person needs and is being careful not to be greedy about it.",
+      "thread": "TELL",
+      "type": "document"
+    },
+    "CHASM": {
+      "text": "NOTE: CATWALK ACCESS PLATE\n\nPlate 6 was cut open from the underside and bolted shut again from the underside, which would have required somebody to be down there when it closed and to still be down there to close it.\n\nThe bolts are hand-tightened, which means whoever did it expects to come back through here eventually.",
+      "thread": "TELL",
+      "type": "document"
+    },
+    "nickname": "Cartographer"
   },
   {
-    "ANNEX": "IT BULLETIN #${ctx.seed}\nFROM: FACILITY MANAGEMENT\n\nOutbound network traffic spiked again last night. Staff were given strict orders to log off an go home.\n\nNobody was logged in last night, but the outbound packets are personnel files.\n\nOurs.\n\n- (${c.custodian})",
-    "ARCHIVE": "REQUISITION TICKET #${ctx.seed}\n\nREQUESTED: Explanation for the antenna array logged under \"HVAC.\"\n\nVERDICT: DENIED\n\nREASON: We assure you, the array is HVAC-related equipment. It regulates the temperature of *something*. That much we know. We were just never told what, exactly.\n\nWe don't want to know. Neither should you.\n\nPlease stop asking.\n \n— ${c.archivist}",
-    "SERVER": "UPSTREAM PACKET CAPTURE: HOUR ${hrs}\n\nWe successfully decoded a frame of data. It is an inventory spreadsheet.\n\nIt lists the racks, the wing, the staff roster and the contents of the records room, in that order, encoded in Base20 and read from bottom-up, left to right.",
-    "CLINIC": "AUDIOLOGY REPORT #${ctx.seed}: FINAL ENTRY\n\nThe tone of the hum is amplitude modulated. I plotted six hours of it against the personnel index and the peaks land on the roll call. It is not a symptom, either. It is the purpose.\n\nIt is a manifest, and we are being read out on it like a list to be tallied.",
-    "CHASM": "ANTENNA ARRAY SURVEY\n\nWhat the drawings call structural bracing across the chasm face is actually an array of phased elements, correctly spaced for the carrier frequency, aimed up the shaft and out.\n\nThe building has an antenna and we hung catwalks and search lights off of it.\n\nIdiots.\n\n- ${c.custodian}"
+    "ANNEX": {
+      "text": "IT BULLETIN #${ctx.seed}\nFROM: FACILITY MANAGEMENT\n\nOutbound network traffic spiked again last night. Staff were given strict orders to log off an go home.\n\nNobody was logged in last night, but the outbound packets are personnel files.\n\nOurs.\n\n- (${c.custodian})",
+      "thread": "TELL",
+      "type": "document"
+    },
+    "ARCHIVE": {
+      "text": "REQUISITION TICKET #${ctx.seed}\n\nREQUESTED: Explanation for the antenna array logged under \"HVAC.\"\n\nVERDICT: DENIED\n\nREASON: We assure you, the array is HVAC-related equipment. It regulates the temperature of *something*. That much we know. We were just never told what, exactly.\n\nWe don't want to know. Neither should you.\n\nPlease stop asking.\n \n— ${c.archivist}",
+      "thread": "TELL",
+      "type": "document"
+    },
+    "SERVER": {
+      "text": "UPSTREAM PACKET CAPTURE: HOUR ${hrs}\n\nWe successfully decoded a frame of data. It is an inventory spreadsheet.\n\nIt lists the racks, the wing, the staff roster and the contents of the records room, in that order, encoded in Base20 and read from bottom-up, left to right.",
+      "thread": "TELL",
+      "type": "document"
+    },
+    "CLINIC": {
+      "text": "AUDIOLOGY REPORT #${ctx.seed}: FINAL ENTRY\n\nThe tone of the hum is amplitude modulated. I plotted six hours of it against the personnel index and the peaks land on the roll call. It is not a symptom, either. It is the purpose.\n\nIt is a manifest, and we are being read out on it like a list to be tallied.",
+      "thread": "TELL",
+      "type": "document"
+    },
+    "CHASM": {
+      "text": "ANTENNA ARRAY SURVEY\n\nWhat the drawings call structural bracing across the chasm face is actually an array of phased elements, correctly spaced for the carrier frequency, aimed up the shaft and out.\n\nThe building has an antenna and we hung catwalks and search lights off of it.\n\nIdiots.\n\n- ${c.custodian}",
+      "thread": "TELL",
+      "type": "document"
+    },
+    "nickname": "Hum"
   }
 ]

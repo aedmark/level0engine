@@ -130,6 +130,18 @@ export default class JournalViewer {
                 }
             }
             this.listEl.appendChild(header);
+            
+            if (key !== 'UNCLASSIFIED' && story.threads[key] && story.threads[key].description) {
+                const desc = document.createElement('div');
+                desc.className = 'journal-group-desc';
+                desc.style.fontSize = '0.8rem';
+                desc.style.color = 'var(--text-muted, #aaa)';
+                desc.style.fontStyle = 'italic';
+                desc.style.marginBottom = '12px';
+                desc.style.paddingLeft = '12px';
+                desc.innerText = story.threads[key].description;
+                this.listEl.appendChild(desc);
+            }
 
             // Render items in group
             items.forEach(item => {

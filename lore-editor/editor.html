@@ -202,6 +202,7 @@
             margin-bottom: 16px; display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.05); padding: 12px; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; display: none;
         }
         #tag-box h4 { font-size: 0.75rem; color: var(--accent-amber); font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; }
+        #type-input { width: 120px; }
         #tag-input {
             background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 4px 12px;
             font-size: 0.875rem; color: var(--accent-amber); font-family: var(--font-mono); width: 256px;
@@ -213,6 +214,22 @@
             color: var(--accent-amber); font-family: var(--font-mono); font-size: 0.75rem; cursor: pointer; transition: 0.2s;
         }
         .var-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+        
+        .var-select {
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 4px 8px;
+            color: var(--accent-amber); font-family: var(--font-mono); font-size: 0.75rem; cursor: pointer; transition: 0.2s;
+            appearance: none; -webkit-appearance: none;
+            padding-right: 24px;
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23fbbf24%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+        }
+        .var-select:hover { background-color: rgba(255,255,255,0.1); color: white; }
+        .var-select:focus { outline: none; border-color: rgba(251,191,36,0.5); }
+        .var-select option {
+            background: var(--bg-panel);
+            color: var(--text-main);
+        }
 
         .textarea-container {
             flex: 1; position: relative; display: flex; flex-direction: column;
@@ -239,6 +256,18 @@
         #welcome-msg h2 { font-size: 1.25rem; font-weight: 500; margin-bottom: 8px; }
         #welcome-msg p { font-size: 0.875rem; color: var(--text-muted); font-family: var(--font-mono); max-width: 320px; line-height: 1.6; }
 
+        .help-icon {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 14px; height: 14px; border-radius: 50%;
+            background: rgba(255,255,255,0.1); color: var(--text-muted);
+            font-size: 10px; font-family: var(--font-sans); cursor: help;
+            margin-left: 4px; vertical-align: middle;
+        }
+        .help-icon:hover { background: rgba(255,255,255,0.2); color: white; }
+        .help-text {
+            font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);
+            margin-top: 4px; margin-bottom: 8px; display: block;
+        }
     </style>
 </head>
 <body>
@@ -261,13 +290,26 @@
         <!-- Main Content -->
         <main class="editor-section">
             <!-- Welcome -->
-            <div id="welcome-msg">
+            <div id="welcome-msg" style="flex-direction: column;">
                 <div>
                     <div class="icon-box">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#4b5563;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                     </div>
                     <h2>Awaiting Input</h2>
-                    <p>Select a data node from the archive to begin modification.</p>
+                    <p style="max-width: 500px;">Select a data node from the archive to begin modification.</p>
+                </div>
+                
+                <div style="margin-top: 48px; max-width: 600px; text-align: left; background: rgba(255,255,255,0.03); padding: 24px; border-radius: 12px; border: 1px solid var(--border);">
+                    <h3 style="font-size: 1rem; margin-bottom: 16px; color: var(--accent-amber); display: flex; align-items: center; gap: 8px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                        Editor Guidelines
+                    </h3>
+                    <ul style="font-size: 0.875rem; color: var(--text-muted); font-family: var(--font-mono); padding-left: 20px; line-height: 1.6;">
+                        <li style="margin-bottom: 12px;"><strong style="color: #d1d5db;">⚙️ System Parameters:</strong> Define variables, names, and global game logic. System variables can be injected into text fields using <code>${var}</code> syntax.</li>
+                        <li style="margin-bottom: 12px;"><strong style="color: #d1d5db;">🔐 Lock Mechanics:</strong> Entries in <code>clues.json</code> MUST use the CIPHER or TELL threads, and link directly to locks defined in <code>puzzles.json</code>.</li>
+                        <li style="margin-bottom: 12px;"><strong style="color: #d1d5db;">🎬 Exit Conditions:</strong> <code>foreshadow.json</code> and <code>finales.json</code> are tightly coupled. Foreshadowing texts provide location-specific hints that ultimately lead players to the corresponding finale options.</li>
+                        <li><strong style="color: #d1d5db;">🌍 World Building:</strong> Entries in <code>lore.json</code> add general world flavor and CANNOT use the CIPHER or TELL threads to prevent confusing players.</li>
+                    </ul>
                 </div>
             </div>
 
@@ -304,21 +346,53 @@
                                     <h4 id="hint-title">Target Finale</h4>
                                     <p id="hint-text"></p>
                                 </div>
-                                <div id="tag-box">
-                                    <h4>Thread Tag</h4>
-                                    <input type="text" id="tag-input" list="tag-suggestions" placeholder="e.g. GEOMETRY, HUM, LOST">
-                                    <datalist id="tag-suggestions"></datalist>
+                                <div id="tag-box" style="flex-wrap: wrap; gap: 12px 24px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 250px;" title="Internal identifier, not shown to players.">
+                                        <h4 id="title-label" style="white-space: nowrap;">Title:<span class="help-icon">?</span></h4>
+                                        <input type="text" id="title-input" placeholder="Optional title..." style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 4px 12px; font-size: 0.875rem; color: var(--text-main); font-family: var(--font-mono); flex: 1; min-width: 0;">
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px;" title="The format of the lore entry found by the player.">
+                                        <h4>Type:<span class="help-icon">?</span></h4>
+                                        <select id="type-input" class="var-select">
+                                            <option value="document">Document</option>
+                                            <option value="tape">Tape</option>
+                                            <option value="note">Note</option>
+                                        </select>
+                                    </div>
+                                    <div id="thread-container" style="display: flex; align-items: center; gap: 8px;" title="Thematic grouping. Lore cannot use CIPHER/TELL. Clues MUST use CIPHER/TELL.">
+                                        <h4>Thread:<span class="help-icon">?</span></h4>
+                                        <input type="text" id="tag-input" list="tag-suggestions" placeholder="Tag..." />
+                                        <datalist id="tag-suggestions"></datalist>
+                                    </div>
+                                    <div id="puzzle-container" style="display: none; align-items: center; gap: 8px;" title="The puzzle/lock this clue will help solve.">
+                                        <h4>Puzzle:<span class="help-icon">?</span></h4>
+                                        <select id="puzzle-input" class="var-select">
+                                            <option value="">Any Puzzle</option>
+                                        </select>
+                                    </div>
                                 </div>
 
+                                <div id="option-container" class="textarea-container" style="display:none; flex: 0.25; margin-bottom: 8px;">
+                                    <h4 style="margin-bottom: 2px;">Heading (Option) <span class="help-icon" title="The text displayed on the button when the player is presented with this choice.">?</span></h4>
+                                    <span class="help-text" style="margin-top: 0;">What the player clicks to select this finale.</span>
+                                    <div style="position: relative; flex: 1; display: flex;">
+                                        <div class="textarea-glow"></div>
+                                        <textarea id="option-textarea"></textarea>
+                                    </div>
+                                </div>
                                 <div class="textarea-container" id="textarea-container">
                                     <div id="variable-toolbar" style="display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;"></div>
+                                    <h4 id="main-textarea-label" style="display:none; margin-bottom: 2px;">Final Document</h4>
+                                    <span id="main-textarea-hint" class="help-text" style="display:none; margin-top: 0;">The content body of this entry.</span>
                                     <div style="position: relative; flex: 1; display: flex;">
                                         <div class="textarea-glow"></div>
                                         <textarea id="main-textarea"></textarea>
                                     </div>
                                 </div>
+                                <h4 id="names-container-label" style="display:none; margin-top: 16px; margin-bottom: 8px; font-size: 0.875rem; color: white;">Lock Threads <span class="help-icon" title="Puzzle state criteria requirements.">?</span></h4>
                                 <div id="names-container" style="display:none; flex: 1; flex-direction: column; overflow-y: auto; gap: 8px; min-height: 0; padding-right: 8px;"></div>
                                 <div id="names-add-box" style="display:none; margin-top: 16px; align-items: center; gap: 8px;">
+                                    <input type="text" id="names-input-key" placeholder="Key..." style="display:none; width: 150px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;">
                                     <input type="text" id="names-input" placeholder="Add new entry..." style="flex:1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;">
                                     <button onclick="addNameEntry()" style="padding: 8px 16px; background: rgba(255,255,255,0.1); border: none; color: white; border-radius: 4px; cursor: pointer;">Add</button>
                                 </div>
@@ -339,7 +413,7 @@
         let selectedFile = null;
         let fileData = null;
         let linkedData = null;
-        let namesData = null;
+        let paramsData = null;
         
         let expandedCategory = null;
         let selectedCategory = null;
@@ -353,10 +427,10 @@
         // Init
         async function init() {
             try {
-                const namesRes = await fetch('/api/data?file=names.json');
+                const namesRes = await fetch('/api/data?file=parameters.json');
                 const nData = await namesRes.json();
                 if (nData.content) {
-                    namesData = nData.content;
+                    paramsData = nData.content;
                     renderVariableToolbar();
                 }
 
@@ -373,14 +447,42 @@
 
         // Render File List
         function renderFileList() {
-            let html = '<h2>Data Nodes</h2>';
-            files.forEach(f => {
-                const isActive = f === selectedFile;
-                html += `<button class="file-btn ${isActive ? 'active' : ''}" onclick="selectFile('${f}')">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                    ${f}
-                </button>`;
+            let html = '';
+            const groups = [
+                { title: '⚙️ System Parameters', files: ['parameters.json', 'threads.json'] },
+                { title: '🔐 Lock Mechanics', files: ['puzzles.json', 'clues.json'] },
+                { title: '🎬 Exit Conditions', files: ['finales.json', 'foreshadow.json'] },
+                { title: '🌍 World Building', files: ['lore.json'] }
+            ];
+
+            groups.forEach(group => {
+                const groupFiles = group.files.filter(f => files.includes(f));
+                if (groupFiles.length === 0) return;
+                
+                html += `<h2>${group.title}</h2>`;
+                groupFiles.forEach(f => {
+                    const isActive = f === selectedFile;
+                    html += `<button class="file-btn ${isActive ? 'active' : ''}" onclick="selectFile('${f}')">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        ${f}
+                    </button>`;
+                });
             });
+
+            // Fallback for any other files
+            const knownFiles = new Set(groups.flatMap(g => g.files));
+            const otherFiles = files.filter(f => !knownFiles.has(f));
+            if (otherFiles.length > 0) {
+                html += `<h2>📁 Other Data</h2>`;
+                otherFiles.forEach(f => {
+                    const isActive = f === selectedFile;
+                    html += `<button class="file-btn ${isActive ? 'active' : ''}" onclick="selectFile('${f}')">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        ${f}
+                    </button>`;
+                });
+            }
+
             fileListEl.innerHTML = html;
         }
 
@@ -407,8 +509,9 @@
                 fileData = data.content;
 
                 // Load linked data
-                if (f === 'library.json') await loadLinked('tags.json');
                 if (f === 'foreshadow.json') await loadLinked('finales.json');
+                else if (f === 'finales.json') await loadLinked('foreshadow.json');
+                else linkedData = null;
 
                 initializeSelection();
                 updateTagSuggestions();
@@ -455,29 +558,46 @@
                 
                 fileData.forEach((item, i) => {
                     const isItemObj = item !== null && typeof item === 'object' && !Array.isArray(item);
+                    const isExpandable = isItemObj && selectedFile !== 'finales.json' && selectedFile !== 'puzzles.json';
                     const isExpanded = expandedCategory === String(i);
-                    const isActiveRow = (!isItemObj && selectedIndex === i && selectedCategory === null) || (isItemObj && isExpanded);
+                    const isActiveRow = (!isExpandable && selectedIndex === i && selectedCategory === null) || (isExpandable && isExpanded);
                     
                     html += `<div class="tree-item">
                         <div class="tree-item-row group">
                             <button class="tree-btn ${isActiveRow ? 'active' : ''} ${isItemObj ? 'bold' : ''}" onclick="clickArrayRow(${i}, ${isItemObj})">
-                                ${isItemObj ? (isExpanded ? '▼ ' : '▶ ') : ''}${selectedFile === 'foreshadow.json' ? 'Finale Group' : 'Entry'} ${i}
+                                ${isExpandable ? (isExpanded ? '▼ ' : '▶ ') : '• '}${item?.nickname ? `"${item.nickname}"` : (item?.title || item?.id || ((['foreshadow.json', 'finales.json'].includes(selectedFile) ? 'Finale Group ' : 'Entry ') + i))}
                             </button>
                             <button class="delete-btn" onclick="deleteEntry(null, ${i})">×</button>
                         </div>`;
                     
-                    if (isItemObj && isExpanded) {
+                    if (isExpandable && isExpanded) {
                         html += `<div class="tree-children">`;
                         Object.keys(item).forEach(key => {
+                            if (key === 'nickname' || key === 'title' || key === 'option' || key === 'text') return;
                             const isChildActive = selectedIndex === i && selectedCategory === key;
+                            const locObj = item[key];
+                            const displayTitle = (locObj && locObj.title) ? ` - ${locObj.title}` : '';
                             html += `<div class="tree-item-row group">
                                 <button class="tree-child-btn ${isChildActive ? 'active' : ''}" onclick="selectNode(${i}, '${key}')">
-                                    ${key}
+                                    ${key}${displayTitle}
                                 </button>
                                 <button class="delete-btn" style="padding:4px; font-size:12px;" onclick="deleteLocation(${i}, '${key}')">×</button>
                             </div>`;
                         });
-                        html += `<button class="add-btn" onclick="addLocation(${i})">+ Add Location</button>`;
+                        if (selectedFile === 'foreshadow.json') {
+                            html += `<div style="display: flex; gap: 4px; margin-top: 8px;">`;
+                            html += `<select id="loc-select-${i}" class="tree-child-btn" style="background: rgba(255,255,255,0.05); color: var(--text-main); border: 1px dashed rgba(255,255,255,0.1); padding: 4px; border-radius: 4px; flex-grow: 1; font-family: var(--font-mono); font-size: 10px; margin-top: 0;">`;
+                            html += `<option value="" style="background: #0a0a0a;">Select Location...</option>`;
+                            const VALID_LOCATIONS = ["NORMAL", "ARCHIVE", "IMPOUND", "BOARDROOM", "SERVER", "CLINIC", "MAINTENANCE", "INCINERATOR", "CHASM", "ATRIUM", "ANNEX", "EXIT", "CHECKPOINT"];
+                            VALID_LOCATIONS.forEach(loc => {
+                                if (!item[loc]) {
+                                    html += `<option value="${loc}" style="background: #0a0a0a;">${loc}</option>`;
+                                }
+                            });
+                            html += `</select>`;
+                            html += `<button class="add-btn" onclick="addLocation(${i})" style="margin: 0; width: auto; padding: 4px 8px;">+</button>`;
+                            html += `</div>`;
+                        }
                         html += `</div>`;
                     }
                     html += `</div>`;
@@ -492,7 +612,7 @@
                     const catData = fileData[cat];
                     const isCatArray = Array.isArray(catData);
                     
-                    if (selectedFile === 'names.json') {
+                    if (selectedFile === 'parameters.json' || selectedFile === 'threads.json') {
                          const isChildActive = selectedCategory === cat;
                          html += `<div class="tree-item-row group">
                             <button class="tree-btn ${isChildActive ? 'active bold' : ''}" onclick="selectNode(null, '${cat}')">
@@ -523,7 +643,7 @@
                                     const isChildActive = selectedCategory === cat && selectedIndex === i;
                                     html += `<div class="tree-item-row group">
                                         <button class="tree-child-btn ${isChildActive ? 'active' : ''}" onclick="selectNode(${i}, '${cat}')">
-                                            Entry ${i}
+                                            ${catData[i]?.title || 'Entry ' + i}
                                         </button>
                                         <button class="delete-btn" style="padding:4px; font-size:12px;" onclick="deleteEntry('${cat}', ${i})">×</button>
                                     </div>`;
@@ -531,7 +651,10 @@
                             }
                         } else {
                             const isChildActive = selectedCategory === cat && selectedIndex === null;
-                            html += `<button class="tree-child-btn ${isChildActive ? 'active' : ''}" onclick="selectNode(null, '${cat}')">Raw Object</button>`;
+                            let btnText = 'Edit Data';
+                            if (selectedFile === 'threads.json') btnText = 'Edit Thread';
+                            else if (selectedFile === 'parameters.json' && cat === 'VARS') btnText = 'Edit Variables';
+                            html += `<button class="tree-child-btn ${isChildActive ? 'active' : ''}" onclick="selectNode(null, '${cat}')">${btnText}</button>`;
                         }
                         html += `</div>`;
                     }
@@ -544,12 +667,11 @@
 
         // Actions
         function clickArrayRow(i, isItemObj) {
-            if (isItemObj) {
+            const isExpandable = isItemObj && selectedFile !== 'finales.json' && selectedFile !== 'puzzles.json';
+            if (isExpandable) {
                 expandedCategory = (expandedCategory === String(i)) ? null : String(i);
-                if (expandedCategory !== String(i)) {
-                    selectedIndex = i;
-                    selectedCategory = null;
-                }
+                selectedIndex = i;
+                selectedCategory = null;
             } else {
                 selectedIndex = i;
                 selectedCategory = null;
@@ -573,7 +695,7 @@
         function addCategory() {
             const cat = prompt("Enter new category:");
             if (cat && !fileData[cat]) {
-                fileData[cat] = [];
+                fileData[cat] = selectedFile === 'threads.json' ? { title: "", description: "" } : [];
                 expandedCategory = cat;
                 renderTree();
             }
@@ -581,22 +703,20 @@
 
         function addEntry(cat) {
             if (cat) {
-                const template = selectedFile === 'tapes.json' ? { text: "", thread: "UNCLASSIFIED" } : "";
+                const template = { text: "", thread: "UNCLASSIFIED", type: "document" };
                 if (!Array.isArray(fileData[cat])) fileData[cat] = [fileData[cat], template];
                 else fileData[cat].push(template);
                 expandedCategory = cat;
                 selectedCategory = cat;
                 selectedIndex = fileData[cat].length - 1;
-                
-                if (selectedFile === 'library.json' && linkedData) {
-                    if (!linkedData[cat]) linkedData[cat] = [];
-                    if (!Array.isArray(linkedData[cat])) linkedData[cat] = [linkedData[cat], "UNCLASSIFIED"];
-                    else linkedData[cat].push("UNCLASSIFIED");
-                }
             } else {
                 let template;
                 if (selectedFile === 'foreshadow.json') {
-                    template = { "ANNEX": "", "ARCHIVE": "", "SERVER": "", "CLINIC": "", "CHASM": "" };
+                    template = { "ANNEX": {text:"", thread:"TELL", type:"document"}, "ARCHIVE": {text:"", thread:"TELL", type:"document"}, "SERVER": {text:"", thread:"TELL", type:"document"}, "CLINIC": {text:"", thread:"TELL", type:"document"}, "CHASM": {text:"", thread:"TELL", type:"document"} };
+                    if (linkedData) linkedData.push({ option: "", text: "" });
+                } else if (selectedFile === 'finales.json') {
+                    template = { option: "", text: "" };
+                    if (linkedData) linkedData.push({ "ANNEX": {text:"", thread:"TELL", type:"document"}, "ARCHIVE": {text:"", thread:"TELL", type:"document"}, "SERVER": {text:"", thread:"TELL", type:"document"}, "CLINIC": {text:"", thread:"TELL", type:"document"}, "CHASM": {text:"", thread:"TELL", type:"document"} });
                 } else {
                     template = (fileData.length > 0 && typeof fileData[0] === 'object' && !Array.isArray(fileData[0])) ? {} : "";
                 }
@@ -615,11 +735,11 @@
             if (!confirm("Delete entry?")) return;
             if (cat) {
                 fileData[cat].splice(i, 1);
-                if (selectedFile === 'library.json' && linkedData && Array.isArray(linkedData[cat])) {
-                    linkedData[cat].splice(i, 1);
-                }
             } else {
                 fileData.splice(i, 1);
+                if (linkedData && (selectedFile === 'foreshadow.json' || selectedFile === 'finales.json')) {
+                    linkedData.splice(i, 1);
+                }
             }
             selectedIndex = null;
             renderTree();
@@ -627,7 +747,8 @@
         }
 
         function addLocation(i) {
-            const key = prompt("Enter location key:");
+            const select = document.getElementById(`loc-select-${i}`);
+            const key = select ? select.value : null;
             if (key && !fileData[i][key]) {
                 fileData[i][key] = "";
                 selectedIndex = i;
@@ -689,51 +810,186 @@
                 hintBox.style.display = 'none';
             }
 
-            const isNamesArray = selectedFile === 'names.json' && Array.isArray(val);
-            if (isNamesArray) {
-                document.getElementById('textarea-container').style.display = 'none';
-                document.getElementById('tag-box').style.display = 'none';
+            if (selectedFile === 'parameters.json' && typeof val === 'string' && selectedCategory && selectedCategory === 'VARS') {
+                try {
+                    fileData[selectedCategory] = JSON.parse(val);
+                } catch (e) {
+                    fileData[selectedCategory] = {};
+                }
+                renderEditor();
+                return;
+            }
+
+            const isNamesArray = selectedFile === 'parameters.json' && Array.isArray(val) && (val.length === 0 || typeof val[0] === 'string');
+            const isVarsObj = val && typeof val === 'object' && !Array.isArray(val) && selectedCategory && 
+                ((selectedFile === 'parameters.json' && selectedCategory === 'VARS') || (selectedFile === 'puzzles.json' && selectedCategory === 'LOCK_THREADS'));
+            const isPuzzleObj = selectedFile === 'puzzles.json' && selectedCategory === null && typeof val === 'object' && !Array.isArray(val);
+            
+            if (isNamesArray || isVarsObj || isPuzzleObj) {
+                if (!isPuzzleObj) document.getElementById('textarea-container').style.display = 'none';
+                else document.getElementById('textarea-container').style.display = 'flex';
+                
+                if (!isPuzzleObj) document.getElementById('tag-box').style.display = 'none';
                 document.getElementById('names-container').style.display = 'flex';
                 document.getElementById('names-add-box').style.display = 'flex';
-                renderNamesList();
-                return;
+                
+                const namesLabel = document.getElementById('names-container-label');
+                if (namesLabel) namesLabel.style.display = isPuzzleObj ? 'block' : 'none';
+                
+                if (isVarsObj || isPuzzleObj) {
+                    document.getElementById('names-input-key').style.display = 'block';
+                    document.getElementById('names-input').placeholder = "Value...";
+                    renderVarsList();
+                } else {
+                    document.getElementById('names-input-key').style.display = 'none';
+                    document.getElementById('names-input').placeholder = "Add new entry...";
+                    renderNamesList();
+                }
+                if (!isPuzzleObj) return;
             } else {
                 document.getElementById('textarea-container').style.display = 'flex';
                 document.getElementById('names-container').style.display = 'none';
                 document.getElementById('names-add-box').style.display = 'none';
+                document.getElementById('names-input-key').style.display = 'none';
+                const namesLabel = document.getElementById('names-container-label');
+                if (namesLabel) namesLabel.style.display = 'none';
             }
 
-            // Tag Box (Library & Tapes)
+            // Tag Box (Any Lore Object)
             const tagBox = document.getElementById('tag-box');
             const tagInput = document.getElementById('tag-input');
-            if (selectedFile === 'library.json' && linkedData && selectedCategory && selectedIndex !== null) {
+            const typeInput = document.getElementById('type-input');
+            
+            // Treat as lore obj if it has text, thread, or type, or is in lore.json/clues.json/foreshadow.json
+            const isLoreDataFile = ['lore.json', 'clues.json', 'foreshadow.json', 'finales.json', 'threads.json'].includes(selectedFile);
+            const isLoreObj = val && typeof val === 'object' && !Array.isArray(val) && 
+                (isLoreDataFile || 'text' in val || 'thread' in val || 'type' in val || 'description' in val);
+            
+            const isFinaleGroup = isArrayRoot() && !selectedCategory && ['foreshadow.json', 'finales.json'].includes(selectedFile);
+            if (isLoreObj || isPuzzleObj) {
                 tagBox.style.display = 'flex';
-                tagInput.value = linkedData[selectedCategory]?.[selectedIndex] || '';
-            } else if (selectedFile === 'tapes.json' && selectedCategory && selectedIndex !== null) {
-                tagBox.style.display = 'flex';
-                tagInput.value = val.thread || '';
+                
+                if (isPuzzleObj) {
+                    document.getElementById('title-label').innerHTML = 'ID:<span class="help-icon">?</span>';
+                    document.getElementById('title-input').value = val.id || '';
+                    document.getElementById('title-input').parentElement.title = 'Internal Puzzle ID';
+                    
+                    document.getElementById('type-input').parentElement.style.display = 'none';
+                    document.getElementById('thread-container').style.display = 'none';
+                    document.getElementById('puzzle-container').style.display = 'none';
+                    document.getElementById('option-container').style.display = 'none';
+                    
+                    document.getElementById('main-textarea-label').style.display = 'block';
+                    document.getElementById('main-textarea-label').innerText = 'Access Code:';
+                    if (document.getElementById('main-textarea-hint')) {
+                        document.getElementById('main-textarea-hint').style.display = 'block';
+                        document.getElementById('main-textarea-hint').innerText = 'Javascript execution string for validating access.';
+                    }
+                } else {
+                    tagInput.value = val.thread || '';
+                    typeInput.value = val.type || 'document';
+                    document.getElementById('title-label').innerHTML = isFinaleGroup ? 'Nickname:<span class="help-icon">?</span>' : 'Title:<span class="help-icon">?</span>';
+                    document.getElementById('title-input').value = isFinaleGroup ? (val.nickname || '') : (val.title || '');
+                    document.getElementById('title-input').parentElement.title = 'Internal identifier, not shown to players.';
+                    document.getElementById('thread-container').style.display = (selectedFile === 'foreshadow.json' || selectedFile === 'finales.json' || selectedFile === 'threads.json') ? 'none' : 'flex';
+                    document.getElementById('type-input').parentElement.style.display = (isFinaleGroup || selectedFile === 'threads.json') ? 'none' : 'flex';
+                    
+                    if (selectedFile === 'clues.json') {
+                        document.getElementById('puzzle-container').style.display = 'flex';
+                        document.getElementById('puzzle-input').value = val.puzzle || '';
+                        updatePuzzleSuggestions();
+                    } else {
+                        document.getElementById('puzzle-container').style.display = 'none';
+                    }
+
+                    if (selectedFile === 'finales.json') {
+                        document.getElementById('option-container').style.display = isFinaleGroup ? 'flex' : 'none';
+                        if (isFinaleGroup) {
+                            document.getElementById('option-textarea').value = val.option || '';
+                        }
+                    } else {
+                        document.getElementById('option-container').style.display = 'none';
+                    }
+
+                    if (isFinaleGroup) {
+                        document.getElementById('main-textarea-label').style.display = 'block';
+                        document.getElementById('main-textarea-label').innerText = 'Dev Note (Description):';
+                        if (document.getElementById('main-textarea-hint')) {
+                            document.getElementById('main-textarea-hint').style.display = 'block';
+                            document.getElementById('main-textarea-hint').innerText = 'Internal notes about this finale group. Not shown to players.';
+                        }
+                    } else if (selectedFile === 'threads.json') {
+                        document.getElementById('main-textarea-label').style.display = 'block';
+                        document.getElementById('main-textarea-label').innerText = 'Description:';
+                        if (document.getElementById('main-textarea-hint')) {
+                            document.getElementById('main-textarea-hint').style.display = 'block';
+                            document.getElementById('main-textarea-hint').innerText = 'Summary of this thread for developer reference.';
+                        }
+                    } else {
+                        document.getElementById('main-textarea-label').style.display = 'block';
+                        document.getElementById('main-textarea-label').innerText = 'Text:';
+                        if (document.getElementById('main-textarea-hint')) {
+                            document.getElementById('main-textarea-hint').style.display = 'block';
+                            document.getElementById('main-textarea-hint').innerText = 'The core content that players will read. Use the variable toolbar above to inject dynamic data.';
+                        }
+                    }
+                }
             } else {
                 tagBox.style.display = 'none';
+                document.getElementById('option-container').style.display = 'none';
+                document.getElementById('main-textarea-label').style.display = 'none';
+                if (document.getElementById('main-textarea-hint')) document.getElementById('main-textarea-hint').style.display = 'none';
             }
 
-            const isString = typeof val === 'string';
-            if (selectedFile === 'tapes.json' && selectedCategory && selectedIndex !== null) {
-                mainTextarea.value = val.text || '';
+            if (isLoreObj) {
+                mainTextarea.value = (selectedFile === 'threads.json' || isFinaleGroup) ? (val.description || val.text || '') : (val.text || '');
+            } else if (isPuzzleObj) {
+                mainTextarea.value = val.ACCESS_CODE || '';
             } else {
+                const isString = typeof val === 'string';
                 mainTextarea.value = isString ? val : JSON.stringify(val, null, 2);
             }
         }
 
         // Input Listeners
+        document.getElementById('option-textarea').addEventListener('input', (e) => {
+            const val = e.target.value;
+            const original = getCurrentEditorData();
+            if (original && typeof original === 'object' && selectedFile === 'finales.json') {
+                if (isArrayRoot()) {
+                    if (selectedCategory) fileData[selectedIndex][selectedCategory].option = val;
+                    else fileData[selectedIndex].option = val;
+                }
+            }
+        });
+
         mainTextarea.addEventListener('input', (e) => {
             let val = e.target.value;
+            const original = getCurrentEditorData();
             
-            if (selectedFile === 'tapes.json' && selectedCategory && selectedIndex !== null) {
-                fileData[selectedCategory][selectedIndex].text = val;
+            const isLoreDataFile = ['lore.json', 'clues.json', 'foreshadow.json', 'finales.json', 'threads.json'].includes(selectedFile);
+            const isLoreObj = original && typeof original === 'object' && !Array.isArray(original) && 
+                (isLoreDataFile || 'text' in original || 'thread' in original || 'type' in original || 'description' in original);
+            const isPuzzleObj = selectedFile === 'puzzles.json' && selectedCategory === null && original && typeof original === 'object' && !Array.isArray(original);
+
+            if (isLoreObj || isPuzzleObj) {
+                if (isPuzzleObj) {
+                    if (isArrayRoot()) fileData[selectedIndex].ACCESS_CODE = val;
+                    return;
+                }
+                const isFinaleGroup = isArrayRoot() && !selectedCategory && ['foreshadow.json', 'finales.json'].includes(selectedFile);
+                const textKey = (selectedFile === 'threads.json' || isFinaleGroup) ? 'description' : 'text';
+                if (isArrayRoot()) {
+                    if (selectedCategory) fileData[selectedIndex][selectedCategory][textKey] = val;
+                    else fileData[selectedIndex][textKey] = val;
+                }
+                else if (isObjectRoot()) {
+                    if (selectedIndex !== null) fileData[selectedCategory][selectedIndex][textKey] = val;
+                    else fileData[selectedCategory][textKey] = val;
+                }
                 return;
             }
 
-            const original = getCurrentEditorData();
             if (typeof original !== 'string') {
                 try { val = JSON.parse(val); } catch(e){} // wait for valid json
             }
@@ -747,13 +1003,82 @@
             }
         });
 
-        document.getElementById('tag-input').addEventListener('input', (e) => {
+        document.getElementById('tag-input').addEventListener('change', (e) => {
+            let val = e.target.value.toUpperCase();
+            
+            if (selectedFile === 'lore.json' && (val === 'CIPHER' || val === 'TELL')) {
+                alert('Entries in lore.json CANNOT use the CIPHER or TELL threads. They belong in clues.json.');
+                val = 'UNCLASSIFIED';
+                e.target.value = val;
+            } else if (selectedFile === 'clues.json' && val !== 'CIPHER' && val !== 'TELL') {
+                alert('Entries in clues.json MUST use the CIPHER or TELL threads.');
+                val = 'CIPHER';
+                e.target.value = val;
+            } else {
+                e.target.value = val;
+            }
+
+            const original = getCurrentEditorData();
+            const isLoreDataFile = ['lore.json', 'clues.json', 'foreshadow.json', 'finales.json'].includes(selectedFile);
+            const isLoreObj = original && typeof original === 'object' && !Array.isArray(original) && 
+                (isLoreDataFile || 'text' in original || 'thread' in original || 'type' in original);
+            if (isLoreObj) {
+                if (isArrayRoot()) {
+                    if (selectedCategory) fileData[selectedIndex][selectedCategory].thread = val;
+                    else fileData[selectedIndex].thread = val;
+                }
+                else if (isObjectRoot()) {
+                    if (selectedIndex !== null) fileData[selectedCategory][selectedIndex].thread = val;
+                    else fileData[selectedCategory].thread = val;
+                }
+            }
+        });
+
+        document.getElementById('type-input').addEventListener('change', (e) => {
             const val = e.target.value;
-            if (selectedFile === 'library.json' && selectedCategory && selectedIndex !== null && linkedData) {
-                if (!linkedData[selectedCategory]) linkedData[selectedCategory] = [];
-                linkedData[selectedCategory][selectedIndex] = val;
-            } else if (selectedFile === 'tapes.json' && selectedCategory && selectedIndex !== null) {
-                fileData[selectedCategory][selectedIndex].thread = val;
+            const original = getCurrentEditorData();
+            const isLoreDataFile = ['lore.json', 'clues.json', 'foreshadow.json', 'finales.json'].includes(selectedFile);
+            const isLoreObj = original && typeof original === 'object' && !Array.isArray(original) && 
+                (isLoreDataFile || 'text' in original || 'thread' in original || 'type' in original);
+            if (isLoreObj) {
+                if (isArrayRoot()) {
+                    if (selectedCategory) fileData[selectedIndex][selectedCategory].type = val;
+                    else fileData[selectedIndex].type = val;
+                }
+                else if (isObjectRoot()) {
+                    if (selectedIndex !== null) fileData[selectedCategory][selectedIndex].type = val;
+                    else fileData[selectedCategory].type = val;
+                }
+            }
+        });
+
+        document.getElementById('title-input').addEventListener('input', (e) => {
+            const val = e.target.value;
+            const original = getCurrentEditorData();
+            const isLoreDataFile = ['lore.json', 'clues.json', 'foreshadow.json', 'finales.json'].includes(selectedFile);
+            const isLoreObj = original && typeof original === 'object' && !Array.isArray(original) && 
+                (isLoreDataFile || 'text' in original || 'thread' in original || 'type' in original);
+            const isPuzzleObj = selectedFile === 'puzzles.json' && selectedCategory === null && original && typeof original === 'object' && !Array.isArray(original);
+            
+            if (isLoreObj || isPuzzleObj) {
+                if (isArrayRoot()) {
+                    if (isPuzzleObj) {
+                        fileData[selectedIndex].id = val;
+                    }
+                    else if (selectedCategory) {
+                        fileData[selectedIndex][selectedCategory].title = val;
+                    } else {
+                        fileData[selectedIndex].nickname = val;
+                        if (linkedData && linkedData[selectedIndex]) {
+                            linkedData[selectedIndex].nickname = val;
+                        }
+                    }
+                }
+                else if (isObjectRoot()) {
+                    if (selectedIndex !== null) fileData[selectedCategory][selectedIndex].title = val;
+                    else fileData[selectedCategory].title = val;
+                }
+                renderTree();
             }
         });
 
@@ -770,16 +1095,17 @@
                     body: JSON.stringify({ file: selectedFile, content: fileData })
                 });
 
-                if (selectedFile === 'library.json' && linkedData) {
+                if (linkedData && (selectedFile === 'foreshadow.json' || selectedFile === 'finales.json')) {
+                    const linkedFile = selectedFile === 'foreshadow.json' ? 'finales.json' : 'foreshadow.json';
                     await fetch('/api/data', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ file: 'tags.json', content: linkedData })
+                        body: JSON.stringify({ file: linkedFile, content: linkedData })
                     });
                 }
-                
-                if (selectedFile === 'names.json') {
-                    namesData = fileData;
+
+                if (selectedFile === 'parameters.json') {
+                    paramsData = fileData;
                     renderVariableToolbar();
                 }
                 
@@ -793,8 +1119,19 @@
         }
 
         // Names Logic
+        function getTargetObj() {
+            if (selectedFile === 'puzzles.json' && selectedCategory === null) {
+                if (selectedIndex !== null && fileData[selectedIndex]) {
+                    if (!fileData[selectedIndex].LOCK_THREADS) fileData[selectedIndex].LOCK_THREADS = {};
+                    return fileData[selectedIndex].LOCK_THREADS;
+                }
+                return null;
+            }
+            return isArrayRoot() ? (fileData[selectedIndex] ? fileData[selectedIndex][selectedCategory] : null) : fileData[selectedCategory];
+        }
+
         function renderNamesList() {
-            const arr = fileData[selectedCategory] || [];
+            const arr = getTargetObj() || [];
             let html = '';
             arr.forEach((name, i) => {
                 html += `<div style="flex-shrink: 0; display:flex; justify-content:space-between; align-items:center; padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); border-radius: 4px;">
@@ -804,33 +1141,128 @@
             });
             document.getElementById('names-container').innerHTML = html;
         }
+        function renderVarsList() {
+            const obj = getTargetObj() || {};
+            let html = '';
+            Object.keys(obj).forEach(key => {
+                html += `<div style="flex-shrink: 0; display:flex; justify-content:space-between; align-items:center; padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); border-radius: 4px; gap: 16px;">
+                    <span style="font-family: var(--font-mono); font-size: 0.875rem; color: var(--accent-orange); min-width: 120px;">${key}</span>
+                    <input type="text" value="${String(obj[key]).replace(/"/g, '&quot;')}" onchange="updateVarEntry('${key}', this.value)" style="flex: 1; background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 4px 8px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;">
+                    <button onclick="deleteVarEntry('${key}')" style="background:transparent; border:none; color:var(--accent-red); cursor:pointer;">×</button>
+                </div>`;
+            });
+            document.getElementById('names-container').innerHTML = html;
+        }
         function addNameEntry() {
+            const keyInput = document.getElementById('names-input-key');
             const input = document.getElementById('names-input');
+            const keyVal = keyInput.value.trim();
             const val = input.value.trim();
-            if (val && selectedCategory) {
-                fileData[selectedCategory].push(val);
-                input.value = '';
-                renderNamesList();
+            if (!selectedCategory && selectedFile !== 'puzzles.json') return;
+            
+            const targetObj = getTargetObj();
+            const isVarsObj = targetObj && typeof targetObj === 'object' && !Array.isArray(targetObj);
+            
+            if (isVarsObj) {
+                if (keyVal && val) {
+                    targetObj[keyVal] = val;
+                    keyInput.value = '';
+                    input.value = '';
+                    renderVarsList();
+                }
+            } else {
+                if (val) {
+                    if (targetObj) targetObj.push(val);
+                    input.value = '';
+                    renderNamesList();
+                }
+            }
+        }
+        function updateVarEntry(key, val) {
+            if (selectedCategory || selectedFile === 'puzzles.json') {
+                const targetObj = getTargetObj();
+                if (targetObj) targetObj[key] = val;
             }
         }
         function deleteNameEntry(i) {
-            if (selectedCategory) {
-                fileData[selectedCategory].splice(i, 1);
-                renderNamesList();
+            if (selectedCategory || selectedFile === 'puzzles.json') {
+                const targetObj = getTargetObj();
+                if (targetObj) {
+                    targetObj.splice(i, 1);
+                    renderNamesList();
+                }
             }
         }
+        function deleteVarEntry(key) {
+            if (selectedCategory || selectedFile === 'puzzles.json') {
+                const targetObj = getTargetObj();
+                if (targetObj) {
+                    delete targetObj[key];
+                    renderVarsList();
+                }
+            }
+        }
+
+        // Puzzle Logic
+        async function updatePuzzleSuggestions() {
+            try {
+                const res = await fetch('/api/data?file=puzzles.json');
+                const data = await res.json();
+                const puzzles = data.content || [];
+                const select = document.getElementById('puzzle-input');
+                const currentVal = select.value;
+                
+                let html = '<option value="">Any Puzzle</option>';
+                puzzles.forEach(p => {
+                    if (p && p.id) {
+                        html += `<option value="${p.id}">${p.id}</option>`;
+                    }
+                });
+                select.innerHTML = html;
+                select.value = currentVal;
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        document.getElementById('puzzle-input').addEventListener('change', (e) => {
+            const val = e.target.value;
+            const original = getCurrentEditorData();
+            if (original && typeof original === 'object' && selectedFile === 'clues.json') {
+                if (isArrayRoot()) {
+                    if (selectedCategory) {
+                        if (val) fileData[selectedIndex][selectedCategory].puzzle = val;
+                        else delete fileData[selectedIndex][selectedCategory].puzzle;
+                    } else {
+                        if (val) fileData[selectedIndex].puzzle = val;
+                        else delete fileData[selectedIndex].puzzle;
+                    }
+                } else if (isObjectRoot()) {
+                    if (selectedIndex !== null) {
+                        if (val) fileData[selectedCategory][selectedIndex].puzzle = val;
+                        else delete fileData[selectedCategory][selectedIndex].puzzle;
+                    } else {
+                        if (val) fileData[selectedCategory].puzzle = val;
+                        else delete fileData[selectedCategory].puzzle;
+                    }
+                }
+            }
+        });
 
         // Tags Logic
         function updateTagSuggestions() {
             const tagSet = new Set();
-            if (selectedFile === 'library.json' && linkedData) {
-                Object.values(linkedData).forEach(arr => {
-                    if (Array.isArray(arr)) arr.forEach(t => tagSet.add(t));
-                });
-            }
-            if (selectedFile === 'tapes.json' && isObjectRoot()) {
+            if (isObjectRoot()) {
                 Object.values(fileData).forEach(arr => {
-                    if (Array.isArray(arr)) arr.forEach(t => { if(t.thread) tagSet.add(t.thread); });
+                    if (Array.isArray(arr)) arr.forEach(t => { if(t && t.thread) tagSet.add(t.thread); });
+                });
+            } else if (isArrayRoot()) {
+                fileData.forEach(item => {
+                    if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
+                        Object.values(item).forEach(arr => {
+                            if (Array.isArray(arr)) arr.forEach(t => { if(t && t.thread) tagSet.add(t.thread); });
+                        });
+                    }
                 });
             }
             const defaults = ['GEOMETRY', 'HUM', 'LOST', 'CIPHER', 'PEN', 'EPOCH', 'UNCLASSIFIED'];
@@ -839,35 +1271,55 @@
             const dl = document.getElementById('tag-suggestions');
             dl.innerHTML = '';
             tagSet.forEach(t => {
-                if (t) {
-                    const opt = document.createElement('option');
-                    opt.value = t;
-                    dl.appendChild(opt);
-                }
+                if (!t) return;
+                if (selectedFile === 'lore.json' && (t === 'CIPHER' || t === 'TELL')) return;
+                if (selectedFile === 'clues.json' && t !== 'CIPHER' && t !== 'TELL') return;
+                
+                const opt = document.createElement('option');
+                opt.value = t;
+                dl.appendChild(opt);
             });
         }
 
         // Variable Insertion
         function renderVariableToolbar() {
             const tb = document.getElementById('variable-toolbar');
-            if (!tb || !namesData) return;
+            if (!tb || !paramsData) return;
             let html = '';
             
-            const roles = namesData.ROLES || ["lead", "custodian", "archivist", "lost"];
+            // Roles Dropdown
+            const roles = paramsData.ROLES || ["lead", "custodian", "archivist", "lost"];
+            html += `<select class="var-select" onchange="if(this.value) { insertVar(this.value); this.selectedIndex = 0; }">`;
+            html += `<option value="">Insert Role...</option>`;
             roles.forEach(r => {
-                html += `<button class="var-btn" onclick="insertVar('\$\{c.${r}}')">\$\{c.${r}}</button>`;
+                html += `<option value="\\$\\{c.${r}}">${r}</option>`;
             });
+            html += `</select>`;
 
-            const core = ['P', 'hrs', 'pen', 'year', 'ctx.seed'];
+            // Core Dropdown
+            const core = ['P', 'hours', 'pen', 'year'];
+            html += `<select class="var-select" onchange="if(this.value) { insertVar(this.value); this.selectedIndex = 0; }">`;
+            html += `<option value="">Insert Core Var...</option>`;
             core.forEach(v => {
-                html += `<button class="var-btn" onclick="insertVar('\$\{${v}}')">\$\{${v}}</button>`;
+                html += `<option value="\\$\\{${v}}">${v}</option>`;
             });
+            html += `</select>`;
 
-            const custom = namesData.VARS || {};
+            // Custom Vars Dropdown
+            let custom = paramsData.VARS || {};
+            if (typeof custom === 'string') {
+                try { custom = JSON.parse(custom); } catch(e) { custom = {}; }
+            }
             if (custom && typeof custom === 'object' && !Array.isArray(custom)) {
-                Object.keys(custom).forEach(v => {
-                    html += `<button class="var-btn" onclick="insertVar('\$\{${v}}')">\$\{${v}}</button>`;
-                });
+                const keys = Object.keys(custom);
+                if (keys.length > 0) {
+                    html += `<select class="var-select" onchange="if(this.value) { insertVar(this.value); this.selectedIndex = 0; }">`;
+                    html += `<option value="">Insert Custom Var...</option>`;
+                    keys.forEach(v => {
+                        html += `<option value="\\$\\{${v}}">${v}</option>`;
+                    });
+                    html += `</select>`;
+                }
             }
 
             tb.innerHTML = html;

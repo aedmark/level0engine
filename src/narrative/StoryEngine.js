@@ -12,13 +12,14 @@ export default class StoryEngine {
 
     static async loadData(dataDir = './data') {
         try {
-            const files = ['names', 'library', 'tags', 'tapes', 'finales', 'foreshadow', 'ephemera', 'threads'];
+            const files = ['parameters', 'lore', 'clues', 'finales', 'foreshadow', 'threads', 'puzzles'];
             const fetches = files.map(f => fetch(`${dataDir}/${f}.json`).then(res => res.json()));
             
-            const [names, library, tags, tapes, finales, foreshadow, ephemera, threads] = await Promise.all(fetches);
+            const [parameters, lore, clues, finales, foreshadow, threads, puzzles] = await Promise.all(fetches);
             
-            StoryEngine.NAMES_DATA = names;
-            StoryEngine.CASES_DATA = { library, tags, tapes, finales, foreshadow, ephemera, threads };
+            StoryEngine.PARAMS = parameters;
+            StoryEngine.PUZZLES = puzzles;
+            StoryEngine.CASES_DATA = { lore, clues, finales, foreshadow, threads };
         } catch (e) {
             console.error("Failed to load narrative data:", e);
         }
@@ -33,29 +34,60 @@ export default class StoryEngine {
         };
         const pick = (arr) => arr[Math.floor(this.rand() * arr.length)];
         
-        const FIRST = StoryEngine.NAMES_DATA.FIRST;
-        const LAST = StoryEngine.NAMES_DATA.LAST;
+        const FIRST = StoryEngine.PARAMS.FIRST;
+        const LAST = StoryEngine.PARAMS.LAST;
         
         const used = new Set();
         const mkName = () => {
-            let n;
+            let first, last, full;
             do {
-                n = pick(FIRST) + ' ' + pick(LAST);
-            } while (used.has(n));
-            used.add(n);
-            return n;
+                first = pick(FIRST);
+                last = pick(LAST);
+                full = first + ' ' + last;
+            } while (used.has(full));
+            used.add(full);
+            return { first, last, full };
         };
         this.cast = {};
-        const roles = StoryEngine.NAMES_DATA.ROLES || ["lead", "custodian", "archivist", "lost"];
-        for (const role of roles) {
+        const castVars = StoryEngine.PARAMS.ROLES || ["lead", "custodian", "archivist", "lost"];
+        for (const role of castVars) {
             this.cast[role] = mkName();
         }
-        this.projectName = pick(StoryEngine.NAMES_DATA.PROJECT_NAMES);
+
+        this.projectName = pick(StoryEngine.PARAMS.PROJECT_NAMES);
         this.truth = Math.floor(this.rand() * StoryEngine.CASES_DATA.finales.length);
-        this.penNumber = 3 + Math.floor(this.rand() * 19);
-        this.siteYear = 1971 + Math.floor(this.rand() * 28);
-        this.accessCode = String(this.siteYear).slice(2) + String(this.penNumber).padStart(2, '0');
-        this.hours = 300 + Math.floor(this.rand() * 900);
+
+        this.coreVars = {
+            seed: this.seed,
+            pen: 3 + Math.floor(this.rand() * 19),
+            year: 1971 + Math.floor(this.rand() * 28),
+            hours: 300 + Math.floor(this.rand() * 900)
+        };
+        
+        // Fallbacks for legacy props
+        this.penNumber = this.coreVars.pen;
+        this.siteYear = this.coreVars.year;
+        this.hours = this.coreVars.hours;
+
+        // --- PUZZLE SELECTION ---
+        const puzzles = StoryEngine.PUZZLES || [
+            {
+                "id": "DEFAULT",
+                "ACCESS_CODE": "String(ctx.year).slice(2) + String(ctx.pen).padStart(2, '0')",
+                "LOCK_THREADS": { "CIPHER": "RULE", "EPOCH": "YEAR", "PEN": "PEN" }
+            }
+        ];
+        this.activePuzzle = puzzles[Math.floor(this.rand() * puzzles.length)];
+        // We no longer need to compute foreignThreads because CaseFiles explicitly injects only the active puzzle's clues.
+
+        const accessCodeConfig = this.activePuzzle.ACCESS_CODE || "0000";
+        try {
+            this.accessCode = new Function('ctx', `return ${accessCodeConfig};`)(this.coreVars);
+        } catch(e) {
+            console.error("Failed to eval ACCESS_CODE", e);
+            this.accessCode = "0000";
+        }
+
         this.readTemplates = new Set();
         this.assignments = new Map();
         this.collected = [];
@@ -78,22 +110,28 @@ export default class StoryEngine {
             pen: this.penNumber,
             hours: this.hours,
             seed: this.seed,
-            truth: this.truth
+            truth: this.truth,
+            coreVars: this.coreVars,
+            activePuzzle: this.activePuzzle,
+            params: StoryEngine.PARAMS,
+            rand: this.rand
         }, StoryEngine.CASES_DATA);
+        
         this.library = files.library;
         this.tapes = files.tapes;
-        this.finales = files.finales;
         this.ephemera = files.ephemera;
+        this.finales = files.finales;
         this.threads = files.threads;
+        
         this.ephemeraDealt = new Map();
         this.trackers = {};
         this.totalTemplates = 0;
+        
         for (const sector in this.library) {
             this.trackers[sector] = 0;
             const arr = this.library[sector];
-            const tags = files.tags[sector] || [];
             for (let i = 0; i < arr.length; i++) {
-                if (tags[i]) this.threadOf.set(arr[i], tags[i]);
+                if (arr[i].thread) this.threadOf.set(arr[i].text, arr[i].thread);
             }
             this.totalTemplates += arr.length;
         }
@@ -114,11 +152,12 @@ export default class StoryEngine {
     }
 
     _anchorCodeFragments() {
-        const LEGS = ['CIPHER', 'EPOCH', 'PEN'];
+        const lockThreads = this.activePuzzle.LOCK_THREADS || { "CIPHER": "RULE", "EPOCH": "YEAR", "PEN": "PEN" };
+        const LEGS = Object.keys(lockThreads);
         for (const key in this.library) {
             const arr = this.library[key];
             for (const leg of LEGS) {
-                const ci = arr.findIndex(t => this.threadOf.get(t) === leg);
+                const ci = arr.findIndex(t => t.thread === leg);
                 if (ci > 2) {
                     const entry = arr.splice(ci, 1)[0];
                     arr.splice(Math.floor(this.rand() * 3), 0, entry);
@@ -153,9 +192,17 @@ export default class StoryEngine {
             const pool = this.ephemera[zone] || this.ephemera.EXIT;
             const n = this.ephemeraDealt.get(zone || 'EXIT') || 0;
             this.ephemeraDealt.set(zone || 'EXIT', n + 1);
-            const text = pool[n % pool.length];
+            const obj = pool[n % pool.length];
+            const text = obj.text;
             this.assignments.set(assignKey, text);
-            return {text, progress: this.progress(), ephemera: true};
+            this.collected.push(text);
+            return {
+                text, 
+                progress: this.progress(), 
+                ephemera: true,
+                thread: obj.thread || null,
+                corroboration: this._registerThread(text, zone)
+            };
         }
         const sector = (zone && this.library[zone]) ? zone : 'DEFAULT';
         if (idStr.startsWith('TAPE_') && this.tapes[sector] && !this.tapesDealt.has(sector)) {
@@ -185,13 +232,14 @@ export default class StoryEngine {
         }
         this.trackers[category]++;
         this.readTemplates.add(`${category}:${idx}`);
-        const text = this.library[category][idx];
+        const obj = this.library[category][idx];
+        const text = obj.text;
         this.assignments.set(assignKey, text);
         this.collected.push(text);
         return {
             text,
             progress: this.progress(),
-            thread: this.threadOf.get(text) || null,
+            thread: obj.thread || null,
             corroboration: this._registerThread(text, sector)
         };
     }
@@ -219,13 +267,22 @@ export default class StoryEngine {
     }
 
     threadLabel(thread) {
-        return this.threads[thread] || thread;
+        return this.threads[thread]?.title || this.threads[thread] || thread;
     }
 
     lockProgress() {
+        const lockThreads = this.activePuzzle.LOCK_THREADS || { "CIPHER": "RULE", "EPOCH": "YEAR", "PEN": "PEN" };
         const has = (t) => (this.threadSectors.get(t) || new Set()).size > 0;
-        const cipher = has('CIPHER'), epoch = has('EPOCH'), pen = has('PEN');
-        return {cipher, epoch, pen, complete: cipher && epoch && pen};
+        
+        const result = { complete: true, missing: [] };
+        for (const thread of Object.keys(lockThreads)) {
+            const val = has(thread);
+            if (!val) {
+                result.complete = false;
+                result.missing.push({ thread, label: lockThreads[thread] });
+            }
+        }
+        return result;
     }
 
     caseStrength() {

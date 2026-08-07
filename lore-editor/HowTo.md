@@ -4,35 +4,40 @@ This directory contains the dynamic narrative content for the Level 0 Engine. Th
 
 ## Core Files
 
-1. **`names.json`**: The central registry for dynamic variables. Contains the pools for randomized character names (`FIRST`, `LAST`), project titles (`PROJECT_NAMES`), your active cast `ROLES`, and custom `VARS`. 
-2. **`library.json`**: Contains the bulk of the text documents that can be found in each sector.
-3. **`tags.json`**: Defines the metadata/thematic tagging for each sector, dictating what "types" of clues can be spawned there. **Note:** This file is managed automatically by the Archive Editor as part of `library.json` and should not be edited manually.
-4. **`tapes.json`**: Contains the transcripts of audio logs that can be found in the game. Each tape is tagged with a "thread" to determine its relevance to finales.
-5. **`foreshadow.json`**: Contains groups of clues that foreshadow specific finales. 
-6. **`ephemera.json`**: Contains smaller snippets, sticky notes, and environmental storytelling elements, usually found near the exit.
-7. **`finales.json`**: Contains the possible final revelation documents. It is fully dynamic—you can have as many finales as you want! Each finale is an object with an `option` (short summary for the verdict button) and `text` (the full document).
-8. **`threads.json`**: The global thread registry. Maps internal narrative thread tags (e.g., `LOST`) to their evaluated UI presentation (e.g., `THE DISPOSITION OF ${LOST}`).
+1. **`parameters.json`**: The central registry for dynamic variables and names. Contains the pools for randomized character names (`FIRST`, `LAST`), project titles (`PROJECT_NAMES`), your active cast `ROLES`, and custom equation shortcuts (`VARS`). 
+2. **`puzzles.json`**: Defines the "game modes" or end-goals for a playthrough. Each puzzle defines an `ACCESS_CODE` (the logic to calculate the final door code) and `LOCK_THREADS` (the narrative threads the player must find to solve it).
+3. **`library.json`**: Contains the bulk of the text documents that can be found in each sector.
+4. **`tags.json`**: Defines the metadata/thematic tagging for each sector, dictating what "types" of clues can be spawned there. **Note:** This file is managed automatically by the Archive Editor as part of `library.json` and should not be edited manually.
+5. **`tapes.json`**: Contains the transcripts of audio logs that can be found in the game. Each tape is tagged with a "thread" to determine its relevance to lock threads.
+6. **`clues.json`**: Contains puzzle-specific hints. These clues can be optionally bound to a specific Puzzle ID. The engine will only spawn them if their assigned puzzle is rolled for that playthrough.
+7. **`foreshadow.json`**: Contains groups of clues that foreshadow specific finales. 
+8. **`ephemera.json`**: Contains smaller snippets, sticky notes, and environmental storytelling elements, usually found near the exit.
+9. **`finales.json`**: Contains the possible final revelation documents. It is fully dynamic—you can have as many finales as you want! Each finale is an object with an `option` (short summary for the verdict button) and `text` (the full document).
+10. **`threads.json`**: The global thread objective hub. Maps internal narrative thread tags (e.g., `LOST`) to an object containing a `title` and a `description`. These populate the player's PDA journal as actual quest objectives.
 
 ## How it Works
 
 When the game loads, it dynamically fetches all of these JSON files and merges them into memory.
 
-When the player explores the level, `StoryEngine` determines what files should drop in which sector. It cross-references `library.json` and `tags.json` to generate context-appropriate clues.
+When the player explores the level, `StoryEngine` determines what files should drop in which sector. It cross-references `library.json`, `puzzles.json`, and `clues.json` to generate context-appropriate clues that allow the player to solve the current run.
 
 ### Dynamic Tokens
 
 The engine supports dynamic string replacement so that the text adapts to the specific, randomized parameters of the current run. You can safely include the following tokens in your JSON strings:
 
 *   **Cast Tokens**:
-    *   `${c.[role]}`: The procedurally generated name of any role defined in `names.json` `ROLES` (e.g., `${c.lead}`, `${c.scapegoat}`).
-    *   `${[ROLE]}`: The generated name of any role in ALL CAPS (e.g., `${LOST}`, `${SCAPEGOAT}`).
+    *   `${c.[role]}` or `${[role]}`: The procedurally generated full name of any role defined in `parameters.json` `ROLES` (e.g., `${lead}`, `${scapegoat}`).
+    *   `${[ROLE]}`: The generated full name of any role in ALL CAPS (e.g., `${LOST}`, `${SCAPEGOAT}`).
+    *   `${[role].first_name}`: Extracts only the first name of the role (e.g., `${lead.first_name}`).
+    *   `${[role].last_name}`: Extracts only the last name of the role (e.g., `${lead.last_name}`).
+    *   `${first_name}` / `${last_name}`: Pulls a generic, random first or last name from the parameter pools. The parser guarantees that multiple uses of this within the *same document* will render the *same* generic name for consistency!
 *   **Project & World State**:
     *   `${P}`: The randomized project codename (e.g., THRESHOLD, YELLOW FIELD).
     *   `${hrs}`: The number of hours the facility has been isolated (a randomized large number).
     *   `${pen}`: The designated pen number in the impound sector.
     *   `${year}`: The simulated year the site was commissioned.
 *   **Custom Vars & Procedural Math**:
-    *   You can define custom shorthand variables in the `VARS` object of `names.json` (e.g., `"week": "Math.floor(ctx.hours / 168)"`), and then use them in your text as `${week}`.
+    *   You can define custom shorthand variables in the `VARS` object of `parameters.json` (e.g., `"week": "Math.floor(ctx.hours / 168)"`), and then use them in your text as `${week}`.
     *   You can also embed actual JavaScript math evaluations inside the string directly, referencing `ctx` variables. *Example:* `ASYNC REPORT #${ctx.seed * ctx.hours % 666}`.
 
 ## Adding New Content
@@ -44,11 +49,12 @@ To add new documents, you no longer need to edit these files manually! The engin
 3. Use `stop_servers.bat` or `./stop_servers.sh` when you are done to shut down the backend.
 
 The sleek Archive Editor allows you to visually explore the entire data structure:
-* **Dynamic Variable Toolbar**: When editing documents, a toolbar appears above the text area with one-click injection buttons for all of your core variables, custom `ROLES`, and custom `VARS`. It automatically adapts whenever you add new variables to `names.json`!
+* **Dynamic Variable Toolbar**: When editing documents, a toolbar appears above the text area with one-click injection buttons for all of your core variables, custom `ROLES`, and custom `VARS`. It automatically adapts whenever you add new variables to `parameters.json`!
 * **library.json & tapes.json**: Edit the narrative text and seamlessly assign "Thread Tags" inline with autocomplete datalists (the editor manages `tags.json` in the background).
-* **foreshadow.json**: Adding a new entry automatically scaffolds out the required sector keys (`ANNEX`, `ARCHIVE`, etc.).
+* **clues.json**: Assign clues directly to specific puzzles using the Puzzle dropdown so they only spawn when mathematically relevant.
+* **foreshadow.json**: Adding a new entry automatically scaffolds out the required sector keys (`ANNEX`, `ARCHIVE`, etc.). Use the "Dev Note" field on the root group to leave internal comments for your team.
 * **finales.json**: The engine will dynamically recognize any new finale you append using the editor and pull it into the hat on the very next boot. 
-* **names.json & threads.json**: Edit these directly to add new cast members, procedural math shortcuts, or overarching narrative threads without ever touching a line of Javascript.
+* **parameters.json, puzzles.json & threads.json**: Edit these directly to add new cast members, design new game modes/logic, or expand the overarching narrative quests without ever touching a line of Javascript.
 
 ## Tutorial: Creating a Custom Finale Arc
 
@@ -57,13 +63,13 @@ Want to add an entirely new mystery for the player to unravel? Follow these step
 ### 1. Define the Thread
 First, establish the overarching theme of your mystery. 
 - Open `threads.json`.
-- Add a new entry (e.g., Key: `"MOLD"`, Value: `"THE CORRIDORS ARE OVERGROWN"`).
+- Add a new entry and provide a Title (e.g., `"THE CORRIDORS ARE OVERGROWN"`) and a Description to guide the player.
 - This registers the thread with the engine and defines what objective label the player sees when they find evidence.
 
 ### 2. Create the Finale
 Next, write the ultimate revelation.
 - Open `finales.json` and click **+ Add Entry**.
-- Edit the new object to include an `"option"` (the text on the button the player clicks to solve the mystery) and `"text"` (the final document they read).
+- Edit the new object to include an `"option"` (the text on the button the player clicks to solve the mystery) and `"Text"` (the final document they read).
 - *Important:* Note the index of your new finale (e.g., Entry 4).
 
 ### 3. Write the Foreshadowing Clues
@@ -76,5 +82,5 @@ The engine guarantees that specific clues leading to the active finale will spaw
 ### 4. Scatter Additional Evidence
 Finally, pad out the world with supplementary lore.
 - Open `library.json` and `tapes.json` and create new entries.
-- While editing these documents, use the **Thread Tag** input box to assign your new tag (e.g., `MOLD`). 
+- While editing these documents, use the **Thread Tag** input box to assign your new tag. 
 - When the player finds these documents, they will progress your custom thread!

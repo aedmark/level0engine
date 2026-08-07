@@ -5,7 +5,8 @@
     "archivist",
     "lost",
     "engineer",
-    "doctor"
+    "doctor",
+    "staff-member-1"
   ],
   "VARS": "{\n  \"week\": \"Math.floor(ctx.hours / 168)\"\n}",
   "FIRST": [

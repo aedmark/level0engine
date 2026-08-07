@@ -34,10 +34,7 @@ export default class KeypadController {
                 }, 500);
             } else {
                 const lock = this.getStory().lockProgress();
-                const missing = [];
-                if (!lock.cipher) missing.push('RULE');
-                if (!lock.epoch) missing.push('YEAR');
-                if (!lock.pen) missing.push('PEN');
+                const missing = lock.missing ? lock.missing.map(m => m.label) : [];
                 display.innerText = missing.length ? 'DENIED — NO ' + missing.join(' / ') : 'DENIED';
                 display.style.color = "#ff5555";
                 this.acoustics.triggerSomaticEvent('breaker', 1.0, 0.5);
