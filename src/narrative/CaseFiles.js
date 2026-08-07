@@ -95,6 +95,8 @@ export function buildCaseFiles(ctx, data) {
     const library = {};
     const tapes = {};
     const ephemera = {};
+    const laptops = {};
+    const clipboards = {};
 
     const injectItem = (sector, item) => {
         const type = item.type || 'document';
@@ -103,6 +105,12 @@ export function buildCaseFiles(ctx, data) {
         } else if (type === 'note') {
             if (!ephemera[sector]) ephemera[sector] = [];
             ephemera[sector].push(item);
+        } else if (type === 'laptop') {
+            if (!laptops[sector]) laptops[sector] = [];
+            laptops[sector].push(item);
+        } else if (type === 'clipboard') {
+            if (!clipboards[sector]) clipboards[sector] = [];
+            clipboards[sector].push(item);
         } else {
             if (!library[sector]) library[sector] = [];
             library[sector].push(item);
@@ -147,5 +155,5 @@ export function buildCaseFiles(ctx, data) {
         }
     }
 
-    return { library, tapes, finales, ephemera, threads };
+    return { library, tapes, finales, ephemera, threads, laptops, clipboards };
 }

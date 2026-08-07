@@ -2,7 +2,7 @@
   "ANNEX": [
     {
       "text": "[STICKY NOTE]\n\nIf my door is locked and my laptop is here: I have gone to the pens.\n\nIf my door is locked and my laptop is gone: so am I.\n\n— ${c.lost}",
-      "type": "document",
+      "type": "note",
       "thread": "LOST",
       "title": "Gone to the Pens"
     },
@@ -15,17 +15,20 @@
     {
       "text": "${P} RESEARCH REPORT #${ctx.seed * ctx.hours % 666}\nAUTHOR: ${c.lead}\n\nIt doesn't use the doors.\n\nIt doesn't need the doors.\n\nWhy did we build doors?",
       "type": "document",
-      "thread": "GEOMETRY"
+      "thread": "GEOMETRY",
+      "title": "Doors"
     },
     {
       "text": "INTERNAL SMTP SERVER REPORT: UNSENT MAIL\n\nFROM: ${c.lost}\nTO: ${c.lead}\n\nYou keep saying \"containment\" like the word still means something here. I measured my office again last night. It has been growing by four centimeters a week.\n\nI have stopped reporting it because you have stopped reading these!",
-      "type": "document",
-      "thread": "GEOMETRY"
+      "type": "laptop",
+      "thread": "GEOMETRY",
+      "title": "UNSENT MAIL #1"
     },
     {
-      "text": "${P} OBSERVATION REPORT NO. ${100 + (ctx.seed % 800)}\n\nAUTHOR: ${c.lead}\n\nThe architectural shifts are directly proportional to the observer's heart rate.\n\nThe walls might look like they are moving, but they aren't. The space *between( them is... breathing.\n\n${c.lost} disagrees. They have been in the halls ${hrs} hours and I no longer consider their ${c.lost}'s disagreements to be anything but manic delusion, now. They are truly lost.",
+      "text": "${P} OBSERVATION REPORT NO. ${100 + (ctx.seed % 800)}\nAUTHOR: ${c.staff-member-1}\n\nThe architectural shifts are directly proportional to the observer's heart rate.\n\nThe walls might look like they are moving, but they aren't. The space *between( them is... breathing.\n\n${c.lost} disagrees. They have been in the halls ${hrs} hours and I no longer consider their ${c.lost}'s disagreements to be anything but manic delusion, now. They are truly lost.",
       "type": "document",
-      "thread": "GEOMETRY"
+      "thread": "GEOMETRY",
+      "title": "Observation Report #1"
     }
   ],
   "ARCHIVE": [
@@ -44,279 +47,330 @@
     {
       "text": "REQUISITION SLIP # ${ctx.seed}\n\nREQUESTED: 1 (one) additional copy of the floor plan\n\nVERDICT: DENIED\n\nREASON: The floor plan is a living document. Duplication causes local drift. \n\n— ${c.archivist}",
       "type": "document",
-      "thread": "GEOMETRY"
+      "thread": "GEOMETRY",
+      "title": "Floor Plan Request"
     }
   ],
   "INCINERATOR": [
     {
       "text": "[COMBUSTION LOG #${ctx.seed}]\n\n- Burned four (4) carts of ${P} paperwork at hour ${hrs}.\n- Charged weight in: 10.8 kilos.\n- Charged weight out: 11 kilos.\n\nNOTES: I weighed everything twice to confirm the impossible, this time.\n\nWe are burning less paper than we are producing ash.\n\n- ${c.custodian}",
       "type": "document",
-      "thread": "HUM"
+      "thread": "HUM",
+      "title": "Combustion Log #1"
     },
     {
       "type": "tape",
-      "text": "TAPE — INCINERATOR, GALLERY 2: [ROAR OF COMBUSTION, THEN IT DROPS OUT ENTIRELY] ...hour ${hrs}. ${c.archivist} was right. Kill the burners and the sound underneath them doesn't stop. It isn't a machine. It's a lung. [STATIC]",
-      "thread": "HUM"
+      "text": "[ROAR OF COMBUSTION, THEN IT DROPS OUT ENTIRELY]\n\n...hour ${hrs}.\n\n${c.archivist} was right.\nKill the burners and the sound underneath them doesn't stop.\nIt isn't a machine.\n\nIt's a lung.\n\n[STATIC]",
+      "thread": "HUM",
+      "title": "Lung Burner"
     },
     {
       "text": "FLUE INSPECTION #${ctx.seed}\n\nSTATUS: DEFERRED\n\nNOTES: The stack runs eleven levels on the drawing and only nine in the facility.\n\nContractor says the drawing is wrong because Contractor has already been paid.\n\nI have measured the outside and inside of this structure twice now and I would like someone to tell me which two floors I am actually standing between, and which two floors are missing.",
       "type": "document",
-      "thread": "GEOMETRY"
+      "thread": "GEOMETRY",
+      "title": "Flue Inspection"
     },
     {
-      "text": "SCRAP INTAKE FORM #${ctx.seed}\n\nITEM: Original boiler plate cut out of gallery 1 today.\nDESCRIPTION: Foundry stamp on the back reads ${year}, same as the slab, and it went in before the walls did. Logged for melt, but I did not melt it. I can't.\n\nIt won't melt.",
+      "text": "SCRAP INTAKE #${ctx.seed}\n\nITEM: Original boiler plate cut out of gallery 1 today.\nDESCRIPTION: Foundry stamp on the back reads ${year}, same as the slab, and it went in before the walls did. Logged for melt, but I did not melt it. I can't.\n\nIt won't melt.",
       "type": "document",
-      "thread": "EPOCH"
+      "thread": "EPOCH",
+      "title": "Scrap Intake #1"
     }
   ],
   "BOARDROOM": [
     {
-      "text": "[PERFORMANCE NOTE]\n\nSUBJECT: ${c.lost}\n\nDESCRIPTION: Subject's last review was flagged as ab \"excessive interest in the building itself.\"\n\nSubject was then reassigned to the pens. Suspiciously, the subject had requested the reassignment in writing, in advance, before it was even proposed by HQ.\n\nSigned,\nCHIEF DEPUTY ~~REDACTED~~",
-      "type": "document",
-      "thread": "LOST"
+      "text": "[PERFORMANCE NOTE]\n\nSUBJECT: ${c.lost}\n\nDESCRIPTION: Subject's last review was flagged as an \"excessive interest in the building itself.\"\n\nSubject was then reassigned to the pens. Suspiciously, the subject had requested the reassignment in writing, in advance, before it was even proposed by HQ.\n\nSigned,\nCHIEF DEPUTY OFFICER\n~~REDACTED~~",
+      "type": "laptop",
+      "thread": "LOST",
+      "title": "Excessive Interest"
     },
     {
       "type": "tape",
-      "text": "TAPE — BOARDROOM, UNDER THE TABLE: [TWELVE CHAIRS BEING PULLED OUT, COUNTED ALOUD] ...eleven. [PAUSE] Eleven of us came in. Somebody sit down and tell me why I keep hearing twelve. [CLICK]",
-      "thread": "GEOMETRY"
+      "text": "[TWELVE CHAIRS BEING PULLED OUT, COUNTED ALOUD]\n\n...eleven.\n\n[PAUSE]\n\nEleven of us just stood up.\nEverybody sit down and please explain to me why I just heard twelve of you stand.\n\n[CLICK]",
+      "thread": "GEOMETRY",
+      "title": "Musical Chairs"
     },
     {
       "text": "QUARTERLY REVIEW MINUTES, PROJECT ${P}\nCHAIR: ${c.lead}\n\nMotion to extend the perimeter survey: carried.\nMotion to extend it again after the first survey returned a different perimeter: carried.\nMotion to stop surveying: carried unanimously, and nobody would clarify further.\n\nMotion for lunch: carried.",
       "type": "document",
-      "thread": "GEOMETRY"
+      "thread": "GEOMETRY",
+      "title": "Quarterly Review"
     },
     {
-      "text": "[SEATING CHART, AMENDED IN PENCIL]\n\nThe chart shows twelve chairs, but there are only eleven names on the roster. The twelfth was never assigned a member, but it has never been empty at the start of a meeting. ${c.lead} asked us to stop counting, because nobody can figure out who isn't supposed to be there.",
-      "type": "document",
-      "thread": "GEOMETRY"
+      "text": "[SEATING CHART, AMENDED IN PENCIL]\n\nThe chart shows twelve chairs, but there are only eleven names on the roster. The twelfth was never assigned a member, but it has never been empty at the start of a meeting.\n\n${c.lead} asked us to stop counting, because nobody can figure out who isn't supposed to be there.",
+      "type": "note",
+      "thread": "GEOMETRY",
+      "title": "Seating Chart"
     },
     {
       "text": "[POLAROID PHOTO]: A concrete slab being poured.\n\nWRITTEN ON BACK:  \"To New Beginnings\", ${year}",
-      "type": "document",
-      "thread": "EPOCH"
+      "type": "note",
+      "thread": "EPOCH",
+      "title": "Pour Photo"
     }
   ],
   "SERVER": [
     {
       "text": "OUTBOUND TRAFFIC SUMMARY [UNSIGNED]\n\nSustained upstream at hour ${hrs} with no session open and no user logged.\n\nPayload is not encrypted, but nothing decipherable, either.\n\nThe carrier tone sits at the same frequency as the fan wash and I only found it because I turned the fans OFF and it was still there.",
-      "type": "document",
-      "thread": "HUM"
+      "type": "note",
+      "thread": "HUM",
+      "title": "Traffic Note"
     },
     {
-      "text": "[HANDWRITTEN NOTE]\n\nDo not reboot Rack 9. I know what the ticket says; ignore it!\n\nIt has been turned off since we opened and it is STILL hot. \n\n— ${c.custodian}",
-      "type": "document",
-      "thread": "HUM"
+      "text": "[HANDWRITTEN NOTE]\n\nDo not reboot Rack 09. I know what the ticket says; ignore it!\n\nIt has been turned off since we opened and it is STILL hot. \n\n— ${c.custodian}",
+      "type": "note",
+      "thread": "HUM",
+      "title": "Rack 09"
     },
     {
       "type": "tape",
-      "text": "TAPE — SERVER FARM, COLD AISLE: [FAN WASH, THEN SUDDEN SILENCE AS IT IS CUT] ...there. Fans are off. You can hear it now. That's not cooling. That's a carrier and it's been under the fan noise this whole time. [STATIC]",
-      "thread": "HUM"
+      "text": "[FAN WASH, THEN SUDDEN SILENCE AS IT IS CUT]\n\n...there.\n\nFans are off. You can hear it now.\n\nThat's not cooling.\n\nThat's a carrier and it's been under the fan noise this whole time.\n\n[STATIC]",
+      "thread": "HUM",
+      "title": "Cooling Fan"
     },
     {
       "text": "THERMAL EXCEPTION REPORT: RACK 14\n\nThe cold aisle is holding, and the hot aisle is holding, but the bugger room between them is four degrees warmer than either, which is not a thing thermodynamics are allowed to do.\n\nFiled with facilities. Facilities filed it back with no notes.\n\n-${c.custodian}",
-      "type": "document",
-      "thread": "GEOMETRY"
+      "type": "laptop",
+      "thread": "GEOMETRY",
+      "title": "Cold Aisle"
     }
   ],
   "CHECKPOINT": [
     {
       "text": "CHECKPOINT GATE LOG, LANE #3\n\n${hrs}: ${c.lost} scanned IN.\nNo corresponding OUT.\n\nLane #3 has processed forty-one OUT scans since, against forty IN.\n\n${c.archivist} says the discrepancy is likely just a rounding error.\n\nA human disappearing is not something that can be explained away as a \"rounding error.\" ...Can it?",
       "type": "document",
-      "thread": "LOST"
+      "thread": "LOST",
+      "title": "Gate Log 1"
     },
     {
       "text": "[LAMINATED NOTE]\n\nCount your gear on the way back. If you return with a suit you did not leave with, hang it up and say nothing.\n\nIf you return with two, come find me.\n\n— ${c.custodian}",
-      "type": "document",
-      "thread": "LOST"
+      "type": "note",
+      "thread": "LOST",
+      "title": "Gear Note"
     },
     {
       "type": "tape",
-      "text": "TAPE — CHECKPOINT, LANE 3 BOOTH: [GATE CYCLING REPEATEDLY, NOBODY PASSING] ...forty-one out, forty in, and the gate is still counting. ${c.lost} scanned in at hour ${hrs} and the machine still thinks they're inside. So do I. [CLICK]",
-      "thread": "LOST"
+      "text": "[GATE CYCLING REPEATEDLY, NOBODY PASSING]\n\n...forty-one out, forty in, and the gate is still counting. \n\n${c.lost} scanned in at hour ${hrs} and the machine still thinks they're inside.\n\nSo do I.\n\n[CLICK]",
+      "thread": "LOST",
+      "title": "41 In, 40 Out"
     },
     {
       "text": "[PHOTOGRAPH]\n\nA commissioned brass plaque, mounted inside lane 1, unpolished since installation.\n\n\"EST ${year}\"\n\nThe plaque is the only date on site that has never been revised or redacted.",
-      "type": "document",
-      "thread": "EPOCH"
+      "type": "note",
+      "thread": "EPOCH",
+      "title": "Plaque Photo"
     }
   ],
   "ATRIUM": [
     {
       "text": "LOST PROPERTY SLIP: BALCONY, TIER 9\n\nFOUND: One (1) staff badge, ${c.lost}, face down on a table set for two.\n\nNOTE: Tier 9 has no stairs, no lift and no floor plan entry. \n\nThis slip was filed by ${c.custodian}, who declines to say how they got up there.",
       "type": "document",
-      "thread": "LOST"
+      "thread": "LOST",
+      "title": "Lost Property"
     },
     {
       "text": "[PA ANNOUNCEMENT, TRANSCRIBED]\n\n\"The atrium will close in fifteen minutes.\"\n\nNOTE: Plays at five minute intervals, but has never once counted down from fifteen.\n\n${c.archivist} timed it against the hum and they are the same wavelength frequency.",
-      "type": "document",
-      "thread": "HUM"
+      "type": "note",
+      "thread": "HUM",
+      "title": "PA Announcement"
     },
     {
       "type": "tape",
-      "text": "TAPE — ATRIUM, BALCONY TIER 9: [A CART WHEEL TICKING, FAR BELOW] ...I walked up. That's the part I need on record. There is no stair to this tier and I walked up, and I can see the aisles from here, and they are not where the planogram says. [CLICK]",
-      "thread": "GEOMETRY"
+      "text": "[A CART WHEEL TICKING, FAR BELOW]\n\n...I walked up.\n\nThat's the part I need on record.\n\nThere is no stair to this tier and I walked up, and I can see the aisles from here, and they are not where the planogram says.\n\n\n[CLICK]",
+      "thread": "GEOMETRY",
+      "title": "Planogram Tiers"
     },
     {
-      "text": "SHELF PLANOGRAM: REVISION 6\n\nAisles run north to south on the current plan. I have tried to have them run east to west since the second revision, but I have stopped issuing revisions because, no matter what, the aisles are not being moved. \n\nThe plan is being corrected, after the fact, by somebody who gets here before I do.\n\nI give up!\n\n- ${c.archivist}",
+      "text": "SHELF PLANOGRAM: REVISION #6\n\nAisles run north to south on the current plan. I have tried to have them run east to west since the second revision, but I have stopped issuing revisions because, no matter what, the aisles are not being moved. \n\nThe plan is being corrected, after the fact, by somebody who gets here before I do.\n\nI give up!\n\n- ${c.archivist}",
       "type": "document",
-      "thread": "GEOMETRY"
+      "thread": "GEOMETRY",
+      "title": "Revision #6"
     }
   ],
   "CLINIC": [
     {
       "text": "[INTAKE FORM, INCOMPLETE]\n\nPATIENT: ${c.lost}\nPRESENTING: \"Spatial disagreement.\"\n\nNOTES: Patient could describe the route here accurately but could not walk it twice. Patient was calm about this.\n\nI was not.",
       "type": "document",
-      "thread": "LOST"
+      "thread": "LOST",
+      "title": "Spatial Disagreement"
     },
     {
       "text": "[AUDIOLOGY REFERRAL]\n\nSTATUS: DECLINED\n\nREASON: Six staff reporting a persistent low tone. All six pass the hearing screen. The tone is not in their ears.\n\nI have written that sentence four times now and it does not get easier to file, because I hear it too but cannot tell where it is coming from.",
-      "type": "document",
-      "thread": "HUM"
+      "type": "note",
+      "thread": "HUM",
+      "title": "Unknowable Hum"
     },
     {
       "text": "[WARD ROUNDS: HOUR ${hrs}]\n\nBed four's chart updates overnight in handwriting that matches ${c.lost}'s.\n\nJust thought somebody should know.\n\n- ${c.lead}",
-      "type": "document",
-      "thread": "LOST"
+      "type": "note",
+      "thread": "LOST",
+      "title": "Ward Rounds"
     },
     {
       "type": "tape",
-      "text": "TAPE — CLINIC: [STATIC] Unintelligible whispering. [CLICK]",
-      "thread": "UNCLASSIFIED"
+      "text": "[STATIC]\n\n[Unintelligible whispering]\n\n[CLICK]",
+      "thread": "HUM",
+      "title": "Whispering"
     },
     {
       "text": "[DISCHARGE NOTE, RETURNED UNDELIVERABLE]\n\nPATIENT: ${c.lost}\nFORWARDING ADDRESS AS GIVEN BY PATIENT: \"Pen ${pen}. It's the one that won't shut. Leave it.\"\n\nPatient gave this address on intake, before the pen was even logged as open.",
-      "type": "document",
-      "thread": "PEN"
+      "type": "note",
+      "thread": "PEN",
+      "title": "Pen Discharge Note"
     }
   ],
   "MAINTENANCE": [
     {
-      "text": "[DUCT INSPECTION, SECTION 12]\n\nThe return line carries a tone at the far end that does not come from any plant on the drawing\n\nCut the fans, tone stays. Cut the power, tone stays.\n\nCut the shit, I say!",
-      "type": "document",
-      "thread": "HUM"
+      "text": "[DUCT INSPECTION, SECTION 12]\n\nThe return line carries a tone at the far end that does not come from any plant on the drawing\n\nCut the fans, tone stays.\n\nCut the power, tone stays.\n\nCut the shit, *I* say!",
+      "type": "laptop",
+      "thread": "HUM",
+      "title": "Cut the Shit"
     },
     {
       "type": "tape",
-      "text": "TAPE — MAINTENANCE: [STATIC] Unintelligible whispering. [CLICK]",
-      "thread": "UNCLASSIFIED"
+      "text": "[STATIC]\n\n[Unintelligible whispering]\n\n[Blood Curdling Scream]\n\n[Random Synth Tone Melody]\n\n[CLICK]",
+      "thread": "LOST",
+      "title": "Random Tones"
     },
     {
       "text": "[SHAFT SURVEY]\n\nI ran the tape down and it read one hundred and six meters. Ran it again back up the other way and it suddenly read ninety-eight.\n\nSame tape, same shaft, same afternoon.\n\nUnfortunately, I can't file a work order against with faulty arithmetic.",
       "type": "document",
-      "thread": "GEOMETRY"
+      "thread": "GEOMETRY",
+      "title": "Shaft Survey"
     }
   ],
   "CHASM": [
     {
       "text": "[RAIL NOTICE, WIRED TO THE HANDRAIL]\n\nDo not lean out and look for the bottom.\n\nThere is one. That is not the problem. \n\nThe problem is how long you will stand there once you have found it.\n\n— ${c.custodian}",
-      "type": "document",
-      "thread": "LOST"
+      "type": "note",
+      "thread": "LOST",
+      "title": "Rail Notice"
     },
     {
       "text": "[SIGHTING REPORT: CHASM LEVEL]\n\n${c.custodian} reports a figure on the opposing catwalk at hour ${hrs}, matching ${c.lost}, moving away and unhurried. Opposing catwalk was struck for scrap before the site opened. Its anchors are still in the wall, but is otherwise inaccessible.\n\n-${c.lead]",
       "type": "document",
-      "thread": "LOST"
+      "thread": "LOST",
+      "title": "Chasm Sighting"
     },
     {
       "type": "tape",
-      "text": "TAPE — CHASM: [STATIC] Unintelligible whispering. [CLICK]",
-      "thread": "UNCLASSIFIED"
+      "text": "[STATIC]\n\nTHE LIGHTS HURT MY SKIN!\n\n[CLICK]",
+      "thread": "LOST",
+      "title": "The LIGHTS"
     },
     {
       "text": "[CATWALK LOAD CERTIFICATION, VOIDED]\n\nNOTICE: Span was certified at twenty-two metres. Actual span measures thirty-one under load and twenty-two unloaded, which is backwards, and I would like that noted and addressed before anybody walks on it again.",
-      "type": "document",
-      "thread": "GEOMETRY"
+      "type": "laptop",
+      "thread": "GEOMETRY",
+      "title": "Catwalk Verification"
     }
   ],
   "DEFAULT": [
     {
       "text": "[INCIDENT LOG]\n\nSubject exhibited extreme paranoia after ${hrs} hours. Claimed the hum of the fluorescent lights was a linguistic sequence.\n\nWe cut the power, but the humming didn't stop.\n\nNeither did the subject's delusions.",
       "type": "document",
-      "thread": "HUM"
+      "thread": "HUM",
+      "title": "Hum Incident"
     },
     {
       "text": "[MEMO]\n\nIf you hear it scraping, stand still.\n\nIf you hear it breathing, turn off the light.\n\nIf you hear it laughing, close your eyes.",
-      "type": "document",
-      "thread": "HUM"
+      "type": "note",
+      "thread": "GEOMETRY",
+      "title": "Warning"
     },
     {
       "text": "${c.lead} says the exits are a motivational tool.\n${c.archivist} says the exits are load-bearing.\n\n${c.lost} said the exits are a rumor the building spreads about itself.\n${c.lost} was smiling when they said it. \n\nNobody has seen that smile since.",
-      "type": "document",
-      "thread": "LOST"
+      "type": "note",
+      "thread": "LOST",
+      "title": "Paranoid Memo"
     },
     {
-      "text": "MAINTENANCE REQUEST\nFILED BY: ${c.custodian}\n\nPlease send someone to Level 0. The carpet is damp again. Also, stop leaving geometry in the negative coordinate space.",
-      "type": "document",
-      "thread": "GEOMETRY"
+      "text": "MAINTENANCE REQUEST\nFILED BY: ${c.custodian}\n\nPlease send someone to Level 0. The carpet is damp again.\n\nAlso, stop leaving geometry in the negative coordinate space.",
+      "type": "laptop",
+      "thread": "GEOMETRY",
+      "title": "Negative Space Complaint"
     },
     {
       "text": "[CAFETERIA NOTICE]\n\nThe almond water is not a beverage.\n\nThe almond water is a countermeasure.\n\nRation accordingly.\n\n— ${c.custodian}",
-      "type": "document",
-      "thread": "GEOMETRY"
+      "type": "note",
+      "thread": "GEOMETRY",
+      "title": "Cafeteria Notes"
     }
   ],
   "IMPOUND": [
     {
       "type": "tape",
-      "text": "TAPE — IMPOUND, PEN ${pen}: [CHAINLINK SHIVERING] ...I found ${c.lost}'s recorder in the cage. It's still spinning. There's no tape inside it. I'm recording this onto the outside of that, somehow. [CLICK]",
-      "thread": "LOST"
+      "text": "[CHAINLINK SHIVERING]\n\n...I found ${c.lost}'s recorder in the cage.\nIt's still spinning.\nThere's no tape inside it.\nI'm recording this onto the outside of that, somehow.\n\n[CLICK]",
+      "thread": "LOST",
+      "title": "Lost Recorder"
     },
     {
       "text": "PROPERTY TAG: PEN #${pen}1\n\nITEM: Office chair, one (1) caster missing.\n\nNOTES: No matter where it is goes, it comes back to its pen by morning.\n\nWe've stopped chasing it; the fence holds.\n\n- ${c.custodian}",
-      "type": "document",
-      "thread": "GEOMETRY"
+      "type": "clipboard",
+      "thread": "GEOMETRY",
+      "title": "Office Chair"
     },
     {
       "text": "IMPOUND LEDGER, FINAL PAGE\n\nHour ${hrs}: ${c.custodian} logged IN one (1) personal effect belonging to ${c.lost}.\n\nHour ${hrs}: ${c.custodian} logged OUT.\n\nThere is no second entry. The gate to pen ${pen} has been ajar since.",
       "type": "document",
-      "thread": "PEN"
+      "thread": "PEN",
+      "title": "Lost Ledger"
     },
     {
       "text": "PROPERTY TAG: PEN #${pen}\n\nITEM: One (1) wedding ring, still warm.\nOWNER: ${c.lost}\n\nCLAIM STATUS: OPEN\n\nNOTES: MUST BE CLAIMED IN PERSON.",
-      "type": "document",
-      "thread": "PEN"
+      "type": "clipboard",
+      "thread": "PEN",
+      "title": "Wedding Ring"
     }
   ],
   "EXIT": [
     {
       "text": "CUSTODIAL SHIFT ROTA: EXTRACTION POINT, ${ctx.siteYear + 25}, WEEK 12\n\nMON  ${c.custodian}\nTUE  ${c.custodian}\nWED  ${c.custodian}\nTHU  ${c.custodian}\nFRI  ${c.custodian}\n\n[In the margin, different pen]: \"I have asked four times for a second name on this list.\"",
       "type": "note",
-      "thread": "UNCLASSIFIED"
+      "thread": "EPHEMERA",
+      "title": "Custodial Shifts"
     },
     {
       "text": "COFFEE FUND HONESTY BOX\n\nBalance carried forward: $340.03\nContributions this month: $0.00\nWithdrawals this month: $0.00\n\n[Taped Underneath]: \"Nobody has taken any and nobody has added any since ${c.lost} stopped showing up. I refuse to close the account.\"",
       "type": "note",
-      "thread": "UNCLASSIFIED"
+      "thread": "EPHEMERA",
+      "title": "Coffee Fund"
     },
     {
       "text": "**LAMINATED INSTRUCTIONS, WALL-MOUNTED BESIDE THE CAR**\n\nDEBRIEF SCRIPT — READ ALOUD, DO NOT PARAPHRASE!\n\n1. \"You are at the extraction point.\"\n2. \"You are going up.\"\n3. \"Do not describe what you saw until you are asked.\"\n4. [This entry has been violently scratched out.]",
       "type": "note",
-      "thread": "UNCLASSIFIED"
+      "thread": "EPHEMERA",
+      "title": "Debrief Script"
     },
     {
       "text": "BIRTHDAY CARD, UNSEALED\n\nFront: a cartoon of a filing cabinet wearing a party hat.\n\nInside, eleven signatures in eleven different pens, and under them in ${c.archivist}'s hand: \"Many happy returns, and I mean RETURNS, ${c.custodian}.\n\nSign yourself out this time.\"",
       "type": "note",
-      "thread": "UNCLASSIFIED"
+      "thread": "EPHEMERA",
+      "title": "Birthday Card"
     },
     {
       "text": "MAINTENANCE COMPLAINT: CAR MUSIC\n\nThe hold music in the elevator car is nine seconds long and loops with a click. Over a full ascent you will hear it four hundred times. I have submitted this complaint eleven times.\n\nIt is nine seconds. Four hundred times nine is infinity. Or at least it might as well be.\n\nPlease.\n\n- ${c.custodian}",
       "type": "note",
-      "thread": "UNCLASSIFIED"
+      "thread": "EPHEMERA",
+      "title": "Maintenance Complaint"
     },
     {
       "text": "LOST AND FOUND — EXTRACTION DESK\n\n1 × reading glasses, lens cracked\n1 × wedding ring, cold\n3 × single gloves, all left hand\n1 × cassette, unlabelled, snapped\n2 × mug, identical, both chipped in the same place\n\nUnclaimed items are held ninety days and then held indefinitely, because nobody has ever come to the desk.",
       "type": "note",
-      "thread": "UNCLASSIFIED"
+      "thread": "EPHEMERA",
+      "title": "Lost and Found"
     },
     {
-      "text": "TAPED INSIDE THE SUPPLY LOCKER, HAND-DRAWN\n\nA six-panel diagram showing how to fold a hazmat suit so it fits the shelf. Panel five is just an arrow and the word \"PATIENCE.\" Panel six is the folded suit, drawn with visible pride, and initialled.",
+      "text": "TAPED INSIDE THE SUPPLY LOCKER, HAND-DRAWN\n\nA six-panel diagram showing how to fold a hazmat suit so it fits the shelf. Panel five is just an arrow and the word \"PATIENCE.\"\n\nPanel six is the folded suit, drawn with visible pride, and initialed.",
       "type": "note",
-      "thread": "UNCLASSIFIED"
+      "thread": "EPHEMERA",
+      "title": "Hazmat Diagram"
     },
     {
-      "text": "NOTE LEFT ON THE EXTRACTION CONSOLE\nFROM: ${c.custodian}\n\nIf you are reading this you got out, which means you got further than most and further than me. There is water in the locker. Take it, it is not rationed up here.\n\nI keep this desk. It is the only part of the building I am sure of. Go up.",
+      "text": "If you are reading this you got out, which means you got further than most and further than me. There is water in the locker. Take it, it is not rationed up here.\n\nI keep this desk. It is the only part of the building I am sure of. Go up.\n\n- ${c.custodian}",
       "type": "note",
-      "thread": "UNCLASSIFIED"
+      "thread": "EPHEMERA",
+      "title": "Extraction Note"
     }
   ]
 }

@@ -4,13 +4,15 @@
       "text": "IT BULLETIN # ${ctx.seed * (3 + ctx.siteYear) % 420}\nFROM: FACILITIES\n\nThe records room lock has been reset AGAIN and I am NOT posting the number, this time.\n\nYou're going to have to work for it. Just remember that the combination is built the way it has always been built: the year the slab was poured +  the impound number of the pen that will not stay shut.\n\nTwo digits each, stitched together.\n\nIf you do not know both halves you have no business in that room.\n\n- ${c.custodian}",
       "type": "document",
       "thread": "CIPHER",
-      "puzzle": "ORIGINAL_PEN"
+      "puzzle": "ORIGINAL_PEN",
+      "title": "IT Bulletin: PEN"
     },
     {
       "text": "[EMERGENCY PROTOCOL MEMO]\n\nDO NOT USE THE POUR YEAR. The architectural shift has desynchronized the locks.\n\nThe new override protocol is the elapsed HOURS since incident, followed by the OPEN PEN.\n\nTwo digits each, in that exact order. Watch the clock. Do not get trapped.",
       "type": "document",
       "thread": "CIPHER",
-      "puzzle": "HOUR_PUZZLE"
+      "puzzle": "HOUR_PUZZLE",
+      "title": "PEN + HOUR Variant"
     }
   ],
   "ARCHIVE": [
@@ -18,19 +20,22 @@
       "type": "tape",
       "text": "[PAGES TURN, THEN CLOSE BREATHING]\n\n...the codes were never to keep us out.\nThe records lock is the pour year and the open pen, two digits each, and I am saying it out loud onto tape because paper here gets reclassified and I have watched it happen.\n\n[CLICK]",
       "thread": "CIPHER",
-      "puzzle": "ORIGINAL_PEN"
+      "puzzle": "ORIGINAL_PEN",
+      "title": "PEN Tape"
     },
     {
       "text": "BURN ORDER, PARTIAL RECORD NO. QR${(ctx.seed + c.hrs) * 3)-${P}\nAUTHORIZED: ${c.lead}\n\nPlease sanitize all ${P} correspondence prior to hour ${hrs}. The crew asked me for the records room number and I told them what I tell everyone: it is the pour year and the open pen, two digits apiece, and I am not doing the sum for them.\n\nIf something wants to be read before it gets burned and it will not be by me.",
       "type": "document",
       "thread": "CIPHER",
-      "puzzle": "ORIGINAL_PEN"
+      "puzzle": "ORIGINAL_PEN",
+      "title": "Burn Order"
     },
     {
       "type": "tape",
       "text": "[STATIC, FAST FOOTSTEPS]\n\n...they changed it. The year doesn't work anymore. \nThe building knows how long we've been in here.\nIt's the hours.\nHours and the pen.\n\n[CLICK]",
       "thread": "CIPHER",
-      "puzzle": "HOUR_PUZZLE"
+      "puzzle": "HOUR_PUZZLE",
+      "title": "HOUR Tape"
     }
   ],
   "INCINERATOR": [
@@ -38,7 +43,8 @@
       "text": "[HANDWRITTEN NOTE]\n\nIT IS THE POUR AND THE PEN.\nTWO DIGITS EACH.\nIN THAT ORDER.\n\nSTOP ASKING.\n\nP.S. PLEASE STOP BRINGING YOUR SEALED BOXES DOWN HERE. WE HAVE NO MORE ROOM LEFT TO BURN THEM.",
       "type": "document",
       "thread": "CIPHER",
-      "puzzle": "ORIGINAL_PEN"
+      "puzzle": "ORIGINAL_PEN",
+      "title": "Angry Note"
     }
   ],
   "CHECKPOINT": [
@@ -49,7 +55,8 @@
       "puzzle": [
         "ORIGINAL_PEN",
         "HOUR_PUZZLE"
-      ]
+      ],
+      "title": "Irritated memo"
     }
   ],
   "MAINTENANCE": [
@@ -57,7 +64,8 @@
       "text": "KEY CABINET AUDIT\nFROM: ${c.custodian}\n\nEvery key accounted for.\n\nThe records room is not on this list because it does not take a key, it takes the sum of this equation: the year of the pour and the pen standing open, two digits each.\n\nI have never once written the answer down and I am not starting now",
       "type": "document",
       "thread": "CIPHER",
-      "puzzle": "ORIGINAL_PEN"
+      "puzzle": "ORIGINAL_PEN",
+      "title": "Key Audit"
     }
   ]
 }

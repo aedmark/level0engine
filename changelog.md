@@ -1,5 +1,22 @@
 # Level 0 Engine Changelog
 
+## [v0.9.0] - 2026-08-07
+
+_The Unified Lore Update_
+
+### Added
+
+- **[WORLD] Unified Lore Architecture:** Replaced the sprawling array of scattered JSON files (`library.json`, `tapes.json`, `ephemera.json`, `tags.json`) with a single, consolidated `lore.json` file. The `StoryEngine` now ingests this unified payload and intelligently buckets narrative fragments based on their assigned `type`.
+- **[TOOLING] Lore Type Taxonomy:** Upgraded the Archive Editor to support a new `type` property dropdown when creating/editing entries in `lore.json`. Content creators can now explicitly designate text as a Document, Tape, Note, Laptop / Terminal, or Clipboard / Tag, directly dictating how the world generator physically instantiates it in the environment.
+- **[WORLD] Data-Driven Rendering:** Updated the in-game UI logic (e.g. `DocumentViewer.js`) to decouple visual rendering (like the clipboard overlay) from hardcoded sector location checks. The rendering logic now natively respects the data fragment properties injected by the StoryEngine.
+- **[TOOLING] Dynamic How-To Guide:** Overhauled the Archive Editor's empty welcome screen. The editor now dynamically fetches and renders a comprehensive, Markdown-based tutorial (`HowTo.md`) on the home screen, explaining exactly how the story engine logic flows and how data compiles.
+
+### Fixed
+
+- **[TOOLING] List View Rendering:** Fixed an oversight in the Archive Editor where opening array-based files (like `parameters.json`) would immediately auto-select the first index rather than cleanly rendering the full top-level list of categories.
+- **[TOOLING] Input Field Stretching:** Fixed a CSS quirk where parameter input text boxes would aggressively expand to fill the entire width of the canvas. They now elegantly shrink-to-fit their character length.
+- **[WORLD] Impound Tags Routing:** Fixed an issue where the `StoryEngine` was looking for `CLIPBOARD_` prefixes to supply the Impound sector, while the actual procedural generator was requesting `TAG_` prefixes.
+
 ## [v0.8.4] - 2026-08-06
 
 _The Microsector Update_

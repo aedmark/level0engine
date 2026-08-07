@@ -8,7 +8,13 @@
     "doctor",
     "staff-member-1"
   ],
-  "VARS": "{\n  \"week\": \"Math.floor(ctx.hours / 168)\"\n}",
+  "VARS": {
+    "week": "Math.floor(ctx.hours / 168)",
+    "EPOCH": "ctx.year",
+    "PEN": "ctx.pen",
+    "CIPHER": "ctx.cipher",
+    "HOUR": "ctx.hours"
+  },
   "FIRST": [
     "Marion",
     "Edward",

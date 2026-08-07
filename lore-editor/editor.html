@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Archive Editor</title>
+    <title>Level 0 Lore Editor</title>
     <style>
         :root {
             --bg-dark: #050505;
@@ -248,13 +248,23 @@
 
         /* Welcome Message */
         #welcome-msg {
-            flex: 1; display: flex; align-items: center; justify-content: center; text-align: center;
+            flex: 1; display: flex; align-items: flex-start; justify-content: center; text-align: left;
+            overflow-y: auto; padding: 40px;
         }
-        #welcome-msg .icon-box {
-            width: 64px; height: 64px; background: rgba(255,255,255,0.05); border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        #welcome-msg-content {
+            max-width: 800px; width: 100%;
+            background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px; padding: 32px;
+            font-family: var(--font-mono); font-size: 0.875rem; line-height: 1.6; color: var(--text-muted);
         }
-        #welcome-msg h2 { font-size: 1.25rem; font-weight: 500; margin-bottom: 8px; }
-        #welcome-msg p { font-size: 0.875rem; color: var(--text-muted); font-family: var(--font-mono); max-width: 320px; line-height: 1.6; }
+        #welcome-msg-content h1, #welcome-msg-content h2, #welcome-msg-content h3 {
+            color: var(--text-main); margin-top: 24px; margin-bottom: 12px;
+        }
+        #welcome-msg-content h3 { color: var(--accent-orange); }
+        #welcome-msg-content p { margin-bottom: 16px; }
+        #welcome-msg-content strong { color: white; }
+        #welcome-msg-content code { background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; }
+        #welcome-msg-content ul, #welcome-msg-content ol { margin-left: 20px; margin-bottom: 16px; }
+        #welcome-msg-content li { margin-bottom: 8px; }
 
         .help-icon {
             display: inline-flex; align-items: center; justify-content: center;
@@ -269,6 +279,7 @@
             margin-top: 4px; margin-bottom: 8px; display: block;
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
     <div id="app">
@@ -278,7 +289,7 @@
         <!-- Sidebar -->
         <aside class="sidebar-main">
             <div class="sidebar-header">
-                <h1><div class="status-dot"></div> Archive Editor</h1>
+                <h1><div class="status-dot"></div> Level 0 Lore Editor</h1>
                 <p>System Override</p>
             </div>
             <div class="file-list" id="file-list">
@@ -290,26 +301,9 @@
         <!-- Main Content -->
         <main class="editor-section">
             <!-- Welcome -->
-            <div id="welcome-msg" style="flex-direction: column;">
-                <div>
-                    <div class="icon-box">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#4b5563;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                    </div>
-                    <h2>Awaiting Input</h2>
-                    <p style="max-width: 500px;">Select a data node from the archive to begin modification.</p>
-                </div>
-                
-                <div style="margin-top: 48px; max-width: 600px; text-align: left; background: rgba(255,255,255,0.03); padding: 24px; border-radius: 12px; border: 1px solid var(--border);">
-                    <h3 style="font-size: 1rem; margin-bottom: 16px; color: var(--accent-amber); display: flex; align-items: center; gap: 8px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                        Editor Guidelines
-                    </h3>
-                    <ul style="font-size: 0.875rem; color: var(--text-muted); font-family: var(--font-mono); padding-left: 20px; line-height: 1.6;">
-                        <li style="margin-bottom: 12px;"><strong style="color: #d1d5db;">⚙️ System Parameters:</strong> Define variables, names, and global game logic. System variables can be injected into text fields using <code>${var}</code> syntax.</li>
-                        <li style="margin-bottom: 12px;"><strong style="color: #d1d5db;">🔐 Lock Mechanics:</strong> Entries in <code>clues.json</code> MUST use the CIPHER or TELL threads, and link directly to locks defined in <code>puzzles.json</code>.</li>
-                        <li style="margin-bottom: 12px;"><strong style="color: #d1d5db;">🎬 Exit Conditions:</strong> <code>foreshadow.json</code> and <code>finales.json</code> are tightly coupled. Foreshadowing texts provide location-specific hints that ultimately lead players to the corresponding finale options.</li>
-                        <li><strong style="color: #d1d5db;">🌍 World Building:</strong> Entries in <code>lore.json</code> add general world flavor and CANNOT use the CIPHER or TELL threads to prevent confusing players.</li>
-                    </ul>
+            <div id="welcome-msg">
+                <div id="welcome-msg-content">
+                    <p style="text-align:center;">Loading HowTo.md...</p>
                 </div>
             </div>
 
@@ -357,6 +351,8 @@
                                             <option value="document">Document</option>
                                             <option value="tape">Tape</option>
                                             <option value="note">Note</option>
+                                            <option value="laptop">Laptop / Terminal</option>
+                                            <option value="clipboard">Clipboard / Tag</option>
                                         </select>
                                     </div>
                                     <div id="thread-container" style="display: flex; align-items: center; gap: 8px;" title="Thematic grouping. Lore cannot use CIPHER/TELL. Clues MUST use CIPHER/TELL.">
@@ -402,6 +398,37 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Validation Container -->
+            <div id="validation-container" style="display:none; flex: 1; flex-direction: column; animation: fadeIn 0.3s ease-out; min-height: 0;">
+                <div class="editor-header-top">
+                    <h2 style="display:flex; align-items:center; gap:12px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        Data Flow Validation
+                    </h2>
+                    <p>Verifying relationships and mechanics across all engine data.</p>
+                </div>
+                
+                <div class="editor-pane-wrapper" style="overflow-y: auto;">
+                    <div class="editor-pane-header">
+                        <h2>Data Flow Reference</h2>
+                    </div>
+                    <div style="padding: 24px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); font-size: 0.875rem; color: var(--text-muted); font-family: var(--font-mono); line-height: 1.6;">
+                        <p style="margin-bottom: 12px;"><strong style="color: #d1d5db;">Threads (threads.json):</strong> Categories of knowledge (e.g. <code>PEN</code>, <code>CIPHER</code>).</p>
+                        <p style="margin-bottom: 12px;"><strong style="color: #d1d5db;">Variables (parameters.json -&gt; VARS):</strong> Dynamic engine state holding the truth (e.g. <code>PEN: 42</code>).</p>
+                        <p style="margin-bottom: 12px;"><strong style="color: #d1d5db;">Lock Threads (puzzles.json -&gt; LOCK_THREADS):</strong> Connects a Thread to a Variable. If a puzzle requires the <code>CIPHER</code> thread, it maps <code>CIPHER</code> to the <code>CIPHER</code> VAR.</p>
+                        <p><strong style="color: #d1d5db;">Clues (clues.json):</strong> Assigned to a <code>thread</code>. If the active puzzle's <code>LOCK_THREADS</code> doesn't include the clue's <code>thread</code>, the clue is skipped!</p>
+                    </div>
+                    
+                    <div class="editor-pane-header" style="border-top: 1px solid var(--border); display:flex; justify-content:space-between;">
+                        <h2>Validation Results</h2>
+                        <button class="save-btn" onclick="openValidation()">Re-run Validation</button>
+                    </div>
+                    <div id="validation-results" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+                        <!-- Results dynamically injected here -->
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -422,9 +449,169 @@
         const mainTextarea = document.getElementById('main-textarea');
         const addCatBtn = document.getElementById('add-cat-btn');
 
+        // Validation
+        async function openValidation() {
+            selectedFile = 'VALIDATION';
+            renderFileList();
+            
+            document.getElementById('welcome-msg').style.display = 'none';
+            document.getElementById('editor-container').style.display = 'none';
+            document.getElementById('validation-container').style.display = 'flex';
+            
+            const resultsEl = document.getElementById('validation-results');
+            resultsEl.innerHTML = '<div style="color:var(--text-muted); font-family:var(--font-mono);">Running validation checks...</div>';
+            
+            try {
+                // Fetch all data
+                const fetches = ['parameters.json', 'threads.json', 'puzzles.json', 'clues.json', 'lore.json', 'foreshadow.json', 'finales.json'].map(f => fetch('/api/data?file=' + f).then(r => r.json()));
+                const [paramRes, threadRes, puzzleRes, clueRes, loreRes, foreRes, finRes] = await Promise.all(fetches);
+                
+                const params = paramRes.content || {};
+                const threads = threadRes.content || {};
+                const puzzles = puzzleRes.content || [];
+                const clues = clueRes.content || {};
+                const lore = loreRes.content || {};
+                const foreshadow = foreRes.content || [];
+                const finales = finRes.content || [];
+                
+                const varsMap = params.VARS || {};
+                const threadKeys = new Set(Object.keys(threads));
+                const puzzleIds = new Set(puzzles.map(p => p.id));
+                const varKeys = new Set(Object.keys(varsMap));
+                
+                const usedThreads = new Set();
+                const usedVars = new Set();
+                const usedPuzzles = new Set();
+                
+                const warnings = [];
+                const errors = [];
+                
+                // Check Clues
+                for (const [sector, arr] of Object.entries(clues)) {
+                    if (Array.isArray(arr)) {
+                        arr.forEach((clue, idx) => {
+                            const path = `clues.json -> ${sector}[${idx}]`;
+                            if (clue.thread) {
+                                usedThreads.add(clue.thread);
+                                if (!threadKeys.has(clue.thread)) {
+                                    errors.push(`[${path}] References unknown thread: <b>${clue.thread}</b>`);
+                                }
+                            }
+                            if (clue.puzzle) {
+                                const puzArr = Array.isArray(clue.puzzle) ? clue.puzzle : [clue.puzzle];
+                                puzArr.forEach(p => {
+                                    usedPuzzles.add(p);
+                                    if (!puzzleIds.has(p)) {
+                                        errors.push(`[${path}] References unknown puzzle ID: <b>${p}</b>`);
+                                    } else {
+                                        // Check logic mismatch
+                                        const pObj = puzzles.find(x => x.id === p);
+                                        if (pObj && pObj.LOCK_THREADS && clue.thread && !pObj.LOCK_THREADS[clue.thread]) {
+                                            errors.push(`[${path}] Critical Logic Mismatch: Clue requires puzzle <b>${p}</b> and thread <b>${clue.thread}</b>, but puzzle <b>${p}</b> does not have <b>${clue.thread}</b> in its LOCK_THREADS! This clue will never appear.`);
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    }
+                }
+                
+                // Check Lore
+                for (const [sector, arr] of Object.entries(lore)) {
+                    if (Array.isArray(arr)) {
+                        arr.forEach((l, idx) => {
+                            if (l.thread) {
+                                usedThreads.add(l.thread);
+                                if (!threadKeys.has(l.thread)) {
+                                    errors.push(`[lore.json -> ${sector}[${idx}]] References unknown thread: <b>${l.thread}</b>`);
+                                }
+                            }
+                        });
+                    }
+                }
+                
+                // Check Foreshadow
+                foreshadow.forEach((group, idx) => {
+                    for (const [key, val] of Object.entries(group)) {
+                        if (val && typeof val === 'object' && val.thread) {
+                            usedThreads.add(val.thread);
+                            if (!threadKeys.has(val.thread)) {
+                                errors.push(`[foreshadow.json -> [${idx}].${key}] References unknown thread: <b>${val.thread}</b>`);
+                            }
+                        }
+                    }
+                });
+                
+                // Check Puzzles
+                puzzles.forEach(p => {
+                    if (p.LOCK_THREADS) {
+                        for (const [thread, v] of Object.entries(p.LOCK_THREADS)) {
+                            usedThreads.add(thread);
+                            usedVars.add(v);
+                            if (!threadKeys.has(thread)) {
+                                errors.push(`[puzzles.json -> ${p.id}] LOCK_THREADS references unknown thread: <b>${thread}</b>`);
+                            }
+                            if (!varKeys.has(v)) {
+                                errors.push(`[puzzles.json -> ${p.id}] LOCK_THREADS references unknown VAR: <b>${v}</b>`);
+                            }
+                        }
+                    }
+                });
+                
+                // Check Finales Sync
+                if (foreshadow.length !== finales.length) {
+                    errors.push(`[foreshadow.json / finales.json] Sync mismatch! Foreshadow has ${foreshadow.length} groups, Finales has ${finales.length}. They must match exactly by index.`);
+                }
+                
+                // Check Orphans
+                threadKeys.forEach(t => {
+                    if (!usedThreads.has(t)) warnings.push(`[threads.json] Thread defined but never used: <b>${t}</b>`);
+                });
+                varKeys.forEach(v => {
+                    if (!usedVars.has(v)) warnings.push(`[parameters.json] VAR defined but never used by a puzzle: <b>${v}</b>`);
+                });
+                
+                // Render
+                let html = '';
+                if (errors.length === 0 && warnings.length === 0) {
+                    html += `<div style="padding: 16px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 6px; color: #34d399; font-family: var(--font-mono); font-size: 0.875rem;">
+                        ✅ All data checks passed! System is properly configured.
+                    </div>`;
+                }
+                
+                if (errors.length > 0) {
+                    html += `<h3 style="color: var(--accent-red); margin-top: 8px;">Critical Errors (${errors.length})</h3>`;
+                    errors.forEach(e => {
+                        html += `<div style="padding: 12px; background: rgba(220, 38, 38, 0.1); border-left: 3px solid var(--accent-red); color: #fca5a5; font-family: var(--font-mono); font-size: 0.875rem; border-radius: 0 4px 4px 0;">
+                            ${e}
+                        </div>`;
+                    });
+                }
+                
+                if (warnings.length > 0) {
+                    html += `<h3 style="color: var(--accent-amber); margin-top: ${errors.length > 0 ? '24px' : '8px'};">Warnings (${warnings.length})</h3>`;
+                    warnings.forEach(w => {
+                        html += `<div style="padding: 12px; background: rgba(245, 158, 11, 0.1); border-left: 3px solid var(--accent-amber); color: #fcd34d; font-family: var(--font-mono); font-size: 0.875rem; border-radius: 0 4px 4px 0;">
+                            ${w}
+                        </div>`;
+                    });
+                }
+                
+                resultsEl.innerHTML = html;
+                
+            } catch (err) {
+                resultsEl.innerHTML = `<div style="color:var(--accent-red); font-family:var(--font-mono);">Failed to run validation: ${err.message}</div>`;
+            }
+        }
+
         // Init
         async function init() {
             try {
+                fetch('/HowTo.md').then(res => res.text()).then(text => {
+                    const contentDiv = document.getElementById('welcome-msg-content');
+                    if (contentDiv) contentDiv.innerHTML = marked.parse(text);
+                }).catch(err => console.error('Failed to load HowTo.md', err));
+
                 const namesRes = await fetch('/api/data?file=parameters.json');
                 const nData = await namesRes.json();
                 if (nData.content) {
@@ -481,6 +668,14 @@
                 });
             }
 
+            html += `<div style="margin-top: 16px; margin-bottom: 8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">
+                <h2 style="margin-bottom: 8px;">🛠️ Tools</h2>
+                <button class="file-btn ${selectedFile === 'VALIDATION' ? 'active' : ''}" onclick="openValidation()">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    Data Validation
+                </button>
+            </div>`;
+
             fileListEl.innerHTML = html;
         }
 
@@ -496,6 +691,7 @@
 
             document.getElementById('welcome-msg').style.display = 'none';
             document.getElementById('editor-container').style.display = 'flex';
+            document.getElementById('validation-container').style.display = 'none';
             document.getElementById('display-filename').innerText = f;
             document.getElementById('tree-content').innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:8px;">Decrypting node...</div>';
             document.getElementById('editor-content-area').style.display = 'none';
@@ -539,7 +735,7 @@
                 if (keys.length > 0) {
                     expandedCategory = keys[0];
                     selectedCategory = keys[0];
-                    if (Array.isArray(fileData[keys[0]]) && fileData[keys[0]].length > 0) {
+                    if (Array.isArray(fileData[keys[0]]) && fileData[keys[0]].length > 0 && selectedFile !== 'parameters.json' && selectedFile !== 'threads.json') {
                         selectedIndex = 0;
                     }
                 }
@@ -1001,7 +1197,7 @@
         });
 
         document.getElementById('tag-input').addEventListener('change', (e) => {
-            let val = e.target.value.toUpperCase();
+            let val = e.target.value.toUpperCase().trim();
             
             if (selectedFile === 'lore.json' && (val === 'CIPHER' || val === 'TELL')) {
                 alert('Entries in lore.json CANNOT use the CIPHER or TELL threads. They belong in clues.json.');
@@ -1131,7 +1327,7 @@
             const arr = getTargetObj() || [];
             let html = '';
             arr.forEach((name, i) => {
-                html += `<div style="flex-shrink: 0; display:flex; justify-content:space-between; align-items:center; padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); border-radius: 4px;">
+                html += `<div style="align-self: flex-start; min-width: 250px; flex-shrink: 0; display:flex; justify-content:space-between; align-items:center; padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); border-radius: 4px;">
                     <span style="font-family: var(--font-mono); font-size: 0.875rem;">${name}</span>
                     <button onclick="deleteNameEntry(${i})" style="background:transparent; border:none; color:var(--accent-red); cursor:pointer;">×</button>
                 </div>`;
@@ -1142,7 +1338,7 @@
             const obj = getTargetObj() || {};
             let html = '';
             Object.keys(obj).forEach(key => {
-                html += `<div style="flex-shrink: 0; display:flex; justify-content:space-between; align-items:center; padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); border-radius: 4px; gap: 16px;">
+                html += `<div style="align-self: flex-start; min-width: 400px; flex-shrink: 0; display:flex; justify-content:space-between; align-items:center; padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); border-radius: 4px; gap: 16px;">
                     <span style="font-family: var(--font-mono); font-size: 0.875rem; color: var(--accent-orange); min-width: 120px;">${key}</span>
                     <input type="text" value="${String(obj[key]).replace(/"/g, '&quot;')}" onchange="updateVarEntry('${key}', this.value)" style="flex: 1; background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 4px 8px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;">
                     <button onclick="deleteVarEntry('${key}')" style="background:transparent; border:none; color:var(--accent-red); cursor:pointer;">×</button>

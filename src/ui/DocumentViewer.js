@@ -116,7 +116,7 @@ export default class DocumentViewer {
                             this.acoustics.triggerSomaticEvent('tape_click', 1.0, 0.4);
                         }
                     }, 35);
-                } else if (zone === 'IMPOUND') {
+                } else if (fragment.clipboard) {
                     docOverlay.classList.add('clipboard-mode');
                     docContent.innerText = fullText;
                     if (docOverlay) docOverlay.style.display = 'block';

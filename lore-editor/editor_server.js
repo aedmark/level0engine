@@ -23,6 +23,18 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    if (req.method === 'GET' && req.url === '/HowTo.md') {
+        fs.readFile(path.join(__dirname, 'HowTo.md'), (err, data) => {
+            if (err) {
+                res.writeHead(404);
+                return res.end('Not found');
+            }
+            res.writeHead(200, { 'Content-Type': 'text/markdown' });
+            res.end(data);
+        });
+        return;
+    }
+
     // API Routes
     if (req.url.startsWith('/api/data')) {
         const url = new URL(req.url, `http://${req.headers.host}`);

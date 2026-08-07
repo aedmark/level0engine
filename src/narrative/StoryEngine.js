@@ -120,10 +120,14 @@ export default class StoryEngine {
         this.library = files.library;
         this.tapes = files.tapes;
         this.ephemera = files.ephemera;
+        this.laptops = files.laptops;
+        this.clipboards = files.clipboards;
         this.finales = files.finales;
         this.threads = files.threads;
         
         this.ephemeraDealt = new Map();
+        this.laptopsDealt = new Map();
+        this.clipboardsDealt = new Map();
         this.trackers = {};
         this.totalTemplates = 0;
         
@@ -200,6 +204,38 @@ export default class StoryEngine {
                 text, 
                 progress: this.progress(), 
                 ephemera: true,
+                thread: obj.thread || null,
+                corroboration: this._registerThread(text, zone)
+            };
+        }
+        if (idStr.startsWith('LAPTOP_')) {
+            const pool = this.laptops[zone] || this.laptops.DEFAULT || [{text: "[ NO SIGNAL ]"}];
+            const n = this.laptopsDealt.get(zone || 'DEFAULT') || 0;
+            this.laptopsDealt.set(zone || 'DEFAULT', n + 1);
+            const obj = pool[n % pool.length];
+            const text = obj.text;
+            this.assignments.set(assignKey, text);
+            this.collected.push(text);
+            return {
+                text, 
+                progress: this.progress(), 
+                laptop: true,
+                thread: obj.thread || null,
+                corroboration: this._registerThread(text, zone)
+            };
+        }
+        if (idStr.startsWith('TAG_')) {
+            const pool = this.clipboards[zone] || this.clipboards.DEFAULT || [{text: "[ MISSING PAPERWORK ]"}];
+            const n = this.clipboardsDealt.get(zone || 'DEFAULT') || 0;
+            this.clipboardsDealt.set(zone || 'DEFAULT', n + 1);
+            const obj = pool[n % pool.length];
+            const text = obj.text;
+            this.assignments.set(assignKey, text);
+            this.collected.push(text);
+            return {
+                text, 
+                progress: this.progress(), 
+                clipboard: true,
                 thread: obj.thread || null,
                 corroboration: this._registerThread(text, zone)
             };
