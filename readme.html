@@ -367,169 +367,64 @@
 
             <section>
                 <p class="intro-text mb-4">
-                    A minimal-dependency, mathematically pure, procedural 3D environment generator running natively in a browser via ES6 modules.
+                    You are trapped in an infinite, shifting corporate facility. 
                 </p>
                 <p class="mb-4">
-                    There are no external image assets. There are no imported audio files. There are no build tools, package managers, or framework abstractions. Everything you see and hear is generated locally via raw physics, procedural mathematics, and the Web Audio API.
+                    There is an exit, but the building will not surrender it easily. You must navigate the labyrinth, restore power by finding localized surge breakers, and piece together the final truth of the facility's incident from scattered case files. 
+                </p>
+                <p class="mb-4" style="color: var(--liminal-500)">
+                    Trust your compass. Manage your battery. Don't look back.
                 </p>
             </section>
 
             <section>
-                <h2 class="section-title">> Core Philosophy</h2>
-                <p class="mb-4" style="color: var(--liminal-500)">This engine is built on absolute architectural minimalism and efficiency:</p>
+                <h2 class="section-title">> Controls</h2>
+                <ul class="ordered-list" style="list-style-type: none; padding-left: 0;">
+                    <li><strong class="highlight-text">Left-Click:</strong> Engage Pointer Lock (Look around)</li>
+                    <li><strong class="highlight-text">Right-Click (Hold):</strong> Kinematic Peek (Physically lean your camera around corners)</li>
+                    <li><strong class="highlight-text">W, A, S, D:</strong> Move</li>
+                    <li><strong class="highlight-text">Shift:</strong> Sprint (Burns Adrenaline if chased)</li>
+                    <li><strong class="highlight-text">C:</strong> Crouch (Lowers detection radius)</li>
+                    <li><strong class="highlight-text">Q:</strong> Squeeze (Compress your collision radius to slide through narrow cracks)</li>
+                    <li><strong class="highlight-text">F:</strong> Toggle Flashlight (Consumes battery, expands detection radius)</li>
+                    <li><strong class="highlight-text">E:</strong> Interact (Doors, keypads, documents, Surge Breakers)</li>
+                    <li><strong class="highlight-text">Arrow Keys:</strong> Browse the recovered archive while a terminal is open (<code>◄</code>/<code>▲</code> previous, <code>►</code>/<code>▼</code> next)</li>
+                    <li><strong class="highlight-text">T:</strong> Spray UV Decoy Breadcrumb (Mark your path and distract anomalies)</li>
+                    <li><strong class="highlight-text">J:</strong> Open Personal Journal (Amber PDA)</li>
+                    <li><strong class="highlight-text">M:</strong> Raise/lower the Threshold Compass</li>
+                    <li><strong class="highlight-text">1:</strong> Use Battery (Restores Flashlight Voltage)</li>
+                    <li><strong class="highlight-text">2:</strong> Use Almond Water (Infinite Stamina for 15s)</li>
+                    <li><strong class="highlight-text">ESC:</strong> Release Pointer Lock / Rest</li>
+                </ul>
+            </section>
 
+            <section>
+                <h2 class="section-title">> How to Survive</h2>
                 <div class="info-block">
-                    <p><strong class="highlight-text">Procedural Geometry & The Sector Matrix:</strong> The maze is generated via a Julia Set fractal algorithm. It is infinite, chaotic, and deterministic. The engine utilizes Geodesic Chunking to maintain a strict memory budget, routing the generation through a <strong class="highlight-text">Sector Matrix</strong> to procedurally spawn distinct "Zones" — The Incinerator's combustion galleries, The Boardroom's glass fishbowl maze, The Archive stacks, The Server Farm, The Research Annex's corridors of locked steel doors, The Impound's chainlink pens under a rusted corrugated roof, The Checkpoint's decontamination gauntlet of hazmat gear and security gates, The Atrium's cavernous mall interior — a grocery-aisle shelving maze under fourteen cantilevered marble balcony tiers — The Clinic, The Maintenance Shafts, and The Chasm's suspended catwalks — each with unique geometry, floor and ceiling materials, tinted fog, reverb profile, footstep foley, and scheduled room tone. Every zone is sealed behind a single sliding blast door sitting flush on its true boundary — a hermetic threshold, not a corridor bored into the zone's own interior — and its atmosphere is governed by a ground-truth <strong class="highlight-text">Shell Volume Registry</strong>: the world registers what it actually built, and the fog obeys.</p>
+                    <p><strong class="highlight-text">The Flashlight & Sanity:</strong> The dark is dangerous. Unverified claims and roaming in pitch black will accumulate as tension, reducing your maximum flashlight charge. Settle claims to restore your sanity limit. If your psyche fractures past 50%, expect hallucinations.</p>
 
-                    <p><strong class="highlight-text">Sector-Locked Hazards:</strong> Four sectors carry their own dedicated hazard instead of the roaming Anomaly, each leashed to its own zone's geometry so it can never wander out into the connecting maze — and the Anomaly, in turn, is fully suppressed the instant you cross into any of them, so nothing can stalk you from the far side of a wall it has no line of sight through. The Archive's Archivist drifts and orbits at a curious distance, a fae-like presence that only scatters if you sprint too close. The Impound's Warden patrols on a sweeping searchlight, its sensor-eyes flaring solid red the instant it catches you in the beam. The Incinerator's Ember runs a "weeping angel" mechanic sharpened to a direct stare — hold it in your gaze dead-on and it freezes, banking heat instead of moving, then cashes that heat in as a fast, snake-like slither the moment you look away. The Server sector's Backup Daemon rides the ceiling's hanging cables ahead of your own heading, lighting the ones in your path; touch a live cable and it doesn't kill you outright, it zaps you to a random safe coordinate elsewhere in the sector.</p>
+                    <p><strong class="highlight-text">The Anomaly:</strong> It hunts via line-of-sight and sound. It feeds on panic. The more exhausted you are, the faster it pursues. Catching it in your flashlight beam will freeze it in place, but it will anger it. If it catches you, reality will mutate and rebuild around a new cold case.</p>
 
-                    <p><strong class="highlight-text">The Paper Trail (Seeded Narrative):</strong> Every seed generates a complete cold case — a named research staff, a project, an incident, and one of three truths. All eleven sectors are sources, each with its own pool written in its own institutional voice and its own tape recorder: combustion logs and charge-door weights in the Incinerator, quarterly minutes and a seating chart one chair long in the Boardroom, thermal exceptions on a rack that was never powered in the Server Farm, decon gate counts that do not reconcile at the Checkpoint. Laptops are <strong class="highlight-text">Networked Terminals</strong>: re-reading any of them browses the full recovered archive in discovery order.</p>
-                    <p><strong class="highlight-text">Claims &amp; Corroboration:</strong> Documents do not deliver lore, they make <em>claims</em> — where the missing staffer went, that the floor plan will not hold still, that the hum carries information. A claim from one sector is rumour, and carrying rumour costs you: unverified reading accumulates as tension that pins your flashlight's charge ceiling and does not bleed off the way ordinary paranoia does. Six unverified reads and the light will not charge past 60%. To put that weight down you must find the same claim asserted by a <strong class="highlight-text">different sector</strong>. Two impound tags naming the same person do not corroborate each other; neither does a tape and a memo pulled from the same room. Verification is priced in traversal, and settling a claim returns your ceiling, some clarity, and a little of the stamina the building has taken off you.</p>
-                    <p><strong class="highlight-text">The Assembled Lock:</strong> One keypad-locked records room per wing holds supplies and the elevator's release key. Nothing in the facility prints the code. The lock is the year the slab was poured followed by the impound pen that has never shut, two digits each, and those three facts — the rule, the year, the pen — are three separate claims sourced from three to five sectors apiece. A wrong entry names which leg you are still missing and never which digit was wrong. Across three random sectors you will hold all three legs roughly 44% of the time, so the door reliably costs a fourth or a fifth.</p>
+                    <p><strong class="highlight-text">Sector Hazards:</strong> Different zones harbor unique threats. In the Incinerator, don't look away from the Ember. In the Archive, the Archivist drifts at a distance. Don't sprint at it. In the Impound, avoid the Warden's red searchlight. In the Servers, don't touch the live cables lit by the Backup Daemon.</p>
 
-                    <p><strong class="highlight-text">Physics & Lighting:</strong> Collision detection relies on a highly optimized O(1) <code>SpatialHashGrid</code>, running on a homegrown <code>Vec3</code>/<code>AABB</code> math layer in <code>PlayerController.js</code>, <code>SomaticInput.js</code>, and the collision/pursuit paths of <code>Anomaly.js</code> and its four sector-locked counterparts (<code>ArchivistEntity.js</code>, <code>WardenEntity.js</code>, <code>IncineratorEntity.js</code>, <code>BackupDaemonEntity.js</code>) — no <code>three</code> dependency required for physics math, though mesh and geometry construction still runs on <code>three</code> where that's genuinely its job. Dynamic lighting is managed by a 'Lumen Grid' that teleports a fixed set of hardware shadow-casters and continuous 'Fade Envelopes' to eliminate visual popping, with rank hysteresis keeping fixtures from flickering in and out near the edge of the active light pool.</p>
-
-                    <p><strong class="highlight-text">Procedural Textures:</strong> Every single texture is drawn pixel-by-pixel using the HTML5 Canvas API and injected directly into WebGL memory.</p>
-
-                    <p><strong class="highlight-text">Procedural Audio & Acoustic Routing:</strong> The ambient soundscape is powered by a live, made-from-scratch digital signal processor (DSP). The engine shifts the acoustics natively based on spatial logic — from the sterile hiss of corporate HVACs to the brown/pink/white fan-wash of the server halls to the recycled-air hush of the atrium's mall interior. The engine also casts volumetric audio raycasts to physically muffle sounds when occluded by walls. This is paired with <strong class="highlight-text">Surface-Aware Foley</strong> (carpet thud, metal-grate clank, concrete scuff, linoleum click) and per-zone <strong class="highlight-text">Room Tones</strong>: unseen patrons whisper, cough, and turn pages in the archive; chainlink shivers in the impound; a shopping cart's wheel ticks somewhere down an atrium aisle.</p>
-
-                    <p><strong class="highlight-text">Adrenaline & Lethargy Curves:</strong> Sprinting during casual exploration is efficient, but active pursuit by the Anomaly spikes adrenaline, burning oxygen twice as fast. Reaching terminal exhaustion physically crushes the audio filter, blurs the WebGL pipeline, and triggers a seamless decay of your velocity into a heavy, dragging stumble. This heavy breathing dynamically expands the Anomaly's auditory perception radius, and its pursuit speed is inversely coupled to your exhaustion: it literally feeds on panic. Furthermore, the body rejects preemptive healing; drinking Almond Water while above 70% capacity locks stamina recovery until the player reaches absolute exhaustion.</p>
-
-                    <p><strong class="highlight-text">The Psychological Threshold:</strong> The flashlight acts as a psychological shield, throttling the accumulation of paranoia but never reversing it. Hallucinations are strictly gated; visual FOV distortion, phantom auditory footsteps, and entity proximity hallucinations remain completely dormant until the player's psyche fractures past the 50% threshold.</p>
-
-                    <p><strong class="highlight-text">The Quantum Observer Effect & Decoys:</strong> The Anomaly actively hunts via line-of-sight and utilizes short-term spatial memory. It is also attracted to dropped UV tags, allowing for intentional misdirection. Catching the entity within a 30-degree cone of your flashlight mathematically freezes it in place. This angers it. And if it catches you, the engine executes a void blackout, mutates your seed string, and procedurally rebuilds a new reality.</p>
-
-                    <p><strong class="highlight-text">Illumination & Systemic Cascades:</strong> Traversal requires managing a heavy, incandescent flashlight that recharges from kinetic energy by sprinting in the dark or violently shaking your camera to crank out voltage. Players can find and interact with articulated <strong class="highlight-text">Surge Breakers</strong> in the environment. Pulling a breaker triggers a catastrophic localized illumination cascade, shattering the bulbs and plunging the sector's atmospheric fog into a true, pitch-black void before executing a flickering reboot sequence.</p>
-
-                    <p><strong class="highlight-text">Native Post-Processing:</strong> The engine features a custom <code>WebGLRenderTarget</code> pipeline, applying dynamic Chromatic Aberration, crawling static, CRT scanlines, claustrophobic vignettes, and somatic retinal blurring. The optical feed is directly tethered to the Anomaly's proximity pressure, violently degrading into horizontal V-Hold tearing and desaturated static as the entity enters striking distance.</p>
+                    <p><strong class="highlight-text">Scavenging:</strong> You can carry up to 3 batteries and 2 canisters of Almond Water. Batteries instantly restore 40% voltage. Almond Water prevents stamina drain for a short burst, but your body will reject it if you drink it while above 70% stamina capacity.</p>
                 </div>
             </section>
 
             <section>
-                <h2 class="section-title">> Archive Editor</h2>
+                <h2 class="section-title">> Navigation & Objectives</h2>
                 <div class="info-block">
-                    <p>The engine ships with a built-in, zero-dependency <strong class="highlight-text">Archive Editor</strong> to visually manage the procedural narrative payloads (<code>library.json</code>, <code>finales.json</code>, <code>names.json</code>, etc.) without touching raw code.</p>
-                    <ol class="ordered-list" style="margin-top: 1rem;">
-                        <li>Double-click <code>start_editor.bat</code> (Windows) or run <code>./start_editor.sh</code> (Mac/Linux).</li>
-                        <li>The editor will automatically open in your default browser at <code>http://localhost:3000</code>.</li>
-                        <li>Use <code>stop_servers.bat</code> or <code>./stop_servers.sh</code> when you are done to shut down the backend.</li>
-                    </ol>
+                    <p><strong class="highlight-text">Surge Breakers:</strong> To power the exit elevator, you must locate and engage three highly rare Dimensional Switches hidden in the labyrinth. Pulling a breaker plunges the sector into a pitch-black reboot sequence before stabilizing the grid.</p>
+                    <p><strong class="highlight-text">The Radar vs Compass:</strong> The UI radar tracks objectives (like Surge Breakers) but refuses to tell you which way to go, merely reporting distance. Under intense Anomaly pressure, it will scramble. Press <code>M</code> to raise your Threshold Compass. It points strictly to the nearest sector transition door, helping you reorient when lost.</p>
+                    <p><strong class="highlight-text">The Paper Trail:</strong> The facility generated a unique cold case just for you. Find notes, laptops, and tapes to unravel it. Unverified documents burden your mind. You must corroborate claims by finding matching evidence in entirely different sectors. Press <code>J</code> at any time to review your PDA journal.</p>
                 </div>
             </section>
 
             <section>
-                <h2 class="section-title">> Usage</h2>
-                <ol class="ordered-list">
-                    <li>Clone the repository or install as a PWA on supported browsers.</li>
-                    <li>Double-click <code>start_engine.bat</code> (Windows) or run <code>./start_engine.sh</code> (Mac/Linux) to boot the local server. The game will automatically open in your default browser at <code>http://localhost:8080</code>. <br><span class="sub-text">Note: Opening index.html directly via the file:// protocol will fail due to strict ES6 module CORS policies.</span></li>
-                    <li>When you are finished, you can run <code>stop_servers.bat</code> or <code>./stop_servers.sh</code> to safely spin down the local servers.</li>
-                    <li>
-                        <strong class="block-title">Desktop Controls:</strong>
-                        <ul class="sub-list">
-                            <li><code>Left-Click</code> : Engage a Pointer Lock (Look around)</li>
-                            <li><code>Right-Click</code> (Hold) : Kinematic Peek (Physically lean your camera 80cm around corners)</li>
-                            <li><code>W, A, S, D</code> : Navigate spatial coordinates</li>
-                            <li><code>Shift</code> : Sprint (Metabolically efficient until chased, then burns Adrenaline)</li>
-                            <li><code>C</code> : Crouch (Lowers detection radius)</li>
-                            <li><code>Q</code> : Squeeze (Compress collision radius to slide through narrow cracks)</li>
-                            <li><code>F</code> : Toggle Flashlight (Consumes battery, expands detection radius)</li>
-                            <li><code>E</code> : Somatic Interact (Doors, security keypads, documents, terminals, Surge Breakers, items)</li>
-                            <li><code>Arrow Keys</code> : Browse the recovered archive while a terminal is open (<code>◄</code>/<code>▲</code> previous file, <code>►</code>/<code>▼</code> next file)</li>
-                            <li><code>T</code> : Spray UV Decoy Breadcrumb (Mark your path and distract the Anomaly)</li>
-                            <li><code>J</code> : Open Personal Journal (Amber PDA)</li>
-                            <li><code>M</code> : Raise/lower the Threshold Compass (Bearing to the nearest sector threshold)</li>
-                            <li><code>Tab</code> : Toggle the settings menu (Drops pointer lock to allow OS mouse interaction)</li>
-                            <li><code>Z</code> : Sector Warp (Debug: teleport to the first step inside the active macro-zone's northern blast door path)</li>
-                            <li><code>G</code> : God Mode (Debug: invincible to the Anomaly and the void, noclip ghost flight — <code>Space</code> ascends, <code>C</code> held descends, sprint for speed)</li>
-                            <li><code>`</code> : Debug HUD (Seed, sector, chunk, FPS, draw calls, anomaly distance, POI and objective state)</li>
-                            <li><code>1</code> : Use Battery</li>
-                            <li><code>2</code> : Use Almond Water</li>
-                            <li><code>ESC</code> : Release Pointer Lock/rest</li>
-                        </ul>
-                    </li>
-                    <li>
-                        <strong class="block-title">Platform:</strong>
-                        <ul class="sub-list">
-                            <li><strong class="highlight-text">Desktop Only:</strong> Level 0 is a desktop-only experience. Mobile/touch support was removed in v0.4.7 to focus the engine on a single input surface.</li>
-                        </ul>
-                    </li>
-                </ol>
-            </section>
-
-            <section>
-                <h2 class="section-title">> The Environment</h2>
+                <h2 class="section-title">> The Endgame</h2>
                 <div class="info-block">
-                    <p><strong class="highlight-text">Sector Stabilization & Diegetic Radar:</strong> Players must explore the labyrinth to locate and engage three highly rare Dimensional Switches to restore power and reveal the exit. The UI serves as a triangulation tool for these objectives, displaying distance to the nearest target, but scrambles (<code>ERR!_m</code>) under intense Anomaly electromagnetic pressure. The signal usually routes through anomalous points of interest first — a hole in the ceiling, a dinette bolted upside-down overhead, a working light panel sunk into the floor, a ring of chairs facing inward at nothing, a sealed door standing in the middle of a room attached to no wall with light bleeding out underneath — before resolving to a breaker.</p>
-
-                    <p><strong class="highlight-text">The Exit Threshold & The Inquest:</strong> A heavily fortified extraction bunker that only manifests in the generation matrix once all sector breakers are thrown <em>and</em> you are carrying the release key out of the records room. The elevator does not descend on touch: an Inquest terminal demands the Finding of Fact — three verdicts, keyed <code>1</code>/<code>2</code>/<code>3</code>. Nothing marks the correct one. The terminal reports how many claims you have settled and across how many sectors, and tells you plainly when filing would be a guess at one in three. The verdict has to come from a tell corroborated across the wing, seeded one apiece into five sectors. File the truth and the case closes for a clean descent with Coherence restored; file wrong and the seed mutates, rebuilding reality around a new cold case.</p>
-                    <p><strong class="highlight-text">Ephemera:</strong> The bunker's own paperwork, ringing the elevator car. A shift rota with one name on every weekday. A coffee fund nobody has touched since the disappearance. A debrief script with step four scratched through the lamination. A lost and found holding a cold wedding ring. These carry no claim, settle nothing, never enter the archive, and do not move your recovery count. They are the only paper in the facility that costs nothing to read and gives a little back, because by the time you are standing there you have earned something that is not more evidence.</p>
-
-                    <p><strong class="highlight-text">The Threshold Compass:</strong> A brass instrument you raise into view with <code>M</code>, held in a bare right hand with the sleeve of your jumpsuit running off the bottom of the frame, and the deliberate opposite of the radar. The radar knows precisely which breaker it wants and refuses to say which way it is, reports a bare distance, and scrambles under Anomaly pressure. The compass knows nothing about your objectives, cannot be scrambled, and answers exactly one question: which way is the nearest way <em>in</em>. It is magnetised to sector thresholds and remembers every one the seed has committed to, so it keeps pointing long after that zone has scrolled out of memory. A lost signal is no longer a random walk — you walk to a sector, re-establish where you are, and pick the hunt back up from a fixed landmark. Only the needle carries luminous paint; with the torch off, the dial is as dark as everything else. On a seed that has not yet produced a single macro zone the needle has nothing to hold and wanders.</p>
-                    <p><strong class="highlight-text">Safe Rooms (The Outpost):</strong> A rare chance for a fully enclosed, anomaly-shielded refuge featuring clean tile, a cot, guaranteed Almond Water, and an <code>isEntityBlocker</code> barrier that permits player entry while barring the entity.</p>
-
-                    <p><strong class="highlight-text">The Surge Breakers:</strong> Interactive, articulated breaker boxes. Press 'E' to crack the panel open and trigger a chunk-wide blackout cascade. Blackouts automatically resolve and restore lighting via an autonomic 25-35 second timer to preserve dynamic equilibrium.</p>
-
-                    <p><strong class="highlight-text">Scavenged Resources:</strong> Procedural battery cylinders restore 40% flashlight voltage, capped at 2 per chunk. Almond Water canisters grant 15 seconds of infinite stamina to aggressively outrun entities.</p>
-
-                    <p><strong class="highlight-text">The Liminal Breach (Fast Travel):</strong> Dead-end staircases have a 15% chance to spawn as open breaches. Walking up them uncaps the Y-axis constraints, allowing you to mathematically phase through the ceiling and warp thousands of units across the grid without mutating the quantum seed.</p>
-
-                    <p><strong class="highlight-text">Ultraviolet Breadcrumbs:</strong> Spray a glowing, high-visibility UV paint decal on walls (via surface-normal raycasting) to map the labyrinth and prevent circling.</p>
-
-                    <p><strong class="highlight-text">Somatic Collisions:</strong> High-speed kinematic impacts against structural geometry violently jolt the camera, bleed momentum, and trigger acoustic foley events. Kinematic vectors are decoupled, allowing you to seamlessly graze and slide along walls without losing perpendicular momentum.</p>
-
-                    <p><strong class="highlight-text">Interactive Doors & Blast Thresholds:</strong> Wood-grain doors swing open precisely 90 degrees away from your approach vector — except in the Research Annex, where every door is a heavy steel fire door with a wired-glass observation window, a scuffed kick plate, and a stenciled placard, framed in matching brushed steel instead of wood. Macro zones seal themselves behind a single proximity-triggered sliding blast door sitting flush on the zone's true boundary, with pneumatic grind, hazard-striped panels, a metal transition awning, and its own heavier mechanical voice — a hydraulic hiss grinding into a low metal thud — distinct from a hinged door's creak. In the Research Annex, most doors are permanently locked and visually identical to the ones that open — the only way to know is to try. One per wing carries a glowing keypad.</p>
-
-                    <p><strong class="highlight-text">The Case File:</strong> Notes, laptops, tape recorders, and property tags, all dealt from the seed's own story and stuck permanently to the object you found them on. Every document names the claim it makes and whether anything else in the wing backs it up, and a corroboration names both of its sources. Progress is tracked as a DATA RECOVERED readout, and any terminal can replay everything you've found in discovery order. You can also press <code>J</code> at any time to open your Personal Journal (Amber PDA) to review all collected lore without losing immersion, thanks to the in-engine Virtual Cursor system which keeps the OS pointer locked while you browse.</p>
-
-                    <p><strong class="highlight-text">Claustrophobic Bottlenecks:</strong> Corporate partitions have been excised in favor of absolute liminal emptiness and brutalist friction. The labyrinth dynamically generates blind L-shaped doglegs and tight 0.3-unit gaps. You must physically compress your body ('Q') to slide through them, restricting traversal speed.</p>
-
-                    <p><strong class="highlight-text">Claustrophobic Particulates:</strong> The volumetric dust cloud dynamically spikes in opacity and particle size when the player physically crawls through vents, simulating a choking atmosphere.</p>
-                </div>
-            </section>
-
-            <section>
-                <h2 class="section-title">> The Generator</h2>
-                <p class="mb-4" style="color: var(--liminal-500)">The UI provides a structural control panel.</p>
-                <div class="info-block">
-                    <p><strong class="highlight-text">Architecture Seed:</strong> Enter any string. The engine hashes the string into a 32-bit integer to seed the Julia Set.</p>
-                    <p><strong class="highlight-text">Display Format:</strong> Enforce strict cinematic aspect ratios (Dynamic, 4:3, 16:9, 21:9) via dynamic letterboxing.</p>
-                    <p><strong class="highlight-text">Fog Density:</strong> Adjust the volumetric atmospheric drag (which dynamically "breathes" using an LFO).</p>
-                    <p><strong class="highlight-text">Internal Resolution:</strong> Downscale the internal WebGL rendering (100%, 50%, 25%) to boost GPU performance and heavily enhance the retro VHS pixelation.</p>
-                    <p><strong class="highlight-text">Rebuild Geometry:</strong> Destroys the current manifold, resets the Spatial Hash Grid, and generates a new one.</p>
-                    <p><strong class="highlight-text">Capture Asset:</strong> Triggers a simulated camera flash and downloads a mathematically pure <code>.png</code> of your exact coordinates.</p>
-                </div>
-            </section>
-
-            <section>
-                <h2 class="section-title">> Dependencies</h2>
-                <div class="info-block">
-                    <p><strong class="highlight-text">Three.js (r128)</strong> - Loaded via a <code>&lt;script&gt;</code> tag pointing at a hosted build, with no bundler or package manager involved, to preserve the zero-build-tool philosophy. Rendering, meshes, materials, and geometry still run on it; physics and collision math in <code>PlayerController.js</code>, <code>SomaticInput.js</code>, and the collision/pursuit paths of <code>Anomaly.js</code> and its four sector-locked counterparts (<code>ArchivistEntity.js</code>, <code>WardenEntity.js</code>, <code>IncineratorEntity.js</code>, <code>BackupDaemonEntity.js</code>) do not — see <code>Vec3.js</code>/<code>AABB.js</code> below.</p>
-                </div>
-            </section>
-
-            <section>
-                <h2 class="section-title">> Architecture</h2>
-                <p class="mb-4" style="color: var(--liminal-500)">Zero-dependency ES6 modules, organized by concern:</p>
-                <div class="info-block">
-                    <p><strong class="highlight-text">Core:</strong> <code>Environment.js</code> (chunk/zone lifecycle and the interaction hub tying every other system together), <code>TheArchitect.js</code> (the procedural blueprint factory facade), <code>RenderEngine.js</code> (the WebGL pipeline and post-processing shader).</p>
-
-                    <p><strong class="highlight-text">Math:</strong> <code>Vec3.js</code>/<code>AABB.js</code> (the homegrown vector and axis-aligned bounding box math replacing <code>THREE.Vector3</code>/<code>THREE.Box3</code> on the physics side, duck-typed so they interoperate with <code>three</code>'s own types without depending on them), <code>SpatialHashGrid.js</code> (O(1) collision/culling).</p>
-
-                    <p><strong class="highlight-text">World:</strong> <code>Sectors.js</code> (the sector registry: per-zone fog, tint, ambience, foley, and reverb in one table), <code>SectorBlueprints.js</code> (aggregates the twelve sector generators below), <code>StructuralBlueprints.js</code> (the base maze's own architectural variation — archways, half-walls, pillars, collapsed ceilings), <code>StructureKit.js</code> (the shared geometry-building toolkit every sector generates through), <code>SetPieces.js</code> (deterministic multi-mesh prefabs like airlocks and checkpoint rooms), <code>NarrativeProps.js</code> (shared document and recorder placement, called only from branches a sector has already cleared as walkable), and the twelve sector generators themselves in <code>src/world/sectors/</code>: Exit, Clinic, Annex, Archive, Chasm, Impound, Atrium, Maintenance, Boardroom, Checkpoint, Server, and Incinerator.</p>
-
-                    <p><strong class="highlight-text">Aesthetics:</strong> <code>ProceduralTextureFactory.js</code> (every texture, drawn pixel-by-pixel on an HTML5 Canvas), <code>MaterialLibrary.js</code> (the material/geometry cache built on top of it), <code>LumenGrid.js</code> (the fixed dynamic-light pool, with fade envelopes and shadow-slot prioritization to eliminate popping).</p>
-
-                    <p><strong class="highlight-text">Entities:</strong> <code>EntityManager.js</code> (orchestrates which single hazard is active per sector), <code>Anomaly.js</code> (the roaming default hazard active everywhere else), and its four sector-locked counterparts — <code>ArchivistEntity.js</code>, <code>WardenEntity.js</code>, <code>IncineratorEntity.js</code>, and <code>BackupDaemonEntity.js</code> (see Sector-Locked Hazards, above).</p>
-
-                    <p><strong class="highlight-text">Player:</strong> <code>PlayerController.js</code> (metabolics and kinematics), <code>SomaticInput.js</code> (raw input translated into semantic intents), <code>InteractionController.js</code> (door/airlock/light state machines).</p>
-
-                    <p><strong class="highlight-text">Narrative:</strong> <code>StoryEngine.js</code> (the seeded cold-case machinery: dealing, sticky assignment, thread bookkeeping, corroboration), <code>CaseFiles.js</code> (what the documents actually say, kept apart from the machinery because prose and dealing logic change for different reasons and at different rates).</p>
-
-                    <p><strong class="highlight-text">Audio:</strong> <code>AcousticEngine.js</code> (the DSP core), <code>Synthesizer.js</code> (the persistent Web Audio graph), <code>Mixer.js</code> (real-time parameter modulation from telemetry/sector/somatic state), <code>Foley.js</code> (spatialized transient SFX).</p>
-
-                    <p><strong class="highlight-text">UI:</strong> <code>UIManager.js</code> (HUD), <code>DebugHUD.js</code>, <code>DocumentViewer.js</code>, <code>JournalViewer.js</code>, <code>InquestController.js</code>, <code>KeypadController.js</code>.</p>
-
-                    <p><strong class="highlight-text">System:</strong> <code>SaveManager.js</code> (persistence via <code>localStorage</code>), <code>SomaticController.js</code> (the environmental event bus routing physical/world events to audio and UI).</p>
+                    <p><strong class="highlight-text">The Exit Threshold:</strong> The extraction bunker only manifests once all three sector breakers are thrown <em>and</em> you are carrying the elevator release key, which is locked in a records room (requires keypad code deciphered via your clues).</p>
+                    <p><strong class="highlight-text">The Inquest:</strong> The elevator does not descend freely. The terminal demands the Finding of Fact. You must submit the correct verdict (1, 2, or 3) based on the evidence you've verified across the sectors. File the truth to escape; file wrong, and the void takes you.</p>
                 </div>
             </section>
 
