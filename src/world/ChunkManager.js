@@ -519,19 +519,31 @@ export default class ChunkManager {
 
                         const cx_id = Math.floor(wx / env.chunkSize);
                         const cz_id = Math.floor(wz / env.chunkSize);
+                        
+                        // Wobble for organic, curved pathways seamlessly matching at chunk borders
+                        const wobbleX = Math.round(Math.sin(wz * 0.4) * 1.5);
+                        const wobbleZ = Math.round(Math.cos(wx * 0.4) * 1.5);
+                        
                         const lx = wx - (cx_id * env.chunkSize);
                         const lz = wz - (cz_id * env.chunkSize);
-                        const inNRing = lz === 3 && lx >= 3 && lx <= 11;
-                        const inSRing = lz === 11 && lx >= 3 && lx <= 11;
-                        const inWRing = lx === 3 && lz >= 3 && lz <= 11;
-                        const inERing = lx === 11 && lz >= 3 && lz <= 11;
-                        const inNPath = lx >= 6 && lx <= 8 && lz <= 3;
-                        const inSPath = lx >= 6 && lx <= 8 && lz >= 11;
-                        const inWPath = lz >= 6 && lz <= 8 && lx <= 3;
-                        const inEPath = lz >= 6 && lz <= 8 && lx >= 11;
+                        
+                        const wlx = lx + wobbleX;
+                        const wlz = lz + wobbleZ;
+
+                        const inNRing = wlz >= 2 && wlz <= 4 && wlx >= 3 && wlx <= 11;
+                        const inSRing = wlz >= 10 && wlz <= 12 && wlx >= 3 && wlx <= 11;
+                        const inWRing = wlx >= 2 && wlx <= 4 && wlz >= 3 && wlz <= 11;
+                        const inERing = wlx >= 10 && wlx <= 12 && wlz >= 3 && wlz <= 11;
+                        
+                        const inNPath = wlx >= 6 && wlx <= 8 && wlz <= 4;
+                        const inSPath = wlx >= 6 && wlx <= 8 && wlz >= 10;
+                        const inWPath = wlz >= 6 && wlz <= 8 && wlx <= 4;
+                        const inEPath = wlz >= 6 && wlz <= 8 && wlx >= 10;
+
                         const isArtery = inNRing || inSRing || inWRing || inERing || inNPath || inSPath || inWPath || inEPath;
-                        const isBlocker = lx >= 5 && lx <= 9 && lz >= 5 && lz <= 9;
+                        const isBlocker = lx >= 6 && lx <= 8 && lz >= 6 && lz <= 8; // Smaller blocker to fit tight corridors
                         const isSpawnClear = (cx_id === 0 && cz_id === 0) && (lx <= 3 && lz <= 3);
+                        
                         if (isBlocker) isW = true;
                         if (isArtery || isSpawnClear) isW = false;
 
