@@ -1,0 +1,38 @@
+{
+  "CIPHER": {
+    "title": "RECORDS ROOM PASSCODE CIPHER",
+    "description": ""
+  },
+  "LOST": {
+    "title": "THE DISPOSITION OF ${LOST}",
+    "description": ""
+  },
+  "GEOMETRY": {
+    "title": "THE FLOOR PLAN IS NOT FIXED",
+    "description": ""
+  },
+  "HUM": {
+    "title": "THE HUM CARRIES INFORMATION",
+    "description": ""
+  },
+  "TELL": {
+    "title": "THE SHAPE OF THE FINDING of ${P}",
+    "description": "The truth will set you free!"
+  },
+  "EPOCH": {
+    "title": "THE TEMPORAL ORIGIN OF THE SITE",
+    "description": ""
+  },
+  "PEN": {
+    "title": "THE IDENTITY OF THE BREACHED PEN",
+    "description": ""
+  },
+  "EPHEMERA": {
+    "title": "",
+    "description": ""
+  },
+  "HOUR": {
+    "title": "THE TIME OF INCIDENT",
+    "description": ""
+  }
+}

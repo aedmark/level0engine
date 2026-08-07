@@ -144,7 +144,10 @@ export function buildCaseFiles(ctx, data) {
     const tell = foreshadow[ctx.truth];
     if (tell) {
         for (const sector in tell) {
-            if (sector === 'nickname' || sector === 'text' || sector === 'description') continue;
+            // Skip narrative metadata fields and any internal/editor bookkeeping field
+            // (prefixed with "_", e.g. "_locked") — only real location keys should ever
+            // be treated as sectors to inject content into.
+            if (sector === 'nickname' || sector === 'text' || sector === 'description' || sector.startsWith('_')) continue;
             const itemOrArr = tell[sector];
             if (Array.isArray(itemOrArr)) {
                 for (const item of itemOrArr) {

@@ -30,7 +30,7 @@ The engine supports dynamic string replacement so that the text adapts to the sp
     *   `${first_name}` / `${last_name}`: Pulls a generic, random first or last name from the parameter pools. The parser guarantees that multiple uses of this within the *same document* will render the *same* generic name for consistency!
 *   **Project & World State**:
     *   `${P}`: The randomized project codename (e.g., THRESHOLD, YELLOW FIELD).
-    *   `${hrs}`: The number of hours the facility has been isolated (a randomized large number).
+    *   `${hours}`: The number of hours the facility has been isolated (a randomized large number). `${hrs}` is also supported as a legacy alias for the same value.
     *   `${pen}`: The designated pen number in the impound sector.
     *   `${year}`: The simulated year the site was commissioned.
 *   **Custom Vars & Procedural Math**:

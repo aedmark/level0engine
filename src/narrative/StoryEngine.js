@@ -114,7 +114,10 @@ export default class StoryEngine {
             coreVars: this.coreVars,
             activePuzzle: this.activePuzzle,
             params: StoryEngine.PARAMS,
-            rand: this.rand
+            rand: this.rand,
+            // The keypad's access code is already computed at this point (see constructor).
+            // Expose it as ctx.cipher so the CIPHER custom VAR always tracks the real puzzle answer.
+            cipher: this.accessCode
         }, StoryEngine.CASES_DATA);
         
         this.library = files.library;
