@@ -15,7 +15,8 @@
     "SERVER": {
       "text": "${P} EQUIPMENT DISCREPANCY REPORT\n\nRACK #{ctx.seed}: No purchase order on file. No install ticket in the database. Serial number placards have been removed. Rack appears on the earliest floor plan we can find, which is dated before the slab was allegedly poured.",
       "thread": "TELL",
-      "type": "document"
+      "type": "document",
+      "title": "Discrepancy Report"
     },
     "CLINIC": {
       "text": "${P} TISSUE SAMPLE #001:\n\nSample predates the clinic's commissioning by nine years. Chain of custody begins with a signature nobody can match to a living person.\n\nThe sample is not from an patient on record.\n\nThe sample is *from* the site.",
@@ -27,9 +28,7 @@
       "thread": "TELL",
       "type": "document"
     },
-    "nickname": "Homegrown",
-    "text": "Test",
-    "description": ""
+    "nickname": "Homegrown"
   },
   {
     "ANNEX": {

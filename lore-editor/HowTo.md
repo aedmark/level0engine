@@ -10,7 +10,7 @@ This directory contains the dynamic narrative content for the Level 0 Engine. Th
 4. **`clues.json`**: Contains puzzle-specific hints. These clues can be optionally bound to a specific Puzzle ID. The engine will only spawn them if their assigned puzzle is rolled for that playthrough.
 5. **`lore.json`**: Contains the bulk of the background text, audio logs, sticky notes, terminal messages, and clipboards. Each entry has a `type` property (e.g., `document`, `tape`, `note`, `laptop`, `clipboard`) that dictates how it is rendered in-game.
 6. **`foreshadow.json`**: Contains groups of clues that foreshadow specific finales. 
-7. **`finales.json`**: Contains the possible final revelation documents. It is fully dynamic—you can have as many finales as you want! Each finale is an object with an `option` (short summary for the verdict button) and `text` (the full document).
+7. **`finales.json`**: Contains the possible final revelation documents. It is fully dynamic—you can have as many finales as you want! Each finale is an object with an `option` (short summary for the verdict button), `text` (the full document), and `tell_title` / `tell_description` (to dynamically override the player's PDA journal objective).
 
 ## How it Works
 
@@ -50,7 +50,7 @@ The sleek Archive Editor allows you to visually explore the entire data structur
 * **lore.json**: Edit the narrative text, assign "Thread Tags", and select the "Lore Type" (Document, Tape, Note, Laptop, Clipboard) which dictates how it renders in the game.
 * **clues.json**: Assign clues directly to specific puzzles using the Puzzle checkboxes so they only spawn when mathematically relevant.
 * **foreshadow.json**: Adding a new entry automatically scaffolds out the required sector keys (`ANNEX`, `ARCHIVE`, etc.). Use the "Dev Note" field on the root group to leave internal comments for your team.
-* **finales.json**: The engine will dynamically recognize any new finale you append using the editor and pull it into the hat on the very next boot. 
+* **finales.json**: The engine will dynamically recognize any new finale you append using the editor and pull it into the hat on the very next boot. You can also edit the dynamic "TELL Thread" overrides here to customize the player's ultimate objective in their PDA journal.
 * **parameters.json, puzzles.json & threads.json**: Edit these directly to add new cast members, design new game modes/logic, or expand the overarching narrative quests without ever touching a line of Javascript.
 * **Data Validation Tool**: An integrated compiler that checks all puzzle linkages, thread requirements, and variable definitions to ensure your narrative logic is airtight.
 
@@ -67,7 +67,7 @@ First, establish the overarching theme of your mystery.
 ### 2. Create the Finale
 Next, write the ultimate revelation.
 - Open `finales.json` and click **+ Add Entry**.
-- Edit the new object to include an `"option"` (the text on the button the player clicks to solve the mystery) and `"Text"` (the final document they read).
+- Edit the new object to include an `"option"` (the text on the button the player clicks to solve the mystery), `"Text"` (the final document they read), and the TELL Thread Overrides (the text that dynamically displays as their journal objective).
 - *Important:* Note the index of your new finale (e.g., Entry 4).
 
 ### 3. Write the Foreshadowing Clues

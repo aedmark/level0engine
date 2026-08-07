@@ -777,7 +777,7 @@
                     if (isExpandable && isExpanded) {
                         html += `<div class="tree-children">`;
                         Object.keys(item).forEach(key => {
-                            if (key === 'nickname' || key === 'title' || key === 'option' || key === 'text') return;
+                            if (['nickname', 'title', 'option', 'text', 'description', 'tell_title', 'tell_description', 'thread', 'type'].includes(key)) return;
                             const isChildActive = selectedIndex === i && selectedCategory === key;
                             const locObj = item[key];
                             const displayTitle = (locObj && locObj.title) ? ` - ${locObj.title}` : '';
@@ -1148,7 +1148,8 @@
             }
 
             if (isLoreObj) {
-                mainTextarea.value = (selectedFile === 'threads.json' || isFinaleGroup) ? (val.description || val.text || '') : (val.text || '');
+                const isDescField = selectedFile === 'threads.json' || (isFinaleGroup && selectedFile === 'foreshadow.json');
+                mainTextarea.value = isDescField ? (val.description !== undefined ? val.description : '') : (val.text !== undefined ? val.text : '');
             } else if (isPuzzleObj) {
                 mainTextarea.value = val.ACCESS_CODE || '';
             } else {
