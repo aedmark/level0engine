@@ -208,6 +208,7 @@
             font-size: 0.875rem; color: var(--accent-amber); font-family: var(--font-mono); width: 256px;
         }
         #tag-input:focus { outline: none; border-color: rgba(251,191,36,0.5); }
+        #tag-input.input-locked { color: var(--text-muted); cursor: not-allowed; border-style: dashed; }
 
         .var-btn {
             background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 4px 8px;
@@ -284,15 +285,19 @@
         .preview-pane {
             flex: 1; min-height: 0; position: relative; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.15);
             border-radius: 6px; padding: 24px; padding-top: 28px; color: #a3a3a3; font-family: var(--font-mono);
-            font-size: 0.875rem; line-height: 1.6; overflow-y: auto;
+            font-size: 0.875rem; line-height: 1.6;
         }
         /* white-space: pre-wrap belongs on the text content itself, not the pane. The pane
            also contains .preview-pane-label as a sibling, and pre-wrap on a shared ancestor
            preserves the raw HTML-source indentation/newlines between them as real rendered
            whitespace, shoving the content down by however many "lines" that indentation
-           wraps into. Scoping it to just the content div avoids that entirely. */
+           wraps into. Scoping it to just the content div avoids that entirely.
+           overflow-y: auto lives here too (moved off .preview-pane) — .preview-pane-label
+           intentionally straddles the pane's top border via a negative top offset, and an
+           overflow:auto ancestor clips any child content that pokes outside its box, which
+           was chopping off the label's upper half and letting the border show through it. */
         #template-preview-content {
-            white-space: pre-wrap; word-break: break-word;
+            white-space: pre-wrap; word-break: break-word; overflow-y: auto; height: 100%;
         }
         .preview-pane-label {
             position: absolute; top: -9px; left: 12px; background: var(--bg-panel); padding: 0 6px;
@@ -405,7 +410,7 @@
                                             <option value="clipboard">Clipboard / Tag</option>
                                         </select>
                                     </div>
-                                    <div id="thread-container" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;" title="Thematic grouping. Lore cannot use CIPHER/TELL. Clues MUST use CIPHER/TELL.">
+                                    <div id="thread-container" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;" title="Thematic grouping. Lore cannot use CIPHER/TELL. Clues are always CIPHER — locked automatically; use the Puzzle field below to say which lock(s) this clue actually corroborates.">
                                         <h4>Thread:<span class="help-icon">?</span></h4>
                                         <input type="text" id="tag-input" list="tag-suggestions" placeholder="Tag..." />
                                         <datalist id="tag-suggestions"></datalist>
@@ -419,19 +424,18 @@
                                 </div>
 
                                 <div id="option-container" class="textarea-container" style="display:none; flex: 0.25; min-height: 110px; margin-bottom: 8px;">
-                                    <h4 style="margin-bottom: 2px;">Heading (Option) <span class="help-icon" title="The text displayed on the button when the player is presented with this choice.">?</span></h4>
-                                    <span class="help-text" style="margin-top: 0;">What the player clicks to select this finale.</span>
+                                    <h4 style="margin-bottom: 2px;">Absolute Truth <span class="help-icon" title="The text displayed on the button when the player is presented with this choice.">?</span></h4>
                                     <div style="position: relative; flex: 1; min-height: 0; display: flex;">
                                         <div class="textarea-glow"></div>
                                         <textarea id="option-textarea"></textarea>
                                     </div>
                                 </div>
                                 <div id="finale-meta-container" class="textarea-container" style="display:none; flex: 0.5; min-height: 150px; margin-bottom: 8px;">
-                                    <h4 style="margin-bottom: 2px;">TELL Thread Override Title</h4>
+                                    <h4 style="margin-bottom: 2px;">Thread Title</h4>
                                     <div style="position: relative; flex: 0 0 auto; display: flex; margin-bottom: 8px;">
                                         <input type="text" id="tell-title-input" style="width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;" />
                                     </div>
-                                    <h4 style="margin-bottom: 2px;">TELL Thread Override Description</h4>
+                                    <h4 style="margin-bottom: 2px;">Thread Description</h4>
                                     <div style="position: relative; flex: 1; min-height: 0; display: flex;">
                                         <textarea id="tell-desc-textarea"></textarea>
                                     </div>
@@ -439,7 +443,6 @@
                                 <div class="textarea-container" id="textarea-container">
                                     <div id="variable-toolbar" style="display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;"></div>
                                     <h4 id="main-textarea-label" style="display:none; margin-bottom: 2px;">Final Document</h4>
-                                    <span id="main-textarea-hint" class="help-text" style="display:none; margin-top: 0;">The content body of this entry.</span>
                                     <div id="template-issues-banner"></div>
                                     <div class="split-editor-row">
                                         <div style="position: relative; flex: 1; min-height: 0; display: flex;">
@@ -872,6 +875,14 @@
                                 usedThreads.add(clue.thread);
                                 if (!threadKeys.has(clue.thread)) {
                                     errors.push(`[${path}] References unknown thread: <b>${clue.thread}</b>`);
+                                }
+                                // The editor locks clues.json's Thread field to CIPHER (it's
+                                // implicit, like TELL is for finales.json) — anything else here
+                                // can only have arrived via a raw JSON edit and is almost
+                                // certainly a mistake (e.g. content that should live in
+                                // lore.json/foreshadow.json instead).
+                                if (clue.thread !== 'CIPHER') {
+                                    errors.push(`[${path}] Clue is tagged thread <b>${clue.thread}</b>, but clues.json entries should always be <b>CIPHER</b> — the editor now sets this automatically. If this content isn't cipher-solving instructions, it likely belongs in lore.json or foreshadow.json instead.`);
                                 }
                             }
                             if (clue.puzzle) {
@@ -2372,7 +2383,10 @@
 
         function addEntry(cat) {
             if (cat) {
-                const template = { text: "", thread: "UNCLASSIFIED", type: "document" };
+                // clues.json entries are always CIPHER (see renderEditor's clues.json
+                // branch) — default the template to match so a brand-new entry doesn't
+                // briefly disagree with the locked field before the next render.
+                const template = { text: "", thread: selectedFile === 'clues.json' ? 'CIPHER' : 'UNCLASSIFIED', type: "document" };
                 if (!Array.isArray(fileData[cat])) fileData[cat] = [fileData[cat], template];
                 else fileData[cat].push(template);
                 expandedCategory = cat;
@@ -2571,7 +2585,23 @@
                         document.getElementById('main-textarea-hint').innerText = 'Javascript execution string for validating access.';
                     }
                 } else {
-                    tagInput.value = val.thread || '';
+                    // clues.json entries are only ever the CIPHER thread in practice — every
+                    // existing entry already uses it, and the puzzle-gating (`puzzle` field)
+                    // is what actually distinguishes one clue from another, not the thread
+                    // name. Rather than make authors type/pick "CIPHER" by hand (and risk a
+                    // stray value slipping through), lock the field to CIPHER and let the
+                    // Puzzle checkboxes do the real work — mirroring how TELL is implicit for
+                    // finales.json/foreshadow.json instead of being manually chosen.
+                    if (selectedFile === 'clues.json') {
+                        if (val.thread !== 'CIPHER') val.thread = 'CIPHER';
+                        tagInput.value = 'CIPHER';
+                        tagInput.readOnly = true;
+                        tagInput.classList.add('input-locked');
+                    } else {
+                        tagInput.value = val.thread || '';
+                        tagInput.readOnly = false;
+                        tagInput.classList.remove('input-locked');
+                    }
                     typeInput.value = val.type || 'document';
                     document.getElementById('title-label').innerHTML = isFinaleGroup ? 'Nickname:<span class="help-icon">?</span>' : 'Title:<span class="help-icon">?</span>';
                     document.getElementById('title-input').value = isFinaleGroup ? (val.nickname || '') : (val.title || '');
@@ -2599,7 +2629,7 @@
 
                     if (isFinaleGroup) {
                         document.getElementById('main-textarea-label').style.display = 'block';
-                        document.getElementById('main-textarea-label').innerText = 'Dev Note (Description):';
+                        document.getElementById('main-textarea-label').innerText = 'Description:';
                         if (document.getElementById('main-textarea-hint')) {
                             document.getElementById('main-textarea-hint').style.display = 'block';
                             document.getElementById('main-textarea-hint').innerText = 'Internal notes about this finale group. Not shown to players.';
@@ -2616,7 +2646,6 @@
                         document.getElementById('main-textarea-label').innerText = 'Text:';
                         if (document.getElementById('main-textarea-hint')) {
                             document.getElementById('main-textarea-hint').style.display = 'block';
-                            document.getElementById('main-textarea-hint').innerText = 'The core content that players will read.';
                         }
                     }
                 }

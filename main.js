@@ -87,6 +87,19 @@ inquest.bindEvents();
 DebugHUD.bindEvents();
 saveManager.startAutoSave();
 UIManager.startVHSTimer();
+
+let isFirstBoot = !savedState;
+document.addEventListener('pointerlockchange', () => {
+    if (document.pointerLockElement === document.body && isFirstBoot) {
+        isFirstBoot = false;
+        setTimeout(() => {
+            document.dispatchEvent(new CustomEvent('somatic-read', {
+                detail: { docId: 'NOTE_TUTORIAL' }
+            }));
+        }, 1500);
+    }
+});
+
 document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e) => {
     const targetSector = e.target.value;
     if (!targetSector) return;

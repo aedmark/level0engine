@@ -112,6 +112,14 @@ export const AnomalousPointOfInterestProfile = (env, ctx) => {
                 addGeometry(header);
                 const door = new THREE.Mesh(env._boxGeo(1.32, 2.60, 0.1), env.doorMat);
                 place(door, 0, 1.33, 0);
+                door.userData = {
+                    interact: (p) => {
+                        if (p && p.updateObjectives) p.updateObjectives("ERR: THRESHOLD COLLAPSED");
+                    }
+                };
+                if (!env.interactiveProps) env.interactiveProps = [];
+                env.interactiveProps.push(door);
+                env.walls.push(door);
                 addGeometry(door);
                 const glow = new THREE.Mesh(env._boxGeo(1.44, 2.70, 0.03), env.anomalySeamMat);
                 place(glow, 0, 1.35, 0);

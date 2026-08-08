@@ -274,13 +274,6 @@
       "thread": "GEOMETRY",
       "title": "Shaft Survey",
       "_locked": true
-    },
-    {
-      "text": "SHIFT CLOCK MALFUNCTION REPORT\n\nThe punch clock has read hour ${hrs} for three consecutive shifts now. Maintenance confirms the mechanism is intact and ticking normally.\n\nIt is simply refusing to advance past ${hrs}.\n\nWe have started counting shifts on paper instead. Nobody has said why out loud.",
-      "type": "document",
-      "thread": "HOUR",
-      "title": "Clock Malfunction",
-      "_locked": true
     }
   ],
   "CHASM": [

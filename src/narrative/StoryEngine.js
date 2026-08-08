@@ -64,28 +64,19 @@ export default class StoryEngine {
             hours: 300 + Math.floor(this.rand() * 900)
         };
 
-        // Puzzle authors can define additional per-playthrough numbers (a serial number,
-        // a birthday component, etc.) in parameters.json's CORE_VARS instead of being
-        // limited to the four built-ins above. Each is generated the same way — once per
-        // seed, from a min..max range — and folded into coreVars, so it's usable both in
-        // a puzzle's ACCESS_CODE expression (as ctx.NAME) and in lore/clue text (as
-        // ${NAME}; CaseFiles.js's replaceTemplates() already substitutes every coreVars
-        // key generically, so no further wiring is needed there).
         const customCoreVarDefs = StoryEngine.PARAMS.CORE_VARS || {};
         for (const key in customCoreVarDefs) {
-            if (key in this.coreVars) continue; // never let a custom var shadow a built-in
+            if (key in this.coreVars) continue;
             const def = customCoreVarDefs[key];
             const min = Number.isFinite(def?.min) ? def.min : 0;
             const max = Number.isFinite(def?.max) ? def.max : min;
             this.coreVars[key] = min + Math.floor(this.rand() * (max - min + 1));
         }
 
-        // Fallbacks for legacy props
         this.penNumber = this.coreVars.pen;
         this.siteYear = this.coreVars.year;
         this.hours = this.coreVars.hours;
 
-        // --- PUZZLE SELECTION ---
         const puzzles = StoryEngine.PUZZLES || [
             {
                 "id": "DEFAULT",
@@ -94,7 +85,6 @@ export default class StoryEngine {
             }
         ];
         this.activePuzzle = puzzles[Math.floor(this.rand() * puzzles.length)];
-        // We no longer need to compute foreignThreads because CaseFiles explicitly injects only the active puzzle's clues.
 
         const accessCodeConfig = this.activePuzzle.ACCESS_CODE || "0000";
         try {
@@ -131,8 +121,6 @@ export default class StoryEngine {
             activePuzzle: this.activePuzzle,
             params: StoryEngine.PARAMS,
             rand: this.rand,
-            // The keypad's access code is already computed at this point (see constructor).
-            // Expose it as ctx.cipher so the CIPHER custom VAR always tracks the real puzzle answer.
             cipher: this.accessCode
         }, StoryEngine.CASES_DATA);
         
@@ -143,8 +131,7 @@ export default class StoryEngine {
         this.clipboards = files.clipboards;
         this.finales = files.finales;
         this.threads = files.threads;
-        
-        // Override TELL thread title/desc based on active finale
+
         const activeFinale = this.finales[this.truth];
         if (activeFinale && this.threads['TELL']) {
             if (activeFinale.tell_title) this.threads['TELL'].title = activeFinale.tell_title;
@@ -186,6 +173,15 @@ export default class StoryEngine {
         const LEGS = Object.keys(lockThreads);
         for (const key in this.library) {
             const arr = this.library[key];
+            if (this.activePuzzle.id !== 'DEFAULT' && this.rand() > 0.05) {
+                if (this.activePuzzle.lockType !== 'HARD' || this.rand() > 0.3) {
+                    arr.push({text: `[ DEVICE LOCKED ]\n\nACCESS REQUIRES DECRYPT:\n[ ${this.activePuzzle.id} ]`});
+                }
+            }
+
+            if (this.rand() > 0.25) arr.push(this.library[key][Math.floor(this.rand() * arr.length)]);
+            if (this.rand() > 0.45) arr.push(this.library[key][Math.floor(this.rand() * arr.length)]);
+
             for (const leg of LEGS) {
                 const ci = arr.findIndex(t => t.thread === leg);
                 if (ci > 2) {
@@ -198,6 +194,13 @@ export default class StoryEngine {
 
     getFragment(docId, zone) {
         const idStr = String(docId || 'X');
+        if (idStr === 'NOTE_TUTORIAL') {
+            return {
+                text: `[ FIELD AGENT MANUAL ]\n\nWelcome to the Level 0 Engine.\n\nPRIMARY OBJECTIVES:\n1. Restore Power to the Exit Sector by resetting three Breakers\n2. Assemble keypad combination in Records for Exit Key.\n3. Locate the Exit Threshold and submit the TRUTH you find.\n\nTOOLS & CONTROLS:\n- W, A, S, D to move, Shift to sprint\n- 'E' to interact or close documents\n- 'C' to crouch under hazards, hold 'C' to crawl\n- 'F' for Flashlight (consumes battery)\n- 'M' to toggle your Compass\n\nNAVIGATION:\n- The Compass tracks the nearest AIRLOCK DOOR.\n- The POI DISTANCE signal in your HUD tracks the nearest POINT OF INTEREST, including breakers.\n\n[ Press 'E' to close ]`,
+                progress: this.progress(),
+                ephemera: true
+            };
+        }
         if (idStr.startsWith('FINALE')) {
             const finaleObj = this.finales[this.truth];
             const finaleText = finaleObj.text;

@@ -15,7 +15,7 @@ export default class Compass {
         this._swayX = 0;
         this._swayY = 0;
         this._idlePhase = Math.random() * Math.PI * 2;
-        this.raised = false;
+        this.raised = true;
         this.stow = 0;
         this._build();
         document.addEventListener('somatic-toggle-compass', () => {

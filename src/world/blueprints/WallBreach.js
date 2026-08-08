@@ -70,6 +70,14 @@ export const WallBreachProfile = (env, ctx) => {
                 grate.position.z = 1.0;
                 wallG.add(grate);
 
+                if (!env.hazardTapeMat) {
+                    env.hazardTapeMat = new THREE.MeshStandardMaterial({ color: 0xffdd00, roughness: 0.9 });
+                }
+                const stripeGeo = new THREE.BoxGeometry(env.cellSize, 0.05, 0.3);
+                const stripe = new THREE.Mesh(stripeGeo, env.hazardTapeMat);
+                stripe.position.set(0, 0.625, 0);
+                wallG.add(stripe);
+
                 addGroupToStaging(wallG);
             } else {
                 // Crevice / broken wall
@@ -90,6 +98,14 @@ export const WallBreachProfile = (env, ctx) => {
                 t1.position.set(0, 2.5, 0);
                 t1.rotation.z = (random() - 0.5) * 0.4;
                 wallG.add(t1);
+
+                if (!env.hazardTapeMat) {
+                    env.hazardTapeMat = new THREE.MeshStandardMaterial({ color: 0xffdd00, roughness: 0.9 });
+                }
+                const stripeGeo = new THREE.BoxGeometry(env.cellSize, 0.05, 0.3);
+                const stripe = new THREE.Mesh(stripeGeo, env.hazardTapeMat);
+                stripe.position.set(0, 0.025, 0);
+                wallG.add(stripe);
 
                 addGroupToStaging(wallG);
             }

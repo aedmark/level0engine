@@ -69,6 +69,8 @@ export default class SomaticInput {
             if (this.state.isReading && e.button === 0) {
                 if (this.hoveredElement) {
                     this.hoveredElement.click();
+                } else {
+                    document.dispatchEvent(new Event('somatic-close-document'));
                 }
                 return;
             }

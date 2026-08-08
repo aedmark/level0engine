@@ -16,16 +16,23 @@ export const CrawlspaceHallProfile = (env, ctx) => {
             dropMesh.userData.isEntityBlocker = true;
             addGeometry(dropMesh);
 
-            if (random() > 0.5) {
-                const pipeGeo = env._cacheGeo('crawlspace_pipe', () => {
-                    return new THREE.CylinderGeometry(0.1, 0.1, env.cellSize, 8);
-                });
-                const pipe = new THREE.Mesh(pipeGeo, env.pittedMetalMat || env.metalMat);
-                pipe.rotation.z = Math.PI / 2;
-                if (random() > 0.5) pipe.rotation.y = Math.PI / 2;
-                pipe.position.set(x * env.cellSize, 1.1, z * env.cellSize);
-                addGeometry(pipe);
+            // Removed the black pipe generation per user request
+
+            if (!env.hazardTapeMat) {
+                env.hazardTapeMat = new THREE.MeshStandardMaterial({ color: 0xffdd00, roughness: 0.9 });
+                if (env.sharedAssets) env.sharedAssets.add(env.hazardTapeMat.uuid);
             }
+            const tapeGeoZ = env._cacheGeo('crawl_tape_z', () => new THREE.BoxGeometry(env.cellSize, 0.05, 0.05));
+            const tapeGeoX = env._cacheGeo('crawl_tape_x', () => new THREE.BoxGeometry(0.05, 0.05, env.cellSize));
+            const t1 = new THREE.Mesh(tapeGeoZ, env.hazardTapeMat);
+            t1.position.set(x * env.cellSize, 1.225, z * env.cellSize + env.cellSize / 2 - 0.025);
+            const t2 = new THREE.Mesh(tapeGeoZ, env.hazardTapeMat);
+            t2.position.set(x * env.cellSize, 1.225, z * env.cellSize - env.cellSize / 2 + 0.025);
+            const t3 = new THREE.Mesh(tapeGeoX, env.hazardTapeMat);
+            t3.position.set(x * env.cellSize + env.cellSize / 2 - 0.025, 1.225, z * env.cellSize);
+            const t4 = new THREE.Mesh(tapeGeoX, env.hazardTapeMat);
+            t4.position.set(x * env.cellSize - env.cellSize / 2 + 0.025, 1.225, z * env.cellSize);
+            addGeometry(t1); addGeometry(t2); addGeometry(t3); addGeometry(t4);
         }
     };
 };

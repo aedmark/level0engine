@@ -49,14 +49,14 @@ export default class PlayerController {
             let uiHTML = `> LAYER ${this.depth} — DEEPEST REACHED: ${this.bestDepth}<br>`;
             if (this.objectives.fixed >= this.objectives.total) {
                 if (this.inventory.hasExitKey) {
-                    uiHTML += `> SECTOR STABILIZED. RELEASE KEY HELD.<br>> LOCATE EXIT THRESHOLD.<br>> SIGNAL: ${signalText}`;
+                    uiHTML += `> SECTOR STABILIZED. RELEASE KEY HELD.<br>> LOCATE EXIT THRESHOLD.<br>> POI DISTANCE: ${signalText}`;
                     this.objectiveUI.style.color = '#88cc88';
                 } else {
-                    uiHTML += `> SECTOR STABILIZED.<br>> ELEVATOR RELEASE KEY SECURED IN RECORDS — ANNEX.<br>> RECORDS LOCK IS NOT ON FILE. ASSEMBLE IT.<br>> SIGNAL: ${signalText}`;
+                    uiHTML += `> SECTOR STABILIZED.<br>> ELEVATOR RELEASE KEY SECURED IN RECORDS — ANNEX.<br>> RECORDS LOCK IS NOT ON FILE. ASSEMBLE IT.<br>> POI DISTANCE: ${signalText}`;
                     this.objectiveUI.style.color = '#ffaa55';
                 }
             } else {
-                uiHTML += `> PRIMARY DIRECTIVE: RESTORE POWER<br>> BREAKERS RESET: [ ${this.objectives.fixed} / ${this.objectives.total} ]<br>> SIGNAL: ${signalText}`;
+                uiHTML += `> PRIMARY DIRECTIVE: RESTORE POWER<br>> BREAKERS RESET: [ ${this.objectives.fixed} / ${this.objectives.total} ]<br>> POI DISTANCE: ${signalText}`;
                 this.objectiveUI.style.color = '#ffffff';
             }
             if (this.objectiveUI.innerHTML !== uiHTML) {
