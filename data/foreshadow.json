@@ -15,7 +15,7 @@
       "_locked": true
     },
     "SERVER": {
-      "text": "${P} EQUIPMENT DISCREPANCY REPORT\n\nRACK #${ctx.seed}: No purchase order on file. No install ticket in the database. Serial number placards have been removed. Rack appears on the earliest floor plan we can find, which is dated before the slab was allegedly poured.",
+      "text": "${P} EQUIPMENT DISCREPANCY REPORT\n\nRACK #${WEEK}: No purchase order on file. No install ticket in the database. Serial number placards have been removed. Rack appears on the earliest floor plan we can find, which is dated before the slab was allegedly poured.",
       "thread": "TELL",
       "type": "document",
       "title": "Discrepancy Report",

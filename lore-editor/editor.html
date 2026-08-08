@@ -1,3 +1,4 @@
+<!--suppress CssUnusedSymbol -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -22,14 +23,13 @@
         body {
             background-color: var(--bg-dark);
             color: var(--text-main);
-            font-family: var(--font-sans);
+            font-family: var(--font-sans),serif;
             height: 100vh;
             display: flex;
             overflow: hidden;
             background-image: radial-gradient(ellipse at top right, #1a1a1a, var(--bg-dark), var(--bg-dark));
         }
 
-        /* Animations */
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
@@ -39,7 +39,6 @@
             to { opacity: 1; transform: scale(1); }
         }
 
-        /* App Layout */
         #app {
             display: flex;
             width: 100%;
@@ -47,7 +46,6 @@
             position: relative;
         }
 
-        /* Background Effects */
         .glow-red {
             position: absolute; top: 0; right: 0; width: 400px; height: 400px;
             background: rgba(127, 29, 29, 0.1); border-radius: 50%; filter: blur(100px); pointer-events: none;
@@ -57,7 +55,6 @@
             background: rgba(255, 255, 255, 0.03); border-radius: 50%; filter: blur(120px); pointer-events: none;
         }
 
-        /* Main Sidebar (Files) */
         .sidebar-main {
             width: 256px;
             border-right: 1px solid var(--border);
@@ -98,7 +95,6 @@
         .file-btn.active { background: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.05); box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
         .file-btn svg { opacity: 0.5; width: 14px; height: 14px; }
 
-        /* Editor Section */
         .editor-section {
             flex: 1; display: flex; flex-direction: column; padding: 32px; z-index: 10; position: relative; min-height: 0;
         }
@@ -134,7 +130,6 @@
             display: flex; flex: 1; overflow: hidden; min-height: 0;
         }
 
-        /* Tree Nav */
         .tree-nav {
             width: 288px; border-right: 1px solid var(--border); background: rgba(0,0,0,0.2); display: flex; flex-direction: column;
         }
@@ -147,7 +142,6 @@
 
         .tree-content { flex: 1; overflow-y: auto; padding: 8px; }
 
-        /* Tree Items */
         .tree-item-row {
             display: flex; align-items: center; margin-bottom: 4px;
         }
@@ -167,7 +161,8 @@
         .tree-item-row:hover .delete-btn { opacity: 1; }
 
         .tree-children {
-            padding-left: 24px; padding-right: 8px; padding-top: 4px; padding-bottom: 8px; margin-left: 16px;
+            padding: 4px 8px 8px 24px;
+            margin-left: 16px;
             border-left: 1px solid rgba(255,255,255,0.05); margin-bottom: 8px; margin-top: 4px; display: flex; flex-direction: column; gap: 4px;
         }
         .tree-child-btn {
@@ -183,7 +178,6 @@
         }
         .add-btn:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.8); }
 
-        /* Main Editor Area */
         .editor-main {
             flex: 1; padding: 24px; background: linear-gradient(to bottom right, #0a0a0a, #111); display: flex; flex-direction: column; overflow: hidden; min-height: 0;
         }
@@ -191,7 +185,6 @@
         .editor-title { font-size: 1.25rem; font-weight: 300; color: white; margin-bottom: 16px; display: flex; align-items: baseline; gap: 12px; }
         .editor-subtitle { font-size: 0.875rem; font-family: var(--font-mono); color: var(--text-muted); }
 
-        /* Linked Data Display */
         #hint-box {
             margin-bottom: 16px; padding: 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; display: none;
         }
@@ -217,13 +210,11 @@
         .var-btn:hover { background: rgba(255,255,255,0.1); color: white; }
         
         .var-select {
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 4px 8px;
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 4px;
             color: var(--accent-amber); font-family: var(--font-mono); font-size: 0.75rem; cursor: pointer; transition: 0.2s;
             appearance: none; -webkit-appearance: none;
-            padding-right: 24px;
-            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23fbbf24%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E");
-            background-repeat: no-repeat;
-            background-position: right 8px center;
+            padding: 4px 24px 4px 8px;
+            background: rgba(255, 255, 255, 0.05) url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23fbbf24%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E") no-repeat right 8px center;
         }
         .var-select:hover { background-color: rgba(255,255,255,0.1); color: white; }
         .var-select:focus { outline: none; border-color: rgba(251,191,36,0.5); }
@@ -247,7 +238,6 @@
         }
         textarea:focus { outline: none; border-color: rgba(255,255,255,0.3); box-shadow: 0 0 0 1px rgba(255,255,255,0.3); }
 
-        /* Welcome Message */
         #welcome-msg {
             flex: 1; display: flex; align-items: flex-start; justify-content: center; text-align: left;
             overflow-y: auto; padding: 40px;
@@ -260,7 +250,7 @@
         #welcome-msg-content h1, #welcome-msg-content h2, #welcome-msg-content h3 {
             color: var(--text-main); margin-top: 24px; margin-bottom: 12px;
         }
-        #welcome-msg-content h3 { color: var(--accent-orange); }
+        #welcome-msg-content h3 { color: var(--accent-amber); }
         #welcome-msg-content p { margin-bottom: 16px; }
         #welcome-msg-content strong { color: white; }
         #welcome-msg-content code { background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; }
@@ -280,22 +270,15 @@
             margin-top: 4px; margin-bottom: 8px; display: block;
         }
 
-        /* Live Preview & Inline Feedback */
         .split-editor-row { flex: 1; display: flex; gap: 16px; min-height: 0; }
         .preview-pane {
             flex: 1; min-height: 0; position: relative; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.15);
-            border-radius: 6px; padding: 24px; padding-top: 28px; color: #a3a3a3; font-family: var(--font-mono);
+            border-radius: 6px;
+            padding: 28px 24px 24px;
+            color: #a3a3a3; font-family: var(--font-mono);
             font-size: 0.875rem; line-height: 1.6;
         }
-        /* white-space: pre-wrap belongs on the text content itself, not the pane. The pane
-           also contains .preview-pane-label as a sibling, and pre-wrap on a shared ancestor
-           preserves the raw HTML-source indentation/newlines between them as real rendered
-           whitespace, shoving the content down by however many "lines" that indentation
-           wraps into. Scoping it to just the content div avoids that entirely.
-           overflow-y: auto lives here too (moved off .preview-pane) — .preview-pane-label
-           intentionally straddles the pane's top border via a negative top offset, and an
-           overflow:auto ancestor clips any child content that pokes outside its box, which
-           was chopping off the label's upper half and letting the border show through it. */
+
         #template-preview-content {
             white-space: pre-wrap; word-break: break-word; overflow-y: auto; height: 100%;
         }
@@ -313,7 +296,6 @@
             margin-left: 4px;
         }
 
-        /* Badges */
         .badge {
             display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px;
             font-size: 0.65rem; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.05em;
@@ -323,7 +305,6 @@
         .badge-warn { background: rgba(245,158,11,0.15); color: #fcd34d; border: 1px solid rgba(245,158,11,0.3); }
         .badge-danger { background: rgba(220,38,38,0.15); color: #fca5a5; border: 1px solid rgba(220,38,38,0.3); }
 
-        /* Puzzle Inspector */
         .inspector-puzzle-card {
             border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; background: rgba(255,255,255,0.02);
         }
@@ -339,30 +320,25 @@
     <div id="app">
         <div class="glow-red"></div>
         <div class="glow-white"></div>
-        
-        <!-- Sidebar -->
+
         <aside class="sidebar-main">
             <div class="sidebar-header">
                 <h1><div class="status-dot"></div> Level 0 Lore Editor</h1>
-                <p>System Override</p>
+            <p>System Override</p>
             </div>
             <div class="file-list" id="file-list">
                 <h2>Data Nodes</h2>
-                <!-- Files rendered here -->
             </div>
             <input type="file" id="import-file-input" accept="application/json" style="display:none" onchange="handleImportFileSelected(this)">
         </aside>
 
-        <!-- Main Content -->
         <main class="editor-section">
-            <!-- Welcome -->
             <div id="welcome-msg">
                 <div id="welcome-msg-content">
                     <p style="text-align:center;">Loading HowTo.md...</p>
                 </div>
             </div>
 
-            <!-- Editor Container -->
             <div id="editor-container">
                 <div class="editor-header-top">
                     <h2 id="display-filename">file.json</h2>
@@ -375,18 +351,15 @@
                         <button class="save-btn" id="save-btn" onclick="handleSave()">Save Changes</button>
                     </div>
                     <div class="editor-pane-body">
-                        <!-- Tree Nav -->
                         <div class="tree-nav">
                             <div class="tree-header-small">
                                 <h3>Navigation</h3>
                                 <button class="add-cat-btn" id="add-cat-btn" onclick="addCategory()" style="display:none;">+ CAT</button>
                             </div>
                             <div class="tree-content" id="tree-content">
-                                <!-- Tree rendered here -->
                             </div>
                         </div>
 
-                        <!-- Editor Main -->
                         <div class="editor-main">
                             <div id="editor-content-area" style="display:none; flex: 1; min-height: 0; flex-direction: column; overflow: hidden;">
                                 <div class="editor-title" id="editor-title"></div>
@@ -398,11 +371,11 @@
                                 <div id="tag-box" style="flex-wrap: wrap; gap: 12px 24px;">
                                     <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 250px;" title="Internal identifier, not shown to players.">
                                         <h4 id="title-label" style="white-space: nowrap;">Title:<span class="help-icon">?</span></h4>
-                                        <input type="text" id="title-input" placeholder="Optional title..." style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 4px 12px; font-size: 0.875rem; color: var(--text-main); font-family: var(--font-mono); flex: 1; min-width: 0;">
+                                        <label for="title-input"></label><input type="text" id="title-input" placeholder="Optional title..." style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 4px 12px; font-size: 0.875rem; color: var(--text-main); font-family: var(--font-mono); flex: 1; min-width: 0;">
                                     </div>
                                     <div style="display: flex; align-items: center; gap: 8px;" title="The format of the lore entry found by the player.">
                                         <h4>Type:<span class="help-icon">?</span></h4>
-                                        <select id="type-input" class="var-select">
+                                        <label for="type-input"></label><select id="type-input" class="var-select">
                                             <option value="document">Document</option>
                                             <option value="tape">Tape</option>
                                             <option value="note">Note</option>
@@ -412,7 +385,7 @@
                                     </div>
                                     <div id="thread-container" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;" title="Thematic grouping. Lore cannot use CIPHER/TELL. Clues are always CIPHER — locked automatically; use the Puzzle field below to say which lock(s) this clue actually corroborates.">
                                         <h4>Thread:<span class="help-icon">?</span></h4>
-                                        <input type="text" id="tag-input" list="tag-suggestions" placeholder="Tag..." />
+                                        <label for="tag-input"></label><input type="text" id="tag-input" list="tag-suggestions" placeholder="Tag..." />
                                         <datalist id="tag-suggestions"></datalist>
                                         <span id="thread-corrob-badge"></span>
                                         <span id="thread-constraint-hint"></span>
@@ -427,17 +400,17 @@
                                     <h4 style="margin-bottom: 2px;">Absolute Truth <span class="help-icon" title="The text displayed on the button when the player is presented with this choice.">?</span></h4>
                                     <div style="position: relative; flex: 1; min-height: 0; display: flex;">
                                         <div class="textarea-glow"></div>
-                                        <textarea id="option-textarea"></textarea>
+                                        <label for="option-textarea"></label><textarea id="option-textarea"></textarea>
                                     </div>
                                 </div>
                                 <div id="finale-meta-container" class="textarea-container" style="display:none; flex: 0.5; min-height: 150px; margin-bottom: 8px;">
                                     <h4 style="margin-bottom: 2px;">Thread Title</h4>
                                     <div style="position: relative; flex: 0 0 auto; display: flex; margin-bottom: 8px;">
-                                        <input type="text" id="tell-title-input" style="width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;" />
+                                        <label for="tell-title-input"></label><input type="text" id="tell-title-input" style="width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;" />
                                     </div>
                                     <h4 style="margin-bottom: 2px;">Thread Description</h4>
                                     <div style="position: relative; flex: 1; min-height: 0; display: flex;">
-                                        <textarea id="tell-desc-textarea"></textarea>
+                                        <label for="tell-desc-textarea"></label><textarea id="tell-desc-textarea"></textarea>
                                     </div>
                                 </div>
                                 <div class="textarea-container" id="textarea-container">
@@ -447,7 +420,7 @@
                                     <div class="split-editor-row">
                                         <div style="position: relative; flex: 1; min-height: 0; display: flex;">
                                             <div class="textarea-glow"></div>
-                                            <textarea id="main-textarea"></textarea>
+                                            <label for="main-textarea"></label><textarea id="main-textarea"></textarea>
                                         </div>
                                         <div class="preview-pane" id="template-preview" style="display:none;">
                                             <span class="preview-pane-label">Live Preview</span>
@@ -458,8 +431,8 @@
                                 <h4 id="names-container-label" style="display:none; margin-top: 16px; margin-bottom: 8px; font-size: 0.875rem; color: white;">Lock Threads <span class="help-icon" title="Puzzle state criteria requirements.">?</span></h4>
                                 <div id="names-container" style="display:none; flex: 1; flex-direction: column; overflow-y: auto; gap: 8px; min-height: 0; padding-right: 8px;"></div>
                                 <div id="names-add-box" style="display:none; margin-top: 16px; align-items: center; gap: 8px;">
-                                    <input type="text" id="names-input-key" placeholder="Key..." style="display:none; width: 150px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;">
-                                    <input type="text" id="names-input" placeholder="Add new entry..." style="flex:1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;">
+                                    <label for="names-input-key"></label><input type="text" id="names-input-key" placeholder="Key..." style="display:none; width: 150px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;">
+                                    <label for="names-input"></label><input type="text" id="names-input" placeholder="Add new entry..." style="flex:1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;">
                                     <button onclick="addNameEntry()" style="padding: 8px 16px; background: rgba(255,255,255,0.1); border: none; color: white; border-radius: 4px; cursor: pointer;">Add</button>
                                 </div>
                             </div>
@@ -471,7 +444,6 @@
                 </div>
             </div>
 
-            <!-- Validation Container -->
             <div id="validation-container" style="display:none; flex: 1; flex-direction: column; animation: fadeIn 0.3s ease-out; min-height: 0;">
                 <div class="editor-header-top">
                     <h2 style="display:flex; align-items:center; gap:12px;">
@@ -499,12 +471,10 @@
                         <button class="save-btn" onclick="openValidation()">Re-run Validation</button>
                     </div>
                     <div id="validation-results" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
-                        <!-- Results dynamically injected here -->
                     </div>
                 </div>
             </div>
 
-            <!-- Puzzle Inspector Container -->
             <div id="inspector-container" style="display:none; flex: 1; flex-direction: column; animation: fadeIn 0.3s ease-out; min-height: 0;">
                 <div class="editor-header-top">
                     <h2 style="display:flex; align-items:center; gap:12px;">
@@ -520,17 +490,15 @@
                         <button class="save-btn" onclick="openPuzzleInspector()">Refresh</button>
                     </div>
                     <div id="inspector-results" style="padding: 24px;">
-                        <!-- Results dynamically injected here -->
                     </div>
                 </div>
             </div>
 
-            <!-- Puzzle Wizard Container -->
             <div id="wizard-container" style="display:none; flex: 1; flex-direction: column; animation: fadeIn 0.3s ease-out; min-height: 0;">
                 <div class="editor-header-top">
                     <h2 style="display:flex; align-items:center; gap:12px;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.2H22l-6 4.6 2.3 7.2-6.3-4.6-6.3 4.6 2.3-7.2-6-4.6h7.6z"></path></svg>
-                        New Puzzle
+                        <span id="wizard-header-title">New Puzzle</span>
                     </h2>
                     <p id="wizard-step-label">Step 1 of 4</p>
                 </div>
@@ -538,13 +506,12 @@
                 <div class="editor-pane-wrapper" style="overflow-y: auto;">
                     <div class="editor-pane-header" style="display:flex; justify-content:space-between;">
                         <h2 id="wizard-title">Identify the Puzzle</h2>
-                        <button class="file-btn" style="width:auto; padding:8px 16px; border:1px solid var(--border); border-radius:4px;" onclick="cancelPuzzleWizard()">Cancel</button>
+                        <button class="file-btn" style="width:auto; padding:8px 16px; border:1px solid var(--border); border-radius:4px;" onclick="wizardCancelDispatch()">Cancel</button>
                     </div>
                     <div id="wizard-body" style="padding: 24px;">
-                        <!-- Step content injected here -->
                     </div>
                     <div style="padding: 0 24px 24px; display:flex; justify-content:space-between; align-items:center;">
-                        <button class="save-btn" id="wizard-back-btn" style="background:transparent; border:1px solid rgba(255,255,255,0.2); color:white; box-shadow:none;" onclick="wizardBack()">← Back</button>
+                        <button class="save-btn" id="wizard-back-btn" style="background:transparent; border:1px solid rgba(255,255,255,0.2); color:white; box-shadow:none;" onclick="wizardBackDispatch()">← Back</button>
                         <button class="save-btn" id="wizard-next-btn" onclick="wizardNext()">Next →</button>
                     </div>
                 </div>
@@ -552,2637 +519,14 @@
         </main>
     </div>
 
-    <script>
-        // State
-        let files = [];
-        let selectedFile = null;
-        let fileData = null;
-        let linkedData = null;
-        let paramsData = null;
-        let puzzlesData = [];
-
-        // Best-effort cache of other files' saved content, used only for QOL cross-file
-        // hints (corroboration badges, sector lists, reachability). Always re-fetched
-        // fresh before anything destructive (like a rename) is written.
-        let crossFileCache = {};
-
-        // Cache of the immutable factory-default baseline (data/factory/*.json), used
-        // to decide whether a primitive (a name, a VAR key, a LOCK_THREADS key) that
-        // can't carry its own "_locked" flag was part of the shipped defaults.
-        let factoryCache = {};
-        async function getFactoryData(file, forceRefresh) {
-            if (!forceRefresh && factoryCache[file]) return factoryCache[file];
-            try {
-                const res = await fetch(`/api/data?file=${file}&source=factory`);
-                const data = await res.json();
-                factoryCache[file] = data.content;
-                return data.content;
-            } catch (e) {
-                return factoryCache[file] || null;
-            }
-        }
-
-        // Entries that carry an embedded "_locked" flag (lore/clues/finales/foreshadow/
-        // puzzles entries) are factory-default and can be edited but never deleted.
-        function isLockedEntry(item) {
-            return !!(item && typeof item === 'object' && !Array.isArray(item) && item._locked === true);
-        }
-
-        // Active state for the new-puzzle wizard, or null when it's closed. Holds
-        // everything staged across all four steps until "Create Puzzle" writes it all
-        // out together.
-        let wizardState = null;
-
-        let expandedCategory = null;
-        let selectedCategory = null;
-        let selectedIndex = null;
-
-        const fileListEl = document.getElementById('file-list');
-        const treeContentEl = document.getElementById('tree-content');
-        const mainTextarea = document.getElementById('main-textarea');
-        const addCatBtn = document.getElementById('add-cat-btn');
-
-        // Validation
-        // Builds a representative context object shaped exactly like the one CaseFiles.js
-        // hands to replaceTemplates() at runtime, so validation-time evaluation of ${...}
-        // tokens and custom VARS matches production behavior instead of guessing at it.
-        function buildMockCtx(params, puzzles, coreVarsOverride) {
-            const roles = (params && params.ROLES) || ["lead", "custodian", "archivist", "lost"];
-            const cast = {};
-            roles.forEach((r, i) => {
-                cast[r] = { first: `Testfirst${i + 1}`, last: `Testlast${i + 1}`, full: `Testfirst${i + 1} Testlast${i + 1}` };
-            });
-            const coreVars = coreVarsOverride || { seed: 424242, pen: 7, year: 1994, hours: 512 };
-            // Custom per-playthrough variables (parameters.json's CORE_VARS — e.g. a serial
-            // number or a birthday component) generate the same way pen/year/hours do at
-            // runtime, so fold in a stable mock value for any that aren't already present
-            // (either because coreVarsOverride didn't set them, or the default above predates
-            // them). Picking the midpoint of min..max keeps previews reproducible.
-            const customCoreVarDefs = (params && params.CORE_VARS) || {};
-            Object.entries(customCoreVarDefs).forEach(([key, def]) => {
-                if (key in coreVars) return;
-                const min = Number.isFinite(def?.min) ? def.min : 0;
-                const max = Number.isFinite(def?.max) ? def.max : min;
-                coreVars[key] = min + Math.floor(0.42 * (max - min + 1));
-            });
-            let cipher = null;
-            const puzzleWithCode = (puzzles || []).find(p => p && p.ACCESS_CODE);
-            if (puzzleWithCode) {
-                try { cipher = new Function('ctx', `return ${puzzleWithCode.ACCESS_CODE};`)(coreVars); } catch (e) { cipher = null; }
-            }
-            return {
-                cast,
-                project: 'TESTPROJECT',
-                siteYear: coreVars.year,
-                pen: coreVars.pen,
-                hours: coreVars.hours,
-                seed: coreVars.seed,
-                truth: 0,
-                coreVars,
-                params,
-                rand: () => 0.42,
-                cipher
-            };
-        }
-
-        // Mirrors CaseFiles.js's replaceTemplates() exactly, but instead of silently eating
-        // failures, it collects every broken token so the validator can surface them.
-        function resolveTemplateForValidation(str, ctx) {
-            const issues = [];
-            if (typeof str !== 'string') return { result: str, issues };
-            const c = ctx.cast;
-            const P = ctx.project;
-            const pen = ctx.pen;
-            const hrs = ctx.hours;
-            const year = ctx.siteYear;
-            let s = str;
-
-            if (s.includes('${first_name}')) s = s.replace(/\$\{first_name\}/g, 'Testfirst');
-            if (s.includes('${last_name}')) s = s.replace(/\$\{last_name\}/g, 'Testlast');
-
-            for (const role in c) {
-                const val = c[role];
-                s = s.replace(new RegExp(`\\$\\{c\\.${role}\\}`, 'g'), val.full);
-                s = s.replace(new RegExp(`\\$\\{${role.toUpperCase()}\\}`, 'g'), val.full.toUpperCase());
-                s = s.replace(new RegExp(`\\$\\{c\\.${role}\\.first_name\\}`, 'g'), val.first);
-                s = s.replace(new RegExp(`\\$\\{c\\.${role}\\.last_name\\}`, 'g'), val.last);
-                s = s.replace(new RegExp(`\\$\\{${role}\\.first_name\\}`, 'g'), val.first);
-                s = s.replace(new RegExp(`\\$\\{${role}\\.last_name\\}`, 'g'), val.last);
-            }
-
-            s = s.replace(/\$\{P\}/g, P);
-            if (ctx.coreVars) {
-                for (const key in ctx.coreVars) {
-                    s = s.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), ctx.coreVars[key]);
-                }
-            }
-            s = s.replace(/\$\{pen\}/g, pen);
-            s = s.replace(/\$\{hrs\}/g, hrs);
-            s = s.replace(/\$\{year\}/g, year);
-
-            const customVars = (ctx.params && ctx.params.VARS) || {};
-            for (const varName in customVars) {
-                const expr = customVars[varName];
-                try {
-                    const val = new Function('ctx', `return ${expr};`)(ctx);
-                    if (val === undefined) {
-                        issues.push(`Custom VAR <b>${varName}</b> ("${expr}") evaluates to <b>undefined</b> — it will render as the literal word "undefined".`);
-                    } else if (typeof val === 'number' && Number.isNaN(val)) {
-                        issues.push(`Custom VAR <b>${varName}</b> ("${expr}") evaluates to <b>NaN</b>.`);
-                    }
-                    s = s.replace(new RegExp(`\\$\\{${varName}\\}`, 'g'), val);
-                } catch (e) {
-                    issues.push(`Custom VAR <b>${varName}</b> ("${expr}") throws when evaluated: ${e.message}`);
-                }
-            }
-
-            s = s.replace(/\$\{([^}]+)\}/g, (match, expr) => {
-                try {
-                    const val = new Function('ctx', `return ${expr};`)(ctx);
-                    if (val === undefined) {
-                        issues.push(`Inline expression <b>${match}</b> evaluates to <b>undefined</b>.`);
-                        return match;
-                    }
-                    return val;
-                } catch (e) {
-                    issues.push(`Malformed template <b>${match}</b> does not evaluate (${e.message}). This will render literally to the player.`);
-                    return match;
-                }
-            });
-
-            return { result: s, issues };
-        }
-
-        // Extra heuristic checks that catch the two typo classes that don't look like
-        // "${...}" at all, so the resolution pass above can never see them: a "$(" where
-        // "${" was meant, and a "{...}" missing its leading "$" entirely.
-        function findTypoTokens(text) {
-            const found = [];
-            const wrongBracket = text.match(/\$\([a-zA-Z_][\w.]*\}/g);
-            if (wrongBracket) wrongBracket.forEach(m => found.push(`Malformed token <b>${m}</b> uses "$(" instead of "\${" — it will render literally to the player.`));
-            const missingDollar = text.match(/[^$]\{[a-zA-Z_][\w.]*\}/g);
-            if (missingDollar) missingDollar.forEach(m => found.push(`Possible missing "$" before <b>${m.slice(1)}</b> — if this was meant to be a template token, it will currently render literally.`));
-            return found;
-        }
-
-        // How many distinct sectors currently deliver a given thread, across the two
-        // files that actually hand content to players (lore.json + clues.json). This is
-        // the same number the engine needs to see >= 2 of before it fires a corroboration
-        // event, and >= 1 of before a puzzle's LOCK_THREADS requirement can ever be met.
-        //
-        // A clue's `puzzle` field gates which puzzle(s) it's actually delivered under —
-        // CaseFiles.js's clue-injection loop skips any clue whose `puzzle` doesn't match
-        // the active puzzle. Lore entries carry no such gating and are always universal.
-        // When puzzleScope is given, this mirrors that exact gate, so e.g. a pen-cipher
-        // clue (puzzle: "ORIGINAL_PEN") can no longer inflate an hour-cipher puzzle's
-        // CIPHER reachability just because both happen to share the "CIPHER" thread —
-        // it only counts if it's actually deliverable under that specific puzzle.
-        async function computeThreadDelivery(threadVal, puzzleScope) {
-            if (!threadVal) return { count: 0, sectors: [] };
-            const lore = (await getCrossFileData('lore.json')) || {};
-            const clues = (await getCrossFileData('clues.json')) || {};
-            const sectors = new Set();
-            const deliversUnderScope = (item) => {
-                if (!puzzleScope) return true;
-                const puz = item.puzzle;
-                return !puz || puz === puzzleScope || (Array.isArray(puz) && puz.includes(puzzleScope));
-            };
-            for (const [sector, arr] of Object.entries(lore)) {
-                if (Array.isArray(arr)) arr.forEach(i => { if (i && i.thread === threadVal) sectors.add(sector); });
-            }
-            for (const [sector, arr] of Object.entries(clues)) {
-                if (Array.isArray(arr)) arr.forEach(i => { if (i && i.thread === threadVal && deliversUnderScope(i)) sectors.add(sector); });
-            }
-            return { count: sectors.size, sectors: Array.from(sectors) };
-        }
-
-        // Shared badge styling for a delivery count. `mode` picks the phrasing:
-        // "corroborate" (thread field, 2+ needed for a corroboration event) vs
-        // "reachable" (puzzle LOCK_THREADS, 1+ needed for the puzzle to be solvable at all).
-        function badgeForDeliveryCount(count, mode) {
-            if (mode === 'reachable') {
-                if (count === 0) return { cls: 'badge-danger', label: '0 sectors — unreachable, puzzle can never be solved' };
-                if (count === 1) return { cls: 'badge-warn', label: `${count} sector — reachable, not yet corroborated` };
-                return { cls: 'badge-ok', label: `${count} sectors — reachable & corroborated` };
-            }
-            if (count === 0) return { cls: 'badge-danger', label: '0 sectors — never delivered to a player' };
-            if (count === 1) return { cls: 'badge-warn', label: '1 sector — needs 2+ to corroborate' };
-            return { cls: 'badge-ok', label: `${count} sectors — corroborates` };
-        }
-
-        // Live "does this text actually work" feedback: resolves every ${...} token in
-        // the main textarea against a mock context (same logic the Validation tab uses)
-        // and renders the result side-by-side, plus a plain-language issues list.
-        function updateLivePreview() {
-            const previewPane = document.getElementById('template-preview');
-            const banner = document.getElementById('template-issues-banner');
-            if (!previewPane || !banner) return;
-
-            const isPuzzleAccessCode = selectedFile === 'puzzles.json' && selectedCategory === null;
-            const containerVisible = document.getElementById('textarea-container').style.display !== 'none';
-            const text = mainTextarea.value;
-
-            if (isPuzzleAccessCode || !containerVisible || !text) {
-                previewPane.style.display = 'none';
-                banner.style.display = 'none';
-                return;
-            }
-
-            const mockCtx = buildMockCtx(paramsData || {}, puzzlesData || []);
-            const { result, issues } = resolveTemplateForValidation(text, mockCtx);
-            const allIssues = [...findTypoTokens(text), ...issues];
-
-            previewPane.style.display = 'block';
-            document.getElementById('template-preview-content').innerText = result;
-
-            if (allIssues.length) {
-                banner.style.display = 'block';
-                banner.innerHTML = allIssues.map(i => `⚠ ${i}`).join('<br>');
-            } else {
-                banner.style.display = 'none';
-            }
-        }
-
-        // Live "will this thread ever get corroborated" feedback next to the Thread
-        // field. Async because it may need to fetch lore.json/clues.json the first time;
-        // subsequent calls are served from the cache warmed in init().
-        async function refreshThreadBadge() {
-            const badgeEl = document.getElementById('thread-corrob-badge');
-            if (!badgeEl) return;
-            const threadContainerVisible = document.getElementById('thread-container').style.display !== 'none';
-            const threadVal = document.getElementById('tag-input').value;
-            if (!threadContainerVisible || !threadVal) {
-                badgeEl.innerHTML = '';
-                return;
-            }
-            // If the entry being edited is itself puzzle-gated (clues.json's `puzzle`
-            // field, single-id case), scope the corroboration count to that puzzle so it
-            // doesn't get inflated by a same-named thread's clues gated to a *different*
-            // puzzle. Entries with no puzzle field (lore) or a multi-puzzle array (shared
-            // clues) fall back to the unscoped/pooled count, same as before.
-            const currentItem = getCurrentEditorData();
-            const puzzleScope = (currentItem && typeof currentItem.puzzle === 'string') ? currentItem.puzzle : undefined;
-            const { count } = await computeThreadDelivery(threadVal, puzzleScope);
-            const { cls, label } = badgeForDeliveryCount(count, 'corroborate');
-            badgeEl.innerHTML = `<span class="badge ${cls}">${label}</span>`;
-        }
-
-        async function openValidation() {
-            wizardState = null;
-            selectedFile = 'VALIDATION';
-            renderFileList();
-
-            document.getElementById('welcome-msg').style.display = 'none';
-            document.getElementById('editor-container').style.display = 'none';
-            document.getElementById('inspector-container').style.display = 'none';
-            document.getElementById('wizard-container').style.display = 'none';
-            document.getElementById('validation-container').style.display = 'flex';
-
-            const resultsEl = document.getElementById('validation-results');
-            resultsEl.innerHTML = '<div style="color:var(--text-muted); font-family:var(--font-mono);">Running validation checks...</div>';
-            
-            try {
-                // Fetch all data
-                const fetches = ['parameters.json', 'threads.json', 'puzzles.json', 'clues.json', 'lore.json', 'foreshadow.json', 'finales.json'].map(f => fetch('/api/data?file=' + f).then(r => r.json()));
-                const [paramRes, threadRes, puzzleRes, clueRes, loreRes, foreRes, finRes] = await Promise.all(fetches);
-                
-                const params = paramRes.content || {};
-                const threads = threadRes.content || {};
-                const puzzles = puzzleRes.content || [];
-                const clues = clueRes.content || {};
-                const lore = loreRes.content || {};
-                const foreshadow = foreRes.content || [];
-                const finales = finRes.content || [];
-                
-                const varsMap = params.VARS || {};
-                const threadKeys = new Set(Object.keys(threads));
-                const puzzleIds = new Set(puzzles.map(p => p.id));
-                const varKeys = new Set(Object.keys(varsMap));
-                
-                const usedThreads = new Set();
-                const usedVars = new Set();
-                const usedPuzzles = new Set();
-                
-                const warnings = [];
-                const errors = [];
-                
-                // Check Clues
-                for (const [sector, arr] of Object.entries(clues)) {
-                    if (Array.isArray(arr)) {
-                        arr.forEach((clue, idx) => {
-                            const path = `clues.json -> ${sector}[${idx}]`;
-                            if (clue.thread) {
-                                usedThreads.add(clue.thread);
-                                if (!threadKeys.has(clue.thread)) {
-                                    errors.push(`[${path}] References unknown thread: <b>${clue.thread}</b>`);
-                                }
-                                // The editor locks clues.json's Thread field to CIPHER (it's
-                                // implicit, like TELL is for finales.json) — anything else here
-                                // can only have arrived via a raw JSON edit and is almost
-                                // certainly a mistake (e.g. content that should live in
-                                // lore.json/foreshadow.json instead).
-                                if (clue.thread !== 'CIPHER') {
-                                    errors.push(`[${path}] Clue is tagged thread <b>${clue.thread}</b>, but clues.json entries should always be <b>CIPHER</b> — the editor now sets this automatically. If this content isn't cipher-solving instructions, it likely belongs in lore.json or foreshadow.json instead.`);
-                                }
-                            }
-                            if (clue.puzzle) {
-                                const puzArr = Array.isArray(clue.puzzle) ? clue.puzzle : [clue.puzzle];
-                                puzArr.forEach(p => {
-                                    usedPuzzles.add(p);
-                                    if (!puzzleIds.has(p)) {
-                                        errors.push(`[${path}] References unknown puzzle ID: <b>${p}</b>`);
-                                    } else {
-                                        // Check logic mismatch
-                                        const pObj = puzzles.find(x => x.id === p);
-                                        if (pObj && pObj.LOCK_THREADS && clue.thread && !pObj.LOCK_THREADS[clue.thread]) {
-                                            errors.push(`[${path}] Critical Logic Mismatch: Clue requires puzzle <b>${p}</b> and thread <b>${clue.thread}</b>, but puzzle <b>${p}</b> does not have <b>${clue.thread}</b> in its LOCK_THREADS! This clue will never appear.`);
-                                        }
-                                    }
-                                });
-                            }
-                        });
-                    }
-                }
-                
-                // Check Lore
-                for (const [sector, arr] of Object.entries(lore)) {
-                    if (Array.isArray(arr)) {
-                        arr.forEach((l, idx) => {
-                            if (l.thread) {
-                                usedThreads.add(l.thread);
-                                if (!threadKeys.has(l.thread)) {
-                                    errors.push(`[lore.json -> ${sector}[${idx}]] References unknown thread: <b>${l.thread}</b>`);
-                                }
-                            }
-                        });
-                    }
-                }
-                
-                // Check Foreshadow
-                foreshadow.forEach((group, idx) => {
-                    for (const [key, val] of Object.entries(group)) {
-                        if (val && typeof val === 'object' && val.thread) {
-                            usedThreads.add(val.thread);
-                            if (!threadKeys.has(val.thread)) {
-                                errors.push(`[foreshadow.json -> [${idx}].${key}] References unknown thread: <b>${val.thread}</b>`);
-                            }
-                        }
-                    }
-                });
-                
-                // Check Puzzles
-                puzzles.forEach(p => {
-                    if (p.LOCK_THREADS) {
-                        for (const [thread, v] of Object.entries(p.LOCK_THREADS)) {
-                            usedThreads.add(thread);
-                            usedVars.add(v);
-                            if (!threadKeys.has(thread)) {
-                                errors.push(`[puzzles.json -> ${p.id}] LOCK_THREADS references unknown thread: <b>${thread}</b>`);
-                            }
-                            if (!varKeys.has(v)) {
-                                errors.push(`[puzzles.json -> ${p.id}] LOCK_THREADS references unknown VAR: <b>${v}</b>`);
-                            }
-                        }
-                    }
-                });
-                
-                // Check Finales Sync
-                if (foreshadow.length !== finales.length) {
-                    errors.push(`[foreshadow.json / finales.json] Sync mismatch! Foreshadow has ${foreshadow.length} groups, Finales has ${finales.length}. They must match exactly by index.`);
-                }
-                
-                // Check Orphans
-                threadKeys.forEach(t => {
-                    if (!usedThreads.has(t)) warnings.push(`[threads.json] Thread defined but never used: <b>${t}</b>`);
-                });
-                varKeys.forEach(v => {
-                    if (!usedVars.has(v)) warnings.push(`[parameters.json] VAR defined but never used by a puzzle: <b>${v}</b>`);
-                });
-
-                // Check Reachability: every thread a puzzle locks against must actually be
-                // delivered UNDER THAT PUZZLE specifically, or the objective can never be
-                // corroborated in-game. lore.json and foreshadow.json entries are always
-                // universal, but clues.json entries are further gated by a `puzzle` field
-                // (mirrors CaseFiles.js's clue-injection logic) — so a clue gated to a
-                // different puzzle variant must not count just because it shares a thread
-                // name (e.g. a pen-cipher clue can't satisfy an hour-cipher puzzle's CIPHER
-                // requirement even though both puzzles lock against "CIPHER").
-                const universalDeliveredThreads = new Set();
-                for (const arr of Object.values(lore)) {
-                    if (Array.isArray(arr)) arr.forEach(item => { if (item && item.thread) universalDeliveredThreads.add(item.thread); });
-                }
-                foreshadow.forEach(group => {
-                    for (const val of Object.values(group)) {
-                        if (val && typeof val === 'object' && val.thread) universalDeliveredThreads.add(val.thread);
-                    }
-                });
-                puzzles.forEach(p => {
-                    if (p.LOCK_THREADS) {
-                        const deliveredForThisPuzzle = new Set(universalDeliveredThreads);
-                        for (const arr of Object.values(clues)) {
-                            if (!Array.isArray(arr)) continue;
-                            arr.forEach(item => {
-                                if (!item || !item.thread) return;
-                                const puz = item.puzzle;
-                                const appliesToThisPuzzle = !puz || puz === p.id || (Array.isArray(puz) && puz.includes(p.id));
-                                if (appliesToThisPuzzle) deliveredForThisPuzzle.add(item.thread);
-                            });
-                        }
-                        Object.keys(p.LOCK_THREADS).forEach(thread => {
-                            if (!deliveredForThisPuzzle.has(thread)) {
-                                errors.push(`[puzzles.json -> ${p.id}] LOCK_THREADS requires thread <b>${thread}</b>, but no entry in lore.json, clues.json (gated to this puzzle), or foreshadow.json is ever tagged with it. This objective can never be corroborated by a player.`);
-                            }
-                        });
-                    }
-                });
-
-                // Check Templates: actually resolve every ${...} token against a live mock
-                // context, mirroring CaseFiles.js, instead of only checking identifiers exist.
-                const mockCtx = buildMockCtx(params, puzzles);
-                const textFields = [];
-                for (const [sector, arr] of Object.entries(lore)) {
-                    if (Array.isArray(arr)) arr.forEach((item, idx) => { if (item && item.text) textFields.push([`lore.json -> ${sector}[${idx}] (${item.title || 'untitled'})`, item.text]); });
-                }
-                for (const [sector, arr] of Object.entries(clues)) {
-                    if (Array.isArray(arr)) arr.forEach((item, idx) => { if (item && item.text) textFields.push([`clues.json -> ${sector}[${idx}] (${item.title || 'untitled'})`, item.text]); });
-                }
-                foreshadow.forEach((group, gIdx) => {
-                    for (const [loc, val] of Object.entries(group)) {
-                        if (val && typeof val === 'object' && val.text) textFields.push([`foreshadow.json -> [${gIdx}].${loc} (${group.nickname || 'untitled'})`, val.text]);
-                    }
-                });
-                finales.forEach((f, idx) => {
-                    if (f.text) textFields.push([`finales.json -> [${idx}].text (${f.nickname || f.option || 'untitled'})`, f.text]);
-                    if (f.option) textFields.push([`finales.json -> [${idx}].option`, f.option]);
-                    if (f.tell_title) textFields.push([`finales.json -> [${idx}].tell_title`, f.tell_title]);
-                    if (f.tell_description) textFields.push([`finales.json -> [${idx}].tell_description`, f.tell_description]);
-                });
-                for (const [key, t] of Object.entries(threads)) {
-                    if (t && t.title) textFields.push([`threads.json -> ${key}.title`, t.title]);
-                    if (t && t.description) textFields.push([`threads.json -> ${key}.description`, t.description]);
-                }
-
-                textFields.forEach(([path, text]) => {
-                    // Heuristic: "${" typo'd as "$(" — wrong bracket, never resolves.
-                    const wrongBracket = text.match(/\$\([a-zA-Z_][\w.]*\}/g);
-                    if (wrongBracket) {
-                        wrongBracket.forEach(m => errors.push(`[${path}] Malformed token <b>${m}</b> — uses "$(" instead of "\${". This will render literally to the player.`));
-                    }
-                    // Heuristic: a token-shaped "{...}" missing its leading "$" — never resolves.
-                    const missingDollar = text.match(/[^$]\{[a-zA-Z_][\w.]*\}/g);
-                    if (missingDollar) {
-                        missingDollar.forEach(m => warnings.push(`[${path}] Possible missing "$" before <b>${m.slice(1)}</b> — if this was meant to be a template token, it will currently render literally.`));
-                    }
-                    // Full resolution pass, mirroring the engine's actual replaceTemplates().
-                    const { issues } = resolveTemplateForValidation(text, mockCtx);
-                    issues.forEach(issue => errors.push(`[${path}] ${issue}`));
-                });
-
-                // Check Tape Collisions: StoryEngine stores at most one tape per sector
-                // (tapes[sector] = item, not an array), so two eligible tapes in the same
-                // sector silently overwrite one another.
-                puzzles.forEach(p => {
-                    const eligibleBySector = {};
-                    for (const [sector, arr] of Object.entries(lore)) {
-                        (arr || []).filter(i => i && i.type === 'tape').forEach(i => {
-                            (eligibleBySector[sector] = eligibleBySector[sector] || []).push(i.title || '(untitled)');
-                        });
-                    }
-                    for (const [sector, arr] of Object.entries(clues)) {
-                        (arr || []).filter(i => i && i.type === 'tape' && i.thread && p.LOCK_THREADS && p.LOCK_THREADS[i.thread]).forEach(i => {
-                            const puz = i.puzzle;
-                            if (!puz || puz === p.id || (Array.isArray(puz) && puz.includes(p.id))) {
-                                (eligibleBySector[sector] = eligibleBySector[sector] || []).push(i.title || '(untitled)');
-                            }
-                        });
-                    }
-                    Object.entries(eligibleBySector).forEach(([sector, titles]) => {
-                        if (titles.length > 1) {
-                            warnings.push(`[Tape collision, puzzle <b>${p.id}</b>] Sector <b>${sector}</b> has ${titles.length} eligible tape entries (${titles.join(', ')}), but only one tape can play per sector. All but one will be silently dropped for this puzzle.`);
-                        }
-                    });
-                });
-
-                // Render
-                let html = '';
-                if (errors.length === 0 && warnings.length === 0) {
-                    html += `<div style="padding: 16px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 6px; color: #34d399; font-family: var(--font-mono); font-size: 0.875rem;">
-                        ✅ All data checks passed! System is properly configured.
-                    </div>`;
-                }
-                
-                if (errors.length > 0) {
-                    html += `<h3 style="color: var(--accent-red); margin-top: 8px;">Critical Errors (${errors.length})</h3>`;
-                    errors.forEach(e => {
-                        html += `<div style="padding: 12px; background: rgba(220, 38, 38, 0.1); border-left: 3px solid var(--accent-red); color: #fca5a5; font-family: var(--font-mono); font-size: 0.875rem; border-radius: 0 4px 4px 0;">
-                            ${e}
-                        </div>`;
-                    });
-                }
-                
-                if (warnings.length > 0) {
-                    html += `<h3 style="color: var(--accent-amber); margin-top: ${errors.length > 0 ? '24px' : '8px'};">Warnings (${warnings.length})</h3>`;
-                    warnings.forEach(w => {
-                        html += `<div style="padding: 12px; background: rgba(245, 158, 11, 0.1); border-left: 3px solid var(--accent-amber); color: #fcd34d; font-family: var(--font-mono); font-size: 0.875rem; border-radius: 0 4px 4px 0;">
-                            ${w}
-                        </div>`;
-                    });
-                }
-                
-                resultsEl.innerHTML = html;
-                
-            } catch (err) {
-                resultsEl.innerHTML = `<div style="color:var(--accent-red); font-family:var(--font-mono);">Failed to run validation: ${err.message}</div>`;
-            }
-        }
-
-        // Puzzle Inspector: makes the puzzle -> LOCK_THREADS -> delivering-content chain
-        // visible as a table instead of something you have to trace across three files by
-        // hand, plus a "simulate a run" button per puzzle that re-rolls the mock seed/pen/
-        // year/hour and recomputes that puzzle's access code, so you can see the shape of
-        // a few different playthroughs without launching the game.
-        let inspectorData = null;
-        let inspectorMockCtx = {};
-
-        function randomCoreVars(params) {
-            const core = {
-                seed: Math.floor(Math.random() * 999999),
-                pen: 3 + Math.floor(Math.random() * 19),
-                year: 1971 + Math.floor(Math.random() * 28),
-                hours: 300 + Math.floor(Math.random() * 900)
-            };
-            const customCoreVarDefs = (params && params.CORE_VARS) || {};
-            Object.entries(customCoreVarDefs).forEach(([key, def]) => {
-                if (key in core) return;
-                const min = Number.isFinite(def?.min) ? def.min : 0;
-                const max = Number.isFinite(def?.max) ? def.max : min;
-                core[key] = min + Math.floor(Math.random() * (max - min + 1));
-            });
-            return core;
-        }
-
-        async function openPuzzleInspector() {
-            wizardState = null;
-            selectedFile = 'INSPECTOR';
-            renderFileList();
-
-            document.getElementById('welcome-msg').style.display = 'none';
-            document.getElementById('editor-container').style.display = 'none';
-            document.getElementById('validation-container').style.display = 'none';
-            document.getElementById('wizard-container').style.display = 'none';
-            document.getElementById('inspector-container').style.display = 'flex';
-
-            const resultsEl = document.getElementById('inspector-results');
-            resultsEl.innerHTML = '<div style="color:var(--text-muted); font-family:var(--font-mono);">Loading...</div>';
-
-            try {
-                const fetches = ['parameters.json', 'threads.json', 'puzzles.json', 'clues.json', 'lore.json', 'foreshadow.json', 'finales.json'].map(f => fetch('/api/data?file=' + f).then(r => r.json()));
-                const [paramRes, threadRes, puzzleRes, clueRes, loreRes, foreRes, finRes] = await Promise.all(fetches);
-
-                inspectorData = {
-                    params: paramRes.content || {},
-                    threads: threadRes.content || {},
-                    puzzles: puzzleRes.content || [],
-                    clues: clueRes.content || {},
-                    lore: loreRes.content || {},
-                    foreshadow: foreRes.content || [],
-                    finales: finRes.content || []
-                };
-
-                // Piggyback on this fetch to keep the shared caches warm too.
-                paramsData = inspectorData.params;
-                puzzlesData = inspectorData.puzzles;
-                crossFileCache['lore.json'] = inspectorData.lore;
-                crossFileCache['clues.json'] = inspectorData.clues;
-                crossFileCache['foreshadow.json'] = inspectorData.foreshadow;
-                crossFileCache['finales.json'] = inspectorData.finales;
-                crossFileCache['threads.json'] = inspectorData.threads;
-                crossFileCache['puzzles.json'] = inspectorData.puzzles;
-
-                inspectorMockCtx = {};
-                inspectorData.puzzles.forEach(p => {
-                    inspectorMockCtx[p.id] = buildMockCtx(inspectorData.params, inspectorData.puzzles);
-                });
-
-                renderInspectorResults();
-            } catch (err) {
-                resultsEl.innerHTML = `<div style="color:var(--accent-red); font-family:var(--font-mono);">Failed to load puzzle inspector: ${err.message}</div>`;
-            }
-        }
-
-        function simulatePuzzle(puzzleId) {
-            if (!inspectorData) return;
-            inspectorMockCtx[puzzleId] = buildMockCtx(inspectorData.params, inspectorData.puzzles, randomCoreVars(inspectorData.params));
-            renderInspectorResults();
-        }
-
-        function renderInspectorResults() {
-            const resultsEl = document.getElementById('inspector-results');
-            if (!inspectorData) return;
-            const { params, threads, puzzles, clues, lore } = inspectorData;
-
-            if (puzzles.length === 0) {
-                resultsEl.innerHTML = '<div style="color:var(--text-muted); font-family:var(--font-mono);">No puzzles defined in puzzles.json.</div>';
-                return;
-            }
-
-            let html = '';
-            puzzles.forEach(p => {
-                const lockThreads = p.LOCK_THREADS || {};
-                const threadKeys = Object.keys(lockThreads);
-
-                const deliveryByThread = {};
-                threadKeys.forEach(t => { deliveryByThread[t] = []; });
-                for (const [sector, arr] of Object.entries(lore)) {
-                    (arr || []).forEach(item => {
-                        if (item && item.thread && threadKeys.includes(item.thread)) {
-                            deliveryByThread[item.thread].push(`${sector} · ${item.title || 'untitled'} (lore.json)`);
-                        }
-                    });
-                }
-                for (const [sector, arr] of Object.entries(clues)) {
-                    (arr || []).forEach(item => {
-                        if (item && item.thread && threadKeys.includes(item.thread)) {
-                            const puz = item.puzzle;
-                            const appliesToThisPuzzle = !puz || puz === p.id || (Array.isArray(puz) && puz.includes(p.id));
-                            if (appliesToThisPuzzle) {
-                                deliveryByThread[item.thread].push(`${sector} · ${item.title || 'untitled'} (clues.json)`);
-                            }
-                        }
-                    });
-                }
-
-                const mockCtx = inspectorMockCtx[p.id] || buildMockCtx(params, puzzles);
-                let accessCodeResult = null, accessCodeError = null;
-                try {
-                    accessCodeResult = new Function('ctx', `return ${p.ACCESS_CODE};`)(mockCtx.coreVars);
-                } catch (e) {
-                    accessCodeError = e.message;
-                }
-
-                const unreachable = threadKeys.filter(t => deliveryByThread[t].length === 0);
-
-                html += `<div class="inspector-puzzle-card">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
-                        <h3 style="font-size:1rem; font-weight:600;">${p.id}</h3>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <span class="badge ${unreachable.length ? 'badge-danger' : 'badge-ok'}">${unreachable.length ? unreachable.length + ' unreachable thread(s)' : 'fully reachable'}</span>
-                            <button class="var-btn" onclick="simulatePuzzle('${p.id}')">🎲 Simulate a run</button>
-                        </div>
-                    </div>
-                    <div style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-muted); margin-bottom:12px;">
-                        Simulated access code (seed ${mockCtx.coreVars.seed}, year ${mockCtx.coreVars.year}, pen ${mockCtx.coreVars.pen}, hour ${mockCtx.coreVars.hours}):
-                        <b style="color:var(--accent-amber);">${accessCodeError ? 'ERROR: ' + accessCodeError : accessCodeResult}</b>
-                    </div>`;
-
-                if (threadKeys.length === 0) {
-                    html += `<div class="inspector-sector-list">This puzzle has no LOCK_THREADS — it can be solved with no in-world evidence at all.</div>`;
-                }
-
-                threadKeys.forEach(t => {
-                    const deliveries = deliveryByThread[t];
-                    const { cls, label } = badgeForDeliveryCount(deliveries.length, 'reachable');
-                    html += `<div class="inspector-thread-row">
-                        <div>
-                            <div><b>${t}</b>${threads[t] && threads[t].title ? ` — ${threads[t].title}` : ''}</div>
-                            ${deliveries.length ? `<div class="inspector-sector-list">Delivered by: ${deliveries.join(', ')}</div>` : `<div class="inspector-sector-list" style="color:#fca5a5;">Nothing in lore.json or clues.json is ever tagged with this thread.</div>`}
-                        </div>
-                        <span class="badge ${cls}">${label}</span>
-                    </div>`;
-                });
-
-                html += `</div>`;
-            });
-
-            resultsEl.innerHTML = html;
-        }
-
-        // New Puzzle Wizard: walks through ID -> Access Code -> Lock Threads -> Review,
-        // so a puzzle can't be born with the exact defect the audit found in HOUR_PUZZLE
-        // (a LOCK_THREADS requirement nothing in lore.json/clues.json ever delivers).
-        // Everything is staged in wizardState and written out together on "Create Puzzle".
-        const ACCESS_PATTERNS = {
-            year_pen: { label: 'Year + Pen (classic)', expr: "String(ctx.year).slice(2) + String(ctx.pen).padStart(2, '0')" },
-            hours_pen: { label: 'Hours + Pen', expr: "String(ctx.hours).slice(0, 2) + String(ctx.pen).padStart(2, '0')" },
-            custom: { label: 'Custom expression...', expr: '' }
-        };
-
-        function newWizardState() {
-            return {
-                step: 1,
-                id: '',
-                accessPattern: 'year_pen',
-                accessCode: ACCESS_PATTERNS.year_pen.expr,
-                lockThreads: {},
-                newThreads: {},
-                scaffoldClues: [],
-                openScaffoldFor: null,
-                scaffoldDraft: null,
-                // Custom per-playthrough variables (e.g. SERIAL, BIRTH_MONTH) staged during
-                // this wizard session but not yet written to parameters.json's CORE_VARS —
-                // written together with the puzzle on "Create Puzzle", same pattern as
-                // newThreads/scaffoldClues.
-                newCoreVars: {},
-                showNewVarForm: false,
-                newVarDraft: null
-            };
-        }
-
-        // Names+ranges of every core variable available for use in this wizard session:
-        // the four engine built-ins, whatever's already saved in parameters.json's
-        // CORE_VARS, and anything staged-but-unsaved in this session. Built-in ranges here
-        // are documentation only (they mirror StoryEngine.js) — used for the padded-insert
-        // hint, not for generation.
-        function wizardKnownCoreVars() {
-            const builtins = {
-                seed: null,
-                pen: { min: 3, max: 21 },
-                year: { min: 1971, max: 1998 },
-                hours: { min: 300, max: 1199 }
-            };
-            const saved = (paramsData && paramsData.CORE_VARS) || {};
-            return { ...builtins, ...saved, ...(wizardState.newCoreVars || {}) };
-        }
-
-        // Merges any staged-but-unsaved custom variables into a copy of the live params,
-        // so the access-code preview/validation reflects vars the wizard hasn't saved yet.
-        function wizardParamsWithStaged() {
-            return { ...(paramsData || {}), CORE_VARS: { ...((paramsData && paramsData.CORE_VARS) || {}), ...(wizardState.newCoreVars || {}) } };
-        }
-
-        async function openPuzzleWizard() {
-            wizardState = newWizardState();
-            selectedFile = 'WIZARD';
-            renderFileList();
-
-            document.getElementById('welcome-msg').style.display = 'none';
-            document.getElementById('editor-container').style.display = 'none';
-            document.getElementById('validation-container').style.display = 'none';
-            document.getElementById('inspector-container').style.display = 'none';
-            document.getElementById('wizard-container').style.display = 'flex';
-
-            const [, , , , freshParams] = await Promise.all([
-                getCrossFileData('lore.json'),
-                getCrossFileData('clues.json'),
-                getCrossFileData('threads.json', true),
-                getCrossFileData('puzzles.json', true),
-                getCrossFileData('parameters.json', true)
-            ]);
-            puzzlesData = crossFileCache['puzzles.json'] || puzzlesData;
-            paramsData = freshParams || paramsData;
-
-            await renderWizard();
-        }
-
-        function cancelPuzzleWizard() {
-            wizardState = null;
-            selectFile('puzzles.json');
-        }
-
-        async function wizardNext() {
-            if (!(await wizardValidateStep(wizardState.step))) return;
-            if (wizardState.step < 4) wizardState.step++;
-            await renderWizard();
-        }
-
-        function wizardBack() {
-            if (wizardState.step > 1) wizardState.step--;
-            renderWizard();
-        }
-
-        async function wizardValidateStep(step) {
-            if (step === 1) {
-                const id = (wizardState.id || '').trim().toUpperCase();
-                if (!id) { alert('Give the puzzle an ID first.'); return false; }
-                const puzzles = (await getCrossFileData('puzzles.json')) || [];
-                if (puzzles.some(p => p.id === id)) { alert(`A puzzle with ID "${id}" already exists.`); return false; }
-                wizardState.id = id;
-                return true;
-            }
-            if (step === 2) {
-                if (!wizardState.accessCode.trim()) { alert('Enter an access code expression.'); return false; }
-                try {
-                    const mockCtx = buildMockCtx(wizardParamsWithStaged(), puzzlesData || []);
-                    new Function('ctx', `return ${wizardState.accessCode};`)(mockCtx.coreVars);
-                } catch (e) {
-                    alert('That access code expression does not evaluate: ' + e.message);
-                    return false;
-                }
-                return true;
-            }
-            if (step === 3) {
-                if (Object.keys(wizardState.lockThreads).length === 0) {
-                    return confirm('This puzzle has no Lock Threads, meaning it needs no in-world evidence to solve. Continue anyway?');
-                }
-                return true;
-            }
-            return true;
-        }
-
-        async function renderWizard() {
-            document.getElementById('wizard-step-label').innerText = `Step ${wizardState.step} of 4`;
-            const titles = { 1: 'Identify the Puzzle', 2: 'Compute the Access Code', 3: 'Lock Threads', 4: 'Review & Create' };
-            document.getElementById('wizard-title').innerText = titles[wizardState.step];
-
-            const backBtn = document.getElementById('wizard-back-btn');
-            const nextBtn = document.getElementById('wizard-next-btn');
-            backBtn.style.visibility = wizardState.step === 1 ? 'hidden' : 'visible';
-            nextBtn.innerText = wizardState.step === 4 ? 'Create Puzzle' : (wizardState.step === 3 ? 'Review →' : 'Next →');
-            nextBtn.onclick = wizardState.step === 4 ? finishWizard : wizardNext;
-
-            if (wizardState.step === 1) {
-                document.getElementById('wizard-body').innerHTML = renderWizardStep1();
-            } else if (wizardState.step === 2) {
-                document.getElementById('wizard-body').innerHTML = renderWizardStep2();
-                wizardUpdateCodePreview();
-            } else if (wizardState.step === 3) {
-                await renderWizardStep3();
-            } else if (wizardState.step === 4) {
-                await renderWizardStep4();
-            }
-        }
-
-        function renderWizardStep1() {
-            return `
-                <label style="display:block; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); margin-bottom:8px;">Puzzle ID</label>
-                <input type="text" id="wizard-id-input" value="${wizardState.id}" placeholder="e.g. FLOOD_PUZZLE" oninput="wizardState.id = this.value" style="width:100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 10px 14px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.95rem;">
-                <span class="help-text">Internal identifier, not shown to players. Must be unique — gets uppercased automatically.</span>
-            `;
-        }
-
-        function renderWizardStep2() {
-            let options = '';
-            Object.entries(ACCESS_PATTERNS).forEach(([key, p]) => {
-                options += `<option value="${key}" ${wizardState.accessPattern === key ? 'selected' : ''}>${p.label}</option>`;
-            });
-            return `
-                <label style="display:block; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); margin-bottom:8px;">Pattern</label>
-                <select id="wizard-pattern-select" class="var-select" style="width:100%; margin-bottom:16px;" onchange="wizardSetPattern(this.value)">${options}</select>
-                <label style="display:block; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); margin-bottom:8px;">Expression <span class="help-icon" title="A JavaScript expression evaluated against ctx.pen, ctx.year, ctx.hours, ctx.seed, and any custom variables below.">?</span></label>
-                <textarea id="wizard-code-input" oninput="wizardOnCodeInput(this.value)" style="width:100%; height:80px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;">${wizardState.accessCode}</textarea>
-                <div id="wizard-code-preview" style="margin-top:12px;"></div>
-                <label style="display:block; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); margin-top:20px; margin-bottom:8px;">Variables <span class="help-icon" title="Click one to insert it into the expression above. Not limited to pen/year/hours — define a new one below (e.g. a serial number, a birthday) and it becomes usable here and as \${NAME} in lore text.">?</span></label>
-                ${renderWizardVarChips()}
-            `;
-        }
-
-        function renderWizardVarChips() {
-            const known = wizardKnownCoreVars();
-            let html = `<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">`;
-            Object.entries(known).forEach(([name, range]) => {
-                const isNew = wizardState.newCoreVars && (name in wizardState.newCoreVars);
-                const digits = range && Number.isFinite(range.max) ? String(range.max).length : null;
-                const title = range ? `Range ${range.min}–${range.max}` : 'This playthrough\'s random seed';
-                html += `<button type="button" class="var-btn" style="font-size:11px; padding:4px 8px;" title="${title}" onclick="wizardInsertVarToken('ctx.${name}')">${name}${isNew ? ' <span class="badge badge-warn" style="margin-left:4px; font-size:9px;">new</span>' : ''}</button>`;
-                if (digits) {
-                    html += `<button type="button" class="var-btn" style="font-size:11px; padding:4px 8px;" title="Zero-padded to ${digits} digits" onclick="wizardInsertVarToken(&quot;String(ctx.${name}).padStart(${digits}, '0')&quot;)">${name} (padded)</button>`;
-                }
-            });
-            html += `</div><button type="button" class="var-btn" onclick="wizardOpenNewVarForm()">+ New Variable</button>`;
-            if (wizardState.showNewVarForm) html += renderWizardNewVarForm();
-            return html;
-        }
-
-        function renderWizardNewVarForm() {
-            const d = wizardState.newVarDraft || { name: '', min: 0, max: 99 };
-            return `<div style="background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15); border-radius: 6px; padding: 12px; margin-top:8px;">
-                <div class="help-text" style="margin-top:0;">Defines a new number generated once per playthrough. Usable here as <code>ctx.NAME</code>, and automatically usable in lore/clue text as <code>\${NAME}</code>.</div>
-                <input type="text" id="wizard-newvar-name" placeholder="Name, e.g. SERIAL" value="${d.name}" oninput="wizardState.newVarDraft.name = this.value.toUpperCase()" style="width:100%; margin-bottom:8px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem; text-transform:uppercase;">
-                <div style="display:flex; gap:8px; margin-bottom:8px;">
-                    <input type="number" placeholder="Min" value="${d.min}" oninput="wizardState.newVarDraft.min = Number(this.value)" style="flex:1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;">
-                    <input type="number" placeholder="Max" value="${d.max}" oninput="wizardState.newVarDraft.max = Number(this.value)" style="flex:1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;">
-                </div>
-                <div style="display:flex; gap:8px;">
-                    <button class="var-btn" onclick="wizardSubmitNewVar()">Add</button>
-                    <button class="var-btn" onclick="wizardCancelNewVar()">Cancel</button>
-                </div>
-            </div>`;
-        }
-
-        function wizardOpenNewVarForm() {
-            wizardState.showNewVarForm = true;
-            wizardState.newVarDraft = { name: '', min: 0, max: 99 };
-            renderWizard();
-        }
-
-        function wizardCancelNewVar() {
-            wizardState.showNewVarForm = false;
-            wizardState.newVarDraft = null;
-            renderWizard();
-        }
-
-        function wizardSubmitNewVar() {
-            const d = wizardState.newVarDraft || {};
-            const name = (d.name || '').trim().toUpperCase();
-            if (!name) { alert('Give the variable a name.'); return; }
-            if (!/^[A-Z_][A-Z0-9_]*$/.test(name)) { alert('Names must start with a letter or underscore, and contain only letters, numbers, and underscores.'); return; }
-            const reserved = new Set(['SEED', 'PEN', 'YEAR', 'HOURS']);
-            if (reserved.has(name)) { alert(`"${name}" is a built-in variable and can't be redefined.`); return; }
-            const alreadySaved = (paramsData && paramsData.CORE_VARS && paramsData.CORE_VARS[name]);
-            const alreadyStaged = wizardState.newCoreVars && wizardState.newCoreVars[name];
-            if (alreadySaved || alreadyStaged) { alert(`"${name}" already exists.`); return; }
-            const min = Number(d.min), max = Number(d.max);
-            if (!Number.isFinite(min) || !Number.isFinite(max) || max < min) { alert('Enter a valid min and max (max must be ≥ min).'); return; }
-            wizardState.newCoreVars = wizardState.newCoreVars || {};
-            wizardState.newCoreVars[name] = { min, max };
-            wizardState.showNewVarForm = false;
-            wizardState.newVarDraft = null;
-            renderWizard();
-        }
-
-        // Inserts a token at the current cursor position in the access-code textarea
-        // (falls back to appending if the element isn't focused/available), then
-        // switches the pattern dropdown to "custom" since we've deviated from a preset.
-        function wizardInsertVarToken(token) {
-            const ta = document.getElementById('wizard-code-input');
-            if (!ta) {
-                wizardState.accessCode += token;
-                wizardUpdateCodePreview();
-                return;
-            }
-            const start = typeof ta.selectionStart === 'number' ? ta.selectionStart : ta.value.length;
-            const end = typeof ta.selectionEnd === 'number' ? ta.selectionEnd : ta.value.length;
-            const newVal = ta.value.slice(0, start) + token + ta.value.slice(end);
-            ta.value = newVal;
-            wizardState.accessCode = newVal;
-            wizardState.accessPattern = 'custom';
-            const patternSelect = document.getElementById('wizard-pattern-select');
-            if (patternSelect) patternSelect.value = 'custom';
-            const cursorPos = start + token.length;
-            ta.focus();
-            if (ta.setSelectionRange) ta.setSelectionRange(cursorPos, cursorPos);
-            wizardUpdateCodePreview();
-        }
-
-        function wizardSetPattern(key) {
-            wizardState.accessPattern = key;
-            if (key !== 'custom') wizardState.accessCode = ACCESS_PATTERNS[key].expr;
-            renderWizard();
-        }
-
-        function wizardOnCodeInput(val) {
-            wizardState.accessCode = val;
-            wizardUpdateCodePreview();
-        }
-
-        function wizardUpdateCodePreview() {
-            const el = document.getElementById('wizard-code-preview');
-            if (!el) return;
-            try {
-                const mockCtx = buildMockCtx(wizardParamsWithStaged(), puzzlesData || []);
-                const result = new Function('ctx', `return ${wizardState.accessCode};`)(mockCtx.coreVars);
-                el.innerHTML = `<span class="badge badge-ok">Example result: ${result}</span>`;
-            } catch (e) {
-                el.innerHTML = `<span class="badge badge-danger">Does not evaluate: ${e.message}</span>`;
-            }
-        }
-
-        async function wizardGetAllThreadKeys() {
-            const threads = (await getCrossFileData('threads.json')) || {};
-            return Object.keys(threads);
-        }
-
-        // Reachability that also counts anything staged-but-not-yet-saved in this wizard
-        // session, so the badge reflects what will actually be true once you hit Create.
-        async function wizardThreadDelivery(threadKey) {
-            const { count, sectors } = await computeThreadDelivery(threadKey, wizardState.id);
-            const staged = new Set(sectors);
-            wizardState.scaffoldClues.forEach(c => { if (c.thread === threadKey) staged.add(c.sector); });
-            return { count: staged.size };
-        }
-
-        async function renderWizardStep3() {
-            const body = document.getElementById('wizard-body');
-            const threadKeys = Object.keys(wizardState.lockThreads);
-            const allThreads = await wizardGetAllThreadKeys();
-            const available = allThreads.filter(t => !threadKeys.includes(t));
-
-            let rowsHtml = '';
-            if (threadKeys.length === 0) {
-                rowsHtml = `<div class="inspector-sector-list" style="margin-bottom:16px;">No Lock Threads yet — as it stands this puzzle needs no in-world evidence to solve.</div>`;
-            }
-            threadKeys.forEach(t => {
-                const isNew = !!wizardState.newThreads[t];
-                rowsHtml += `<div class="inspector-puzzle-card" style="margin-bottom:12px; padding:12px 16px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div><b>${t}</b>${isNew ? ' <span class="badge badge-warn">new thread</span>' : ''}</div>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <span id="wizard-badge-${t}" class="badge">checking…</span>
-                            <button class="delete-btn" onclick="wizardRemoveThread('${t}')">×</button>
-                        </div>
-                    </div>
-                    <div id="wizard-scaffold-slot-${t}" style="margin-top:8px;">${wizardState.openScaffoldFor === t ? renderScaffoldForm(t) : ''}</div>
-                </div>`;
-            });
-
-            let addRow = `<div style="display:flex; gap:8px; margin-top:8px;">`;
-            if (available.length) {
-                addRow += `<select id="wizard-add-select" class="var-select" style="flex:1;">
-                    <option value="">Add existing thread...</option>
-                    ${available.map(t => `<option value="${t}">${t}</option>`).join('')}
-                </select>
-                <button class="var-btn" onclick="wizardAddExistingThread()">Add</button>`;
-            }
-            addRow += `<button class="var-btn" onclick="wizardPromptNewThread()">+ New Thread</button></div>`;
-
-            body.innerHTML = `
-                <p class="help-text" style="margin-top:0; margin-bottom:16px;">Every thread here is a piece of evidence the player must find before this puzzle counts as solved. The badge shows whether anything currently delivers that evidence.</p>
-                ${rowsHtml}
-                ${addRow}
-            `;
-
-            threadKeys.forEach(async (t) => {
-                if (wizardState.openScaffoldFor === t) return; // form already rendered inline above
-                const { count } = await wizardThreadDelivery(t);
-                const { cls, label } = badgeForDeliveryCount(count, 'reachable');
-                const badgeEl = document.getElementById(`wizard-badge-${t}`);
-                if (badgeEl) { badgeEl.className = `badge ${cls}`; badgeEl.innerText = label; }
-                const slot = document.getElementById(`wizard-scaffold-slot-${t}`);
-                if (slot && count === 0) {
-                    slot.innerHTML = `<button class="var-btn" onclick="wizardOpenScaffoldForm('${t}')">+ Add a starter clue for ${t}</button>`;
-                }
-            });
-        }
-
-        function renderScaffoldForm(threadKey) {
-            if (!wizardState.scaffoldDraft) wizardState.scaffoldDraft = { sector: '', text: '', title: '' };
-            const isClueThread = threadKey === 'CIPHER' || threadKey === 'TELL';
-            const targetFile = isClueThread ? 'clues.json' : 'lore.json';
-            const sectors = getKnownSectors();
-            return `<div style="background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15); border-radius: 6px; padding: 12px;">
-                <div class="help-text" style="margin-top:0;">This will be added to <b>${targetFile}</b>${isClueThread ? ' and gated to this puzzle' : ' as general world content, always available'}.</div>
-                <select class="var-select" style="width:100%; margin-bottom:8px;" onchange="wizardState.scaffoldDraft.sector = this.value">
-                    <option value="">Select sector...</option>
-                    ${sectors.map(s => `<option value="${s}" ${wizardState.scaffoldDraft.sector === s ? 'selected' : ''}>${s}</option>`).join('')}
-                </select>
-                <input type="text" placeholder="Title (optional)" value="${wizardState.scaffoldDraft.title}" oninput="wizardState.scaffoldDraft.title = this.value" style="width:100%; margin-bottom:8px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;">
-                <textarea placeholder="Document text..." oninput="wizardState.scaffoldDraft.text = this.value" style="width:100%; height:70px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;">${wizardState.scaffoldDraft.text}</textarea>
-                <div style="display:flex; gap:8px; margin-top:8px;">
-                    <button class="var-btn" onclick="wizardSubmitScaffold('${threadKey}')">Add</button>
-                    <button class="var-btn" onclick="wizardCancelScaffold()">Cancel</button>
-                </div>
-            </div>`;
-        }
-
-        function wizardOpenScaffoldForm(threadKey) {
-            wizardState.openScaffoldFor = threadKey;
-            wizardState.scaffoldDraft = { sector: '', text: '', title: '' };
-            renderWizardStep3();
-        }
-
-        function wizardCancelScaffold() {
-            wizardState.openScaffoldFor = null;
-            wizardState.scaffoldDraft = null;
-            renderWizardStep3();
-        }
-
-        function wizardSubmitScaffold(threadKey) {
-            const draft = wizardState.scaffoldDraft;
-            if (!draft.sector || !draft.text.trim()) { alert('Pick a sector and write some text first.'); return; }
-            const isClueThread = threadKey === 'CIPHER' || threadKey === 'TELL';
-            wizardState.scaffoldClues.push({
-                file: isClueThread ? 'clues.json' : 'lore.json',
-                sector: draft.sector,
-                thread: threadKey,
-                type: 'document',
-                title: draft.title || 'Starter clue',
-                text: draft.text,
-                puzzle: isClueThread ? wizardState.id : undefined
-            });
-            wizardState.openScaffoldFor = null;
-            wizardState.scaffoldDraft = null;
-            renderWizardStep3();
-        }
-
-        function wizardRemoveThread(key) {
-            delete wizardState.lockThreads[key];
-            delete wizardState.newThreads[key];
-            wizardState.scaffoldClues = wizardState.scaffoldClues.filter(c => c.thread !== key);
-            if (wizardState.openScaffoldFor === key) { wizardState.openScaffoldFor = null; wizardState.scaffoldDraft = null; }
-            renderWizardStep3();
-        }
-
-        function wizardAddExistingThread() {
-            const sel = document.getElementById('wizard-add-select');
-            const key = sel ? sel.value : '';
-            if (!key) return;
-            wizardState.lockThreads[key] = key;
-            renderWizardStep3();
-        }
-
-        function wizardPromptNewThread() {
-            const name = prompt('New thread name (e.g. FLOOD):');
-            if (!name) return;
-            const key = name.toUpperCase().trim();
-            if (!key) return;
-            if (wizardState.lockThreads[key]) { alert(`"${key}" is already on this puzzle.`); return; }
-            const title = prompt(`Title for "${key}" (shown in the player's journal):`, '') || '';
-            wizardState.newThreads[key] = { title, description: '' };
-            wizardState.lockThreads[key] = key;
-            renderWizardStep3();
-        }
-
-        async function renderWizardStep4() {
-            const body = document.getElementById('wizard-body');
-            const mockCtx = buildMockCtx(wizardParamsWithStaged(), puzzlesData || []);
-            let codeResult = null, codeError = null;
-            try { codeResult = new Function('ctx', `return ${wizardState.accessCode};`)(mockCtx.coreVars); } catch (e) { codeError = e.message; }
-
-            const threadKeys = Object.keys(wizardState.lockThreads);
-            let threadRows = '';
-            for (const t of threadKeys) {
-                const { count } = await wizardThreadDelivery(t);
-                const { cls, label } = badgeForDeliveryCount(count, 'reachable');
-                threadRows += `<div class="inspector-thread-row"><div><b>${t}</b>${wizardState.newThreads[t] ? ' <span class="badge badge-warn">new</span>' : ''}</div><span class="badge ${cls}">${label}</span></div>`;
-            }
-
-            const scaffoldSummary = wizardState.scaffoldClues.length
-                ? `<p class="help-text">Also adding ${wizardState.scaffoldClues.length} starter document(s): ${wizardState.scaffoldClues.map(c => `"${c.title}" (${c.file}, ${c.sector})`).join(', ')}</p>`
-                : '';
-
-            const newVarNames = Object.keys(wizardState.newCoreVars || {});
-            const newVarSummary = newVarNames.length
-                ? `<p class="help-text">Also adding ${newVarNames.length} new variable(s) to parameters.json: ${newVarNames.map(n => `${n} (${wizardState.newCoreVars[n].min}–${wizardState.newCoreVars[n].max})`).join(', ')}</p>`
-                : '';
-
-            body.innerHTML = `
-                <div style="margin-bottom:16px;"><b>ID:</b> ${wizardState.id}</div>
-                <div style="margin-bottom:16px;"><b>Access Code:</b> <code style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px;">${wizardState.accessCode}</code><br>
-                    <span class="badge ${codeError ? 'badge-danger' : 'badge-ok'}" style="margin-top:6px; display:inline-flex;">${codeError ? 'ERROR: ' + codeError : 'Example result: ' + codeResult}</span>
-                </div>
-                <div style="margin-bottom:8px;"><b>Lock Threads:</b></div>
-                ${threadRows || '<div class="inspector-sector-list">None — no in-world evidence required.</div>'}
-                ${scaffoldSummary}
-                ${newVarSummary}
-            `;
-        }
-
-        async function finishWizard() {
-            const btn = document.getElementById('wizard-next-btn');
-            btn.disabled = true;
-            btn.innerText = 'Creating...';
-
-            try {
-                const newPuzzle = { id: wizardState.id, ACCESS_CODE: wizardState.accessCode, LOCK_THREADS: { ...wizardState.lockThreads } };
-
-                const puzzles = (await getCrossFileData('puzzles.json', true)) || [];
-                puzzles.push(newPuzzle);
-                await postFile('puzzles.json', puzzles);
-                puzzlesData = puzzles;
-                crossFileCache['puzzles.json'] = puzzles;
-
-                if (Object.keys(wizardState.newThreads).length) {
-                    const threads = (await getCrossFileData('threads.json', true)) || {};
-                    Object.entries(wizardState.newThreads).forEach(([key, def]) => { threads[key] = def; });
-                    await postFile('threads.json', threads);
-                    crossFileCache['threads.json'] = threads;
-                }
-
-                if (Object.keys(wizardState.newCoreVars || {}).length) {
-                    const params = (await getCrossFileData('parameters.json', true)) || {};
-                    params.CORE_VARS = { ...(params.CORE_VARS || {}), ...wizardState.newCoreVars };
-                    await postFile('parameters.json', params);
-                    crossFileCache['parameters.json'] = params;
-                    paramsData = params;
-                }
-
-                const loreAdds = wizardState.scaffoldClues.filter(c => c.file === 'lore.json');
-                const clueAdds = wizardState.scaffoldClues.filter(c => c.file === 'clues.json');
-                if (loreAdds.length) {
-                    const lore = (await getCrossFileData('lore.json', true)) || {};
-                    loreAdds.forEach(c => {
-                        (lore[c.sector] = lore[c.sector] || []).push({ text: c.text, type: c.type, thread: c.thread, title: c.title });
-                    });
-                    await postFile('lore.json', lore);
-                    crossFileCache['lore.json'] = lore;
-                }
-                if (clueAdds.length) {
-                    const clues = (await getCrossFileData('clues.json', true)) || {};
-                    clueAdds.forEach(c => {
-                        (clues[c.sector] = clues[c.sector] || []).push({ text: c.text, type: c.type, thread: c.thread, title: c.title, puzzle: c.puzzle });
-                    });
-                    await postFile('clues.json', clues);
-                    crossFileCache['clues.json'] = clues;
-                }
-
-                const createdId = wizardState.id;
-                wizardState = null;
-                await selectFile('puzzles.json');
-                const idx = (fileData || []).findIndex(p => p.id === createdId);
-                if (idx >= 0) clickArrayRow(idx, true);
-                alert(`Puzzle "${createdId}" created.`);
-            } catch (err) {
-                alert('Failed to create puzzle: ' + err.message);
-                btn.disabled = false;
-                btn.innerText = 'Create Puzzle';
-            }
-        }
-
-        // Init
-        async function init() {
-            try {
-                fetch('/HowTo.md').then(res => res.text()).then(text => {
-                    const contentDiv = document.getElementById('welcome-msg-content');
-                    if (contentDiv) contentDiv.innerHTML = marked.parse(text);
-                }).catch(err => console.error('Failed to load HowTo.md', err));
-
-                const namesRes = await fetch('/api/data?file=parameters.json');
-                const nData = await namesRes.json();
-                if (nData.content) {
-                    paramsData = nData.content;
-                    renderVariableToolbar();
-                }
-
-                // Prefetch puzzles.json + the two "delivers a thread" source files. These
-                // back the live corroboration badges, reachability badges, and the dynamic
-                // sector list, so QOL feedback is available the instant an entry is opened
-                // instead of after a round-trip.
-                const puzzlesRes = await fetch('/api/data?file=puzzles.json');
-                const puzzlesJson = await puzzlesRes.json();
-                puzzlesData = puzzlesJson.content || [];
-                await Promise.all([
-                    getCrossFileData('lore.json', true),
-                    getCrossFileData('clues.json', true),
-                    getCrossFileData('foreshadow.json', true)
-                ]);
-
-                const res = await fetch('/api/data');
-                const data = await res.json();
-                if (data.files) {
-                    files = data.files;
-                    renderFileList();
-                }
-            } catch (err) {
-                console.error('Failed to load files', err);
-            }
-        }
-
-        // Fetches and caches another file's saved content. Pass forceRefresh to bypass
-        // the cache (used before anything that writes cross-file, like a rename). If the
-        // file being asked for is the one currently open, the live in-memory copy (which
-        // may include unsaved edits) is returned instead, so badges reflect what you're
-        // actually looking at.
-        async function getCrossFileData(file, forceRefresh) {
-            if (file === selectedFile && fileData) return fileData;
-            if (!forceRefresh && crossFileCache[file]) return crossFileCache[file];
-            try {
-                const res = await fetch(`/api/data?file=${file}`);
-                const data = await res.json();
-                crossFileCache[file] = data.content;
-                return data.content;
-            } catch (e) {
-                return crossFileCache[file] || null;
-            }
-        }
-
-        // Curated one-line descriptions, shown as tooltips where a sector is picked from
-        // a list. This is enrichment only, not the source of truth for which sectors
-        // exist — that's whatever lore.json/clues.json actually use (see getKnownSectors),
-        // so a sector can never silently fall out of sync with what the editor offers.
-        const SECTOR_DESCRIPTIONS = {
-            ANNEX: 'Records annex', ARCHIVE: 'Document archive', IMPOUND: 'Impound pens',
-            BOARDROOM: 'Boardroom', SERVER: 'Server room', CLINIC: 'Clinic', MAINTENANCE: 'Maintenance level',
-            INCINERATOR: 'Incinerator', CHASM: 'The chasm', ATRIUM: 'Atrium', EXIT: 'Exit corridor',
-            CHECKPOINT: 'Security checkpoint', DEFAULT: 'Fallback pool used whenever a sector runs out of content'
-        };
-
-        // The canonical list of sectors is whatever lore.json/clues.json actually use right
-        // now (synchronously, from the cache warmed in init()) — not a hand-maintained array
-        // that can drift out of sync with the data, which is exactly how DEFAULT previously
-        // went missing from the foreshadow location picker.
-        function getKnownSectors() {
-            const lore = (selectedFile === 'lore.json' && fileData) ? fileData : (crossFileCache['lore.json'] || {});
-            const clues = (selectedFile === 'clues.json' && fileData) ? fileData : (crossFileCache['clues.json'] || {});
-            const sectors = new Set([...Object.keys(lore || {}), ...Object.keys(clues || {})]);
-            return Array.from(sectors).sort();
-        }
-
-        async function postFile(file, content) {
-            await fetch('/api/data', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ file, content })
-            });
-        }
-
-        // Bundles every live data file (lore/clues/finales/foreshadow/puzzles/threads/
-        // parameters) into one JSON download, so it can be handed to someone else and
-        // loaded back in with Import Lore Pack.
-        async function exportLorePack() {
-            try {
-                const res = await fetch('/api/export');
-                if (!res.ok) throw new Error('bad response');
-                const bundle = await res.json();
-                const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                const stamp = new Date().toISOString().slice(0, 10);
-                a.download = `level0engine-lore-pack-${stamp}.json`;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                URL.revokeObjectURL(url);
-            } catch (e) {
-                alert('Export failed: could not reach the server.');
-            }
-        }
-
-        function importLorePack() {
-            const input = document.getElementById('import-file-input');
-            input.value = '';
-            input.click();
-        }
-
-        // Fired by the hidden file input's onchange. Replaces every recognized live data
-        // file with the contents of the selected lore pack — a full overwrite, same as
-        // Factory Reset but restoring to someone else's pack instead of the shipped
-        // defaults. Files the pack doesn't mention are left untouched.
-        async function handleImportFileSelected(fileInput) {
-            const file = fileInput.files && fileInput.files[0];
-            if (!file) return;
-            let bundle;
-            try {
-                bundle = JSON.parse(await file.text());
-            } catch (e) {
-                alert("Import failed: that file isn't valid JSON.");
-                return;
-            }
-            if (!bundle || typeof bundle.files !== 'object') {
-                alert('Import failed: this doesn\'t look like a lore pack (missing a "files" object).');
-                return;
-            }
-            const incoming = Object.keys(bundle.files);
-            if (!confirm(`This will REPLACE your current data with the ${incoming.length} file(s) in this lore pack:\n\n${incoming.join(', ')}\n\nAny local edits to those files that aren't reflected in the pack will be lost. Continue?`)) return;
-
-            try {
-                const res = await fetch('/api/import', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(bundle)
-                });
-                const data = await res.json();
-                crossFileCache = {};
-                if (data.success) {
-                    alert('Lore pack imported successfully.');
-                } else {
-                    alert('Import finished, but some files failed to write. Check the data directory permissions and try again.');
-                }
-                if (selectedFile && files.includes(selectedFile)) selectFile(selectedFile);
-            } catch (e) {
-                alert('Import failed: could not reach the server.');
-            }
-        }
-
-        // Restores every data file to the immutable data/factory/ baseline, discarding
-        // every edit and addition made since. The embedded "_locked" entries and the
-        // primitives protected by getLockedNamesSet/getLockedVarKeysSet are exactly what
-        // this restores from — factory reset is that same baseline applied wholesale.
-        async function factoryReset() {
-            const warning = "FACTORY RESET\n\nThis restores lore.json, clues.json, finales.json, foreshadow.json, puzzles.json, threads.json, and parameters.json to their shipped defaults.\n\nEverything you've added or changed will be permanently lost. This cannot be undone.\n\nContinue?";
-            if (!confirm(warning)) return;
-
-            try {
-                const res = await fetch('/api/factory-reset', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({})
-                });
-                const data = await res.json();
-                crossFileCache = {};
-                if (data.success) {
-                    alert('Factory reset complete. All data has been restored to its shipped defaults.');
-                } else {
-                    alert('Factory reset finished, but some files failed to reset. Check the data directory permissions and try again.');
-                }
-                if (selectedFile && files.includes(selectedFile)) selectFile(selectedFile);
-            } catch (e) {
-                alert('Factory reset failed: could not reach the server.');
-            }
-        }
-
-        // Thread tags are free-text strings with no referential integrity — renaming one
-        // by hand silently orphans every lore/clue/foreshadow entry and puzzle LOCK_THREADS
-        // key that still points at the old name. This finds every one of them, shows exactly
-        // what will change, and rewrites all affected files together on confirmation.
-        async function renameThreadEverywhere(oldKey) {
-            const input = prompt(`Rename thread "${oldKey}" to:`, oldKey);
-            if (!input) return;
-            const newKey = input.toUpperCase().trim();
-            if (!newKey || newKey === oldKey) return;
-
-            const threadsData = (selectedFile === 'threads.json' && fileData) ? fileData : (await getCrossFileData('threads.json', true));
-            if (threadsData && Object.prototype.hasOwnProperty.call(threadsData, newKey)) {
-                alert(`"${newKey}" already exists in threads.json. Pick a different name.`);
-                return;
-            }
-
-            // Always re-fetch fresh (bypass cache) before a multi-file write, so this can't
-            // clobber a save made from another tab/session in the meantime.
-            const [lore, clues, foreshadow, puzzles] = await Promise.all([
-                getCrossFileData('lore.json', true),
-                getCrossFileData('clues.json', true),
-                getCrossFileData('foreshadow.json', true),
-                getCrossFileData('puzzles.json', true)
-            ]);
-
-            let loreCount = 0, cluesCount = 0, foreshadowCount = 0;
-            const puzzleIds = [];
-
-            for (const arr of Object.values(lore || {})) {
-                if (Array.isArray(arr)) arr.forEach(i => { if (i && i.thread === oldKey) loreCount++; });
-            }
-            for (const arr of Object.values(clues || {})) {
-                if (Array.isArray(arr)) arr.forEach(i => { if (i && i.thread === oldKey) cluesCount++; });
-            }
-            (foreshadow || []).forEach(group => {
-                for (const val of Object.values(group)) {
-                    if (val && typeof val === 'object' && val.thread === oldKey) foreshadowCount++;
-                }
-            });
-            (puzzles || []).forEach(p => {
-                if (p.LOCK_THREADS && Object.prototype.hasOwnProperty.call(p.LOCK_THREADS, oldKey)) puzzleIds.push(p.id);
-            });
-
-            const total = loreCount + cluesCount + foreshadowCount + puzzleIds.length;
-            if (total > 0) {
-                const summary = [
-                    loreCount ? `${loreCount} entr${loreCount === 1 ? 'y' : 'ies'} in lore.json` : null,
-                    cluesCount ? `${cluesCount} entr${cluesCount === 1 ? 'y' : 'ies'} in clues.json` : null,
-                    foreshadowCount ? `${foreshadowCount} entr${foreshadowCount === 1 ? 'y' : 'ies'} in foreshadow.json` : null,
-                    puzzleIds.length ? `LOCK_THREADS in puzzles.json: ${puzzleIds.join(', ')}` : null
-                ].filter(Boolean).join('\n');
-                const ok = confirm(`Renaming "${oldKey}" → "${newKey}" will update:\n\n${summary}\n\nThis writes to every affected file immediately. Continue?`);
-                if (!ok) return;
-            }
-
-            if (lore) {
-                for (const arr of Object.values(lore)) {
-                    if (Array.isArray(arr)) arr.forEach(i => { if (i && i.thread === oldKey) i.thread = newKey; });
-                }
-                if (loreCount) await postFile('lore.json', lore);
-                crossFileCache['lore.json'] = lore;
-                if (selectedFile === 'lore.json') fileData = lore;
-            }
-            const filesWritten = [];
-            if (loreCount) filesWritten.push('lore.json');
-            if (cluesCount) filesWritten.push('clues.json');
-            if (foreshadowCount) filesWritten.push('foreshadow.json');
-            if (puzzleIds.length) filesWritten.push('puzzles.json');
-            filesWritten.push('threads.json');
-
-            if (clues) {
-                for (const arr of Object.values(clues)) {
-                    if (Array.isArray(arr)) arr.forEach(i => { if (i && i.thread === oldKey) i.thread = newKey; });
-                }
-                if (cluesCount) await postFile('clues.json', clues);
-                crossFileCache['clues.json'] = clues;
-                if (selectedFile === 'clues.json') fileData = clues;
-            }
-            if (foreshadow) {
-                foreshadow.forEach(group => {
-                    for (const val of Object.values(group)) {
-                        if (val && typeof val === 'object' && val.thread === oldKey) val.thread = newKey;
-                    }
-                });
-                if (foreshadowCount) await postFile('foreshadow.json', foreshadow);
-                crossFileCache['foreshadow.json'] = foreshadow;
-                if (selectedFile === 'foreshadow.json') fileData = foreshadow;
-            }
-            if (puzzles && puzzleIds.length) {
-                puzzles.forEach(p => {
-                    if (p.LOCK_THREADS && Object.prototype.hasOwnProperty.call(p.LOCK_THREADS, oldKey)) {
-                        p.LOCK_THREADS[newKey] = p.LOCK_THREADS[oldKey];
-                        delete p.LOCK_THREADS[oldKey];
-                    }
-                });
-                await postFile('puzzles.json', puzzles);
-                puzzlesData = puzzles;
-                if (selectedFile === 'puzzles.json') fileData = puzzles;
-            }
-
-            if (threadsData) {
-                threadsData[newKey] = threadsData[oldKey];
-                delete threadsData[oldKey];
-                await postFile('threads.json', threadsData);
-                if (selectedFile === 'threads.json') {
-                    fileData = threadsData;
-                    if (selectedCategory === oldKey) selectedCategory = newKey;
-                }
-            }
-
-            renderTree();
-            renderEditor();
-            alert(`Renamed "${oldKey}" → "${newKey}" in: ${filesWritten.join(', ')}.`);
-        }
-
-        // Render File List
-        function renderFileList() {
-            let html = '';
-            const groups = [
-                { title: '⚙️ System Parameters', files: ['parameters.json', 'threads.json'] },
-                { title: '🔐 Lock Mechanics', files: ['puzzles.json', 'clues.json'] },
-                { title: '🎬 Exit Conditions', files: ['finales.json', 'foreshadow.json'] },
-                { title: '🌍 World Building', files: ['lore.json'] }
-            ];
-
-            groups.forEach(group => {
-                const groupFiles = group.files.filter(f => files.includes(f));
-                if (groupFiles.length === 0) return;
-                
-                html += `<h2>${group.title}</h2>`;
-                groupFiles.forEach(f => {
-                    const isActive = f === selectedFile;
-                    html += `<button class="file-btn ${isActive ? 'active' : ''}" onclick="selectFile('${f}')">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                        ${f}
-                    </button>`;
-                });
-            });
-
-            // Fallback for any other files
-            const knownFiles = new Set(groups.flatMap(g => g.files));
-            const otherFiles = files.filter(f => !knownFiles.has(f));
-            if (otherFiles.length > 0) {
-                html += `<h2>📁 Other Data</h2>`;
-                otherFiles.forEach(f => {
-                    const isActive = f === selectedFile;
-                    html += `<button class="file-btn ${isActive ? 'active' : ''}" onclick="selectFile('${f}')">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                        ${f}
-                    </button>`;
-                });
-            }
-
-            html += `<div style="margin-top: 16px; margin-bottom: 8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">
-                <h2 style="margin-bottom: 8px;">🛠️ Tools</h2>
-                <button class="file-btn ${selectedFile === 'VALIDATION' ? 'active' : ''}" onclick="openValidation()">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                    Data Validation
-                </button>
-                <button class="file-btn ${selectedFile === 'INSPECTOR' ? 'active' : ''}" onclick="openPuzzleInspector()">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                    Puzzle Inspector
-                </button>
-            </div>
-            <div style="margin-top: 16px; margin-bottom: 8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">
-                <h2 style="margin-bottom: 8px;">💾 Factory Data</h2>
-                <button class="file-btn" title="Export every live data file as one shareable lore pack" onclick="exportLorePack()">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    Export Lore Pack
-                </button>
-                <button class="file-btn" title="Load a lore pack someone shared with you, replacing your live data" onclick="importLorePack()">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                    Import Lore Pack
-                </button>
-                <button class="file-btn" title="Restore all data to the shipped factory defaults, discarding your edits" onclick="factoryReset()" style="color: var(--accent-red);">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v6h6"></path><path d="M3 13a9 9 0 1 0 3-7.7L3 8"></path></svg>
-                    Factory Reset
-                </button>
-            </div>`;
-
-            fileListEl.innerHTML = html;
-        }
-
-        // Select File
-        async function selectFile(f) {
-            wizardState = null;
-            selectedFile = f;
-            fileData = null;
-            linkedData = null;
-            expandedCategory = null;
-            selectedCategory = null;
-            selectedIndex = null;
-            renderFileList();
-
-            document.getElementById('welcome-msg').style.display = 'none';
-            document.getElementById('editor-container').style.display = 'flex';
-            document.getElementById('validation-container').style.display = 'none';
-            document.getElementById('inspector-container').style.display = 'none';
-            document.getElementById('wizard-container').style.display = 'none';
-            document.getElementById('display-filename').innerText = f;
-            document.getElementById('tree-content').innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:8px;">Decrypting node...</div>';
-            document.getElementById('editor-content-area').style.display = 'none';
-            document.getElementById('editor-empty-state').style.display = 'flex';
-
-            try {
-                const res = await fetch(`/api/data?file=${f}`);
-                const data = await res.json();
-                fileData = data.content;
-
-                // Load linked data
-                if (f === 'foreshadow.json') await loadLinked('finales.json');
-                else if (f === 'finales.json') await loadLinked('foreshadow.json');
-                else linkedData = null;
-
-                initializeSelection();
-                updateTagSuggestions();
-                renderTree();
-                renderEditor();
-            } catch (err) {
-                console.error(err);
-            }
-        }
-
-        async function loadLinked(f) {
-            try {
-                const res = await fetch(`/api/data?file=${f}`);
-                const data = await res.json();
-                linkedData = data.content;
-            } catch (e) { console.error(e); }
-        }
-
-        function isArrayRoot() { return Array.isArray(fileData); }
-        function isObjectRoot() { return !isArrayRoot() && fileData !== null && typeof fileData === 'object'; }
-
-        function initializeSelection() {
-            if (isArrayRoot()) {
-                if (fileData.length > 0) selectedIndex = 0;
-            } else if (isObjectRoot()) {
-                const keys = Object.keys(fileData);
-                if (keys.length > 0) {
-                    expandedCategory = keys[0];
-                    selectedCategory = keys[0];
-                    if (Array.isArray(fileData[keys[0]]) && fileData[keys[0]].length > 0 && selectedFile !== 'parameters.json' && selectedFile !== 'threads.json') {
-                        selectedIndex = 0;
-                    }
-                }
-            }
-        }
-
-        // Render Tree
-        function renderTree() {
-            if (!fileData) return;
-            let html = '';
-            
-            if (isArrayRoot()) {
-                addCatBtn.style.display = 'none';
-                
-                fileData.forEach((item, i) => {
-                    const isItemObj = item !== null && typeof item === 'object' && !Array.isArray(item);
-                    const isExpandable = isItemObj && selectedFile !== 'finales.json' && selectedFile !== 'puzzles.json';
-                    const isExpanded = expandedCategory === String(i);
-                    const isActiveRow = (!isExpandable && selectedIndex === i && selectedCategory === null) || (isExpandable && isExpanded);
-                    const itemLocked = isLockedEntry(item);
-                    const rowDeleteControl = itemLocked
-                        ? `<span class="delete-btn" title="Factory default — can't be deleted, but you can still edit it" style="opacity:0.5; cursor:default;">🔒</span>`
-                        : `<button class="delete-btn" onclick="deleteEntry(null, ${i})">×</button>`;
-
-                    html += `<div class="tree-item">
-                        <div class="tree-item-row group">
-                            <button class="tree-btn ${isActiveRow ? 'active' : ''} ${isItemObj ? 'bold' : ''}" onclick="clickArrayRow(${i}, ${isItemObj})">
-                                ${isExpandable ? (isExpanded ? '▼ ' : '▶ ') : '• '}${item?.nickname ? `"${item.nickname}"` : (item?.title || item?.id || ((['foreshadow.json', 'finales.json'].includes(selectedFile) ? 'Finale Group ' : 'Entry ') + i))}
-                            </button>
-                            ${rowDeleteControl}
-                        </div>`;
-
-                    if (isExpandable && isExpanded) {
-                        html += `<div class="tree-children">`;
-                        Object.keys(item).forEach(key => {
-                            if (['nickname', 'title', 'option', 'text', 'description', 'tell_title', 'tell_description', 'thread', 'type'].includes(key) || key.startsWith('_')) return;
-                            const isChildActive = selectedIndex === i && selectedCategory === key;
-                            const locObj = item[key];
-                            const displayTitle = (locObj && locObj.title) ? ` - ${locObj.title}` : '';
-                            const locLocked = isLockedEntry(locObj);
-                            const locDeleteControl = locLocked
-                                ? `<span class="delete-btn" style="padding:4px; font-size:12px; opacity:0.5; cursor:default;" title="Factory default — can't be deleted, but you can still edit it">🔒</span>`
-                                : `<button class="delete-btn" style="padding:4px; font-size:12px;" onclick="deleteLocation(${i}, '${key}')">×</button>`;
-                            html += `<div class="tree-item-row group">
-                                <button class="tree-child-btn ${isChildActive ? 'active' : ''}" onclick="selectNode(${i}, '${key}')">
-                                    ${key}${displayTitle}
-                                </button>
-                                ${locDeleteControl}
-                            </div>`;
-                        });
-                        if (selectedFile === 'foreshadow.json') {
-                            html += `<div style="display: flex; gap: 4px; margin-top: 8px;">`;
-                            html += `<select id="loc-select-${i}" class="tree-child-btn" style="background: rgba(255,255,255,0.05); color: var(--text-main); border: 1px dashed rgba(255,255,255,0.1); padding: 4px; border-radius: 4px; flex-grow: 1; font-family: var(--font-mono); font-size: 10px; margin-top: 0;">`;
-                            html += `<option value="" style="background: #0a0a0a;">Select Location...</option>`;
-                            getKnownSectors().forEach(loc => {
-                                if (!item[loc]) {
-                                    const desc = SECTOR_DESCRIPTIONS[loc];
-                                    html += `<option value="${loc}" style="background: #0a0a0a;" ${desc ? `title="${desc}"` : ''}>${loc}</option>`;
-                                }
-                            });
-                            html += `</select>`;
-                            html += `<button class="add-btn" onclick="addLocation(${i})" style="margin: 0; width: auto; padding: 4px 8px;">+</button>`;
-                            html += `</div>`;
-                        }
-                        html += `</div>`;
-                    }
-                    html += `</div>`;
-                });
-                html += selectedFile === 'puzzles.json'
-                    ? `<button class="add-btn" onclick="openPuzzleWizard()">+ New Puzzle (Wizard)</button>`
-                    : `<button class="add-btn" onclick="addEntry(null)">+ Add Entry</button>`;
-                
-            } else if (isObjectRoot()) {
-                addCatBtn.style.display = 'block';
-                
-                Object.keys(fileData).forEach(cat => {
-                    const isExpanded = expandedCategory === cat;
-                    const catData = fileData[cat];
-                    const isCatArray = Array.isArray(catData);
-                    
-                    if (selectedFile === 'parameters.json' || selectedFile === 'threads.json') {
-                         const isChildActive = selectedCategory === cat;
-                         const renameBtn = selectedFile === 'threads.json'
-                             ? `<button class="delete-btn" style="opacity:0.6; color:var(--accent-amber);" title="Rename this thread everywhere it's used" onclick="event.stopPropagation(); renameThreadEverywhere('${cat}')">✎</button>`
-                             : '';
-                         html += `<div class="tree-item-row group">
-                            <button class="tree-btn ${isChildActive ? 'active bold' : ''}" onclick="selectNode(null, '${cat}')">
-                                ▶ ${cat}
-                            </button>
-                            ${renameBtn}
-                        </div>`;
-                        return;
-                    }
-                    
-                    const isPrimitive = typeof catData !== 'object' || catData === null;
-                    const isActivePrim = selectedCategory === cat && isPrimitive;
-                    
-                    html += `<div class="tree-item">
-                        <div class="tree-item-row group">
-                            <button class="tree-btn ${(isExpanded && !isPrimitive) || isActivePrim ? 'active bold' : ''}" onclick="${isPrimitive ? `selectNode(null, '${cat}')` : `toggleCat('${cat}')`}">
-                                ${isPrimitive ? '• ' : (isExpanded ? '▼ ' : '▶ ')} ${cat}
-                            </button>
-                            ${isExpanded && isCatArray ? `<button class="add-btn" style="width:auto; margin:0; border:none;" onclick="addEntry('${cat}')">+</button>` : ''}
-                        </div>`;
-                    
-                    if (isExpanded && !isPrimitive) {
-                        html += `<div class="tree-children">`;
-                        if (isCatArray) {
-                            if (catData.length === 0) {
-                                html += `<div style="font-size:10px; color:#6b7280; padding:4px;">No entries</div>`;
-                            } else {
-                                catData.forEach((_, i) => {
-                                    const isChildActive = selectedCategory === cat && selectedIndex === i;
-                                    const entryLocked = isLockedEntry(catData[i]);
-                                    const entryDeleteControl = entryLocked
-                                        ? `<span class="delete-btn" style="padding:4px; font-size:12px; opacity:0.5; cursor:default;" title="Factory default — can't be deleted, but you can still edit it">🔒</span>`
-                                        : `<button class="delete-btn" style="padding:4px; font-size:12px;" onclick="deleteEntry('${cat}', ${i})">×</button>`;
-                                    html += `<div class="tree-item-row group">
-                                        <button class="tree-child-btn ${isChildActive ? 'active' : ''}" onclick="selectNode(${i}, '${cat}')">
-                                            ${catData[i]?.title || 'Entry ' + i}
-                                        </button>
-                                        ${entryDeleteControl}
-                                    </div>`;
-                                });
-                            }
-                        } else {
-                            const isChildActive = selectedCategory === cat && selectedIndex === null;
-                            let btnText = 'Edit Data';
-                            if (selectedFile === 'threads.json') btnText = 'Edit Thread';
-                            else if (selectedFile === 'parameters.json' && cat === 'VARS') btnText = 'Edit Variables';
-                            html += `<button class="tree-child-btn ${isChildActive ? 'active' : ''}" onclick="selectNode(null, '${cat}')">${btnText}</button>`;
-                        }
-                        html += `</div>`;
-                    }
-                    html += `</div>`;
-                });
-            }
-            
-            treeContentEl.innerHTML = html;
-        }
-
-        // Actions
-        function clickArrayRow(i, isItemObj) {
-            const isExpandable = isItemObj && selectedFile !== 'finales.json' && selectedFile !== 'puzzles.json';
-            if (isExpandable) {
-                expandedCategory = (expandedCategory === String(i)) ? null : String(i);
-                selectedIndex = i;
-                selectedCategory = null;
-            } else {
-                selectedIndex = i;
-                selectedCategory = null;
-            }
-            renderTree();
-            renderEditor();
-        }
-
-        function toggleCat(cat) {
-            expandedCategory = (expandedCategory === cat) ? null : cat;
-            renderTree();
-        }
-
-        function selectNode(index, cat = null) {
-            selectedIndex = index;
-            selectedCategory = cat;
-            renderTree();
-            renderEditor();
-        }
-
-        function addCategory() {
-            const cat = prompt("Enter new category:");
-            if (cat && !fileData[cat]) {
-                fileData[cat] = selectedFile === 'threads.json' ? { title: "", description: "" } : [];
-                expandedCategory = cat;
-                renderTree();
-            }
-        }
-
-        function addEntry(cat) {
-            if (cat) {
-                // clues.json entries are always CIPHER (see renderEditor's clues.json
-                // branch) — default the template to match so a brand-new entry doesn't
-                // briefly disagree with the locked field before the next render.
-                const template = { text: "", thread: selectedFile === 'clues.json' ? 'CIPHER' : 'UNCLASSIFIED', type: "document" };
-                if (!Array.isArray(fileData[cat])) fileData[cat] = [fileData[cat], template];
-                else fileData[cat].push(template);
-                expandedCategory = cat;
-                selectedCategory = cat;
-                selectedIndex = fileData[cat].length - 1;
-            } else {
-                let template;
-                if (selectedFile === 'foreshadow.json') {
-                    template = { "ANNEX": {text:"", thread:"TELL", type:"document"}, "ARCHIVE": {text:"", thread:"TELL", type:"document"}, "SERVER": {text:"", thread:"TELL", type:"document"}, "CLINIC": {text:"", thread:"TELL", type:"document"}, "CHASM": {text:"", thread:"TELL", type:"document"} };
-                    if (linkedData) linkedData.push({ option: "", text: "" });
-                } else if (selectedFile === 'finales.json') {
-                    template = { option: "NEW FINALE OPTION", text: "NEW FINALE TEXT", thread: "TELL", tell_title: "", tell_description: "" };
-                    if (linkedData) linkedData.push({ "ANNEX": {text:"", thread:"TELL", type:"document"}, "ARCHIVE": {text:"", thread:"TELL", type:"document"}, "SERVER": {text:"", thread:"TELL", type:"document"}, "CLINIC": {text:"", thread:"TELL", type:"document"}, "CHASM": {text:"", thread:"TELL", type:"document"} });
-                } else {
-                    template = (fileData.length > 0 && typeof fileData[0] === 'object' && !Array.isArray(fileData[0])) ? {} : "";
-                }
-                fileData.push(template);
-                selectedIndex = fileData.length - 1;
-                if (typeof template === 'object') {
-                    expandedCategory = String(selectedIndex);
-                    selectedCategory = null;
-                }
-            }
-            renderTree();
-            renderEditor();
-        }
-
-        function deleteEntry(cat, i) {
-            const target = cat ? fileData[cat][i] : fileData[i];
-            if (isLockedEntry(target)) {
-                alert("This entry is part of the factory-default lore and can't be deleted. You can still edit its contents.");
-                return;
-            }
-            if (!confirm("Delete entry?")) return;
-            if (cat) {
-                fileData[cat].splice(i, 1);
-            } else {
-                fileData.splice(i, 1);
-                if (linkedData && (selectedFile === 'foreshadow.json' || selectedFile === 'finales.json')) {
-                    linkedData.splice(i, 1);
-                }
-            }
-            selectedIndex = null;
-            renderTree();
-            renderEditor();
-        }
-
-        function addLocation(i) {
-            const select = document.getElementById(`loc-select-${i}`);
-            const key = select ? select.value : null;
-            if (key && !fileData[i][key]) {
-                fileData[i][key] = "";
-                selectedIndex = i;
-                selectedCategory = key;
-                renderTree();
-                renderEditor();
-            }
-        }
-
-        function deleteLocation(i, key) {
-            const target = fileData[i] ? fileData[i][key] : null;
-            if (isLockedEntry(target)) {
-                alert("This location is part of the factory-default lore and can't be deleted. You can still edit its contents.");
-                return;
-            }
-            if (!confirm("Delete location?")) return;
-            delete fileData[i][key];
-            if (selectedIndex === i && selectedCategory === key) {
-                selectedCategory = null;
-            }
-            renderTree();
-            renderEditor();
-        }
-
-        // Editor Render & Update
-        function getCurrentEditorData() {
-            if (isArrayRoot() && selectedIndex !== null) {
-                if (selectedCategory) return fileData[selectedIndex][selectedCategory];
-                return fileData[selectedIndex];
-            } else if (isObjectRoot() && selectedCategory) {
-                if (selectedIndex !== null && Array.isArray(fileData[selectedCategory])) {
-                    return fileData[selectedCategory][selectedIndex];
-                }
-                return fileData[selectedCategory];
-            }
-            return null;
-        }
-
-        function renderEditor() {
-            const val = getCurrentEditorData();
-            if (val === null || val === undefined) {
-                document.getElementById('editor-content-area').style.display = 'none';
-                document.getElementById('editor-empty-state').style.display = 'flex';
-                return;
-            }
-
-            document.getElementById('editor-content-area').style.display = 'flex';
-            document.getElementById('editor-empty-state').style.display = 'none';
-
-            let title = 'Array Data';
-            if (selectedCategory) title = selectedCategory;
-            else if (selectedFile === 'foreshadow.json') title = 'Finale Group';
-            
-            let subtitle = selectedIndex !== null ? `/ Entry ${selectedIndex}` : '';
-            document.getElementById('editor-title').innerHTML = `${title} <span class="editor-subtitle">${subtitle}</span>`;
-
-            // Hint Box (Foreshadow)
-            const hintBox = document.getElementById('hint-box');
-            if (selectedFile === 'foreshadow.json' && linkedData && selectedIndex !== null) {
-                hintBox.style.display = 'block';
-                document.getElementById('hint-title').innerText = `Target Finale (Index ${selectedIndex})`;
-                document.getElementById('hint-text').innerText = linkedData[selectedIndex]?.option || '';
-            } else {
-                hintBox.style.display = 'none';
-            }
-
-            if (selectedFile === 'parameters.json' && typeof val === 'string' && selectedCategory && selectedCategory === 'VARS') {
-                try {
-                    fileData[selectedCategory] = JSON.parse(val);
-                } catch (e) {
-                    fileData[selectedCategory] = {};
-                }
-                renderEditor();
-                return;
-            }
-
-            const isNamesArray = selectedFile === 'parameters.json' && Array.isArray(val) && (val.length === 0 || typeof val[0] === 'string');
-            const isVarsObj = val && typeof val === 'object' && !Array.isArray(val) && selectedCategory && 
-                ((selectedFile === 'parameters.json' && selectedCategory === 'VARS') || (selectedFile === 'puzzles.json' && selectedCategory === 'LOCK_THREADS'));
-            const isPuzzleObj = selectedFile === 'puzzles.json' && selectedCategory === null && typeof val === 'object' && !Array.isArray(val);
-            
-            if (isNamesArray || isVarsObj || isPuzzleObj) {
-                if (!isPuzzleObj) document.getElementById('textarea-container').style.display = 'none';
-                else document.getElementById('textarea-container').style.display = 'flex';
-                
-                if (!isPuzzleObj) document.getElementById('tag-box').style.display = 'none';
-                document.getElementById('names-container').style.display = 'flex';
-                document.getElementById('names-add-box').style.display = 'flex';
-                
-                const namesLabel = document.getElementById('names-container-label');
-                if (namesLabel) namesLabel.style.display = isPuzzleObj ? 'block' : 'none';
-                
-                if (isVarsObj || isPuzzleObj) {
-                    document.getElementById('names-input-key').style.display = 'block';
-                    document.getElementById('names-input').placeholder = "Value...";
-                    renderVarsList();
-                } else {
-                    document.getElementById('names-input-key').style.display = 'none';
-                    document.getElementById('names-input').placeholder = "Add new entry...";
-                    renderNamesList();
-                }
-                if (!isPuzzleObj) {
-                    document.getElementById('template-preview').style.display = 'none';
-                    document.getElementById('template-issues-banner').style.display = 'none';
-                    document.getElementById('thread-corrob-badge').innerHTML = '';
-                    return;
-                }
-            } else {
-                document.getElementById('textarea-container').style.display = 'flex';
-                document.getElementById('names-container').style.display = 'none';
-                document.getElementById('names-add-box').style.display = 'none';
-                document.getElementById('names-input-key').style.display = 'none';
-                const namesLabel = document.getElementById('names-container-label');
-                if (namesLabel) namesLabel.style.display = 'none';
-            }
-
-            // Tag Box (Any Lore Object)
-            const tagBox = document.getElementById('tag-box');
-            const tagInput = document.getElementById('tag-input');
-            const typeInput = document.getElementById('type-input');
-            
-            // Treat as lore obj if it has text, thread, or type, or is in lore.json/clues.json/foreshadow.json
-            const isLoreDataFile = ['lore.json', 'clues.json', 'foreshadow.json', 'finales.json', 'threads.json'].includes(selectedFile);
-            const isLoreObj = val && typeof val === 'object' && !Array.isArray(val) && 
-                (isLoreDataFile || 'text' in val || 'thread' in val || 'type' in val || 'description' in val);
-            
-            const isFinaleGroup = isArrayRoot() && !selectedCategory && ['foreshadow.json', 'finales.json'].includes(selectedFile);
-            if (isLoreObj || isPuzzleObj) {
-                tagBox.style.display = 'flex';
-                
-                if (isPuzzleObj) {
-                    document.getElementById('title-label').innerHTML = 'ID:<span class="help-icon">?</span>';
-                    document.getElementById('title-input').value = val.id || '';
-                    document.getElementById('title-input').parentElement.title = 'Internal Puzzle ID';
-                    
-                    document.getElementById('type-input').parentElement.style.display = 'none';
-                    document.getElementById('thread-container').style.display = 'none';
-                    document.getElementById('puzzle-container').style.display = 'none';
-                    document.getElementById('option-container').style.display = 'none';
-                    document.getElementById('finale-meta-container').style.display = 'none';
-
-                    document.getElementById('main-textarea-label').style.display = 'block';
-                    document.getElementById('main-textarea-label').innerText = 'Access Code:';
-                    if (document.getElementById('main-textarea-hint')) {
-                        document.getElementById('main-textarea-hint').style.display = 'block';
-                        document.getElementById('main-textarea-hint').innerText = 'Javascript execution string for validating access.';
-                    }
-                } else {
-                    // clues.json entries are only ever the CIPHER thread in practice — every
-                    // existing entry already uses it, and the puzzle-gating (`puzzle` field)
-                    // is what actually distinguishes one clue from another, not the thread
-                    // name. Rather than make authors type/pick "CIPHER" by hand (and risk a
-                    // stray value slipping through), lock the field to CIPHER and let the
-                    // Puzzle checkboxes do the real work — mirroring how TELL is implicit for
-                    // finales.json/foreshadow.json instead of being manually chosen.
-                    if (selectedFile === 'clues.json') {
-                        if (val.thread !== 'CIPHER') val.thread = 'CIPHER';
-                        tagInput.value = 'CIPHER';
-                        tagInput.readOnly = true;
-                        tagInput.classList.add('input-locked');
-                    } else {
-                        tagInput.value = val.thread || '';
-                        tagInput.readOnly = false;
-                        tagInput.classList.remove('input-locked');
-                    }
-                    typeInput.value = val.type || 'document';
-                    document.getElementById('title-label').innerHTML = isFinaleGroup ? 'Nickname:<span class="help-icon">?</span>' : 'Title:<span class="help-icon">?</span>';
-                    document.getElementById('title-input').value = isFinaleGroup ? (val.nickname || '') : (val.title || '');
-                    document.getElementById('title-input').parentElement.title = 'Internal identifier, not shown to players.';
-                    document.getElementById('thread-container').style.display = (selectedFile === 'foreshadow.json' || selectedFile === 'finales.json' || selectedFile === 'threads.json') ? 'none' : 'flex';
-                    document.getElementById('type-input').parentElement.style.display = (isFinaleGroup || selectedFile === 'threads.json') ? 'none' : 'flex';
-                    
-                    if (selectedFile === 'clues.json') {
-                        document.getElementById('puzzle-container').style.display = 'flex';
-                        updatePuzzleSuggestions();
-                    } else {
-                        document.getElementById('puzzle-container').style.display = 'none';
-                    }
-
-                    if (selectedFile === 'finales.json') {
-                        document.getElementById('option-container').style.display = 'flex';
-                        document.getElementById('finale-meta-container').style.display = 'flex';
-                        document.getElementById('option-textarea').value = val.option || '';
-                        document.getElementById('tell-title-input').value = val.tell_title || '';
-                        document.getElementById('tell-desc-textarea').value = val.tell_description || '';
-                    } else {
-                        document.getElementById('option-container').style.display = 'none';
-                        document.getElementById('finale-meta-container').style.display = 'none';
-                    }
-
-                    if (isFinaleGroup) {
-                        document.getElementById('main-textarea-label').style.display = 'block';
-                        document.getElementById('main-textarea-label').innerText = 'Description:';
-                        if (document.getElementById('main-textarea-hint')) {
-                            document.getElementById('main-textarea-hint').style.display = 'block';
-                            document.getElementById('main-textarea-hint').innerText = 'Internal notes about this finale group. Not shown to players.';
-                        }
-                    } else if (selectedFile === 'threads.json') {
-                        document.getElementById('main-textarea-label').style.display = 'block';
-                        document.getElementById('main-textarea-label').innerText = 'Description:';
-                        if (document.getElementById('main-textarea-hint')) {
-                            document.getElementById('main-textarea-hint').style.display = 'block';
-                            document.getElementById('main-textarea-hint').innerText = 'Summary of this thread for developer reference.';
-                        }
-                    } else {
-                        document.getElementById('main-textarea-label').style.display = 'block';
-                        document.getElementById('main-textarea-label').innerText = 'Text:';
-                        if (document.getElementById('main-textarea-hint')) {
-                            document.getElementById('main-textarea-hint').style.display = 'block';
-                        }
-                    }
-                }
-            } else {
-                tagBox.style.display = 'none';
-                document.getElementById('option-container').style.display = 'none';
-                document.getElementById('finale-meta-container').style.display = 'none';
-                document.getElementById('main-textarea-label').style.display = 'none';
-                if (document.getElementById('main-textarea-hint')) document.getElementById('main-textarea-hint').style.display = 'none';
-            }
-
-            if (isLoreObj) {
-                const isDescField = selectedFile === 'threads.json' || (isFinaleGroup && selectedFile === 'foreshadow.json');
-                mainTextarea.value = isDescField ? (val.description !== undefined ? val.description : '') : (val.text !== undefined ? val.text : '');
-            } else if (isPuzzleObj) {
-                mainTextarea.value = val.ACCESS_CODE || '';
-            } else {
-                const isString = typeof val === 'string';
-                mainTextarea.value = isString ? val : JSON.stringify(val, null, 2);
-            }
-
-            updateLivePreview();
-            refreshThreadBadge();
-        }
-
-        // Input Listeners
-        document.getElementById('option-textarea').addEventListener('input', (e) => {
-            let val = e.target.value;
-            const original = getCurrentEditorData();
-            if (original && typeof original === 'object' && selectedFile === 'finales.json') {
-                if (isArrayRoot()) {
-                    if (selectedCategory) fileData[selectedIndex][selectedCategory].option = val;
-                    else fileData[selectedIndex].option = val;
-                }
-            }
-        });
-
-        document.getElementById('tell-title-input').addEventListener('input', (e) => {
-            let val = e.target.value;
-            const original = getCurrentEditorData();
-            if (original && typeof original === 'object' && selectedFile === 'finales.json') {
-                if (isArrayRoot()) {
-                    if (selectedCategory) fileData[selectedIndex][selectedCategory].tell_title = val;
-                    else fileData[selectedIndex].tell_title = val;
-                }
-            }
-        });
-
-        document.getElementById('tell-desc-textarea').addEventListener('input', (e) => {
-            let val = e.target.value;
-            const original = getCurrentEditorData();
-            if (original && typeof original === 'object' && selectedFile === 'finales.json') {
-                if (isArrayRoot()) {
-                    if (selectedCategory) fileData[selectedIndex][selectedCategory].tell_description = val;
-                    else fileData[selectedIndex].tell_description = val;
-                }
-            }
-        });
-
-        mainTextarea.addEventListener('input', (e) => {
-            updateLivePreview();
-
-            let val = e.target.value;
-            const original = getCurrentEditorData();
-
-            const isLoreDataFile = ['lore.json', 'clues.json', 'foreshadow.json', 'finales.json', 'threads.json'].includes(selectedFile);
-            const isLoreObj = original && typeof original === 'object' && !Array.isArray(original) && 
-                (isLoreDataFile || 'text' in original || 'thread' in original || 'type' in original || 'description' in original);
-            const isPuzzleObj = selectedFile === 'puzzles.json' && selectedCategory === null && original && typeof original === 'object' && !Array.isArray(original);
-
-            if (isLoreObj || isPuzzleObj) {
-                if (isPuzzleObj) {
-                    if (isArrayRoot()) fileData[selectedIndex].ACCESS_CODE = val;
-                    return;
-                }
-                const isFinaleGroup = isArrayRoot() && !selectedCategory && ['foreshadow.json', 'finales.json'].includes(selectedFile);
-                const textKey = (selectedFile === 'threads.json' || (isFinaleGroup && selectedFile === 'foreshadow.json')) ? 'description' : 'text';
-                if (isArrayRoot()) {
-                    if (selectedCategory) fileData[selectedIndex][selectedCategory][textKey] = val;
-                    else fileData[selectedIndex][textKey] = val;
-                }
-                else if (isObjectRoot()) {
-                    if (selectedIndex !== null) fileData[selectedCategory][selectedIndex][textKey] = val;
-                    else fileData[selectedCategory][textKey] = val;
-                }
-                return;
-            }
-
-            if (typeof original !== 'string') {
-                try { val = JSON.parse(val); } catch(e){} // wait for valid json
-            }
-            
-            if (isArrayRoot()) {
-                if (selectedCategory) fileData[selectedIndex][selectedCategory] = val;
-                else fileData[selectedIndex] = val;
-            } else if (isObjectRoot()) {
-                if (selectedIndex !== null) fileData[selectedCategory][selectedIndex] = val;
-                else fileData[selectedCategory] = val;
-            }
-        });
-
-        document.getElementById('tag-input').addEventListener('change', (e) => {
-            let val = e.target.value.toUpperCase().trim();
-            const hintEl = document.getElementById('thread-constraint-hint');
-
-            if (selectedFile === 'lore.json' && (val === 'CIPHER' || val === 'TELL')) {
-                val = 'UNCLASSIFIED';
-                e.target.value = val;
-                if (hintEl) { hintEl.style.display = 'inline'; hintEl.innerText = 'CIPHER/TELL belong in clues.json — reset to UNCLASSIFIED.'; }
-            } else if (selectedFile === 'clues.json' && val !== 'CIPHER' && val !== 'TELL') {
-                val = 'CIPHER';
-                e.target.value = val;
-                if (hintEl) { hintEl.style.display = 'inline'; hintEl.innerText = 'Clues must use CIPHER or TELL — reset to CIPHER.'; }
-            } else {
-                e.target.value = val;
-                if (hintEl) { hintEl.style.display = 'none'; hintEl.innerText = ''; }
-            }
-
-            const original = getCurrentEditorData();
-            const isLoreDataFile = ['lore.json', 'clues.json', 'foreshadow.json', 'finales.json'].includes(selectedFile);
-            const isLoreObj = original && typeof original === 'object' && !Array.isArray(original) &&
-                (isLoreDataFile || 'text' in original || 'thread' in original || 'type' in original);
-            if (isLoreObj) {
-                if (isArrayRoot()) {
-                    if (selectedCategory) fileData[selectedIndex][selectedCategory].thread = val;
-                    else fileData[selectedIndex].thread = val;
-                }
-                else if (isObjectRoot()) {
-                    if (selectedIndex !== null) fileData[selectedCategory][selectedIndex].thread = val;
-                    else fileData[selectedCategory].thread = val;
-                }
-            }
-            refreshThreadBadge();
-        });
-
-        document.getElementById('type-input').addEventListener('change', (e) => {
-            const val = e.target.value;
-            const original = getCurrentEditorData();
-            const isLoreDataFile = ['lore.json', 'clues.json', 'foreshadow.json', 'finales.json'].includes(selectedFile);
-            const isLoreObj = original && typeof original === 'object' && !Array.isArray(original) && 
-                (isLoreDataFile || 'text' in original || 'thread' in original || 'type' in original);
-            if (isLoreObj) {
-                if (isArrayRoot()) {
-                    if (selectedCategory) fileData[selectedIndex][selectedCategory].type = val;
-                    else fileData[selectedIndex].type = val;
-                }
-                else if (isObjectRoot()) {
-                    if (selectedIndex !== null) fileData[selectedCategory][selectedIndex].type = val;
-                    else fileData[selectedCategory].type = val;
-                }
-            }
-        });
-
-        document.getElementById('title-input').addEventListener('input', (e) => {
-            const val = e.target.value;
-            const original = getCurrentEditorData();
-            const isLoreDataFile = ['lore.json', 'clues.json', 'foreshadow.json', 'finales.json'].includes(selectedFile);
-            const isLoreObj = original && typeof original === 'object' && !Array.isArray(original) && 
-                (isLoreDataFile || 'text' in original || 'thread' in original || 'type' in original);
-            const isPuzzleObj = selectedFile === 'puzzles.json' && selectedCategory === null && original && typeof original === 'object' && !Array.isArray(original);
-            
-            if (isLoreObj || isPuzzleObj) {
-                if (isArrayRoot()) {
-                    if (isPuzzleObj) {
-                        fileData[selectedIndex].id = val;
-                    }
-                    else if (selectedCategory) {
-                        fileData[selectedIndex][selectedCategory].title = val;
-                    } else {
-                        fileData[selectedIndex].nickname = val;
-                        if (linkedData && linkedData[selectedIndex]) {
-                            linkedData[selectedIndex].nickname = val;
-                        }
-                    }
-                }
-                else if (isObjectRoot()) {
-                    if (selectedIndex !== null) fileData[selectedCategory][selectedIndex].title = val;
-                    else fileData[selectedCategory].title = val;
-                }
-                renderTree();
-            }
-        });
-
-        // Save
-        async function handleSave() {
-            const btn = document.getElementById('save-btn');
-            btn.disabled = true;
-            btn.innerText = 'Saving...';
-            
-            try {
-                await fetch('/api/data', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ file: selectedFile, content: fileData })
-                });
-
-                if (linkedData && (selectedFile === 'foreshadow.json' || selectedFile === 'finales.json')) {
-                    const linkedFile = selectedFile === 'foreshadow.json' ? 'finales.json' : 'foreshadow.json';
-                    await fetch('/api/data', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ file: linkedFile, content: linkedData })
-                    });
-                }
-
-                if (selectedFile === 'parameters.json') {
-                    paramsData = fileData;
-                    renderVariableToolbar();
-                }
-                if (selectedFile === 'puzzles.json') {
-                    puzzlesData = fileData;
-                }
-                // Keep the cross-file cache (corroboration badges, reachability, sector
-                // list) in sync with whatever was just saved, so QOL feedback never shows
-                // stale numbers for the file you just edited.
-                if (['lore.json', 'clues.json', 'foreshadow.json', 'finales.json', 'threads.json', 'puzzles.json'].includes(selectedFile)) {
-                    crossFileCache[selectedFile] = fileData;
-                    if (linkedData && selectedFile === 'foreshadow.json') crossFileCache['finales.json'] = linkedData;
-                    if (linkedData && selectedFile === 'finales.json') crossFileCache['foreshadow.json'] = linkedData;
-                }
-
-                btn.innerText = 'Saved!';
-                setTimeout(() => { btn.innerText = 'Save Changes'; btn.disabled = false; }, 2000);
-            } catch (err) {
-                alert('Save failed: ' + err.message);
-                btn.innerText = 'Save Changes';
-                btn.disabled = false;
-            }
-        }
-
-        // Names Logic
-        function getTargetObj() {
-            if (selectedFile === 'puzzles.json' && selectedCategory === null) {
-                if (selectedIndex !== null && fileData[selectedIndex]) {
-                    if (!fileData[selectedIndex].LOCK_THREADS) fileData[selectedIndex].LOCK_THREADS = {};
-                    return fileData[selectedIndex].LOCK_THREADS;
-                }
-                return null;
-            }
-            return isArrayRoot() ? (fileData[selectedIndex] ? fileData[selectedIndex][selectedCategory] : null) : fileData[selectedCategory];
-        }
-
-        // Names/VARS/LOCK_THREADS entries are plain strings or dict keys, so they can't
-        // carry an embedded "_locked" flag the way object entries do. Instead we compare
-        // against the immutable factory-default snapshot (data/factory/*.json) fetched
-        // via getFactoryData: anything present there was shipped, and can't be deleted.
-        async function getLockedNamesSet() {
-            if (selectedFile !== 'parameters.json') return new Set();
-            const factory = await getFactoryData('parameters.json');
-            const factoryArr = factory && Array.isArray(factory[selectedCategory]) ? factory[selectedCategory] : [];
-            return new Set(factoryArr);
-        }
-        async function getLockedVarKeysSet() {
-            if (selectedFile === 'parameters.json' && selectedCategory === 'VARS') {
-                const factory = await getFactoryData('parameters.json');
-                return new Set(factory && factory.VARS ? Object.keys(factory.VARS) : []);
-            }
-            if (selectedFile === 'puzzles.json') {
-                const currentPuzzle = fileData[selectedIndex];
-                const factory = await getFactoryData('puzzles.json');
-                const factoryPuzzle = factory && currentPuzzle ? factory.find(p => p.id === currentPuzzle.id) : null;
-                return new Set(factoryPuzzle && factoryPuzzle.LOCK_THREADS ? Object.keys(factoryPuzzle.LOCK_THREADS) : []);
-            }
-            return new Set();
-        }
-        async function renderNamesList() {
-            const arr = getTargetObj() || [];
-            const lockedSet = await getLockedNamesSet();
-            let html = '';
-            arr.forEach((name, i) => {
-                const locked = lockedSet.has(name);
-                const deleteControl = locked
-                    ? `<span title="Factory default — can't be deleted" style="opacity:0.5; cursor:default; padding: 0 4px;">🔒</span>`
-                    : `<button onclick="deleteNameEntry(${i})" style="background:transparent; border:none; color:var(--accent-red); cursor:pointer;">×</button>`;
-                html += `<div style="align-self: flex-start; min-width: 250px; flex-shrink: 0; display:flex; justify-content:space-between; align-items:center; padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); border-radius: 4px;">
-                    <span style="font-family: var(--font-mono); font-size: 0.875rem;">${name}</span>
-                    ${deleteControl}
-                </div>`;
-            });
-            document.getElementById('names-container').innerHTML = html;
-        }
-        async function renderVarsList() {
-            const obj = getTargetObj() || {};
-            const isLockThreads = selectedFile === 'puzzles.json';
-            const lockedSet = await getLockedVarKeysSet();
-            let html = '';
-            Object.keys(obj).forEach(key => {
-                const locked = lockedSet.has(key);
-                const deleteControl = locked
-                    ? `<span title="Factory default — can't be deleted" style="opacity:0.5; cursor:default; padding: 0 4px;">🔒</span>`
-                    : `<button onclick="deleteVarEntry('${key}')" style="background:transparent; border:none; color:var(--accent-red); cursor:pointer;">×</button>`;
-                html += `<div style="align-self: flex-start; min-width: 400px; flex-shrink: 0; display:flex; justify-content:space-between; align-items:center; padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); border-radius: 4px; gap: 16px;">
-                    <span style="font-family: var(--font-mono); font-size: 0.875rem; color: var(--accent-orange); min-width: 120px;">${key}</span>
-                    <input type="text" value="${String(obj[key]).replace(/"/g, '&quot;')}" onchange="updateVarEntry('${key}', this.value)" style="flex: 1; background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 4px 8px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;">
-                    ${isLockThreads ? `<span id="lockthread-badge-${key}" class="badge">checking…</span>` : ''}
-                    ${deleteControl}
-                </div>`;
-            });
-            document.getElementById('names-container').innerHTML = html;
-
-            // Reachability is a real check (needs lore.json/clues.json), so it's filled
-            // in async right after the synchronous render above. Scoped to this specific
-            // puzzle's id so a clue gated to a different puzzle variant can't count.
-            if (isLockThreads) {
-                const currentPuzzleId = fileData && fileData[selectedIndex] ? fileData[selectedIndex].id : null;
-                Object.keys(obj).forEach(async (key) => {
-                    const { count } = await computeThreadDelivery(key, currentPuzzleId);
-                    const { cls, label } = badgeForDeliveryCount(count, 'reachable');
-                    const el = document.getElementById(`lockthread-badge-${key}`);
-                    if (el) { el.className = `badge ${cls}`; el.innerText = label; }
-                });
-            }
-        }
-        function addNameEntry() {
-            const keyInput = document.getElementById('names-input-key');
-            const input = document.getElementById('names-input');
-            const keyVal = keyInput.value.trim();
-            const val = input.value.trim();
-            if (!selectedCategory && selectedFile !== 'puzzles.json') return;
-            
-            const targetObj = getTargetObj();
-            const isVarsObj = targetObj && typeof targetObj === 'object' && !Array.isArray(targetObj);
-            
-            if (isVarsObj) {
-                if (keyVal && val) {
-                    targetObj[keyVal] = val;
-                    keyInput.value = '';
-                    input.value = '';
-                    renderVarsList();
-                }
-            } else {
-                if (val) {
-                    if (targetObj) targetObj.push(val);
-                    input.value = '';
-                    renderNamesList();
-                }
-            }
-        }
-        function updateVarEntry(key, val) {
-            if (selectedCategory || selectedFile === 'puzzles.json') {
-                const targetObj = getTargetObj();
-                if (targetObj) targetObj[key] = val;
-            }
-        }
-        async function deleteNameEntry(i) {
-            if (selectedCategory || selectedFile === 'puzzles.json') {
-                const targetObj = getTargetObj();
-                if (targetObj) {
-                    const value = targetObj[i];
-                    const lockedSet = await getLockedNamesSet();
-                    if (lockedSet.has(value)) {
-                        alert(`"${value}" is part of the factory-default ${selectedCategory} list and can't be deleted.`);
-                        return;
-                    }
-                    targetObj.splice(i, 1);
-                    renderNamesList();
-                }
-            }
-        }
-        async function deleteVarEntry(key) {
-            if (selectedCategory || selectedFile === 'puzzles.json') {
-                const targetObj = getTargetObj();
-                if (targetObj) {
-                    const lockedSet = await getLockedVarKeysSet();
-                    if (lockedSet.has(key)) {
-                        alert(`"${key}" is a factory-default value and can't be deleted. You can still edit it.`);
-                        return;
-                    }
-                    delete targetObj[key];
-                    renderVarsList();
-                }
-            }
-        }
-
-        // Puzzle Logic
-        async function updatePuzzleSuggestions() {
-            try {
-                const res = await fetch('/api/data?file=puzzles.json');
-                const data = await res.json();
-                const puzzles = data.content || [];
-                const container = document.getElementById('puzzle-checkboxes');
-                
-                const valObj = getCurrentEditorData();
-                const puzzleVal = valObj ? valObj.puzzle : null;
-                const isArray = Array.isArray(puzzleVal);
-                
-                let html = '';
-                puzzles.forEach(p => {
-                    if (p && p.id) {
-                        const checked = isArray ? puzzleVal.includes(p.id) : (puzzleVal === p.id);
-                        html += `<label style="display:flex; align-items:center; gap:6px; font-size: 0.75rem; font-family: var(--font-mono); color: #d1d5db; cursor: pointer;">
-                            <input type="checkbox" value="${p.id}" ${checked ? 'checked' : ''} onchange="handlePuzzleCheckboxChange()">
-                            ${p.id}
-                        </label>`;
-                    }
-                });
-                if (puzzles.length === 0) {
-                    html = '<div style="font-size:0.75rem; color:#6b7280;">No puzzles found</div>';
-                }
-                container.innerHTML = html;
-            } catch (e) {
-                console.error(e);
-            }
-        }
-
-        function handlePuzzleCheckboxChange() {
-            const container = document.getElementById('puzzle-checkboxes');
-            const checkboxes = container.querySelectorAll('input[type="checkbox"]');
-            const selected = [];
-            checkboxes.forEach(cb => {
-                if (cb.checked) selected.push(cb.value);
-            });
-            
-            const original = getCurrentEditorData();
-            if (original && typeof original === 'object' && selectedFile === 'clues.json') {
-                const valToSave = selected.length === 0 ? null : (selected.length === 1 ? selected[0] : selected);
-                
-                if (isArrayRoot()) {
-                    if (selectedCategory) {
-                        if (valToSave) fileData[selectedIndex][selectedCategory].puzzle = valToSave;
-                        else delete fileData[selectedIndex][selectedCategory].puzzle;
-                    } else {
-                        if (valToSave) fileData[selectedIndex].puzzle = valToSave;
-                        else delete fileData[selectedIndex].puzzle;
-                    }
-                } else if (isObjectRoot()) {
-                    if (selectedIndex !== null) {
-                        if (valToSave) fileData[selectedCategory][selectedIndex].puzzle = valToSave;
-                        else delete fileData[selectedCategory][selectedIndex].puzzle;
-                    } else {
-                        if (valToSave) fileData[selectedCategory].puzzle = valToSave;
-                        else delete fileData[selectedCategory].puzzle;
-                    }
-                }
-            }
-        }
-
-        // Tags Logic
-        function updateTagSuggestions() {
-            const tagSet = new Set();
-            if (isObjectRoot()) {
-                Object.values(fileData).forEach(arr => {
-                    if (Array.isArray(arr)) arr.forEach(t => { if(t && t.thread) tagSet.add(t.thread); });
-                });
-            } else if (isArrayRoot()) {
-                fileData.forEach(item => {
-                    if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
-                        Object.values(item).forEach(arr => {
-                            if (Array.isArray(arr)) arr.forEach(t => { if(t && t.thread) tagSet.add(t.thread); });
-                        });
-                    }
-                });
-            }
-            const defaults = ['GEOMETRY', 'HUM', 'LOST', 'CIPHER', 'PEN', 'EPOCH', 'HOUR', 'UNCLASSIFIED'];
-            defaults.forEach(t => tagSet.add(t));
-            
-            const dl = document.getElementById('tag-suggestions');
-            dl.innerHTML = '';
-            tagSet.forEach(t => {
-                if (!t) return;
-                if (selectedFile === 'lore.json' && (t === 'CIPHER' || t === 'TELL')) return;
-                if (selectedFile === 'clues.json' && t !== 'CIPHER' && t !== 'TELL') return;
-                
-                const opt = document.createElement('option');
-                opt.value = t;
-                dl.appendChild(opt);
-            });
-        }
-
-        // Variable Insertion
-        function renderVariableToolbar() {
-            const tb = document.getElementById('variable-toolbar');
-            if (!tb || !paramsData) return;
-            let html = '';
-
-            // Resolves a token against a mock context so the dropdown can show what it
-            // actually produces, not just its name (e.g. "hours → 512" instead of just "hours").
-            const mockCtx = buildMockCtx(paramsData, puzzlesData || []);
-            const preview = (token) => {
-                const { result } = resolveTemplateForValidation(token, mockCtx);
-                return String(result);
-            };
-
-            // Roles Dropdown
-            const roles = paramsData.ROLES || ["lead", "custodian", "archivist", "lost"];
-            html += `<select class="var-select" onchange="if(this.value) { insertVar(this.value); this.selectedIndex = 0; }">`;
-            html += `<option value="">Insert Role...</option>`;
-            roles.forEach(r => {
-                const token = `\${c.${r}}`;
-                html += `<option value="${token}">${r} → ${preview(token)}</option>`;
-            });
-            html += `</select>`;
-
-            // Core Dropdown
-            const core = ['P', 'hours', 'pen', 'year'];
-            html += `<select class="var-select" onchange="if(this.value) { insertVar(this.value); this.selectedIndex = 0; }">`;
-            html += `<option value="">Insert Core Var...</option>`;
-            core.forEach(v => {
-                const token = `\${${v}}`;
-                html += `<option value="${token}">${v} → ${preview(token)}</option>`;
-            });
-            html += `</select>`;
-
-            // Custom Vars Dropdown
-            let custom = paramsData.VARS || {};
-            if (typeof custom === 'string') {
-                try { custom = JSON.parse(custom); } catch(e) { custom = {}; }
-            }
-            if (custom && typeof custom === 'object' && !Array.isArray(custom)) {
-                const keys = Object.keys(custom);
-                if (keys.length > 0) {
-                    html += `<select class="var-select" onchange="if(this.value) { insertVar(this.value); this.selectedIndex = 0; }">`;
-                    html += `<option value="">Insert Custom Var...</option>`;
-                    keys.forEach(v => {
-                        const token = `\${${v}}`;
-                        html += `<option value="${token}">${v} → ${preview(token)}</option>`;
-                    });
-                    html += `</select>`;
-                }
-            }
-
-            tb.innerHTML = html;
-        }
-
-        function insertVar(v) {
-            const ta = document.getElementById('main-textarea');
-            if(!ta || ta.style.display === 'none') return;
-            const start = ta.selectionStart;
-            const end = ta.selectionEnd;
-            ta.value = ta.value.substring(0, start) + v + ta.value.substring(end);
-            ta.selectionStart = ta.selectionEnd = start + v.length;
-            ta.focus();
-            ta.dispatchEvent(new Event('input'));
-        }
-
-        // Start
-        init();
-    </script>
+    <script src="js/state.js"></script>
+    <script src="js/validation.js"></script>
+    <script src="js/inspector.js"></script>
+    <script src="js/puzzle-wizard.js"></script>
+    <script src="js/finale-wizard.js"></script>
+    <script src="js/factory-tools.js"></script>
+    <script src="js/rendering.js"></script>
+    <script src="js/names-vars.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>

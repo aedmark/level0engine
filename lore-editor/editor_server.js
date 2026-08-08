@@ -9,6 +9,7 @@ const __dirname = path.dirname(__filename);
 const PORT = 3000;
 const DATA_DIR = path.join(__dirname, '../data');
 const FACTORY_DIR = path.join(DATA_DIR, 'factory');
+const JS_DIR = path.join(__dirname, 'js');
 
 // The fixed set of data files the editor/engine know about. Import/export/reset
 // are all restricted to exactly this list so nobody can use these routes to
@@ -25,6 +26,18 @@ function isSafeFactoryPath(filePath) {
     return filePath === FACTORY_DIR || filePath.startsWith(FACTORY_DIR + path.sep);
 }
 
+function isSafeJsPath(filePath) {
+    return filePath.startsWith(JS_DIR + path.sep);
+}
+
+// This is a local editing tool where every read must reflect the file on disk
+// right now — there's never a reason for the browser (or an intermediate cache)
+// to reuse a previous response. Without this, a plain refresh after a save can
+// come back from the browser's HTTP cache (or bfcache restoring the whole page
+// without re-fetching at all) showing pre-save content even though the write to
+// disk genuinely succeeded, which looks exactly like "my changes aren't saving."
+const NO_CACHE_HEADERS = { 'Cache-Control': 'no-store, no-cache, must-revalidate', 'Pragma': 'no-cache' };
+
 const server = http.createServer((req, res) => {
     // Serve Editor UI
     if (req.method === 'GET' && (req.url === '/' || req.url === '/index.html' || req.url === '/editor.html')) {
@@ -33,7 +46,7 @@ const server = http.createServer((req, res) => {
                 res.writeHead(500);
                 return res.end('Error loading editor.html');
             }
-            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.writeHead(200, { 'Content-Type': 'text/html', ...NO_CACHE_HEADERS });
             res.end(data);
         });
         return;
@@ -45,7 +58,29 @@ const server = http.createServer((req, res) => {
                 res.writeHead(404);
                 return res.end('Not found');
             }
-            res.writeHead(200, { 'Content-Type': 'text/markdown' });
+            res.writeHead(200, { 'Content-Type': 'text/markdown', ...NO_CACHE_HEADERS });
+            res.end(data);
+        });
+        return;
+    }
+
+    // Serve the editor's own app logic (lore-editor/js/*.js — see editor.html's
+    // <script src> tags). Path is resolved and checked against JS_DIR the same way
+    // the data-file routes guard against traversal, even though this only ever
+    // serves files this project ships with.
+    if (req.method === 'GET' && req.url.startsWith('/js/') && req.url.endsWith('.js')) {
+        const requested = decodeURIComponent(req.url.slice('/js/'.length));
+        const filePath = path.join(JS_DIR, requested);
+        if (!isSafeJsPath(filePath)) {
+            res.writeHead(400);
+            return res.end('Invalid path');
+        }
+        fs.readFile(filePath, (err, data) => {
+            if (err) {
+                res.writeHead(404);
+                return res.end('Not found');
+            }
+            res.writeHead(200, { 'Content-Type': 'text/javascript', ...NO_CACHE_HEADERS });
             res.end(data);
         });
         return;
@@ -71,7 +106,7 @@ const server = http.createServer((req, res) => {
                         res.writeHead(404, { 'Content-Type': 'application/json' });
                         return res.end(JSON.stringify({ error: 'File not found' }));
                     }
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.writeHead(200, { 'Content-Type': 'application/json', ...NO_CACHE_HEADERS });
                     res.end(JSON.stringify({ content: JSON.parse(data) }));
                 });
             } else {
@@ -81,7 +116,7 @@ const server = http.createServer((req, res) => {
                         return res.end(JSON.stringify({ error: 'Cannot read data dir' }));
                     }
                     const jsonFiles = files.filter(f => f.endsWith('.json'));
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.writeHead(200, { 'Content-Type': 'application/json', ...NO_CACHE_HEADERS });
                     res.end(JSON.stringify({ files: jsonFiles }));
                 });
             }

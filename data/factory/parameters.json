@@ -9,7 +9,7 @@
     "staff-member-1"
   ],
   "VARS": {
-    "week": "Math.floor(ctx.hours / 168)",
+    "WEEK": "Math.floor(ctx.hours / 168)",
     "EPOCH": "ctx.siteYear",
     "PEN": "ctx.pen",
     "CIPHER": "ctx.cipher",
@@ -53,7 +53,7 @@
     "Whitlock"
   ],
   "PROJECT_NAMES": [
-    "OTHRESHOLD",
+    "THRESHOLD",
     "INFINITE HALLWAY",
     "YELLOW WALLPAPER",
     "DIXIELAND",
