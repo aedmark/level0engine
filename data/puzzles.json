@@ -18,5 +18,14 @@
       "PEN": "PEN"
     },
     "_locked": true
+  },
+  {
+    "id": "REQ_PUZZLE",
+    "ACCESS_CODE": "String(ctx.REQ).padStart(2, '0') + String(ctx.pen).padStart(2, '0')",
+    "LOCK_THREADS": {
+      "CIPHER": "CIPHER",
+      "PEN": "PEN",
+      "REQ": "REQ"
+    }
   }
 ]

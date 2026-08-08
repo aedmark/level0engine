@@ -92,6 +92,19 @@ export function buildCaseFiles(ctx, data) {
 
     const { lore, clues, finales, foreshadow, threads } = d;
 
+    // CIPHER is shared by every puzzle (each one locks against it), so threads.json's
+    // CIPHER entry is one generic default across all of them. A puzzle can optionally
+    // narrow that to something specific to its own cipher method — same idea as a
+    // finale's tell_title/tell_description override for TELL, just sourced from
+    // ctx.activePuzzle instead of a finales.json entry. Resolved with the same
+    // replaceTemplates() used for every other narrative string (ctx.activePuzzle itself
+    // isn't part of `data`, so it never went through processObj(d) above) so a puzzle
+    // author can write "${P}" or "${c.lead}" in these fields exactly like anywhere else.
+    if (ctx.activePuzzle && threads['CIPHER']) {
+        if (ctx.activePuzzle.cipher_title) threads['CIPHER'].title = replaceTemplates(ctx.activePuzzle.cipher_title);
+        if (ctx.activePuzzle.cipher_description) threads['CIPHER'].description = replaceTemplates(ctx.activePuzzle.cipher_description);
+    }
+
     const library = {};
     const tapes = {};
     const ephemera = {};

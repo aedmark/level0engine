@@ -540,12 +540,27 @@
                     document.getElementById('title-label').innerHTML = 'ID:<span class="help-icon">?</span>';
                     document.getElementById('title-input').value = val.id || '';
                     document.getElementById('title-input').parentElement.title = 'Internal Puzzle ID';
-                    
+
                     document.getElementById('type-input').parentElement.style.display = 'none';
                     document.getElementById('thread-container').style.display = 'none';
                     document.getElementById('puzzle-container').style.display = 'none';
                     document.getElementById('option-container').style.display = 'none';
                     document.getElementById('finale-meta-container').style.display = 'none';
+
+                    // Only a puzzle that actually locks against CIPHER has any use for a
+                    // per-puzzle override — offering it otherwise would just be confusing.
+                    const puzzleHasCipher = !!(val.LOCK_THREADS && Object.prototype.hasOwnProperty.call(val.LOCK_THREADS, 'CIPHER'));
+                    const cipherContainer = document.getElementById('puzzle-cipher-container');
+                    cipherContainer.style.display = puzzleHasCipher ? 'flex' : 'none';
+                    if (puzzleHasCipher) {
+                        const cipherThreadData = crossFileCache['threads.json']?.['CIPHER'] || {};
+                        const cipherTitleInput = document.getElementById('puzzle-cipher-title-input');
+                        const cipherDescInput = document.getElementById('puzzle-cipher-desc-textarea');
+                        cipherTitleInput.value = val.cipher_title || '';
+                        cipherTitleInput.placeholder = cipherThreadData.title || '';
+                        cipherDescInput.value = val.cipher_description || '';
+                        cipherDescInput.placeholder = cipherThreadData.description || '';
+                    }
 
                     document.getElementById('main-textarea-label').style.display = 'block';
                     document.getElementById('main-textarea-label').innerText = 'Access Code:';
@@ -554,22 +569,24 @@
                         document.getElementById('main-textarea-hint').innerText = 'Javascript execution string for validating access.';
                     }
                 } else {
-                    // clues.json entries are only ever the CIPHER thread in practice — every
-                    // existing entry already uses it, and the puzzle-gating (`puzzle` field)
-                    // is what actually distinguishes one clue from another, not the thread
-                    // name. Rather than make authors type/pick "CIPHER" by hand (and risk a
-                    // stray value slipping through), lock the field to CIPHER and let the
-                    // Puzzle checkboxes do the real work — mirroring how TELL is implicit for
-                    // finales.json/foreshadow.json instead of being manually chosen.
+                    document.getElementById('puzzle-cipher-container').style.display = 'none';
+                    // clues.json's thread is always a puzzle-mechanic thread — one that
+                    // actually appears in some puzzle's LOCK_THREADS (CIPHER, PEN, EPOCH,
+                    // HOUR, ...) — never a freely-typed tag. Rather than a text field, it's
+                    // a dropdown scoped to whichever puzzle(s) are checked below: only a
+                    // thread every currently-checked puzzle actually locks against is ever
+                    // selectable, so a clue can't be assigned to a puzzle/thread pairing
+                    // that would silently never appear in-game.
                     if (selectedFile === 'clues.json') {
-                        if (val.thread !== 'CIPHER') val.thread = 'CIPHER';
-                        tagInput.value = 'CIPHER';
-                        tagInput.readOnly = true;
-                        tagInput.classList.add('input-locked');
+                        tagInput.style.display = 'none';
+                        document.getElementById('clue-thread-select').style.display = 'inline-block';
+                        renderClueThreadSelect();
                     } else {
+                        tagInput.style.display = '';
                         tagInput.value = val.thread || '';
                         tagInput.readOnly = false;
                         tagInput.classList.remove('input-locked');
+                        document.getElementById('clue-thread-select').style.display = 'none';
                     }
                     typeInput.value = val.type || 'document';
                     document.getElementById('title-label').innerHTML = isFinaleGroup ? 'Nickname:<span class="help-icon">?</span>' : 'Title:<span class="help-icon">?</span>';
@@ -577,7 +594,7 @@
                     document.getElementById('title-input').parentElement.title = 'Internal identifier, not shown to players.';
                     document.getElementById('thread-container').style.display = (selectedFile === 'foreshadow.json' || selectedFile === 'finales.json' || selectedFile === 'threads.json') ? 'none' : 'flex';
                     document.getElementById('type-input').parentElement.style.display = (isFinaleGroup || selectedFile === 'threads.json') ? 'none' : 'flex';
-                    
+
                     if (selectedFile === 'clues.json') {
                         document.getElementById('puzzle-container').style.display = 'flex';
                         updatePuzzleSuggestions();
@@ -701,6 +718,26 @@
             }
         });
 
+        document.getElementById('puzzle-cipher-title-input').addEventListener('input', (e) => {
+            markDirty();
+            let val = e.target.value;
+            const original = getCurrentEditorData();
+            if (original && typeof original === 'object' && selectedFile === 'puzzles.json' && isArrayRoot() && selectedCategory === null) {
+                if (val) fileData[selectedIndex].cipher_title = val;
+                else delete fileData[selectedIndex].cipher_title;
+            }
+        });
+
+        document.getElementById('puzzle-cipher-desc-textarea').addEventListener('input', (e) => {
+            markDirty();
+            let val = e.target.value;
+            const original = getCurrentEditorData();
+            if (original && typeof original === 'object' && selectedFile === 'puzzles.json' && isArrayRoot() && selectedCategory === null) {
+                if (val) fileData[selectedIndex].cipher_description = val;
+                else delete fileData[selectedIndex].cipher_description;
+            }
+        });
+
         document.getElementById('finale-lock-thread-select').addEventListener('change', (e) => {
             markDirty();
             let val = e.target.value;
@@ -761,15 +798,18 @@
             let val = e.target.value.toUpperCase().trim();
             const hintEl = document.getElementById('thread-constraint-hint');
 
-            // CIPHER is exclusive to puzzles/clues; TELL is exclusive to finales/foreshadow.
-            // clues.json's own thread is force-set to CIPHER and the field made read-only
-            // in renderEditor() before this listener can ever see an edit, so no reset
-            // branch is needed for it here — this input only ever accepts free-typed
-            // values for lore.json, where CIPHER/TELL must be bounced back out.
-            if (selectedFile === 'lore.json' && (val === 'CIPHER' || val === 'TELL')) {
+            // CIPHER/TELL/PEN/EPOCH/HOUR/... are puzzle- and finale-mechanic threads, not
+            // freely-typed tags. clues.json's thread is a dropdown (#clue-thread-select,
+            // see renderClueThreadSelect) hidden in place of this input entirely, so this
+            // listener only ever fires for lore.json — where TELL and any thread some
+            // puzzle currently locks against (CIPHER included) must be bounced back out to
+            // UNCLASSIFIED, so a mechanic thread can't quietly become universal again by
+            // being hand-typed here instead of assigned through the puzzle-scoped dropdown.
+            const mechanicThreads = computeAllowedClueThreads(null);
+            if (selectedFile === 'lore.json' && (val === 'TELL' || mechanicThreads.includes(val))) {
                 val = 'UNCLASSIFIED';
                 e.target.value = val;
-                if (hintEl) { hintEl.style.display = 'inline'; hintEl.innerText = 'CIPHER belongs in clues.json, TELL in finales.json — reset to UNCLASSIFIED.'; }
+                if (hintEl) { hintEl.style.display = 'inline'; hintEl.innerText = 'TELL belongs in finales.json; puzzle-mechanic threads (CIPHER, PEN, ...) belong in clues.json — reset to UNCLASSIFIED.'; }
             } else {
                 e.target.value = val;
                 if (hintEl) { hintEl.style.display = 'none'; hintEl.innerText = ''; }
@@ -789,6 +829,14 @@
                     else fileData[selectedCategory].thread = val;
                 }
             }
+            refreshThreadBadge();
+        });
+
+        document.getElementById('clue-thread-select').addEventListener('change', (e) => {
+            markDirty();
+            const val = getCurrentEditorData();
+            if (val && typeof val === 'object') val.thread = e.target.value;
+            document.getElementById('thread-constraint-hint').style.display = 'none';
             refreshThreadBadge();
         });
 

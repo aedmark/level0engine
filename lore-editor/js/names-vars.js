@@ -206,6 +206,89 @@
                         else delete fileData[selectedCategory].puzzle;
                     }
                 }
+                // The set of allowed threads is scoped to whichever puzzles are checked,
+                // so it has to be recomputed every time that set changes — and the
+                // currently-selected thread may no longer be valid for the new selection.
+                renderClueThreadSelect();
+            }
+        }
+
+        // Clue Thread Scoping
+        // clues.json's thread field is a puzzle-mechanic thread (CIPHER, PEN, EPOCH,
+        // HOUR, ...) — one that actually appears in some puzzle's LOCK_THREADS — gated to
+        // whichever puzzle(s) this entry is checked for via the Puzzle field. To make a
+        // mismatch structurally impossible (rather than just flagging it after the fact
+        // in Data Validation), the dropdown only ever offers the INTERSECTION of
+        // LOCK_THREADS keys across every currently-checked puzzle: if an entry is checked
+        // for two puzzles that don't share a thread, there's simply no way to select a
+        // thread that's wrong for one of them. Nothing checked yet — or an ungated clue,
+        // which per HowTo.md applies to every puzzle that locks CIPHER — falls back to
+        // the union across all puzzles, so the dropdown is never empty mid-edit.
+        function computeAllowedClueThreads(puzzleValue) {
+            const allPuzzles = puzzlesData || [];
+            const requestedIds = puzzleValue == null ? null : (Array.isArray(puzzleValue) ? puzzleValue : [puzzleValue]);
+            const relevant = requestedIds ? allPuzzles.filter(p => p && requestedIds.includes(p.id)) : [];
+
+            if (relevant.length === 0) {
+                const union = new Set();
+                allPuzzles.forEach(p => { if (p && p.LOCK_THREADS) Object.keys(p.LOCK_THREADS).forEach(t => union.add(t)); });
+                return Array.from(union).sort();
+            }
+
+            let intersection = null;
+            relevant.forEach(p => {
+                const keys = new Set(Object.keys(p.LOCK_THREADS || {}));
+                intersection = intersection === null ? keys : new Set([...intersection].filter(t => keys.has(t)));
+            });
+            return Array.from(intersection || []).sort();
+        }
+
+        // Populates/re-populates #clue-thread-select from computeAllowedClueThreads(),
+        // and — since this runs both on initial render and after every Puzzle checkbox
+        // change — auto-corrects the entry's thread if it's no longer valid for the
+        // currently-checked puzzle(s) instead of silently leaving a stale, now-invalid
+        // value in fileData. Prefers CIPHER as the fallback since every puzzle is
+        // expected to require it.
+        function renderClueThreadSelect() {
+            const select = document.getElementById('clue-thread-select');
+            if (!select) return;
+            const val = getCurrentEditorData();
+            if (!val || typeof val !== 'object') return;
+
+            const allowed = computeAllowedClueThreads(val.puzzle);
+            const threadsData = crossFileCache['threads.json'] || {};
+            const hintEl = document.getElementById('thread-constraint-hint');
+
+            if (allowed.length === 0) {
+                // Only reachable if the checked puzzles share literally no LOCK_THREADS key
+                // in common, which shouldn't happen as long as every puzzle carries CIPHER
+                // — but don't leave the dropdown silently broken if it somehow does.
+                select.innerHTML = '<option value="">— No shared thread —</option>';
+                select.value = '';
+                if (hintEl) { hintEl.style.display = 'inline'; hintEl.innerText = 'The checked puzzles share no LOCK_THREADS in common — this clue can never be valid for all of them at once.'; }
+                return;
+            }
+
+            let current = val.thread;
+            let corrected = false;
+            if (!allowed.includes(current)) {
+                current = allowed.includes('CIPHER') ? 'CIPHER' : allowed[0];
+                corrected = true;
+            }
+
+            select.innerHTML = allowed.map(t => {
+                const label = (threadsData[t] && threadsData[t].title) ? `${t} — ${threadsData[t].title}` : t;
+                return `<option value="${t}" ${t === current ? 'selected' : ''}>${label}</option>`;
+            }).join('');
+            select.value = current;
+
+            if (corrected) {
+                val.thread = current;
+                markDirty();
+                if (hintEl) { hintEl.style.display = 'inline'; hintEl.innerText = `Thread reset to ${current} — the previous value isn't required by the currently-checked puzzle(s).`; }
+            } else if (hintEl) {
+                hintEl.style.display = 'none';
+                hintEl.innerText = '';
             }
         }
 

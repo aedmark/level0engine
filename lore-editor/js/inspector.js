@@ -141,7 +141,12 @@
 
                 threadKeys.forEach(t => {
                     const deliveries = deliveryByThread[t];
-                    const { cls, label } = badgeForDeliveryCount(deliveries.length, 'reachable');
+                    // Two documents sitting in the same sector aren't "corroboration" in the
+                    // sense the badge means (a player finding two different rooms that agree)
+                    // — dedupe by sector (the text before " · " in each entry) so e.g. two
+                    // CIPHER docs that both happen to live in CHECKPOINT read as 1, not 2.
+                    const uniqueSectors = new Set(deliveries.map(d => d.split(' · ')[0]));
+                    const { cls, label } = badgeForDeliveryCount(uniqueSectors.size, 'reachable');
                     html += `<div class="inspector-thread-row">
                         <div>
                             <div><b>${t}</b>${threads[t] && threads[t].title ? ` — ${threads[t].title}` : ''}</div>

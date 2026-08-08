@@ -406,10 +406,11 @@
                                             <option value="clipboard">Clipboard / Tag</option>
                                         </select>
                                     </div>
-                                    <div id="thread-container" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;" title="Thematic grouping. Lore cannot use CIPHER/TELL. Clues are always CIPHER — locked automatically; use the Puzzle field below to say which lock(s) this clue actually corroborates.">
+                                    <div id="thread-container" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;" title="Thematic grouping. Lore cannot use CIPHER/TELL — those are puzzle-mechanic threads and belong in clues.json instead. For clues.json, the dropdown only ever offers a thread every currently-checked puzzle actually locks against, so a clue can't be assigned somewhere it would silently never appear.">
                                         <h4>Thread:<span class="help-icon">?</span></h4>
                                         <label for="tag-input"></label><input type="text" id="tag-input" list="tag-suggestions" placeholder="Tag..." />
                                         <datalist id="tag-suggestions"></datalist>
+                                        <label for="clue-thread-select"></label><select id="clue-thread-select" class="var-select" style="display:none;"></select>
                                         <span id="thread-corrob-badge"></span>
                                         <span id="thread-constraint-hint"></span>
                                     </div>
@@ -424,6 +425,17 @@
                                     <div style="position: relative; flex: 1; min-height: 0; display: flex;">
                                         <div class="textarea-glow"></div>
                                         <label for="option-textarea"></label><textarea id="option-textarea"></textarea>
+                                    </div>
+                                </div>
+                                <div id="puzzle-cipher-container" class="textarea-container" style="display:none; flex: 0 0 auto; height: 220px; margin-bottom: 8px;">
+                                    <h4 style="margin-bottom: 2px;">CIPHER Override <span class="help-icon" title="Optional. CIPHER is shared by every puzzle (it's always in LOCK_THREADS), so threads.json's CIPHER title/description is one generic default for all of them. Filling these in overrides the journal heading/description for CIPHER-tagged clues ONLY while THIS puzzle is the one active for the playthrough — same pattern as a finale's Evidence Thread override for TELL. Leave blank to just use the shared default.">?</span></h4>
+                                    <h4 style="margin-bottom: 2px; margin-top: 8px;">CIPHER Title</h4>
+                                    <div style="position: relative; flex: 0 0 auto; display: flex; margin-bottom: 8px;">
+                                        <label for="puzzle-cipher-title-input"></label><input type="text" id="puzzle-cipher-title-input" style="width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;" />
+                                    </div>
+                                    <h4 style="margin-bottom: 2px;">CIPHER Description</h4>
+                                    <div style="position: relative; flex: 1; min-height: 0; display: flex;">
+                                        <label for="puzzle-cipher-desc-textarea"></label><textarea id="puzzle-cipher-desc-textarea"></textarea>
                                     </div>
                                 </div>
                                 <div id="finale-meta-container" class="textarea-container" style="display:none; flex: 0 0 auto; height: 300px; margin-bottom: 8px;">
@@ -488,7 +500,7 @@
                     <div style="padding: 24px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); font-size: 0.875rem; color: var(--text-muted); font-family: var(--font-mono); line-height: 1.6;">
                         <p style="margin-bottom: 12px;"><strong style="color: #d1d5db;">Threads (threads.json):</strong> Categories of knowledge (e.g. <code>PEN</code>, <code>CIPHER</code>).</p>
                         <p style="margin-bottom: 12px;"><strong style="color: #d1d5db;">Variables (parameters.json -&gt; VARS):</strong> Dynamic engine state holding the truth (e.g. <code>PEN: 42</code>).</p>
-                        <p style="margin-bottom: 12px;"><strong style="color: #d1d5db;">Lock Threads (puzzles.json -&gt; LOCK_THREADS):</strong> Connects a Thread to a Variable. If a puzzle requires the <code>CIPHER</code> thread, it maps <code>CIPHER</code> to the <code>CIPHER</code> VAR.</p>
+                        <p style="margin-bottom: 12px;"><strong style="color: #d1d5db;">Lock Threads (puzzles.json -&gt; LOCK_THREADS):</strong> A set of <code>{thread: label}</code> pairs — every thread listed is evidence the player must find before the puzzle counts as solvable. The label is just the text shown to the player for a still-missing objective (e.g. "still need: Pen Number") — it doesn't need to match anything in <code>parameters.json</code>'s <code>VARS</code>.</p>
                         <p style="margin-bottom: 12px;"><strong style="color: #d1d5db;">Clues (clues.json):</strong> Assigned to a <code>thread</code>. If the active puzzle's <code>LOCK_THREADS</code> doesn't include the clue's <code>thread</code>, the clue is skipped!</p>
                         <p style="margin-bottom: 12px;"><strong style="color: #d1d5db;">Reachability:</strong> Every thread a puzzle locks against must actually be delivered by at least one <code>lore.json</code>/<code>clues.json</code>/<code>foreshadow.json</code> entry, or that objective can never be completed by a player.</p>
                         <p><strong style="color: #d1d5db;">Templates:</strong> Every <code>${...}</code> token in every text field is actually evaluated against a live mock context, the same way the engine evaluates it at runtime, to catch malformed expressions, unknown variables, and missing <code>$</code> typos before they ship.</p>

@@ -362,11 +362,13 @@
 
         function renderScaffoldForm(threadKey) {
             if (!wizardState.scaffoldDraft) wizardState.scaffoldDraft = { sector: '', text: '', title: '' };
-            const isClueThread = threadKey === 'CIPHER' || threadKey === 'TELL';
-            const targetFile = isClueThread ? 'clues.json' : 'lore.json';
+            // Every thread offered in this step is a Lock Thread on the puzzle being
+            // built right now, i.e. by definition a puzzle-mechanic thread — so a starter
+            // clue for it always belongs in clues.json, gated to this puzzle. (lore.json
+            // is reserved for threads that aren't tied to solving anything.)
             const sectors = getKnownSectors();
             return `<div style="background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15); border-radius: 6px; padding: 12px;">
-                <div class="help-text" style="margin-top:0;">This will be added to <b>${targetFile}</b>${isClueThread ? ' and gated to this puzzle' : ' as general world content, always available'}.</div>
+                <div class="help-text" style="margin-top:0;">This will be added to <b>clues.json</b>, gated to this puzzle.</div>
                 <select class="var-select" style="width:100%; margin-bottom:8px;" onchange="wizardState.scaffoldDraft.sector = this.value">
                     <option value="">Select sector...</option>
                     ${sectors.map(s => `<option value="${s}" ${wizardState.scaffoldDraft.sector === s ? 'selected' : ''}>${s}</option>`).join('')}
@@ -395,15 +397,14 @@
         function wizardSubmitScaffold(threadKey) {
             const draft = wizardState.scaffoldDraft;
             if (!draft.sector || !draft.text.trim()) { alert('Pick a sector and write some text first.'); return; }
-            const isClueThread = threadKey === 'CIPHER' || threadKey === 'TELL';
             wizardState.scaffoldClues.push({
-                file: isClueThread ? 'clues.json' : 'lore.json',
+                file: 'clues.json',
                 sector: draft.sector,
                 thread: threadKey,
                 type: 'document',
                 title: draft.title || 'Starter clue',
                 text: draft.text,
-                puzzle: isClueThread ? wizardState.id : undefined
+                puzzle: wizardState.id
             });
             wizardState.openScaffoldFor = null;
             wizardState.scaffoldDraft = null;

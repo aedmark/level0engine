@@ -263,9 +263,17 @@
                 const threadKeys = new Set(Object.keys(threads));
                 const puzzleIds = new Set(puzzles.map(p => p.id));
                 const varKeys = new Set(Object.keys(varsMap));
-                
+
+                // Every thread that appears in at least one puzzle's LOCK_THREADS is a
+                // "puzzle-mechanic" thread (CIPHER, PEN, EPOCH, HOUR, ...) — the universe
+                // of legal clues.json thread values. The editor's dropdown only ever
+                // offers a subset of this (scoped further to the puzzle(s) an entry is
+                // checked for), but this check is the backstop for anything that arrived
+                // via a hand-edited file instead.
+                const allPuzzleThreadKeys = new Set();
+                puzzles.forEach(p => { if (p && p.LOCK_THREADS) Object.keys(p.LOCK_THREADS).forEach(t => allPuzzleThreadKeys.add(t)); });
+
                 const usedThreads = new Set();
-                const usedVars = new Set();
                 const usedPuzzles = new Set();
                 
                 const warnings = [];
@@ -281,13 +289,12 @@
                                 if (!threadKeys.has(clue.thread)) {
                                     errors.push(`[${path}] References unknown thread: <b>${clue.thread}</b>`);
                                 }
-                                // The editor locks clues.json's Thread field to CIPHER (it's
-                                // implicit, like TELL is for finales.json) — anything else here
-                                // can only have arrived via a raw JSON edit and is almost
-                                // certainly a mistake (e.g. content that should live in
-                                // lore.json/foreshadow.json instead).
-                                if (clue.thread !== 'CIPHER') {
-                                    errors.push(`[${path}] Clue is tagged thread <b>${clue.thread}</b>, but clues.json entries should always be <b>CIPHER</b> — the editor now sets this automatically. If this content isn't cipher-solving instructions, it likely belongs in lore.json or foreshadow.json instead.`);
+                                // clues.json entries must carry a puzzle-mechanic thread —
+                                // one some puzzle actually locks against — not an arbitrary
+                                // narrative tag (those belong in lore.json) and not TELL
+                                // (exclusive to finales.json/foreshadow.json).
+                                if (!allPuzzleThreadKeys.has(clue.thread)) {
+                                    errors.push(`[${path}] Clue is tagged thread <b>${clue.thread}</b>, but no puzzle's LOCK_THREADS uses that thread. clues.json entries should only ever carry a thread some puzzle actually locks against — if this is world flavor rather than puzzle-solving evidence, it belongs in lore.json instead.`);
                                 }
                             }
                             if (clue.puzzle) {
@@ -318,6 +325,15 @@
                                 if (!threadKeys.has(l.thread)) {
                                     errors.push(`[lore.json -> ${sector}[${idx}]] References unknown thread: <b>${l.thread}</b>`);
                                 }
+                                // TELL is exclusive to finales.json/foreshadow.json, and any
+                                // thread a puzzle locks against is puzzle-mechanic evidence
+                                // that belongs in clues.json (gated to that puzzle) — not
+                                // universal lore.json content. The editor's tag-input already
+                                // blocks typing either by hand; this is the backstop for a
+                                // hand-edited file.
+                                if (l.thread === 'TELL' || allPuzzleThreadKeys.has(l.thread)) {
+                                    errors.push(`[lore.json -> ${sector}[${idx}]] Entry is tagged thread <b>${l.thread}</b>, which is ${l.thread === 'TELL' ? 'exclusive to finales.json/foreshadow.json' : "a puzzle-mechanic thread (something in puzzles.json's LOCK_THREADS)"} — it belongs in clues.json instead, gated to whichever puzzle(s) need it.`);
+                                }
                             }
                         });
                     }
@@ -331,23 +347,53 @@
                             if (!threadKeys.has(val.thread)) {
                                 errors.push(`[foreshadow.json -> [${idx}].${key}] References unknown thread: <b>${val.thread}</b>`);
                             }
+                            // CIPHER is exclusive to puzzles/clues.json; TELL is exclusive to
+                            // finales.json/foreshadow.json. The editor always writes TELL here
+                            // (the field is hidden, not user-editable) so this can only drift
+                            // via a hand-edited JSON file — but if it does, a foreshadow entry
+                            // tagged CIPHER would get corroboration-counted toward a puzzle's
+                            // access code instead of toward the finale it's meant to foreshadow.
+                            if (val.thread !== 'TELL') {
+                                errors.push(`[foreshadow.json -> [${idx}].${key}] Entry is tagged thread <b>${val.thread}</b>, but foreshadow.json entries should always be <b>TELL</b> — the editor sets this automatically. If this content is cipher-solving instructions, it belongs in clues.json instead.`);
+                            }
                         }
                     }
                 });
                 
                 // Check Puzzles
+                // LOCK_THREADS is {thread: label}. Only the KEY is ever read by the engine
+                // (StoryEngine.js's _anchorCodeFragments/lockProgress, CaseFiles.js's clue
+                // injection both only do Object.keys(...)/truthiness checks on it) — the
+                // VALUE is read exactly once, by KeypadController.js, purely as the
+                // human-readable text shown to the player for a still-missing objective
+                // ("still need: <label>"). It was never a reference into parameters.json's
+                // VARS and doesn't need to be — that's just what the factory-default
+                // puzzles happened to name their labels, coincidentally matching a VARS key
+                // that itself is never used as a ${...} token anywhere. So: still flag an
+                // empty label (it would render as blank text in-game), but stop requiring
+                // it to match anything in VARS.
                 puzzles.forEach(p => {
                     if (p.LOCK_THREADS) {
                         for (const [thread, v] of Object.entries(p.LOCK_THREADS)) {
                             usedThreads.add(thread);
-                            usedVars.add(v);
                             if (!threadKeys.has(thread)) {
                                 errors.push(`[puzzles.json -> ${p.id}] LOCK_THREADS references unknown thread: <b>${thread}</b>`);
                             }
-                            if (!varKeys.has(v)) {
-                                errors.push(`[puzzles.json -> ${p.id}] LOCK_THREADS references unknown VAR: <b>${v}</b>`);
+                            if (!v || typeof v !== 'string' || !v.trim()) {
+                                warnings.push(`[puzzles.json -> ${p.id}] LOCK_THREADS label for <b>${thread}</b> is empty — this is the text shown to the player when this objective is still missing.`);
                             }
                         }
+                    }
+
+                    // cipher_title/cipher_description let a puzzle override the shared
+                    // threads.json CIPHER heading while it's the active puzzle (same idea as
+                    // a finale's tell_title/tell_description override for TELL). Both fields
+                    // resolve as narrative text (collected into textFields just below) so a
+                    // broken ${...} token in them gets caught the same way as anywhere else,
+                    // but they're only meaningful on a puzzle that actually locks CIPHER.
+                    const puzzleLocksCipher = !!(p.LOCK_THREADS && Object.prototype.hasOwnProperty.call(p.LOCK_THREADS, 'CIPHER'));
+                    if (!puzzleLocksCipher && (p.cipher_title || p.cipher_description)) {
+                        warnings.push(`[puzzles.json -> ${p.id}] cipher_title/cipher_description is set, but this puzzle's LOCK_THREADS doesn't include CIPHER — this override will never be applied.`);
                     }
                 });
                 
@@ -361,18 +407,34 @@
                     if (!usedThreads.has(t)) warnings.push(`[threads.json] Thread defined but never used: <b>${t}</b>`);
                 });
 
-                // A VAR counts as "used" if EITHER a puzzle's LOCK_THREADS references it
-                // (usedVars, populated above) OR its ${name} token actually shows up
-                // somewhere in the narrative text. VARs don't have to be puzzle-related at
-                // all — they can be pure flavor/ephemera (e.g. `${WEEK}` dropped into a
-                // lore document just for texture) with nothing to do with any puzzle's
-                // access code, so puzzle-usage alone isn't grounds for an "unused" warning.
+                // A VAR counts as "used" if its ${name} token — or an equivalent alias that
+                // resolves to the exact same runtime value — actually shows up somewhere in
+                // the narrative text. CaseFiles.js's replaceTemplates() resolves several
+                // VARS-equivalent values through a "legacy" lowercase shorthand (${pen},
+                // ${hrs}, ${year}) or a raw ctx.* expression (${ctx.pen}, ${ctx.hours},
+                // ${ctx.siteYear}) BEFORE it ever gets to the generic VARS loop — so a
+                // document that writes "${pen}" is exposing PEN's value exactly as much as
+                // one that writes "${PEN}" would, and only checking the exact-case VARS key
+                // produced a wall of false positives on real, working content.
+                const legacyAliasesFor = {
+                    PEN: ['${pen}', '${ctx.pen}'],
+                    HOUR: ['${hrs}', '${ctx.hours}'],
+                    EPOCH: ['${year}', '${ctx.siteYear}']
+                };
                 const narrativeText = collectAllStrings([lore, clues, foreshadow, finales, threads]).join('\n');
                 varKeys.forEach(v => {
-                    const usedByPuzzle = usedVars.has(v);
-                    const usedInText = narrativeText.includes('${' + v + '}');
-                    if (!usedByPuzzle && !usedInText) {
-                        warnings.push(`[parameters.json] VAR defined but never referenced: <b>${v}</b> — no puzzle's LOCK_THREADS points to it, and <b>\${${v}}</b> doesn't appear anywhere in lore.json/clues.json/foreshadow.json/finales.json/threads.json.`);
+                    // CIPHER is special-cased out entirely: its VARS expression (ctx.cipher)
+                    // resolves to the fully-solved access code for the puzzle. Writing
+                    // "${CIPHER}" into any visible document text would print the literal
+                    // answer to the keypad — it must NEVER be referenced, by design, so
+                    // "unreferenced" is the only correct state for it and isn't worth a
+                    // warning that will permanently and correctly never clear.
+                    if (v === 'CIPHER') return;
+                    const aliases = ['${' + v + '}', ...(legacyAliasesFor[v] || [])];
+                    const usedInText = aliases.some(token => narrativeText.includes(token));
+                    if (!usedInText) {
+                        const aliasList = aliases.map(a => `<b>${a}</b>`).join(' / ');
+                        warnings.push(`[parameters.json] VAR defined but never referenced: <b>${v}</b> — none of ${aliasList} appear anywhere in lore.json/clues.json/foreshadow.json/finales.json/threads.json.`);
                     }
                 });
 
@@ -434,6 +496,17 @@
                     if (f.tell_title) textFields.push([`finales.json -> [${idx}].tell_title`, f.tell_title]);
                     if (f.tell_description) textFields.push([`finales.json -> [${idx}].tell_description`, f.tell_description]);
 
+                    // CIPHER is exclusive to puzzles/clues.json; TELL is exclusive to
+                    // finales.json/foreshadow.json. The editor always writes TELL here (the
+                    // field is hidden, not user-editable) so this can only drift via a
+                    // hand-edited JSON file — but if it does, reading the finale would
+                    // corroborate a puzzle's CIPHER requirement instead of TELL, which lets a
+                    // puzzle appear solvable off evidence that's only ever seen at the very
+                    // end of the game.
+                    if (f.thread !== 'TELL') {
+                        errors.push(`[finales.json -> [${idx}].thread] Finale is tagged thread <b>${f.thread}</b>, but finales.json entries should always be <b>TELL</b> — the editor sets this automatically.`);
+                    }
+
                     // lock_thread names a *second* thread (besides the implicit TELL) whose
                     // evidence nests as a subheading under TELL in the player's journal — it
                     // must point at a real threads.json entry, and pointing it at TELL itself
@@ -450,6 +523,10 @@
                     if (t && t.title) textFields.push([`threads.json -> ${key}.title`, t.title]);
                     if (t && t.description) textFields.push([`threads.json -> ${key}.description`, t.description]);
                 }
+                puzzles.forEach(p => {
+                    if (p.cipher_title) textFields.push([`puzzles.json -> ${p.id}.cipher_title`, p.cipher_title]);
+                    if (p.cipher_description) textFields.push([`puzzles.json -> ${p.id}.cipher_description`, p.cipher_description]);
+                });
 
                 textFields.forEach(([path, text]) => {
                     // Heuristic: "${" typo'd as "$(" — wrong bracket, never resolves.

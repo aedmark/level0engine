@@ -159,7 +159,10 @@ export default class StoryEngine {
             if (activeFinale.tell_title) this.threads['TELL'].title = activeFinale.tell_title;
             if (activeFinale.tell_description) this.threads['TELL'].description = activeFinale.tell_description;
         }
-        
+        // (CIPHER's equivalent per-puzzle override is applied inside buildCaseFiles() —
+        // see CaseFiles.js — so it runs through the same replaceTemplates() pass as every
+        // other narrative string instead of shipping unresolved ${...} tokens to the player.)
+
         this.ephemeraDealt = new Map();
         this.laptopsDealt = new Map();
         this.clipboardsDealt = new Map();

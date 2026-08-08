@@ -58,5 +58,11 @@
     "YELLOW WALLPAPER",
     "DIXIELAND",
     "FERN POT"
-  ]
+  ],
+  "CORE_VARS": {
+    "REQ": {
+      "min": 10,
+      "max": 99
+    }
+  }
 }

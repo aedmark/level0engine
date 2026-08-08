@@ -34,5 +34,9 @@
   "PEN": {
     "title": "The Pen",
     "description": ""
+  },
+  "REQ": {
+    "title": "The Requisition Number",
+    "description": ""
   }
 }
