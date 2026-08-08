@@ -1,6 +1,19 @@
 # Level 0 Engine Changelog
 
-## [v0.9.0] - 2026-08-07
+## [v0.9.0] - 2026-08-08
+
+_The Signal Integrity Patch_
+
+### Fixed
+
+- **[WORLD] POI Signal Desync:** Fixed a chunk-streaming bug where the anomalous POI signal could silently swap targets mid-hunt. Chunk eviction pruned points of interest from the world state without checking whether the removed entry was the player's active hunt target, so a POI whose chunk streamed out from under it while still being tracked (common at low render-distance settings) would vanish and get quietly replaced by an unrelated virtual breaker target, reporting its distance under the same "POI DISTANCE" readout with no continuity between the two. `ChunkManager` now pins the active hunt target's chunk into the keep-set every time chunk coordinates update, so it can't be evicted while it's being hunted.
+- **[ENGINE] Compass Free-Spin on Boot:** Fixed the compass needle wandering in a directionless sine drift for the entire window between spawn and the first sector triangulation. The needle now holds a fixed world-space fallback bearing, rolled once at spawn, and eases into the real bearing through the existing spring damper once a sector resolves — no more idle spin, no hard cut on acquisition.
+
+### Changed
+
+- **[WORLD] Faster Sector Triangulation:** Reduced `macroSpawnExclusionRadius` from 3 chunks to 1, cutting the mandatory dead zone before the nearest sector becomes eligible to spawn from roughly 192m to 64m. Shrinks the average time-to-first-fix for the compass and gets players into triangulated territory noticeably sooner.
+
+## [v0.8.5] - 2026-08-07
 
 _The Unified Lore Update_
 

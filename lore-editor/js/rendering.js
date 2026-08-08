@@ -99,6 +99,8 @@
                 else if (f === 'finales.json') await loadLinked('foreshadow.json');
                 else linkedData = null;
 
+                if (f === 'threads.json') await getFactoryData('threads.json');
+
                 initializeSelection();
                 updateTagSuggestions();
                 renderTree();
@@ -218,14 +220,20 @@
                     
                     if (selectedFile === 'parameters.json' || selectedFile === 'threads.json') {
                          const isChildActive = selectedCategory === cat;
-                         const renameBtn = selectedFile === 'threads.json'
-                             ? `<button class="delete-btn" style="opacity:0.6; color:var(--accent-amber);" title="Rename this thread everywhere it's used" onclick="event.stopPropagation(); renameThreadEverywhere('${cat}')">✎</button>`
-                             : '';
+                         let extraBtns = '';
+                         if (selectedFile === 'threads.json') {
+                             const isLocked = factoryCache['threads.json'] && factoryCache['threads.json'][cat];
+                             const renameBtn = `<button class="delete-btn" style="opacity:0.6; color:var(--accent-amber);" title="Rename this thread everywhere it's used" onclick="event.stopPropagation(); renameThreadEverywhere('${cat}')">✎</button>`;
+                             const deleteBtn = isLocked 
+                                 ? `<span class="delete-btn" style="padding:4px; font-size:12px; opacity:0.5; cursor:default;" title="Factory default — can't be deleted, but you can still edit it">🔒</span>`
+                                 : `<button class="delete-btn" style="padding:4px; font-size:12px;" onclick="event.stopPropagation(); deleteEntry('${cat}', null)">×</button>`;
+                             extraBtns = renameBtn + deleteBtn;
+                         }
                          html += `<div class="tree-item-row group">
                             <button class="tree-btn ${isChildActive ? 'active bold' : ''}" onclick="selectNode(null, '${cat}')">
                                 ▶ ${cat}
                             </button>
-                            ${renameBtn}
+                            <div style="display:flex;">${extraBtns}</div>
                         </div>`;
                         return;
                     }
@@ -734,9 +742,9 @@
         document.getElementById('title-input').addEventListener('input', (e) => {
             const val = e.target.value;
             const original = getCurrentEditorData();
-            const isLoreDataFile = ['lore.json', 'clues.json', 'foreshadow.json', 'finales.json'].includes(selectedFile);
+            const isLoreDataFile = ['lore.json', 'clues.json', 'foreshadow.json', 'finales.json', 'threads.json'].includes(selectedFile);
             const isLoreObj = original && typeof original === 'object' && !Array.isArray(original) && 
-                (isLoreDataFile || 'text' in original || 'thread' in original || 'type' in original);
+                (isLoreDataFile || 'text' in original || 'thread' in original || 'type' in original || 'description' in original);
             const isPuzzleObj = selectedFile === 'puzzles.json' && selectedCategory === null && original && typeof original === 'object' && !Array.isArray(original);
             
             if (isLoreObj || isPuzzleObj) {

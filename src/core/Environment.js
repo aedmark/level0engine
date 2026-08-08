@@ -62,7 +62,7 @@ export default class Environment {
         
         this._macroChunkHashes = new Set();
         this._sectorBags = null;
-        this.macroSpawnExclusionRadius = 3;
+        this.macroSpawnExclusionRadius = 1;
         this.macroMinSpacingChunks = 2;
         this._pendingMacroContent = new Map();
         this.structureKit = new StructureKit(this);

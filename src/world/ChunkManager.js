@@ -64,6 +64,9 @@ export default class ChunkManager {
                 }
             }
         }
+        if (env._currentTargetPoi && env._currentTargetPoi.chunkHash) {
+            chunksToKeep.add(env._currentTargetPoi.chunkHash);
+        }
         env.chunksToKeep = chunksToKeep;
         this.processChunkQueue().catch(err => console.error('Chunk queue processing failed:', err));
         const deadHashes = new Set();
