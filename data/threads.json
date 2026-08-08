@@ -4,35 +4,35 @@
     "description": ""
   },
   "LOST": {
-    "title": "THE DISPOSITION OF ${LOST}",
+    "title": "The Disposition of ${LOST}",
     "description": ""
   },
   "GEOMETRY": {
-    "title": "THE FLOOR PLAN IS NOT FIXED",
+    "title": "The Floors Are Moving",
     "description": ""
   },
   "HUM": {
-    "title": "THE HUM CARRIES INFORMATION",
+    "title": "The Hum Carrier",
     "description": ""
   },
   "TELL": {
-    "title": "THE SHAPE OF THE FINDING of ${P}",
+    "title": "The Shape of the Finding of \"${P}\"",
     "description": "The truth will set you free!"
   },
   "EPOCH": {
-    "title": "THE TEMPORAL ORIGIN OF THE SITE",
+    "title": "The Temporal Origin",
     "description": ""
   },
   "EPHEMERA": {
-    "title": "",
+    "title": "Lost Signals & Missed Connections",
     "description": ""
   },
   "HOUR": {
-    "title": "THE TIME OF INCIDENT",
+    "title": "The Hour at Hand",
     "description": ""
   },
   "PEN": {
-    "title": "THE IDENTITY OF THE BREACHED PEN",
+    "title": "The Pen",
     "description": ""
   }
 }
