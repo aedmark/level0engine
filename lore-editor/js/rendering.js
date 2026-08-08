@@ -68,6 +68,7 @@
 
         // Select File
         async function selectFile(f) {
+            if (!confirmDiscardIfDirty()) return;
             wizardState = null;
             finaleWizardState = null;
             activeWizard = null;
@@ -93,6 +94,7 @@
                 const res = await fetch(`/api/data?file=${f}`);
                 const data = await res.json();
                 fileData = data.content;
+                clearDirty();
 
                 // Load linked data
                 if (f === 'foreshadow.json') await loadLinked('finales.json');
@@ -211,13 +213,27 @@
                 }
                 
             } else if (isObjectRoot()) {
-                addCatBtn.style.display = 'block';
-                
-                Object.keys(fileData).forEach(cat => {
+                // lore.json's and clues.json's categories are sectors, and a sector is
+                // only ever a real in-game location (see SECTOR_DESCRIPTIONS/
+                // getKnownSectors) — not a freeform label. Previously the tree only
+                // listed whichever sectors a file already happened to have an entry for,
+                // so a sector with zero entries so far was invisible, and the only way to
+                // add one was "+ CAT", a raw prompt() that could just as easily create
+                // "ARCHVIE" as "ARCHIVE". Listing every known sector up front (defaulting
+                // to an empty array for ones this file hasn't touched yet) removes both
+                // problems at once: every real location is always visible and pickable,
+                // and there's no freeform path left that could invent a location that
+                // doesn't exist.
+                const isSectorFile = selectedFile === 'clues.json' || selectedFile === 'lore.json';
+                addCatBtn.style.display = isSectorFile ? 'none' : 'block';
+
+                const categories = isSectorFile ? getKnownSectors() : Object.keys(fileData);
+
+                categories.forEach(cat => {
                     const isExpanded = expandedCategory === cat;
-                    const catData = fileData[cat];
+                    const catData = isSectorFile ? (fileData[cat] || []) : fileData[cat];
                     const isCatArray = Array.isArray(catData);
-                    
+
                     if (selectedFile === 'parameters.json' || selectedFile === 'threads.json') {
                          const isChildActive = selectedCategory === cat;
                          let extraBtns = '';
@@ -240,11 +256,13 @@
                     
                     const isPrimitive = typeof catData !== 'object' || catData === null;
                     const isActivePrim = selectedCategory === cat && isPrimitive;
-                    
+                    const sectorTitle = isSectorFile && SECTOR_DESCRIPTIONS[cat] ? ` title="${SECTOR_DESCRIPTIONS[cat]}"` : '';
+                    const sectorCount = isSectorFile ? ` <span style="opacity:${catData.length ? '0.6' : '0.3'};">(${catData.length})</span>` : '';
+
                     html += `<div class="tree-item">
                         <div class="tree-item-row group">
-                            <button class="tree-btn ${(isExpanded && !isPrimitive) || isActivePrim ? 'active bold' : ''}" onclick="${isPrimitive ? `selectNode(null, '${cat}')` : `toggleCat('${cat}')`}">
-                                ${isPrimitive ? '• ' : (isExpanded ? '▼ ' : '▶ ')} ${cat}
+                            <button class="tree-btn ${(isExpanded && !isPrimitive) || isActivePrim ? 'active bold' : ''}"${sectorTitle} onclick="${isPrimitive ? `selectNode(null, '${cat}')` : `toggleCat('${cat}')`}">
+                                ${isPrimitive ? '• ' : (isExpanded ? '▼ ' : '▶ ')} ${cat}${sectorCount}
                             </button>
                             ${isExpanded && isCatArray ? `<button class="add-btn" style="width:auto; margin:0; border:none;" onclick="addEntry('${cat}')">+</button>` : ''}
                         </div>`;
@@ -316,18 +334,26 @@
             const cat = prompt("Enter new category:");
             if (cat && !fileData[cat]) {
                 fileData[cat] = selectedFile === 'threads.json' ? { title: "", description: "" } : [];
+                markDirty();
                 expandedCategory = cat;
                 renderTree();
             }
         }
 
         function addEntry(cat) {
+            markDirty();
             if (cat) {
                 // clues.json entries are always CIPHER (see renderEditor's clues.json
                 // branch) — default the template to match so a brand-new entry doesn't
                 // briefly disagree with the locked field before the next render.
                 const template = { text: "", thread: selectedFile === 'clues.json' ? 'CIPHER' : 'UNCLASSIFIED', type: "document" };
-                if (!Array.isArray(fileData[cat])) fileData[cat] = [fileData[cat], template];
+                // A sector clues.json has never had an entry for yet (now visible in the
+                // tree via getKnownSectors() even though the key is entirely absent from
+                // fileData) needs a fresh array, not "wrap whatever's already there" — the
+                // old branch below would otherwise stuff a stray `undefined` in as the
+                // first element.
+                if (fileData[cat] === undefined) fileData[cat] = [template];
+                else if (!Array.isArray(fileData[cat])) fileData[cat] = [fileData[cat], template];
                 else fileData[cat].push(template);
                 expandedCategory = cat;
                 selectedCategory = cat;
@@ -361,6 +387,7 @@
                 return;
             }
             if (!confirm("Delete entry?")) return;
+            markDirty();
             if (cat) {
                 fileData[cat].splice(i, 1);
             } else {
@@ -379,6 +406,7 @@
             const key = select ? select.value : null;
             if (key && !fileData[i][key]) {
                 fileData[i][key] = "";
+                markDirty();
                 selectedIndex = i;
                 selectedCategory = key;
                 renderTree();
@@ -393,6 +421,7 @@
                 return;
             }
             if (!confirm("Delete location?")) return;
+            markDirty();
             delete fileData[i][key];
             if (selectedIndex === i && selectedCategory === key) {
                 selectedCategory = null;
@@ -637,6 +666,7 @@
 
         // Input Listeners
         document.getElementById('option-textarea').addEventListener('input', (e) => {
+            markDirty();
             let val = e.target.value;
             const original = getCurrentEditorData();
             if (original && typeof original === 'object' && selectedFile === 'finales.json') {
@@ -648,6 +678,7 @@
         });
 
         document.getElementById('tell-title-input').addEventListener('input', (e) => {
+            markDirty();
             let val = e.target.value;
             const original = getCurrentEditorData();
             if (original && typeof original === 'object' && selectedFile === 'finales.json') {
@@ -659,6 +690,7 @@
         });
 
         document.getElementById('tell-desc-textarea').addEventListener('input', (e) => {
+            markDirty();
             let val = e.target.value;
             const original = getCurrentEditorData();
             if (original && typeof original === 'object' && selectedFile === 'finales.json') {
@@ -670,6 +702,7 @@
         });
 
         document.getElementById('finale-lock-thread-select').addEventListener('change', (e) => {
+            markDirty();
             let val = e.target.value;
             const original = getCurrentEditorData();
             if (original && typeof original === 'object' && selectedFile === 'finales.json') {
@@ -681,6 +714,7 @@
         });
 
         mainTextarea.addEventListener('input', (e) => {
+            markDirty();
             updateLivePreview();
 
             let val = e.target.value;
@@ -723,17 +757,19 @@
         });
 
         document.getElementById('tag-input').addEventListener('change', (e) => {
+            markDirty();
             let val = e.target.value.toUpperCase().trim();
             const hintEl = document.getElementById('thread-constraint-hint');
 
+            // CIPHER is exclusive to puzzles/clues; TELL is exclusive to finales/foreshadow.
+            // clues.json's own thread is force-set to CIPHER and the field made read-only
+            // in renderEditor() before this listener can ever see an edit, so no reset
+            // branch is needed for it here — this input only ever accepts free-typed
+            // values for lore.json, where CIPHER/TELL must be bounced back out.
             if (selectedFile === 'lore.json' && (val === 'CIPHER' || val === 'TELL')) {
                 val = 'UNCLASSIFIED';
                 e.target.value = val;
-                if (hintEl) { hintEl.style.display = 'inline'; hintEl.innerText = 'CIPHER/TELL belong in clues.json — reset to UNCLASSIFIED.'; }
-            } else if (selectedFile === 'clues.json' && val !== 'CIPHER' && val !== 'TELL') {
-                val = 'CIPHER';
-                e.target.value = val;
-                if (hintEl) { hintEl.style.display = 'inline'; hintEl.innerText = 'Clues must use CIPHER or TELL — reset to CIPHER.'; }
+                if (hintEl) { hintEl.style.display = 'inline'; hintEl.innerText = 'CIPHER belongs in clues.json, TELL in finales.json — reset to UNCLASSIFIED.'; }
             } else {
                 e.target.value = val;
                 if (hintEl) { hintEl.style.display = 'none'; hintEl.innerText = ''; }
@@ -757,6 +793,7 @@
         });
 
         document.getElementById('type-input').addEventListener('change', (e) => {
+            markDirty();
             const val = e.target.value;
             const original = getCurrentEditorData();
             const isLoreDataFile = ['lore.json', 'clues.json', 'foreshadow.json', 'finales.json'].includes(selectedFile);
@@ -775,6 +812,7 @@
         });
 
         document.getElementById('title-input').addEventListener('input', (e) => {
+            markDirty();
             const val = e.target.value;
             const original = getCurrentEditorData();
             const isLoreDataFile = ['lore.json', 'clues.json', 'foreshadow.json', 'finales.json', 'threads.json'].includes(selectedFile);
@@ -835,6 +873,7 @@
                     if (linkedData && selectedFile === 'finales.json') crossFileCache['foreshadow.json'] = linkedData;
                 }
 
+                clearDirty();
                 btn.innerText = 'Saved!';
                 setTimeout(() => { btn.innerText = 'Save Changes'; btn.disabled = false; }, 2000);
             } catch (err) {

@@ -19,6 +19,7 @@
         }
 
         async function openPuzzleInspector() {
+            if (!confirmDiscardIfDirty()) return;
             wizardState = null;
             finaleWizardState = null;
             activeWizard = null;

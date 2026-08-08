@@ -244,13 +244,6 @@
       "thread": "HUM",
       "title": "Whispering",
       "_locked": true
-    },
-    {
-      "text": "[DISCHARGE NOTE, RETURNED UNDELIVERABLE]\n\nPATIENT: ${c.lost}\nFORWARDING ADDRESS AS GIVEN BY PATIENT: \"Pen ${pen}. It's the one that won't shut. Leave it.\"\n\nPatient gave this address on intake, before the pen was even logged as open.",
-      "type": "note",
-      "thread": "PEN",
-      "title": "Pen Discharge Note",
-      "_locked": true
     }
   ],
   "MAINTENANCE": [
@@ -359,24 +352,10 @@
       "_locked": true
     },
     {
-      "text": "PROPERTY TAG: PEN #${pen}1\n\nITEM: Office chair, one (1) caster missing.\n\nNOTES: No matter where it is goes, it comes back to its pen by morning.\n\nWe've stopped chasing it; the fence holds.\n\n- ${c.custodian}",
-      "type": "clipboard",
+      "text": "Has anyone seen my cat, Meepis? His food bowl and litter have moved somewhere and I can't find any of the three. :(\n\nI knew I shouldn't have brought him to work...\n\n- ${c.staff-member-1}",
+      "type": "note",
       "thread": "GEOMETRY",
-      "title": "Office Chair",
-      "_locked": true
-    },
-    {
-      "text": "IMPOUND LEDGER, FINAL PAGE\n\nHour ${hrs}: ${c.custodian} logged IN one (1) personal effect belonging to ${c.lost}.\n\nHour ${hrs}: ${c.custodian} logged OUT.\n\nThere is no second entry. The gate to pen ${pen} has been ajar since.",
-      "type": "document",
-      "thread": "PEN",
-      "title": "Lost Ledger",
-      "_locked": true
-    },
-    {
-      "text": "PROPERTY TAG: PEN #${pen}\n\nITEM: One (1) wedding ring, still warm.\nOWNER: ${c.lost}\n\nCLAIM STATUS: OPEN\n\nNOTES: MUST BE CLAIMED IN PERSON.",
-      "type": "clipboard",
-      "thread": "PEN",
-      "title": "Wedding Ring",
+      "title": "Meepis",
       "_locked": true
     },
     {

@@ -341,8 +341,24 @@
 
         <main class="editor-section">
             <div id="welcome-msg">
-                <div id="welcome-msg-content">
-                    <p style="text-align:center;">Loading HowTo.md...</p>
+                <div style="max-width:800px; width:100%; display:flex; flex-direction:column; gap:16px;">
+                    <div id="welcome-quickstart" style="background: rgba(251,191,36,0.06); border: 1px solid rgba(251,191,36,0.25); border-radius: 8px; padding: 24px;">
+                        <h3 style="color: var(--accent-amber); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px;">Start Here</h3>
+                        <p style="font-family: var(--font-mono); font-size: 0.875rem; color: var(--text-main); line-height: 1.6; margin-bottom: 16px;">
+                            New to this project? Skip the reference below and go straight to a guided flow — both wizards write valid, internally-consistent data for you and structurally can't produce the kind of bug hand-editing JSON can (an unreachable puzzle requirement, a finale whose foreshadowing points at the wrong index).
+                        </p>
+                        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                            <button class="save-btn" onclick="openPuzzleWizard()">+ New Puzzle (Wizard)</button>
+                            <button class="save-btn" onclick="openFinaleWizard()">+ New Finale (Wizard)</button>
+                            <button class="var-btn" onclick="openValidation()">Run Data Validation</button>
+                        </div>
+                        <p style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); margin-top: 16px; margin-bottom: 0;">
+                            Already comfortable with the file structure? The full reference is below — <code>lore.json</code> vs. <code>clues.json</code> is the one distinction worth reading first if you only read one thing.
+                        </p>
+                    </div>
+                    <div id="welcome-msg-content">
+                        <p style="text-align:center;">Loading HowTo.md...</p>
+                    </div>
                 </div>
             </div>
 

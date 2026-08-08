@@ -61,6 +61,11 @@
                 } else {
                     alert('Import finished, but some files failed to write. Check the data directory permissions and try again.');
                 }
+                // The import already overwrote whatever was on disk unconditionally, so any
+                // unsaved in-memory edit is moot by this point — clear it before the refresh
+                // below so confirmDiscardIfDirty() doesn't re-prompt about something the user
+                // already accepted losing when they confirmed the import itself.
+                clearDirty();
                 if (selectedFile && files.includes(selectedFile)) selectFile(selectedFile);
             } catch (e) {
                 alert('Import failed: could not reach the server.');
@@ -88,6 +93,9 @@
                 } else {
                     alert('Factory reset finished, but some files failed to reset. Check the data directory permissions and try again.');
                 }
+                // Same reasoning as import: the reset already overwrote disk unconditionally,
+                // so clear dirty before the refresh below to avoid a redundant second prompt.
+                clearDirty();
                 if (selectedFile && files.includes(selectedFile)) selectFile(selectedFile);
             } catch (e) {
                 alert('Factory reset failed: could not reach the server.');
@@ -211,6 +219,9 @@
                 return;
             }
 
+            // Every file this rename touched (including the currently-open one, if it was
+            // affected) was just persisted via postFile above, so nothing is left unsaved.
+            clearDirty();
             renderTree();
             renderEditor();
             alert(`Renamed "${oldKey}" → "${newKey}" in: ${filesWritten.join(', ')}.`);

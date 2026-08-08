@@ -115,3 +115,38 @@
             }
         }
 
+        // Unsaved-changes tracking. fileData/linkedData are mutated in place by every
+        // input listener across rendering.js/names-vars.js, so this is the one shared
+        // flag both sides agree on: markDirty() flips it on any live edit, clearDirty()
+        // resets it once the current file's edits are either freshly loaded from disk
+        // (nothing to lose yet) or actually persisted there (nothing left to lose).
+        //
+        // Without this, selectFile() previously discarded whatever was in fileData
+        // unconditionally and silently — clicking any other file button, opening a Tool,
+        // or even re-clicking the currently-open file all wiped in-progress edits with
+        // zero warning. Every one of those entry points now calls confirmDiscardIfDirty()
+        // first.
+        let isDirty = false;
+        function markDirty() { isDirty = true; }
+        function clearDirty() { isDirty = false; }
+
+        // Gate for any action about to leave/replace the currently-open file's in-memory
+        // state. Returns true if it's safe to proceed (nothing unsaved, or the user
+        // explicitly chose to discard it — which this also clears, so a chained
+        // navigation right after doesn't re-prompt). Returns false if the caller should
+        // abort and leave the current screen untouched.
+        function confirmDiscardIfDirty() {
+            if (!isDirty) return true;
+            const ok = confirm(`You have unsaved changes to ${selectedFile}. Leaving now will discard them. Continue?`);
+            if (ok) clearDirty();
+            return ok;
+        }
+
+        // Last line of defense for the same problem on tab close/refresh, which no
+        // in-app confirm() can intercept.
+        window.addEventListener('beforeunload', (e) => {
+            if (!isDirty) return;
+            e.preventDefault();
+            e.returnValue = '';
+        });
+

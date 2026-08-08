@@ -24,6 +24,7 @@
         }
 
         async function openFinaleWizard() {
+            if (!confirmDiscardIfDirty()) return;
             const finales = (await getCrossFileData('finales.json', true)) || [];
             const foreshadow = (await getCrossFileData('foreshadow.json', true)) || [];
             if (finales.length !== foreshadow.length) {

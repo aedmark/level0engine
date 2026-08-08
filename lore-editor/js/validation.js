@@ -230,6 +230,7 @@
 
 
         async function openValidation() {
+            if (!confirmDiscardIfDirty()) return;
             wizardState = null;
             finaleWizardState = null;
             activeWizard = null;

@@ -52,6 +52,7 @@
         }
 
         async function openPuzzleWizard() {
+            if (!confirmDiscardIfDirty()) return;
             wizardState = newWizardState();
             finaleWizardState = null;
             activeWizard = 'puzzle';

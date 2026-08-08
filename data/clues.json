@@ -83,5 +83,39 @@
       "title": "Shift Clock",
       "_locked": true
     }
+  ],
+  "IMPOUND": [
+    {
+      "text": "PROPERTY TAG: PEN #${pen}1\n\nITEM: Office chair, one (1) caster missing.\n\nNOTES: No matter where it is goes, it comes back to its pen by morning.\n\nWe've stopped chasing it; the fence holds.\n\n- ${c.custodian}",
+      "thread": "CIPHER",
+      "type": "clipboard",
+      "puzzle": [
+        "ORIGINAL_PEN",
+        "HOUR_PUZZLE"
+      ],
+      "title": "Office Chair PEN"
+    },
+    {
+      "text": "IMPOUND LEDGER, FINAL PAGE\n\nHour ${hrs}: ${c.custodian} logged IN one (1) personal effect belonging to ${c.lead}.\n\nHour ${hrs}: ${c.custodian} logged OUT.\n\nThere is no second entry. The gate to pen ${pen} has been ajar since.",
+      "thread": "CIPHER",
+      "type": "document",
+      "title": "Lost ledger",
+      "puzzle": [
+        "ORIGINAL_PEN",
+        "HOUR_PUZZLE"
+      ]
+    }
+  ],
+  "CLINIC": [
+    {
+      "text": "[DISCHARGE NOTE, RETURNED UNDELIVERABLE]\n\nPATIENT: ${c.lost}\nFORWARDING ADDRESS AS GIVEN BY PATIENT: \"Pen ${pen}. It's the one that won't shut. Leave it.\"\n\nPatient gave this address on intake, before the pen was even logged as open.",
+      "thread": "CIPHER",
+      "type": "laptop",
+      "title": "Discharge Note",
+      "puzzle": [
+        "ORIGINAL_PEN",
+        "HOUR_PUZZLE"
+      ]
+    }
   ]
 }

@@ -38,13 +38,35 @@ export default class StoryEngine {
         const LAST = StoryEngine.PARAMS.LAST;
         
         const used = new Set();
+        // Generous relative to FIRST.length * LAST.length — with the shipped pools this
+        // ceiling is never hit in practice, so variability is untouched. It exists purely
+        // to bound the worst case: an author adding enough ROLES through the Lore Editor
+        // to approach (or exceed) the FIRST x LAST combination space would otherwise make
+        // this loop spin arbitrarily long chasing an unused pair that may not exist.
+        const MAX_NAME_ATTEMPTS = 200;
         const mkName = () => {
             let first, last, full;
+            let attempts = 0;
             do {
                 first = pick(FIRST);
                 last = pick(LAST);
                 full = first + ' ' + last;
-            } while (used.has(full));
+                attempts++;
+            } while (used.has(full) && attempts < MAX_NAME_ATTEMPTS);
+            // Pool exhausted (or too many roles for FIRST x LAST to keep drawing unique
+            // pairs within budget): disambiguate deterministically instead of looping
+            // forever or silently letting two roles collide on the same full name. This
+            // second loop is bounded by `used.size`, which only grows by one per cast
+            // role, so it always terminates quickly regardless of how small the pool is.
+            if (used.has(full)) {
+                let n = 2;
+                let disambiguated = full;
+                while (used.has(disambiguated)) {
+                    disambiguated = `${full} ${n}`;
+                    n++;
+                }
+                full = disambiguated;
+            }
             used.add(full);
             return { first, last, full };
         };

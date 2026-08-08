@@ -108,15 +108,28 @@ document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e
     const originalPos = engine.camera.position.clone();
     const chunkWorldSize = environment.chunkSize * environment.cellSize;
     const maxSteps = 200;
+    // Mirrors the isMacroChunkContentReady wait below — that loop was already bounded,
+    // this one wasn't. chunkQueue can keep refilling as the hunt jumps macro-zone to
+    // macro-zone, so without a ceiling a generation stall at any single step would spin
+    // this loop forever instead of failing the search.
+    const CHUNK_DRAIN_TIMEOUT_MS = 4000;
     let step = 0;
     let foundHash = null;
     let foundZone = null;
+    let stalled = false;
     sectorHuntActive = true;
     while (step < maxSteps) {
         environment.updateChunks(new THREE.Vector3(step * chunkWorldSize, 1.6, 0));
+        let waited = 0;
         while (environment.isBuildingChunk || environment.chunkQueue.length > 0) {
             await new Promise(r => setTimeout(r, 5));
+            waited += 5;
+            if (waited >= CHUNK_DRAIN_TIMEOUT_MS) {
+                stalled = true;
+                break;
+            }
         }
+        if (stalled) break;
         for (const [hash, zone] of environment.macroZones.entries()) {
             if (zone.id === targetSector) {
                 foundHash = hash;
@@ -130,7 +143,11 @@ document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e
     }
     if (!foundZone) {
         sectorHuntActive = false;
-        console.log(`[SectorHunt] Could not find ${targetSector} within ${maxSteps} chunk steps on the current seed.`);
+        if (stalled) {
+            console.log(`[SectorHunt] Chunk generation did not settle within ${CHUNK_DRAIN_TIMEOUT_MS}ms at step ${step} — aborting search for ${targetSector}.`);
+        } else {
+            console.log(`[SectorHunt] Could not find ${targetSector} within ${maxSteps} chunk steps on the current seed.`);
+        }
         environment.updateChunks(originalPos);
         e.target.value = "";
         if (uiLayer) uiLayer.style.opacity = '1';

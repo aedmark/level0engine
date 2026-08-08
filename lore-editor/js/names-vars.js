@@ -94,13 +94,14 @@
             if (isVarsObj) {
                 if (keyVal && val) {
                     targetObj[keyVal] = val;
+                    markDirty();
                     keyInput.value = '';
                     input.value = '';
                     renderVarsList();
                 }
             } else {
                 if (val) {
-                    if (targetObj) targetObj.push(val);
+                    if (targetObj) { targetObj.push(val); markDirty(); }
                     input.value = '';
                     renderNamesList();
                 }
@@ -109,7 +110,7 @@
         function updateVarEntry(key, val) {
             if (selectedCategory || selectedFile === 'puzzles.json') {
                 const targetObj = getTargetObj();
-                if (targetObj) targetObj[key] = val;
+                if (targetObj) { targetObj[key] = val; markDirty(); }
             }
         }
         async function deleteNameEntry(i) {
@@ -123,6 +124,7 @@
                         return;
                     }
                     targetObj.splice(i, 1);
+                    markDirty();
                     renderNamesList();
                 }
             }
@@ -137,6 +139,7 @@
                         return;
                     }
                     delete targetObj[key];
+                    markDirty();
                     renderVarsList();
                 }
             }
@@ -174,6 +177,7 @@
         }
 
         function handlePuzzleCheckboxChange() {
+            markDirty();
             const container = document.getElementById('puzzle-checkboxes');
             const checkboxes = container.querySelectorAll('input[type="checkbox"]');
             const selected = [];
@@ -229,7 +233,7 @@
             tagSet.forEach(t => {
                 if (!t) return;
                 if (selectedFile === 'lore.json' && (t === 'CIPHER' || t === 'TELL')) return;
-                if (selectedFile === 'clues.json' && t !== 'CIPHER' && t !== 'TELL') return;
+                if (selectedFile === 'clues.json' && t !== 'CIPHER') return;
                 
                 const opt = document.createElement('option');
                 opt.value = t;
