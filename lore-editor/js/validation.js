@@ -432,6 +432,18 @@
                     if (f.option) textFields.push([`finales.json -> [${idx}].option`, f.option]);
                     if (f.tell_title) textFields.push([`finales.json -> [${idx}].tell_title`, f.tell_title]);
                     if (f.tell_description) textFields.push([`finales.json -> [${idx}].tell_description`, f.tell_description]);
+
+                    // lock_thread names a *second* thread (besides the implicit TELL) whose
+                    // evidence nests as a subheading under TELL in the player's journal — it
+                    // must point at a real threads.json entry, and pointing it at TELL itself
+                    // is a no-op that just confuses the author (TELL is already the heading).
+                    if (f.lock_thread) {
+                        if (f.lock_thread === 'TELL') {
+                            warnings.push(`[finales.json -> [${idx}].lock_thread] Set to <b>TELL</b>, which is already this finale's quest heading — lock_thread is meant to name a <i>different</i> thread to nest underneath it. Leave blank if this finale has no separate evidence thread.`);
+                        } else if (!threads[f.lock_thread]) {
+                            errors.push(`[finales.json -> [${idx}].lock_thread] References unknown thread <b>${f.lock_thread}</b> — it isn't defined in threads.json, so it has no title/description to show as a journal subheading.`);
+                        }
+                    }
                 });
                 for (const [key, t] of Object.entries(threads)) {
                     if (t && t.title) textFields.push([`threads.json -> ${key}.title`, t.title]);

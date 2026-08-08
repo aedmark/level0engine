@@ -4,6 +4,7 @@
     "text": "[${P} FINDING OF FACT]\n\nThere was no breach.\n\nWe have reviewed every log. Whatever it is, IT never came IN. The anomaly predates the facility.\n\nThe facility predates the level.\n\nWe did not build a laboratory around a specimen; a specimen grew around the laboratory.\n\n[${c.lead}'s final margin note in black ink: \"We are the note it left for itself.\"]",
     "nickname": "Homegrown",
     "thread": "TELL",
+    "lock_thread": "GEOMETRY",
     "tell_title": "THE SHAPE OF THE FINDING of ${P}",
     "tell_description": "Determine the true origin of the facility.",
     "_locked": true
@@ -13,6 +14,7 @@
     "text": "${P}: \"FINDING OF FACT\"\n\nDespite the insistence of HQ, ${c.lost} is alive. That is the finding. Every door that will not open has been locked FROM THE INSIDE.\n\nWe have found encouraging but archaic handwritten messages, in ${c.lost}'s handwriting, in impossible places.\n\nThis leads me to the only logical conclusion, based on what I know:\n\n${c.lost} is not trapped in there with it... It is trapped in there with ${c.lost}.\n\n[SIGNED IN RED INK]: ${c.lead}, PROJECT LEAD",
     "nickname": "Cartographer",
     "thread": "TELL",
+    "lock_thread": "LOST",
     "tell_title": "THE DISPOSITION OF ${c.lost}",
     "tell_description": "Determine if ${c.lost} is still alive.",
     "_locked": true
@@ -22,6 +24,7 @@
     "text": "${P}: \"FINDING OF FACT\"\n\nThe hum is a carrier wave. ${c.archivist} proved it in the stacks: the documents rearrange along it.\n\nThe facility is TRANSMITTING information. Inventory, floor plans, personnel files; it's all going somewhere.\n\nWe are not the observers, here. We are the observed.\n\nWe are the test subjects.\n\n*We are the payload.*\n\n[SIGNED IN BLUE INK]: ${c.lead}, PROJECT LEAD",
     "nickname": "Hum",
     "thread": "TELL",
+    "lock_thread": "HUM",
     "tell_title": "THE PURPOSE OF THE HUM",
     "tell_description": "Investigate the strange frequency in the walls.",
     "_locked": true

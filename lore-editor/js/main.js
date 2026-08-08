@@ -23,7 +23,8 @@
                 await Promise.all([
                     getCrossFileData('lore.json', true),
                     getCrossFileData('clues.json', true),
-                    getCrossFileData('foreshadow.json', true)
+                    getCrossFileData('foreshadow.json', true),
+                    getCrossFileData('threads.json', true)
                 ]);
 
                 const res = await fetch('/api/data');

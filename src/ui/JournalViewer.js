@@ -88,7 +88,7 @@ export default class JournalViewer {
     populateList() {
         this.listEl.innerHTML = '';
         const story = this.getStory();
-        
+
         if (story.collected.length === 0) {
             const li = document.createElement('li');
             li.style.padding = '1rem';
@@ -108,66 +108,84 @@ export default class JournalViewer {
             groups[key].push({ text, index, threadId });
         });
 
+        // The active finale can name one other thread (lock_thread) as its own evidence
+        // trail — e.g. the "Hum" finale -> the HUM thread. When set, that thread renders
+        // as a subheading nested under TELL instead of its own flat top-level group, so
+        // the journal visually shows what's actually backing up the TELL objective rather
+        // than presenting it as unrelated background material.
+        const activeFinale = story.finales && story.finales[story.truth];
+        const nestedKey = (activeFinale && activeFinale.lock_thread && activeFinale.lock_thread !== 'TELL' && groups[activeFinale.lock_thread])
+            ? activeFinale.lock_thread
+            : null;
+
         // Render groups
         for (const [key, items] of Object.entries(groups)) {
-            // Create a group header
-            const header = document.createElement('div');
-            header.className = 'journal-group-header';
-            
-            if (key === 'UNCLASSIFIED') {
-                header.innerText = '[ UNCLASSIFIED DATA ]';
-            } else {
-                let label = story.threadLabel(key);
-                header.innerText = label;
-                
-                if (key === 'TELL') {
-                    header.classList.add('glitch-text');
-                }
-                
-                if (story.corroborated.has(key)) {
-                    header.innerText += ' [VERIFIED]';
-                    header.classList.add('verified-thread');
-                }
+            if (key === nestedKey) continue; // rendered nested under TELL below, not flat
+            this._renderGroup(story, key, items, false);
+            if (key === 'TELL' && nestedKey) {
+                this._renderGroup(story, nestedKey, groups[nestedKey], true);
             }
-            this.listEl.appendChild(header);
-            
-            if (key !== 'UNCLASSIFIED' && story.threads[key] && story.threads[key].description) {
-                const desc = document.createElement('div');
-                desc.className = 'journal-group-desc';
-                desc.style.fontSize = '0.8rem';
-                desc.style.color = 'var(--text-muted, #aaa)';
-                desc.style.fontStyle = 'italic';
-                desc.style.marginBottom = '12px';
-                desc.style.paddingLeft = '12px';
-                desc.innerText = story.threads[key].description;
-                this.listEl.appendChild(desc);
-            }
-
-            // Render items in group
-            items.forEach(item => {
-                const li = document.createElement('li');
-                const btn = document.createElement('button');
-                btn.className = 'journal-entry-btn';
-                
-                // Extract the first line as a title
-                let title = item.text.split('\n')[0].trim();
-                if (title.length > 35) title = title.substring(0, 32) + '...';
-                if (!title) title = `ENTRY ${item.index + 1}`;
-                
-                // Strip out ">>" if present for cleaner look
-                title = title.replace(/^>>\s*/, '');
-                
-                if (key === 'TELL') {
-                    btn.classList.add('glitch-item');
-                }
-
-                btn.innerText = title;
-                btn.onclick = () => this.selectEntry(item.index, btn);
-                
-                li.appendChild(btn);
-                this.listEl.appendChild(li);
-            });
         }
+    }
+
+    _renderGroup(story, key, items, nested) {
+        // Create a group header
+        const header = document.createElement('div');
+        header.className = nested ? 'journal-subgroup-header' : 'journal-group-header';
+
+        if (key === 'UNCLASSIFIED') {
+            header.innerText = '[ UNCLASSIFIED DATA ]';
+        } else {
+            let label = story.threadLabel(key);
+            header.innerText = (nested ? '↳ ' : '') + label;
+
+            if (key === 'TELL') {
+                header.classList.add('glitch-text');
+            }
+
+            if (story.corroborated.has(key)) {
+                header.innerText += ' [VERIFIED]';
+                header.classList.add('verified-thread');
+            }
+        }
+        this.listEl.appendChild(header);
+
+        if (key !== 'UNCLASSIFIED' && story.threads[key] && story.threads[key].description) {
+            const desc = document.createElement('div');
+            desc.className = nested ? 'journal-subgroup-desc' : 'journal-group-desc';
+            desc.style.fontSize = '0.8rem';
+            desc.style.color = 'var(--text-muted, #aaa)';
+            desc.style.fontStyle = 'italic';
+            desc.style.marginBottom = '12px';
+            desc.style.paddingLeft = nested ? '24px' : '12px';
+            desc.innerText = story.threads[key].description;
+            this.listEl.appendChild(desc);
+        }
+
+        // Render items in group
+        items.forEach(item => {
+            const li = document.createElement('li');
+            const btn = document.createElement('button');
+            btn.className = 'journal-entry-btn' + (nested ? ' journal-entry-nested' : '');
+
+            // Extract the first line as a title
+            let title = item.text.split('\n')[0].trim();
+            if (title.length > 35) title = title.substring(0, 32) + '...';
+            if (!title) title = `ENTRY ${item.index + 1}`;
+
+            // Strip out ">>" if present for cleaner look
+            title = title.replace(/^>>\s*/, '');
+
+            if (key === 'TELL') {
+                btn.classList.add('glitch-item');
+            }
+
+            btn.innerText = title;
+            btn.onclick = () => this.selectEntry(item.index, btn);
+
+            li.appendChild(btn);
+            this.listEl.appendChild(li);
+        });
     }
 
     selectEntry(index, btnEl = null) {

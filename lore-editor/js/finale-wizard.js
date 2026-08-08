@@ -16,6 +16,7 @@
                 nickname: '',
                 option: '',
                 text: '',
+                lockThread: '',
                 tellTitle: '',
                 tellDescription: '',
                 sectors
@@ -44,8 +45,9 @@
             document.getElementById('wizard-header-title').innerText = 'New Finale Arc';
 
             // Warm the sector list so "+ Add Sector" in Step 3 offers everything
-            // lore.json/clues.json actually use, not just the five conventional ones.
-            await Promise.all([getCrossFileData('lore.json'), getCrossFileData('clues.json')]);
+            // lore.json/clues.json actually use, not just the five conventional ones, and
+            // warm threads.json so Step 2's Evidence Thread dropdown has options.
+            await Promise.all([getCrossFileData('lore.json'), getCrossFileData('clues.json'), getCrossFileData('threads.json')]);
 
             await renderFinaleWizard();
         }
@@ -124,11 +126,26 @@
             `;
         }
 
+        function getKnownThreadKeys() {
+            const threads = crossFileCache['threads.json'] || {};
+            return Object.keys(threads).filter(k => k !== 'TELL').sort();
+        }
+
         function renderFinaleWizardStep2() {
+            const threadOptions = getKnownThreadKeys().map(k =>
+                `<option value="${k}" ${finaleWizardState.lockThread === k ? 'selected' : ''}>${k}</option>`
+            ).join('');
+
             return `
                 <label style="display:block; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); margin-bottom:8px;">Reveal Text (<code>text</code>)</label>
                 <textarea oninput="finaleWizardState.text = this.value" style="width:100%; height:160px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;">${finaleWizardState.text}</textarea>
                 <span class="help-text" style="display:block; margin-top:8px; margin-bottom:16px;">The full document the player reads when they commit to this ending. Dynamic tokens (<code>\${c.lead}</code>, <code>\${P}</code>, etc.) work here same as anywhere else.</span>
+
+                <label style="display:block; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); margin-bottom:8px;">Evidence Thread (<code>lock_thread</code>) <span class="help-icon" title="Optional. A thread from threads.json whose collected evidence backs up this finale — e.g. the 'Hum' finale might link to the HUM thread. Renders as a subheading nested under the TELL heading in the player's PDA journal. Leave as None if this finale has no dedicated evidence thread.">?</span></label>
+                <select onchange="finaleWizardState.lockThread = this.value" style="width:100%; margin-bottom:16px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 10px 14px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;">
+                    <option value="" ${finaleWizardState.lockThread ? '' : 'selected'}>— None —</option>
+                    ${threadOptions}
+                </select>
 
                 <label style="display:block; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); margin-bottom:8px;">TELL Thread Override <span class="help-icon" title="Optional. While this finale is active, it overrides the player's PDA journal objective text (normally defined by threads.json's TELL entry). Leave blank to keep the default TELL title/description.">?</span></label>
                 <input type="text" value="${finaleWizardState.tellTitle}" placeholder="Journal title (optional — falls back to threads.json's TELL title)" oninput="finaleWizardState.tellTitle = this.value" style="width:100%; margin-bottom:8px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;">
@@ -215,6 +232,7 @@
                 <div style="margin-bottom:16px;"><b>Nickname:</b> ${finaleWizardState.nickname}</div>
                 <div style="margin-bottom:16px;"><b>Verdict Button:</b> ${finaleWizardState.option}</div>
                 <div style="margin-bottom:16px;"><b>Reveal Text:</b><br><span style="color:var(--text-muted); font-family:var(--font-mono); font-size:0.85rem;">${preview}${previewSuffix}</span></div>
+                <div style="margin-bottom:16px;"><b>Evidence Thread:</b> ${finaleWizardState.lockThread || '(none — no subheading nested under TELL)'}</div>
                 ${(finaleWizardState.tellTitle || finaleWizardState.tellDescription) ? `<div style="margin-bottom:16px;"><b>TELL Override:</b> ${finaleWizardState.tellTitle || '(default title)'} — ${finaleWizardState.tellDescription || '(default description)'}</div>` : ''}
                 <div style="margin-bottom:8px;"><b>Foreshadowing (${filledSectors.length} sector${filledSectors.length === 1 ? '' : 's'}):</b></div>
                 ${sectorRows || '<div class="inspector-sector-list">None — nothing in the world will hint at this finale before the reveal.</div>'}
@@ -239,6 +257,7 @@
                     text: finaleWizardState.text,
                     nickname: finaleWizardState.nickname,
                     thread: 'TELL',
+                    lock_thread: finaleWizardState.lockThread || '',
                     tell_title: (finaleWizardState.tellTitle || '').trim(),
                     tell_description: (finaleWizardState.tellDescription || '').trim()
                 };

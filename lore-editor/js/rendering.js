@@ -338,7 +338,7 @@
                     template = { "ANNEX": {text:"", thread:"TELL", type:"document"}, "ARCHIVE": {text:"", thread:"TELL", type:"document"}, "SERVER": {text:"", thread:"TELL", type:"document"}, "CLINIC": {text:"", thread:"TELL", type:"document"}, "CHASM": {text:"", thread:"TELL", type:"document"} };
                     if (linkedData) linkedData.push({ option: "", text: "" });
                 } else if (selectedFile === 'finales.json') {
-                    template = { option: "NEW FINALE OPTION", text: "NEW FINALE TEXT", thread: "TELL", tell_title: "", tell_description: "" };
+                    template = { option: "NEW FINALE OPTION", text: "NEW FINALE TEXT", thread: "TELL", lock_thread: "", tell_title: "", tell_description: "" };
                     if (linkedData) linkedData.push({ "ANNEX": {text:"", thread:"TELL", type:"document"}, "ARCHIVE": {text:"", thread:"TELL", type:"document"}, "SERVER": {text:"", thread:"TELL", type:"document"}, "CLINIC": {text:"", thread:"TELL", type:"document"}, "CHASM": {text:"", thread:"TELL", type:"document"} });
                 } else {
                     template = (fileData.length > 0 && typeof fileData[0] === 'object' && !Array.isArray(fileData[0])) ? {} : "";
@@ -560,19 +560,43 @@
                         document.getElementById('option-container').style.display = 'flex';
                         document.getElementById('finale-meta-container').style.display = 'flex';
                         document.getElementById('option-textarea').value = val.option || '';
-                        document.getElementById('tell-title-input').value = val.tell_title || '';
-                        document.getElementById('tell-desc-textarea').value = val.tell_description || '';
+                        
+                        const threadData = crossFileCache['threads.json']?.[val.thread] || {};
+                        const titleInput = document.getElementById('tell-title-input');
+                        const descInput = document.getElementById('tell-desc-textarea');
+
+                        titleInput.value = val.tell_title || '';
+                        titleInput.placeholder = threadData.title || '';
+
+                        descInput.value = val.tell_description || '';
+                        descInput.placeholder = threadData.description || '';
+
+                        // Lock Thread: any thread besides TELL that this finale's own
+                        // evidence trail belongs to (e.g. the "Hum" finale -> HUM). Renders
+                        // as a subheading nested under TELL in the player's journal.
+                        const lockThreadSelect = document.getElementById('finale-lock-thread-select');
+                        const allThreadKeys = Object.keys(crossFileCache['threads.json'] || {}).filter(k => k !== 'TELL');
+                        lockThreadSelect.innerHTML = '<option value="">— None —</option>' +
+                            allThreadKeys.map(k => `<option value="${k}">${k}</option>`).join('');
+                        lockThreadSelect.value = allThreadKeys.includes(val.lock_thread) ? val.lock_thread : '';
                     } else {
                         document.getElementById('option-container').style.display = 'none';
                         document.getElementById('finale-meta-container').style.display = 'none';
                     }
 
-                    if (isFinaleGroup) {
+                    if (selectedFile === 'foreshadow.json' && isArrayRoot() && !selectedCategory) {
                         document.getElementById('main-textarea-label').style.display = 'block';
                         document.getElementById('main-textarea-label').innerText = 'Description:';
                         if (document.getElementById('main-textarea-hint')) {
                             document.getElementById('main-textarea-hint').style.display = 'block';
                             document.getElementById('main-textarea-hint').innerText = 'Internal notes about this finale group. Not shown to players.';
+                        }
+                    } else if (selectedFile === 'finales.json') {
+                        document.getElementById('main-textarea-label').style.display = 'block';
+                        document.getElementById('main-textarea-label').innerText = 'Document Body:';
+                        if (document.getElementById('main-textarea-hint')) {
+                            document.getElementById('main-textarea-hint').style.display = 'block';
+                            document.getElementById('main-textarea-hint').innerText = '';
                         }
                     } else if (selectedFile === 'threads.json') {
                         document.getElementById('main-textarea-label').style.display = 'block';
@@ -641,6 +665,17 @@
                 if (isArrayRoot()) {
                     if (selectedCategory) fileData[selectedIndex][selectedCategory].tell_description = val;
                     else fileData[selectedIndex].tell_description = val;
+                }
+            }
+        });
+
+        document.getElementById('finale-lock-thread-select').addEventListener('change', (e) => {
+            let val = e.target.value;
+            const original = getCurrentEditorData();
+            if (original && typeof original === 'object' && selectedFile === 'finales.json') {
+                if (isArrayRoot()) {
+                    if (selectedCategory) fileData[selectedIndex][selectedCategory].lock_thread = val;
+                    else fileData[selectedIndex].lock_thread = val;
                 }
             }
         });

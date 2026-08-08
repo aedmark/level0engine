@@ -226,6 +226,13 @@
         .textarea-container {
             flex: 1; position: relative; display: flex; flex-direction: column; min-height: 0;
         }
+        /* The main "Document Body"/"Text" editor should keep first claim on available
+           space, but never get squeezed away to nothing by the fields above it — once
+           it hits this floor, #editor-content-area scrolls instead of everything
+           cramming into one fixed window. */
+        #textarea-container {
+            min-height: 260px;
+        }
         .textarea-glow {
             position: absolute; top: -2px; left: -2px; right: -2px; bottom: -2px;
             background: linear-gradient(to right, rgba(127,29,29,0.2), rgba(255,255,255,0.05));
@@ -361,7 +368,7 @@
                         </div>
 
                         <div class="editor-main">
-                            <div id="editor-content-area" style="display:none; flex: 1; min-height: 0; flex-direction: column; overflow: hidden;">
+                            <div id="editor-content-area" style="display:none; flex: 1; min-height: 0; flex-direction: column; overflow-y: auto; overflow-x: hidden;">
                                 <div class="editor-title" id="editor-title"></div>
                                 
                                 <div id="hint-box">
@@ -396,14 +403,19 @@
                                     </div>
                                 </div>
 
-                                <div id="option-container" class="textarea-container" style="display:none; flex: 0.25; min-height: 110px; margin-bottom: 8px;">
+                                <div id="option-container" class="textarea-container" style="display:none; flex: 0 0 auto; height: 130px; margin-bottom: 8px;">
                                     <h4 style="margin-bottom: 2px;">Absolute Truth <span class="help-icon" title="The text displayed on the button when the player is presented with this choice.">?</span></h4>
                                     <div style="position: relative; flex: 1; min-height: 0; display: flex;">
                                         <div class="textarea-glow"></div>
                                         <label for="option-textarea"></label><textarea id="option-textarea"></textarea>
                                     </div>
                                 </div>
-                                <div id="finale-meta-container" class="textarea-container" style="display:none; flex: 0.5; min-height: 150px; margin-bottom: 8px;">
+                                <div id="finale-meta-container" class="textarea-container" style="display:none; flex: 0 0 auto; height: 300px; margin-bottom: 8px;">
+                                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                                        <h4 style="margin:0; white-space:nowrap;">Evidence Thread <span class="help-icon" title="Optional. A thread (from threads.json) whose collected evidence backs up this finale — e.g. the 'Hum' finale might link to the HUM thread. In the player's PDA journal, it renders as a subheading nested under the TELL quest heading instead of its own separate group. Leave as 'None' if this finale has no dedicated evidence thread.">?</span></h4>
+                                        <label for="finale-lock-thread-select"></label>
+                                        <select id="finale-lock-thread-select" style="flex:1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;"></select>
+                                    </div>
                                     <h4 style="margin-bottom: 2px;">Thread Title</h4>
                                     <div style="position: relative; flex: 0 0 auto; display: flex; margin-bottom: 8px;">
                                         <label for="tell-title-input"></label><input type="text" id="tell-title-input" style="width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;" />
