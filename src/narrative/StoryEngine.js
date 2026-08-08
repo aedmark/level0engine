@@ -63,7 +63,23 @@ export default class StoryEngine {
             year: 1971 + Math.floor(this.rand() * 28),
             hours: 300 + Math.floor(this.rand() * 900)
         };
-        
+
+        // Puzzle authors can define additional per-playthrough numbers (a serial number,
+        // a birthday component, etc.) in parameters.json's CORE_VARS instead of being
+        // limited to the four built-ins above. Each is generated the same way — once per
+        // seed, from a min..max range — and folded into coreVars, so it's usable both in
+        // a puzzle's ACCESS_CODE expression (as ctx.NAME) and in lore/clue text (as
+        // ${NAME}; CaseFiles.js's replaceTemplates() already substitutes every coreVars
+        // key generically, so no further wiring is needed there).
+        const customCoreVarDefs = StoryEngine.PARAMS.CORE_VARS || {};
+        for (const key in customCoreVarDefs) {
+            if (key in this.coreVars) continue; // never let a custom var shadow a built-in
+            const def = customCoreVarDefs[key];
+            const min = Number.isFinite(def?.min) ? def.min : 0;
+            const max = Number.isFinite(def?.max) ? def.max : min;
+            this.coreVars[key] = min + Math.floor(this.rand() * (max - min + 1));
+        }
+
         // Fallbacks for legacy props
         this.penNumber = this.coreVars.pen;
         this.siteYear = this.coreVars.year;
