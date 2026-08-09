@@ -674,7 +674,73 @@ export default class ChunkManager {
                             }
                         }
 
+                        // --- Guaranteed Room Connectivity ---
+                        // The seeded cells above (the ring/cross skeleton and any airlock
+                        // approaches) are trusted to be part of the main connected maze, but
+                        // nothing previously verified that the Julia-set/flip-noise wall
+                        // pattern actually left every other open cell reachable from them.
+                        // A pocket sealed on all sides reads fine locally but leaves the
+                        // player with exactly one way in and out. Run a 0-1 BFS from the
+                        // seeded cells (moving into an open cell costs 0, moving into a wall
+                        // costs 1) so every cell knows the minimum number of walls between it
+                        // and the trusted network, then walk back from any sealed-off open
+                        // cell along its shortest path and force open every wall crossed —
+                        // rendered as a `WallBreachProfile` structure rather than a bare gap.
+                        const totalCells = size * size;
+                        const INF = 1 << 30;
+                        const bfsDist = new Int32Array(totalCells).fill(INF);
+                        const bfsParent = new Int32Array(totalCells).fill(-1);
+                        const deque = [];
+                        for (const seed of q) {
+                            const idx = seed.lz * size + seed.lx;
+                            if (bfsDist[idx] === INF) {
+                                bfsDist[idx] = 0;
+                                deque.push(idx);
+                            }
+                        }
+                        let dqHead = 0;
+                        while (dqHead < deque.length) {
+                            const idx = deque[dqHead++];
+                            const clx = idx % size;
+                            const clz = (idx - clx) / size;
+                            const d = bfsDist[idx];
+                            const neighbors = [[clx + 1, clz], [clx - 1, clz], [clx, clz + 1], [clx, clz - 1]];
+                            for (const [nlx, nlz] of neighbors) {
+                                if (nlx < 0 || nlz < 0 || nlx >= size || nlz >= size) continue;
+                                const nIdx = nlz * size + nlx;
+                                const cost = grid[nIdx] === 0 ? 1 : 0;
+                                const nd = d + cost;
+                                if (nd < bfsDist[nIdx]) {
+                                    bfsDist[nIdx] = nd;
+                                    bfsParent[nIdx] = idx;
+                                    if (cost === 0) {
+                                        deque.splice(dqHead, 0, nIdx);
+                                    } else {
+                                        deque.push(nIdx);
+                                    }
+                                }
+                            }
+                        }
 
+                        const forcedOpen = new Set();
+                        for (let idx = 0; idx < totalCells; idx++) {
+                            if (grid[idx] === 0 || bfsDist[idx] <= 0) continue;
+                            let cur = idx;
+                            let guard = 0;
+                            while (cur !== -1 && bfsDist[cur] > 0 && guard < totalCells) {
+                                if (grid[cur] === 0) forcedOpen.add(cur);
+                                cur = bfsParent[cur];
+                                guard++;
+                            }
+                        }
+                        for (const idx of forcedOpen) {
+                            const lx = idx % size;
+                            const lz = (idx - lx) / size;
+                            const gx = startX + lx;
+                            const gz = startZ + lz;
+                            ctx.setWall(gx, gz, false);
+                            ctx.forceStructure(gx, gz, 'breach');
+                        }
                     }
                 }
 
