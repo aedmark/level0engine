@@ -161,7 +161,12 @@ export const DuctOrVentProfile = (env, ctx) => {
                     }
                 }
             } else {
-                const wall = new THREE.Mesh(env.sharedWallGeo, env.sharedWallMat);
+                // Was built directly off env.sharedWallGeo, bypassing buildWall — that
+                // skipped the baseboardFootprint tagging buildWall does, so this wall
+                // (a vent-bearing stand-in for a normal filler wall) silently never got
+                // a baseboard. Routing through buildWall matches the standard filler
+                // wall path (ChunkManager.js) and picks the tagging back up.
+                const wall = buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
                 wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);
                 addGeometry(wall);
                 const openFaces = [];

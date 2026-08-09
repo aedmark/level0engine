@@ -128,6 +128,14 @@ export default class DocumentViewer {
                 }
             }
         });
+        document.addEventListener('wheel', (e) => {
+            if (this.player.input.state.isReading) {
+                const overlay = document.getElementById('document-overlay');
+                if (overlay && overlay.style.display !== 'none') {
+                    overlay.scrollTop += e.deltaY;
+                }
+            }
+        }, { passive: true });
         document.addEventListener('somatic-close-document', () => {
             const inquestOverlay = document.getElementById('inquest-overlay');
             if (inquestOverlay && inquestOverlay.style.display === 'block') {

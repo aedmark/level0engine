@@ -169,6 +169,14 @@ export default class StoryEngine {
         this.trackers = {};
         this.totalTemplates = 0;
         
+        this.meshDeck = {};
+        this.meshIndex = {};
+        
+        const addDeck = (sector, type, count) => {
+            if (!this.meshDeck[sector]) this.meshDeck[sector] = [];
+            for (let i = 0; i < count; i++) this.meshDeck[sector].push(type);
+        };
+        
         for (const sector in this.library) {
             this.trackers[sector] = 0;
             const arr = this.library[sector];
@@ -176,10 +184,32 @@ export default class StoryEngine {
                 if (arr[i].thread) this.threadOf.set(arr[i].text, arr[i].thread);
             }
             this.totalTemplates += arr.length;
+            addDeck(sector, 'document', arr.length);
         }
         for (const sector in this.tapes) {
             this.threadOf.set(this.tapes[sector].text, this.tapes[sector].thread);
             this.totalTemplates++;
+            addDeck(sector, 'tape', 1);
+        }
+        for (const sector in this.ephemera) {
+            addDeck(sector, 'note', this.ephemera[sector].length);
+        }
+        for (const sector in this.laptops) {
+            addDeck(sector, 'laptop', this.laptops[sector].length);
+        }
+        for (const sector in this.clipboards) {
+            addDeck(sector, 'clipboard', this.clipboards[sector].length);
+        }
+
+        for (const sector in this.meshDeck) {
+            this.meshIndex[sector] = 0;
+            const deck = this.meshDeck[sector];
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(this.rand() * (i + 1));
+                const temp = deck[i];
+                deck[i] = deck[j];
+                deck[j] = temp;
+            }
         }
     }
 
@@ -215,6 +245,21 @@ export default class StoryEngine {
                 }
             }
         }
+    }
+
+    getNextMeshType(sector) {
+        let activeSector = sector;
+        let deck = this.meshDeck[activeSector];
+        if (!deck || deck.length === 0) {
+            activeSector = 'DEFAULT';
+            deck = this.meshDeck[activeSector];
+        }
+        if (!deck || deck.length === 0) return 'document';
+        
+        const idx = this.meshIndex[activeSector] || 0;
+        const type = deck[idx % deck.length];
+        this.meshIndex[activeSector] = idx + 1;
+        return type;
     }
 
     getFragment(docId, zone) {

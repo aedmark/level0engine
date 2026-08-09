@@ -62,13 +62,22 @@ export const WallBreachProfile = (env, ctx) => {
                 t1.position.set(0, 1.8 + tGeo.parameters.height/2, 0);
                 wallG.add(t1);
 
-                const grateGeo = new THREE.BoxGeometry(1.16, 1.16, 0.1);
+                // Grate is mounted flush over the far opening, hinged on its left edge
+                // and swung mostly open — reads as a cover that's been forced rather
+                // than a panel floating at a fixed diagonal with nothing supporting it.
+                // The hinge is a pivot group so the swing rotates around the panel's
+                // edge instead of its center; positive rotation.y swings it toward -z,
+                // i.e. into the tunnel's own open interior, well clear of the side
+                // walls (|x| > 0.6), the header (y 1.8-3.0), and the hazard tape.
+                const grateGeo = new THREE.BoxGeometry(1.16, 1.16, 0.08);
                 const grateMat = env.cartLatticeMat || env.pittedMetalMat;
+                const gratePivot = new THREE.Group();
+                gratePivot.position.set(-0.58, 1.2, (env.cellSize / 2) - 0.04);
+                gratePivot.rotation.y = Math.PI * 0.42;
                 const grate = new THREE.Mesh(grateGeo, grateMat);
-                grate.position.set(0, 1.2, 0);
-                grate.rotation.x = Math.PI / 2 + 0.4;
-                grate.position.z = 1.0;
-                wallG.add(grate);
+                grate.position.set(0.58, 0, 0);
+                gratePivot.add(grate);
+                wallG.add(gratePivot);
 
                 // Low-clearance warning trim at the two through-passage thresholds,
                 // clipped to the actual 1.2-wide opening (not the full cell width) and

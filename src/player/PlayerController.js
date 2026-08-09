@@ -33,7 +33,7 @@ export default class PlayerController {
         this.hasVisitedAnnex = false;
         this.objectiveUI = document.createElement('div');
         this.objectiveUI.className = 'osd-element';
-        this.objectiveUI.style.cssText = 'bottom: 3rem; right: 3rem; text-align: right; z-index: 100; pointer-events: none; line-height: 1.2; text-transform: uppercase;';
+        this.objectiveUI.style.cssText = 'bottom: 4.5rem; right: 4.5rem; text-align: right; z-index: 100; pointer-events: none; line-height: 1.2; text-transform: uppercase;';
         const renderArea = document.getElementById('screen-wrapper') || document.body;
         renderArea.appendChild(this.objectiveUI);
         this.updateObjectives = (signalText = 'SCANNING...') => {

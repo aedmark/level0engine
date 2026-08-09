@@ -17,7 +17,6 @@ import {DuctOrVentProfile} from './blueprints/DuctOrVent.js';
 import {BlockyObstructionProfile} from './blueprints/BlockyObstruction.js';
 import {TunnelBurstProfile} from './blueprints/TunnelBurst.js';
 import {TheObserverProfile} from './blueprints/TheObserver.js';
-import {CompressionArchwayProfile} from './blueprints/CompressionArchway.js';
 import {SettlingFieldProfile} from './blueprints/SettlingField.js';
 import {AnomalousPointOfInterestProfile} from './blueprints/AnomalousPointOfInterest.js';
 import {WreckedFurniturePileProfile} from './blueprints/WreckedFurniturePile.js';
@@ -44,7 +43,6 @@ export default class StructuralBlueprints {
             BlockyObstructionProfile(this, ctx),
             TunnelBurstProfile(this, ctx),
             TheObserverProfile(this, ctx),
-            CompressionArchwayProfile(this, ctx),
             SettlingFieldProfile(this, ctx),
             AnomalousPointOfInterestProfile(this, ctx),
             WreckedFurniturePileProfile(this, ctx),

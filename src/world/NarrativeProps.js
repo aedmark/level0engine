@@ -4,16 +4,14 @@
  * [STATE] Stateless utility. Modifies `env._paperBudget` to cap items per chunk and registers interactables.
  * [DEPENDS] Requires `THREE` globally, `env` geometry/material definitions, and chunk generation context `ctx`.
  */
-const DOC_CHANCE = 0.014;
-const TAPE_CHANCE = 0.005;
-const MAX_DOCS_PER_CHUNK = 3;
-const MAX_TAPES_PER_CHUNK = 1;
+const LORE_CHANCE = 0.019;
+const MAX_LORE_PER_CHUNK = 4;
 
 function budget(env, hash) {
     if (!env._paperBudget) env._paperBudget = new Map();
     let b = env._paperBudget.get(hash);
     if (!b) {
-        b = {docs: 0, tapes: 0};
+        b = {lore: 0};
         env._paperBudget.set(hash, b);
     }
     return b;
@@ -33,6 +31,50 @@ function buildRecorder(env, x, z, rotation, y) {
     recLight.position.set(0.06, 0.04, -0.04);
     group.add(recLight);
     group.position.set(x, (y !== undefined ? y : 0.02), z);
+    group.rotation.y = rotation;
+    return group;
+}
+
+function buildLaptop(env, x, z, rotation, y) {
+    if (!env.laptopScreenMat) {
+        env.laptopScreenMat = new THREE.MeshBasicMaterial({color: 0xa8ffd0});
+        env.sharedAssets.add(env.laptopScreenMat.uuid);
+    }
+    const lap = new THREE.Group();
+    const lapBase = new THREE.Mesh(env._boxGeo(0.36, 0.025, 0.26), env.baseHousingMat);
+    lap.add(lapBase);
+    const lapScreen = new THREE.Mesh(env._cacheGeo('lapScreen', () => {
+        const g = new THREE.BoxGeometry(0.36, 0.24, 0.02);
+        g.translate(0, 0.12, 0);
+        return g;
+    }), env.baseHousingMat);
+    lapScreen.position.set(0, 0.01, -0.12);
+    lapScreen.rotation.x = -0.35;
+    const glow = new THREE.Mesh(env._planeGeo(0.3, 0.18), env.laptopScreenMat);
+    glow.position.set(0, 0.13, 0.012);
+    lapScreen.add(glow);
+    lap.add(lapScreen);
+    lap.position.set(x, (y !== undefined ? y : 0.0125), z);
+    lap.rotation.y = rotation;
+    return lap;
+}
+
+function buildClipboard(env, x, z, rotation, y) {
+    const group = new THREE.Group();
+    const board = new THREE.Mesh(env._boxGeo(0.24, 0.01, 0.34), env.cardboardMat || env.baseHousingMat);
+    board.position.set(0, 0.005, 0);
+    group.add(board);
+    
+    const doc = new THREE.Mesh(env.documentGeo, env.documentMat);
+    doc.position.set(0, 0.011, 0);
+    doc.rotation.y = 0;
+    group.add(doc);
+    
+    const clip = new THREE.Mesh(env._boxGeo(0.12, 0.02, 0.04), env.metalMat);
+    clip.position.set(0, 0.015, -0.14);
+    group.add(clip);
+    
+    group.position.set(x, (y !== undefined ? y : 0.005), z);
     group.rotation.y = rotation;
     return group;
 }
@@ -65,45 +107,55 @@ export function placeSectorPaper(env, ctx, sectorId, cx0, cz0, y, spread) {
     const surfaceY = y !== undefined ? y : 0.035;
     const b = budget(env, hash);
     const roll = random();
-    if (roll < TAPE_CHANCE && b.tapes < MAX_TAPES_PER_CHUNK) {
-        b.tapes++;
-        const rec = buildRecorder(
-            env,
-            cx0 + (random() - 0.5) * sp * 0.75,
-            cz0 + (random() - 0.5) * sp * 0.75,
-            random() * Math.PI,
-            surfaceY
-        );
-        rec.userData = {
+    
+    if (roll < LORE_CHANCE && b.lore < MAX_LORE_PER_CHUNK) {
+        b.lore++;
+        const meshType = env.getStory ? env.getStory().getNextMeshType(sectorId) : 'document';
+        
+        let mesh;
+        let prefix = 'LOG_';
+        const mx = cx0 + (random() - 0.5) * sp;
+        const mz = cz0 + (random() - 0.5) * sp;
+        const rot = random() * Math.PI;
+
+        switch(meshType) {
+            case 'tape':
+                mesh = buildRecorder(env, mx, mz, rot, surfaceY);
+                prefix = 'TAPE_';
+                break;
+            case 'laptop':
+                mesh = buildLaptop(env, mx, mz, rot, surfaceY);
+                prefix = 'LAPTOP_';
+                break;
+            case 'clipboard':
+                mesh = buildClipboard(env, mx, mz, rot, surfaceY);
+                prefix = 'TAG_';
+                break;
+            case 'note':
+                mesh = new THREE.Mesh(env.documentGeo, env.documentMat);
+                mesh.position.set(mx, surfaceY, mz);
+                mesh.rotation.y = rot;
+                prefix = 'NOTE_';
+                break;
+            case 'document':
+            default:
+                mesh = new THREE.Mesh(env.documentGeo, env.documentMat);
+                mesh.position.set(mx, surfaceY, mz);
+                mesh.rotation.y = rot;
+                prefix = 'LOG_';
+                break;
+        }
+
+        mesh.userData = {
             type: 'document',
             chunkHash: hash,
             active: true,
             zone: sectorId,
-            docId: 'TAPE_' + Math.floor(random() * 9999)
+            docId: prefix + Math.floor(random() * 9999)
         };
-        chunkGroup.add(rec);
-        rec.updateMatrixWorld(true);
-        env._registerInteractable(rec, hash);
-        return true;
-    }
-    if (roll < DOC_CHANCE && b.docs < MAX_DOCS_PER_CHUNK) {
-        b.docs++;
-        const doc = new THREE.Mesh(env.documentGeo, env.documentMat);
-        doc.position.set(
-            cx0 + (random() - 0.5) * sp,
-            surfaceY,
-            cz0 + (random() - 0.5) * sp
-        );
-        doc.rotation.y = random() * Math.PI;
-        doc.userData = {
-            type: 'document',
-            chunkHash: hash,
-            active: true,
-            zone: sectorId,
-            docId: 'LOG_' + Math.floor(random() * 9999)
-        };
-        chunkGroup.add(doc);
-        env._registerInteractable(doc, hash);
+        chunkGroup.add(mesh);
+        if (mesh.updateMatrixWorld) mesh.updateMatrixWorld(true);
+        env._registerInteractable(mesh, hash);
         return true;
     }
     return false;

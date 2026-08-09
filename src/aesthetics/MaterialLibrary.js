@@ -71,10 +71,15 @@ export default class MaterialLibrary {
         env.documentGeo = new THREE.PlaneGeometry(0.2, 0.3);
         env.documentGeo.rotateX(-Math.PI / 2);
         env.geoCache = new Map();
+        env.geoCache.set(env.terminalBodyGeo.uuid, true);
+        env.geoCache.set(env.documentGeo.uuid, true);
         env.almondPrefab = new THREE.Group();
         const aBodyGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.12, 16);
         const aNeckGeo = new THREE.CylinderGeometry(0.012, 0.035, 0.05, 16);
         const aCapGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.015, 12);
+        env.geoCache.set(aBodyGeo.uuid, true);
+        env.geoCache.set(aNeckGeo.uuid, true);
+        env.geoCache.set(aCapGeo.uuid, true);
         const aBody = new THREE.Mesh(aBodyGeo, env.almondMat);
         aBody.position.y = 0.06;
         const aNeck = new THREE.Mesh(aNeckGeo, env.clinicMat);
@@ -86,6 +91,9 @@ export default class MaterialLibrary {
         const bBodyGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.16, 16);
         const bRimGeo = new THREE.CylinderGeometry(0.052, 0.052, 0.015, 16);
         const bTermGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.02, 12);
+        env.geoCache.set(bBodyGeo.uuid, true);
+        env.geoCache.set(bRimGeo.uuid, true);
+        env.geoCache.set(bTermGeo.uuid, true);
         const bBody = new THREE.Mesh(bBodyGeo, env.hazardMat);
         bBody.position.y = 0.08;
         const bTopRim = new THREE.Mesh(bRimGeo, env.metalMat);
@@ -97,6 +105,7 @@ export default class MaterialLibrary {
         env.batteryPrefab.add(bBody, bTopRim, bBotRim, bTerm);
         env.observerMat = new THREE.MeshBasicMaterial({color: 0x010101, transparent: true, opacity: 0.85});
         env.observerGeo = new THREE.CylinderGeometry(0.15, 0.1, 1.9, 8);
+        env.geoCache.set(env.observerGeo.uuid, true);
         env.observers = [];
         const cwCanvas = document.createElement('canvas');
         cwCanvas.width = cwCanvas.height = 128;

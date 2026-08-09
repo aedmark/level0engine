@@ -8,7 +8,7 @@ import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
 export const RoundAlcoveProfile = (env, ctx) => {
-    const {random, buildCurvedCornerBlock, addGeometry, buildChair, addFurniture} = ctx;
+    const {random, buildCurvedCornerBlock, addGeometry, buildChair, addFurniture, addCurvedAlcoveBaseboard} = ctx;
     return {
         name: "ROUND ALCOVE",
         prob: 0.55, build: (x, z) => {
@@ -82,6 +82,7 @@ export const RoundAlcoveProfile = (env, ctx) => {
             }
 
             addGeometry(block);
+            addCurvedAlcoveBaseboard(cx, cz, angle);
 
             if (random() > 0.5) {
                 // Place chair in the cutout

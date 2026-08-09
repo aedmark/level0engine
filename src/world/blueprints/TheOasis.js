@@ -109,7 +109,12 @@ export const TheOasisProfile = (env, ctx) => {
                     isFake: false
                 });
             } else {
-                const wall = new THREE.Mesh(env.sharedWallGeo, env.sharedWallMat);
+                // Was built directly off env.sharedWallGeo, bypassing buildWall — that
+                // skipped the baseboardFootprint tagging buildWall does, so this wall
+                // (a filler wall standing in for an oasis already claimed elsewhere)
+                // silently never got a baseboard. Routing through buildWall matches the
+                // standard filler wall path (ChunkManager.js) and picks it back up.
+                const wall = buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
                 wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);
                 addGeometry(wall);
             }

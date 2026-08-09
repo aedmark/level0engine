@@ -33,6 +33,7 @@ function getStory() {
     }
     return getStory._cache;
 }
+environment.getStory = getStory;
 
 function triggerBlackout() {
     const seedInput = document.getElementById('seedInput');
