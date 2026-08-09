@@ -23,20 +23,30 @@ export default class StructuralTextures {
             bumpMap: headerTexture,
             bumpScale: 0.01
         });
-        wallCtx.fillStyle = '#6d5a35';
-        wallCtx.fillRect(0, 480, 512, 32);
-        wallCtx.fillStyle = '#5a4724';
-        wallCtx.fillRect(0, 476, 512, 4);
         wallCtx.fillStyle = 'rgba(0,0,0,0.15)';
         wallCtx.fillRect(255, 0, 2, 512);
-        wallBumpCtx.fillStyle = '#e0e0e0';
-        wallBumpCtx.fillRect(0, 480, 512, 32);
-        wallBumpCtx.fillStyle = '#3c3c3c';
-        wallBumpCtx.fillRect(0, 476, 512, 4);
         wallBumpCtx.fillStyle = 'rgba(40,40,40,0.6)';
         wallBumpCtx.fillRect(255, 0, 2, 512);
         const wallTexture = TextureMechanics._createWrappedTexture(wallCanvas, 4, 1, true);
         const wallBumpTexture = TextureMechanics._createWrappedTexture(wallBumpCanvas, 4, 1, true);
+        const baseboardMat = new THREE.MeshStandardMaterial({
+            color: 0x4c3f25,
+            roughness: 0.65,
+            metalness: 0.05
+        });
+        baseboardMat.userData.noShadow = true;
+        const baseboardTrimMat = new THREE.MeshStandardMaterial({
+            color: 0x3b2e17,
+            roughness: 0.55,
+            metalness: 0.05
+        });
+        baseboardTrimMat.userData.noShadow = true;
+        // noShadow tells _compileInstances to skip shadow-casting for these
+        // (see ChunkManager._compileInstances). A strip this thin and this close to
+        // the floor contributes nothing worth a shadow-map pass, and with one of
+        // these on every full-height wall in every loaded chunk, that pass was not
+        // free — it was rendering shadow geometry for thousands of near-invisible
+        // slivers.
         const {canvas: structCanvas, ctx: structCtx} = TextureMechanics._createContext(512, 512);
         structCtx.fillStyle = '#7e7664';
         structCtx.fillRect(0, 0, 512, 512);
@@ -97,6 +107,6 @@ export default class StructuralTextures {
             map: woodTexture, bumpMap: woodBumpTexture, bumpScale: 0.015, roughness: 0.74
         });
         const doorMat = [doorMatEdge, doorMatEdge, doorMatEdge, doorMatEdge, doorMatFront, doorMatBack];
-        return {headerMat, wallTexture, wallBumpTexture, structMat, woodMat, doorMat};
+        return {headerMat, wallTexture, wallBumpTexture, structMat, woodMat, doorMat, baseboardMat, baseboardTrimMat};
     }
 }

@@ -30,6 +30,8 @@ export default class StructureKit {
 
     createChunkHelpers(hash, chunkGroup, stagingMeshes, random) {
         const env = this.env;
+        const BASEBOARD_H = 3.0 * (32 / 512);
+        const TRIM_H = 3.0 * (4 / 512);
         let hasOasis = random() > 0.75;
         const helpers = {
             random,
@@ -95,7 +97,11 @@ export default class StructureKit {
                     env.geoCache.set(key, geo);
                     env.geoCache.set(geo.uuid, true);
                 }
-                return new THREE.Mesh(geo, mat);
+                const mesh = new THREE.Mesh(geo, mat);
+                if (mat === env.sharedWallMat && h === 3.0 && yOffset === 0) {
+                    mesh.userData.baseboardFootprint = {w, d};
+                }
+                return mesh;
             },
             buildCylinder: (radiusTop, radiusBottom, height, radialSegments, mat) => {
                 const key = `cyl_${radiusTop}_${radiusBottom}_${height}_${radialSegments}`;
@@ -222,6 +228,37 @@ export default class StructureKit {
                     env.spatialGrid.insert(box);
                 }
                 stagingMeshes.push(mesh);
+                const bbFootprint = mesh.userData.baseboardFootprint;
+                if (bbFootprint) {
+                    // Every wall has a different (w, d) footprint, so caching baseboard
+                    // geometry per-footprint (like buildWall does for the wall itself)
+                    // fragmented _compileInstances' geometry+material grouping into one
+                    // InstancedMesh per distinct size — 80 extra draw calls with only a
+                    // handful of chunks loaded. Baseboards are flat boxes, so instead we
+                    // reuse a single 1x1 unit cross-section and stretch it per-instance
+                    // via mesh.scale; setMatrixAt bakes that scale into each instance's
+                    // matrix, so every baseboard body (and every trim cap) still collapses
+                    // into exactly one InstancedMesh each, regardless of wall size.
+                    const bw = bbFootprint.w + 0.06;
+                    const bd = bbFootprint.d + 0.06;
+                    const baseY = mesh.position.y - 1.5;
+                    const body = new THREE.Mesh(this.boxGeo(1, BASEBOARD_H, 1), env.baseboardMat);
+                    body.position.set(mesh.position.x, baseY + BASEBOARD_H / 2, mesh.position.z);
+                    body.rotation.y = mesh.rotation.y;
+                    body.scale.set(bw, 1, bd);
+                    body.userData.chunkHash = hash;
+                    body.userData.noCollision = true;
+                    body.updateMatrixWorld(true);
+                    stagingMeshes.push(body);
+                    const trim = new THREE.Mesh(this.boxGeo(1, TRIM_H, 1), env.baseboardTrimMat);
+                    trim.position.set(mesh.position.x, baseY + BASEBOARD_H + TRIM_H / 2, mesh.position.z);
+                    trim.rotation.y = mesh.rotation.y;
+                    trim.scale.set(bw, 1, bd);
+                    trim.userData.chunkHash = hash;
+                    trim.userData.noCollision = true;
+                    trim.updateMatrixWorld(true);
+                    stagingMeshes.push(trim);
+                }
             },
             addFurniture: (group) => {
                 if (Math.abs(group.position.x) < 4.0 && Math.abs(group.position.z) < 4.0) return;

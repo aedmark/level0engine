@@ -70,13 +70,25 @@ export const WallBreachProfile = (env, ctx) => {
                 grate.position.z = 1.0;
                 wallG.add(grate);
 
+                // Low-clearance warning trim at the two through-passage thresholds,
+                // clipped to the actual 1.2-wide opening (not the full cell width) and
+                // sitting just proud of the header's underside (y=1.8) rather than
+                // coplanar with it or the floor block — same technique as the
+                // crawlspace hall trim, avoids the old z-fighting/poke-through bug.
                 if (!env.hazardTapeMat) {
                     env.hazardTapeMat = new THREE.MeshStandardMaterial({ color: 0xffdd00, roughness: 0.9 });
+                    env.hazardTapeMat.userData.noShadow = true;
                 }
-                const stripeGeo = new THREE.BoxGeometry(env.cellSize, 0.05, 0.3);
-                const stripe = new THREE.Mesh(stripeGeo, env.hazardTapeMat);
-                stripe.position.set(0, 0.625, 0);
-                wallG.add(stripe);
+                const stripeUnitGeo = env._cacheGeo('hazard_tape_unit', () => new THREE.BoxGeometry(1, 0.06, 0.08));
+                const stripeY = 1.8 - 0.04;
+                const stripeWidth = 1.1;
+                [-1, 1].forEach(sign => {
+                    const strip = new THREE.Mesh(stripeUnitGeo, env.hazardTapeMat);
+                    strip.scale.set(stripeWidth, 1, 1);
+                    strip.position.set(0, stripeY, sign * (env.cellSize / 2 - 0.06));
+                    strip.userData.noCollision = true;
+                    wallG.add(strip);
+                });
 
                 addGroupToStaging(wallG);
             } else {
@@ -98,14 +110,6 @@ export const WallBreachProfile = (env, ctx) => {
                 t1.position.set(0, 2.5, 0);
                 t1.rotation.z = (random() - 0.5) * 0.4;
                 wallG.add(t1);
-
-                if (!env.hazardTapeMat) {
-                    env.hazardTapeMat = new THREE.MeshStandardMaterial({ color: 0xffdd00, roughness: 0.9 });
-                }
-                const stripeGeo = new THREE.BoxGeometry(env.cellSize, 0.05, 0.3);
-                const stripe = new THREE.Mesh(stripeGeo, env.hazardTapeMat);
-                stripe.position.set(0, 0.025, 0);
-                wallG.add(stripe);
 
                 addGroupToStaging(wallG);
             }
