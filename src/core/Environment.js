@@ -12,6 +12,7 @@ import SetPieces from '../world/SetPieces.js';
 import InteractionController from '../player/InteractionController.js';
 import {setPodiumScan, setPodiumSpent, SCAN_DURATION} from '../world/BreakerPodium.js';
 import RenderEngine from './RenderEngine.js';
+import ShaderWarmup from './ShaderWarmup.js';
 
 /**
  * [ROLE] Central manager for procedural world generation, chunk management, and entity orchestration.
@@ -47,12 +48,6 @@ export default class Environment {
         this.chunkQueue = [];
         this.queuedHashes = new Set();
         this.isBuildingChunk = false;
-        // Separate from isBuildingChunk on purpose. processChunkQueue() and
-        // beginMacroChunkContent() can be in flight at the same time (queued neighbor
-        // chunks streaming in while the player's own macro-sector interior is still
-        // building), and each clears its own flag independently when it finishes. Sharing
-        // one flag would let whichever finishes first drop it while the other is still
-        // running, disengaging the sector-load freeze screen mid-build.
         this.isBuildingMacroInterior = false;
         this.isSpawning = false;
         this._lightSortCache = (a, b) => a.distSq - b.distSq;
@@ -208,6 +203,7 @@ export default class Environment {
         this.camera.add(this.flashlight.target);
         this.baseFogDensity = 0.05;
         this.generate();
+        await ShaderWarmup.run(this);
         const toggleBtn = document.getElementById('menuToggleBtn');
         const toggleMenu = (e) => {
             if (e && e.preventDefault) e.preventDefault();
@@ -410,7 +406,10 @@ export default class Environment {
                 if (child.material) {
                     const materials = Array.isArray(child.material) ? child.material : [child.material];
                     materials.forEach(m => {
-                        if (!this.sharedAssets.has(m.uuid)) m.dispose();
+                        if (!this.sharedAssets.has(m.uuid)) {
+                            this.chunkManager._forgetMaterialPrograms(m);
+                            m.dispose();
+                        }
                     });
                 }
             });

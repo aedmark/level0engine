@@ -10,6 +10,17 @@ import {WallBreachProfile} from './blueprints/WallBreach.js';
 import {CrawlspaceHallProfile} from './blueprints/CrawlspaceHall.js';
 import {CreviceHallProfile} from './blueprints/CreviceHall.js';
 import {RideQueueHallProfile} from './blueprints/RideQueueHall.js';
+
+/**
+ * Cell coordinates get packed into a single number rather than a `${x},${z}` template string.
+ * The occupancy / wall / path sets below are probed tens of thousands of times per chunk, and a
+ * string key costs an allocation plus a string hash on every one of them. CELL_KEY_SPAN bounds
+ * |z|; past that the packing would alias, which is ~16.7 million world units from the origin --
+ * far beyond anything reachable by warping.
+ */
+const CELL_KEY_SPAN = 4194304;
+const cellKey = (x, z) => x * (CELL_KEY_SPAN * 2) + z;
+
 export default class ChunkManager {
     constructor(env) {
         this.env = env;
@@ -225,9 +236,13 @@ export default class ChunkManager {
                 if (Array.isArray(child.material)) {
                     for (let m = 0; m < child.material.length; m++) {
                         const mat = child.material[m];
-                        if (!env.sharedAssets.has(mat.uuid)) mat.dispose();
+                        if (!env.sharedAssets.has(mat.uuid)) {
+                            this._forgetMaterialPrograms(mat);
+                            mat.dispose();
+                        }
                     }
                 } else if (child.material && !env.sharedAssets.has(child.material.uuid)) {
+                    this._forgetMaterialPrograms(child.material);
                     child.material.dispose();
                 }
                 if (performance.now() - disposeStartTime > 3.0) {
@@ -436,8 +451,8 @@ export default class ChunkManager {
             }
         }
         const occupied = new Set();
-        ctx.markOccupied = (ox, oz) => occupied.add(`${ox},${oz}`);
-        ctx.isOccupied = (ox, oz) => occupied.has(`${ox},${oz}`);
+        ctx.markOccupied = (ox, oz) => occupied.add(cellKey(ox, oz));
+        ctx.isOccupied = (ox, oz) => occupied.has(cellKey(ox, oz));
         if (isMacroStructure && activeSector) {
             const hallwayNeedsFloor = activeSector.id === "CHASM";
             const hallwayNeedsCeiling = activeSector.id !== "ARCHIVE" && activeSector.id !== "IMPOUND" && activeSector.id !== "ATRIUM" && activeSector.id !== "CHASM";
@@ -485,9 +500,9 @@ export default class ChunkManager {
         const emptyState = { chunkBreakerCount: 0, spawnedVirtualBreaker: false };
         const breakerPositions = [];
         const wallCells = new Set();
-        const isWallCell = (wx, wz) => wallCells.has(`${wx},${wz}`);
+        const isWallCell = (wx, wz) => wallCells.has(cellKey(wx, wz));
         const solidWallCells = new Set();
-        const isSolidWallCell = (wx, wz) => solidWallCells.has(`${wx},${wz}`);
+        const isSolidWallCell = (wx, wz) => solidWallCells.has(cellKey(wx, wz));
         let chunkStartTime = performance.now();
         for (let x = startX; x < startX + env.chunkSize; x++) {
             for (let z = startZ; z < startZ + env.chunkSize; z++) {
@@ -526,7 +541,7 @@ export default class ChunkManager {
                         let currZ = cZ;
                         let failsafe = 0;
                         while ((currX !== tx || currZ !== tz) && failsafe < 200) {
-                            pathGrid.set(`${currX},${currZ}`, true);
+                            pathGrid.set(cellKey(currX, currZ), true);
                             const dx = tx - currX;
                             const dz = tz - currZ;
                             if (Math.abs(dx) > Math.abs(dz)) {
@@ -540,7 +555,7 @@ export default class ChunkManager {
                             }
                             failsafe++;
                         }
-                        pathGrid.set(`${tx},${tz}`, true);
+                        pathGrid.set(cellKey(tx, tz), true);
                     };
                     
                     carvePath(startX + 7, startZ);
@@ -563,7 +578,7 @@ export default class ChunkManager {
                     }
 
                     ctx.isWall = (wx, wz) => {
-                        const key = `${wx},${wz}`;
+                        const key = cellKey(wx, wz);
                         if (isWallGrid.has(key)) return isWallGrid.get(key);
                         
                         let zx = wx * 0.15;
@@ -588,7 +603,7 @@ export default class ChunkManager {
                         if (!isNearPath) {
                             for (let ox = -1; ox <= 1; ox++) {
                                 for (let oz = -1; oz <= 1; oz++) {
-                                    if (pathGrid.has(`${wx+ox},${wz+oz}`)) {
+                                    if (pathGrid.has(cellKey(wx + ox, wz + oz))) {
                                         isNearPath = true;
                                         break;
                                     }
@@ -618,9 +633,9 @@ export default class ChunkManager {
                         return isW;
                     };
                     
-                    ctx.setWall = (wx, wz, val) => isWallGrid.set(`${wx},${wz}`, val);
-                    ctx.forceStructure = (wx, wz, name) => forcedStructuresGrid.set(`${wx},${wz}`, name);
-                    ctx.getForcedStructure = (wx, wz) => forcedStructuresGrid.get(`${wx},${wz}`);
+                    ctx.setWall = (wx, wz, val) => isWallGrid.set(cellKey(wx, wz), val);
+                    ctx.forceStructure = (wx, wz, name) => forcedStructuresGrid.set(cellKey(wx, wz), name);
+                    ctx.getForcedStructure = (wx, wz) => forcedStructuresGrid.get(cellKey(wx, wz));
 
                     if (!isMacroStructure) {
                         const size = env.chunkSize;
@@ -684,17 +699,35 @@ export default class ChunkManager {
                         const INF = 1 << 30;
                         const bfsDist = new Int32Array(totalCells).fill(INF);
                         const bfsParent = new Int32Array(totalCells).fill(-1);
-                        const deque = [];
+                        let dqBuf = new Int32Array(totalCells * 8);
+                        let dqHead = totalCells * 4;
+                        let dqTail = dqHead;
+                        const recentre = () => {
+                            const used = dqTail - dqHead;
+                            const next = new Int32Array(Math.max(dqBuf.length * 2, used * 4));
+                            const start = (next.length - used) >> 1;
+                            next.set(dqBuf.subarray(dqHead, dqTail), start);
+                            dqBuf = next;
+                            dqHead = start;
+                            dqTail = start + used;
+                        };
+                        const pushFront = (v) => {
+                            if (dqHead === 0) recentre();
+                            dqBuf[--dqHead] = v;
+                        };
+                        const pushBack = (v) => {
+                            if (dqTail === dqBuf.length) recentre();
+                            dqBuf[dqTail++] = v;
+                        };
                         for (const seed of q) {
                             const idx = seed.lz * size + seed.lx;
                             if (bfsDist[idx] === INF) {
                                 bfsDist[idx] = 0;
-                                deque.push(idx);
+                                pushBack(idx);
                             }
                         }
-                        let dqHead = 0;
-                        while (dqHead < deque.length) {
-                            const idx = deque[dqHead++];
+                        while (dqHead < dqTail) {
+                            const idx = dqBuf[dqHead++];
                             const clx = idx % size;
                             const clz = (idx - clx) / size;
                             const d = bfsDist[idx];
@@ -708,9 +741,9 @@ export default class ChunkManager {
                                     bfsDist[nIdx] = nd;
                                     bfsParent[nIdx] = idx;
                                     if (cost === 0) {
-                                        deque.splice(dqHead, 0, nIdx);
+                                        pushFront(nIdx);
                                     } else {
-                                        deque.push(nIdx);
+                                        pushBack(nIdx);
                                     }
                                 }
                             }
@@ -741,14 +774,14 @@ export default class ChunkManager {
                 let isWall = ctx.isWall(x, z);
                 const damp = env._dampAt(x, z);
                 if (isWall) {
-                    wallCells.add(`${x},${z}`);
+                    wallCells.add(cellKey(x, z));
                     const forcedName = ctx.getForcedStructure && ctx.getForcedStructure(x, z);
                     const structRoll = random();
                     const structure = forcedName ? structuralMatrix.find(s => s.name === forcedName) : structuralMatrix.find(s => structRoll >= s.prob);
                     if (structure) {
                         structure.build(x, z);
                     } else {
-                        solidWallCells.add(`${x},${z}`);
+                        solidWallCells.add(cellKey(x, z));
                         const wall = ctx.buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
                         wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);
                         ctx.addGeometry(wall);
@@ -912,22 +945,6 @@ export default class ChunkManager {
         const args = env._pendingMacroContent.get(hash);
         if (!args) return;
         env._pendingMacroContent.delete(hash);
-        // Fire-and-forget from the caller's side (ensurePendingContentAtPlayer in main.js runs
-        // this every frame without awaiting it), but this is exactly the build that can run
-        // multiple seconds long for a sector with a lot of first-seen materials: renderer.compileAsync
-        // isn't available in this three.js build, so _compileInstances' fallback path ends in a
-        // synchronous renderer.compile(env.scene, env.camera) whenever new shader programs are
-        // needed. The Atrium sector is the worst offender, lazily creating roughly a dozen distinct
-        // canvas-textured materials the first time any Atrium chunk is built -- measured at 3.5-10s
-        // of main-thread stall on entry, the "HUGE spike" reported after the airlock. Pre-building
-        // Atrium's materials at boot was tried and measured to not help (the compiled program's
-        // permutation depends on the live light/shadow state at compile time, which is unavoidably
-        // different at boot vs. mid-playthrough, so it still recompiles on first real entry). Rather
-        // than chase that further, isBuildingMacroInterior instead lets the main.js animate() loop's
-        // sector-load freeze screen (isBuildingChunk-driven for the ordinary chunk-streaming case)
-        // also cover this path, so a slow interior build reads as an intentional loading screen
-        // instead of the game silently hanging -- verified: freeze engages within a frame or two of
-        // beginMacroChunkContent firing and releases cleanly once the build resolves.
         env.isBuildingMacroInterior = true;
         this._buildChunkInterior(args)
             .catch(err => console.error('Macro chunk content build failed:', err))
@@ -943,26 +960,33 @@ export default class ChunkManager {
     async _compileInstances(hash, chunkGroup, stagingMeshes, randomFn) {
         const env = this.env;
         let compileStartTime = performance.now();
-        const instancedGroups = new Map();
+        const byGeometry = new Map();
+        const groups = [];
         for (let i = 0; i < stagingMeshes.length; i++) {
             const mesh = stagingMeshes[i];
-            const matSig = Array.isArray(mesh.material) ? mesh.material.map(m => m.uuid).join('_') : mesh.material.uuid;
-            const sig = `${mesh.geometry.uuid}_${matSig}`;
-            if (!instancedGroups.has(sig)) {
-                instancedGroups.set(sig, {
-                    geometry: mesh.geometry,
-                    material: mesh.material,
-                    meshes: []
-                });
+            let byMaterial = byGeometry.get(mesh.geometry);
+            if (byMaterial === undefined) {
+                byMaterial = new Map();
+                byGeometry.set(mesh.geometry, byMaterial);
             }
-            instancedGroups.get(sig).meshes.push(mesh);
+            let matKey = mesh.material;
+            if (Array.isArray(matKey)) {
+                matKey = 'A';
+                for (let m = 0; m < mesh.material.length; m++) matKey += mesh.material[m].uuid;
+            }
+            let group = byMaterial.get(matKey);
+            if (group === undefined) {
+                group = {geometry: mesh.geometry, material: mesh.material, meshes: []};
+                byMaterial.set(matKey, group);
+                groups.push(group);
+            }
+            group.meshes.push(mesh);
             if (performance.now() - compileStartTime > 5.0) {
                 await new Promise(resolve => setTimeout(resolve, 0));
                 compileStartTime = performance.now();
             }
         }
         const dummyColor = new THREE.Color();
-        const groups = Array.from(instancedGroups.values());
 
         const tempGroup = new THREE.Group();
 
@@ -1013,19 +1037,98 @@ export default class ChunkManager {
         }
 
         if (env.activeChunks.has(hash)) {
-            if (typeof env.engine.renderer.compileAsync === 'function') {
-                await env.engine.renderer.compileAsync(tempGroup, env.camera, env.scene);
-                if (!env.activeChunks.has(hash)) return;
-                while (tempGroup.children.length > 0) {
-                    chunkGroup.add(tempGroup.children[0]);
+            const pending = this._pendingProgramKeys(tempGroup);
+            if (pending !== null) {
+                if (typeof env.engine.renderer.compileAsync === 'function') {
+                    await env.engine.renderer.compileAsync(tempGroup, env.camera, env.scene);
+                    if (!env.activeChunks.has(hash)) return;
+                } else {
+                    this._scopedCompile(tempGroup);
                 }
-            } else {
-                while (tempGroup.children.length > 0) {
-                    chunkGroup.add(tempGroup.children[0]);
-                }
-                env.engine.renderer.compile(env.scene, env.camera);
+                const compiled = env._compiledPrograms;
+                for (let i = 0; i < pending.length; i++) compiled.add(pending[i]);
+            }
+            while (tempGroup.children.length > 0) {
+                chunkGroup.add(tempGroup.children[0]);
             }
         }
+    }
+
+    /**
+     * [ROLE] Returns the program keys in this batch that the renderer has not compiled yet, or
+     *        null when there is nothing new and the compile can be skipped outright.
+     * [WHY] r128's program cache key includes `instancing` and `instancingColor`, so one material
+     *       is two or three distinct programs depending on whether _compileInstances emitted a
+     *       plain Mesh, an InstancedMesh, or an InstancedMesh carrying per-instance colour. A
+     *       previous attempt to pre-warm sector materials at boot looked like it had no effect
+     *       for exactly this reason: it warmed the plain variant while the chunk builder then
+     *       asked for the instanced one. Keying on all three parts is what makes the skip sound,
+     *       and once the world is warm almost every chunk skips the compile entirely.
+     */
+    _pendingProgramKeys(group) {
+        const env = this.env;
+        if (!env._compiledPrograms) env._compiledPrograms = new Set();
+        const compiled = env._compiledPrograms;
+        const children = group.children;
+        let pending = null;
+        for (let i = 0; i < children.length; i++) {
+            const obj = children[i];
+            const material = obj.material;
+            if (!material) continue;
+            const variant = obj.isInstancedMesh
+                ? (obj.instanceColor ? '|ic' : '|i')
+                : '|m';
+            if (Array.isArray(material)) {
+                for (let m = 0; m < material.length; m++) {
+                    const key = material[m].uuid + variant + material[m].version;
+                    if (!compiled.has(key)) (pending || (pending = [])).push(key);
+                }
+            } else {
+                const key = material.uuid + variant + material.version;
+                if (!compiled.has(key)) (pending || (pending = [])).push(key);
+            }
+        }
+        return pending;
+    }
+
+    /**
+     * [ROLE] Compiles `group` against the live lighting rig without walking the rest of the scene.
+     * [WHY] r128's renderer.compile() traverses everything under the scene it is handed. Passing
+     *       env.scene meant every chunk build re-visited every mesh in every live chunk. The
+     *       program permutation only depends on the lights (and the camera, which carries the
+     *       flashlight), so swapping children to just those plus the new batch produces an
+     *       identical compile for a fraction of the traversal.
+     * [HACK] Reaches into scene.children directly. Nothing else can run during the synchronous
+     *        compile call, and the array is restored in a finally block.
+     */
+    _scopedCompile(group) {
+        const env = this.env;
+        const scene = env.scene;
+        const saved = scene.children;
+        const scoped = [];
+        for (let i = 0; i < saved.length; i++) {
+            const child = saved[i];
+            if (child.isLight || child.isCamera) scoped.push(child);
+        }
+        scoped.push(group);
+        scene.children = scoped;
+        try {
+            env.engine.renderer.compile(scene, env.camera);
+        } finally {
+            scene.children = saved;
+        }
+    }
+
+    /**
+     * [WHY] A disposed material releases its program, so its cached keys have to go too or a
+     *       later material reusing that permutation would be skipped and never compiled.
+     */
+    _forgetMaterialPrograms(material) {
+        const compiled = this.env._compiledPrograms;
+        if (!compiled) return;
+        compiled.delete(material.uuid + '|m' + material.version);
+        compiled.delete(material.uuid + '|i' + material.version);
+        compiled.delete(material.uuid + '|ic' + material.version);
     }
 
 }

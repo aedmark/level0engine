@@ -7,6 +7,7 @@
 export default class StructureKit {
     constructor(env) {
         this.env = env;
+        this._furnitureBox = new THREE.Box3();
     }
 
     cacheGeo(key, make) {
@@ -176,18 +177,6 @@ export default class StructureKit {
                 }
                 return new THREE.Mesh(geo, mat);
             },
-            // A header whose underside sags down into the opening instead of rising over
-            // it -- the mirror image of buildArchCutout's archway. Rather than a straight
-            // line from (-halfSpan,0) to (halfSpan,0), the bottom edge dips through
-            // (0,-sagDepth) along a circular arc, forcing a crouch at the midpoint while
-            // staying flush at both ends. The arc's center sits on the Y axis above both
-            // endpoints; solved from requiring equal radius to all three points
-            // ((±halfSpan,0) and (0,-sagDepth)).
-            // Built and UV-mapped in the shape's own natural frame (X = the sag axis,
-            // extruded along Z = crossWidth), then rotated 90 deg about Y at the end so
-            // the sag ends up running along local Z (the direction the player actually
-            // walks through the cell) instead of across local X -- a corridor sagging
-            // underfoot as you pass through it, not a doorway arched to one side.
             buildSaggingHeader: (halfSpan, blockHeight, sagDepth, crossWidth, mat) => {
                 const key = `saggingHeader_${halfSpan}_${blockHeight}_${sagDepth}_${crossWidth}`;
                 let geo = env.geoCache.get(key);
@@ -357,11 +346,12 @@ export default class StructureKit {
                 if (Math.abs(group.position.x) < 4.0 && Math.abs(group.position.z) < 4.0) return;
                 group.userData.chunkHash = hash;
                 group.updateMatrixWorld(true);
-                const box = new THREE.Box3().setFromObject(group);
+                const probe = this._furnitureBox.setFromObject(group);
                 const localBoxes = env.spatialGrid.getNearby(group.position.x, group.position.z, 2.0);
                 for (let i = 0; i < localBoxes.length; i++) {
-                    if (localBoxes[i].intersectsBox(box)) return;
+                    if (localBoxes[i].intersectsBox(probe)) return;
                 }
+                const box = probe.clone();
                 box.chunkHash = hash;
                 env.spatialGrid.insert(box);
                 group.traverse((child) => {
