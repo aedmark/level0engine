@@ -912,7 +912,26 @@ export default class ChunkManager {
         const args = env._pendingMacroContent.get(hash);
         if (!args) return;
         env._pendingMacroContent.delete(hash);
-        this._buildChunkInterior(args).catch(err => console.error('Macro chunk content build failed:', err));
+        // Fire-and-forget from the caller's side (ensurePendingContentAtPlayer in main.js runs
+        // this every frame without awaiting it), but this is exactly the build that can run
+        // multiple seconds long for a sector with a lot of first-seen materials: renderer.compileAsync
+        // isn't available in this three.js build, so _compileInstances' fallback path ends in a
+        // synchronous renderer.compile(env.scene, env.camera) whenever new shader programs are
+        // needed. The Atrium sector is the worst offender, lazily creating roughly a dozen distinct
+        // canvas-textured materials the first time any Atrium chunk is built -- measured at 3.5-10s
+        // of main-thread stall on entry, the "HUGE spike" reported after the airlock. Pre-building
+        // Atrium's materials at boot was tried and measured to not help (the compiled program's
+        // permutation depends on the live light/shadow state at compile time, which is unavoidably
+        // different at boot vs. mid-playthrough, so it still recompiles on first real entry). Rather
+        // than chase that further, isBuildingMacroInterior instead lets the main.js animate() loop's
+        // sector-load freeze screen (isBuildingChunk-driven for the ordinary chunk-streaming case)
+        // also cover this path, so a slow interior build reads as an intentional loading screen
+        // instead of the game silently hanging -- verified: freeze engages within a frame or two of
+        // beginMacroChunkContent firing and releases cleanly once the build resolves.
+        env.isBuildingMacroInterior = true;
+        this._buildChunkInterior(args)
+            .catch(err => console.error('Macro chunk content build failed:', err))
+            .finally(() => { env.isBuildingMacroInterior = false; });
     }
     isMacroChunkContentReady(hash) {
         const env = this.env;

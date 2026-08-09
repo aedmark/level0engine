@@ -47,6 +47,13 @@ export default class Environment {
         this.chunkQueue = [];
         this.queuedHashes = new Set();
         this.isBuildingChunk = false;
+        // Separate from isBuildingChunk on purpose. processChunkQueue() and
+        // beginMacroChunkContent() can be in flight at the same time (queued neighbor
+        // chunks streaming in while the player's own macro-sector interior is still
+        // building), and each clears its own flag independently when it finishes. Sharing
+        // one flag would let whichever finishes first drop it while the other is still
+        // running, disengaging the sector-load freeze screen mid-build.
+        this.isBuildingMacroInterior = false;
         this.isSpawning = false;
         this._lightSortCache = (a, b) => a.distSq - b.distSq;
         this._dustColor = new THREE.Color();

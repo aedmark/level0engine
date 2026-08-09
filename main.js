@@ -185,7 +185,7 @@ function animate() {
         engine.render();
         return;
     }
-    if (environment.isBuildingChunk && environment.isSectorTransitioning) {
+    if ((environment.isBuildingChunk && environment.isSectorTransitioning) || environment.isBuildingMacroInterior) {
         if (!player.wasFrozenByLoad) {
             player.isFrozen = true;
             player.input.isFrozen = true;

@@ -19,7 +19,6 @@ export const AtriumSector = (env, ctx) => {
     const TIER_STEP = 2.8;
     const TIER_BASE = 4.2;
     const TIER_COUNT = 14;
-    const DETAIL_TIERS = 5;
     const TOP_TIER_Y = TIER_BASE + (TIER_COUNT - 1) * TIER_STEP;
     const STRUCTURE_TOP_Y = TOP_TIER_Y + 15.0;
     const VENDING_GLOW = 2.2;
@@ -96,41 +95,6 @@ export const AtriumSector = (env, ctx) => {
             color: 0xdddddd, roughness: 0.8
         });
     }
-    const buildBalconyTier = (cx0, cz0, roomHalf, y, simple) => {
-        const railLen = roomHalf * 2 - 4.0;
-        const cantilever = 0.9;
-        const slabGeo = env._boxGeo(railLen, 0.25, cantilever);
-        const railGeo = env._boxGeo(railLen, 0.08, 0.08);
-        const balusterGeo = env._boxGeo(0.06, 0.85, 0.06);
-        const bandGeo = env._boxGeo(railLen, 0.7, 0.05);
-        const balusterCount = Math.max(4, Math.round(railLen / 2.0));
-        const sides = [{nx: 0, nz: 1}, {nx: 0, nz: -1}, {nx: 1, nz: 0}, {nx: -1, nz: 0}];
-        for (const s of sides) {
-            const rotY = Math.atan2(s.nx, s.nz);
-            const group = new THREE.Group();
-            const slab = new THREE.Mesh(slabGeo, env.structMat);
-            slab.position.set(0, -0.13, cantilever / 2);
-            group.add(slab);
-            const rail = new THREE.Mesh(railGeo, env.blackIronMat);
-            rail.position.set(0, 0.9, cantilever - 0.04);
-            group.add(rail);
-            if (simple) {
-                const band = new THREE.Mesh(bandGeo, env.blackIronMat);
-                band.position.set(0, 0.45, cantilever - 0.06);
-                group.add(band);
-            } else {
-                for (let i = 0; i <= balusterCount; i++) {
-                    const bx = -railLen / 2 + i * (railLen / balusterCount);
-                    const baluster = new THREE.Mesh(balusterGeo, env.blackIronMat);
-                    baluster.position.set(bx, 0.45, cantilever - 0.04);
-                    group.add(baluster);
-                }
-            }
-            group.position.set(cx0 - s.nx * roomHalf, y, cz0 - s.nz * roomHalf);
-            group.rotation.y = rotY;
-            chunkGroup.add(group);
-        }
-    };
     const inAisleMaze = (maze, nx, nz) => nx >= 0 && nx < env.chunkSize && nz >= 0 && nz < env.chunkSize && maze[nx][nz];
     const aisleRunOrientation = (maze, lx, lz) => {
         const zR = inAisleMaze(maze, lx, lz - 1) || inAisleMaze(maze, lx, lz + 1);
@@ -539,10 +503,15 @@ export const AtriumSector = (env, ctx) => {
                 const gx = x * env.cellSize, gz = z * env.cellSize;
                 const cx0 = gx + 2, cz0 = gz + 2;
                 const innerSpan = (env.chunkSize - 2) * env.cellSize;
-                const roomHalf = innerSpan / 2;
-                for (let i = 0; i < TIER_COUNT; i++) {
-                    buildBalconyTier(cx0, cz0, roomHalf, TIER_BASE + i * TIER_STEP, i >= DETAIL_TIERS);
-                }
+                // Balcony tiers (14 rings of rails/balusters, one full THREE.Group+meshes
+                // per tier per side) used to be built here. Removed -- they were only ever
+                // visible looking straight up through the airlock opening, and building
+                // ~700 individual, non-instanced meshes synchronously on this one cell was
+                // the dominant cause of a multi-second hitch on entering this sector (measured
+                // ~7.1s for this chunk's interior build vs 115-315ms for other sectors, vs
+                // 9-17ms for a normal chunk). TIER_BASE/TIER_STEP/TIER_COUNT/TOP_TIER_Y are
+                // kept as-is so STRUCTURE_TOP_Y (used below for perimeter wall banding) and
+                // this sky cap's height stay at the same scale the shaft was designed at.
                 const capY = TOP_TIER_Y + 25.0;
                 const skyGeo = env._planeGeo(innerSpan, innerSpan);
                 const sky = new THREE.Mesh(skyGeo, env.matrixVoidMat);
