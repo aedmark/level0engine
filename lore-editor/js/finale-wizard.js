@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Guided step-by-step wizard for authoring a new, index-paired finales.json/foreshadow.json entry.
+ * [WHY] The two files must stay aligned across all sectors; a free-form editor makes it easy to add one without the other and desync them.
+ * [STATE] Owns the finaleWizardState global for the duration of the wizard; discarded on cancel or completion.
+ * [DEPENDS] Reads/validates against live finales.json and foreshadow.json via getCrossFileData (state.js); shares its panel-switching pattern with puzzle-wizard.js.
+ */
 const DEFAULT_FORESHADOW_SECTORS = ['ANNEX', 'ARCHIVE', 'SERVER', 'CLINIC', 'CHASM'];
 
         function newFinaleWizardState() {

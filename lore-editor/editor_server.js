@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Serves the Lore Editor's static assets and a small REST-style API for reading/writing lore data.
+ * [WHY] Gives the browser-based editor a zero-dependency backend to persist edits to disk, export/import lore packs, and restore factory defaults.
+ * [STATE] Stateless request handler; the live JSON files under ../data and the factory baseline under ../data/factory are the only persisted state.
+ * [DEPENDS] Node's http/fs/path/url modules; path-traverses only within DATA_DIR/FACTORY_DIR/JS_DIR and only for files listed in KNOWN_DATA_FILES.
+ */
 import http from 'http';
 import fs from 'fs';
 import path from 'path';

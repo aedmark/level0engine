@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Generates a narrow single-gap corridor cell, splitting the wall into two thick slabs (or a central pillar at a dead end).
+ * [WHY] Adds a squeeze-through traversal variant distinct from a standard open corridor.
+ * [STATE] Stateless; returns a configuration object with a build function. `prob: 0` means it's only placed by explicit reference, not random rolls.
+ * [DEPENDS] Depends on env properties and context functions like addGeometry, buildWall, and isWall.
+ */
 export const CreviceHallProfile = (env, ctx) => {
     const { addGeometry, buildWall, isWall } = ctx;
     return {

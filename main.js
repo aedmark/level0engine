@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Application entry point -- wires up the engine, player, environment, audio, and UI controllers and starts the game.
+ * [WHY] Something has to own construction order and the handful of cross-cutting globals (window.environment, window.acoustics) the debug/UI layer reaches for.
+ * [STATE] Constructs and holds the top-level singletons (engine, player, environment, saveManager, etc.) for the lifetime of the page.
+ * [DEPENDS] Imports and instantiates nearly every top-level system in src/; loads narrative data from ./data via StoryEngine before anything else runs.
+ */
 import RenderEngine from './src/core/RenderEngine.js';
 import PlayerController from './src/player/PlayerController.js';
 import Compass from './src/player/Compass.js';

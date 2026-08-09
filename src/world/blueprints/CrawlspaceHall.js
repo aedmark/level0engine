@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Generates a low-clearance corridor cell with a dropped ceiling and hazard tape marking the open sides.
+ * [WHY] Adds a claustrophobic traversal variant (forces crouching) distinct from a standard full-height corridor.
+ * [STATE] Stateless; returns a configuration object with a build function. `prob: 0` means it's only placed by explicit reference, not random rolls.
+ * [DEPENDS] Depends on env properties and context functions like addGeometry, random, and the caller's isWallCell.
+ */
 export const CrawlspaceHallProfile = (env, ctx) => {
     const { addGeometry, random } = ctx;
     return {

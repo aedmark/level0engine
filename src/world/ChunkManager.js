@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Tracks which chunks should be loaded around the player and drives their generation, staging, and eviction.
+ * [WHY] The maze is infinite; only a bounded window of chunks around the player can exist as live geometry at once.
+ * [STATE] Class instance wraps the `env` object, reading/writing env.currentChunkCoords and the chunk cache as the player moves.
+ * [DEPENDS] Pulls in TheArchitect and a set of low-probability blueprint profiles (WallBreach, CrawlspaceHall, CreviceHall, RideQueueHall, BreakerPodiumSpawn).
+ */
 import TheArchitect from "../core/TheArchitect.js";
 import {spawnBreakerPodium} from './blueprints/BreakerPodiumSpawn.js';
 import {WallBreachProfile} from './blueprints/WallBreach.js';

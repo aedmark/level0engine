@@ -1,3 +1,9 @@
+/**
+ * [ROLE] Generates a breached wall opening (a broken door frame or rubble gap) in place of a solid wall cell.
+ * [WHY] Gives the maze visual variety and alternate routes where a wall would otherwise be a dead, uniform surface.
+ * [STATE] Stateless; returns a configuration object with a build function. `prob: 0` means it's only placed by explicit reference, not random rolls.
+ * [DEPENDS] Depends on env properties and context functions like addGeometry, random, and the caller's isWallCell.
+ */
 export const WallBreachProfile = (env, ctx) => {
     const { random } = ctx;
     return {
