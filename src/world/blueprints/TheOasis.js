@@ -32,16 +32,25 @@ export const TheOasisProfile = (env, ctx) => {
                 floor.position.set(cx, 0.01, cz);
                 addGeometry(floor);
                 const oasisWallMat = env.checkpointWallMat || env.woodMat;
-                const wBack = buildWall(env.cellSize, 0.5, oasisWallMat);
-                wBack.position.set(cx, 1.5, cz - half + 0.25);
+                // Walls used to be 0.5 thick, flush against the cell boundary, which only
+                // left ~0.9 units of clearance between the table (1.2 footprint, so 0.6 to
+                // each edge) and the wall's inner face. The player's collision radius is
+                // 0.4 (0.8 diameter), so that clearance had ~0.09 units of margin once the
+                // wall's own +0.02 padding is accounted for — technically non-zero, but far
+                // too tight to reliably walk through, which is what read as an invisible
+                // wall on whichever side the player happened to try. Thinner walls (0.3)
+                // free up a real, comfortable margin on all three sides.
+                const wallThick = 0.3;
+                const wBack = buildWall(env.cellSize, wallThick, oasisWallMat);
+                wBack.position.set(cx, 1.5, cz - half + wallThick / 2);
                 wBack.userData.isEntityBlocker = true;
                 addGeometry(wBack);
-                const wLeft = buildWall(0.5, env.cellSize, oasisWallMat);
-                wLeft.position.set(cx - half + 0.25, 1.5, cz);
+                const wLeft = buildWall(wallThick, env.cellSize, oasisWallMat);
+                wLeft.position.set(cx - half + wallThick / 2, 1.5, cz);
                 wLeft.userData.isEntityBlocker = true;
                 addGeometry(wLeft);
-                const wRight = buildWall(0.5, env.cellSize, oasisWallMat);
-                wRight.position.set(cx + half - 0.25, 1.5, cz);
+                const wRight = buildWall(wallThick, env.cellSize, oasisWallMat);
+                wRight.position.set(cx + half - wallThick / 2, 1.5, cz);
                 wRight.userData.isEntityBlocker = true;
                 addGeometry(wRight);
                 const table = buildTable(cx, 0, cz);
