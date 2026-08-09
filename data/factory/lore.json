@@ -80,13 +80,6 @@
       "thread": "GEOMETRY",
       "title": "Flue Inspection",
       "_locked": true
-    },
-    {
-      "text": "SCRAP INTAKE #${ctx.seed}\n\nITEM: Original boiler plate cut out of gallery 1 today.\nDESCRIPTION: Foundry stamp on the back reads ${year}, same as the slab, and it went in before the walls did. Logged for melt, but I did not melt it. I can't.\n\nIt won't melt.",
-      "type": "document",
-      "thread": "EPOCH",
-      "title": "Scrap Intake #1",
-      "_locked": true
     }
   ],
   "BOARDROOM": [
@@ -116,13 +109,6 @@
       "type": "note",
       "thread": "GEOMETRY",
       "title": "Seating Chart",
-      "_locked": true
-    },
-    {
-      "text": "[POLAROID PHOTO]: A concrete slab being poured.\n\nWRITTEN ON BACK:  \"To New Beginnings\", ${year}",
-      "type": "note",
-      "thread": "EPOCH",
-      "title": "Pour Photo",
       "_locked": true
     }
   ],
@@ -176,13 +162,6 @@
       "text": "[GATE CYCLING REPEATEDLY, NOBODY PASSING]\n\n...forty-one out, forty in, and the gate is still counting. \n\n${c.lost} scanned in at hour ${hrs} and the machine still thinks they're inside.\n\nSo do I.\n\n[CLICK]",
       "thread": "LOST",
       "title": "41 In, 40 Out",
-      "_locked": true
-    },
-    {
-      "text": "[PHOTOGRAPH]\n\nA commissioned brass plaque, mounted inside lane 1, unpolished since installation.\n\n\"EST ${year}\"\n\nThe plaque is the only date on site that has never been revised or redacted.",
-      "type": "note",
-      "thread": "EPOCH",
-      "title": "Plaque Photo",
       "_locked": true
     }
   ],
@@ -334,13 +313,6 @@
       "thread": "GEOMETRY",
       "title": "Cafeteria Notes",
       "_locked": true
-    },
-    {
-      "text": "[TORN CALENDAR PAGE]\n\nSomeone has been crossing out hours instead of days. The count currently reads ${hrs}, underlined three times.\n\nBelow it, in different handwriting: \"that's not how long we've been here.\"",
-      "type": "note",
-      "thread": "HOUR",
-      "title": "Torn Calendar",
-      "_locked": true
     }
   ],
   "IMPOUND": [
@@ -356,13 +328,6 @@
       "type": "note",
       "thread": "GEOMETRY",
       "title": "Meepis",
-      "_locked": true
-    },
-    {
-      "text": "INTAKE TAG #${ctx.seed}\n\nLOGGED: Hour ${hrs}.\n\nThis pen was scheduled for a routine check every six hours. Six hours have passed one hundred and forty times without a single missed entry.\n\nNo one on staff remembers assigning the check to anyone.",
-      "type": "clipboard",
-      "thread": "HOUR",
-      "title": "Intake Tag",
       "_locked": true
     }
   ],

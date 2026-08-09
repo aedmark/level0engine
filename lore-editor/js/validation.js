@@ -409,16 +409,21 @@
 
                 // A VAR counts as "used" if its ${name} token — or an equivalent alias that
                 // resolves to the exact same runtime value — actually shows up somewhere in
-                // the narrative text. CaseFiles.js's replaceTemplates() resolves several
-                // VARS-equivalent values through a "legacy" lowercase shorthand (${pen},
-                // ${hrs}, ${year}) or a raw ctx.* expression (${ctx.pen}, ${ctx.hours},
-                // ${ctx.siteYear}) BEFORE it ever gets to the generic VARS loop — so a
-                // document that writes "${pen}" is exposing PEN's value exactly as much as
-                // one that writes "${PEN}" would, and only checking the exact-case VARS key
-                // produced a wall of false positives on real, working content.
+                // the narrative text. CaseFiles.js's replaceTemplates() resolves ${seed},
+                // ${pen}, ${year}, ${hours} (and any custom CORE_VARS key, e.g. ${REQ})
+                // directly by name, because those are literally the property names on the
+                // per-playthrough coreVars object — this runs BEFORE the VARS loop that
+                // ${PEN}/${EPOCH}/${HOUR}/etc. go through. ${hrs} is a separate, genuinely
+                // legacy shorthand kept only for ${hours} (no "hrs" key exists on coreVars,
+                // so it has its own dedicated replace() line). A raw ${ctx.pen}-style
+                // expression resolves too, via the generic math-expression fallback at the
+                // very end. So a document that writes "${pen}" or "${hours}" is exposing
+                // PEN/HOUR's value exactly as much as "${PEN}"/"${HOUR}" would, and only
+                // checking the exact-case VARS key produced a wall of false positives on
+                // real, working content.
                 const legacyAliasesFor = {
                     PEN: ['${pen}', '${ctx.pen}'],
-                    HOUR: ['${hrs}', '${ctx.hours}'],
+                    HOUR: ['${hours}', '${hrs}', '${ctx.hours}'],
                     EPOCH: ['${year}', '${ctx.siteYear}']
                 };
                 const narrativeText = collectAllStrings([lore, clues, foreshadow, finales, threads]).join('\n');

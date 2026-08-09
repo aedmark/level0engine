@@ -26,6 +26,7 @@
       "CIPHER": "CIPHER",
       "PEN": "PEN",
       "REQ": "REQ"
-    }
+    },
+    "_locked": true
   }
 ]

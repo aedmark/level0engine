@@ -15,6 +15,13 @@
       "puzzle": "HOUR_PUZZLE",
       "title": "PEN + HOUR Variant",
       "_locked": true
+    },
+    {
+      "text": "[TORN FROM A LOGBOOK, FILED IN THE ANNEX BY MISTAKE]\n\nPeople keep asking facilities for the gate combo. It has always been this: the requisition number, then the open pen. Two digits each, in that order.\n\nStop copying this into the annex ledger. It is not annex business.",
+      "type": "document",
+      "thread": "CIPHER",
+      "puzzle": "REQ_PUZZLE",
+      "title": "Misfiled Combo Note"
     }
   ],
   "ARCHIVE": [
@@ -51,6 +58,14 @@
       "puzzle": "ORIGINAL_PEN",
       "title": "Angry Note",
       "_locked": true
+    },
+    {
+      "text": "SCRAP INTAKE #${ctx.seed}\n\nITEM: Original boiler plate cut out of gallery 1 today.\nDESCRIPTION: Foundry stamp on the back reads ${year}, same as the slab, and it went in before the walls did. Logged for melt, but I did not melt it. I can't.\n\nIt won't melt.",
+      "type": "document",
+      "thread": "EPOCH",
+      "title": "Scrap Intake #1",
+      "_locked": true,
+      "puzzle": "ORIGINAL_PEN"
     }
   ],
   "CHECKPOINT": [
@@ -63,6 +78,38 @@
         "HOUR_PUZZLE"
       ],
       "title": "Irritated Memo",
+      "_locked": true
+    },
+    {
+      "text": "REQUISITION FORM 44-B — FACILITIES\n\nITEM: Replacement gasket, Pen ${pen} filtration line\nREQ #: ${REQ}\nSTATUS: DENIED (insufficient justification)\nRESUBMITTED: 3 times\n\nNote from reviewer: \"Stop requesting this. The gasket is fine. You are not fine.\"\n\n[ Attach REQ # to Form 12-A before resubmission ]",
+      "type": "document",
+      "thread": "CIPHER",
+      "title": "Requisition Slip 44-B",
+      "puzzle": "REQ_PUZZLE",
+      "_locked": true
+    },
+    {
+      "text": "[PHOTOGRAPH]\n\nA commissioned brass plaque, mounted inside lane 1, unpolished since installation.\n\n\"EST ${year}\"\n\nThe plaque is the only date on site that has never been revised or redacted.",
+      "type": "note",
+      "thread": "EPOCH",
+      "title": "Plaque Photo",
+      "_locked": true,
+      "puzzle": "ORIGINAL_PEN"
+    },
+    {
+      "text": "[TAPED DIRECTLY TO THE KEYPAD]\n\nCombo is the REQ number then your pen number. Two digits each.\n\nStop asking me. I am not doing this again.\n\n- FACILITIES",
+      "type": "document",
+      "thread": "CIPHER",
+      "title": "Checkpoint Sticky Note",
+      "puzzle": "REQ_PUZZLE",
+      "_locked": true
+    },
+    {
+      "text": "[POSTED INSIDE THE GATEHOUSE, HANDWRITTEN]\n\nToday's requisition number, so I stop getting asked: ${REQ}.\n\nDo not call facilities again about this. Do not write it on the wall this time either.",
+      "type": "note",
+      "thread": "REQ",
+      "puzzle": "REQ_PUZZLE",
+      "title": "Gatehouse Requisition Note",
       "_locked": true
     }
   ],
@@ -82,40 +129,82 @@
       "puzzle": "HOUR_PUZZLE",
       "title": "Shift Clock",
       "_locked": true
+    },
+    {
+      "text": "REQUISITION LOG, WEEKLY TOTALS\n\nOPEN REQUESTS CARRIED OVER: 1\n\nTHIS WEEK'S NUMBER: ${REQ}\n\nNOTE FROM FACILITIES: We reuse the same number until the request is closed. This one has never been closed.",
+      "type": "clipboard",
+      "thread": "REQ",
+      "puzzle": "REQ_PUZZLE",
+      "title": "Requisition Log",
+      "_locked": true
     }
   ],
   "IMPOUND": [
     {
       "text": "PROPERTY TAG: PEN #${pen}1\n\nITEM: Office chair, one (1) caster missing.\n\nNOTES: No matter where it is goes, it comes back to its pen by morning.\n\nWe've stopped chasing it; the fence holds.\n\n- ${c.custodian}",
-      "thread": "CIPHER",
+      "thread": "PEN",
       "type": "clipboard",
       "puzzle": [
         "ORIGINAL_PEN",
-        "HOUR_PUZZLE"
+        "HOUR_PUZZLE",
+        "REQ_PUZZLE"
       ],
-      "title": "Office Chair PEN"
+      "title": "Office Chair PEN",
+      "_locked": true
     },
     {
       "text": "IMPOUND LEDGER, FINAL PAGE\n\nHour ${hrs}: ${c.custodian} logged IN one (1) personal effect belonging to ${c.lead}.\n\nHour ${hrs}: ${c.custodian} logged OUT.\n\nThere is no second entry. The gate to pen ${pen} has been ajar since.",
-      "thread": "CIPHER",
+      "thread": "PEN",
       "type": "document",
       "title": "Lost ledger",
       "puzzle": [
         "ORIGINAL_PEN",
-        "HOUR_PUZZLE"
-      ]
+        "HOUR_PUZZLE",
+        "REQ_PUZZLE"
+      ],
+      "_locked": true
+    },
+    {
+      "text": "INTAKE TAG #${ctx.seed}\n\nLOGGED: Hour ${hrs}.\n\nThis pen was scheduled for a routine check every six hours. Six hours have passed one hundred and forty times without a single missed entry.\n\nNo one on staff remembers assigning the check to anyone.",
+      "type": "clipboard",
+      "thread": "HOUR",
+      "title": "Intake Tag",
+      "_locked": true,
+      "puzzle": "HOUR_PUZZLE"
     }
   ],
   "CLINIC": [
     {
       "text": "[DISCHARGE NOTE, RETURNED UNDELIVERABLE]\n\nPATIENT: ${c.lost}\nFORWARDING ADDRESS AS GIVEN BY PATIENT: \"Pen ${pen}. It's the one that won't shut. Leave it.\"\n\nPatient gave this address on intake, before the pen was even logged as open.",
-      "thread": "CIPHER",
+      "thread": "PEN",
       "type": "laptop",
       "title": "Discharge Note",
       "puzzle": [
         "ORIGINAL_PEN",
-        "HOUR_PUZZLE"
-      ]
+        "HOUR_PUZZLE",
+        "REQ_PUZZLE"
+      ],
+      "_locked": true
+    }
+  ],
+  "BOARDROOM": [
+    {
+      "text": "[POLAROID PHOTO]: A concrete slab being poured.\n\nWRITTEN ON BACK:  \"To New Beginnings\", ${year}",
+      "type": "note",
+      "thread": "EPOCH",
+      "title": "Pour Photo",
+      "_locked": true,
+      "puzzle": "ORIGINAL_PEN"
+    }
+  ],
+  "DEFAULT": [
+    {
+      "text": "[TORN CALENDAR PAGE]\n\nSomeone has been crossing out hours instead of days. The count currently reads ${hrs}, underlined three times.\n\nBelow it, in different handwriting: \"that's not how long we've been here.\"",
+      "type": "note",
+      "thread": "HOUR",
+      "title": "Torn Calendar",
+      "_locked": true,
+      "puzzle": "HOUR_PUZZLE"
     }
   ]
 }

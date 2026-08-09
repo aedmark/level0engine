@@ -85,7 +85,8 @@
       "type": "document",
       "thread": "CIPHER",
       "title": "Requisition Slip 44-B",
-      "puzzle": "REQ_PUZZLE"
+      "puzzle": "REQ_PUZZLE",
+      "_locked": true
     },
     {
       "text": "[PHOTOGRAPH]\n\nA commissioned brass plaque, mounted inside lane 1, unpolished since installation.\n\n\"EST ${year}\"\n\nThe plaque is the only date on site that has never been revised or redacted.",
@@ -100,14 +101,16 @@
       "type": "document",
       "thread": "CIPHER",
       "title": "Checkpoint Sticky Note",
-      "puzzle": "REQ_PUZZLE"
+      "puzzle": "REQ_PUZZLE",
+      "_locked": true
     },
     {
       "text": "[POSTED INSIDE THE GATEHOUSE, HANDWRITTEN]\n\nToday's requisition number, so I stop getting asked: ${REQ}.\n\nDo not call facilities again about this. Do not write it on the wall this time either.",
       "type": "note",
       "thread": "REQ",
       "puzzle": "REQ_PUZZLE",
-      "title": "Gatehouse Requisition Note"
+      "title": "Gatehouse Requisition Note",
+      "_locked": true
     }
   ],
   "MAINTENANCE": [
@@ -132,7 +135,8 @@
       "type": "clipboard",
       "thread": "REQ",
       "puzzle": "REQ_PUZZLE",
-      "title": "Requisition Log"
+      "title": "Requisition Log",
+      "_locked": true
     }
   ],
   "IMPOUND": [
@@ -145,7 +149,8 @@
         "HOUR_PUZZLE",
         "REQ_PUZZLE"
       ],
-      "title": "Office Chair PEN"
+      "title": "Office Chair PEN",
+      "_locked": true
     },
     {
       "text": "IMPOUND LEDGER, FINAL PAGE\n\nHour ${hrs}: ${c.custodian} logged IN one (1) personal effect belonging to ${c.lead}.\n\nHour ${hrs}: ${c.custodian} logged OUT.\n\nThere is no second entry. The gate to pen ${pen} has been ajar since.",
@@ -156,7 +161,8 @@
         "ORIGINAL_PEN",
         "HOUR_PUZZLE",
         "REQ_PUZZLE"
-      ]
+      ],
+      "_locked": true
     },
     {
       "text": "INTAKE TAG #${ctx.seed}\n\nLOGGED: Hour ${hrs}.\n\nThis pen was scheduled for a routine check every six hours. Six hours have passed one hundred and forty times without a single missed entry.\n\nNo one on staff remembers assigning the check to anyone.",
@@ -177,7 +183,8 @@
         "ORIGINAL_PEN",
         "HOUR_PUZZLE",
         "REQ_PUZZLE"
-      ]
+      ],
+      "_locked": true
     }
   ],
   "BOARDROOM": [
