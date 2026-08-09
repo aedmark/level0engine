@@ -31,8 +31,9 @@ export default class ShaderWarmup {
      *    own clone, and the clones are retained for the life of the page: the refcount never
      *    reaches zero, and every later switch between plain and instanced is a cache hit.
      *
-     * Programs are keyed by permutation, not by material, so only one probe per distinct
-     * permutation is built -- see _permutationSignature.
+     * Every material gets all three probes. three keys its program cache on the real permutation
+     * and acquireProgram returns the existing program on a hit, so the actual link work is bounded
+     * by the number of distinct permutations however many materials are fed in.
      */
     static async run(env) {
         if (env._programKeepAlive) return;
@@ -48,47 +49,26 @@ export default class ShaderWarmup {
     static async _warm(env) {
         this._materialiseLazySectorAssets(env);
 
-        const keepAlive = [];
-        env._programKeepAlive = keepAlive;
+        env._programKeepAlive = [];
 
-        const probeGeo = new THREE.PlaneGeometry(0.001, 0.001);
-        const probeColor = new THREE.Color(1, 1, 1);
-        const batch = new THREE.Group();
-        const seen = new Set();
-        const BATCH_LIMIT = 24;
-
-        const flush = () => {
-            if (batch.children.length === 0) return Promise.resolve();
-            env.chunkManager._scopedCompile(batch);
-            for (let i = batch.children.length - 1; i >= 0; i--) {
-                batch.remove(batch.children[i]);
-            }
-            return new Promise(resolve => setTimeout(resolve, 0));
-        };
-
-        for (const material of this._collectMaterials(env)) {
-            const signature = this._permutationSignature(material);
-            if (seen.has(signature)) continue;
-            seen.add(signature);
-
-            const plain = material.clone();
-            keepAlive.push(plain);
-            batch.add(new THREE.Mesh(probeGeo, plain));
-
-            const instanced = material.clone();
-            keepAlive.push(instanced);
-            batch.add(new THREE.InstancedMesh(probeGeo, instanced, 1));
-
-            const coloured = material.clone();
-            keepAlive.push(coloured);
-            const colouredMesh = new THREE.InstancedMesh(probeGeo, coloured, 1);
-            colouredMesh.setColorAt(0, probeColor);
-            batch.add(colouredMesh);
-
-            if (batch.children.length >= BATCH_LIMIT) await flush();
+        // Every material, no pre-filtering. An earlier version tried to skip materials whose
+        // permutation looked equivalent, using a hand-rolled signature over map slots and flags.
+        // It was both fragile and wrong: it collapsed 114 real programs down to 21 probes, so the
+        // ones it discarded still linked lazily mid-play. three already dedupes properly --
+        // acquireProgram is keyed on the real cache key and simply returns the existing program --
+        // so the work here is bounded by distinct permutations no matter how many materials feed
+        // in. Letting three do the deduping is both simpler and correct.
+        //
+        // The probe building itself lives on ChunkManager, because chunks streaming in later need
+        // exactly the same treatment for materials created mid-play. Each call ends in
+        // _drainProgramLinks, so batches are not merely issued to the driver but fully linked
+        // before boot finishes -- otherwise the first frame to draw them would stall instead.
+        const materials = this._collectMaterials(env);
+        const BATCH = 8;
+        for (let i = 0; i < materials.length; i += BATCH) {
+            env.chunkManager.warmMaterialVariants(new Set(materials.slice(i, i + BATCH)));
+            await new Promise(resolve => setTimeout(resolve, 0));
         }
-        await flush();
-        probeGeo.dispose();
     }
 
     /**
@@ -117,43 +97,10 @@ export default class ShaderWarmup {
     }
 
     /**
-     * An approximation of the parts of r128's program cache key that these materials actually
-     * vary in -- which map slots are populated, and the handful of flags that switch shader
-     * chunks on and off. Being approximate is safe in both directions: too coarse and a genuinely
-     * distinct permutation just links on first sight, exactly as it does today; too fine and we
-     * build a few redundant probes.
-     */
-    static _permutationSignature(material) {
-        const MAP_SLOTS = [
-            'map', 'lightMap', 'aoMap', 'emissiveMap', 'bumpMap', 'normalMap', 'displacementMap',
-            'specularMap', 'roughnessMap', 'metalnessMap', 'alphaMap', 'envMap', 'gradientMap',
-            'matcap', 'clearcoatMap', 'clearcoatNormalMap', 'clearcoatRoughnessMap'
-        ];
-        let signature = material.type;
-        for (let i = 0; i < MAP_SLOTS.length; i++) {
-            signature += material[MAP_SLOTS[i]] ? '1' : '0';
-        }
-        return signature + '|' + [
-            material.vertexColors ? 1 : 0,
-            material.flatShading ? 1 : 0,
-            material.side,
-            material.transparent ? 1 : 0,
-            material.alphaTest > 0 ? 1 : 0,
-            material.depthPacking || 0,
-            material.dithering ? 1 : 0,
-            material.premultipliedAlpha ? 1 : 0,
-            material.wireframe ? 1 : 0,
-            material.toneMapped === false ? 0 : 1,
-            material.combine === undefined ? '' : material.combine,
-            material.defines ? Object.keys(material.defines).sort().join(',') : ''
-        ].join(',');
-    }
-
-    /**
-     * Walks env for materials. Shallow on purpose: materials sit directly on env, in small arrays
-     * (productBoxMats, cableMats), or in the pools keyed by Map or plain object (_lightMatPool,
-     * _pooledLightMats). Anything deeper is scene content, which is either already covered or not
-     * worth the traversal.
+     * Two passes. First a shallow walk of env, where materials sit directly on the object, in
+     * small arrays (productBoxMats, cableMats) or in the Map/plain-object pools (_lightMatPool,
+     * _pooledLightMats). Then a full scene traversal, which is what catches everything parked in
+     * the graph rather than hung off env.
      */
     static _collectMaterials(env) {
         const found = new Map();
@@ -178,6 +125,17 @@ export default class ShaderWarmup {
         for (const key of Object.keys(env)) {
             if (key === 'scene' || key === 'camera' || key === 'engine' || key === 'player') continue;
             visit(env[key], 0);
+        }
+        // Then sweep the scene graph. EntityManager builds all six entities in its constructor and
+        // parks them in the scene with visible = false, so their materials are reachable here but
+        // sit far too deep for the env walk above (env.entityManager.entities.X.group.children...).
+        // Missing them meant an entity's first appearance -- swapping entity on a sector change --
+        // paid the link stall instead, measured at ~2.4s across 24 getProgramParameter calls.
+        // traverse, not traverseVisible: the point is precisely that they are hidden right now.
+        if (env.scene) {
+            env.scene.traverse((obj) => {
+                if (obj.material) visit(obj.material, 0);
+            });
         }
         return Array.from(found.values());
     }

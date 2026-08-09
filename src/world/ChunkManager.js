@@ -503,6 +503,14 @@ export default class ChunkManager {
         const isWallCell = (wx, wz) => wallCells.has(cellKey(wx, wz));
         const solidWallCells = new Set();
         const isSolidWallCell = (wx, wz) => solidWallCells.has(cellKey(wx, wz));
+        // Hidden until the build finishes and _compileInstances has compiled and drained it.
+        // The cell loop yields every 5ms, and animate() renders during those yields -- so any
+        // object a sector adds straight to chunkGroup (vending machines, foundations, canopies)
+        // would otherwise be drawn before its shader program had been linked, and that first
+        // draw is what blocks: measured at ~1.6s per frame across 16 getProgramParameter calls.
+        // Nothing is lost visually; a half-built chunk has nothing worth showing, and for macro
+        // sectors this window is already behind the isBuildingMacroInterior freeze screen.
+        chunkGroup.visible = false;
         let chunkStartTime = performance.now();
         for (let x = startX; x < startX + env.chunkSize; x++) {
             for (let z = startZ; z < startZ + env.chunkSize; z++) {
@@ -1037,58 +1045,101 @@ export default class ChunkManager {
         }
 
         if (env.activeChunks.has(hash)) {
-            const pending = this._pendingProgramKeys(tempGroup);
-            if (pending !== null) {
-                if (typeof env.engine.renderer.compileAsync === 'function') {
-                    await env.engine.renderer.compileAsync(tempGroup, env.camera, env.scene);
-                    if (!env.activeChunks.has(hash)) return;
-                } else {
-                    this._scopedCompile(tempGroup);
-                }
-                const compiled = env._compiledPrograms;
-                for (let i = 0; i < pending.length; i++) compiled.add(pending[i]);
-            }
             while (tempGroup.children.length > 0) {
                 chunkGroup.add(tempGroup.children[0]);
             }
+            // Compile the finished chunk, not just the batch that came through staging. Plenty of
+            // content never passes through stagingMeshes at all -- buildVendingMachine does
+            // chunkGroup.add(body) directly, as do sector foundations, void canopies, entrance
+            // hallways, observers and grates. Compiling only tempGroup left those materials to
+            // link lazily on the first frame that drew them, which is precisely the 1652ms
+            // getProgramParameter spike measured on Atrium entry.
+            const unwarmed = this._unwarmedMaterials(chunkGroup);
+            if (unwarmed !== null) this.warmMaterialVariants(unwarmed);
+            // Revealed in the same synchronous block that compiled and drained it, so no frame
+            // can ever observe this chunk in a drawable-but-unlinked state.
+            chunkGroup.visible = true;
         }
     }
 
     /**
-     * [ROLE] Returns the program keys in this batch that the renderer has not compiled yet, or
-     *        null when there is nothing new and the compile can be skipped outright.
-     * [WHY] r128's program cache key includes `instancing` and `instancingColor`, so one material
-     *       is two or three distinct programs depending on whether _compileInstances emitted a
-     *       plain Mesh, an InstancedMesh, or an InstancedMesh carrying per-instance colour. A
-     *       previous attempt to pre-warm sector materials at boot looked like it had no effect
-     *       for exactly this reason: it warmed the plain variant while the chunk builder then
-     *       asked for the instanced one. Keying on all three parts is what makes the skip sound,
-     *       and once the world is warm almost every chunk skips the compile entirely.
+     * [ROLE] Guarantees every (material, instancing variant) pair has a fully linked program.
+     * [WHY] renderer.compile() cannot do this on its own: it dedupes per material, calling
+     *       initMaterial once for whichever object it reached first. A material used by both a
+     *       plain Mesh and an InstancedMesh in the same chunk therefore gets only one of its two
+     *       programs compiled, and the other links on the first frame that draws it -- measured at
+     *       200-400ms hitches while simply walking through fresh chunks. Compiling one explicit
+     *       probe per variant sidesteps the dedupe entirely.
+     * [WHY-2] The probes are retained for the life of the page. three refcounts programs per
+     *       material, so when a chunk is evicted and its materials disposed the program would
+     *       otherwise be destroyed and need relinking the next time that permutation appears.
+     *       A retained clone keeps the refcount above zero.
+     * [NOTE] The chunk's own material instances are deliberately not compiled here. They share a
+     *        cache key with their probe, so their first draw is a cache hit with no link.
      */
-    _pendingProgramKeys(group) {
+    warmMaterialVariants(materials) {
         const env = this.env;
-        if (!env._compiledPrograms) env._compiledPrograms = new Set();
-        const compiled = env._compiledPrograms;
-        const children = group.children;
-        let pending = null;
-        for (let i = 0; i < children.length; i++) {
-            const obj = children[i];
-            const material = obj.material;
-            if (!material) continue;
-            const variant = obj.isInstancedMesh
-                ? (obj.instanceColor ? '|ic' : '|i')
-                : '|m';
-            if (Array.isArray(material)) {
-                for (let m = 0; m < material.length; m++) {
-                    const key = material[m].uuid + variant + material[m].version;
-                    if (!compiled.has(key)) (pending || (pending = [])).push(key);
-                }
-            } else {
-                const key = material.uuid + variant + material.version;
-                if (!compiled.has(key)) (pending || (pending = [])).push(key);
-            }
+        if (!materials || materials.size === 0) return;
+        if (!env._programKeepAlive) env._programKeepAlive = [];
+        if (!env._warmedMaterials) env._warmedMaterials = new Set();
+        if (!env._probeGeo) env._probeGeo = new THREE.PlaneGeometry(0.001, 0.001);
+        const keepAlive = env._programKeepAlive;
+        const batch = new THREE.Group();
+        for (const material of materials) {
+            env._warmedMaterials.add(material.uuid + material.version);
+            const plain = material.clone();
+            keepAlive.push(plain);
+            batch.add(new THREE.Mesh(env._probeGeo, plain));
+
+            const instanced = material.clone();
+            keepAlive.push(instanced);
+            batch.add(new THREE.InstancedMesh(env._probeGeo, instanced, 1));
+
+            const coloured = material.clone();
+            keepAlive.push(coloured);
+            const colouredMesh = new THREE.InstancedMesh(env._probeGeo, coloured, 1);
+            colouredMesh.setColorAt(0, ChunkManager._probeColor());
+            batch.add(colouredMesh);
         }
-        return pending;
+        this._scopedCompile(batch);
+    }
+
+    static _probeColor() {
+        if (!ChunkManager.__probeColor) ChunkManager.__probeColor = new THREE.Color(1, 1, 1);
+        return ChunkManager.__probeColor;
+    }
+
+    /**
+     * [ROLE] Returns the materials in `group` that have not been warmed yet, or null when there is
+     *        nothing new and the whole compile can be skipped -- the common case once the world
+     *        has been running for a bit.
+     * [WHY] Tracked per material rather than per (material, variant): warmMaterialVariants always
+     *       builds all three variants, so a material is either fully covered or not covered at all.
+     *       An earlier version tracked variants separately, which meant a material first seen as a
+     *       plain Mesh was marked done and then linked again the first time it appeared instanced.
+     */
+    _unwarmedMaterials(group) {
+        const env = this.env;
+        if (!env._warmedMaterials) env._warmedMaterials = new Set();
+        const warmed = env._warmedMaterials;
+        let unwarmed = null;
+        // Traverses rather than walking direct children: nested content (a vending machine's
+        // emissive panel parented to its body, furniture groups, hallway set pieces) carries
+        // materials of its own, and those are exactly the ones that used to slip through.
+        const note = (material) => {
+            if (warmed.has(material.uuid + material.version)) return;
+            (unwarmed || (unwarmed = new Set())).add(material);
+        };
+        group.traverse((obj) => {
+            const material = obj.material;
+            if (!material) return;
+            if (Array.isArray(material)) {
+                for (let m = 0; m < material.length; m++) note(material[m]);
+            } else {
+                note(material);
+            }
+        });
+        return unwarmed;
     }
 
     /**
@@ -1112,23 +1163,53 @@ export default class ChunkManager {
         }
         scoped.push(group);
         scene.children = scoped;
+        // Forced visible for the duration: chunks are hidden while building, and r128's compile
+        // uses traverseVisible to gather the lights. Restored immediately afterwards; the caller
+        // owns the real visibility.
+        const wasVisible = group.visible;
+        group.visible = true;
         try {
             env.engine.renderer.compile(scene, env.camera);
         } finally {
+            group.visible = wasVisible;
             scene.children = saved;
+        }
+        this._drainProgramLinks();
+    }
+
+    /**
+     * [ROLE] Forces every issued shader link to finish now, while the sector-load freeze screen is
+     *        still up, instead of on the next frame that happens to draw the new material.
+     * [WHY] renderer.compile() calls gl.linkProgram but never waits on the result, and with
+     *       checkShaderErrors off nothing else does either -- r128 only blocks when
+     *       WebGLProgram.getUniforms() lazily asks for ACTIVE_UNIFORMS, which is the first *draw*.
+     *       Measured: one frame spending 1604ms across 16 getProgramParameter calls right after an
+     *       Atrium chunk landed, with the shadow pass at 1ms and buffer uploads not even
+     *       registering. Draining here keeps the cost inside the build, where the loading screen
+     *       already covers it, and because every linkProgram in the batch has been issued before
+     *       the first blocking query the driver is free to have linked them in parallel.
+     * [NOTE] getUniforms/getAttributes memoise internally, so re-touching known programs is free --
+     *        no bookkeeping needed on our side.
+     */
+    _drainProgramLinks() {
+        const programs = this.env.engine.renderer.info.programs;
+        if (!programs) return;
+        for (let i = 0; i < programs.length; i++) {
+            const program = programs[i];
+            if (!program || typeof program.getUniforms !== 'function') continue;
+            program.getUniforms();
+            program.getAttributes();
         }
     }
 
     /**
-     * [WHY] A disposed material releases its program, so its cached keys have to go too or a
-     *       later material reusing that permutation would be skipped and never compiled.
+     * [WHY] A disposed material must drop out of the warmed set, or a later material that happened
+     *       to reuse its uuid would be skipped. The program itself survives regardless -- the
+     *       retained probe clone in _programKeepAlive holds the reference.
      */
     _forgetMaterialPrograms(material) {
-        const compiled = this.env._compiledPrograms;
-        if (!compiled) return;
-        compiled.delete(material.uuid + '|m' + material.version);
-        compiled.delete(material.uuid + '|i' + material.version);
-        compiled.delete(material.uuid + '|ic' + material.version);
+        const warmed = this.env._warmedMaterials;
+        if (warmed) warmed.delete(material.uuid + material.version);
     }
 
 }
