@@ -22,18 +22,18 @@ export const CurvedArchwayProfile = (env, ctx) => {
             
             let isAlignedZ;
             if (!neighbors.pz || !neighbors.nz) {
-                isAlignedZ = true; // Opening on Z axis
+                isAlignedZ = true;
             } else if (!neighbors.px || !neighbors.nx) {
-                isAlignedZ = false; // Opening on X axis
+                isAlignedZ = false;
             } else {
-                isAlignedZ = random() > 0.5; // Fallback
+                isAlignedZ = random() > 0.5;
             }
             const pillarThickness = 0.8;
             
             const outerX = env.cellSize / 2;
             const radius = outerX - pillarThickness;
             
-            const archHeight = radius + 0.3; // Total height of the arch piece
+            const archHeight = radius + 0.3;
             const verticalClearance = 3.0 - archHeight; 
             
             const supportLeft = buildWall(isAlignedZ ? pillarThickness : env.cellSize, isAlignedZ ? env.cellSize : pillarThickness, env.sharedWallMat, verticalClearance, 0);

@@ -23,7 +23,6 @@ export const TunnelBurstProfile = (env, ctx) => {
             else if (wC || eC) dirZ = false;
             
             if (!nC && !wC && !sC && !eC) {
-                // Completely buried, no clear entrance. Abort and build solid wall.
                 const wall = ctx.buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
                 wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);
                 addGeometry(wall);

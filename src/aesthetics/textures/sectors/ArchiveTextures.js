@@ -85,7 +85,6 @@ export default class ArchiveTextures {
         bCtx.lineCap = 'round';
         rCtx.lineCap = 'round';
 
-        // Arcs (big sweeps)
         for (let s = 0; s < 8; s++) {
             const cx = rand() * 256, cy = rand() * 256;
             const baseR = 8 + rand() * 23;
@@ -110,7 +109,6 @@ export default class ArchiveTextures {
             }
         }
 
-        // Lines (streaks)
         for (let t = 0; t < 4; t++) {
             const x = rand() * 256, y = rand() * 256;
             const angle = rand() * Math.PI * 2;
@@ -136,7 +134,6 @@ export default class ArchiveTextures {
             }
         }
 
-        // Shoe Curves
         for (let c = 0; c < 5; c++) {
             const cx = rand() * 256, cy = rand() * 256;
             const marks = 1 + Math.floor(rand() * 2);
@@ -181,7 +178,6 @@ export default class ArchiveTextures {
         rCtx.lineWidth = 2.0;
 
         for (let t = 0; t <= tiles; t++) {
-            // Diffuse tile lines
             floorCtx.beginPath();
             floorCtx.moveTo(0, t * tileSize);
             floorCtx.lineTo(256, t * tileSize);
@@ -191,7 +187,6 @@ export default class ArchiveTextures {
             floorCtx.lineTo(t * tileSize, 256);
             floorCtx.stroke();
 
-            // Bump tile lines
             bCtx.beginPath();
             bCtx.moveTo(0, t * tileSize);
             bCtx.lineTo(256, t * tileSize);
@@ -200,8 +195,7 @@ export default class ArchiveTextures {
             bCtx.moveTo(t * tileSize, 0);
             bCtx.lineTo(t * tileSize, 256);
             bCtx.stroke();
-            
-            // Roughness tile lines
+
             rCtx.beginPath();
             rCtx.moveTo(0, t * tileSize);
             rCtx.lineTo(256, t * tileSize);

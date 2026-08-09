@@ -38,11 +38,6 @@ export default class StoryEngine {
         const LAST = StoryEngine.PARAMS.LAST;
         
         const used = new Set();
-        // Generous relative to FIRST.length * LAST.length — with the shipped pools this
-        // ceiling is never hit in practice, so variability is untouched. It exists purely
-        // to bound the worst case: an author adding enough ROLES through the Lore Editor
-        // to approach (or exceed) the FIRST x LAST combination space would otherwise make
-        // this loop spin arbitrarily long chasing an unused pair that may not exist.
         const MAX_NAME_ATTEMPTS = 200;
         const mkName = () => {
             let first, last, full;
@@ -53,11 +48,6 @@ export default class StoryEngine {
                 full = first + ' ' + last;
                 attempts++;
             } while (used.has(full) && attempts < MAX_NAME_ATTEMPTS);
-            // Pool exhausted (or too many roles for FIRST x LAST to keep drawing unique
-            // pairs within budget): disambiguate deterministically instead of looping
-            // forever or silently letting two roles collide on the same full name. This
-            // second loop is bounded by `used.size`, which only grows by one per cast
-            // role, so it always terminates quickly regardless of how small the pool is.
             if (used.has(full)) {
                 let n = 2;
                 let disambiguated = full;
@@ -159,9 +149,6 @@ export default class StoryEngine {
             if (activeFinale.tell_title) this.threads['TELL'].title = activeFinale.tell_title;
             if (activeFinale.tell_description) this.threads['TELL'].description = activeFinale.tell_description;
         }
-        // (CIPHER's equivalent per-puzzle override is applied inside buildCaseFiles() —
-        // see CaseFiles.js — so it runs through the same replaceTemplates() pass as every
-        // other narrative string instead of shipping unresolved ${...} tokens to the player.)
 
         this.ephemeraDealt = new Map();
         this.laptopsDealt = new Map();

@@ -346,12 +346,6 @@
         }
 
         #vhs-time {
-            /* Floor raised from 1.2rem to 3.5rem: below that, 5vmin resolves under
-               56px on essentially every common 16:9 desktop/laptop resolution
-               (not just narrow windows), which is what let this drift down into
-               #menuToggleBtn's fixed spot. #menuToggleBtn's top is now pinned a
-               constant 3rem above whatever this resolves to, so this floor is
-               also the button's safety margin -- see #menuToggleBtn below. */
             top: clamp(3.5rem, 5vmin, 4.5rem);
             right: clamp(2.5rem, 5vmin, 4.5rem);
             text-align: right;
@@ -482,7 +476,6 @@
             z-index: 2001;
         }
 
-        /* --- JOURNAL PDA OVERLAY --- */
         #journal-overlay {
             display: none;
             position: absolute;
@@ -921,15 +914,6 @@
 
         #menuToggleBtn {
             position: absolute;
-            /* Pinned a constant 3rem above #vhs-time's own clamp() instead of an
-               independent fixed offset -- a static 1.5rem here let the clock's
-               new viewport-relative top drift down into the button's fixed spot
-               on fullscreen 16:9 (reported at 1920x1080; also reproduces at
-               1366x768 and 1280x720). Tying the two with calc() keeps a fixed
-               3rem gap by construction at any size, and resolves to the original
-               1.5rem once #vhs-time hits its own 4.5rem ceiling on large screens.
-               #vhs-time's floor of 3.5rem is this button's floor of 0.5rem --
-               raise one, raise the other. */
             top: calc(clamp(3.5rem, 5vmin, 4.5rem) - 3rem);
             right: 1.5rem;
             width: auto;

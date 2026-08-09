@@ -22,19 +22,15 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
-    // Basic route normalization removing query strings
     const route = req.url.split('?')[0];
-    
-    // Normalize URL
+
     let filePath = path.join(__dirname, route === '/' ? 'index.html' : route);
-    
-    // Protect against directory traversal
+
     if (!filePath.startsWith(__dirname)) {
         res.writeHead(403, { 'Content-Type': 'text/plain' });
         return res.end('403 Forbidden');
     }
 
-    // Resolve extension
     const extname = String(path.extname(filePath)).toLowerCase();
     const contentType = MIME_TYPES[extname] || 'application/octet-stream';
 
@@ -48,10 +44,6 @@ const server = http.createServer((req, res) => {
                 res.end(`Sorry, check with the site admin for error: ${error.code} ..\n`);
             }
         } else {
-            // No-cache during local dev: without this, a normal reload can silently
-            // keep serving an old cached copy of a .js module after a source edit,
-            // making a real fix look like it didn't take effect (and a genuine bug
-            // look fixed when it isn't).
             res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': 'no-store' });
             res.end(content, 'utf-8');
         }

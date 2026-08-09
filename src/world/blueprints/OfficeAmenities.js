@@ -14,7 +14,6 @@ export const OfficeAmenitiesProfile = (env, ctx) => {
             const cx = x * env.cellSize;
             const cz = z * env.cellSize;
             
-            // Randomly offset from the center of the cell
             const px = cx + (random() - 0.5) * 1.5;
             const pz = cz + (random() - 0.5) * 1.5;
             

@@ -5,7 +5,6 @@
  * [DEPENDS] Procedural seed context, global variables for hours/pen/etc.
  */
 export function buildCaseFiles(ctx, data) {
-    // We deep clone the JSON data so we don't mutate the static loaded source
     const d = JSON.parse(JSON.stringify(data));
     const c = ctx.cast;
     const P = ctx.project;
@@ -13,7 +12,6 @@ export function buildCaseFiles(ctx, data) {
     const hrs = ctx.hours;
     const year = ctx.siteYear;
 
-    // Helper to replace variables and simple math expressions like ${ctx.seed * ctx.hours % 666}
     const replaceTemplates = (str) => {
         if (typeof str !== 'string') return str;
         
@@ -47,7 +45,6 @@ export function buildCaseFiles(ctx, data) {
                 s = s.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), ctx.coreVars[key]);
             }
         }
-        // Legacy fallback
         s = s.replace(/\$\{pen\}/g, pen);
         s = s.replace(/\$\{hrs\}/g, hrs);
         s = s.replace(/\$\{year\}/g, year);
@@ -63,7 +60,6 @@ export function buildCaseFiles(ctx, data) {
         
         s = s.replace(/\$\{([^}]+)\}/g, (match, expr) => {
             try {
-                // Safely evaluate simple math using Function
                 return new Function('ctx', `return ${expr};`)(ctx);
             } catch (e) {
                 return match;
@@ -72,7 +68,6 @@ export function buildCaseFiles(ctx, data) {
         return s;
     };
 
-    // Deep iterate over the objects to apply replaceTemplates
     const processObj = (obj) => {
         if (typeof obj === 'string') {
             return replaceTemplates(obj);
@@ -92,14 +87,6 @@ export function buildCaseFiles(ctx, data) {
 
     const { lore, clues, finales, foreshadow, threads } = d;
 
-    // CIPHER is shared by every puzzle (each one locks against it), so threads.json's
-    // CIPHER entry is one generic default across all of them. A puzzle can optionally
-    // narrow that to something specific to its own cipher method — same idea as a
-    // finale's tell_title/tell_description override for TELL, just sourced from
-    // ctx.activePuzzle instead of a finales.json entry. Resolved with the same
-    // replaceTemplates() used for every other narrative string (ctx.activePuzzle itself
-    // isn't part of `data`, so it never went through processObj(d) above) so a puzzle
-    // author can write "${P}" or "${c.lead}" in these fields exactly like anywhere else.
     if (ctx.activePuzzle && threads['CIPHER']) {
         if (ctx.activePuzzle.cipher_title) threads['CIPHER'].title = replaceTemplates(ctx.activePuzzle.cipher_title);
         if (ctx.activePuzzle.cipher_description) threads['CIPHER'].description = replaceTemplates(ctx.activePuzzle.cipher_description);
@@ -130,7 +117,6 @@ export function buildCaseFiles(ctx, data) {
         }
     };
 
-    // Inject base lore
     for (const sector in lore) {
         const arr = lore[sector];
         for (const item of arr) {
@@ -138,7 +124,6 @@ export function buildCaseFiles(ctx, data) {
         }
     }
 
-    // Inject clues for active puzzle lock threads
     if (ctx.activePuzzle && ctx.activePuzzle.LOCK_THREADS) {
         for (const sector in clues) {
             const arr = clues[sector];
@@ -153,13 +138,9 @@ export function buildCaseFiles(ctx, data) {
         }
     }
 
-    // Inject foreshadowing for active truth
     const tell = foreshadow[ctx.truth];
     if (tell) {
         for (const sector in tell) {
-            // Skip narrative metadata fields and any internal/editor bookkeeping field
-            // (prefixed with "_", e.g. "_locked") — only real location keys should ever
-            // be treated as sectors to inject content into.
             if (sector === 'nickname' || sector === 'text' || sector === 'description' || sector.startsWith('_')) continue;
             const itemOrArr = tell[sector];
             if (Array.isArray(itemOrArr)) {

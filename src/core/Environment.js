@@ -209,8 +209,6 @@ export default class Environment {
             panel.style.display = isHidden ? 'block' : 'none';
             
             if (this.player && this.player.input) {
-                // We do NOT use the virtual cursor for the complex settings menu
-                // because native form elements (select, range) require the OS mouse.
                 this.player.input.state.isReading = isHidden;
                 if (isHidden) {
                     if (document.pointerLockElement) {

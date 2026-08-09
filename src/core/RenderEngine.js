@@ -6,10 +6,11 @@
  */
 export default class RenderEngine {
     constructor() {
-        // [WHY] Standard Three.js fog is linear/depth-based which looks bad when looking up/down in large sectors.
-        // [HOW] Regex replacement of depth calculation in the built-in shader chunk to use radial distance.
-        // [HACK] We monkey-patch the global THREE.ShaderChunk so it applies to all materials without custom shaders.
-        if (!THREE.__radialFogPatched) {
+        /** [WHY] Standard Three.js fog is linear/depth-based which looks bad when looking up/down in large sectors.
+        * [HOW] Regex replacement of depth calculation in the built-in shader chunk to use radial distance.
+        * [HACK] We monkey-patch the global THREE.ShaderChunk so it applies to all materials without custom shaders.
+        */
+         if (!THREE.__radialFogPatched) {
             THREE.ShaderChunk.fog_vertex = THREE.ShaderChunk.fog_vertex.replace(
                 /vFogDepth\s*=\s*-\s*mvPosition\.z\s*;/,
                 'vFogDepth = length( mvPosition.xyz );'

@@ -161,11 +161,6 @@ export const DuctOrVentProfile = (env, ctx) => {
                     }
                 }
             } else {
-                // Was built directly off env.sharedWallGeo, bypassing buildWall — that
-                // skipped the baseboardFootprint tagging buildWall does, so this wall
-                // (a vent-bearing stand-in for a normal filler wall) silently never got
-                // a baseboard. Routing through buildWall matches the standard filler
-                // wall path (ChunkManager.js) and picks the tagging back up.
                 const wall = buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
                 wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);
                 addGeometry(wall);
@@ -182,9 +177,9 @@ export const DuctOrVentProfile = (env, ctx) => {
                     ventFace = Math.floor(random() * 4);
                     if (ctx.setWall) {
                         if (ventFace === 0) ctx.setWall(x, z + 1, false);
-                        else if (ventFace === 1) ctx.setWall(x, z - 1, false); // Though z-1 is already processed, we can try
+                        else if (ventFace === 1) ctx.setWall(x, z - 1, false);
                         else if (ventFace === 2) ctx.setWall(x + 1, z, false);
-                        else if (ventFace === 3) ctx.setWall(x - 1, z, false); // Though x-1 is already processed
+                        else if (ventFace === 3) ctx.setWall(x - 1, z, false);
                     }
                 }
                 const ventGeo = env._boxGeo(1.2, 0.6, 0.05);

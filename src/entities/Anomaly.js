@@ -78,7 +78,6 @@ export default class Anomaly {
         this.graceTimer = 90.0;
         this.timeSinceContact = 0;
         this._refreshForbiddenBounds(0, true);
-        // Park the anomaly far away during the grace period
         this.group.position.set(x + 10000, -1000, z + 10000);
         this.target.copy(this.group.position);
         this.group.visible = true;

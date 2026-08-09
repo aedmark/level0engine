@@ -385,7 +385,6 @@ export function buildWaterFountain(env) {
     grille.position.set(0, basinY - basinRadius + 0.03, 0.11);
     group.add(grille);
 
-    // spout: horizontal stub out of the housing, then a short drop that hangs over the basin rim
     const spoutArm = new THREE.Mesh(env._cacheGeo('fountainSpoutArm', () => new THREE.CylinderGeometry(0.012, 0.012, 0.07, 8)), metalTrim);
     spoutArm.rotation.x = Math.PI / 2;
     spoutArm.position.set(0, 0.86, 0.035);

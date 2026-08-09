@@ -23,15 +23,14 @@ export const RoundAlcoveProfile = (env, ctx) => {
             };
 
             const scores = [
-                (neighbors.px ? 1 : 0) + (neighbors.nz ? 1 : 0), // 0: +X, -Z
-                (neighbors.nz ? 1 : 0) + (neighbors.nx ? 1 : 0), // 1: -Z, -X
-                (neighbors.nx ? 1 : 0) + (neighbors.pz ? 1 : 0), // 2: -X, +Z
-                (neighbors.pz ? 1 : 0) + (neighbors.px ? 1 : 0)  // 3: +Z, +X
+                (neighbors.px ? 1 : 0) + (neighbors.nz ? 1 : 0),
+                (neighbors.nz ? 1 : 0) + (neighbors.nx ? 1 : 0),
+                (neighbors.nx ? 1 : 0) + (neighbors.pz ? 1 : 0),
+                (neighbors.pz ? 1 : 0) + (neighbors.px ? 1 : 0)
             ];
 
             const maxScore = Math.max(...scores);
 
-            // If it's an island with no adjacent walls, fallback to a standard wall
             if (maxScore === 0) {
                 const wall = ctx.buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
                 wall.position.set(cx, 1.5, cz);
@@ -48,14 +47,12 @@ export const RoundAlcoveProfile = (env, ctx) => {
             const chosenIndex = bestAngles[Math.floor(random() * bestAngles.length)];
             const angle = chosenIndex * (Math.PI / 2);
 
-            // Build the block
             const block = buildCurvedCornerBlock(env.cellSize, env.sharedWallMat);
 
-            // Rotate so it stands upright and aligns with walls
             block.rotation.set(-Math.PI / 2, 0, angle, 'XYZ');
 
             block.position.set(cx, 1.5, cz);
-            block.userData.noCollision = true; // Prevent the full 4x4 bounding box from being inserted
+            block.userData.noCollision = true;
 
             const tBox = 0.3;
             const halfSize = env.cellSize / 2;
@@ -85,9 +82,6 @@ export const RoundAlcoveProfile = (env, ctx) => {
             addCurvedAlcoveBaseboard(cx, cz, angle);
 
             if (random() > 0.5) {
-                // Place chair in the cutout
-                // The cutout is at (-size/2, +size/2) in XZ before rotation Y.
-                // Let's just place it near the center of the cell and face it outward.
                 const rot = random() * Math.PI * 2;
                 const chair = buildChair(cx, 0, cz, rot);
                 addFurniture(chair);

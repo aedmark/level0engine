@@ -674,18 +674,6 @@ export default class ChunkManager {
                             }
                         }
 
-                        // --- Guaranteed Room Connectivity ---
-                        // The seeded cells above (the ring/cross skeleton and any airlock
-                        // approaches) are trusted to be part of the main connected maze, but
-                        // nothing previously verified that the Julia-set/flip-noise wall
-                        // pattern actually left every other open cell reachable from them.
-                        // A pocket sealed on all sides reads fine locally but leaves the
-                        // player with exactly one way in and out. Run a 0-1 BFS from the
-                        // seeded cells (moving into an open cell costs 0, moving into a wall
-                        // costs 1) so every cell knows the minimum number of walls between it
-                        // and the trusted network, then walk back from any sealed-off open
-                        // cell along its shortest path and force open every wall crossed —
-                        // rendered as a `WallBreachProfile` structure rather than a bare gap.
                         const totalCells = size * size;
                         const INF = 1 << 30;
                         const bfsDist = new Int32Array(totalCells).fill(INF);

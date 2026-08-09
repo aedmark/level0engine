@@ -347,10 +347,6 @@ export default class Compass {
             const bearing = Math.atan2(target.x - cam.position.x, target.z - cam.position.z);
             want = bearing - cam.rotation.y - Math.PI;
         } else {
-            // No sector triangulated yet — hold a fixed world-space guess instead of
-            // free-spinning. Same transform as a real fix, just a static bearing, so
-            // it swaps over to the real reading through the existing spring instead
-            // of a hard cut once _nearestThreshold() finds something.
             want = this._fallbackBearing - cam.rotation.y - Math.PI;
         }
         let diff = want - this.angle;

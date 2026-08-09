@@ -16,14 +16,6 @@ export const CrawlspaceHallProfile = (env, ctx) => {
             dropMesh.userData.isEntityBlocker = true;
             addGeometry(dropMesh);
 
-            // Removed the black pipe generation per user request
-
-            // Low-clearance warning trim, built the same way as the baseboard overlay:
-            // one shared unit geometry scaled per instance (cheap — no per-footprint
-            // geometry fragmenting InstancedMesh groups), sitting proud of the drop
-            // mesh's underside instead of coplanar with it (no z-fighting), and placed
-            // only at sides that are an actual open passage rather than spanning the
-            // full cell width into whatever is next door (the old bug).
             if (!env.hazardTapeMat) {
                 env.hazardTapeMat = new THREE.MeshStandardMaterial({ color: 0xffdd00, roughness: 0.9 });
                 env.hazardTapeMat.userData.noShadow = true;
@@ -31,8 +23,8 @@ export const CrawlspaceHallProfile = (env, ctx) => {
             }
             const stripeUnitGeo = env._cacheGeo('hazard_tape_unit', () => new THREE.BoxGeometry(1, 0.06, 0.08));
             const half = env.cellSize / 2;
-            const stripeY = 1.2 - 0.04; // proud of the drop mesh's bottom face (y=1.2), not coplanar
-            const stripeLen = env.cellSize - 0.4; // inset off the cell boundary so it can't reach a neighbor's wall
+            const stripeY = 1.2 - 0.04;
+            const stripeLen = env.cellSize - 0.4;
             const cx = x * env.cellSize;
             const cz = z * env.cellSize;
 

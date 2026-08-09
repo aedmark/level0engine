@@ -28,23 +28,6 @@ export default class StructureKit {
         return this.cacheGeo(`P:${w}:${h}`, () => new THREE.PlaneGeometry(w, h));
     }
 
-    // Shared footprint for the round alcove's curved corner block: a square with
-    // a quarter-circle bite taken out near the origin. Factored out so the baseboard
-    // trim can be extruded to a shorter height along the same outline as the wall.
-    // `margin` offsets every edge along its own normal (not a uniform scale-from-center,
-    // which grows the arc -- much closer to the shape's centroid than the outer corner --
-    // far less than the straight edges, and in the wrong direction besides). The two outer
-    // edges move away from the room; the arc's radius shrinks, since the room/viewer sits
-    // on the small-radius side and the arc has to move toward them, not away, to clear the
-    // wall's face.
-    // The two short "stub" edges (the straight return between the outer corner and where
-    // the arc starts, at x=0/y=0) are ALSO room-facing wall surface -- easy to miss because
-    // they're only ~t+2*margin long, but they were left pinned at exactly x=0/y=0 regardless
-    // of margin, perfectly coplanar with the wall every time. `inner` offsets them into the
-    // room the same direction the arc moves, by the same amount. The arc itself stays
-    // centered on the true origin at its original radius -- shifting the stub creates a
-    // ~margin-length straight jog into the arc's real start point, which is fine at this
-    // scale and keeps the wall's own (margin=0) shape byte-for-byte unchanged.
     curvedCornerShape(size, margin = 0) {
         const t = 0.15;
         const outer = size + margin;
@@ -130,13 +113,6 @@ export default class StructureKit {
                     env.geoCache.set(geo.uuid, true);
                 }
                 const mesh = new THREE.Mesh(geo, mat);
-                // Used to also require h === 3.0, which meant any sharedWallMat pillar
-                // built shorter than full height (e.g. CurvedArchway/CompressionArchway's
-                // support posts, RideQueueHall's w1/w2) never got tagged even though it
-                // genuinely sits on the floor. addGeometry already re-derives the real
-                // floor position from mesh.position.y and this footprint's own h, so the
-                // h === 3.0 check here was redundant with (and stricter than) that, not a
-                // safety net -- yOffset === 0 alone is the right floor-touching signal.
                 if (mat === env.sharedWallMat && yOffset === 0) {
                     mesh.userData.baseboardFootprint = {w, d, h};
                 }
@@ -236,38 +212,16 @@ export default class StructureKit {
                     }
                     uv.needsUpdate = true;
 
-                    // A fixed shift of -size/2 rather than geo.center(): the baseboard version
-                    // of this shape (see curvedFlatGeo) has a slightly larger bounding box once
-                    // it's built with a margin, so centering each one on its own bbox would put
-                    // their true arc origins at very slightly different local coordinates and
-                    // throw off the alignment between wall and baseboard. Anchoring both to the
-                    // same size-based reference keeps them exactly concentric regardless of margin.
-                    // Depth (Z) still centers normally -- position.set(cx, h/2, cz) after the
-                    // -90 X rotation assumes it spans the extrusion symmetrically.
                     geo.translate(-size / 2, -size / 2, -1.5);
                     env.geoCache.set(key, geo);
                     env.geoCache.set(geo.uuid, true);
                 }
                 return new THREE.Mesh(geo, mat);
             },
-            // Baseboard/trim slabs that follow the curved corner block's own footprint
-            // (see curvedCornerShape) rather than a straight box, so round alcoves get
-            // the same floor trim as straight walls instead of being left bare.
             curvedFlatGeo: (size, height) => {
                 const key = `curvedFlat_${size}_${height}`;
                 let geo = env.geoCache.get(key);
                 if (!geo) {
-                    // Straight-wall baseboards avoid z-fighting with their wall by being built
-                    // 0.06 wider/deeper than the wall's own footprint (see the `bw`/`bd` epsilon
-                    // in addGeometry), so the trim sits proud of the wall face instead of exactly
-                    // coplanar with it. A uniform Shape.scale() was tried here first, but scaling
-                    // from the shape's bounding-box center grows the arc -- which sits much closer
-                    // to that center than the outer corner does -- far less than the straight
-                    // edges, and "radially from the bbox center" isn't even the arc's true surface
-                    // normal. The straight edges cleared the wall face; the arc barely moved and
-                    // kept z-fighting. curvedCornerShape's margin offsets each edge along its own
-                    // normal instead (0.03, matching the straight-wall convention's half-width),
-                    // so the whole perimeter -- arc included -- actually clears the wall's face.
                     const shape = this.curvedCornerShape(size, 0.03);
                     geo = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false, curveSegments: 16 });
                     geo.translate(-size / 2, -size / 2, -height / 2);
@@ -310,26 +264,8 @@ export default class StructureKit {
                 }
                 stagingMeshes.push(mesh);
                 const bbFootprint = mesh.userData.baseboardFootprint;
-                // Baseboard should only attach where the wall's own bottom face actually
-                // meets the floor. buildWall tags any default-height (h=3.0) wall as
-                // baseboard-eligible at construction time, but it doesn't know the y
-                // position the caller will place it at — a full-height wall reused as a
-                // stacked header (e.g. RideQueueHall's top1/top2, floated at y=2.6 above
-                // a shorter pillar) is still "h===3.0" but its bottom face sits well above
-                // y=0, so blindly using mesh.position.y - 1.5 as the floor put the
-                // baseboard partway up the wall instead of at the real floor. Compute the
-                // wall's actual bottom face and only attach if it's genuinely at floor level.
                 const wallBottomY = bbFootprint ? mesh.position.y - bbFootprint.h / 2 : null;
                 if (bbFootprint && Math.abs(wallBottomY) < 0.05) {
-                    // Every wall has a different (w, d) footprint, so caching baseboard
-                    // geometry per-footprint (like buildWall does for the wall itself)
-                    // fragmented _compileInstances' geometry+material grouping into one
-                    // InstancedMesh per distinct size — 80 extra draw calls with only a
-                    // handful of chunks loaded. Baseboards are flat boxes, so instead we
-                    // reuse a single 1x1 unit cross-section and stretch it per-instance
-                    // via mesh.scale; setMatrixAt bakes that scale into each instance's
-                    // matrix, so every baseboard body (and every trim cap) still collapses
-                    // into exactly one InstancedMesh each, regardless of wall size.
                     const bw = bbFootprint.w + 0.06;
                     const bd = bbFootprint.d + 0.06;
                     const baseY = wallBottomY;
@@ -638,13 +574,6 @@ export default class StructureKit {
                     wall.castShadow = true;
                     wall.receiveShadow = true;
                     wall.userData.isEntityBlocker = true;
-                    // Perimeter segments are hand-built here (multi-material per-face array,
-                    // inner/outer material split) rather than via buildWall, so they never
-                    // picked up the userData tag addGeometry looks for to auto-attach a
-                    // baseboard -- every sector's outer wall was silently exempt. Tag it
-                    // explicitly; the segment's bottom face is always at y=0 regardless of
-                    // segH (shoulders are shorter than full header-clearance segments), so
-                    // it's genuinely floor-level and safe to baseboard.
                     wall.userData.baseboardFootprint = {w: segW, d: segD, h: segH};
                     helpers.addGeometry(wall);
                 };

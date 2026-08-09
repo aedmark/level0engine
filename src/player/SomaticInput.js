@@ -233,8 +233,7 @@ export default class SomaticInput {
             if (vCursor) {
                 vCursor.style.left = this.cursorX + 'px';
                 vCursor.style.top = this.cursorY + 'px';
-                
-                // Hide cursor temporarily to let elementFromPoint see what's underneath
+
                 vCursor.style.display = 'none';
                 const element = document.elementFromPoint(this.cursorX, this.cursorY);
                 vCursor.style.display = '';

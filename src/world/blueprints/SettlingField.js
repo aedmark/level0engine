@@ -27,10 +27,6 @@ export const SettlingFieldProfile = (env, ctx) => {
                 env.rottedTileMat = env.ceilMat.clone();
                 env.rottedTileMat.color.setHex(0x93856b);
                 env.rottedTileMat.roughness = 0.95;
-                // Fallen/dangling tile debris is small, thin, and sits directly under the
-                // single big shadow-casting overhead light — it was throwing long, hard
-                // shadow blobs across the floor that read as a rendering glitch rather than
-                // a scattering of light ceiling tile.
                 env.rottedTileMat.userData = { noShadow: true };
                 env.sharedAssets.add(env.rottedTileMat.uuid);
             }

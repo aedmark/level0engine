@@ -32,14 +32,6 @@ export const TheOasisProfile = (env, ctx) => {
                 floor.position.set(cx, 0.01, cz);
                 addGeometry(floor);
                 const oasisWallMat = env.checkpointWallMat || env.woodMat;
-                // Walls used to be 0.5 thick, flush against the cell boundary, which only
-                // left ~0.9 units of clearance between the table (1.2 footprint, so 0.6 to
-                // each edge) and the wall's inner face. The player's collision radius is
-                // 0.4 (0.8 diameter), so that clearance had ~0.09 units of margin once the
-                // wall's own +0.02 padding is accounted for — technically non-zero, but far
-                // too tight to reliably walk through, which is what read as an invisible
-                // wall on whichever side the player happened to try. Thinner walls (0.3)
-                // free up a real, comfortable margin on all three sides.
                 const wallThick = 0.3;
                 const wBack = buildWall(env.cellSize, wallThick, oasisWallMat);
                 wBack.position.set(cx, 1.5, cz - half + wallThick / 2);
@@ -109,11 +101,6 @@ export const TheOasisProfile = (env, ctx) => {
                     isFake: false
                 });
             } else {
-                // Was built directly off env.sharedWallGeo, bypassing buildWall — that
-                // skipped the baseboardFootprint tagging buildWall does, so this wall
-                // (a filler wall standing in for an oasis already claimed elsewhere)
-                // silently never got a baseboard. Routing through buildWall matches the
-                // standard filler wall path (ChunkManager.js) and picks it back up.
                 const wall = buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
                 wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);
                 addGeometry(wall);

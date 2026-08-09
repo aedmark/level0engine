@@ -9,7 +9,6 @@ export const RoundPillarProfile = (env, ctx) => {
     return {
         name: "ROUND PILLAR",
         prob: 0.88, build: (x, z) => {
-            // Dynamically adjust scale to avoid clipping ceiling lights in adjacent open spaces
             let maxRadius = 1.25;
             if (ctx.isWall && (!ctx.isWall(x-1, z) || !ctx.isWall(x+1, z) || !ctx.isWall(x, z-1) || !ctx.isWall(x, z+1))) {
                 maxRadius = 0.85;

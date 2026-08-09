@@ -205,18 +205,15 @@ export default class PlayerController {
         if (this.isSitting || this.isFrozen) return;
         this.isSitting = true;
         this.isFrozen = true;
-        this.input.isFrozen = false; // Allow looking around while seated
-        
+        this.input.isFrozen = false;
+
         this._preSitPos.copy(this.camera.position);
         
         const seatPos = new THREE.Vector3();
         seatGroup.getWorldPosition(seatPos);
-        
-        // Sit directly above the seat, facing the seat's forward direction (+Z in local space)
+
         this.camera.position.set(seatPos.x, seatPos.y + 1.2, seatPos.z);
-        
-        // The seat backrest is at -Z, so the front is +Z.
-        // A camera with 0 Y rotation looks down -Z. So we need to add Math.PI to face +Z.
+
         const seatEuler = new THREE.Euler().setFromQuaternion(seatGroup.getWorldQuaternion(new THREE.Quaternion()));
         this.camera.rotation.y = seatEuler.y + Math.PI;
         this.camera.rotation.x = 0;

@@ -2,7 +2,7 @@ export const WallBreachProfile = (env, ctx) => {
     const { random } = ctx;
     return {
         name: "breach",
-        prob: 0, // Never spawned naturally, only forced
+        prob: 0,
         build: (x, z, isWallCell) => {
             const breachType = random();
             const isRotated = isWallCell(x - 1, z) || isWallCell(x + 1, z);
@@ -16,14 +16,13 @@ export const WallBreachProfile = (env, ctx) => {
                 grp.updateMatrixWorld(true);
                 grp.traverse(child => {
                     if (child.isMesh) {
-                        child.userData.isEntityBlocker = true; // ensure wall pieces block entities
+                        child.userData.isEntityBlocker = true;
                         ctx.addGeometry(child);
                     }
                 });
             };
 
             if (breachType > 0.6) {
-                // Door frame
                 if (!env.doorFrameGeo) {
                     const g = new THREE.Group();
                     const pGeo = new THREE.BoxGeometry(0.2, 3.0, 0.6);
@@ -42,7 +41,6 @@ export const WallBreachProfile = (env, ctx) => {
                 const frame = env.doorFrameGeo.clone();
                 addGroupToStaging(frame);
             } else if (breachType > 0.3) {
-                // Vent opening
                 const wallG = new THREE.Group();
                 const bGeo = new THREE.BoxGeometry(env.cellSize, 0.6, env.cellSize);
                 const b1 = new THREE.Mesh(bGeo, env.sharedWallMat);
@@ -62,13 +60,6 @@ export const WallBreachProfile = (env, ctx) => {
                 t1.position.set(0, 1.8 + tGeo.parameters.height/2, 0);
                 wallG.add(t1);
 
-                // Grate is mounted flush over the far opening, hinged on its left edge
-                // and swung mostly open — reads as a cover that's been forced rather
-                // than a panel floating at a fixed diagonal with nothing supporting it.
-                // The hinge is a pivot group so the swing rotates around the panel's
-                // edge instead of its center; positive rotation.y swings it toward -z,
-                // i.e. into the tunnel's own open interior, well clear of the side
-                // walls (|x| > 0.6), the header (y 1.8-3.0), and the hazard tape.
                 const grateGeo = new THREE.BoxGeometry(1.16, 1.16, 0.08);
                 const grateMat = env.cartLatticeMat || env.pittedMetalMat;
                 const gratePivot = new THREE.Group();
@@ -79,11 +70,6 @@ export const WallBreachProfile = (env, ctx) => {
                 gratePivot.add(grate);
                 wallG.add(gratePivot);
 
-                // Low-clearance warning trim at the two through-passage thresholds,
-                // clipped to the actual 1.2-wide opening (not the full cell width) and
-                // sitting just proud of the header's underside (y=1.8) rather than
-                // coplanar with it or the floor block — same technique as the
-                // crawlspace hall trim, avoids the old z-fighting/poke-through bug.
                 if (!env.hazardTapeMat) {
                     env.hazardTapeMat = new THREE.MeshStandardMaterial({ color: 0xffdd00, roughness: 0.9 });
                     env.hazardTapeMat.userData.noShadow = true;
@@ -101,7 +87,6 @@ export const WallBreachProfile = (env, ctx) => {
 
                 addGroupToStaging(wallG);
             } else {
-                // Crevice / broken wall
                 const wallG = new THREE.Group();
                 const sGeo1 = new THREE.BoxGeometry(1.0, 3.0, env.cellSize);
                 const sGeo2 = new THREE.BoxGeometry(1.4, 3.0, env.cellSize);

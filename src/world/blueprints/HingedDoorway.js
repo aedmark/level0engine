@@ -74,17 +74,6 @@ export const HingedDoorwayProfile = (env, ctx) => {
                         const isBorder = (px < minX || px > maxX || pz > maxZ);
                         if (isBorder) {
                             if (px !== x || pz !== z) {
-                                // The main per-cell loop iterates x outer, z inner, so a cell
-                                // with a smaller x (or the same x with a smaller z) than the
-                                // door has already been decided and rendered by the time we
-                                // get here. `setWall` alone can't retroactively add or remove
-                                // geometry for it, which is why this block used to build a
-                                // second wall over the top of whatever that cell already had —
-                                // including a structural "half wall" (a partition, header gap,
-                                // pillar, etc.), producing an overlapping ghost wall. Only cells
-                                // that were already processed *and* were rendered open need a
-                                // compensating wall here; anything already a wall already has
-                                // real geometry sealing this edge.
                                 const wasAlreadyWall = ctx.isWall(px, pz);
                                 ctx.setWall(px, pz, true);
                                 const alreadyProcessed = (px < x || (px === x && pz < z));

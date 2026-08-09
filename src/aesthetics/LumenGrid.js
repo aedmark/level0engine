@@ -258,8 +258,6 @@ export default class LumenGrid {
 
         let intensityScalar;
         if (isShadowCaster && this._pendingShadowSlots.has(index)) {
-            // Do not force the light to 0.0. Let it render with the slightly stale shadow map
-            // for the 1-3 frames it is pending. This prevents the glaring "pop in" flash.
             intensityScalar = fixture._currentScalar;
         } else {
             fixture._currentScalar += (targetScalar - fixture._currentScalar) * 0.05;

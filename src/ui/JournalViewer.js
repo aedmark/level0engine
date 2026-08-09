@@ -23,13 +23,11 @@ export default class JournalViewer {
     _bindEvents() {
         document.addEventListener('somatic-journal-toggle', () => {
             if (this.player.input.state.isReading && !this.isOpen) {
-                // If reading a document, don't open journal
                 return;
             }
             this.toggleJournal();
         });
-        
-        // Ensure pressing E closes the journal if it's open, as E is the standard exit key
+
         document.addEventListener('somatic-close-document', () => {
             if (this.isOpen) {
                 this.closeJournal();
@@ -49,7 +47,7 @@ export default class JournalViewer {
         if (this.isOpen) return;
         
         this.isOpen = true;
-        this.player.input.state.isReading = true; // Suspend movement
+        this.player.input.state.isReading = true;
         this.player.input.state.isRunning = false;
         
         this.player.input.cursorX = window.innerWidth / 2;
@@ -60,8 +58,7 @@ export default class JournalViewer {
         this.overlay.classList.add('active');
         
         this.populateList();
-        
-        // Default select first item if available
+
         if (this.getStory().collected.length > 0) {
             this.selectEntry(0);
         } else {
@@ -99,7 +96,6 @@ export default class JournalViewer {
             return;
         }
 
-        // Group by thread
         const groups = {};
         story.collected.forEach((text, index) => {
             const threadId = story.threadOf.get(text);
@@ -108,19 +104,13 @@ export default class JournalViewer {
             groups[key].push({ text, index, threadId });
         });
 
-        // The active finale can name one other thread (lock_thread) as its own evidence
-        // trail — e.g. the "Hum" finale -> the HUM thread. When set, that thread renders
-        // as a subheading nested under TELL instead of its own flat top-level group, so
-        // the journal visually shows what's actually backing up the TELL objective rather
-        // than presenting it as unrelated background material.
         const activeFinale = story.finales && story.finales[story.truth];
         const nestedKey = (activeFinale && activeFinale.lock_thread && activeFinale.lock_thread !== 'TELL' && groups[activeFinale.lock_thread])
             ? activeFinale.lock_thread
             : null;
 
-        // Render groups
         for (const [key, items] of Object.entries(groups)) {
-            if (key === nestedKey) continue; // rendered nested under TELL below, not flat
+            if (key === nestedKey) continue;
             this._renderGroup(story, key, items, false);
             if (key === 'TELL' && nestedKey) {
                 this._renderGroup(story, nestedKey, groups[nestedKey], true);
@@ -129,7 +119,6 @@ export default class JournalViewer {
     }
 
     _renderGroup(story, key, items, nested) {
-        // Create a group header
         const header = document.createElement('div');
         header.className = nested ? 'journal-subgroup-header' : 'journal-group-header';
 
@@ -162,18 +151,15 @@ export default class JournalViewer {
             this.listEl.appendChild(desc);
         }
 
-        // Render items in group
         items.forEach(item => {
             const li = document.createElement('li');
             const btn = document.createElement('button');
             btn.className = 'journal-entry-btn' + (nested ? ' journal-entry-nested' : '');
 
-            // Extract the first line as a title
             let title = item.text.split('\n')[0].trim();
             if (title.length > 35) title = title.substring(0, 32) + '...';
             if (!title) title = `ENTRY ${item.index + 1}`;
 
-            // Strip out ">>" if present for cleaner look
             title = title.replace(/^>>\s*/, '');
 
             if (key === 'TELL') {
@@ -193,8 +179,7 @@ export default class JournalViewer {
             clearInterval(this.typeWriterInterval);
             this.typeWriterInterval = null;
         }
-        
-        // Update selection styling
+
         const buttons = this.listEl.querySelectorAll('.journal-entry-btn');
         buttons.forEach(b => b.classList.remove('selected'));
         if (btnEl) {

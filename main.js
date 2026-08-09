@@ -13,7 +13,6 @@ import InquestController from './src/ui/InquestController.js';
 import UIManager from './src/ui/UIManager.js';
 import {DebugHUD} from './src/ui/DebugHUD.js';
 
-// Pre-load narrative data before booting the engine
 await StoryEngine.loadData('./data');
 const engine = new RenderEngine();
 const acoustics = new AcousticEngine();
@@ -109,10 +108,6 @@ document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e
     const originalPos = engine.camera.position.clone();
     const chunkWorldSize = environment.chunkSize * environment.cellSize;
     const maxSteps = 200;
-    // Mirrors the isMacroChunkContentReady wait below — that loop was already bounded,
-    // this one wasn't. chunkQueue can keep refilling as the hunt jumps macro-zone to
-    // macro-zone, so without a ceiling a generation stall at any single step would spin
-    // this loop forever instead of failing the search.
     const CHUNK_DRAIN_TIMEOUT_MS = 4000;
     let step = 0;
     let foundHash = null;
