@@ -37,17 +37,26 @@ export default class StructureKit {
     // edges move away from the room; the arc's radius shrinks, since the room/viewer sits
     // on the small-radius side and the arc has to move toward them, not away, to clear the
     // wall's face.
+    // The two short "stub" edges (the straight return between the outer corner and where
+    // the arc starts, at x=0/y=0) are ALSO room-facing wall surface -- easy to miss because
+    // they're only ~t+2*margin long, but they were left pinned at exactly x=0/y=0 regardless
+    // of margin, perfectly coplanar with the wall every time. `inner` offsets them into the
+    // room the same direction the arc moves, by the same amount. The arc itself stays
+    // centered on the true origin at its original radius -- shifting the stub creates a
+    // ~margin-length straight jog into the arc's real start point, which is fine at this
+    // scale and keeps the wall's own (margin=0) shape byte-for-byte unchanged.
     curvedCornerShape(size, margin = 0) {
         const t = 0.15;
         const outer = size + margin;
+        const inner = -margin;
         const radius = size - t - margin;
         const shape = new THREE.Shape();
-        shape.moveTo(outer, 0);
+        shape.moveTo(outer, inner);
         shape.lineTo(outer, outer);
-        shape.lineTo(0, outer);
-        shape.lineTo(0, radius);
+        shape.lineTo(inner, outer);
+        shape.lineTo(inner, radius);
         shape.absarc(0, 0, radius, Math.PI / 2, 0, true);
-        shape.lineTo(outer, 0);
+        shape.lineTo(outer, inner);
         return shape;
     }
 

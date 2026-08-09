@@ -1,8 +1,4 @@
-        // New Puzzle Wizard: walks through ID -> Access Code -> Lock Threads -> Review,
-        // so a puzzle can't be born with the exact defect the audit found in HOUR_PUZZLE
-        // (a LOCK_THREADS requirement nothing in lore.json/clues.json ever delivers).
-        // Everything is staged in wizardState and written out together on "Create Puzzle".
-        const ACCESS_PATTERNS = {
+const ACCESS_PATTERNS = {
             year_pen: { label: 'Year + Pen (classic)', expr: "String(ctx.year).slice(2) + String(ctx.pen).padStart(2, '0')" },
             hours_pen: { label: 'Hours + Pen', expr: "String(ctx.hours).slice(0, 2) + String(ctx.pen).padStart(2, '0')" },
             custom: { label: 'Custom expression...', expr: '' }
@@ -19,22 +15,13 @@
                 scaffoldClues: [],
                 openScaffoldFor: null,
                 scaffoldDraft: null,
-                // Custom per-playthrough variables (e.g. SERIAL, BIRTH_MONTH) staged during
-                // this wizard session but not yet written to parameters.json's CORE_VARS —
-                // written together with the puzzle on "Create Puzzle", same pattern as
-                // newThreads/scaffoldClues.
                 newCoreVars: {},
                 showNewVarForm: false,
                 newVarDraft: null
             };
         }
 
-        // Names+ranges of every core variable available for use in this wizard session:
-        // the four engine built-ins, whatever's already saved in parameters.json's
-        // CORE_VARS, and anything staged-but-unsaved in this session. Built-in ranges here
-        // are documentation only (they mirror StoryEngine.js) — used for the padded-insert
-        // hint, not for generation.
-        function wizardKnownCoreVars() {
+function wizardKnownCoreVars() {
             const builtins = {
                 seed: null,
                 pen: { min: 3, max: 21 },
@@ -45,9 +32,7 @@
             return { ...builtins, ...saved, ...(wizardState.newCoreVars || {}) };
         }
 
-        // Merges any staged-but-unsaved custom variables into a copy of the live params,
-        // so the access-code preview/validation reflects vars the wizard hasn't saved yet.
-        function wizardParamsWithStaged() {
+function wizardParamsWithStaged() {
             return { ...(paramsData || {}), CORE_VARS: { ...((paramsData && paramsData.CORE_VARS) || {}), ...(wizardState.newCoreVars || {}) } };
         }
 
@@ -85,10 +70,7 @@
             selectFile('puzzles.json');
         }
 
-        // Shared Back/Cancel buttons on the wizard shell dispatch to whichever wizard
-        // is actually open, so both wizards can reuse the same DOM without either one
-        // needing to know the other exists.
-        function wizardBackDispatch() {
+function wizardBackDispatch() {
             if (activeWizard === 'finale') finaleWizardBack();
             else wizardBack();
         }
@@ -248,10 +230,7 @@
             renderWizard();
         }
 
-        // Inserts a token at the current cursor position in the access-code textarea
-        // (falls back to appending if the element isn't focused/available), then
-        // switches the pattern dropdown to "custom" since we've deviated from a preset.
-        function wizardInsertVarToken(token) {
+function wizardInsertVarToken(token) {
             const ta = document.getElementById('wizard-code-input');
             if (!ta) {
                 wizardState.accessCode += token;
@@ -348,7 +327,7 @@
             `;
 
             threadKeys.forEach(async (t) => {
-                if (wizardState.openScaffoldFor === t) return; // form already rendered inline above
+                if (wizardState.openScaffoldFor === t) return;
                 const { count } = await wizardThreadDelivery(t);
                 const { cls, label } = badgeForDeliveryCount(count, 'reachable');
                 const badgeEl = document.getElementById(`wizard-badge-${t}`);
@@ -362,10 +341,6 @@
 
         function renderScaffoldForm(threadKey) {
             if (!wizardState.scaffoldDraft) wizardState.scaffoldDraft = { sector: '', text: '', title: '' };
-            // Every thread offered in this step is a Lock Thread on the puzzle being
-            // built right now, i.e. by definition a puzzle-mechanic thread — so a starter
-            // clue for it always belongs in clues.json, gated to this puzzle. (lore.json
-            // is reserved for threads that aren't tied to solving anything.)
             const sectors = getKnownSectors();
             return `<div style="background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15); border-radius: 6px; padding: 12px;">
                 <div class="help-text" style="margin-top:0;">This will be added to <b>clues.json</b>, gated to this puzzle.</div>

@@ -1,20 +1,11 @@
-        // Validation
-        // Builds a representative context object shaped exactly like the one CaseFiles.js
-        // hands to replaceTemplates() at runtime, so validation-time evaluation of ${...}
-        // tokens and custom VARS matches production behavior instead of guessing at it.
-        function buildMockCtx(params, puzzles, coreVarsOverride) {
+function buildMockCtx(params, puzzles, coreVarsOverride) {
             const roles = (params && params.ROLES) || ["lead", "custodian", "archivist", "lost"];
             const cast = {};
             roles.forEach((r, i) => {
                 cast[r] = { first: `Testfirst${i + 1}`, last: `Testlast${i + 1}`, full: `Testfirst${i + 1} Testlast${i + 1}` };
             });
             const coreVars = coreVarsOverride || { seed: 424242, pen: 7, year: 1994, hours: 512 };
-            // Custom per-playthrough variables (parameters.json's CORE_VARS — e.g. a serial
-            // number or a birthday component) generate the same way pen/year/hours do at
-            // runtime, so fold in a stable mock value for any that aren't already present
-            // (either because coreVarsOverride didn't set them, or the default above predates
-            // them). Picking the midpoint of min..max keeps previews reproducible.
-            const customCoreVarDefs = (params && params.CORE_VARS) || {};
+    const customCoreVarDefs = (params && params.CORE_VARS) || {};
             Object.entries(customCoreVarDefs).forEach(([key, def]) => {
                 if (key in coreVars) return;
                 const min = Number.isFinite(def?.min) ? def.min : 0;
@@ -41,9 +32,7 @@
             };
         }
 
-        // Mirrors CaseFiles.js's replaceTemplates() exactly, but instead of silently eating
-        // failures, it collects every broken token so the validator can surface them.
-        function resolveTemplateForValidation(str, ctx) {
+function resolveTemplateForValidation(str, ctx) {
             const issues = [];
             if (typeof str !== 'string') return { result: str, issues };
             const c = ctx.cast;
@@ -109,10 +98,7 @@
             return { result: s, issues };
         }
 
-        // Extra heuristic checks that catch the two typo classes that don't look like
-        // "${...}" at all, so the resolution pass above can never see them: a "$(" where
-        // "${" was meant, and a "{...}" missing its leading "$" entirely.
-        function findTypoTokens(text) {
+function findTypoTokens(text) {
             const found = [];
             const wrongBracket = text.match(/\$\([a-zA-Z_][\w.]*}/g);
             if (wrongBracket) wrongBracket.forEach(m => found.push(`Malformed token <b>${m}</b> uses "$(" instead of "\${" — it will render literally to the player.`));
@@ -121,12 +107,7 @@
             return found;
         }
 
-        // Recursively pulls every string value out of an arbitrarily-shaped JSON value
-        // (or array of them), regardless of which key it lived under. Used to check
-        // whether a ${varName} token appears ANYWHERE in the narrative data without
-        // having to hard-code every field name (text, option, tell_title, description,
-        // a foreshadow location's title, ...) that might legitimately carry template text.
-        function collectAllStrings(value, out) {
+function collectAllStrings(value, out) {
             out = out || [];
             if (typeof value === 'string') {
                 out.push(value);
@@ -157,10 +138,7 @@
             return { count: sectors.size, sectors: Array.from(sectors) };
         }
 
-        // Shared badge styling for a delivery count. `mode` picks the phrasing:
-        // "corroborate" (thread field, 2+ needed for a corroboration event) vs
-        // "reachable" (puzzle LOCK_THREADS, 1+ needed for the puzzle to be solvable at all).
-        function badgeForDeliveryCount(count, mode) {
+function badgeForDeliveryCount(count, mode) {
             if (mode === 'reachable') {
                 if (count === 0) return { cls: 'badge-danger', label: '0 sectors — unreachable, puzzle can never be solved' };
                 if (count === 1) return { cls: 'badge-warn', label: `${count} sector — reachable, not yet corroborated` };
@@ -171,10 +149,7 @@
             return { cls: 'badge-ok', label: `${count} sectors — corroborates` };
         }
 
-        // Live "does this text actually work" feedback: resolves every ${...} token in
-        // the main textarea against a mock context (same logic the Validation tab uses)
-        // and renders the result side-by-side, plus a plain-language issues list.
-        function updateLivePreview() {
+function updateLivePreview() {
             const previewPane = document.getElementById('template-preview');
             const banner = document.getElementById('template-issues-banner');
             if (!previewPane || !banner) return;
@@ -204,10 +179,7 @@
             }
         }
 
-        // Live "will this thread ever get corroborated" feedback next to the Thread
-        // field. Async because it may need to fetch lore.json/clues.json the first time;
-        // subsequent calls are served from the cache warmed in init().
-        async function refreshThreadBadge() {
+async function refreshThreadBadge() {
             const badgeEl = document.getElementById('thread-corrob-badge');
             if (!badgeEl) return;
             const threadContainerVisible = document.getElementById('thread-container').style.display !== 'none';
@@ -216,12 +188,7 @@
                 badgeEl.innerHTML = '';
                 return;
             }
-            // If the entry being edited is itself puzzle-gated (clues.json's `puzzle`
-            // field, single-id case), scope the corroboration count to that puzzle so it
-            // doesn't get inflated by a same-named thread's clues gated to a *different*
-            // puzzle. Entries with no puzzle field (lore) or a multi-puzzle array (shared
-            // clues) fall back to the unscoped/pooled count, same as before.
-            const currentItem = getCurrentEditorData();
+    const currentItem = getCurrentEditorData();
             const puzzleScope = (currentItem && typeof currentItem.puzzle === 'string') ? currentItem.puzzle : undefined;
             const { count } = await computeThreadDelivery(threadVal, puzzleScope);
             const { cls, label } = badgeForDeliveryCount(count, 'corroborate');
@@ -247,7 +214,6 @@
             resultsEl.innerHTML = '<div style="color:var(--text-muted); font-family:var(--font-mono);">Running validation checks...</div>';
             
             try {
-                // Fetch all data
                 const fetches = ['parameters.json', 'threads.json', 'puzzles.json', 'clues.json', 'lore.json', 'foreshadow.json', 'finales.json'].map(f => fetch('/api/data?file=' + f).then(r => r.json()));
                 const [paramRes, threadRes, puzzleRes, clueRes, loreRes, foreRes, finRes] = await Promise.all(fetches);
                 
@@ -264,12 +230,6 @@
                 const puzzleIds = new Set(puzzles.map(p => p.id));
                 const varKeys = new Set(Object.keys(varsMap));
 
-                // Every thread that appears in at least one puzzle's LOCK_THREADS is a
-                // "puzzle-mechanic" thread (CIPHER, PEN, EPOCH, HOUR, ...) — the universe
-                // of legal clues.json thread values. The editor's dropdown only ever
-                // offers a subset of this (scoped further to the puzzle(s) an entry is
-                // checked for), but this check is the backstop for anything that arrived
-                // via a hand-edited file instead.
                 const allPuzzleThreadKeys = new Set();
                 puzzles.forEach(p => { if (p && p.LOCK_THREADS) Object.keys(p.LOCK_THREADS).forEach(t => allPuzzleThreadKeys.add(t)); });
 
@@ -278,8 +238,7 @@
                 
                 const warnings = [];
                 const errors = [];
-                
-                // Check Clues
+
                 for (const [sector, arr] of Object.entries(clues)) {
                     if (Array.isArray(arr)) {
                         arr.forEach((clue, idx) => {
@@ -289,10 +248,6 @@
                                 if (!threadKeys.has(clue.thread)) {
                                     errors.push(`[${path}] References unknown thread: <b>${clue.thread}</b>`);
                                 }
-                                // clues.json entries must carry a puzzle-mechanic thread —
-                                // one some puzzle actually locks against — not an arbitrary
-                                // narrative tag (those belong in lore.json) and not TELL
-                                // (exclusive to finales.json/foreshadow.json).
                                 if (!allPuzzleThreadKeys.has(clue.thread)) {
                                     errors.push(`[${path}] Clue is tagged thread <b>${clue.thread}</b>, but no puzzle's LOCK_THREADS uses that thread. clues.json entries should only ever carry a thread some puzzle actually locks against — if this is world flavor rather than puzzle-solving evidence, it belongs in lore.json instead.`);
                                 }
@@ -304,7 +259,6 @@
                                     if (!puzzleIds.has(p)) {
                                         errors.push(`[${path}] References unknown puzzle ID: <b>${p}</b>`);
                                     } else {
-                                        // Check logic mismatch
                                         const pObj = puzzles.find(x => x.id === p);
                                         if (pObj && pObj.LOCK_THREADS && clue.thread && !pObj.LOCK_THREADS[clue.thread]) {
                                             errors.push(`[${path}] Critical Logic Mismatch: Clue requires puzzle <b>${p}</b> and thread <b>${clue.thread}</b>, but puzzle <b>${p}</b> does not have <b>${clue.thread}</b> in its LOCK_THREADS! This clue will never appear.`);
@@ -315,8 +269,7 @@
                         });
                     }
                 }
-                
-                // Check Lore
+
                 for (const [sector, arr] of Object.entries(lore)) {
                     if (Array.isArray(arr)) {
                         arr.forEach((l, idx) => {
@@ -325,12 +278,6 @@
                                 if (!threadKeys.has(l.thread)) {
                                     errors.push(`[lore.json -> ${sector}[${idx}]] References unknown thread: <b>${l.thread}</b>`);
                                 }
-                                // TELL is exclusive to finales.json/foreshadow.json, and any
-                                // thread a puzzle locks against is puzzle-mechanic evidence
-                                // that belongs in clues.json (gated to that puzzle) — not
-                                // universal lore.json content. The editor's tag-input already
-                                // blocks typing either by hand; this is the backstop for a
-                                // hand-edited file.
                                 if (l.thread === 'TELL' || allPuzzleThreadKeys.has(l.thread)) {
                                     errors.push(`[lore.json -> ${sector}[${idx}]] Entry is tagged thread <b>${l.thread}</b>, which is ${l.thread === 'TELL' ? 'exclusive to finales.json/foreshadow.json' : "a puzzle-mechanic thread (something in puzzles.json's LOCK_THREADS)"} — it belongs in clues.json instead, gated to whichever puzzle(s) need it.`);
                                 }
@@ -338,8 +285,7 @@
                         });
                     }
                 }
-                
-                // Check Foreshadow
+
                 foreshadow.forEach((group, idx) => {
                     for (const [key, val] of Object.entries(group)) {
                         if (val && typeof val === 'object' && val.thread) {
@@ -347,31 +293,13 @@
                             if (!threadKeys.has(val.thread)) {
                                 errors.push(`[foreshadow.json -> [${idx}].${key}] References unknown thread: <b>${val.thread}</b>`);
                             }
-                            // CIPHER is exclusive to puzzles/clues.json; TELL is exclusive to
-                            // finales.json/foreshadow.json. The editor always writes TELL here
-                            // (the field is hidden, not user-editable) so this can only drift
-                            // via a hand-edited JSON file — but if it does, a foreshadow entry
-                            // tagged CIPHER would get corroboration-counted toward a puzzle's
-                            // access code instead of toward the finale it's meant to foreshadow.
                             if (val.thread !== 'TELL') {
                                 errors.push(`[foreshadow.json -> [${idx}].${key}] Entry is tagged thread <b>${val.thread}</b>, but foreshadow.json entries should always be <b>TELL</b> — the editor sets this automatically. If this content is cipher-solving instructions, it belongs in clues.json instead.`);
                             }
                         }
                     }
                 });
-                
-                // Check Puzzles
-                // LOCK_THREADS is {thread: label}. Only the KEY is ever read by the engine
-                // (StoryEngine.js's _anchorCodeFragments/lockProgress, CaseFiles.js's clue
-                // injection both only do Object.keys(...)/truthiness checks on it) — the
-                // VALUE is read exactly once, by KeypadController.js, purely as the
-                // human-readable text shown to the player for a still-missing objective
-                // ("still need: <label>"). It was never a reference into parameters.json's
-                // VARS and doesn't need to be — that's just what the factory-default
-                // puzzles happened to name their labels, coincidentally matching a VARS key
-                // that itself is never used as a ${...} token anywhere. So: still flag an
-                // empty label (it would render as blank text in-game), but stop requiring
-                // it to match anything in VARS.
+
                 puzzles.forEach(p => {
                     if (p.LOCK_THREADS) {
                         for (const [thread, v] of Object.entries(p.LOCK_THREADS)) {
@@ -385,42 +313,20 @@
                         }
                     }
 
-                    // cipher_title/cipher_description let a puzzle override the shared
-                    // threads.json CIPHER heading while it's the active puzzle (same idea as
-                    // a finale's tell_title/tell_description override for TELL). Both fields
-                    // resolve as narrative text (collected into textFields just below) so a
-                    // broken ${...} token in them gets caught the same way as anywhere else,
-                    // but they're only meaningful on a puzzle that actually locks CIPHER.
                     const puzzleLocksCipher = !!(p.LOCK_THREADS && Object.prototype.hasOwnProperty.call(p.LOCK_THREADS, 'CIPHER'));
                     if (!puzzleLocksCipher && (p.cipher_title || p.cipher_description)) {
                         warnings.push(`[puzzles.json -> ${p.id}] cipher_title/cipher_description is set, but this puzzle's LOCK_THREADS doesn't include CIPHER — this override will never be applied.`);
                     }
                 });
-                
-                // Check Finales Sync
+
                 if (foreshadow.length !== finales.length) {
                     errors.push(`[foreshadow.json / finales.json] Sync mismatch! Foreshadow has ${foreshadow.length} groups, Finales has ${finales.length}. They must match exactly by index.`);
                 }
-                
-                // Check Orphans
+
                 threadKeys.forEach(t => {
                     if (!usedThreads.has(t)) warnings.push(`[threads.json] Thread defined but never used: <b>${t}</b>`);
                 });
 
-                // A VAR counts as "used" if its ${name} token — or an equivalent alias that
-                // resolves to the exact same runtime value — actually shows up somewhere in
-                // the narrative text. CaseFiles.js's replaceTemplates() resolves ${seed},
-                // ${pen}, ${year}, ${hours} (and any custom CORE_VARS key, e.g. ${REQ})
-                // directly by name, because those are literally the property names on the
-                // per-playthrough coreVars object — this runs BEFORE the VARS loop that
-                // ${PEN}/${EPOCH}/${HOUR}/etc. go through. ${hrs} is a separate, genuinely
-                // legacy shorthand kept only for ${hours} (no "hrs" key exists on coreVars,
-                // so it has its own dedicated replace() line). A raw ${ctx.pen}-style
-                // expression resolves too, via the generic math-expression fallback at the
-                // very end. So a document that writes "${pen}" or "${hours}" is exposing
-                // PEN/HOUR's value exactly as much as "${PEN}"/"${HOUR}" would, and only
-                // checking the exact-case VARS key produced a wall of false positives on
-                // real, working content.
                 const legacyAliasesFor = {
                     PEN: ['${pen}', '${ctx.pen}'],
                     HOUR: ['${hours}', '${hrs}', '${ctx.hours}'],
@@ -428,12 +334,6 @@
                 };
                 const narrativeText = collectAllStrings([lore, clues, foreshadow, finales, threads]).join('\n');
                 varKeys.forEach(v => {
-                    // CIPHER is special-cased out entirely: its VARS expression (ctx.cipher)
-                    // resolves to the fully-solved access code for the puzzle. Writing
-                    // "${CIPHER}" into any visible document text would print the literal
-                    // answer to the keypad — it must NEVER be referenced, by design, so
-                    // "unreferenced" is the only correct state for it and isn't worth a
-                    // warning that will permanently and correctly never clear.
                     if (v === 'CIPHER') return;
                     const aliases = ['${' + v + '}', ...(legacyAliasesFor[v] || [])];
                     const usedInText = aliases.some(token => narrativeText.includes(token));
@@ -443,14 +343,6 @@
                     }
                 });
 
-                // Check Reachability: every thread a puzzle locks against must actually be
-                // delivered UNDER THAT PUZZLE specifically, or the objective can never be
-                // corroborated in-game. lore.json and foreshadow.json entries are always
-                // universal, but clues.json entries are further gated by a `puzzle` field
-                // (mirrors CaseFiles.js's clue-injection logic) — so a clue gated to a
-                // different puzzle variant must not count just because it shares a thread
-                // name (e.g. a pen-cipher clue can't satisfy an hour-cipher puzzle's CIPHER
-                // requirement even though both puzzles lock against "CIPHER").
                 const universalDeliveredThreads = new Set();
                 for (const arr of Object.values(lore)) {
                     if (Array.isArray(arr)) arr.forEach(item => { if (item && item.thread) universalDeliveredThreads.add(item.thread); });
@@ -480,8 +372,6 @@
                     }
                 });
 
-                // Check Templates: actually resolve every ${...} token against a live mock
-                // context, mirroring CaseFiles.js, instead of only checking identifiers exist.
                 const mockCtx = buildMockCtx(params, puzzles);
                 const textFields = [];
                 for (const [sector, arr] of Object.entries(lore)) {
@@ -501,21 +391,10 @@
                     if (f.tell_title) textFields.push([`finales.json -> [${idx}].tell_title`, f.tell_title]);
                     if (f.tell_description) textFields.push([`finales.json -> [${idx}].tell_description`, f.tell_description]);
 
-                    // CIPHER is exclusive to puzzles/clues.json; TELL is exclusive to
-                    // finales.json/foreshadow.json. The editor always writes TELL here (the
-                    // field is hidden, not user-editable) so this can only drift via a
-                    // hand-edited JSON file — but if it does, reading the finale would
-                    // corroborate a puzzle's CIPHER requirement instead of TELL, which lets a
-                    // puzzle appear solvable off evidence that's only ever seen at the very
-                    // end of the game.
                     if (f.thread !== 'TELL') {
                         errors.push(`[finales.json -> [${idx}].thread] Finale is tagged thread <b>${f.thread}</b>, but finales.json entries should always be <b>TELL</b> — the editor sets this automatically.`);
                     }
 
-                    // lock_thread names a *second* thread (besides the implicit TELL) whose
-                    // evidence nests as a subheading under TELL in the player's journal — it
-                    // must point at a real threads.json entry, and pointing it at TELL itself
-                    // is a no-op that just confuses the author (TELL is already the heading).
                     if (f.lock_thread) {
                         if (f.lock_thread === 'TELL') {
                             warnings.push(`[finales.json -> [${idx}].lock_thread] Set to <b>TELL</b>, which is already this finale's quest heading — lock_thread is meant to name a <i>different</i> thread to nest underneath it. Leave blank if this finale has no separate evidence thread.`);
@@ -534,7 +413,6 @@
                 });
 
                 textFields.forEach(([path, text]) => {
-                    // Heuristic: "${" typo'd as "$(" — wrong bracket, never resolves.
                     const wrongBracket = text.match(/\$\([a-zA-Z_][\w.]*}/g);
                     if (wrongBracket) {
                         wrongBracket.forEach(m => errors.push(`[${path}] Malformed token <b>${m}</b> — uses "$(" instead of "\${". This will render literally to the player.`));
@@ -569,7 +447,6 @@
                     });
                 });
 
-                // Render
                 let html = '';
                 if (errors.length === 0 && warnings.length === 0) {
                     html += `<div style="padding: 16px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 6px; color: #34d399; font-family: var(--font-mono); font-size: 0.875rem;">
@@ -602,8 +479,3 @@
             }
         }
 
-        // Puzzle Inspector: makes the puzzle -> LOCK_THREADS -> delivering-content chain
-        // visible as a table instead of something you have to trace across three files by
-        // hand, plus a "simulate a run" button per puzzle that re-rolls the mock seed/pen/
-        // year/hour and recomputes that puzzle's access code, so you can see the shape of
-        // a few different playthroughs without launching the game.

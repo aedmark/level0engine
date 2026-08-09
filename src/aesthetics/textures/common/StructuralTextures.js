@@ -41,12 +41,6 @@ export default class StructuralTextures {
             metalness: 0.05
         });
         baseboardTrimMat.userData.noShadow = true;
-        // noShadow tells _compileInstances to skip shadow-casting for these
-        // (see ChunkManager._compileInstances). A strip this thin and this close to
-        // the floor contributes nothing worth a shadow-map pass, and with one of
-        // these on every full-height wall in every loaded chunk, that pass was not
-        // free — it was rendering shadow geometry for thousands of near-invisible
-        // slivers.
         const {canvas: structCanvas, ctx: structCtx} = TextureMechanics._createContext(512, 512);
         structCtx.fillStyle = '#7e7664';
         structCtx.fillRect(0, 0, 512, 512);

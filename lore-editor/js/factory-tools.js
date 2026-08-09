@@ -1,7 +1,4 @@
-        // Bundles every live data file (lore/clues/finales/foreshadow/puzzles/threads/
-        // parameters) into one JSON download, so it can be handed to someone else and
-        // loaded back in with Import Lore Pack.
-        async function exportLorePack() {
+async function exportLorePack() {
             try {
                 const res = await fetch('/api/export');
                 if (!res.ok) throw new Error('bad response');
@@ -27,11 +24,7 @@
             input.click();
         }
 
-        // Fired by the hidden file input's onchange. Replaces every recognized live data
-        // file with the contents of the selected lore pack — a full overwrite, same as
-        // Factory Reset but restoring to someone else's pack instead of the shipped
-        // defaults. Files the pack doesn't mention are left untouched.
-        async function handleImportFileSelected(fileInput) {
+async function handleImportFileSelected(fileInput) {
             const file = fileInput.files && fileInput.files[0];
             if (!file) return;
             let bundle;
@@ -61,10 +54,6 @@
                 } else {
                     alert('Import finished, but some files failed to write. Check the data directory permissions and try again.');
                 }
-                // The import already overwrote whatever was on disk unconditionally, so any
-                // unsaved in-memory edit is moot by this point — clear it before the refresh
-                // below so confirmDiscardIfDirty() doesn't re-prompt about something the user
-                // already accepted losing when they confirmed the import itself.
                 clearDirty();
                 if (selectedFile && files.includes(selectedFile)) selectFile(selectedFile);
             } catch (e) {
@@ -72,11 +61,7 @@
             }
         }
 
-        // Restores every data file to the immutable data/factory/ baseline, discarding
-        // every edit and addition made since. The embedded "_locked" entries and the
-        // primitives protected by getLockedNamesSet/getLockedVarKeysSet are exactly what
-        // this restores from — factory reset is that same baseline applied wholesale.
-        async function factoryReset() {
+async function factoryReset() {
             const warning = "FACTORY RESET\n\nThis restores lore.json, clues.json, finales.json, foreshadow.json, puzzles.json, threads.json, and parameters.json to their shipped defaults.\n\nEverything you've added or changed will be permanently lost. This cannot be undone.\n\nContinue?";
             if (!confirm(warning)) return;
 
@@ -93,8 +78,6 @@
                 } else {
                     alert('Factory reset finished, but some files failed to reset. Check the data directory permissions and try again.');
                 }
-                // Same reasoning as import: the reset already overwrote disk unconditionally,
-                // so clear dirty before the refresh below to avoid a redundant second prompt.
                 clearDirty();
                 if (selectedFile && files.includes(selectedFile)) selectFile(selectedFile);
             } catch (e) {
@@ -158,11 +141,6 @@
             if (puzzleIds.length) filesWritten.push('puzzles.json');
             filesWritten.push('threads.json');
 
-            // This touches up to 5 files in sequence — if a write fails partway through
-            // (postFile() now throws instead of failing silently), the rename is left
-            // half-applied across files. Surface exactly that instead of leaving an
-            // unhandled rejection in the console with no indication of what did/didn't
-            // actually get written.
             try {
                 if (lore) {
                     for (const arr of Object.values(lore)) {
@@ -219,8 +197,6 @@
                 return;
             }
 
-            // Every file this rename touched (including the currently-open one, if it was
-            // affected) was just persisted via postFile above, so nothing is left unsaved.
             clearDirty();
             renderTree();
             renderEditor();

@@ -1,12 +1,4 @@
-        // Finale Wizard: walks through Identify -> The Reveal -> Foreshadowing -> Review,
-        // and writes to finales.json AND foreshadow.json together on "Create Finale Arc".
-        // The entire reason this exists (rather than just using +Add Entry on each file
-        // separately) is that the two files must stay index-aligned — foreshadow.json's
-        // group at index N is the lead-up to finales.json's finale at index N, and nothing
-        // else ties them together. Pushing to both arrays in the same write, at wizard-open
-        // time, makes a misaligned pair structurally impossible instead of relying on an
-        // author to "note the index" by hand.
-        const DEFAULT_FORESHADOW_SECTORS = ['ANNEX', 'ARCHIVE', 'SERVER', 'CLINIC', 'CHASM'];
+const DEFAULT_FORESHADOW_SECTORS = ['ANNEX', 'ARCHIVE', 'SERVER', 'CLINIC', 'CHASM'];
 
         function newFinaleWizardState() {
             const sectors = {};
@@ -45,9 +37,6 @@
             document.getElementById('wizard-container').style.display = 'flex';
             document.getElementById('wizard-header-title').innerText = 'New Finale Arc';
 
-            // Warm the sector list so "+ Add Sector" in Step 3 offers everything
-            // lore.json/clues.json actually use, not just the five conventional ones, and
-            // warm threads.json so Step 2's Evidence Thread dropdown has options.
             await Promise.all([getCrossFileData('lore.json'), getCrossFileData('clues.json'), getCrossFileData('threads.json')]);
 
             await renderFinaleWizard();

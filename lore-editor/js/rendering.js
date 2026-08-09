@@ -1,5 +1,4 @@
-        // Render File List
-        function renderFileList() {
+function renderFileList() {
             let html = '';
             const groups = [
                 { title: '⚙️ System Parameters', files: ['parameters.json', 'threads.json'] },
@@ -22,8 +21,7 @@
                 });
             });
 
-            // Fallback for any other files
-            const knownFiles = new Set(groups.flatMap(g => g.files));
+    const knownFiles = new Set(groups.flatMap(g => g.files));
             const otherFiles = files.filter(f => !knownFiles.has(f));
             if (otherFiles.length > 0) {
                 html += `<h2>📁 Other Data</h2>`;
@@ -66,8 +64,7 @@
             fileListEl.innerHTML = html;
         }
 
-        // Select File
-        async function selectFile(f) {
+async function selectFile(f) {
             if (!confirmDiscardIfDirty()) return;
             wizardState = null;
             finaleWizardState = null;
@@ -96,7 +93,6 @@
                 fileData = data.content;
                 clearDirty();
 
-                // Load linked data
                 if (f === 'foreshadow.json') await loadLinked('finales.json');
                 else if (f === 'finales.json') await loadLinked('foreshadow.json');
                 else linkedData = null;
@@ -138,8 +134,7 @@
             }
         }
 
-        // Render Tree
-        function renderTree() {
+function renderTree() {
             if (!fileData) return;
             let html = '';
             
@@ -203,27 +198,12 @@
                 if (selectedFile === 'puzzles.json') {
                     html += `<button class="add-btn" onclick="openPuzzleWizard()">+ New Puzzle (Wizard)</button>`;
                 } else if (selectedFile === 'finales.json' || selectedFile === 'foreshadow.json') {
-                    // finales.json and foreshadow.json must stay index-aligned (see Data
-                    // Validation's sync check), which is exactly the class of mistake a
-                    // guided wizard exists to prevent — so route both files' "add" through
-                    // it instead of a plain addEntry() that only touches one side.
                     html += `<button class="add-btn" onclick="openFinaleWizard()">+ New Finale (Wizard)</button>`;
                 } else {
                     html += `<button class="add-btn" onclick="addEntry(null)">+ Add Entry</button>`;
                 }
                 
             } else if (isObjectRoot()) {
-                // lore.json's and clues.json's categories are sectors, and a sector is
-                // only ever a real in-game location (see SECTOR_DESCRIPTIONS/
-                // getKnownSectors) — not a freeform label. Previously the tree only
-                // listed whichever sectors a file already happened to have an entry for,
-                // so a sector with zero entries so far was invisible, and the only way to
-                // add one was "+ CAT", a raw prompt() that could just as easily create
-                // "ARCHVIE" as "ARCHIVE". Listing every known sector up front (defaulting
-                // to an empty array for ones this file hasn't touched yet) removes both
-                // problems at once: every real location is always visible and pickable,
-                // and there's no freeform path left that could invent a location that
-                // doesn't exist.
                 const isSectorFile = selectedFile === 'clues.json' || selectedFile === 'lore.json';
                 addCatBtn.style.display = isSectorFile ? 'none' : 'block';
 
@@ -303,8 +283,7 @@
             treeContentEl.innerHTML = html;
         }
 
-        // Actions
-        function clickArrayRow(i, isItemObj) {
+function clickArrayRow(i, isItemObj) {
             const isExpandable = isItemObj && selectedFile !== 'finales.json' && selectedFile !== 'puzzles.json';
             if (isExpandable) {
                 expandedCategory = (expandedCategory === String(i)) ? null : String(i);
@@ -343,15 +322,7 @@
         function addEntry(cat) {
             markDirty();
             if (cat) {
-                // clues.json entries are always CIPHER (see renderEditor's clues.json
-                // branch) — default the template to match so a brand-new entry doesn't
-                // briefly disagree with the locked field before the next render.
                 const template = { text: "", thread: selectedFile === 'clues.json' ? 'CIPHER' : 'UNCLASSIFIED', type: "document" };
-                // A sector clues.json has never had an entry for yet (now visible in the
-                // tree via getKnownSectors() even though the key is entirely absent from
-                // fileData) needs a fresh array, not "wrap whatever's already there" — the
-                // old branch below would otherwise stuff a stray `undefined` in as the
-                // first element.
                 if (fileData[cat] === undefined) fileData[cat] = [template];
                 else if (!Array.isArray(fileData[cat])) fileData[cat] = [fileData[cat], template];
                 else fileData[cat].push(template);
@@ -430,8 +401,7 @@
             renderEditor();
         }
 
-        // Editor Render & Update
-        function getCurrentEditorData() {
+function getCurrentEditorData() {
             if (isArrayRoot() && selectedIndex !== null) {
                 if (selectedCategory) return fileData[selectedIndex][selectedCategory];
                 return fileData[selectedIndex];
@@ -462,7 +432,6 @@
             let subtitle = selectedIndex !== null ? `/ Entry ${selectedIndex}` : '';
             document.getElementById('editor-title').innerHTML = `${title} <span class="editor-subtitle">${subtitle}</span>`;
 
-            // Hint Box (Foreshadow)
             const hintBox = document.getElementById('hint-box');
             if (selectedFile === 'foreshadow.json' && linkedData && selectedIndex !== null) {
                 hintBox.style.display = 'block';
@@ -522,12 +491,10 @@
                 if (namesLabel) namesLabel.style.display = 'none';
             }
 
-            // Tag Box (Any Lore Object)
             const tagBox = document.getElementById('tag-box');
             const tagInput = document.getElementById('tag-input');
             const typeInput = document.getElementById('type-input');
-            
-            // Treat as lore obj if it has text, thread, or type, or is in lore.json/clues.json/foreshadow.json
+
             const isLoreDataFile = ['lore.json', 'clues.json', 'foreshadow.json', 'finales.json', 'threads.json'].includes(selectedFile);
             const isLoreObj = val && typeof val === 'object' && !Array.isArray(val) && 
                 (isLoreDataFile || 'text' in val || 'thread' in val || 'type' in val || 'description' in val);
@@ -547,8 +514,6 @@
                     document.getElementById('option-container').style.display = 'none';
                     document.getElementById('finale-meta-container').style.display = 'none';
 
-                    // Only a puzzle that actually locks against CIPHER has any use for a
-                    // per-puzzle override — offering it otherwise would just be confusing.
                     const puzzleHasCipher = !!(val.LOCK_THREADS && Object.prototype.hasOwnProperty.call(val.LOCK_THREADS, 'CIPHER'));
                     const cipherContainer = document.getElementById('puzzle-cipher-container');
                     cipherContainer.style.display = puzzleHasCipher ? 'flex' : 'none';
@@ -570,13 +535,6 @@
                     }
                 } else {
                     document.getElementById('puzzle-cipher-container').style.display = 'none';
-                    // clues.json's thread is always a puzzle-mechanic thread — one that
-                    // actually appears in some puzzle's LOCK_THREADS (CIPHER, PEN, EPOCH,
-                    // HOUR, ...) — never a freely-typed tag. Rather than a text field, it's
-                    // a dropdown scoped to whichever puzzle(s) are checked below: only a
-                    // thread every currently-checked puzzle actually locks against is ever
-                    // selectable, so a clue can't be assigned to a puzzle/thread pairing
-                    // that would silently never appear in-game.
                     if (selectedFile === 'clues.json') {
                         tagInput.style.display = 'none';
                         document.getElementById('clue-thread-select').style.display = 'inline-block';
@@ -617,9 +575,6 @@
                         descInput.value = val.tell_description || '';
                         descInput.placeholder = threadData.description || '';
 
-                        // Lock Thread: any thread besides TELL that this finale's own
-                        // evidence trail belongs to (e.g. the "Hum" finale -> HUM). Renders
-                        // as a subheading nested under TELL in the player's journal.
                         const lockThreadSelect = document.getElementById('finale-lock-thread-select');
                         const allThreadKeys = Object.keys(crossFileCache['threads.json'] || {}).filter(k => k !== 'TELL');
                         lockThreadSelect.innerHTML = '<option value="">— None —</option>' +
@@ -681,8 +636,7 @@
             refreshThreadBadge();
         }
 
-        // Input Listeners
-        document.getElementById('option-textarea').addEventListener('input', (e) => {
+document.getElementById('option-textarea').addEventListener('input', (e) => {
             markDirty();
             let val = e.target.value;
             const original = getCurrentEditorData();
@@ -781,7 +735,7 @@
             }
 
             if (typeof original !== 'string') {
-                try { val = JSON.parse(val); } catch(e){} // wait for valid json
+                try { val = JSON.parse(val); } catch(e){}
             }
             
             if (isArrayRoot()) {
@@ -798,13 +752,6 @@
             let val = e.target.value.toUpperCase().trim();
             const hintEl = document.getElementById('thread-constraint-hint');
 
-            // CIPHER/TELL/PEN/EPOCH/HOUR/... are puzzle- and finale-mechanic threads, not
-            // freely-typed tags. clues.json's thread is a dropdown (#clue-thread-select,
-            // see renderClueThreadSelect) hidden in place of this input entirely, so this
-            // listener only ever fires for lore.json — where TELL and any thread some
-            // puzzle currently locks against (CIPHER included) must be bounced back out to
-            // UNCLASSIFIED, so a mechanic thread can't quietly become universal again by
-            // being hand-typed here instead of assigned through the puzzle-scoped dropdown.
             const mechanicThreads = computeAllowedClueThreads(null);
             if (selectedFile === 'lore.json' && (val === 'TELL' || mechanicThreads.includes(val))) {
                 val = 'UNCLASSIFIED';
@@ -891,8 +838,7 @@
         });
 
 
-        // Save
-        async function handleSave() {
+async function handleSave() {
             const btn = document.getElementById('save-btn');
             btn.disabled = true;
             btn.innerText = 'Saving...';
@@ -912,9 +858,6 @@
                 if (selectedFile === 'puzzles.json') {
                     puzzlesData = fileData;
                 }
-                // Keep the cross-file cache (corroboration badges, reachability, sector
-                // list) in sync with whatever was just saved, so QOL feedback never shows
-                // stale numbers for the file you just edited.
                 if (['lore.json', 'clues.json', 'foreshadow.json', 'finales.json', 'threads.json', 'puzzles.json'].includes(selectedFile)) {
                     crossFileCache[selectedFile] = fileData;
                     if (linkedData && selectedFile === 'foreshadow.json') crossFileCache['finales.json'] = linkedData;

@@ -1,5 +1,4 @@
-        // Names Logic
-        function getTargetObj() {
+function getTargetObj() {
             if (selectedFile === 'puzzles.json' && selectedCategory === null) {
                 if (selectedIndex !== null && fileData[selectedIndex]) {
                     if (!fileData[selectedIndex].LOCK_THREADS) fileData[selectedIndex].LOCK_THREADS = {};
@@ -10,11 +9,7 @@
             return isArrayRoot() ? (fileData[selectedIndex] ? fileData[selectedIndex][selectedCategory] : null) : fileData[selectedCategory];
         }
 
-        // Names/VARS/LOCK_THREADS entries are plain strings or dict keys, so they can't
-        // carry an embedded "_locked" flag the way object entries do. Instead we compare
-        // against the immutable factory-default snapshot (data/factory/*.json) fetched
-        // via getFactoryData: anything present there was shipped, and can't be deleted.
-        async function getLockedNamesSet() {
+async function getLockedNamesSet() {
             if (selectedFile !== 'parameters.json') return new Set();
             const factory = await getFactoryData('parameters.json');
             const factoryArr = factory && Array.isArray(factory[selectedCategory]) ? factory[selectedCategory] : [];
@@ -68,9 +63,6 @@
             });
             document.getElementById('names-container').innerHTML = html;
 
-            // Reachability is a real check (needs lore.json/clues.json), so it's filled
-            // in async right after the synchronous render above. Scoped to this specific
-            // puzzle's id so a clue gated to a different puzzle variant can't count.
             if (isLockThreads) {
                 const currentPuzzleId = fileData && fileData[selectedIndex] ? fileData[selectedIndex].id : null;
                 Object.keys(obj).forEach(async (key) => {
@@ -145,8 +137,7 @@
             }
         }
 
-        // Puzzle Logic
-        async function updatePuzzleSuggestions() {
+async function updatePuzzleSuggestions() {
             try {
                 const res = await fetch('/api/data?file=puzzles.json');
                 const data = await res.json();
@@ -206,25 +197,11 @@
                         else delete fileData[selectedCategory].puzzle;
                     }
                 }
-                // The set of allowed threads is scoped to whichever puzzles are checked,
-                // so it has to be recomputed every time that set changes — and the
-                // currently-selected thread may no longer be valid for the new selection.
                 renderClueThreadSelect();
             }
         }
 
-        // Clue Thread Scoping
-        // clues.json's thread field is a puzzle-mechanic thread (CIPHER, PEN, EPOCH,
-        // HOUR, ...) — one that actually appears in some puzzle's LOCK_THREADS — gated to
-        // whichever puzzle(s) this entry is checked for via the Puzzle field. To make a
-        // mismatch structurally impossible (rather than just flagging it after the fact
-        // in Data Validation), the dropdown only ever offers the INTERSECTION of
-        // LOCK_THREADS keys across every currently-checked puzzle: if an entry is checked
-        // for two puzzles that don't share a thread, there's simply no way to select a
-        // thread that's wrong for one of them. Nothing checked yet — or an ungated clue,
-        // which per HowTo.md applies to every puzzle that locks CIPHER — falls back to
-        // the union across all puzzles, so the dropdown is never empty mid-edit.
-        function computeAllowedClueThreads(puzzleValue) {
+function computeAllowedClueThreads(puzzleValue) {
             const allPuzzles = puzzlesData || [];
             const requestedIds = puzzleValue == null ? null : (Array.isArray(puzzleValue) ? puzzleValue : [puzzleValue]);
             const relevant = requestedIds ? allPuzzles.filter(p => p && requestedIds.includes(p.id)) : [];
@@ -243,13 +220,7 @@
             return Array.from(intersection || []).sort();
         }
 
-        // Populates/re-populates #clue-thread-select from computeAllowedClueThreads(),
-        // and — since this runs both on initial render and after every Puzzle checkbox
-        // change — auto-corrects the entry's thread if it's no longer valid for the
-        // currently-checked puzzle(s) instead of silently leaving a stale, now-invalid
-        // value in fileData. Prefers CIPHER as the fallback since every puzzle is
-        // expected to require it.
-        function renderClueThreadSelect() {
+function renderClueThreadSelect() {
             const select = document.getElementById('clue-thread-select');
             if (!select) return;
             const val = getCurrentEditorData();
@@ -260,9 +231,6 @@
             const hintEl = document.getElementById('thread-constraint-hint');
 
             if (allowed.length === 0) {
-                // Only reachable if the checked puzzles share literally no LOCK_THREADS key
-                // in common, which shouldn't happen as long as every puzzle carries CIPHER
-                // — but don't leave the dropdown silently broken if it somehow does.
                 select.innerHTML = '<option value="">— No shared thread —</option>';
                 select.value = '';
                 if (hintEl) { hintEl.style.display = 'inline'; hintEl.innerText = 'The checked puzzles share no LOCK_THREADS in common — this clue can never be valid for all of them at once.'; }
@@ -292,8 +260,7 @@
             }
         }
 
-        // Tags Logic
-        function updateTagSuggestions() {
+function updateTagSuggestions() {
             const tagSet = new Set();
             if (isObjectRoot()) {
                 Object.values(fileData).forEach(arr => {
@@ -324,22 +291,18 @@
             });
         }
 
-        // Variable Insertion
-        function renderVariableToolbar() {
+function renderVariableToolbar() {
             const tb = document.getElementById('variable-toolbar');
             if (!tb || !paramsData) return;
             let html = '';
 
-            // Resolves a token against a mock context so the dropdown can show what it
-            // actually produces, not just its name (e.g. "hours → 512" instead of just "hours").
-            const mockCtx = buildMockCtx(paramsData, puzzlesData || []);
+    const mockCtx = buildMockCtx(paramsData, puzzlesData || []);
             const preview = (token) => {
                 const { result } = resolveTemplateForValidation(token, mockCtx);
                 return String(result);
             };
 
-            // Roles Dropdown
-            const roles = paramsData.ROLES || ["lead", "custodian", "archivist", "lost"];
+    const roles = paramsData.ROLES || ["lead", "custodian", "archivist", "lost"];
             html += `<select class="var-select" onchange="if(this.value) { insertVar(this.value); this.selectedIndex = 0; }">`;
             html += `<option value="">Insert Role...</option>`;
             roles.forEach(r => {
@@ -348,8 +311,7 @@
             });
             html += `</select>`;
 
-            // Core Dropdown
-            const core = ['P', 'hours', 'pen', 'year'];
+    const core = ['P', 'hours', 'pen', 'year'];
             html += `<select class="var-select" onchange="if(this.value) { insertVar(this.value); this.selectedIndex = 0; }">`;
             html += `<option value="">Insert Core Var...</option>`;
             core.forEach(v => {
@@ -358,8 +320,7 @@
             });
             html += `</select>`;
 
-            // Custom Vars Dropdown
-            let custom = paramsData.VARS || {};
+    let custom = paramsData.VARS || {};
             if (typeof custom === 'string') {
                 try { custom = JSON.parse(custom); } catch(e) { custom = {}; }
             }

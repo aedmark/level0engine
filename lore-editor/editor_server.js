@@ -11,13 +11,8 @@ const DATA_DIR = path.join(__dirname, '../data');
 const FACTORY_DIR = path.join(DATA_DIR, 'factory');
 const JS_DIR = path.join(__dirname, 'js');
 
-// The fixed set of data files the editor/engine know about. Import/export/reset
-// are all restricted to exactly this list so nobody can use these routes to
-// read or write arbitrary paths (including the factory directory itself).
 const KNOWN_DATA_FILES = ['lore.json', 'clues.json', 'finales.json', 'foreshadow.json', 'puzzles.json', 'threads.json', 'parameters.json'];
 
-// Rejects anything that escapes DATA_DIR, including sibling directories that
-// merely share DATA_DIR as a string prefix (e.g. "../data-evil").
 function isSafeDataPath(filePath) {
     return filePath === DATA_DIR || filePath.startsWith(DATA_DIR + path.sep);
 }
@@ -30,16 +25,9 @@ function isSafeJsPath(filePath) {
     return filePath.startsWith(JS_DIR + path.sep);
 }
 
-// This is a local editing tool where every read must reflect the file on disk
-// right now — there's never a reason for the browser (or an intermediate cache)
-// to reuse a previous response. Without this, a plain refresh after a save can
-// come back from the browser's HTTP cache (or bfcache restoring the whole page
-// without re-fetching at all) showing pre-save content even though the write to
-// disk genuinely succeeded, which looks exactly like "my changes aren't saving."
 const NO_CACHE_HEADERS = { 'Cache-Control': 'no-store, no-cache, must-revalidate', 'Pragma': 'no-cache' };
 
 const server = http.createServer((req, res) => {
-    // Serve Editor UI
     if (req.method === 'GET' && (req.url === '/' || req.url === '/index.html' || req.url === '/editor.html')) {
         fs.readFile(path.join(__dirname, 'editor.html'), (err, data) => {
             if (err) {
@@ -64,10 +52,6 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // Serve the editor's own app logic (lore-editor/js/*.js — see editor.html's
-    // <script src> tags). Path is resolved and checked against JS_DIR the same way
-    // the data-file routes guard against traversal, even though this only ever
-    // serves files this project ships with.
     if (req.method === 'GET' && req.url.startsWith('/js/') && req.url.endsWith('.js')) {
         const requested = decodeURIComponent(req.url.slice('/js/'.length));
         const filePath = path.join(JS_DIR, requested);
@@ -86,11 +70,10 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // API Routes
     if (req.url.startsWith('/api/data')) {
         const url = new URL(req.url, `http://${req.headers.host}`);
         const file = url.searchParams.get('file');
-        const source = url.searchParams.get('source'); // 'factory' reads the immutable baseline instead of live data
+        const source = url.searchParams.get('source');
 
         if (req.method === 'GET') {
             if (file) {
@@ -162,10 +145,6 @@ const server = http.createServer((req, res) => {
         }
     }
 
-    // Restore one file (or, with no body / empty file list, every known file) from
-    // the immutable data/factory/ baseline over the top of the live data/ copy.
-    // This is a deliberately blunt "undo all my edits to this file" operation —
-    // it does not try to merge; it just overwrites live with factory.
     if (req.method === 'POST' && req.url === '/api/factory-reset') {
         let body = '';
         req.on('data', chunk => { body += chunk.toString(); });
@@ -211,8 +190,6 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // Bundles every live data file into one JSON payload so a user can save it
-    // as a single "lore pack" file and hand it to someone else.
     if (req.method === 'GET' && req.url === '/api/export') {
         const bundle = { exportedAt: new Date().toISOString(), files: {} };
         let pending = KNOWN_DATA_FILES.length;
@@ -241,9 +218,6 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // Accepts a bundle in the same shape /api/export produces and writes each
-    // recognized file into data/, replacing the live copy wholesale. Unknown
-    // filenames inside the bundle are silently ignored rather than written.
     if (req.method === 'POST' && req.url === '/api/import') {
         let body = '';
         req.on('data', chunk => { body += chunk.toString(); });

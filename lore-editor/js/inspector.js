@@ -49,7 +49,6 @@
                     finales: finRes.content || []
                 };
 
-                // Piggyback on this fetch to keep the shared caches warm too.
                 paramsData = inspectorData.params;
                 puzzlesData = inspectorData.puzzles;
                 crossFileCache['lore.json'] = inspectorData.lore;
@@ -141,10 +140,6 @@
 
                 threadKeys.forEach(t => {
                     const deliveries = deliveryByThread[t];
-                    // Two documents sitting in the same sector aren't "corroboration" in the
-                    // sense the badge means (a player finding two different rooms that agree)
-                    // — dedupe by sector (the text before " · " in each entry) so e.g. two
-                    // CIPHER docs that both happen to live in CHECKPOINT read as 1, not 2.
                     const uniqueSectors = new Set(deliveries.map(d => d.split(' · ')[0]));
                     const { cls, label } = badgeForDeliveryCount(uniqueSectors.size, 'reachable');
                     html += `<div class="inspector-thread-row">
