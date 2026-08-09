@@ -462,4 +462,35 @@ export default class StoryEngine {
     progress() {
         return {found: this.readTemplates.size, total: this.totalTemplates};
     }
+
+    exportState() {
+        return {
+            readTemplates: Array.from(this.readTemplates),
+            collected: this.collected,
+            assignments: Array.from(this.assignments.entries()),
+            trackers: this.trackers,
+            cycleIndex: Array.from(this.cycleIndex.entries()),
+            tapesDealt: Array.from(this.tapesDealt),
+            ephemeraDealt: Array.from(this.ephemeraDealt.entries()),
+            laptopsDealt: Array.from(this.laptopsDealt.entries()),
+            clipboardsDealt: Array.from(this.clipboardsDealt.entries()),
+            corroborated: Array.from(this.corroborated),
+            sectorsRead: Array.from(this.sectorsRead)
+        };
+    }
+
+    importState(state) {
+        if (!state) return;
+        if (state.readTemplates) this.readTemplates = new Set(state.readTemplates);
+        if (state.collected) this.collected = state.collected;
+        if (state.assignments) this.assignments = new Map(state.assignments);
+        if (state.trackers) this.trackers = state.trackers;
+        if (state.cycleIndex) this.cycleIndex = new Map(state.cycleIndex);
+        if (state.tapesDealt) this.tapesDealt = new Set(state.tapesDealt);
+        if (state.ephemeraDealt) this.ephemeraDealt = new Map(state.ephemeraDealt);
+        if (state.laptopsDealt) this.laptopsDealt = new Map(state.laptopsDealt);
+        if (state.clipboardsDealt) this.clipboardsDealt = new Map(state.clipboardsDealt);
+        if (state.corroborated) this.corroborated = new Set(state.corroborated);
+        if (state.sectorsRead) this.sectorsRead = new Set(state.sectorsRead);
+    }
 }

@@ -39,7 +39,28 @@ export const DuctOrVentProfile = (env, ctx) => {
                 }
             }
 
-            const isFloorLevel = random() > 0.3;
+            let isFloorLevel = random() > 0.3;
+            let linearBurstLength = 0;
+            
+            if (isFloorLevel && !isCorner) {
+                const modX = ((x % env.chunkSize) + env.chunkSize) % env.chunkSize;
+                const modZ = ((z % env.chunkSize) + env.chunkSize) % env.chunkSize;
+                const maxSearch = tunnelOnZ ? env.chunkSize - modZ : env.chunkSize - modX;
+                let foundExit = false;
+                for (let i = 1; i <= Math.min(5, maxSearch); i++) {
+                    const checkX = x + (tunnelOnZ ? 0 : i);
+                    const checkZ = z + (tunnelOnZ ? i : 0);
+                    if (!ctx.isWall(checkX, checkZ)) {
+                        linearBurstLength = i;
+                        foundExit = true;
+                        break;
+                    }
+                }
+                if (!foundExit) {
+                    isFloorLevel = false;
+                }
+            }
+
             if (isFloorLevel) {
                 const holeW = 1.2;
                 const holeH = 0.7;
@@ -103,10 +124,7 @@ export const DuctOrVentProfile = (env, ctx) => {
                     ctx.addGrate(x * env.cellSize, 0.35, z * env.cellSize - (flipZ * grateOffset), false);
                     ctx.addGrate(x * env.cellSize - (flipX * grateOffset), 0.35, z * env.cellSize, true);
                 } else {
-                    const rawBurst = Math.floor(random() * 3) + 1;
-                    const modX = ((x % env.chunkSize) + env.chunkSize) % env.chunkSize;
-                    const modZ = ((z % env.chunkSize) + env.chunkSize) % env.chunkSize;
-                    const burstLength = Math.min(rawBurst, tunnelOnZ ? env.chunkSize - modZ : env.chunkSize - modX);
+                    const burstLength = linearBurstLength;
                     for (let i = 0; i < burstLength; i++) {
                         const segX = x + (tunnelOnZ ? 0 : i);
                         const segZ = z + (tunnelOnZ ? i : 0);
@@ -154,7 +172,6 @@ export const DuctOrVentProfile = (env, ctx) => {
                             else ctx.addGrate(segX * env.cellSize - grateOffset, 0.35, segZ * env.cellSize, true);
                         }
                         if (i === burstLength - 1) {
-                            if (ctx.setWall) ctx.setWall(segX + (tunnelOnZ ? 0 : 1), segZ + (tunnelOnZ ? 1 : 0), false);
                             if (tunnelOnZ) ctx.addGrate(segX * env.cellSize, 0.35, segZ * env.cellSize + grateOffset, false);
                             else ctx.addGrate(segX * env.cellSize + grateOffset, 0.35, segZ * env.cellSize, true);
                         }

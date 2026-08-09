@@ -369,6 +369,7 @@ export default class Environment {
             activeSector = this._doorSectorForce;
             targetFog = this.atmosphereManager._sectorFog(activeSector);
             this._doorSectorForce = null;
+            this.isSectorTransitioning = true;
         }
         this._stickySectorId = activeSector === "NORMAL" ? null : activeSector;
         if (activeSector === "ANNEX" && this.player && !this.player.hasVisitedAnnex) {

@@ -69,13 +69,17 @@ export default class JournalViewer {
     closeJournal() {
         if (!this.isOpen) return;
         
-        this.isOpen = false;
-        this.player.input.state.isReading = false;
-        
         if (this.typeWriterInterval) {
             clearInterval(this.typeWriterInterval);
             this.typeWriterInterval = null;
+            if (this._currentText) {
+                this.contentPane.textContent = this._currentText;
+            }
+            return;
         }
+        
+        this.isOpen = false;
+        this.player.input.state.isReading = false;
         
         this.overlay.classList.remove('active');
         document.getElementById('virtual-cursor').classList.remove('active');
@@ -191,6 +195,7 @@ export default class JournalViewer {
         this.acoustics.triggerSomaticEvent('terminal_blip', 1.0, 0.2);
         
         const text = this.getStory().collected[index];
+        this._currentText = text;
         this.contentPane.textContent = '';
         
         let i = 0;

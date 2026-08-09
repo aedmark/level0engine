@@ -74,6 +74,12 @@ if (!document.getElementById('seedInput').value) {
 }
 await environment.setup();
 if (savedState) {
+    // Must happen before the updateChunks() call below, which is the first thing that
+    // can trigger a getStory() read while streaming in narrative props -- getStory()
+    // caches its StoryEngine per environment.baseSeed, now that setup() has finalized it.
+    if (savedState.story && environment.getStory) {
+        environment.getStory().importState(savedState.story);
+    }
     engine.camera.position.set(savedState.px, savedState.py, savedState.pz);
     engine.camera.rotation.set(savedState.rx, savedState.ry, 0, 'YXZ');
     player.stamina = savedState.stamina;
@@ -178,6 +184,38 @@ function animate() {
     if (player.isDead) {
         engine.render();
         return;
+    }
+    if (environment.isBuildingChunk && environment.isSectorTransitioning) {
+        if (!player.wasFrozenByLoad) {
+            player.isFrozen = true;
+            player.input.isFrozen = true;
+            player.wasFrozenByLoad = true;
+            const flash = document.getElementById('flash-overlay');
+            if (flash) {
+                flash.style.transition = 'opacity 0.2s ease-out';
+                flash.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
+                flash.style.opacity = '1';
+                const loading = document.getElementById('loading-indicator');
+                if (loading) {
+                    loading.innerText = 'LOADING SECTOR...';
+                    loading.style.display = 'block';
+                }
+            }
+        }
+    } else if (player.wasFrozenByLoad) {
+        player.isFrozen = false;
+        player.input.isFrozen = false;
+        player.wasFrozenByLoad = false;
+        environment.isSectorTransitioning = false;
+        const flash = document.getElementById('flash-overlay');
+        if (flash) {
+            flash.style.transition = 'opacity 0.8s ease-out';
+            flash.style.opacity = '0';
+            const loading = document.getElementById('loading-indicator');
+            if (loading) {
+                loading.style.display = 'none';
+            }
+        }
     }
     if (!sectorHuntActive) environment.updateChunks(engine.camera.position);
     ensurePendingContentAtPlayer();

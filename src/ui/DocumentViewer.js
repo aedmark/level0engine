@@ -27,11 +27,7 @@ export default class DocumentViewer {
     }
 
     terminalFooter(fragment) {
-        let footer = `\n\n---\nDATA RECOVERED: [ ${fragment.progress.found} / ${fragment.progress.total} ]`;
-        footer += this.getStory().collected.length > 1
-            ? `\n[ ◄ ► BROWSE RECOVERED FILES ]`
-            : `\n[ RE-ACCESS TERMINAL TO BROWSE RECOVERED FILES ]`;
-        return footer;
+        return `\n\n---\nDATA RECOVERED: [ ${fragment.progress.found} / ${fragment.progress.total} ]`;
     }
 
     bindEvents() {
@@ -71,6 +67,7 @@ export default class DocumentViewer {
                 let fullText = fragment.text + this.claimBanner(fragment) + (isTerminal
                     ? this.terminalFooter(fragment)
                     : `\n\n---\nDATA RECOVERED: [ ${fragment.progress.found} / ${fragment.progress.total} ]`);
+                this._currentFullText = fullText;
                 this.terminalBrowseIndex = null;
                 if (isTerminal) {
                     this.terminalBrowseIndex = fragment.archiveIndex !== undefined
@@ -141,15 +138,23 @@ export default class DocumentViewer {
             if (inquestOverlay && inquestOverlay.style.display === 'block') {
                 return;
             }
-            this.player.input.state.isReading = false;
-            this.terminalBrowseIndex = null;
             const docOverlay = document.getElementById('document-overlay');
             const keypadOverlay = document.getElementById('keypad-overlay');
+            
             if (this.typeWriterInterval) {
                 clearInterval(this.typeWriterInterval);
                 this.typeWriterInterval = null;
+                const docContent = document.getElementById('document-content');
+                if (docContent && this._currentFullText) {
+                    docContent.innerText = this._currentFullText;
+                }
                 this.acoustics.triggerSomaticEvent('tape_click', 1.0, 0.5);
+                return;
             }
+            
+            this.player.input.state.isReading = false;
+            this.terminalBrowseIndex = null;
+            
             if (keypadOverlay && keypadOverlay.style.display === 'block') {
                 keypadOverlay.style.display = 'none';
                 document.dispatchEvent(new Event('somatic-keypad-cancel'));

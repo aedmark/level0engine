@@ -176,6 +176,72 @@ export default class StructureKit {
                 }
                 return new THREE.Mesh(geo, mat);
             },
+            // A header whose underside sags down into the opening instead of rising over
+            // it -- the mirror image of buildArchCutout's archway. Rather than a straight
+            // line from (-halfSpan,0) to (halfSpan,0), the bottom edge dips through
+            // (0,-sagDepth) along a circular arc, forcing a crouch at the midpoint while
+            // staying flush at both ends. The arc's center sits on the Y axis above both
+            // endpoints; solved from requiring equal radius to all three points
+            // ((±halfSpan,0) and (0,-sagDepth)).
+            // Built and UV-mapped in the shape's own natural frame (X = the sag axis,
+            // extruded along Z = crossWidth), then rotated 90 deg about Y at the end so
+            // the sag ends up running along local Z (the direction the player actually
+            // walks through the cell) instead of across local X -- a corridor sagging
+            // underfoot as you pass through it, not a doorway arched to one side.
+            buildSaggingHeader: (halfSpan, blockHeight, sagDepth, crossWidth, mat) => {
+                const key = `saggingHeader_${halfSpan}_${blockHeight}_${sagDepth}_${crossWidth}`;
+                let geo = env.geoCache.get(key);
+                if (!geo) {
+                    const cy = (halfSpan * halfSpan - sagDepth * sagDepth) / (2 * sagDepth);
+                    const radius = Math.sqrt(halfSpan * halfSpan + cy * cy);
+                    const startAngle = Math.atan2(0 - cy, halfSpan);
+                    const endAngle = Math.atan2(0 - cy, -halfSpan);
+
+                    const shape = new THREE.Shape();
+                    shape.moveTo(-halfSpan, blockHeight);
+                    shape.lineTo(halfSpan, blockHeight);
+                    shape.lineTo(halfSpan, 0);
+                    shape.absarc(0, cy, radius, startAngle, endAngle, true);
+                    shape.lineTo(-halfSpan, blockHeight);
+
+                    geo = new THREE.ExtrudeGeometry(shape, {depth: crossWidth, bevelEnabled: false, curveSegments: 16});
+                    geo.translate(0, 0, -crossWidth / 2);
+
+                    const pos = geo.attributes.position;
+                    const uv = geo.attributes.uv;
+                    geo.computeVertexNormals();
+                    const norm = geo.attributes.normal;
+                    const sideLen = blockHeight;
+                    const topLen = halfSpan * 2;
+
+                    for (let i = 0; i < pos.count; i++) {
+                        const x = pos.getX(i);
+                        const y = pos.getY(i);
+                        const z = pos.getZ(i);
+                        const nz = Math.abs(norm.getZ(i));
+
+                        if (nz > 0.5) {
+                            uv.setXY(i, x / env.cellSize, y / env.cellSize);
+                        } else if (y >= blockHeight - 0.01) {
+                            uv.setXY(i, z / env.cellSize, (sideLen + (x + halfSpan)) / env.cellSize);
+                        } else if (x >= halfSpan - 0.01) {
+                            uv.setXY(i, z / env.cellSize, (sideLen - y) / env.cellSize);
+                        } else if (x <= -halfSpan + 0.01) {
+                            uv.setXY(i, z / env.cellSize, (sideLen + topLen + (blockHeight - y)) / env.cellSize);
+                        } else {
+                            const angle = Math.atan2(y - cy, x);
+                            const dist = (startAngle - angle) * radius;
+                            uv.setXY(i, z / env.cellSize, (sideLen + topLen + sideLen + dist) / env.cellSize);
+                        }
+                    }
+                    uv.needsUpdate = true;
+                    geo.rotateY(Math.PI / 2);
+
+                    env.geoCache.set(key, geo);
+                    env.geoCache.set(geo.uuid, true);
+                }
+                return new THREE.Mesh(geo, mat);
+            },
             buildCurvedCornerBlock: (size, mat) => {
                 const t = 0.15;
                 const key = `curvedCorner_${size}_${t}`;

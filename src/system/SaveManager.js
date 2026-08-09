@@ -68,7 +68,14 @@ export default class SaveManager {
             if (state.discoveredSectors) {
                 this.environment.discoveredSectors = new Map(state.discoveredSectors);
             }
-            
+            // Story state is intentionally NOT imported here. environment.baseSeed hasn't
+            // been derived from the (just-populated) seed input yet -- that happens inside
+            // environment.setup(), which main.js calls after loadState(). getStory() caches
+            // its StoryEngine per baseSeed, so importing against the pre-setup seed would
+            // populate an instance that gets discarded the moment setup() changes the seed
+            // and the next getStory() call rebuilds from scratch. The caller applies
+            // state.story itself, once setup() has run and the real seed is locked in.
+
             return state;
         } catch (e) {
             console.warn("Mnemonic Arcade corrupted. Pruning state.");
@@ -104,7 +111,8 @@ export default class SaveManager {
             post: document.getElementById('postToggle').checked,
             headBob: document.getElementById('headBobToggle').checked,
             macroChunks: Array.from(this.environment._macroChunkHashes),
-            discoveredSectors: Array.from(this.environment.discoveredSectors.entries())
+            discoveredSectors: Array.from(this.environment.discoveredSectors.entries()),
+            story: this.environment.getStory ? this.environment.getStory().exportState() : null
         };
         localStorage.setItem('level0_state', JSON.stringify(state));
     }

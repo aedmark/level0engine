@@ -452,6 +452,15 @@ export default class AtmosphereManager {
                 }
             }
             env.flashlight.intensity += (targetIntensity - env.flashlight.intensity) * 0.4;
+            
+            const isVent = env.player && env.player.isCrawling;
+            const targetAngle = isVent ? Math.PI / 5 : Math.PI / 7;
+            const targetPenumbra = isVent ? 0.3 : 0.5;
+            const targetDistance = isVent ? 15.0 : 45.0;
+            
+            env.flashlight.angle += (targetAngle - env.flashlight.angle) * 0.1;
+            env.flashlight.penumbra += (targetPenumbra - env.flashlight.penumbra) * 0.1;
+            env.flashlight.distance += (targetDistance - env.flashlight.distance) * 0.1;
         }
 
         if (env.engine.ambientLight) {

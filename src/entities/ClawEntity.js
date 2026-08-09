@@ -98,6 +98,10 @@ export default class ClawEntity {
         this.isActive = true;
         this.state = 'IDLE';
         this.idleTimer = 0;
+        this.warningTimer = 0;
+        this.dropTimer = 0;
+        this.snapTimer = 0;
+        this.ascentTimer = 0;
         this.group.position.set(this.camera.position.x, this.camera.position.y + 12.0, this.camera.position.z);
         this.warningLight.intensity = 0;
         this.clawLight.intensity = 0;
@@ -127,7 +131,7 @@ export default class ClawEntity {
                 this.prongs[i].prong.rotation.z = this.prongs[i].closedRot;
             }
 
-            if (speed < 2.5 && !this.player.isGodMode) {
+            if (speed < 2.5 && !this.player.isGodMode && !(this.env && this.env.isBuildingChunk)) {
                 if (this.env && this.env.aisleCells && this.env.cellSize) {
                     const cx = Math.floor(playerPos.x / this.env.cellSize);
                     const cz = Math.floor(playerPos.z / this.env.cellSize);
