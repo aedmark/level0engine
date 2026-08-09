@@ -1,6 +1,23 @@
 # Level 0 Engine Changelog
 
-## [v0.9.0] - 2026-08-08
+## [v0.9.0] - 2026-08-09
+
+_The Skirting Board Reckoning_
+
+### Fixed
+
+- **[WORLD] Baseboard Coverage — Curved Alcoves:** Round alcove corners (the smooth quarter-round wall pieces built by `buildCurvedCornerBlock`) were completely exempt from the automatic baseboard system. Only walls built through `buildWall` ever got tagged for a floor trim, and the curved corner is its own hand-rolled extrusion, so every rounded nook in the maze met the carpet with bare wall. Added a matching curved baseboard and trim slab that follows the wall's own footprint via a new `curvedFlatGeo`/`addCurvedAlcoveBaseboard` pair.
+- **[WORLD] Baseboard Coverage — Curved Alcove Z-Fighting:** The first pass at the fix above shared the *exact* footprint of the wall it sat under, putting its outward face perfectly coplanar with the wall's own face — the opaque wall won the depth test on every pixel and the baseboard rendered as fully invisible despite being correctly generated and positioned (confirmed by raycasting directly into a live instance: the trim was there, just never drawn). A follow-up attempt using a uniform outward scale only papered over the straight edges; scaling from the shape's bounding-box center barely moved the arc, which sits much closer to that center than the outer corner does, and didn't push it along its true surface normal at all. `curvedCornerShape` now takes an explicit margin and offsets each edge along its own normal — straight edges pushed out, the arc's radius pulled in toward the room — so the whole curve clears the wall's face, not just the straight stubs at its ends.
+- **[WORLD] Baseboard Coverage — Sector Perimeter Walls:** Every sector's outer boundary wall (built by `buildPerimeter`, including the shoulder segments flanking doorways) constructed its geometry by hand instead of going through `buildWall`, so it never picked up the tag `addGeometry` looks for to auto-attach a baseboard. The entire outer edge of every named sector — Annex, Archive, Atrium, Clinic, and the rest — was silently exempt. Perimeter segments are now tagged and routed through the shared `addGeometry` path like everything else.
+- **[WORLD] Baseboard Coverage — Short Floor-Level Pillars:** `buildWall`'s baseboard eligibility check required a wall to be exactly full ceiling height (`h === 3.0`), stricter than the actual floor-touching check `addGeometry` performs downstream. Any `sharedWallMat` pillar built shorter than full height but still genuinely resting on the floor — the support posts under `CurvedArchway` and `RideQueueHall`'s alcove pillars — never got tagged at all. Dropped the height restriction; floor-touching is now the only thing that matters.
+- **[ENGINE] DocumentViewer Syntax Error:** Fixed a stray duplicate closing brace in the `somatic-read` event handler that broke the `if (isTerminal) {...} else if (...) {...} else {...}` chain's alignment with its enclosing block, throwing `Uncaught SyntaxError: missing ) after argument list` and taking the whole document viewer down with it.
+
+### Changed
+
+- **[WORLD] Archway Pool Trim:** Pulled `THE COMPRESSION ARCHWAY` out of the structural blueprint matrix — its low-clearance header didn't read clearly in play and didn't earn its rarity slot. `CURVED ARCHWAY` was removed alongside it during triage, then reinstated once the actual complaint turned out to be the (unrelated) curved alcove baseboard bug above.
+- **[TOOLING] Dev Server Cache Headers:** `engine_server.js` now sends `Cache-Control: no-store` on every response, so a source edit is guaranteed to show up on the next reload instead of potentially serving a browser-cached copy of a `.js` module.
+
+## [v0.8.6] - 2026-08-08
 
 _The Signal Integrity Patch_
 

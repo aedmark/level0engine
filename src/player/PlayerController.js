@@ -33,7 +33,7 @@ export default class PlayerController {
         this.hasVisitedAnnex = false;
         this.objectiveUI = document.createElement('div');
         this.objectiveUI.className = 'osd-element';
-        this.objectiveUI.style.cssText = 'bottom: 4.5rem; right: 4.5rem; text-align: right; z-index: 100; pointer-events: none; line-height: 1.2; text-transform: uppercase;';
+        this.objectiveUI.style.cssText = 'bottom: clamp(1.2rem, 5vmin, 4.5rem); right: clamp(2.5rem, 5vmin, 4.5rem); text-align: right; z-index: 100; pointer-events: none; line-height: 1.2; text-transform: uppercase;';
         const renderArea = document.getElementById('screen-wrapper') || document.body;
         renderArea.appendChild(this.objectiveUI);
         this.updateObjectives = (signalText = 'SCANNING...') => {
@@ -46,17 +46,17 @@ export default class PlayerController {
             this._lastDepth = this.depth;
             this._lastBestDepth = this.bestDepth;
             this._lastKey = this.inventory.hasExitKey;
-            let uiHTML = `> LAYER ${this.depth} — DEEPEST REACHED: ${this.bestDepth}<br>`;
+            let uiHTML = ``;
             if (this.objectives.fixed >= this.objectives.total) {
                 if (this.inventory.hasExitKey) {
-                    uiHTML += `> SECTOR STABILIZED. RELEASE KEY HELD.<br>> LOCATE EXIT THRESHOLD.<br>> POI DISTANCE: ${signalText}`;
+                    uiHTML += `> SECTOR STABILIZED. RELEASE KEY HELD.<br>> RECORDS FOUND. LOCATE EXIT THRESHOLD.<br>> POI: ${signalText}`;
                     this.objectiveUI.style.color = '#88cc88';
                 } else {
-                    uiHTML += `> SECTOR STABILIZED.<br>> ELEVATOR RELEASE KEY SECURED IN RECORDS — ANNEX.<br>> RECORDS LOCK IS NOT ON FILE. ASSEMBLE IT.<br>> POI DISTANCE: ${signalText}`;
+                    uiHTML += `> SECTOR STABILIZED.<br>> FIND EXIT KEY IN ANNEX.<br>> RECORDS LOCK NOT ON FILE.<br>> POI: ${signalText}`;
                     this.objectiveUI.style.color = '#ffaa55';
                 }
             } else {
-                uiHTML += `> PRIMARY DIRECTIVE: RESTORE POWER<br>> BREAKERS RESET: [ ${this.objectives.fixed} / ${this.objectives.total} ]<br>> POI DISTANCE: ${signalText}`;
+                uiHTML += `> RESTORE POWER: [ ${this.objectives.fixed} / ${this.objectives.total} ]<br>> POI: ${signalText}`;
                 this.objectiveUI.style.color = '#ffffff';
             }
             if (this.objectiveUI.innerHTML !== uiHTML) {

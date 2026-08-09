@@ -31,15 +31,23 @@ export default class StructureKit {
     // Shared footprint for the round alcove's curved corner block: a square with
     // a quarter-circle bite taken out near the origin. Factored out so the baseboard
     // trim can be extruded to a shorter height along the same outline as the wall.
-    curvedCornerShape(size) {
+    // `margin` offsets every edge along its own normal (not a uniform scale-from-center,
+    // which grows the arc -- much closer to the shape's centroid than the outer corner --
+    // far less than the straight edges, and in the wrong direction besides). The two outer
+    // edges move away from the room; the arc's radius shrinks, since the room/viewer sits
+    // on the small-radius side and the arc has to move toward them, not away, to clear the
+    // wall's face.
+    curvedCornerShape(size, margin = 0) {
         const t = 0.15;
+        const outer = size + margin;
+        const radius = size - t - margin;
         const shape = new THREE.Shape();
-        shape.moveTo(size, 0);
-        shape.lineTo(size, size);
-        shape.lineTo(0, size);
-        shape.lineTo(0, size - t);
-        shape.absarc(0, 0, size - t, Math.PI / 2, 0, true);
-        shape.lineTo(size, 0);
+        shape.moveTo(outer, 0);
+        shape.lineTo(outer, outer);
+        shape.lineTo(0, outer);
+        shape.lineTo(0, radius);
+        shape.absarc(0, 0, radius, Math.PI / 2, 0, true);
+        shape.lineTo(outer, 0);
         return shape;
     }
 
@@ -219,7 +227,15 @@ export default class StructureKit {
                     }
                     uv.needsUpdate = true;
 
-                    geo.center();
+                    // A fixed shift of -size/2 rather than geo.center(): the baseboard version
+                    // of this shape (see curvedFlatGeo) has a slightly larger bounding box once
+                    // it's built with a margin, so centering each one on its own bbox would put
+                    // their true arc origins at very slightly different local coordinates and
+                    // throw off the alignment between wall and baseboard. Anchoring both to the
+                    // same size-based reference keeps them exactly concentric regardless of margin.
+                    // Depth (Z) still centers normally -- position.set(cx, h/2, cz) after the
+                    // -90 X rotation assumes it spans the extrusion symmetrically.
+                    geo.translate(-size / 2, -size / 2, -1.5);
                     env.geoCache.set(key, geo);
                     env.geoCache.set(geo.uuid, true);
                 }
@@ -232,9 +248,20 @@ export default class StructureKit {
                 const key = `curvedFlat_${size}_${height}`;
                 let geo = env.geoCache.get(key);
                 if (!geo) {
-                    const shape = this.curvedCornerShape(size);
+                    // Straight-wall baseboards avoid z-fighting with their wall by being built
+                    // 0.06 wider/deeper than the wall's own footprint (see the `bw`/`bd` epsilon
+                    // in addGeometry), so the trim sits proud of the wall face instead of exactly
+                    // coplanar with it. A uniform Shape.scale() was tried here first, but scaling
+                    // from the shape's bounding-box center grows the arc -- which sits much closer
+                    // to that center than the outer corner does -- far less than the straight
+                    // edges, and "radially from the bbox center" isn't even the arc's true surface
+                    // normal. The straight edges cleared the wall face; the arc barely moved and
+                    // kept z-fighting. curvedCornerShape's margin offsets each edge along its own
+                    // normal instead (0.03, matching the straight-wall convention's half-width),
+                    // so the whole perimeter -- arc included -- actually clears the wall's face.
+                    const shape = this.curvedCornerShape(size, 0.03);
                     geo = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false, curveSegments: 16 });
-                    geo.center();
+                    geo.translate(-size / 2, -size / 2, -height / 2);
                     env.geoCache.set(key, geo);
                     env.geoCache.set(geo.uuid, true);
                 }

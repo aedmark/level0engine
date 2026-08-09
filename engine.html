@@ -336,7 +336,7 @@
             position: absolute;
             color: #ffffff;
             font-family: 'VT323', monospace;
-            font-size: 1.4rem;
+            font-size: clamp(0.9rem, 2.5vmin, 1.4rem);
             letter-spacing: 0.05em;
             opacity: 0.9;
             text-shadow: 2px 2px 0 rgba(0, 0, 0, 1), 0 0 8px rgba(255, 255, 255, 0.8), 0 0 15px rgba(255, 255, 255, 0.4);
@@ -346,24 +346,30 @@
         }
 
         #vhs-time {
-            top: 4.5rem;
-            right: 4.5rem;
+            /* Floor raised from 1.2rem to 3.5rem: below that, 5vmin resolves under
+               56px on essentially every common 16:9 desktop/laptop resolution
+               (not just narrow windows), which is what let this drift down into
+               #menuToggleBtn's fixed spot. #menuToggleBtn's top is now pinned a
+               constant 3rem above whatever this resolves to, so this floor is
+               also the button's safety margin -- see #menuToggleBtn below. */
+            top: clamp(3.5rem, 5vmin, 4.5rem);
+            right: clamp(2.5rem, 5vmin, 4.5rem);
             text-align: right;
             line-height: 1.5;
         }
 
         #inventory-osd {
-            top: 4.4rem;
-            left: 7.5rem;
+            top: clamp(3rem, 5vmin, 4.4rem);
+            left: clamp(1.2rem, 8vmin, 7.5rem);
             text-align: right;
             line-height: 1.2;
         }
 
         .status-bar {
-            bottom: 5rem;
-            left: 3.5rem;
+            bottom: clamp(2rem, 6vmin, 5rem);
+            left: clamp(1.2rem, 4vmin, 3.5rem);
             width: 100%;
-            padding: 0 2rem;
+            padding: 0 clamp(1.2rem, 3vmin, 2rem);
             box-sizing: border-box;
             display: flex;
             justify-content: flex-start;
@@ -375,8 +381,6 @@
         }
 
         #battery-wrapper {
-            top: 4.7rem;
-            left: 4.2rem;
             display: flex;
             align-items: center;
             filter: drop-shadow(2px 2px 0px rgba(0, 0, 0, 1)) drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
@@ -673,8 +677,6 @@
         }
 
         #stamina-wrapper {
-            top: 6.7rem;
-            left: 4.2rem;
             display: flex;
             align-items: center;
             filter: drop-shadow(2px 2px 0px rgba(0, 0, 0, 1)) drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
@@ -696,28 +698,14 @@
         }
 
         @media (max-width: 900px), (max-height: 500px) {
-            .osd-element {
-                font-size: 1.5rem;
-            }
-
-            #vhs-time {
-                top: 1.2rem;
-                right: 2.5rem;
+            #menuToggleBtn {
+                top: 0.5rem;
             }
 
             #inventory-osd {
                 top: 3rem;
+                left: auto;
                 right: 1.2rem;
-            }
-
-            .status-bar {
-                padding: 0 1.2rem;
-                bottom: 2rem;
-            }
-
-            #battery-wrapper {
-                top: 1rem;
-                left: 1.3rem;
             }
 
             #battery-body {
@@ -730,11 +718,6 @@
             #battery-tip {
                 width: 2px;
                 height: 6px;
-            }
-
-            #stamina-wrapper {
-                top: 2.5rem;
-                left: 1.3rem;
             }
 
             #stamina-body {
@@ -938,7 +921,16 @@
 
         #menuToggleBtn {
             position: absolute;
-            top: 1.5rem;
+            /* Pinned a constant 3rem above #vhs-time's own clamp() instead of an
+               independent fixed offset -- a static 1.5rem here let the clock's
+               new viewport-relative top drift down into the button's fixed spot
+               on fullscreen 16:9 (reported at 1920x1080; also reproduces at
+               1366x768 and 1280x720). Tying the two with calc() keeps a fixed
+               3rem gap by construction at any size, and resolves to the original
+               1.5rem once #vhs-time hits its own 4.5rem ceiling on large screens.
+               #vhs-time's floor of 3.5rem is this button's floor of 0.5rem --
+               raise one, raise the other. */
+            top: calc(clamp(3.5rem, 5vmin, 4.5rem) - 3rem);
             right: 1.5rem;
             width: auto;
             pointer-events: auto;
@@ -1005,19 +997,23 @@
     <div id="scan-label">HOLD</div>
     <span id="vhs-time" class="osd-element">AM 12:00:00 &nbsp;&nbsp; JAN 01 1997</span>
     <div id="inventory-osd" class="osd-element">
-        BAT: <span id="inv-bat">0</span>/3<br>
-        H2O: <span id="inv-h2o">0</span>/2
-    </div>
-    <div id="battery-wrapper" class="osd-element">
-        <div id="battery-body">
-            <div id="battery-level"></div>
-            <div id="battery-tension"></div>
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; margin-bottom: 0.2rem;">
+            <div id="battery-wrapper">
+                <div id="battery-body">
+                    <div id="battery-level"></div>
+                    <div id="battery-tension"></div>
+                </div>
+                <div id="battery-tip"></div>
+            </div>
+            <span>BAT: <span id="inv-bat">0</span>/3</span>
         </div>
-        <div id="battery-tip"></div>
-    </div>
-    <div id="stamina-wrapper" class="osd-element">
-        <div id="stamina-body">
-            <div id="stamina-level"></div>
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;">
+            <div id="stamina-wrapper">
+                <div id="stamina-body">
+                    <div id="stamina-level"></div>
+                </div>
+            </div>
+            <span>H2O: <span id="inv-h2o">0</span>/2</span>
         </div>
     </div>
     <div class="status-bar osd-element">
