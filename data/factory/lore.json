@@ -257,7 +257,7 @@
       "_locked": true
     },
     {
-      "text": "[SIGHTING REPORT: CHASM LEVEL]\n\n${c.custodian} reports a figure on the opposing catwalk at hour ${hrs}, matching ${c.lost}, moving away and unhurried. Opposing catwalk was struck for scrap before the site opened. Its anchors are still in the wall, but is otherwise inaccessible.\n\n-${c.lead]",
+      "text": "[SIGHTING REPORT: CHASM LEVEL]\n\n${c.custodian} reports a figure on the opposing catwalk at hour ${hrs}, matching ${c.lost}, moving away and unhurried. Opposing catwalk was struck for scrap before the site opened. Its anchors are still in the wall, but is otherwise inaccessible.\n\n-${c.lead}",
       "type": "document",
       "thread": "LOST",
       "title": "Chasm Sighting",

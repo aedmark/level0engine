@@ -110,6 +110,10 @@ function findTypoTokens(text) {
             if (wrongBracket) wrongBracket.forEach(m => found.push(`Malformed token <b>${m}</b> uses "$(" instead of "\${" — it will render literally to the player.`));
             const missingDollar = text.match(/[^$]\{[a-zA-Z_][\w.]*}/g);
             if (missingDollar) missingDollar.forEach(m => found.push(`Possible missing "$" before <b>${m.slice(1)}</b> — if this was meant to be a template token, it will currently render literally.`));
+            // Wrong *closing* bracket. The two checks above only cover a bad opening, so
+            // "${c.lead]" passed validation and shipped, printing raw in a Chasm sighting report.
+            const wrongClose = text.match(/\$\{[a-zA-Z_][\w.]*[\])]/g);
+            if (wrongClose) wrongClose.forEach(m => found.push(`Malformed token <b>${m}</b> closes with "${m.slice(-1)}" instead of "}" — it will render literally to the player.`));
             return found;
         }
 
