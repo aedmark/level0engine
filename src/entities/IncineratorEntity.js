@@ -309,7 +309,7 @@ export default class IncineratorEntity {
             this.light.intensity = 1.1 + this.heatLevel * 0.7;
             this.light.color.setHex(0xffaa00);
             if (Math.random() < delta * this.heatLevel * 2.0) {
-                document.dispatchEvent(new CustomEvent('somatic-step', {
+                document.dispatchEvent(new CustomEvent('somatic-ember-slither', {
                     detail: {
                         distSq: distSq,
                         intensity: this.heatLevel * 0.5
@@ -324,7 +324,7 @@ export default class IncineratorEntity {
             const speed = 1.4 + (this.heatLevel * 1.4);
             this._resolveLocomotion(speed, delta);
             if (Math.random() < delta * 5.0) {
-                document.dispatchEvent(new CustomEvent('somatic-step', {detail: {distSq: distSq, intensity: 1.0}}));
+                document.dispatchEvent(new CustomEvent('somatic-ember-slither', {detail: {distSq: distSq, intensity: 1.0}}));
             }
         }
         this._animate(time);

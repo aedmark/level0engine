@@ -123,6 +123,10 @@ export const DuctOrVentProfile = (env, ctx) => {
                     const grateOffset = (env.cellSize / 2) - 0.07;
                     ctx.addGrate(x * env.cellSize, 0.35, z * env.cellSize - (flipZ * grateOffset), false);
                     ctx.addGrate(x * env.cellSize - (flipX * grateOffset), 0.35, z * env.cellSize, true);
+                    if (ctx.markOccupied) {
+                        ctx.markOccupied(x, z - flipZ);
+                        ctx.markOccupied(x - flipX, z);
+                    }
                 } else {
                     const burstLength = linearBurstLength;
                     for (let i = 0; i < burstLength; i++) {
@@ -176,6 +180,15 @@ export const DuctOrVentProfile = (env, ctx) => {
                             else ctx.addGrate(segX * env.cellSize + grateOffset, 0.35, segZ * env.cellSize, true);
                         }
                     }
+                    if (ctx.markOccupied) {
+                        if (tunnelOnZ) {
+                            ctx.markOccupied(x, z - 1);
+                            ctx.markOccupied(x, z + burstLength);
+                        } else {
+                            ctx.markOccupied(x - 1, z);
+                            ctx.markOccupied(x + burstLength, z);
+                        }
+                    }
                 }
             } else {
                 const wall = buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
@@ -199,6 +212,14 @@ export const DuctOrVentProfile = (env, ctx) => {
                         else if (ventFace === 3) ctx.setWall(x - 1, z, false);
                     }
                 }
+
+                if (ctx.markOccupied) {
+                    if (ventFace === 0) ctx.markOccupied(x, z + 1);
+                    else if (ventFace === 1) ctx.markOccupied(x, z - 1);
+                    else if (ventFace === 2) ctx.markOccupied(x + 1, z);
+                    else if (ventFace === 3) ctx.markOccupied(x - 1, z);
+                }
+
                 const ventGeo = env._boxGeo(1.2, 0.6, 0.05);
                 const vent = new THREE.Mesh(ventGeo, env.wallVentMat);
                 const finalOffset = (env.cellSize / 2) + 0.01;

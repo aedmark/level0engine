@@ -72,6 +72,13 @@ export const CratesOrStairwayProfile = (env, ctx) => {
                     }
                 }
 
+                if (ctx.markOccupied) {
+                    if (dir === 0) ctx.markOccupied(x, z + 1);
+                    else if (dir === 1) ctx.markOccupied(x + 1, z);
+                    else if (dir === 2) ctx.markOccupied(x, z - 1);
+                    else if (dir === 3) ctx.markOccupied(x - 1, z);
+                }
+
                 const isZ = dir % 2 === 0;
                 const w1 = buildWall(isZ ? 0.5 : env.cellSize, isZ ? env.cellSize : 0.5, env.sharedWallMat);
                 w1.position.set(x * env.cellSize + (isZ ? -(env.cellSize / 2) + 0.25 : 0), 1.5, z * env.cellSize + (isZ ? 0 : -(env.cellSize / 2) + 0.25));

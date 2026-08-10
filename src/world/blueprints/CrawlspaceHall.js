@@ -45,13 +45,15 @@ export const CrawlspaceHallProfile = (env, ctx) => {
             const dropBottom = 3.0 - dropHeight;
             const bandW = env.cellSize + 0.06;
 
+            const Z_FIGHT_NUDGE = 0.002;
+
             const band = new THREE.Mesh(env._boxGeo(bandW, BASEBOARD_H, bandW), env.baseboardMat);
-            band.position.set(cx, dropBottom + BASEBOARD_H / 2, cz);
+            band.position.set(cx, dropBottom + BASEBOARD_H / 2 - Z_FIGHT_NUDGE, cz);
             band.userData.noCollision = true;
             addGeometry(band);
 
             const bandTrim = new THREE.Mesh(env._boxGeo(bandW, TRIM_H, bandW), env.baseboardTrimMat);
-            bandTrim.position.set(cx, dropBottom + BASEBOARD_H + TRIM_H / 2, cz);
+            bandTrim.position.set(cx, dropBottom + BASEBOARD_H + TRIM_H / 2 - Z_FIGHT_NUDGE, cz);
             bandTrim.userData.noCollision = true;
             addGeometry(bandTrim);
         }
