@@ -102,10 +102,16 @@ export function buildClinicBed(env) {
     footboard.position.set(0, 0.62, -0.95);
     group.add(footboard);
     const railGeo = env._cacheGeo('clinicBedRail', () => new THREE.BoxGeometry(0.04, 0.04, 1.4));
+    const railSupportGeo = env._cacheGeo('clinicBedRailSupport', () => new THREE.BoxGeometry(0.02, 0.38, 0.02));
     for (const side of [-1, 1]) {
         const rail = new THREE.Mesh(railGeo, frameMat);
         rail.position.set(side * 0.47, 0.88, 0.05);
         group.add(rail);
+        for (const zOffset of [-0.5, 0.5]) {
+            const support = new THREE.Mesh(railSupportGeo, frameMat);
+            support.position.set(side * 0.47, 0.69, 0.05 + zOffset);
+            group.add(support);
+        }
     }
     group.traverse((m) => {
         if (m.isMesh) m.castShadow = true;

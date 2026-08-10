@@ -637,8 +637,8 @@ export default class StructureKit {
                         const faceMats = (trimMat) => [
                             localX === env.chunkSize - 1 ? trimMat : wMat,
                             localX === 0 ? trimMat : wMat,
-                            wMat,
-                            wMat,
+                            trimMat,
+                            trimMat,
                             localZ === env.chunkSize - 1 ? trimMat : wMat,
                             localZ === 0 ? trimMat : wMat
                         ];

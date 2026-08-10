@@ -773,6 +773,54 @@ export default class SetPieces {
         };
         if (!env.airlocks) env.airlocks = [];
         env.airlocks.push(airlock);
+
+        if (env.chunkManager && env.chunkManager._airlockApron) {
+            const {clearX, clearZ} = env.chunkManager._airlockApron(airlock);
+            const affectedHashes = new Set();
+            for (const cx of clearX) {
+                for (const cz of clearZ) {
+                    affectedHashes.add(`${Math.floor(cx / env.chunkSize)},${Math.floor(cz / env.chunkSize)}`);
+                }
+            }
+            const zeroScale = new THREE.Vector3(0, 0, 0);
+            const defaultQuat = new THREE.Quaternion();
+            const dummyMat = new THREE.Matrix4();
+            const dummyPos = new THREE.Vector3();
+            for (const adjHash of affectedHashes) {
+                if (adjHash === hash) continue;
+                const adjGroup = env.activeChunks.get(adjHash);
+                if (adjGroup) {
+                    for (const child of adjGroup.children) {
+                        if (child.isInstancedMesh) {
+                            let updated = false;
+                            for (let i = 0; i < child.count; i++) {
+                                child.getMatrixAt(i, dummyMat);
+                                dummyPos.setFromMatrixPosition(dummyMat);
+                                const wox = Math.round(dummyPos.x / env.cellSize);
+                                const woz = Math.round(dummyPos.z / env.cellSize);
+                                if (clearX.includes(wox) && clearZ.includes(woz)) {
+                                    dummyMat.compose(dummyPos, defaultQuat, zeroScale);
+                                    child.setMatrixAt(i, dummyMat);
+                                    updated = true;
+                                }
+                            }
+                            if (updated) child.instanceMatrix.needsUpdate = true;
+                        }
+                    }
+                }
+                const boxes = env.spatialGrid.chunkMap.get(adjHash);
+                if (boxes) {
+                    for (const box of boxes) {
+                        const cx = Math.round((box.min.x + box.max.x) / 2 / env.cellSize);
+                        const cz = Math.round((box.min.z + box.max.z) / 2 / env.cellSize);
+                        if (clearX.includes(cx) && clearZ.includes(cz)) {
+                            box.min.y = 10000;
+                            box.max.y = 10000;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     buildHallwaySegment(chunkGroup, hash, cx, cz, spansX, needsFloor, needsCeiling, sectorId, buildWalls = true) {
