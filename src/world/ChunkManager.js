@@ -1043,12 +1043,6 @@ export default class ChunkManager {
             while (tempGroup.children.length > 0) {
                 chunkGroup.add(tempGroup.children[0]);
             }
-            // Compile the finished chunk, not just the batch that came through staging. Plenty of
-            // content never passes through stagingMeshes at all -- buildVendingMachine does
-            // chunkGroup.add(body) directly, as do sector foundations, void canopies, entrance
-            // hallways, observers and grates. Compiling only tempGroup left those materials to
-            // link lazily on the first frame that drew them, which is precisely the 1652ms
-            // getProgramParameter spike measured on Atrium entry.
             this.warmChunkMaterials(chunkGroup);
         }
     }
@@ -1132,9 +1126,6 @@ export default class ChunkManager {
         if (!env._warmedMaterials) env._warmedMaterials = new Set();
         const warmed = env._warmedMaterials;
         let unwarmed = null;
-        // Traverses rather than walking direct children: nested content (a vending machine's
-        // emissive panel parented to its body, furniture groups, hallway set pieces) carries
-        // materials of its own, and those are exactly the ones that used to slip through.
         const note = (material) => {
             if (warmed.has(material.uuid + material.version)) return;
             (unwarmed || (unwarmed = new Set())).add(material);
@@ -1172,9 +1163,6 @@ export default class ChunkManager {
         }
         scoped.push(group);
         scene.children = scoped;
-        // Forced visible for the duration. r128's compile walks the graph to find what to
-        // initialise, so an invisible group could be skipped; restored immediately afterwards so
-        // the caller keeps ownership of real visibility.
         const wasVisible = group.visible;
         group.visible = true;
         try {
