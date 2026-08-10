@@ -466,6 +466,7 @@ export default class ChunkManager {
                     if (localX !== 0 && localX !== edge && localZ !== 0 && localZ !== edge) continue;
                     if (ctx.isOccupied(x, z)) continue;
                     if (performance.now() - shellStartTime > 5.0) {
+                        this.warmChunkMaterials(chunkGroup);
                         await new Promise(resolve => setTimeout(resolve, 0));
                         shellStartTime = performance.now();
                         if (!env.activeChunks.has(hash)) return;
@@ -503,19 +504,12 @@ export default class ChunkManager {
         const isWallCell = (wx, wz) => wallCells.has(cellKey(wx, wz));
         const solidWallCells = new Set();
         const isSolidWallCell = (wx, wz) => solidWallCells.has(cellKey(wx, wz));
-        // Hidden until the build finishes and _compileInstances has compiled and drained it.
-        // The cell loop yields every 5ms, and animate() renders during those yields -- so any
-        // object a sector adds straight to chunkGroup (vending machines, foundations, canopies)
-        // would otherwise be drawn before its shader program had been linked, and that first
-        // draw is what blocks: measured at ~1.6s per frame across 16 getProgramParameter calls.
-        // Nothing is lost visually; a half-built chunk has nothing worth showing, and for macro
-        // sectors this window is already behind the isBuildingMacroInterior freeze screen.
-        chunkGroup.visible = false;
         let chunkStartTime = performance.now();
         for (let x = startX; x < startX + env.chunkSize; x++) {
             for (let z = startZ; z < startZ + env.chunkSize; z++) {
                 if (!env.activeChunks.has(hash)) return;
                 if (performance.now() - chunkStartTime > 5.0) {
+                    this.warmChunkMaterials(chunkGroup);
                     await new Promise(resolve => setTimeout(resolve, 0));
                     chunkStartTime = performance.now();
                     if (!env.activeChunks.has(hash)) return;
@@ -803,6 +797,7 @@ export default class ChunkManager {
             }
         }
         if (performance.now() - chunkStartTime > 5.0) {
+            this.warmChunkMaterials(chunkGroup);
             await new Promise(resolve => setTimeout(resolve, 0));
             if (!env.activeChunks.has(hash)) return;
         }
@@ -1054,12 +1049,26 @@ export default class ChunkManager {
             // hallways, observers and grates. Compiling only tempGroup left those materials to
             // link lazily on the first frame that drew them, which is precisely the 1652ms
             // getProgramParameter spike measured on Atrium entry.
-            const unwarmed = this._unwarmedMaterials(chunkGroup);
-            if (unwarmed !== null) this.warmMaterialVariants(unwarmed);
-            // Revealed in the same synchronous block that compiled and drained it, so no frame
-            // can ever observe this chunk in a drawable-but-unlinked state.
-            chunkGroup.visible = true;
+            this.warmChunkMaterials(chunkGroup);
         }
+    }
+
+    /**
+     * [ROLE] Ensures everything currently parented under `chunkGroup` has linked programs.
+     * [WHY] Called before every yield in the build loops, not just at the end. The loops yield
+     *       every 5ms and animate() renders during those yields, so a chunk is on screen and being
+     *       drawn while it is still filling in. Anything a sector adds straight to chunkGroup --
+     *       vending machines, foundations, void canopies, entrance hallways -- would otherwise be
+     *       drawn before its program was linked, and that first draw blocks for as long as the
+     *       link takes.
+     * [NOTE] An earlier attempt hid the chunk for the whole build instead. That worked, but it
+     *        also meant the ~9 chunks queued on entering a sector all stayed invisible until each
+     *        finished, so the world blinked out for a second or two once the sector-load screen
+     *        lifted. Warming per yield keeps the original progressive fill-in.
+     */
+    warmChunkMaterials(chunkGroup) {
+        const unwarmed = this._unwarmedMaterials(chunkGroup);
+        if (unwarmed !== null) this.warmMaterialVariants(unwarmed);
     }
 
     /**
@@ -1163,9 +1172,9 @@ export default class ChunkManager {
         }
         scoped.push(group);
         scene.children = scoped;
-        // Forced visible for the duration: chunks are hidden while building, and r128's compile
-        // uses traverseVisible to gather the lights. Restored immediately afterwards; the caller
-        // owns the real visibility.
+        // Forced visible for the duration. r128's compile walks the graph to find what to
+        // initialise, so an invisible group could be skipped; restored immediately afterwards so
+        // the caller keeps ownership of real visibility.
         const wasVisible = group.visible;
         group.visible = true;
         try {
