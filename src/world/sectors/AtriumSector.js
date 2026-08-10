@@ -503,15 +503,6 @@ export const AtriumSector = (env, ctx) => {
                 const gx = x * env.cellSize, gz = z * env.cellSize;
                 const cx0 = gx + 2, cz0 = gz + 2;
                 const innerSpan = (env.chunkSize - 2) * env.cellSize;
-                // Balcony tiers (14 rings of rails/balusters, one full THREE.Group+meshes
-                // per tier per side) used to be built here. Removed -- they were only ever
-                // visible looking straight up through the airlock opening, and building
-                // ~700 individual, non-instanced meshes synchronously on this one cell was
-                // the dominant cause of a multi-second hitch on entering this sector (measured
-                // ~7.1s for this chunk's interior build vs 115-315ms for other sectors, vs
-                // 9-17ms for a normal chunk). TIER_BASE/TIER_STEP/TIER_COUNT/TOP_TIER_Y are
-                // kept as-is so STRUCTURE_TOP_Y (used below for perimeter wall banding) and
-                // this sky cap's height stay at the same scale the shaft was designed at.
                 const capY = TOP_TIER_Y + 25.0;
                 const skyGeo = env._planeGeo(innerSpan, innerSpan);
                 const sky = new THREE.Mesh(skyGeo, env.matrixVoidMat);

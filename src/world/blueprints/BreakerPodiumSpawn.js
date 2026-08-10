@@ -16,8 +16,7 @@ export const spawnBreakerPodium = (env, ctx, x, z) => {
     const podium = buildBreakerPodium(env, hash, random);
     podium.position.set(cx, PODIUM_PLATE_Y, cz);
     podium.rotation.y = Math.floor(random() * 4) * (Math.PI / 2);
-    
-    // We only spawn real breakers via this method now
+
     podium.userData.type = 'exit_switch';
     podium.userData.chunkHash = hash;
     podium.userData.active = false;

@@ -51,18 +51,6 @@ export default class ShaderWarmup {
 
         env._programKeepAlive = [];
 
-        // Every material, no pre-filtering. An earlier version tried to skip materials whose
-        // permutation looked equivalent, using a hand-rolled signature over map slots and flags.
-        // It was both fragile and wrong: it collapsed 114 real programs down to 21 probes, so the
-        // ones it discarded still linked lazily mid-play. three already dedupes properly --
-        // acquireProgram is keyed on the real cache key and simply returns the existing program --
-        // so the work here is bounded by distinct permutations no matter how many materials feed
-        // in. Letting three do the deduping is both simpler and correct.
-        //
-        // The probe building itself lives on ChunkManager, because chunks streaming in later need
-        // exactly the same treatment for materials created mid-play. Each call ends in
-        // _drainProgramLinks, so batches are not merely issued to the driver but fully linked
-        // before boot finishes -- otherwise the first frame to draw them would stall instead.
         const materials = this._collectMaterials(env);
         const BATCH = 8;
         for (let i = 0; i < materials.length; i += BATCH) {
@@ -126,12 +114,6 @@ export default class ShaderWarmup {
             if (key === 'scene' || key === 'camera' || key === 'engine' || key === 'player') continue;
             visit(env[key], 0);
         }
-        // Then sweep the scene graph. EntityManager builds all six entities in its constructor and
-        // parks them in the scene with visible = false, so their materials are reachable here but
-        // sit far too deep for the env walk above (env.entityManager.entities.X.group.children...).
-        // Missing them meant an entity's first appearance -- swapping entity on a sector change --
-        // paid the link stall instead, measured at ~2.4s across 24 getProgramParameter calls.
-        // traverse, not traverseVisible: the point is precisely that they are hidden right now.
         if (env.scene) {
             env.scene.traverse((obj) => {
                 if (obj.material) visit(obj.material, 0);

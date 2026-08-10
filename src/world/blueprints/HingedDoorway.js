@@ -13,18 +13,10 @@ export const HingedDoorwayProfile = (env, ctx) => {
     const {buildWall, addGeometry, chunkGroup, hash} = ctx;
     return {
         name: "HINGED DOORWAY",
-        // The band is kept at its original width even though real placement now comes from the
-        // pre-pass. Raising prob out of range would have handed these eight points to the next
-        // profile down -- NARROW HEADER GAP would have gone from 4% to 12% of wall cells --
-        // silently reshaping the whole level. So the roll still lands here and simply resolves
-        // to plain wall when there's no plan behind it.
         prob: 0.78,
         build: (x, z) => {
             const plan = ctx.getDoorwayPlan ? ctx.getDoorwayPlan(x, z) : null;
             if (!plan) {
-                // Drawn at random rather than planted by the planner. A door here would open
-                // onto whatever the maze happened to leave behind it, with no corridor and no
-                // facing, so this cell stays a wall.
                 const solid = buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
                 solid.position.set(x * env.cellSize, 1.5, z * env.cellSize);
                 addGeometry(solid);
@@ -39,9 +31,6 @@ export const HingedDoorwayProfile = (env, ctx) => {
                 .applyAxisAngle(rotAxis, rot)
                 .add(new THREE.Vector3(px, 0, pz));
 
-            // Placed in world space rather than as children of a rotated group: addGeometry's
-            // baseboard math reads mesh.position and mesh.rotation.y directly and ignores parent
-            // transforms, so a grouped pillar would get its baseboard in the wrong place.
             const pW = 1.2, offset = (env.cellSize / 2) - (pW / 2), gap = env.cellSize - (pW * 2);
             const p1 = buildWall(pW, env.cellSize, env.sharedWallMat);
             p1.position.copy(toWorld(-offset, 1.5, 0));
@@ -80,9 +69,6 @@ export const HingedDoorwayProfile = (env, ctx) => {
             door.position.copy(toWorld(-0.7, 1.325, 1.85));
             door.rotation.y = rot;
             door.castShadow = door.receiveShadow = true;
-            // closedRot carries the facing into InteractionController, which infers from it
-            // whether the player's approach is measured along Z (rot 0 or PI) or X (rot +/-PI/2)
-            // and swings the leaf away from whichever side they arrive on.
             door.userData = {
                 chunkHash: hash,
                 closedRot: rot,

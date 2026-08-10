@@ -1,9 +1,3 @@
-/**
- * [ROLE] Generates small crouch-level ducts or wall vents.
- * [WHY] Allows alternative traversal routes or decorative wall features, enhancing level verticality and interconnectedness.
- * [STATE] Stateless generation profile.
- * [DEPENDS] Wall matrices, AABB grid for entity collision, and context wall manipulation functions.
- */
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
@@ -12,182 +6,314 @@ export const DuctOrVentProfile = (env, ctx) => {
     return {
         name: "DUCT OR VENT",
         prob: 0.40, build: (x, z) => {
-            const nC = ctx.isWall && !ctx.isWall(x, z - 1);
-            const sC = ctx.isWall && !ctx.isWall(x, z + 1);
-            const wC = ctx.isWall && !ctx.isWall(x - 1, z);
-            const eC = ctx.isWall && !ctx.isWall(x + 1, z);
+            let isFloorLevel = random() > 0.75;
 
-            let isCorner = false;
-            let tunnelOnZ = false;
-            let flipX = 1, flipZ = 1;
+            const startX = Math.floor(x / env.chunkSize) * env.chunkSize;
+            const startZ = Math.floor(z / env.chunkSize) * env.chunkSize;
 
-            if (nC && sC && !wC && !eC) { isCorner = false; tunnelOnZ = true; }
-            else if (wC && eC && !nC && !sC) { isCorner = false; tunnelOnZ = false; }
-            else if (nC && eC) { isCorner = true; flipX = 1; flipZ = -1; }
-            else if (sC && eC) { isCorner = true; flipX = 1; flipZ = 1; }
-            else if (nC && wC) { isCorner = true; flipX = -1; flipZ = -1; }
-            else if (sC && wC) { isCorner = true; flipX = -1; flipZ = 1; }
-            else if (nC) { isCorner = false; tunnelOnZ = true; if (ctx.setWall) ctx.setWall(x, z + 1, false); }
-            else if (wC) { isCorner = false; tunnelOnZ = false; if (ctx.setWall) ctx.setWall(x + 1, z, false); }
-            else if (sC) { isCorner = false; tunnelOnZ = true; if (ctx.setWall) ctx.setWall(x, z + 1, false); }
-            else if (eC) { isCorner = false; tunnelOnZ = false; if (ctx.setWall) ctx.setWall(x + 1, z, false); }
-            else {
-                isCorner = true; flipX = 1; flipZ = 1;
-                if (ctx.setWall) {
-                    ctx.setWall(x + 1, z, false);
-                    ctx.setWall(x, z + 1, false);
-                }
+            const network = new Map();
+            let numExits = 0;
+            const maxTiles = 15;
+            const maxExits = 2 + Math.floor(random() * 2);
+
+            const getOpposite = (dir) => {
+                if (dir === 'N') return 'S';
+                if (dir === 'S') return 'N';
+                if (dir === 'E') return 'W';
+                if (dir === 'W') return 'E';
+                return null;
+            };
+
+            const cellKey = (cx, cz) => `${cx}_${cz}`;
+            
+            const initialExits = {N: false, S: false, E: false, W: false};
+            if (ctx.isWall && !ctx.isWall(x, z - 1)) { initialExits.N = true; numExits++; }
+            if (ctx.isWall && !ctx.isWall(x, z + 1)) { initialExits.S = true; numExits++; }
+            if (ctx.isWall && !ctx.isWall(x + 1, z)) { initialExits.E = true; numExits++; }
+            if (ctx.isWall && !ctx.isWall(x - 1, z)) { initialExits.W = true; numExits++; }
+
+            if (numExits === 0) {
+                isFloorLevel = false;
             }
 
-            let isFloorLevel = random() > 0.3;
-            let linearBurstLength = 0;
-            
-            if (isFloorLevel && !isCorner) {
-                const modX = ((x % env.chunkSize) + env.chunkSize) % env.chunkSize;
-                const modZ = ((z % env.chunkSize) + env.chunkSize) % env.chunkSize;
-                const maxSearch = tunnelOnZ ? env.chunkSize - modZ : env.chunkSize - modX;
-                let foundExit = false;
-                for (let i = 1; i <= Math.min(5, maxSearch); i++) {
-                    const checkX = x + (tunnelOnZ ? 0 : i);
-                    const checkZ = z + (tunnelOnZ ? i : 0);
-                    if (!ctx.isWall(checkX, checkZ)) {
-                        linearBurstLength = i;
-                        foundExit = true;
-                        break;
+            if (isFloorLevel) {
+                network.set(cellKey(x, z), {
+                    x, z,
+                    connections: {N: false, S: false, E: false, W: false},
+                    exits: initialExits
+                });
+
+                const q = [];
+                const addFrontier = (cx, cz, fromDir) => {
+                    if (cx < startX || cx >= startX + env.chunkSize) return;
+                    if (cz < startZ || cz >= startZ + env.chunkSize) return;
+                    q.push({x: cx, z: cz, cameFrom: fromDir});
+                };
+
+                if (ctx.isWall && ctx.isWall(x, z - 1)) addFrontier(x, z - 1, 'S');
+                if (ctx.isWall && ctx.isWall(x, z + 1)) addFrontier(x, z + 1, 'N');
+                if (ctx.isWall && ctx.isWall(x + 1, z)) addFrontier(x + 1, z, 'W');
+                if (ctx.isWall && ctx.isWall(x - 1, z)) addFrontier(x - 1, z, 'E');
+
+                while (q.length > 0 && network.size < maxTiles) {
+                    let idx = q.length - 1;
+                    if (random() < 0.4) idx = Math.floor(random() * q.length);
+                    const cell = q.splice(idx, 1)[0];
+                    const key = cellKey(cell.x, cell.z);
+                    
+                    const prevCellX = cell.x + (cell.cameFrom === 'E' ? 1 : cell.cameFrom === 'W' ? -1 : 0);
+                    const prevCellZ = cell.z + (cell.cameFrom === 'S' ? 1 : cell.cameFrom === 'N' ? -1 : 0);
+                    const pKey = cellKey(prevCellX, prevCellZ);
+                    const p = network.get(pKey);
+
+                    if (network.has(key)) {
+                        if (p && random() < 0.25) { 
+                            p.connections[getOpposite(cell.cameFrom)] = true;
+                            network.get(key).connections[cell.cameFrom] = true;
+                        }
+                        continue;
+                    }
+
+                    if (ctx.isWall && !ctx.isWall(cell.x, cell.z)) {
+                        if (p && numExits < maxExits) {
+                            p.exits[getOpposite(cell.cameFrom)] = true;
+                            numExits++;
+                        }
+                        continue;
+                    }
+
+                    if (p) {
+                        p.connections[getOpposite(cell.cameFrom)] = true;
+                    }
+
+                    const newCell = {
+                        x: cell.x, z: cell.z,
+                        connections: {N: false, S: false, E: false, W: false},
+                        exits: {N: false, S: false, E: false, W: false}
+                    };
+                    newCell.connections[cell.cameFrom] = true;
+                    network.set(key, newCell);
+
+                    if (ctx.isWall) {
+                        addFrontier(cell.x, cell.z - 1, 'S');
+                        addFrontier(cell.x, cell.z + 1, 'N');
+                        addFrontier(cell.x + 1, cell.z, 'W');
+                        addFrontier(cell.x - 1, cell.z, 'E');
                     }
                 }
-                if (!foundExit) {
+
+                let pruned = true;
+                while (pruned) {
+                    pruned = false;
+                    for (const [key, cell] of network.entries()) {
+                        let connCount = 0;
+                        if (cell.connections.N) connCount++;
+                        if (cell.connections.S) connCount++;
+                        if (cell.connections.E) connCount++;
+                        if (cell.connections.W) connCount++;
+                        
+                        let exitCount = 0;
+                        if (cell.exits.N) exitCount++;
+                        if (cell.exits.S) exitCount++;
+                        if (cell.exits.E) exitCount++;
+                        if (cell.exits.W) exitCount++;
+                        
+                        if (connCount === 1 && exitCount === 0) {
+                            if (cell.connections.N) {
+                                const nKey = cellKey(cell.x, cell.z - 1);
+                                if (network.has(nKey)) network.get(nKey).connections.S = false;
+                            }
+                            if (cell.connections.S) {
+                                const nKey = cellKey(cell.x, cell.z + 1);
+                                if (network.has(nKey)) network.get(nKey).connections.N = false;
+                            }
+                            if (cell.connections.E) {
+                                const nKey = cellKey(cell.x + 1, cell.z);
+                                if (network.has(nKey)) network.get(nKey).connections.W = false;
+                            }
+                            if (cell.connections.W) {
+                                const nKey = cellKey(cell.x - 1, cell.z);
+                                if (network.has(nKey)) network.get(nKey).connections.E = false;
+                            }
+                            network.delete(key);
+                            pruned = true;
+                        }
+                    }
+                }
+
+                let totalRemainingExits = 0;
+                for (const cell of network.values()) {
+                    if (cell.exits.N) totalRemainingExits++;
+                    if (cell.exits.S) totalRemainingExits++;
+                    if (cell.exits.E) totalRemainingExits++;
+                    if (cell.exits.W) totalRemainingExits++;
+                }
+
+                if (network.size <= 1 || totalRemainingExits < 2) {
                     isFloorLevel = false;
                 }
             }
 
             if (isFloorLevel) {
                 const holeW = 1.2;
-                const holeH = 0.7;
-                const topH = 3.0 - holeH;
-                const sideW = (env.cellSize - holeW) / 2;
-                const sideOffset = (env.cellSize / 2) - (sideW / 2);
-                const liningH = 0.05;
-                const sideH = holeH - (liningH * 2);
-                const sideOffsetLining = (holeW / 2) - (liningH / 2);
-                if (isCorner) {
-                    if (ctx.markOccupied) ctx.markOccupied(x, z);
-                    const outer = buildWall(sideW, sideW, env.sharedWallMat);
-                    outer.position.set(x * env.cellSize - (flipX * (env.cellSize / 2 - sideW / 2)), 1.5, z * env.cellSize - (flipZ * (env.cellSize / 2 - sideW / 2)));
-                    addGeometry(outer);
-                    const full = buildWall(sideW, env.cellSize, env.sharedWallMat);
-                    full.position.set(x * env.cellSize + (flipX * (env.cellSize / 2 - sideW / 2)), 1.5, z * env.cellSize);
-                    addGeometry(full);
-                    const innerW = env.cellSize - sideW;
-                    const inner = buildWall(innerW, sideW, env.sharedWallMat);
-                    inner.position.set(x * env.cellSize - (flipX * (env.cellSize / 2 - innerW / 2)), 1.5, z * env.cellSize + (flipZ * (env.cellSize / 2 - sideW / 2)));
-                    addGeometry(inner);
-                    const roof1 = buildWall(holeW, innerW, env.sharedWallMat, topH, holeH);
-                    roof1.position.set(x * env.cellSize, holeH + topH / 2, z * env.cellSize - (flipZ * (env.cellSize / 2 - innerW / 2)));
-                    addGeometry(roof1);
-                    const roof2 = buildWall(sideW, holeW, env.sharedWallMat, topH, holeH);
-                    roof2.position.set(x * env.cellSize - (flipX * (env.cellSize / 2 - sideW / 2)), holeH + topH / 2, z * env.cellSize);
-                    addGeometry(roof2);
-                    const floor1 = buildWall(holeW, innerW, env.ductMat, liningH);
-                    floor1.position.set(x * env.cellSize, liningH / 2, z * env.cellSize - (flipZ * (env.cellSize / 2 - innerW / 2)));
-                    addGeometry(floor1);
-                    const floor2 = buildWall(sideW, holeW, env.ductMat, liningH);
-                    floor2.position.set(x * env.cellSize - (flipX * (env.cellSize / 2 - sideW / 2)), liningH / 2, z * env.cellSize);
-                    addGeometry(floor2);
-                    const ceil1 = buildWall(holeW, innerW, env.ductMat, liningH);
-                    ceil1.position.set(x * env.cellSize, holeH - liningH / 2, z * env.cellSize - (flipZ * (env.cellSize / 2 - innerW / 2)));
-                    addGeometry(ceil1);
-                    const ceil2 = buildWall(sideW, holeW, env.ductMat, liningH);
-                    ceil2.position.set(x * env.cellSize - (flipX * (env.cellSize / 2 - sideW / 2)), holeH - liningH / 2, z * env.cellSize);
-                    addGeometry(ceil2);
-                    const lOuterX = buildWall(liningH, sideW, env.ductMat, sideH);
-                    lOuterX.position.set(x * env.cellSize - (flipX * (holeW / 2 - liningH / 2)), holeH / 2, z * env.cellSize - (flipZ * (env.cellSize / 2 - sideW / 2)));
-                    addGeometry(lOuterX);
-                    const lOuterZ = buildWall(sideW, liningH, env.ductMat, sideH);
-                    lOuterZ.position.set(x * env.cellSize - (flipX * (env.cellSize / 2 - sideW / 2)), holeH / 2, z * env.cellSize - (flipZ * (holeW / 2 - liningH / 2)));
-                    addGeometry(lOuterZ);
-                    const lInnerX = buildWall(liningH, innerW, env.ductMat, sideH);
-                    lInnerX.position.set(x * env.cellSize + (flipX * (holeW / 2 - liningH / 2)), holeH / 2, z * env.cellSize - (flipZ * (env.cellSize / 2 - innerW / 2)));
-                    addGeometry(lInnerX);
-                    const lInnerZ = buildWall(innerW, liningH, env.ductMat, sideH);
-                    lInnerZ.position.set(x * env.cellSize - (flipX * (env.cellSize / 2 - innerW / 2)), holeH / 2, z * env.cellSize + (flipZ * (holeW / 2 - liningH / 2)));
-                    addGeometry(lInnerZ);
-                    const blockBox = new AABB(
-                        new Vec3(x * env.cellSize - env.cellSize / 2, 0, z * env.cellSize - env.cellSize / 2),
-                        new Vec3(x * env.cellSize + env.cellSize / 2, 3.0, z * env.cellSize + env.cellSize / 2)
-                    );
-                    blockBox.isEntityBlocker = true;
-                    blockBox.isInvisibleBlocker = true;
-                    blockBox.chunkHash = hash;
-                    env.spatialGrid.insert(blockBox);
+                    const holeH = 0.7;
+                    const topH = 3.0 - holeH;
+                    const sideW = (env.cellSize - holeW) / 2;
+                    const sideOffset = (env.cellSize / 2) - (sideW / 2);
+                    const liningH = 0.05;
+                    const sideH = holeH - (liningH * 2);
+
+                    const addWall = (mesh) => {
+                        mesh.userData.isEntityBlocker = true;
+                        addGeometry(mesh);
+                    };
+
+                    for (const [key, cell] of network.entries()) {
+                    const cx = cell.x * env.cellSize;
+                    const cz = cell.z * env.cellSize;
+
+                    if (ctx.markOccupied) ctx.markOccupied(cell.x, cell.z);
+                    if (ctx.setWall) ctx.setWall(cell.x, cell.z, false);
+
+                    const nConn = cell.connections.N || cell.exits.N;
+                    const sConn = cell.connections.S || cell.exits.S;
+                    const eConn = cell.connections.E || cell.exits.E;
+                    const wConn = cell.connections.W || cell.exits.W;
+
+                    const nw = buildWall(sideW, sideW, env.sharedWallMat);
+                    nw.position.set(cx - sideOffset, 1.5, cz - sideOffset);
+                    addWall(nw);
+
+                    const ne = buildWall(sideW, sideW, env.sharedWallMat);
+                    ne.position.set(cx + sideOffset, 1.5, cz - sideOffset);
+                    addWall(ne);
+
+                    const sw = buildWall(sideW, sideW, env.sharedWallMat);
+                    sw.position.set(cx - sideOffset, 1.5, cz + sideOffset);
+                    addWall(sw);
+
+                    const se = buildWall(sideW, sideW, env.sharedWallMat);
+                    se.position.set(cx + sideOffset, 1.5, cz + sideOffset);
+                    addWall(se);
+
+                    const hubRoof = buildWall(holeW, holeW, env.sharedWallMat, topH, holeH);
+                    hubRoof.position.set(cx, holeH + topH / 2, cz);
+                    addGeometry(hubRoof);
+
+                    const hubFloor = buildWall(holeW, holeW, env.ductMat, liningH);
+                    hubFloor.position.set(cx, liningH / 2, cz);
+                    addGeometry(hubFloor);
+
+                    const hubCeil = buildWall(holeW, holeW, env.ductMat, liningH);
+                    hubCeil.position.set(cx, holeH - liningH / 2, cz);
+                    addGeometry(hubCeil);
+
+                    if (nConn) {
+                        const r = buildWall(holeW, sideW, env.sharedWallMat, topH, holeH);
+                        r.position.set(cx, holeH + topH / 2, cz - sideOffset);
+                        addGeometry(r);
+                        const f = buildWall(holeW, sideW, env.ductMat, liningH);
+                        f.position.set(cx, liningH / 2, cz - sideOffset);
+                        addGeometry(f);
+                        const c = buildWall(holeW, sideW, env.ductMat, liningH);
+                        c.position.set(cx, holeH - liningH / 2, cz - sideOffset);
+                        addGeometry(c);
+                        const ll = buildWall(liningH, sideW, env.ductMat, sideH);
+                        ll.position.set(cx - (holeW / 2) + (liningH / 2), holeH / 2, cz - sideOffset);
+                        addGeometry(ll);
+                        const lr = buildWall(liningH, sideW, env.ductMat, sideH);
+                        lr.position.set(cx + (holeW / 2) - (liningH / 2), holeH / 2, cz - sideOffset);
+                        addGeometry(lr);
+                    } else {
+                        const b = buildWall(holeW, sideW, env.sharedWallMat);
+                        b.position.set(cx, 1.5, cz - sideOffset);
+                        addWall(b);
+                        const l = buildWall(holeW, liningH, env.ductMat, sideH);
+                        l.position.set(cx, holeH / 2, cz - sideOffset + (sideW / 2) - (liningH / 2));
+                        addGeometry(l);
+                    }
+
+                    if (sConn) {
+                        const r = buildWall(holeW, sideW, env.sharedWallMat, topH, holeH);
+                        r.position.set(cx, holeH + topH / 2, cz + sideOffset);
+                        addGeometry(r);
+                        const f = buildWall(holeW, sideW, env.ductMat, liningH);
+                        f.position.set(cx, liningH / 2, cz + sideOffset);
+                        addGeometry(f);
+                        const c = buildWall(holeW, sideW, env.ductMat, liningH);
+                        c.position.set(cx, holeH - liningH / 2, cz + sideOffset);
+                        addGeometry(c);
+                        const ll = buildWall(liningH, sideW, env.ductMat, sideH);
+                        ll.position.set(cx - (holeW / 2) + (liningH / 2), holeH / 2, cz + sideOffset);
+                        addGeometry(ll);
+                        const lr = buildWall(liningH, sideW, env.ductMat, sideH);
+                        lr.position.set(cx + (holeW / 2) - (liningH / 2), holeH / 2, cz + sideOffset);
+                        addGeometry(lr);
+                    } else {
+                        const b = buildWall(holeW, sideW, env.sharedWallMat);
+                        b.position.set(cx, 1.5, cz + sideOffset);
+                        addWall(b);
+                        const l = buildWall(holeW, liningH, env.ductMat, sideH);
+                        l.position.set(cx, holeH / 2, cz + sideOffset - (sideW / 2) + (liningH / 2));
+                        addGeometry(l);
+                    }
+
+                    if (wConn) {
+                        const r = buildWall(sideW, holeW, env.sharedWallMat, topH, holeH);
+                        r.position.set(cx - sideOffset, holeH + topH / 2, cz);
+                        addGeometry(r);
+                        const f = buildWall(sideW, holeW, env.ductMat, liningH);
+                        f.position.set(cx - sideOffset, liningH / 2, cz);
+                        addGeometry(f);
+                        const c = buildWall(sideW, holeW, env.ductMat, liningH);
+                        c.position.set(cx - sideOffset, holeH - liningH / 2, cz);
+                        addGeometry(c);
+                        const ll = buildWall(sideW, liningH, env.ductMat, sideH);
+                        ll.position.set(cx - sideOffset, holeH / 2, cz - (holeW / 2) + (liningH / 2));
+                        addGeometry(ll);
+                        const lr = buildWall(sideW, liningH, env.ductMat, sideH);
+                        lr.position.set(cx - sideOffset, holeH / 2, cz + (holeW / 2) - (liningH / 2));
+                        addGeometry(lr);
+                    } else {
+                        const b = buildWall(sideW, holeW, env.sharedWallMat);
+                        b.position.set(cx - sideOffset, 1.5, cz);
+                        addWall(b);
+                        const l = buildWall(liningH, holeW, env.ductMat, sideH);
+                        l.position.set(cx - sideOffset + (sideW / 2) - (liningH / 2), holeH / 2, cz);
+                        addGeometry(l);
+                    }
+
+                    if (eConn) {
+                        const r = buildWall(sideW, holeW, env.sharedWallMat, topH, holeH);
+                        r.position.set(cx + sideOffset, holeH + topH / 2, cz);
+                        addGeometry(r);
+                        const f = buildWall(sideW, holeW, env.ductMat, liningH);
+                        f.position.set(cx + sideOffset, liningH / 2, cz);
+                        addGeometry(f);
+                        const c = buildWall(sideW, holeW, env.ductMat, liningH);
+                        c.position.set(cx + sideOffset, holeH - liningH / 2, cz);
+                        addGeometry(c);
+                        const ll = buildWall(sideW, liningH, env.ductMat, sideH);
+                        ll.position.set(cx + sideOffset, holeH / 2, cz - (holeW / 2) + (liningH / 2));
+                        addGeometry(ll);
+                        const lr = buildWall(sideW, liningH, env.ductMat, sideH);
+                        lr.position.set(cx + sideOffset, holeH / 2, cz + (holeW / 2) - (liningH / 2));
+                        addGeometry(lr);
+                    } else {
+                        const b = buildWall(sideW, holeW, env.sharedWallMat);
+                        b.position.set(cx + sideOffset, 1.5, cz);
+                        addWall(b);
+                        const l = buildWall(liningH, holeW, env.ductMat, sideH);
+                        l.position.set(cx + sideOffset - (sideW / 2) + (liningH / 2), holeH / 2, cz);
+                        addGeometry(l);
+                    }
+
                     const grateOffset = (env.cellSize / 2) - 0.07;
-                    ctx.addGrate(x * env.cellSize, 0.35, z * env.cellSize - (flipZ * grateOffset), false);
-                    ctx.addGrate(x * env.cellSize - (flipX * grateOffset), 0.35, z * env.cellSize, true);
-                    if (ctx.markOccupied) {
-                        ctx.markOccupied(x, z - flipZ);
-                        ctx.markOccupied(x - flipX, z);
-                    }
-                } else {
-                    const burstLength = linearBurstLength;
-                    for (let i = 0; i < burstLength; i++) {
-                        const segX = x + (tunnelOnZ ? 0 : i);
-                        const segZ = z + (tunnelOnZ ? i : 0);
-                        if (ctx.markOccupied) ctx.markOccupied(segX, segZ);
-                        const w1 = tunnelOnZ ? sideW : env.cellSize - 0.02;
-                        const d1 = tunnelOnZ ? env.cellSize - 0.02 : sideW;
-                        const side1 = buildWall(w1, d1, env.sharedWallMat);
-                        side1.position.set(segX * env.cellSize + (tunnelOnZ ? -sideOffset : 0), 1.5, segZ * env.cellSize + (tunnelOnZ ? 0 : -sideOffset));
-                        addGeometry(side1);
-                        const side2 = buildWall(w1, d1, env.sharedWallMat);
-                        side2.position.set(segX * env.cellSize + (tunnelOnZ ? sideOffset : 0), 1.5, segZ * env.cellSize + (tunnelOnZ ? 0 : sideOffset));
-                        addGeometry(side2);
-                        const topW = tunnelOnZ ? holeW : env.cellSize - 0.02;
-                        const topD = tunnelOnZ ? env.cellSize - 0.02 : holeW;
-                        const top = buildWall(topW, topD, env.sharedWallMat, topH, holeH);
-                        top.position.set(segX * env.cellSize, holeH + (topH / 2), segZ * env.cellSize);
-                        addGeometry(top);
-                        const linW = tunnelOnZ ? holeW : env.cellSize - 0.02;
-                        const linD = tunnelOnZ ? env.cellSize - 0.02 : holeW;
-                        const liningFloor = buildWall(linW, linD, env.ductMat, liningH);
-                        liningFloor.position.set(segX * env.cellSize, liningH / 2, segZ * env.cellSize);
-                        addGeometry(liningFloor);
-                        const liningCeil = buildWall(linW, linD, env.ductMat, liningH);
-                        liningCeil.position.set(segX * env.cellSize, holeH - (liningH / 2), segZ * env.cellSize);
-                        addGeometry(liningCeil);
-                        const liningSideW = tunnelOnZ ? liningH : linW;
-                        const liningSideD = tunnelOnZ ? linD : liningH;
-                        const liningLeft = buildWall(liningSideW, liningSideD, env.ductMat, sideH);
-                        liningLeft.position.set(segX * env.cellSize + (tunnelOnZ ? -sideOffsetLining : 0), holeH / 2, segZ * env.cellSize + (tunnelOnZ ? 0 : -sideOffsetLining));
-                        addGeometry(liningLeft);
-                        const liningRight = buildWall(liningSideW, liningSideD, env.ductMat, sideH);
-                        liningRight.position.set(segX * env.cellSize + (tunnelOnZ ? sideOffsetLining : 0), holeH / 2, segZ * env.cellSize + (tunnelOnZ ? 0 : sideOffsetLining));
-                        addGeometry(liningRight);
-                        const blockBox = new AABB(
-                            new Vec3(segX * env.cellSize - (tunnelOnZ ? holeW / 2 : env.cellSize / 2), 0, segZ * env.cellSize - (tunnelOnZ ? env.cellSize / 2 : holeW / 2)),
-                            new Vec3(segX * env.cellSize + (tunnelOnZ ? holeW / 2 : env.cellSize / 2), 3.0, segZ * env.cellSize + (tunnelOnZ ? env.cellSize / 2 : holeW / 2))
-                        );
-                        blockBox.isEntityBlocker = true;
-                        blockBox.isInvisibleBlocker = true;
-                        blockBox.chunkHash = hash;
-                        env.spatialGrid.insert(blockBox);
-                        const grateOffset = (env.cellSize / 2) - 0.07;
-                        if (i === 0) {
-                            if (tunnelOnZ) ctx.addGrate(segX * env.cellSize, 0.35, segZ * env.cellSize - grateOffset, false);
-                            else ctx.addGrate(segX * env.cellSize - grateOffset, 0.35, segZ * env.cellSize, true);
-                        }
-                        if (i === burstLength - 1) {
-                            if (tunnelOnZ) ctx.addGrate(segX * env.cellSize, 0.35, segZ * env.cellSize + grateOffset, false);
-                            else ctx.addGrate(segX * env.cellSize + grateOffset, 0.35, segZ * env.cellSize, true);
-                        }
-                    }
-                    if (ctx.markOccupied) {
-                        if (tunnelOnZ) {
-                            ctx.markOccupied(x, z - 1);
-                            ctx.markOccupied(x, z + burstLength);
-                        } else {
-                            ctx.markOccupied(x - 1, z);
-                            ctx.markOccupied(x + burstLength, z);
-                        }
+                    if (ctx.addGrate) {
+                        if (cell.exits.N) ctx.addGrate(cx, 0.35, cz - grateOffset, false);
+                        if (cell.exits.S) ctx.addGrate(cx, 0.35, cz + grateOffset, false);
+                        if (cell.exits.E) ctx.addGrate(cx + grateOffset, 0.35, cz, true);
+                        if (cell.exits.W) ctx.addGrate(cx - grateOffset, 0.35, cz, true);
                     }
                 }
             } else {

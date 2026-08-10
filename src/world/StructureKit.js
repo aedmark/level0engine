@@ -345,8 +345,6 @@ export default class StructureKit {
                 for (let i = 0; i < localBoxes.length; i++) {
                     const b = localBoxes[i];
                     if (b.isGrate) {
-                        // A hinged grate's own position is local to its pivot, so dedupe has to
-                        // compare against the world position it was requested at.
                         const refPos = b.meshRef.userData.worldPos || b.meshRef.position;
                         const dist = Math.abs(refPos.x - px) + Math.abs(refPos.z - pz);
                         if (dist < 0.1) {
@@ -367,10 +365,6 @@ export default class StructureKit {
                     blocksX: blocksX, worldPos: {x: px, z: pz}
                 };
                 if (hinged) {
-                    // Pivot sits on one edge of the opening with the panel hung off it, so
-                    // rotation.y swings the free edge out into the room like a door. The panel
-                    // spans X when the opening faces Z and vice versa, hence the blocksX swap;
-                    // the open angle sends it away from the face the grate is mounted on.
                     const pivot = new THREE.Group();
                     pivot.position.set(
                         blocksX ? px : px - width / 2,
@@ -629,10 +623,6 @@ export default class StructureKit {
                     wall.receiveShadow = true;
                     wall.userData.isEntityBlocker = true;
                     wall.userData.baseboardFootprint = {w: segW, d: segD, h: segH};
-                    // Perimeter walls are two-sided: outward faces are sharedWallMat (hallway),
-                    // inward faces are the sector's own material. When a sector overrides the
-                    // material, the baseboard should only read on the outward faces, so the
-                    // hallway run stays continuous without pushing foreign trim into the sector.
                     if (wMat !== env.sharedWallMat) {
                         const faceMats = (trimMat) => [
                             localX === env.chunkSize - 1 ? trimMat : wMat,

@@ -198,9 +198,6 @@ export default class InteractionController {
                 if (obj.userData.type === 'grate' && !obj.userData.active) {
                     const pivot = obj.userData.pivot;
                     if (pivot) {
-                        // Hinged panels swing on an edge pivot. The fall-flat path below spins
-                        // the mesh about its own centre and sinks it to the floor, which drives
-                        // a wall-mounted panel straight through the wall it sits in.
                         const diff = obj.userData.openRot - pivot.rotation.y;
                         if (Math.abs(diff) > 0.01) {
                             pivot.rotation.y += diff * 8.0 * delta;

@@ -68,13 +68,6 @@ export default class SaveManager {
             if (state.discoveredSectors) {
                 this.environment.discoveredSectors = new Map(state.discoveredSectors);
             }
-            // Story state is intentionally NOT imported here. environment.baseSeed hasn't
-            // been derived from the (just-populated) seed input yet -- that happens inside
-            // environment.setup(), which main.js calls after loadState(). getStory() caches
-            // its StoryEngine per baseSeed, so importing against the pre-setup seed would
-            // populate an instance that gets discarded the moment setup() changes the seed
-            // and the next getStory() call rebuilds from scratch. The caller applies
-            // state.story itself, once setup() has run and the real seed is locked in.
 
             return state;
         } catch (e) {

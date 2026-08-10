@@ -202,7 +202,6 @@ export default class RenderEngine {
                     vec2 uv = mix(vUv, curve(vUv), enableVHS);
                     vec2 centerUv = uv - 0.5;
                     float distSq = dot(centerUv, centerUv);
-                    // Screen Border Cutoff
                     float border = smoothstep(0.0, 0.03, uv.x) * smoothstep(1.0, 0.97, uv.x) * 
                                    smoothstep(0.0, 0.03, uv.y) * smoothstep(1.0, 0.97, uv.y);
                     border = mix(1.0, border, enableVHS);
@@ -215,7 +214,6 @@ export default class RenderEngine {
                     float pCurve = panic * panic * panic;
                     float stressLevel = max(squeeze, max(anomaly, max(exhaustion, max(panic, adrenaline))));
                     float stressGate = smoothstep(0.0, 0.2, stressLevel);
-                    // Paranoia / Anomaly Tearing
                     if (anomaly > 0.01 || panic > 0.01) {
                         float gpuSeed = random(uv + time);
                         float intensity = max(anomaly, pCurve * 1.5);
@@ -224,22 +222,15 @@ export default class RenderEngine {
                         uv.x += tear * (gpuSeed - 0.5) * intensity * 0.3;
                         uv.y += tear * (gpuSeed - 0.5) * intensity * 0.05;
                     }
-                    // VHS Tracking Error
                     uv.x += phaseBand * 0.0002 * sin(time * 50.0) * stressGate * enableVHS;
-                    // Chromatic Aberration
                     float heartbeatCA = exhaustion > 0.3 ? sin(time * (10.0 + exhaustion * 5.0)) * 0.004 * exhaustion : 0.0;
                     float panicTear = panic > 0.3 ? (sin(time * 25.0) * 0.02 * pCurve) : 0.0;
                     float caShift = (0.0005 + (distSq * 0.0015)) * stressGate * enableVHS + (squeeze * 0.003) + (anomaly * anomaly * sqrt(anomaly)) * 0.05 + (exhaustion * exhaustion) * 0.01 + heartbeatCA + panicTear;
                     vec2 offset = vec2(caShift, 0.0); 
-                    // Sector Environmental Distortion
                     vec2 heatOffset = vec2(0.0);
                     if (heat > 0.01) {
-                        // Domain warp: bend the sampling direction before we lay waves onto it,
-                        // so the plume swirls and curls instead of scrolling in a straight grid.
                         float swirlAngle = sin(uv.y * 8.0 + time * 0.6) * 0.6 + cos(uv.x * 6.0 - time * 0.4) * 0.6;
                         vec2 swirlUv = uv + vec2(cos(swirlAngle), sin(swirlAngle)) * 0.015 * heat;
-                        // Layered turbulence: a broad base wave plus two smaller, faster waves
-                        // stacked on top for a granular, boiling shimmer rather than one smooth ripple.
                         float wave1 = sin(swirlUv.x * 22.0 + time * 6.0) * sin(swirlUv.y * 18.0 - time * 4.0);
                         float wave2 = sin(swirlUv.x * 55.0 - time * 9.0 + wave1 * 2.0) * sin(swirlUv.y * 47.0 + time * 7.0);
                         float wave3 = sin(swirlUv.x * 90.0 + time * 13.0) * cos(swirlUv.y * 80.0 - time * 11.0);
@@ -274,7 +265,6 @@ export default class RenderEngine {
                         col = mix(col, blurCol * 0.125, clamp(glare * 2.5, 0.0, 1.0));
                         col += glareColor * (glare * 0.9);
                     }
-                    // Image Adjustments
                     float luminance = dot(col, vec3(0.299, 0.587, 0.114));
                     col += max(vec3(0.0), fauxHalation - 0.5) * 0.15 * enableVHS;
                     float noise = random(uv + mod(time, 10.0));
@@ -282,25 +272,19 @@ export default class RenderEngine {
                     float scanline = sin((uv.y - time * 0.02) * 800.0) * (0.015 * enableVHS + exhaustion * 0.05); 
                     col -= scanline * luminance;
                     col += phaseBand * 0.004 * (1.0 + noise) * enableVHS;
-                    // Adrenaline Overlay
                     col += vec3(adrenaline * 0.25, 0.0, 0.0) * distSq;
                     col += max(vec3(0.0), col - 0.5) * adrenaline * 1.2;
-                    // Somatic Vignettes
                     float vignettePulse = sin(time * (8.0 + adrenaline * 10.0)) * (exhaustion * 0.05 + adrenaline * 0.05); 
                     float vignetteRadius = 0.35 - (exhaustion * 0.12) - (anomaly * 0.15) - (darkness * 0.15) + vignettePulse;
                     vignetteRadius = max(0.02, vignetteRadius);
                     col *= smoothstep(0.9, vignetteRadius, distSq + 0.15); 
                     float lateralDist = abs(centerUv.x);
                     col *= mix(1.0, smoothstep(0.45, 0.15, lateralDist), squeeze);
-                    // Desaturation / Blackout
                     col = mix(col, vec3(luminance * 0.6), anomaly * 0.85);
                     col = mix(col, vec3(luminance * 0.15), darkness * 0.8 * smoothstep(0.0, 0.5, distSq));
                     col = mix(col, vec3(0.02) * noise, eyesClosed);
                     col *= border;
                     col = smoothstep(0.0, 1.0, col);
-                    // Final linear -> sRGB encode. Must be the last step (see linearToSRGB above) --
-                    // everything before this, including the smoothstep contrast curve, is grading
-                    // done in linear space.
                     col = linearToSRGB(clamp(col, 0.0, 1.0));
                     gl_FragColor = vec4(col, 1.0);
                 }

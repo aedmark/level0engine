@@ -216,9 +216,6 @@ function renderTree() {
                 let categories = isSectorFile ? getKnownSectors() : Object.keys(fileData);
 
                 if (selectedFile === 'parameters.json') {
-                    // CORE_VARS is edited through the VARS screen now -- both stores render as
-                    // one list -- so it doesn't get a nav entry of its own. It stays in the file
-                    // and the engine still reads it; it just isn't a separate place to go.
                     const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
                     if (!isObj(fileData.VARS)) fileData.VARS = {};
                     categories = categories.filter(c => c !== 'CORE_VARS');
@@ -469,9 +466,6 @@ function getCurrentEditorData() {
             }
 
             const isNamesArray = selectedFile === 'parameters.json' && Array.isArray(val) && (val.length === 0 || typeof val[0] === 'string');
-            // CORE_VARS joins VARS here: both categories open the one merged VAR screen, so
-            // selecting either shows the same list instead of CORE_VARS falling through to a
-            // raw JSON textarea because its values happen to be objects rather than strings.
             const isVarsObj = val && typeof val === 'object' && !Array.isArray(val) && selectedCategory &&
                 ((selectedFile === 'parameters.json' && (selectedCategory === 'VARS' || selectedCategory === 'CORE_VARS')) ||
                  (selectedFile === 'puzzles.json' && selectedCategory === 'LOCK_THREADS'));
@@ -490,8 +484,6 @@ function getCurrentEditorData() {
                 
                 if (isVarsObj || isPuzzleObj) {
                     document.getElementById('names-input-key').style.display = 'block';
-                    // The placeholder is where the range syntax is discoverable, since that is
-                    // the only cue that a rolled number and an expression are entered the same way.
                     document.getElementById('names-input').placeholder =
                         (typeof isMergedVarScreen === 'function' && isMergedVarScreen())
                             ? "Expression, or a range like 10-99"

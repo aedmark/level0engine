@@ -50,19 +50,7 @@ async function getLockedNamesSet() {
             });
             document.getElementById('names-container').innerHTML = html;
         }
-// ---------------------------------------------------------------------------
-// Merged VAR screen.
-//
-// parameters.json still stores two different things: VARS holds expressions
-// evaluated against ctx, CORE_VARS holds {min,max} numbers rolled once per
-// playthrough. That split is real to the engine and is left alone on disk, but
-// it was never a useful thing to make the author hold in their head, so the
-// editor presents a single list. Which store an entry belongs in is inferred
-// from what gets typed: a range like 10-99 is a rolled number, anything else is
-// an expression. Engine built-ins join the same list as locked rows, using the
-// lock already used for factory entries, so one screen shows everything that can
-// be referenced in a template.
-// ---------------------------------------------------------------------------
+
 const BUILTIN_VARS = [
     {key: 'P', note: 'project name'},
     {key: 'pen', note: 'rolled per playthrough'},
@@ -71,11 +59,6 @@ const BUILTIN_VARS = [
     {key: 'seed', note: 'rolled per playthrough'}
 ];
 
-// The factory VARS include a few entries whose whole expression is one built-in, so
-// ${PEN} can be written to match a thread name. On one merged screen those landed as
-// second rows for values already listed above, which just reads as the same variable
-// twice. They're still editable, but they're now grouped under the built-in they point
-// at and labelled, so the pair explains itself.
 const VAR_ALIAS_TARGETS = {
     'ctx.pen': 'pen',
     'ctx.siteYear': 'year',
@@ -84,8 +67,6 @@ const VAR_ALIAS_TARGETS = {
     'ctx.seed': 'seed'
 };
 
-// Derivations worth stating in place, rather than leaving the author to work out from
-// the expression where a value comes from.
 const VAR_NOTES = {
     'ctx.cipher': "the active puzzle's ACCESS_CODE — never use in visible text"
 };
@@ -202,9 +183,6 @@ async function renderMergedVarsList() {
 function writeMergedVar(key, val, lockedKeys) {
     const {exprs, ranges} = varStores();
     const range = parseVarRange(val);
-    // A locked entry keeps whichever store it already lives in. Letting an edit
-    // migrate a factory key would silently drop it out of the shape the engine
-    // and the factory file both expect it in.
     if (lockedKeys && lockedKeys.has(key)) {
         if (key in ranges) {
             if (range) ranges[key] = range;
@@ -296,8 +274,6 @@ function writeMergedVar(key, val, lockedKeys) {
             if (isMergedVarScreen()) {
                 writeMergedVar(key, val, await getMergedLockedKeys());
                 markDirty();
-                // Re-rendered because an edit can move an entry between the two stores and
-                // change its resolved preview, neither of which the input reflects on its own.
                 renderVarsList();
                 return;
             }
@@ -529,10 +505,6 @@ function renderVariableToolbar() {
             });
             html += `</select>`;
 
-    // One dropdown rather than separate "Core" and "Custom" lists. From inside a
-    // document there is no difference worth surfacing -- every one of these is a
-    // token that resolves to a value -- and the split only made the author work out
-    // which menu a name lived under before they could insert it.
     const asObject = (v) => {
         if (typeof v === 'string') {
             try { v = JSON.parse(v); } catch (e) { return {}; }

@@ -74,9 +74,6 @@ if (!document.getElementById('seedInput').value) {
 }
 await environment.setup();
 if (savedState) {
-    // Must happen before the updateChunks() call below, which is the first thing that
-    // can trigger a getStory() read while streaming in narrative props -- getStory()
-    // caches its StoryEngine per environment.baseSeed, now that setup() has finalized it.
     if (savedState.story && environment.getStory) {
         environment.getStory().importState(savedState.story);
     }
