@@ -196,15 +196,30 @@ export default class InteractionController {
         if (env.interactables) {
             env.interactables.forEach(obj => {
                 if (obj.userData.type === 'grate' && !obj.userData.active) {
-                    const targetRot = -Math.PI / 2;
-                    const diff = obj.userData.blocksX ? (targetRot - obj.rotation.z) : (targetRot - obj.rotation.x);
-                    if (Math.abs(diff) > 0.01) {
-                        if (obj.userData.blocksX) obj.rotation.z += diff * 15.0 * delta;
-                        else obj.rotation.x += diff * 15.0 * delta;
-                        obj.position.y += (0.05 - obj.position.y) * 15.0 * delta;
-                        env.lumenGrid.shadowsDirty = true;
-                        if (obj.userData.box && !obj.userData.box.isEmpty()) {
-                            obj.userData.box.makeEmpty();
+                    const pivot = obj.userData.pivot;
+                    if (pivot) {
+                        // Hinged panels swing on an edge pivot. The fall-flat path below spins
+                        // the mesh about its own centre and sinks it to the floor, which drives
+                        // a wall-mounted panel straight through the wall it sits in.
+                        const diff = obj.userData.openRot - pivot.rotation.y;
+                        if (Math.abs(diff) > 0.01) {
+                            pivot.rotation.y += diff * 8.0 * delta;
+                            env.lumenGrid.shadowsDirty = true;
+                            if (obj.userData.box && !obj.userData.box.isEmpty()) {
+                                obj.userData.box.makeEmpty();
+                            }
+                        }
+                    } else {
+                        const targetRot = -Math.PI / 2;
+                        const diff = obj.userData.blocksX ? (targetRot - obj.rotation.z) : (targetRot - obj.rotation.x);
+                        if (Math.abs(diff) > 0.01) {
+                            if (obj.userData.blocksX) obj.rotation.z += diff * 15.0 * delta;
+                            else obj.rotation.x += diff * 15.0 * delta;
+                            obj.position.y += (0.05 - obj.position.y) * 15.0 * delta;
+                            env.lumenGrid.shadowsDirty = true;
+                            if (obj.userData.box && !obj.userData.box.isEmpty()) {
+                                obj.userData.box.makeEmpty();
+                            }
                         }
                     }
                 } else if (obj.userData.type === 'valve') {

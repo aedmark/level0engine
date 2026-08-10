@@ -143,7 +143,7 @@ export default class StructureKit {
                     shape.lineTo(radius, 0);
                     shape.absarc(0, 0, radius, 0, Math.PI, false);
 
-                    geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false, curveSegments: 16 });
+                    geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false, curveSegments: 8 });
                     geo.translate(0, 0, -depth / 2);
 
                     const pos = geo.attributes.position;
@@ -177,60 +177,6 @@ export default class StructureKit {
                 }
                 return new THREE.Mesh(geo, mat);
             },
-            buildSaggingHeader: (halfSpan, blockHeight, sagDepth, crossWidth, mat) => {
-                const key = `saggingHeader_${halfSpan}_${blockHeight}_${sagDepth}_${crossWidth}`;
-                let geo = env.geoCache.get(key);
-                if (!geo) {
-                    const cy = (halfSpan * halfSpan - sagDepth * sagDepth) / (2 * sagDepth);
-                    const radius = Math.sqrt(halfSpan * halfSpan + cy * cy);
-                    const startAngle = Math.atan2(0 - cy, halfSpan);
-                    const endAngle = Math.atan2(0 - cy, -halfSpan);
-
-                    const shape = new THREE.Shape();
-                    shape.moveTo(-halfSpan, blockHeight);
-                    shape.lineTo(halfSpan, blockHeight);
-                    shape.lineTo(halfSpan, 0);
-                    shape.absarc(0, cy, radius, startAngle, endAngle, true);
-                    shape.lineTo(-halfSpan, blockHeight);
-
-                    geo = new THREE.ExtrudeGeometry(shape, {depth: crossWidth, bevelEnabled: false, curveSegments: 16});
-                    geo.translate(0, 0, -crossWidth / 2);
-
-                    const pos = geo.attributes.position;
-                    const uv = geo.attributes.uv;
-                    geo.computeVertexNormals();
-                    const norm = geo.attributes.normal;
-                    const sideLen = blockHeight;
-                    const topLen = halfSpan * 2;
-
-                    for (let i = 0; i < pos.count; i++) {
-                        const x = pos.getX(i);
-                        const y = pos.getY(i);
-                        const z = pos.getZ(i);
-                        const nz = Math.abs(norm.getZ(i));
-
-                        if (nz > 0.5) {
-                            uv.setXY(i, x / env.cellSize, y / env.cellSize);
-                        } else if (y >= blockHeight - 0.01) {
-                            uv.setXY(i, z / env.cellSize, (sideLen + (x + halfSpan)) / env.cellSize);
-                        } else if (x >= halfSpan - 0.01) {
-                            uv.setXY(i, z / env.cellSize, (sideLen - y) / env.cellSize);
-                        } else if (x <= -halfSpan + 0.01) {
-                            uv.setXY(i, z / env.cellSize, (sideLen + topLen + (blockHeight - y)) / env.cellSize);
-                        } else {
-                            const angle = Math.atan2(y - cy, x);
-                            const dist = (startAngle - angle) * radius;
-                            uv.setXY(i, z / env.cellSize, (sideLen + topLen + sideLen + dist) / env.cellSize);
-                        }
-                    }
-                    uv.needsUpdate = true;
-                    geo.rotateY(Math.PI / 2);
-
-                    env.geoCache.set(key, geo);
-                    env.geoCache.set(geo.uuid, true);
-                }
-                return new THREE.Mesh(geo, mat);
-            },
             buildCurvedCornerBlock: (size, mat) => {
                 const t = 0.15;
                 const key = `curvedCorner_${size}_${t}`;
@@ -238,7 +184,7 @@ export default class StructureKit {
                 if (!geo) {
                     const shape = this.curvedCornerShape(size);
 
-                    geo = new THREE.ExtrudeGeometry(shape, { depth: 3.0, bevelEnabled: false, curveSegments: 16 });
+                    geo = new THREE.ExtrudeGeometry(shape, { depth: 3.0, bevelEnabled: false, curveSegments: 8 });
 
                     const pos = geo.attributes.position;
                     const uv = geo.attributes.uv;
@@ -278,7 +224,7 @@ export default class StructureKit {
                 let geo = env.geoCache.get(key);
                 if (!geo) {
                     const shape = this.curvedCornerShape(size, 0.03);
-                    geo = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false, curveSegments: 16 });
+                    geo = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false, curveSegments: 8 });
                     geo.translate(-size / 2, -size / 2, -height / 2);
                     env.geoCache.set(key, geo);
                     env.geoCache.set(geo.uuid, true);
@@ -324,7 +270,8 @@ export default class StructureKit {
                     const bw = bbFootprint.w + 0.06;
                     const bd = bbFootprint.d + 0.06;
                     const baseY = wallBottomY;
-                    const body = new THREE.Mesh(this.boxGeo(1, BASEBOARD_H, 1), env.baseboardMat);
+                    const body = new THREE.Mesh(this.boxGeo(1, BASEBOARD_H, 1),
+                        mesh.userData.baseboardFaceMats || env.baseboardMat);
                     body.position.set(mesh.position.x, baseY + BASEBOARD_H / 2, mesh.position.z);
                     body.rotation.y = mesh.rotation.y;
                     body.scale.set(bw, 1, bd);
@@ -332,7 +279,8 @@ export default class StructureKit {
                     body.userData.noCollision = true;
                     body.updateMatrixWorld(true);
                     stagingMeshes.push(body);
-                    const trim = new THREE.Mesh(this.boxGeo(1, TRIM_H, 1), env.baseboardTrimMat);
+                    const trim = new THREE.Mesh(this.boxGeo(1, TRIM_H, 1),
+                        mesh.userData.baseboardTrimFaceMats || env.baseboardTrimMat);
                     trim.position.set(mesh.position.x, baseY + BASEBOARD_H + TRIM_H / 2, mesh.position.z);
                     trim.rotation.y = mesh.rotation.y;
                     trim.scale.set(bw, 1, bd);
@@ -369,15 +317,42 @@ export default class StructureKit {
                 chunkGroup.add(obs);
                 env.observers.push(obs);
             },
-            addGrate: (px, py, pz, blocksX) => {
+            /**
+             * Places an interactable grate. Spawns closed (active: true) and blocking;
+             * InteractionController swings it open on 'E' and empties its collision box.
+             * @param {Object} [opts] - Overrides for callers needing a non-vent panel
+             * @param {number} [opts.width=1.08] - Span across the opening
+             * @param {number} [opts.height=0.58] - Vertical span
+             * @param {number} [opts.thickness=0.05] - Depth through the wall
+             * @param {THREE.Material} [opts.mat=env.wallVentMat] - Surface material
+             * @param {boolean} [opts.hinged=false] - Swing open on an edge pivot instead of
+             *   the default fall-flat drop. Needed for panels mounted flush in a wall, where
+             *   spinning about the panel's own centre would pass it through that wall.
+             * @param {number} [opts.openSign=1] - Which way a hinged panel swings. Defaults to
+             *   the +axis face; pass -1 for a grate on the opposite end of a span so it opens
+             *   outward too rather than folding back into the passage.
+             */
+            addGrate: (px, py, pz, blocksX, opts = {}) => {
+                const {
+                    width = 1.08,
+                    height = 0.58,
+                    thickness = 0.05,
+                    hinged = false,
+                    openSign = 1,
+                    mat = env.wallVentMat
+                } = opts;
                 const localBoxes = env.spatialGrid.getNearby(px, pz, 1.0);
                 for (let i = 0; i < localBoxes.length; i++) {
                     const b = localBoxes[i];
                     if (b.isGrate) {
-                        const dist = Math.abs(b.meshRef.position.x - px) + Math.abs(b.meshRef.position.z - pz);
+                        // A hinged grate's own position is local to its pivot, so dedupe has to
+                        // compare against the world position it was requested at.
+                        const refPos = b.meshRef.userData.worldPos || b.meshRef.position;
+                        const dist = Math.abs(refPos.x - px) + Math.abs(refPos.z - pz);
                         if (dist < 0.1) {
-                            if (b.meshRef.parent) {
-                                b.meshRef.parent.remove(b.meshRef);
+                            const detach = b.meshRef.userData.pivot || b.meshRef;
+                            if (detach.parent) {
+                                detach.parent.remove(detach);
                             }
                             env.interactables = env.interactables.filter(item => item !== b.meshRef);
                             b.isGrate = false;
@@ -385,11 +360,34 @@ export default class StructureKit {
                         }
                     }
                 }
-                const grateGeo = this.boxGeo(blocksX ? 0.05 : 1.08, 0.58, blocksX ? 1.08 : 0.05);
-                const grate = new THREE.Mesh(grateGeo, env.wallVentMat);
-                grate.position.set(px, py, pz);
-                grate.userData = {type: 'grate', active: true, chunkHash: hash, blocksX: blocksX};
-                chunkGroup.add(grate);
+                const grateGeo = this.boxGeo(blocksX ? thickness : width, height, blocksX ? width : thickness);
+                const grate = new THREE.Mesh(grateGeo, mat);
+                grate.userData = {
+                    type: 'grate', active: true, chunkHash: hash,
+                    blocksX: blocksX, worldPos: {x: px, z: pz}
+                };
+                if (hinged) {
+                    // Pivot sits on one edge of the opening with the panel hung off it, so
+                    // rotation.y swings the free edge out into the room like a door. The panel
+                    // spans X when the opening faces Z and vice versa, hence the blocksX swap;
+                    // the open angle sends it away from the face the grate is mounted on.
+                    const pivot = new THREE.Group();
+                    pivot.position.set(
+                        blocksX ? px : px - width / 2,
+                        py,
+                        blocksX ? pz - width / 2 : pz
+                    );
+                    grate.position.set(blocksX ? 0 : width / 2, 0, blocksX ? width / 2 : 0);
+                    pivot.add(grate);
+                    pivot.userData.chunkHash = hash;
+                    chunkGroup.add(pivot);
+                    pivot.updateMatrixWorld(true);
+                    grate.userData.pivot = pivot;
+                    grate.userData.openRot = openSign * (blocksX ? Math.PI / 2 : -Math.PI / 2);
+                } else {
+                    grate.position.set(px, py, pz);
+                    chunkGroup.add(grate);
+                }
                 env.interactables.push(grate);
                 const grateBox = new THREE.Box3().setFromObject(grate);
                 grateBox.chunkHash = hash;
@@ -407,16 +405,16 @@ export default class StructureKit {
                 const back = new THREE.Mesh(env.backrestGeo, mat);
                 back.position.set(0, 0.8, -0.3);
                 group.add(back);
-                const l1 = new THREE.Mesh(env.legGeo, env.structMat);
+                const l1 = new THREE.Mesh(env.legGeo, env.woodMat);
                 l1.position.set(0.3, 0.2, 0.3);
                 group.add(l1);
-                const l2 = new THREE.Mesh(env.legGeo, env.structMat);
+                const l2 = new THREE.Mesh(env.legGeo, env.woodMat);
                 l2.position.set(-0.3, 0.2, 0.3);
                 group.add(l2);
-                const l3 = new THREE.Mesh(env.legGeo, env.structMat);
+                const l3 = new THREE.Mesh(env.legGeo, env.woodMat);
                 l3.position.set(0.3, 0.2, -0.3);
                 group.add(l3);
-                const l4 = new THREE.Mesh(env.legGeo, env.structMat);
+                const l4 = new THREE.Mesh(env.legGeo, env.woodMat);
                 l4.position.set(-0.3, 0.2, -0.3);
                 group.add(l4);
                 group.position.set(x, y, z);
@@ -442,16 +440,16 @@ export default class StructureKit {
                 const armR = new THREE.Mesh(env.couchArmGeo, env.fabricMat);
                 armR.position.set(1.05, 0.55, 0.05);
                 group.add(armR);
-                const l1 = new THREE.Mesh(env.legGeo, env.structMat);
+                const l1 = new THREE.Mesh(env.legGeo, env.woodMat);
                 l1.position.set(0.9, 0.15, 0.35);
                 group.add(l1);
-                const l2 = new THREE.Mesh(env.legGeo, env.structMat);
+                const l2 = new THREE.Mesh(env.legGeo, env.woodMat);
                 l2.position.set(-0.9, 0.15, 0.35);
                 group.add(l2);
-                const l3 = new THREE.Mesh(env.legGeo, env.structMat);
+                const l3 = new THREE.Mesh(env.legGeo, env.woodMat);
                 l3.position.set(0.9, 0.15, -0.35);
                 group.add(l3);
-                const l4 = new THREE.Mesh(env.legGeo, env.structMat);
+                const l4 = new THREE.Mesh(env.legGeo, env.woodMat);
                 l4.position.set(-0.9, 0.15, -0.35);
                 group.add(l4);
                 group.position.set(x, y, z);
@@ -631,6 +629,22 @@ export default class StructureKit {
                     wall.receiveShadow = true;
                     wall.userData.isEntityBlocker = true;
                     wall.userData.baseboardFootprint = {w: segW, d: segD, h: segH};
+                    // Perimeter walls are two-sided: outward faces are sharedWallMat (hallway),
+                    // inward faces are the sector's own material. When a sector overrides the
+                    // material, the baseboard should only read on the outward faces, so the
+                    // hallway run stays continuous without pushing foreign trim into the sector.
+                    if (wMat !== env.sharedWallMat) {
+                        const faceMats = (trimMat) => [
+                            localX === env.chunkSize - 1 ? trimMat : wMat,
+                            localX === 0 ? trimMat : wMat,
+                            wMat,
+                            wMat,
+                            localZ === env.chunkSize - 1 ? trimMat : wMat,
+                            localZ === 0 ? trimMat : wMat
+                        ];
+                        wall.userData.baseboardFaceMats = faceMats(env.baseboardMat);
+                        wall.userData.baseboardTrimFaceMats = faceMats(env.baseboardTrimMat);
+                    }
                     helpers.addGeometry(wall);
                 };
                 if (!isShoulder) {

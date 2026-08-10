@@ -1,11 +1,11 @@
 /**
- * [ROLE] Generates a breached wall opening (a broken door frame or rubble gap) in place of a solid wall cell.
+ * [ROLE] Generates a breached wall opening (a broken door frame or a grated crawl gap) in place of a solid wall cell.
  * [WHY] Gives the maze visual variety and alternate routes where a wall would otherwise be a dead, uniform surface.
  * [STATE] Stateless; returns a configuration object with a build function. `prob: 0` means it's only placed by explicit reference, not random rolls.
- * [DEPENDS] Depends on env properties and context functions like addGeometry, buildWall, buildSaggingHeader, random, the caller's isWallCell, and env.pittedMetalMat/metalMat (cloned into env.doorFrameMat for ambient-lit visibility).
+ * [DEPENDS] Depends on env properties and context functions like addGeometry, addGrate, buildWall, random, the caller's isWallCell, and env.pittedMetalMat/metalMat (cloned into env.doorFrameMat for ambient-lit visibility).
  */
 export const WallBreachProfile = (env, ctx) => {
-    const { random, buildWall, buildSaggingHeader } = ctx;
+    const { random, buildWall } = ctx;
     return {
         name: "breach",
         prob: 0,
@@ -28,7 +28,11 @@ export const WallBreachProfile = (env, ctx) => {
                 });
             };
 
-            if (breachType > 0.6) {
+            // The third variant (rubble pillars under a sagging extruded header) used to take
+            // breachType <= 0.3. Its share is handed to the two survivors in the 0.4 : 0.3 ratio
+            // they already had, so the mix you encounter stays as it was rather than skewing.
+            const FRAME_CUTOFF = 3 / 7;
+            if (breachType > FRAME_CUTOFF) {
                 if (!env.doorFrameMat) {
                     // pittedMetalMat/metalMat are metalness 0.75+ and the scene has no
                     // envMap, so they rely on a nearby LumenGrid fixture for any visible
@@ -60,94 +64,133 @@ export const WallBreachProfile = (env, ctx) => {
                 }
                 const frame = env.doorFrameGeo.clone();
                 addGroupToStaging(frame);
-            } else if (breachType > 0.3) {
-                const wallG = new THREE.Group();
-                const bGeo = new THREE.BoxGeometry(env.cellSize, 0.6, env.cellSize);
-                const b1 = new THREE.Mesh(bGeo, env.sharedWallMat);
-                b1.position.set(0, 0.3, 0);
-                wallG.add(b1);
+            } else {
+                const OPENING_W = 1.2;
+                const SILL_H = 0.6;
+                const HEAD_Y = 1.8;
+                const rotAxis = new THREE.Vector3(0, 1, 0);
+                const toWorld = (cellX, cellZ, lx, ly, lz) => new THREE.Vector3(lx, ly, lz)
+                    .applyAxisAngle(rotAxis, rot)
+                    .add(new THREE.Vector3(cellX * env.cellSize, 0, cellZ * env.cellSize));
 
-                const sGeo = new THREE.BoxGeometry((env.cellSize - 1.2) / 2, 2.4, env.cellSize);
-                const s1 = new THREE.Mesh(sGeo, env.sharedWallMat);
-                s1.position.set(-(env.cellSize/2) + sGeo.parameters.width/2, 1.8, 0);
-                const s2 = new THREE.Mesh(sGeo, env.sharedWallMat);
-                s2.position.set((env.cellSize/2) - sGeo.parameters.width/2, 1.8, 0);
-                wallG.add(s1);
-                wallG.add(s2);
+                // The slot runs along local Z, so that's the direction you crawl: world Z while
+                // rot is 0, world X once the group is turned a quarter. Extra cells are claimed
+                // along that same axis, which makes the crawl deeper rather than wider.
+                const alongX = isRotated;
 
-                const tGeo = new THREE.BoxGeometry(1.2, 3.0 - 1.8, env.cellSize);
-                const t1 = new THREE.Mesh(tGeo, env.sharedWallMat);
-                t1.position.set(0, 1.8 + tGeo.parameters.height/2, 0);
-                wallG.add(t1);
+                // Mostly one cell, so a breach still reads as a hole punched through a wall
+                // rather than a corridor in its own right; sometimes two, occasionally three.
+                const spanTarget = random() > 0.72 ? (random() > 0.6 ? 3 : 2) : 1;
 
-                const grateGeo = new THREE.BoxGeometry(1.16, 1.16, 0.08);
-                const grateMat = env.cartLatticeMat || env.pittedMetalMat;
-                const gratePivot = new THREE.Group();
-                gratePivot.position.set(-0.58, 1.2, (env.cellSize / 2) - 0.04);
-                gratePivot.rotation.y = Math.PI * 0.42;
-                const grate = new THREE.Mesh(grateGeo, grateMat);
-                grate.position.set(0.58, 0, 0);
-                gratePivot.add(grate);
-                wallG.add(gratePivot);
-
-                if (!env.hazardTapeMat) {
-                    env.hazardTapeMat = new THREE.MeshStandardMaterial({ color: 0xffdd00, roughness: 0.9 });
-                    env.hazardTapeMat.userData.noShadow = true;
+                const cells = [{cx: x, cz: z}];
+                if (spanTarget > 1) {
+                    const mod = alongX
+                        ? ((x % env.chunkSize) + env.chunkSize) % env.chunkSize
+                        : ((z % env.chunkSize) + env.chunkSize) % env.chunkSize;
+                    const firstDir = random() > 0.5 ? 1 : -1;
+                    for (const dir of [firstDir, -firstDir]) {
+                        if (cells.length > 1) break;
+                        // Kept inside the chunk. Geometry is staged under this chunk's hash and
+                        // unloads with it, so a segment spilling over the boundary would vanish
+                        // on this chunk's schedule while the neighbour rebuilt its own cell on
+                        // top of it.
+                        const room = dir > 0 ? (env.chunkSize - 1 - mod) : mod;
+                        for (let i = 1; i < spanTarget && i <= room; i++) {
+                            const nx = x + (alongX ? dir * i : 0);
+                            const nz = z + (alongX ? 0 : dir * i);
+                            // The main loop marks every cell occupied as it handles it and skips
+                            // anything already marked, so this both avoids stacking onto geometry
+                            // that has already been built and reserves the cell from whatever
+                            // would otherwise be placed there later.
+                            if (ctx.isOccupied && ctx.isOccupied(nx, nz)) break;
+                            if (ctx.isWall && ctx.isWall(nx, nz)) break;
+                            if (ctx.markOccupied) ctx.markOccupied(nx, nz);
+                            cells.push({cx: nx, cz: nz});
+                        }
+                    }
+                    // Ascending world order along the travel axis is also ascending local Z, so
+                    // after this the ends of the run are simply the first and last entries.
+                    cells.sort((a, b) => alongX ? a.cx - b.cx : a.cz - b.cz);
                 }
-                const stripeUnitGeo = env._cacheGeo('hazard_tape_unit', () => new THREE.BoxGeometry(1, 0.06, 0.08));
-                const stripeY = 1.8 - 0.04;
-                const stripeWidth = 1.1;
-                [-1, 1].forEach(sign => {
-                    const strip = new THREE.Mesh(stripeUnitGeo, env.hazardTapeMat);
-                    strip.scale.set(stripeWidth, 1, 1);
-                    strip.position.set(0, stripeY, sign * (env.cellSize / 2 - 0.06));
-                    strip.userData.noCollision = true;
-                    wallG.add(strip);
+
+                const jambW = (env.cellSize - OPENING_W) / 2;
+                const headH = 3.0 - HEAD_Y;
+
+                cells.forEach(cell => {
+                    const ccx = cell.cx * env.cellSize;
+                    const ccz = cell.cz * env.cellSize;
+
+                    // The sill is the only floor-touching piece, so it goes through buildWall to
+                    // pick up the baseboardFootprint tag. That requires a *world* transform on
+                    // the mesh itself, since addGeometry's baseboard math reads mesh.position and
+                    // mesh.rotation.y directly and ignores parent transforms, so it can't ride
+                    // along inside the group.
+                    const sill = buildWall(env.cellSize, env.cellSize, env.sharedWallMat, SILL_H);
+                    sill.position.set(ccx, SILL_H / 2, ccz);
+                    sill.rotation.y = rot;
+                    sill.userData.isEntityBlocker = true;
+                    ctx.addGeometry(sill);
+
+                    // Jambs and header go through buildWall rather than raw BoxGeometry for two
+                    // reasons. buildWall inflates every piece by 0.02, so mixing the two left the
+                    // sill standing proud of the wall above it as a visible lip. And buildWall
+                    // rescales V by h/3 offset by yOffset/3, so each piece continues the wallpaper
+                    // from where the one below it ended -- raw geometry stretched a full 0-1 span
+                    // over its own height, which made the pattern tile finer above the sill.
+                    const wallG = new THREE.Group();
+                    const s1 = buildWall(jambW, env.cellSize, env.sharedWallMat, 3.0 - SILL_H, SILL_H);
+                    s1.position.set(-(env.cellSize / 2) + jambW / 2, HEAD_Y, 0);
+                    const s2 = buildWall(jambW, env.cellSize, env.sharedWallMat, 3.0 - SILL_H, SILL_H);
+                    s2.position.set((env.cellSize / 2) - jambW / 2, HEAD_Y, 0);
+                    wallG.add(s1);
+                    wallG.add(s2);
+
+                    const t1 = buildWall(OPENING_W, env.cellSize, env.sharedWallMat, headH, HEAD_Y);
+                    t1.position.set(0, HEAD_Y + headH / 2, 0);
+                    wallG.add(t1);
+
+                    wallG.position.set(ccx, 0, ccz);
+                    wallG.rotation.y = rot;
+                    wallG.updateMatrixWorld(true);
+                    wallG.traverse(child => {
+                        if (child.isMesh) {
+                            child.userData.isEntityBlocker = true;
+                            ctx.addGeometry(child);
+                        }
+                    });
                 });
 
-                addGroupToStaging(wallG);
-            } else {
-                // Built with buildWall (not raw Mesh+BoxGeometry) so these get the same
-                // UV rescale-to-cellSize treatment as every other wall -- the wallpaper
-                // used to tile at the wrong frequency here -- and so the floor-touching
-                // pieces (s1/s2) pick up buildWall's baseboardFootprint tag and actually
-                // get a baseboard like a normal wall does. Since that requires *world*
-                // position/rotation on the mesh itself (addGeometry's baseboard math reads
-                // mesh.position/mesh.rotation.y directly, not a parent transform), these are
-                // placed directly rather than as Group children the way addGroupToStaging
-                // expects -- toWorld() reproduces the same px/pz + rot placement by hand.
-                // The random cant on all three pieces is deliberate: this is rubble, not a
-                // clean opening, and it's meant to look like it's leaning.
-                const rotAxis = new THREE.Vector3(0, 1, 0);
-                const toWorld = (lx, ly, lz) => new THREE.Vector3(lx, ly, lz).applyAxisAngle(rotAxis, rot).add(new THREE.Vector3(px, 0, pz));
-
-                const s1 = buildWall(1.0, env.cellSize, env.sharedWallMat);
-                s1.position.copy(toWorld(-1.5, 1.5, 0));
-                s1.rotation.y = rot + (random() - 0.5) * 0.4;
-                s1.userData.isEntityBlocker = true;
-                ctx.addGeometry(s1);
-
-                const s2 = buildWall(1.4, env.cellSize, env.sharedWallMat);
-                s2.position.copy(toWorld(1.3, 1.5, 0));
-                s2.rotation.y = rot + (random() - 0.5) * 0.4;
-                s2.userData.isEntityBlocker = true;
-                ctx.addGeometry(s2);
-
-                // A flat crooked box here read as a rendering glitch rather than damage.
-                // buildSaggingHeader sags along the full cell depth (env.cellSize/2 half-span)
-                // -- the direction the player actually walks through the breach -- dipping to
-                // a forced-crouch clearance at the midpoint (1.5 world units, comfortably in
-                // the 1.3-2.5 crouch band, see PlayerController's maxAvailableHeight check)
-                // and flush with the pillars at both ends of the passage. crossWidth (1.6)
-                // is the opening's width, constant across the sag -- the ceiling settles
-                // straight down along your path, it doesn't lean to one side of the doorway.
-                // Left un-rotated (aside from `rot`) since a roll on an asymmetric arc would
-                // throw its flush ends out of alignment with s1/s2.
-                const t1 = buildSaggingHeader(env.cellSize / 2, 1.0, 0.5, 1.6, env.sharedWallMat);
-                t1.position.copy(toWorld(0, 2.0, 0));
-                t1.rotation.y = rot;
-                t1.userData.isEntityBlocker = true;
-                ctx.addGeometry(t1);
+                // Both ends get a grate, so a span is sealed at each mouth rather than open at
+                // the back. They spawn shut and blocking, on the engine's standard grate
+                // contract: the player pries one open with 'E' and InteractionController clears
+                // the collider. Interactable rather than fixed because breach cells are what
+                // forcedOpen carves to guarantee connectivity -- a permanently sealed one would
+                // dead-end a route the pathfinder assumed was walkable. Hinged so it swings out
+                // of the opening; the fall-flat animation spins the panel about its own centre,
+                // which sends it through the wall it's mounted in. openSign flips the swing on
+                // the far mouth so that one opens outward too instead of into the crawl.
+                const GRATE_GAP = 0.12;
+                // Rounded for the same reason buildWall rounds its own dims: boxGeo caches on a
+                // raw string key, and 1.2 - 0.12 stringifies as 1.0799999999999998, which would
+                // sit in the cache as a near-duplicate of an otherwise identical 1.08 box.
+                const snap = (v) => Math.round(v * 10000) / 10000;
+                const faceOffset = (env.cellSize / 2) - 0.04;
+                const mouths = [
+                    {cell: cells[0], sign: -1},
+                    {cell: cells[cells.length - 1], sign: 1}
+                ];
+                mouths.forEach(mouth => {
+                    const p = toWorld(mouth.cell.cx, mouth.cell.cz,
+                        0, (SILL_H + HEAD_Y) / 2, mouth.sign * faceOffset);
+                    ctx.addGrate(p.x, p.y, p.z, isRotated, {
+                        width: snap(OPENING_W - GRATE_GAP),
+                        height: snap((HEAD_Y - SILL_H) - GRATE_GAP),
+                        thickness: 0.08,
+                        hinged: true,
+                        openSign: mouth.sign,
+                        mat: env.cartLatticeMat || env.pittedMetalMat
+                    });
+                });
             }
         }
     };

@@ -664,20 +664,7 @@ export default class ChunkManager {
                                 const dz = airlock.chamberCenter.z - chunkCz;
 
                                 if (Math.abs(dx) <= size * env.cellSize && Math.abs(dz) <= size * env.cellSize) {
-                                    const wox = Math.round(airlock.outerPos.x / env.cellSize);
-                                    const woz = Math.round(airlock.outerPos.z / env.cellSize);
-
-                                    let clearX = [];
-                                    let clearZ = [];
-                                    if (airlock.spansX) {
-                                        clearX = [wox - 1, wox, wox + 1];
-                                        const dir = airlock.outSign;
-                                        clearZ = [woz, woz + dir, woz + dir * 2, woz + dir * 3];
-                                    } else {
-                                        clearZ = [woz - 1, woz, woz + 1];
-                                        const dir = airlock.outSign;
-                                        clearX = [wox, wox + dir, wox + dir * 2, wox + dir * 3];
-                                    }
+                                    const {clearX, clearZ} = this._airlockApron(airlock);
 
                                     for (const cx of clearX) {
                                         for (const cz of clearZ) {
@@ -807,6 +794,45 @@ export default class ChunkManager {
         }
     }
 
+    /**
+     * The cells kept clear in front of an airlock: 3 wide by 4 deep, running
+     * outward from the outer door. Single source of truth for both the wall-grid
+     * clearance and the empty-cell obstacle suppression, so the two can't drift.
+     * @param {Object} airlock - Entry from env.airlocks
+     * @returns {{clearX: number[], clearZ: number[]}} Cell coords, in grid units
+     */
+    _airlockApron(airlock) {
+        const env = this.env;
+        const wox = Math.round(airlock.outerPos.x / env.cellSize);
+        const woz = Math.round(airlock.outerPos.z / env.cellSize);
+        const dir = airlock.outSign;
+        if (airlock.spansX) {
+            return {
+                clearX: [wox - 1, wox, wox + 1],
+                clearZ: [woz, woz + dir, woz + dir * 2, woz + dir * 3]
+            };
+        }
+        return {
+            clearX: [wox, wox + dir, wox + dir * 2, wox + dir * 3],
+            clearZ: [woz - 1, woz, woz + 1]
+        };
+    }
+
+    /**
+     * True if a cell sits in any active airlock's approach apron.
+     * @param {number} x - Cell X in grid units
+     * @param {number} z - Cell Z in grid units
+     */
+    _isAirlockApron(x, z) {
+        const airlocks = this.env.airlocks;
+        if (!airlocks) return false;
+        for (let i = 0; i < airlocks.length; i++) {
+            const {clearX, clearZ} = this._airlockApron(airlocks[i]);
+            if (clearX.indexOf(x) !== -1 && clearZ.indexOf(z) !== -1) return true;
+        }
+        return false;
+    }
+
     _buildEmptyCell(args, state) {
         const { x, z, env, ctx, random, hash, chunkGroup, localX, localZ, isWallCell, isSolidWallCell, breakerPositions } = args;
         let hasTallObstacle = false;
@@ -847,9 +873,12 @@ export default class ChunkManager {
         const inWPath = localZ === 7 && localX <= 3;
         const inEPath = localZ === 7 && localX >= 11;
         const isArtery = inNRing || inSRing || inWRing || inERing || inNPath || inSPath || inWPath || inEPath;
-        
+        // Dividers are floor-to-ceiling, so one landing in an airlock apron hides the
+        // door the compass is pointing at. Same treatment as arteries.
+        const isAirlockApproach = this._isAirlockApron(x, z);
+
         const floorRoll = random();
-        if (!hasTallObstacle && floorRoll > 0.80 && !isArtery) {
+        if (!hasTallObstacle && floorRoll > 0.80 && !isArtery && !isAirlockApproach) {
             hasTallObstacle = true;
             const divW = random() > 0.5 ? env.cellSize * 0.8 : env.cellSize * 0.2;
             const divD = divW === env.cellSize * 0.8 ? env.cellSize * 0.2 : env.cellSize * 0.8;

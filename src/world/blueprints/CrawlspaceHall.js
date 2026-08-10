@@ -1,11 +1,14 @@
 /**
- * [ROLE] Generates a low-clearance corridor cell with a dropped ceiling and hazard tape marking the open sides.
+ * [ROLE] Generates a low-clearance corridor cell with a dropped ceiling, trimmed along its
+ *        bottom edge with the same baseboard the walls use where they meet the floor.
  * [WHY] Adds a claustrophobic traversal variant (forces crouching) distinct from a standard full-height corridor.
  * [STATE] Stateless; returns a configuration object with a build function. `prob: 0` means it's only placed by explicit reference, not random rolls.
- * [DEPENDS] Depends on env properties and context functions like addGeometry, random, and the caller's isWallCell.
+ * [DEPENDS] Depends on env properties and addGeometry. The isWallCell argument is part of the
+ *           shared profile signature but unused here: the trim wraps every face regardless of
+ *           what neighbours the cell.
  */
 export const CrawlspaceHallProfile = (env, ctx) => {
-    const { addGeometry, random } = ctx;
+    const { addGeometry } = ctx;
     return {
         name: "CRAWLSPACE_HALL",
         prob: 0,
@@ -22,33 +25,35 @@ export const CrawlspaceHallProfile = (env, ctx) => {
             dropMesh.userData.isEntityBlocker = true;
             addGeometry(dropMesh);
 
-            if (!env.hazardTapeMat) {
-                env.hazardTapeMat = new THREE.MeshStandardMaterial({ color: 0xffdd00, roughness: 0.9 });
-                env.hazardTapeMat.userData.noShadow = true;
-                if (env.sharedAssets) env.sharedAssets.add(env.hazardTapeMat.uuid);
-            }
-            const stripeUnitGeo = env._cacheGeo('hazard_tape_unit', () => new THREE.BoxGeometry(1, 0.06, 0.08));
-            const half = env.cellSize / 2;
-            const stripeY = 1.2 - 0.04;
-            const stripeLen = env.cellSize - 0.4;
             const cx = x * env.cellSize;
             const cz = z * env.cellSize;
 
-            const sides = [
-                {open: !isWallCell(x, z - 1), dx: 0, dz: -half + 0.06, rotY: 0},
-                {open: !isWallCell(x, z + 1), dx: 0, dz: half - 0.06, rotY: 0},
-                {open: !isWallCell(x - 1, z), dx: -half + 0.06, dz: 0, rotY: Math.PI / 2},
-                {open: !isWallCell(x + 1, z), dx: half - 0.06, dz: 0, rotY: Math.PI / 2},
-            ];
-            sides.forEach(side => {
-                if (!side.open) return;
-                const strip = new THREE.Mesh(stripeUnitGeo, env.hazardTapeMat);
-                strip.scale.set(stripeLen, 1, 1);
-                strip.position.set(cx + side.dx, stripeY, cz + side.dz);
-                strip.rotation.y = side.rotY;
-                strip.userData.noCollision = true;
-                addGeometry(strip);
-            });
+            // The soffit's bottom edge is where the wall stops, so it gets the same baseboard
+            // the walls get where they stop at the floor. Hazard tape used to mark this edge,
+            // but a painted stripe reads as a warning decal stuck onto a bug; finished trim
+            // reads as built that way on purpose -- the floor plainly carries on underneath,
+            // you just have to go down to follow it.
+            //
+            // Heights and the 0.06 spread are lifted from addGeometry's baseboard so this band
+            // is the same profile, at the same protrusion, as every other baseboard in the
+            // level -- it just terminates a wall that stops at 1.2 instead of one that stops
+            // at the floor. Wrapping all four faces rather than only the open ones, matching
+            // how addGeometry wraps a wall cell; buried faces cost nothing and abutting
+            // crawlspace cells then form one continuous run.
+            const BASEBOARD_H = 3.0 * (32 / 512);
+            const TRIM_H = 3.0 * (4 / 512);
+            const dropBottom = 3.0 - dropHeight;
+            const bandW = env.cellSize + 0.06;
+
+            const band = new THREE.Mesh(env._boxGeo(bandW, BASEBOARD_H, bandW), env.baseboardMat);
+            band.position.set(cx, dropBottom + BASEBOARD_H / 2, cz);
+            band.userData.noCollision = true;
+            addGeometry(band);
+
+            const bandTrim = new THREE.Mesh(env._boxGeo(bandW, TRIM_H, bandW), env.baseboardTrimMat);
+            bandTrim.position.set(cx, dropBottom + BASEBOARD_H + TRIM_H / 2, cz);
+            bandTrim.userData.noCollision = true;
+            addGeometry(bandTrim);
         }
     };
 };
