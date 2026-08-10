@@ -61,7 +61,7 @@
   ],
   "INCINERATOR": [
     {
-      "text": "[COMBUSTION LOG #${ctx.seed}]\n\n- Burned four (4) carts of ${P} paperwork at hour ${hrs}.\n- Charged weight in: 10.8 kilos.\n- Charged weight out: 11 kilos.\n\nNOTES: I weighed everything twice to confirm the impossible, this time.\n\nWe are burning less paper than we are producing ash.\n\n- ${c.custodian}",
+      "text": "[COMBUSTION LOG #509-${hours}]\n\n- Burned four (4) carts of `${P}` related paperwork at Hour #${hrs} of Week #${WEEK}.\n- Charged weight in: 10.8 kilos.\n- Charged weight out: 11 kilos.\n\nNOTES: I weighed everything twice to confirm the impossible, this time.\n\nWe are burning less paper than we are producing ash.\n\n- ${c.custodian}",
       "type": "document",
       "thread": "HUM",
       "title": "Combustion Log #1",

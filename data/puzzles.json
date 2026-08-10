@@ -25,7 +25,7 @@
     "LOCK_THREADS": {
       "CIPHER": "CIPHER",
       "PEN": "PEN",
-      "REQ": "REQ"
+      "REQ_CODE": "REQ"
     },
     "_locked": true
   }

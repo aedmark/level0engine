@@ -107,7 +107,7 @@
     {
       "text": "[POSTED INSIDE THE GATEHOUSE, HANDWRITTEN]\n\nToday's requisition number, so I stop getting asked: ${REQ}.\n\nDo not call facilities again about this. Do not write it on the wall this time either.",
       "type": "note",
-      "thread": "REQ",
+      "thread": "REQ_CODE",
       "puzzle": "REQ_PUZZLE",
       "title": "Gatehouse Requisition Note",
       "_locked": true
@@ -133,7 +133,7 @@
     {
       "text": "REQUISITION LOG, WEEKLY TOTALS\n\nOPEN REQUESTS CARRIED OVER: 1\n\nTHIS WEEK'S NUMBER: ${REQ}\n\nNOTE FROM FACILITIES: We reuse the same number until the request is closed. This one has never been closed.",
       "type": "clipboard",
-      "thread": "REQ",
+      "thread": "REQ_CODE",
       "puzzle": "REQ_PUZZLE",
       "title": "Requisition Log",
       "_locked": true

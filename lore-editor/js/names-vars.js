@@ -50,7 +50,180 @@ async function getLockedNamesSet() {
             });
             document.getElementById('names-container').innerHTML = html;
         }
+// ---------------------------------------------------------------------------
+// Merged VAR screen.
+//
+// parameters.json still stores two different things: VARS holds expressions
+// evaluated against ctx, CORE_VARS holds {min,max} numbers rolled once per
+// playthrough. That split is real to the engine and is left alone on disk, but
+// it was never a useful thing to make the author hold in their head, so the
+// editor presents a single list. Which store an entry belongs in is inferred
+// from what gets typed: a range like 10-99 is a rolled number, anything else is
+// an expression. Engine built-ins join the same list as locked rows, using the
+// lock already used for factory entries, so one screen shows everything that can
+// be referenced in a template.
+// ---------------------------------------------------------------------------
+const BUILTIN_VARS = [
+    {key: 'P', note: 'project name'},
+    {key: 'pen', note: 'rolled per playthrough'},
+    {key: 'year', note: 'rolled per playthrough'},
+    {key: 'hours', note: 'rolled per playthrough', also: 'hrs'},
+    {key: 'seed', note: 'rolled per playthrough'}
+];
+
+// The factory VARS include a few entries whose whole expression is one built-in, so
+// ${PEN} can be written to match a thread name. On one merged screen those landed as
+// second rows for values already listed above, which just reads as the same variable
+// twice. They're still editable, but they're now grouped under the built-in they point
+// at and labelled, so the pair explains itself.
+const VAR_ALIAS_TARGETS = {
+    'ctx.pen': 'pen',
+    'ctx.siteYear': 'year',
+    'ctx.year': 'year',
+    'ctx.hours': 'hours',
+    'ctx.seed': 'seed'
+};
+
+// Derivations worth stating in place, rather than leaving the author to work out from
+// the expression where a value comes from.
+const VAR_NOTES = {
+    'ctx.cipher': "the active puzzle's ACCESS_CODE — never use in visible text"
+};
+
+function aliasTargetOf(expr) {
+    return VAR_ALIAS_TARGETS[String(expr).trim()] || null;
+}
+
+function parseVarRange(value) {
+    const m = /^\s*(-?\d+)\s*(?:\.\.\.?|–|—|-)\s*(-?\d+)\s*$/.exec(String(value));
+    if (!m) return null;
+    const a = parseInt(m[1], 10);
+    const b = parseInt(m[2], 10);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+    return a <= b ? {min: a, max: b} : {min: b, max: a};
+}
+
+function formatVarRange(def) {
+    const min = Number.isFinite(def && def.min) ? def.min : 0;
+    const max = Number.isFinite(def && def.max) ? def.max : min;
+    return `${min}-${max}`;
+}
+
+function isMergedVarScreen() {
+    return selectedFile === 'parameters.json' &&
+        (selectedCategory === 'VARS' || selectedCategory === 'CORE_VARS');
+}
+
+function isBuiltinVar(key) {
+    return BUILTIN_VARS.some(b => b.key === key);
+}
+
+function varStores() {
+    const ok = (v) => v && typeof v === 'object' && !Array.isArray(v);
+    if (!ok(fileData.VARS)) fileData.VARS = {};
+    if (!ok(fileData.CORE_VARS)) fileData.CORE_VARS = {};
+    return {exprs: fileData.VARS, ranges: fileData.CORE_VARS};
+}
+
+async function getMergedLockedKeys() {
+    const factory = await getFactoryData('parameters.json');
+    const keys = new Set();
+    if (factory && factory.VARS) Object.keys(factory.VARS).forEach(k => keys.add(k));
+    if (factory && factory.CORE_VARS) Object.keys(factory.CORE_VARS).forEach(k => keys.add(k));
+    return keys;
+}
+
+function varPreviewFn() {
+    const params = selectedFile === 'parameters.json' ? fileData : paramsData;
+    let mockCtx = null;
+    try { mockCtx = buildMockCtx(params || {}, puzzlesData || []); } catch (e) { mockCtx = null; }
+    return (token) => {
+        if (!mockCtx) return '—';
+        try { return String(resolveTemplateForValidation(token, mockCtx).result); }
+        catch (e) { return '—'; }
+    };
+}
+
+const VAR_ROW_STYLE = 'align-self: flex-start; min-width: 460px; flex-shrink: 0; display:flex; justify-content:space-between; align-items:center; padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); border-radius: 4px; gap: 12px;';
+const VAR_KEY_STYLE = 'font-family: var(--font-mono); font-size: 0.875rem; color: var(--accent-amber); min-width: 110px;';
+const VAR_INPUT_STYLE = 'flex: 1; background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 4px 8px; color: var(--text-main); font-family: var(--font-mono); font-size: 0.875rem;';
+const VAR_PREVIEW_STYLE = 'font-family: var(--font-mono); font-size: 0.75rem; color: #6b7280; min-width: 90px; text-align: right;';
+
+async function renderMergedVarsList() {
+    const {exprs, ranges} = varStores();
+    const locked = await getMergedLockedKeys();
+    const preview = varPreviewFn();
+
+    const editable = []
+        .concat(Object.keys(ranges).map(k => ({key: k, value: formatVarRange(ranges[k]), aliasOf: null})))
+        .concat(Object.keys(exprs).map(k => ({key: k, value: String(exprs[k]), aliasOf: aliasTargetOf(exprs[k])})));
+
+    const editableRow = (entry, indent) => {
+        const isLocked = locked.has(entry.key);
+        const control = isLocked
+            ? `<span title="Factory default — can't be deleted, but you can still edit its value" style="opacity:0.5; cursor:default; padding: 0 4px;">🔒</span>`
+            : `<button onclick="deleteVarEntry('${entry.key}')" style="background:transparent; border:none; color:var(--accent-red); cursor:pointer;">×</button>`;
+        const safe = entry.value.replace(/"/g, '&quot;');
+        const note = entry.aliasOf
+            ? `alias of ${entry.aliasOf}`
+            : (VAR_NOTES[String(entry.value).trim()] || '');
+        const noteHtml = note
+            ? `<span style="font-family: var(--font-mono); font-size: 0.75rem; color:#9ca3af; white-space:nowrap;">${note}</span>`
+            : '';
+        return `<div style="${VAR_ROW_STYLE}${indent ? ' margin-left: 22px;' : ''}">
+            <span style="${VAR_KEY_STYLE}">${indent ? '↳ ' : ''}${entry.key}</span>
+            <input type="text" value="${safe}" onchange="updateVarEntry('${entry.key}', this.value)" style="${VAR_INPUT_STYLE}">
+            ${noteHtml}
+            <span style="${VAR_PREVIEW_STYLE}">${preview('${' + entry.key + '}')}</span>
+            ${control}
+        </div>`;
+    };
+
+    let html = '';
+    BUILTIN_VARS.forEach(b => {
+        const note = b.also ? `${b.note} · also \${${b.also}}` : b.note;
+        html += `<div style="${VAR_ROW_STYLE}">
+            <span style="${VAR_KEY_STYLE}">${b.key}</span>
+            <span style="flex:1; font-family: var(--font-mono); font-size: 0.8125rem; color:#9ca3af;">${note}</span>
+            <span style="${VAR_PREVIEW_STYLE}">${preview('${' + b.key + '}')}</span>
+            <span title="Built into the engine — always available, can't be changed here" style="opacity:0.5; cursor:default; padding: 0 4px;">🔒</span>
+        </div>`;
+        editable.filter(e => e.aliasOf === b.key).forEach(e => { html += editableRow(e, true); });
+    });
+
+    const builtinKeys = new Set(BUILTIN_VARS.map(b => b.key));
+    editable
+        .filter(e => !e.aliasOf || !builtinKeys.has(e.aliasOf))
+        .forEach(e => { html += editableRow(e, false); });
+
+    document.getElementById('names-container').innerHTML = html;
+}
+
+function writeMergedVar(key, val, lockedKeys) {
+    const {exprs, ranges} = varStores();
+    const range = parseVarRange(val);
+    // A locked entry keeps whichever store it already lives in. Letting an edit
+    // migrate a factory key would silently drop it out of the shape the engine
+    // and the factory file both expect it in.
+    if (lockedKeys && lockedKeys.has(key)) {
+        if (key in ranges) {
+            if (range) ranges[key] = range;
+            return;
+        }
+        exprs[key] = val;
+        return;
+    }
+    if (range) {
+        delete exprs[key];
+        ranges[key] = range;
+    } else {
+        delete ranges[key];
+        exprs[key] = val;
+    }
+}
+
         async function renderVarsList() {
+            if (isMergedVarScreen()) return renderMergedVarsList();
             const obj = getTargetObj() || {};
             const isLockThreads = selectedFile === 'puzzles.json';
             const lockedSet = await getLockedVarKeysSet();
@@ -79,13 +252,27 @@ async function getLockedNamesSet() {
                 });
             }
         }
-        function addNameEntry() {
+        async function addNameEntry() {
             const keyInput = document.getElementById('names-input-key');
             const input = document.getElementById('names-input');
             const keyVal = keyInput.value.trim();
             const val = input.value.trim();
             if (!selectedCategory && selectedFile !== 'puzzles.json') return;
-            
+
+            if (isMergedVarScreen()) {
+                if (!keyVal || !val) return;
+                if (isBuiltinVar(keyVal)) {
+                    alert(`"${keyVal}" is built into the engine and is already available in every template. Pick another name.`);
+                    return;
+                }
+                writeMergedVar(keyVal, val, await getMergedLockedKeys());
+                markDirty();
+                keyInput.value = '';
+                input.value = '';
+                renderVarsList();
+                return;
+            }
+
             const targetObj = getTargetObj();
             const isVarsObj = targetObj && typeof targetObj === 'object' && !Array.isArray(targetObj);
             
@@ -105,7 +292,15 @@ async function getLockedNamesSet() {
                 }
             }
         }
-        function updateVarEntry(key, val) {
+        async function updateVarEntry(key, val) {
+            if (isMergedVarScreen()) {
+                writeMergedVar(key, val, await getMergedLockedKeys());
+                markDirty();
+                // Re-rendered because an edit can move an entry between the two stores and
+                // change its resolved preview, neither of which the input reflects on its own.
+                renderVarsList();
+                return;
+            }
             if (selectedCategory || selectedFile === 'puzzles.json') {
                 const targetObj = getTargetObj();
                 if (targetObj) { targetObj[key] = val; markDirty(); }
@@ -128,6 +323,23 @@ async function getLockedNamesSet() {
             }
         }
         async function deleteVarEntry(key) {
+            if (isMergedVarScreen()) {
+                if (isBuiltinVar(key)) {
+                    alert(`"${key}" is built into the engine and can't be removed.`);
+                    return;
+                }
+                const locked = await getMergedLockedKeys();
+                if (locked.has(key)) {
+                    alert(`"${key}" is a factory-default value and can't be deleted. You can still edit it.`);
+                    return;
+                }
+                const {exprs, ranges} = varStores();
+                delete exprs[key];
+                delete ranges[key];
+                markDirty();
+                renderVarsList();
+                return;
+            }
             if (selectedCategory || selectedFile === 'puzzles.json') {
                 const targetObj = getTargetObj();
                 if (targetObj) {
@@ -317,31 +529,30 @@ function renderVariableToolbar() {
             });
             html += `</select>`;
 
-    const core = ['P', 'hours', 'pen', 'year'];
+    // One dropdown rather than separate "Core" and "Custom" lists. From inside a
+    // document there is no difference worth surfacing -- every one of these is a
+    // token that resolves to a value -- and the split only made the author work out
+    // which menu a name lived under before they could insert it.
+    const asObject = (v) => {
+        if (typeof v === 'string') {
+            try { v = JSON.parse(v); } catch (e) { return {}; }
+        }
+        return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+    };
+    const varNames = []
+        .concat(['P', 'hours', 'pen', 'year', 'seed'])
+        .concat(Object.keys(asObject(paramsData.CORE_VARS)))
+        .concat(Object.keys(asObject(paramsData.VARS)));
+    const seen = new Set();
             html += `<select class="var-select" onchange="if(this.value) { insertVar(this.value); this.selectedIndex = 0; }">`;
-            html += `<option value="">Insert Core Var...</option>`;
-            core.forEach(v => {
+            html += `<option value="">Insert Var...</option>`;
+            varNames.forEach(v => {
+                if (seen.has(v)) return;
+                seen.add(v);
                 const token = `\${${v}}`;
                 html += `<option value="${token}">${v} → ${preview(token)}</option>`;
             });
             html += `</select>`;
-
-    let custom = paramsData.VARS || {};
-            if (typeof custom === 'string') {
-                try { custom = JSON.parse(custom); } catch(e) { custom = {}; }
-            }
-            if (custom && typeof custom === 'object' && !Array.isArray(custom)) {
-                const keys = Object.keys(custom);
-                if (keys.length > 0) {
-                    html += `<select class="var-select" onchange="if(this.value) { insertVar(this.value); this.selectedIndex = 0; }">`;
-                    html += `<option value="">Insert Custom Var...</option>`;
-                    keys.forEach(v => {
-                        const token = `\${${v}}`;
-                        html += `<option value="${token}">${v} → ${preview(token)}</option>`;
-                    });
-                    html += `</select>`;
-                }
-            }
 
             tb.innerHTML = html;
         }

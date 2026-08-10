@@ -10,10 +10,7 @@
   ],
   "VARS": {
     "WEEK": "Math.floor(ctx.hours / 168)",
-    "EPOCH": "ctx.siteYear",
-    "PEN": "ctx.pen",
-    "CIPHER": "ctx.cipher",
-    "HOUR": "ctx.hours"
+    "CIPHER": "ctx.cipher"
   },
   "FIRST": [
     "Marion",
@@ -53,11 +50,11 @@
     "Whitlock"
   ],
   "PROJECT_NAMES": [
-    "THRESHOLD",
-    "INFINITE HALLWAY",
-    "YELLOW WALLPAPER",
-    "DIXIELAND",
-    "FERN POT"
+    "Project Threshold",
+    "Codename: Infinite Hallway",
+    "Yellow Wallpaper",
+    "Geranium Pot",
+    "REDACTED"
   ],
   "CORE_VARS": {
     "REQ": {
