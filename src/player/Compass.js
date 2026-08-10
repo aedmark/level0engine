@@ -123,18 +123,43 @@ export default class Compass {
         thumb.rotation.set(0.35, 0.18, 0.0);
         hand.add(thumb);
 
-        const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.040, 0.045, 0.075, 12), skin);
-        wrist.position.set(0.012, -0.108, -0.055);
-        wrist.rotation.set(-0.30, 0, 0.10);
-        hand.add(wrist);
-        const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.054, 0.058, 0.055, 12), cuffMat);
-        cuff.position.set(0.020, -0.156, -0.070);
-        cuff.rotation.set(-0.30, 0, 0.10);
-        hand.add(cuff);
-        const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.057, 0.070, 0.26, 12), cuffMat);
-        sleeve.position.set(0.038, -0.300, -0.106);
-        sleeve.rotation.set(-0.30, 0, 0.10);
-        hand.add(sleeve);
+        /**
+         * [WHY] The forearm is one limb, so it is built as one chain. Wrist, cuff and sleeve
+         * were previously three meshes positioned independently in hand space while sharing
+         * `rotation.set(-0.30, 0, 0.10)`. The z-component of that placement line ran opposite
+         * to the axis the cylinders were rotated onto, putting the line 34 degrees off the
+         * tilt: measured at the seams, the cuff's top cap sat 0.0288 laterally from the
+         * wrist's bottom cap (53% of the cuff's own radius, so half the cuff was buried in
+         * the wrist) and the sleeve's top cap missed the cuff by 0.0771, or 135% of its
+         * radius. Parenting makes that class of error unrepresentable: the tilt is applied
+         * exactly once at the root and the children carry local Y offsets only, so the seams
+         * are colinear by construction and only the three LEN constants can move a joint.
+         * The root sits where the old wrist's top cap was, which preserves the silhouette
+         * at the hand and lets the divergence unwind down the arm instead of at the cuff.
+         */
+        const forearm = new THREE.Group();
+        forearm.position.set(0.0083, -0.0724, -0.0660);
+        forearm.rotation.set(-0.30, 0, 0.10);
+
+        const WRIST_LEN = 0.075, CUFF_LEN = 0.055, SLEEVE_LEN = 0.26;
+        /** [WHY] Fabric sits on top of skin, not flush against it. The laps also cap the open
+         *  ends of the cylinders below them, which is why the cuff is the wider radius at
+         *  both seams -- it swallows the wrist's bottom face and the sleeve's top face. */
+        const CUFF_LAP = 0.014, SLEEVE_LAP = 0.010;
+        const cuffTop = -(WRIST_LEN - CUFF_LAP);
+        const sleeveTop = cuffTop - CUFF_LEN + SLEEVE_LAP;
+
+        const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.040, 0.045, WRIST_LEN, 12), skin);
+        wrist.position.y = -WRIST_LEN / 2;
+        forearm.add(wrist);
+        const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.054, 0.062, CUFF_LEN, 12), cuffMat);
+        cuff.position.y = cuffTop - CUFF_LEN / 2;
+        forearm.add(cuff);
+        const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.057, 0.070, SLEEVE_LEN, 12), cuffMat);
+        sleeve.position.y = sleeveTop - SLEEVE_LEN / 2;
+        forearm.add(sleeve);
+        hand.add(forearm);
+        this.forearm = forearm;
 
         return hand;
     }
@@ -334,10 +359,55 @@ export default class Compass {
         const eased = this.stow * this.stow * (3 - 2 * this.stow);
         const drop = (1 - eased) * 0.46;
         const roll = (1 - eased) * 0.85;
+
+        /**
+         * [WHY] The rig is a child of the camera, so the head bob moves the hand and the eye as
+         * one welded object and produces exactly zero relative motion -- the reason a compass
+         * held at arm's length read as painted on the screen. Everything below is the hand
+         * refusing to track the head perfectly: it lags the bob, swings on the step, trails the
+         * turn, and pushes back under acceleration. All four are scaled by `gait` or by a rate
+         * that goes to zero when you stand still, so a stationary player gets a stationary hand.
+         */
+        const phase = this.player.headBobPhase || 0;
+        const gait = this.player.gait || 0;
+
+        /** [WHY] x on sin(p), y on sin(2p) is a figure eight -- the arm crosses the body once per
+         *  stride but rises and falls twice, once per footfall. A single sine on both axes would
+         *  draw a diagonal line and read as a slide rather than a swing. */
+        const swingX = Math.sin(phase) * 0.020 * gait;
+        const swingY = Math.sin(phase * 2.0) * 0.013 * gait;
+        const swingRoll = Math.sin(phase) * 0.055 * gait;
+        const swingPitch = Math.sin(phase * 2.0 + 0.6) * 0.030 * gait;
+
+        /** [WHY] Counter-bob. The camera has already displaced by bobOffset this frame and the rig
+         *  inherited all of it; giving back a third in local space leaves the hand travelling
+         *  two thirds as far as the eye, which is what makes it look connected to a shoulder
+         *  rather than to the skull. Full cancellation looks worse -- the hand hangs dead still
+         *  in a bobbing world and reads as a bug. */
+        const counterBob = -(this.player.bobOffset || 0) * 0.34;
+
+        /** [WHY] Look trail. Nothing anywhere read camera rotation, and mouse look is the most
+         *  frequent motion in the game, so this is the bulk of what felt stationary. Rates are
+         *  clamped because a fast flick can move the camera a fifth of a radian inside one frame
+         *  and an unclamped rate would fling the arm off screen. */
+        let dYaw = cam.rotation.y - this._prevYaw;
+        while (dYaw > Math.PI) dYaw -= Math.PI * 2;
+        while (dYaw < -Math.PI) dYaw += Math.PI * 2;
+        const dPitch = cam.rotation.x - this._prevPitch;
+        this._prevYaw = cam.rotation.y;
+        this._prevPitch = cam.rotation.x;
+        const clamp = (v, m) => Math.max(-m, Math.min(m, v));
+        const invDt = 1 / Math.max(dt, 1e-4);
+        const yawRate = clamp(dYaw * invDt, 6.0);
+        const pitchRate = clamp(dPitch * invDt, 6.0);
+        const follow = Math.min(1, dt * 9.0);
+        this._trailYaw += (yawRate - this._trailYaw) * follow;
+        this._trailPitch += (pitchRate - this._trailPitch) * follow;
+
         this.rig.rotation.set(
-            this.baseRot.x - roll * 0.55,
-            this.baseRot.y - roll * 0.30,
-            this.baseRot.z + roll
+            this.baseRot.x - roll * 0.55 + swingPitch - this._trailPitch * 0.013,
+            this.baseRot.y - roll * 0.30 - this._trailYaw * 0.030,
+            this.baseRot.z + roll + swingRoll - this._trailYaw * 0.022
         );
 
         const target = this._nearestThreshold();
@@ -364,14 +434,26 @@ export default class Compass {
         this.angle += (this.angVel + jostle) * dt;
         this.needle.rotation.z = this.angle;
 
-        const lagX = -(this.player.velocity.x * 0.0006);
-        const lagY = -(Math.min(speed, 60) * 0.00035);
-        this._swayX += (lagX - this._swayX) * Math.min(1, dt * 6.0);
-        this._swayY += (lagY - this._swayY) * Math.min(1, dt * 5.0);
+        /**
+         * [WHY] Velocity lag was reading world-space `velocity.x`, so the hand swung according to
+         * which way north was rather than which way the player was moving: strafing east and
+         * strafing north produced opposite sway from identical footwork. Projecting onto the
+         * camera's own right and forward axes makes the lag mean what it was always trying to
+         * mean -- the hand falls behind the body it is attached to.
+         */
+        const sinY = Math.sin(cam.rotation.y), cosY = Math.cos(cam.rotation.y);
+        const vRight = this.player.velocity.x * cosY - this.player.velocity.z * sinY;
+        const vForward = -this.player.velocity.x * sinY - this.player.velocity.z * cosY;
+        const lagX = -clamp(vRight * 0.00045, 0.045) + swingX;
+        const lagY = -clamp(Math.min(speed, 125) * 0.00028, 0.035) + swingY + counterBob;
+        const lagZ = clamp(vForward * 0.00030, 0.030);
+        this._swayX += (lagX - this._swayX) * Math.min(1, dt * 11.0);
+        this._swayY += (lagY - this._swayY) * Math.min(1, dt * 10.0);
+        this._swayZ += (lagZ - this._swayZ) * Math.min(1, dt * 8.0);
         this.rig.position.set(
-            this.basePos.x + this._swayX + (1 - eased) * 0.10,
-            this.basePos.y + this._swayY - drop,
-            this.basePos.z
+            this.basePos.x + this._swayX + this._trailYaw * 0.008 + (1 - eased) * 0.10,
+            this.basePos.y + this._swayY - this._trailPitch * 0.008 - drop,
+            this.basePos.z + this._swayZ
         );
     }
 }

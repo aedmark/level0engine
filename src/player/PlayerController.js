@@ -23,6 +23,12 @@ export default class PlayerController {
         this.squeezeRadius = 0.12;
         this.playerRadius = 0.4;
         this.enableHeadBob = true;
+        /** [ROLE] Published gait, read by camera-parented viewmodels (see Compass) so they can
+         *  counter-move against the head instead of inheriting its bob rigidly. Written by
+         *  _applyCinematics; zeroed by the godmode and frozen paths that skip it. */
+        this.headBobPhase = 0;
+        this.bobOffset = 0;
+        this.gait = 0;
         this.speedMultiplier = 1.0;
         this.maxStamina = 100.0;
         this.stamina = 100.0;
@@ -554,17 +560,24 @@ export default class PlayerController {
         if (!hitX) this.camera.position.x += moveX;
         if (!hitZ) this.camera.position.z += moveZ;
         const postIntentSpeed = Math.sqrt((this.velocity.x * this.velocity.x) + (this.velocity.z * this.velocity.z));
+        /** [WHY] Both early returns skip _applyCinematics, which is where gait is published.
+         *  Left alone they would freeze the last walking values in place and leave a viewmodel
+         *  swinging through a cutscene or a noclip flight. Neither state has footsteps. */
         if (this.isGodMode) {
             const fly = (state.flyUp ? 1 : 0) - (this.input._cKeyDown ? 1 : 0);
             this.camera.position.y += fly * 8.0 * delta;
             this.fallVelocity = 0;
             this._leanOffset.set(0, 0, 0);
+            this.bobOffset = 0;
+            this.gait = 0;
             return;
         }
         if (this.isFrozen) {
             this.camera.position.x += this._leanOffset.x;
             this.camera.position.z += this._leanOffset.z;
             this._leanOffset.set(0, 0, 0);
+            this.bobOffset = 0;
+            this.gait = 0;
             return;
         }
         this._applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes);
@@ -608,6 +621,22 @@ export default class PlayerController {
             bobOffset -= staggerEased * 0.35;
             swayRoll += Math.sin(this._tripStagger * Math.PI * 6) * 0.12 * staggerEased;
         }
+        /**
+         * [WHY] The gait lives entirely inside this function as locals, so anything parented to
+         * the camera inherits the bob rigidly and shows zero motion relative to the eye -- which
+         * is what made the held compass read as welded to the screen. Publishing the two numbers
+         * that describe the step lets a viewmodel counter-move against the head instead of
+         * riding it. `bobOffset` is the camera's own vertical displacement this frame, stagger
+         * included. `gait` is how engaged the walk cycle is, 0 to 1, smoothed so a viewmodel
+         * fades its swing in and out rather than snapping when you start or stop walking.
+         * [WHY 60] `dynamicWalkSpeed` at zero exhaustion, so gait reaches 1.0 at a full walk and
+         * overshoots into the clamp at a run, matching how bobAmp already treats running.
+         */
+        this.bobOffset = bobOffset;
+        const gaitTarget = (this.enableHeadBob && postIntentSpeed > 0.5)
+            ? Math.min(1.0, postIntentSpeed / 60.0)
+            : 0.0;
+        this.gait = (this.gait || 0) + (gaitTarget - (this.gait || 0)) * (1.0 - Math.exp(-8.0 * delta));
         this.currentLean += (state.targetLean - this.currentLean) * (1.0 - Math.exp(-15.0 * delta));
         const rollDamping = 1.0 - Math.exp(-12.0 * delta);
         const velocityRoll = this.velocity.x * (this.isSqueezing ? 0.005 : 0.015);

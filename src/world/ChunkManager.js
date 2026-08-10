@@ -637,7 +637,17 @@ export default class ChunkManager {
                         return isW;
                     };
                     
-                    ctx.setWall = (wx, wz, val) => isWallGrid.set(cellKey(wx, wz), val);
+                    ctx.setWall = (wx, wz, val) => {
+                        isWallGrid.set(cellKey(wx, wz), val);
+                        if (!val) {
+                            for (let i = stagingMeshes.length - 1; i >= 0; i--) {
+                                const m = stagingMeshes[i];
+                                if (m.userData.isDefaultWall && m.userData.cellX === wx && m.userData.cellZ === wz) {
+                                    stagingMeshes.splice(i, 1);
+                                }
+                            }
+                        }
+                    };
                     ctx.forceStructure = (wx, wz, name) => forcedStructuresGrid.set(cellKey(wx, wz), name);
                     ctx.getForcedStructure = (wx, wz) => forcedStructuresGrid.get(cellKey(wx, wz));
 
@@ -777,6 +787,9 @@ export default class ChunkManager {
                         solidWallCells.add(cellKey(x, z));
                         const wall = ctx.buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
                         wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);
+                        wall.userData.isDefaultWall = true;
+                        wall.userData.cellX = x;
+                        wall.userData.cellZ = z;
                         ctx.addGeometry(wall);
                     }
                 } else {

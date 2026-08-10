@@ -7,6 +7,12 @@ export const DuctOrVentProfile = (env, ctx) => {
         name: "DUCT OR VENT",
         prob: 0.40, build: (x, z) => {
             let isFloorLevel = random() > 0.75;
+            const addGeometry = (mesh) => {
+                if (isFloorLevel && mesh.userData.isSectorWall) {
+                    mesh.userData.isSectorWall = false;
+                }
+                ctx.addGeometry(mesh);
+            };
 
             const startX = Math.floor(x / env.chunkSize) * env.chunkSize;
             const startZ = Math.floor(z / env.chunkSize) * env.chunkSize;
