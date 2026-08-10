@@ -527,7 +527,13 @@ export default class ChunkManager {
                 if (!ctx.isWall) {
                     const forcedStructuresGrid = new Map();
                     const isWallGrid = new Map();
-                    
+                    // Doorway layouts are decided in this pre-pass rather than when the build
+                    // loop reaches the cell, so a corridor can run in any direction instead of
+                    // only into cells the x-major loop has yet to visit. The blueprint reads
+                    // its facing back out of here and does nothing but build geometry.
+                    const doorwayPlans = new Map();
+                    ctx.getDoorwayPlan = (px, pz) => doorwayPlans.get(cellKey(px, pz)) || null;
+
                     const pathThemeRoll = random();
                     let pathTheme = null;
                     if (pathThemeRoll > 0.75) pathTheme = 'CRAWLSPACE_HALL';
@@ -757,6 +763,8 @@ export default class ChunkManager {
                             ctx.setWall(gx, gz, false);
                             ctx.forceStructure(gx, gz, 'breach');
                         }
+
+                        this._planDoorways(ctx, random, startX, startZ, size, cellKey, doorwayPlans);
                     }
                 }
 
@@ -792,6 +800,253 @@ export default class ChunkManager {
         if (env.activeChunks.has(hash)) {
             chunkGroup.userData.contentReady = true;
         }
+    }
+
+    /**
+     * Lays out hinged doorways and the corridors behind them, before any geometry is staged.
+     *
+     * This has to happen in the pre-pass. Carving from inside the build loop could only ever
+     * claim cells the loop had not yet reached -- x-major iteration, so the half-plane ahead
+     * of the cursor -- which pinned every door to a +Z facing. Nothing is built yet here, so
+     * a run is free to head in any of the four directions.
+     *
+     * A plan reserves three kinds of cell: the corridor itself (opened), the alcove recesses
+     * hanging off it (left as wall so their profiles read as a shallow nook), and a seal of
+     * plain wall around the whole thing. The seal is the point of the exercise -- unforced
+     * border cells roll the full structural matrix and land on header gaps, vents and tunnels,
+     * which perforates the space and reduces the door to decoration.
+     *
+     * @param {Object} ctx - Chunk helper context (isWall/setWall/forceStructure/markOccupied)
+     * @param {Function} random - The chunk's seeded RNG
+     * @param {number} startX - Chunk origin cell X
+     * @param {number} startZ - Chunk origin cell Z
+     * @param {number} size - Chunk size in cells
+     * @param {Function} cellKey - Cell coordinate hasher
+     * @param {Map} outPlans - Receives cellKey -> {rot, facing} for each planted door
+     */
+    _planDoorways(ctx, random, startX, startZ, size, cellKey, outPlans) {
+        const DOORWAY_RATE = 0.08;
+        const RUN_MIN = 4;
+        const RUN_MAX = 8;
+        const SOLID = "SOLID FILL";
+        const DIRS = [{dx: 0, dz: 1}, {dx: 1, dz: 0}, {dx: 0, dz: -1}, {dx: -1, dz: 0}];
+
+        const endX = startX + size - 1;
+        const endZ = startZ + size - 1;
+        const inChunk = (cx, cz) => cx >= startX && cx <= endX && cz >= startZ && cz <= endZ;
+        // Cells spoken for by an already-planted doorway. Plans are laid one after another, so
+        // this is what stops a second run from carving through a first one's seal.
+        const reserved = new Set();
+        // Approach cells stay open floor, unlike everything else a plan reserves. A later run
+        // therefore has to keep clear of them as well as off them, or it would open onto the
+        // space in front of somebody else's door and let the player walk in beside it.
+        const approaches = new Set();
+
+        for (let cx = startX; cx <= endX; cx++) {
+            for (let cz = startZ; cz <= endZ; cz++) {
+                if (reserved.has(cellKey(cx, cz))) continue;
+                if (ctx.getForcedStructure && ctx.getForcedStructure(cx, cz)) continue;
+                if (!ctx.isWall(cx, cz)) continue;
+                if (random() > DOORWAY_RATE) continue;
+
+                // Try the four facings in a rotated order so no direction is systematically
+                // favoured by being tested first.
+                const offset = Math.floor(random() * DIRS.length);
+                let plan = null;
+                let dir = null;
+                for (let d = 0; d < DIRS.length && !plan; d++) {
+                    const cand = DIRS[(d + offset) % DIRS.length];
+                    // The player has to be able to reach the door, so the cell in front of it
+                    // must be open floor, and the corridor runs out the back.
+                    const approachX = cx - cand.dx;
+                    const approachZ = cz - cand.dz;
+                    if (!inChunk(approachX, approachZ)) continue;
+                    if (ctx.isWall(approachX, approachZ)) continue;
+                    plan = this._planDoorwayRun(ctx, random, cx, cz, cand, inChunk, cellKey, reserved, approaches, RUN_MIN, RUN_MAX);
+                    if (plan) dir = cand;
+                }
+                if (!plan) continue;
+
+                const key = (a, b) => cellKey(a, b);
+                const apply = (p, dx, dz, facing) => {
+                    p.corridor.forEach(c => {
+                        ctx.setWall(c.cx, c.cz, false);
+                        ctx.forceStructure(c.cx, c.cz, null);
+                        reserved.add(key(c.cx, c.cz));
+                    });
+                    // Alcoves stay wall cells: their profiles build a shallow back-and-side and
+                    // leave the rest open, so as grid walls they read as a recess off the
+                    // corridor while the pathfinder still treats them as solid.
+                    p.alcoves.forEach(c => {
+                        ctx.setWall(c.cx, c.cz, true);
+                        ctx.forceStructure(c.cx, c.cz, random() > 0.5 ? "ALCOVE CORNER" : "ROUND ALCOVE");
+                        reserved.add(key(c.cx, c.cz));
+                    });
+                    p.seal.forEach(c => {
+                        ctx.setWall(c.cx, c.cz, true);
+                        // An unmatched forced name finds no profile, and the fallback for that
+                        // is a plain solid wall -- exactly what a seal wants.
+                        ctx.forceStructure(c.cx, c.cz, SOLID);
+                        reserved.add(key(c.cx, c.cz));
+                    });
+                    ctx.setWall(dx, dz, true);
+                    ctx.forceStructure(dx, dz, "HINGED DOORWAY");
+                    reserved.add(key(dx, dz));
+                    // Reserve the cell the player arrives from. Plans are applied one after
+                    // another and a later run's seal would otherwise be free to wall it up,
+                    // leaving a door that opens correctly onto a corridor nobody can reach.
+                    reserved.add(key(dx - facing.dx, dz - facing.dz));
+                    approaches.add(key(dx - facing.dx, dz - facing.dz));
+                    // Base geometry faces +Z, so this is the turn that carries it onto `facing`.
+                    // It is also handed to the door as closedRot, which InteractionController
+                    // reads to decide whether the approach is measured along X or Z.
+                    outPlans.set(key(dx, dz), {rot: Math.atan2(facing.dx, facing.dz), facing});
+                };
+
+                apply(plan, cx, cz, dir);
+
+                // Resolve the ending. A chained door needs a plan of its own or it would build
+                // with no corridor behind it and no facing to orient by, so it only chains if a
+                // second run actually fits; otherwise the seal stands and the run dead-ends.
+                let pending = plan.terminus;
+                let chainBudget = 2;
+                while (pending) {
+                    const t = pending;
+                    pending = null;
+                    if (t.name !== "HINGED DOORWAY") {
+                        // DuctOrVent runs from the wall path and carves its own way out; the
+                        // others are handled from the empty-cell path and need the cell open.
+                        ctx.setWall(t.cx, t.cz, t.name === "DUCT OR VENT");
+                        ctx.forceStructure(t.cx, t.cz, t.name);
+                        reserved.add(key(t.cx, t.cz));
+                        break;
+                    }
+                    const nextPlan = chainBudget-- > 0
+                        ? this._planDoorwayRun(ctx, random, t.cx, t.cz, t.heading, inChunk, cellKey, reserved, approaches, RUN_MIN, RUN_MAX)
+                        : null;
+                    if (!nextPlan) break;
+                    apply(nextPlan, t.cx, t.cz, t.heading);
+                    pending = nextPlan.terminus;
+                }
+            }
+        }
+    }
+
+    /**
+     * Walks one winding run out from a doorway, gathering the corridor, its alcove recesses,
+     * the seal around both, and how it ends. Returns null if there isn't room for a run worth
+     * having, which lets the caller try another facing.
+     */
+    _planDoorwayRun(ctx, random, doorX, doorZ, dir, inChunk, cellKey, reserved, approaches, runMin, runMax) {
+        const claimed = new Set();
+        const key = (a, b) => cellKey(a, b);
+        // The cell the player arrives from. A run that winds back alongside its own door would
+        // otherwise be free to claim or seal it, walling in the door it just came through.
+        const approachX = doorX - dir.dx;
+        const approachZ = doorZ - dir.dz;
+        const isApproach = (cx, cz) => cx === approachX && cz === approachZ;
+        // The approach stays open floor, so a corridor cell sitting next to it would join the
+        // two directly and let the player walk in beside the door instead of through it.
+        const touchesApproach = (cx, cz) => {
+            if (Math.abs(cx - approachX) + Math.abs(cz - approachZ) === 1) return true;
+            return approaches.has(key(cx + 1, cz)) || approaches.has(key(cx - 1, cz)) ||
+                   approaches.has(key(cx, cz + 1)) || approaches.has(key(cx, cz - 1));
+        };
+        const free = (cx, cz) => inChunk(cx, cz) &&
+            !reserved.has(key(cx, cz)) && !claimed.has(key(cx, cz)) &&
+            !isApproach(cx, cz) &&
+            !(cx === doorX && cz === doorZ);
+        // A candidate touching the run on more than one side fuses two legs into a two-wide
+        // space, which stops reading as a corridor and becomes a room.
+        const contacts = (cx, cz) => {
+            let n = 0;
+            if (claimed.has(key(cx + 1, cz))) n++;
+            if (claimed.has(key(cx - 1, cz))) n++;
+            if (claimed.has(key(cx, cz + 1))) n++;
+            if (claimed.has(key(cx, cz - 1))) n++;
+            return n;
+        };
+
+        let cur = {cx: doorX + dir.dx, cz: doorZ + dir.dz};
+        // The first cell needs the same approach clearance as every later one. Its own approach
+        // is two cells away so that never trips, but another door's can sit right beside it.
+        if (!free(cur.cx, cur.cz) || touchesApproach(cur.cx, cur.cz)) return null;
+
+        const corridor = [cur];
+        const alcoves = [];
+        claimed.add(key(cur.cx, cur.cz));
+        let heading = {dx: dir.dx, dz: dir.dz};
+        const runLength = runMin + Math.floor(random() * (runMax - runMin + 1));
+
+        for (let step = 1; step < runLength; step++) {
+            const left = {dx: -heading.dz, dz: heading.dx};
+            const right = {dx: heading.dz, dz: -heading.dx};
+            const options = random() > 0.62
+                ? (random() > 0.5 ? [left, right, heading] : [right, left, heading])
+                : [heading, left, right];
+            let advanced = null;
+            for (const cand of options) {
+                const nx = cur.cx + cand.dx;
+                const nz = cur.cz + cand.dz;
+                if (!free(nx, nz) || contacts(nx, nz) > 1 || touchesApproach(nx, nz)) continue;
+                advanced = {cand, nx, nz};
+                break;
+            }
+            if (!advanced) break;
+
+            if (advanced.cand.dx !== heading.dx || advanced.cand.dz !== heading.dz) {
+                // The wall a corner faces is the natural spot for a recess: it's what you walk
+                // at before turning away from it.
+                const nook = {cx: cur.cx + heading.dx, cz: cur.cz + heading.dz};
+                if (free(nook.cx, nook.cz) && random() > 0.35) {
+                    claimed.add(key(nook.cx, nook.cz));
+                    alcoves.push(nook);
+                }
+            }
+            heading = advanced.cand;
+            cur = {cx: advanced.nx, cz: advanced.nz};
+            corridor.push(cur);
+            claimed.add(key(cur.cx, cur.cz));
+        }
+
+        if (corridor.length < 2) return null;
+
+        const sealSet = new Set();
+        const seal = [];
+        corridor.concat(alcoves).forEach(c => {
+            for (let ox = -1; ox <= 1; ox++) {
+                for (let oz = -1; oz <= 1; oz++) {
+                    if (!ox && !oz) continue;
+                    const sx = c.cx + ox;
+                    const sz = c.cz + oz;
+                    if (!inChunk(sx, sz)) continue;
+                    if (claimed.has(key(sx, sz))) continue;
+                    if (sx === doorX && sz === doorZ) continue;
+                    if (isApproach(sx, sz)) continue;
+                    if (reserved.has(key(sx, sz))) continue;
+                    if (sealSet.has(key(sx, sz))) continue;
+                    sealSet.add(key(sx, sz));
+                    seal.push({cx: sx, cz: sz});
+                }
+            }
+        });
+
+        let terminus = null;
+        const last = corridor[corridor.length - 1];
+        const beyond = {cx: last.cx + heading.dx, cz: last.cz + heading.dz};
+        if (inChunk(beyond.cx, beyond.cz) && !reserved.has(key(beyond.cx, beyond.cz)) &&
+            !claimed.has(key(beyond.cx, beyond.cz)) && !isApproach(beyond.cx, beyond.cz)) {
+            const endRoll = random();
+            if (endRoll > 0.72) {
+                terminus = {cx: beyond.cx, cz: beyond.cz, name: "HINGED DOORWAY", heading};
+            } else if (endRoll > 0.46) {
+                const exits = ["CRAWLSPACE_HALL", "breach", "DUCT OR VENT"];
+                terminus = {cx: beyond.cx, cz: beyond.cz, name: exits[Math.floor(random() * exits.length)], heading};
+            }
+            // Otherwise the seal stands and the run is a dead end.
+        }
+
+        return {corridor, alcoves, seal, terminus, heading};
     }
 
     /**
