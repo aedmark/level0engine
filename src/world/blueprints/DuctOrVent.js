@@ -167,7 +167,7 @@ export const DuctOrVentProfile = (env, ctx) => {
             if (isFloorLevel) {
                 const holeW = 1.2;
                 const holeH = 0.7;
-                const ductY = 0.0; // Floor level for crawling
+                const ductY = 0.0;
                 const topH = 3.0 - (ductY + holeH);
                 const sideW = (env.cellSize - holeW) / 2;
                 const sideOffset = (env.cellSize / 2) - (sideW / 2);
@@ -190,12 +190,11 @@ export const DuctOrVentProfile = (env, ctx) => {
                     const eConn = cell.connections.E || cell.exits.E;
                     const wConn = cell.connections.W || cell.exits.W;
 
-                    // 1. Structural Corner Pillars (Always Solid)
                     const corners = [
-                        {x: cx - sideOffset, z: cz - sideOffset}, // NW
-                        {x: cx + sideOffset, z: cz - sideOffset}, // NE
-                        {x: cx - sideOffset, z: cz + sideOffset}, // SW
-                        {x: cx + sideOffset, z: cz + sideOffset}  // SE
+                        {x: cx - sideOffset, z: cz - sideOffset},
+                        {x: cx + sideOffset, z: cz - sideOffset},
+                        {x: cx - sideOffset, z: cz + sideOffset},
+                        {x: cx + sideOffset, z: cz + sideOffset}
                     ];
                     for (const pos of corners) {
                         const pillar = buildWall(sideW, sideW, env.sharedWallMat);
@@ -203,7 +202,6 @@ export const DuctOrVentProfile = (env, ctx) => {
                         addWall(pillar);
                     }
 
-                    // 2. Center Hub Top & Bottom Structure
                     if (ductY > 0) {
                         const hubFloorStruct = buildWall(holeW, holeW, env.sharedWallMat, ductY, 0);
                         hubFloorStruct.position.set(cx, ductY / 2, cz);
@@ -214,7 +212,6 @@ export const DuctOrVentProfile = (env, ctx) => {
                     hubRoofStruct.position.set(cx, ductY + holeH + topH / 2, cz);
                     addGeometry(hubRoofStruct);
 
-                    // 3. Center Hub Linings
                     const hubFloorLining = buildWall(holeW, holeW, env.ductMat, liningT, 0);
                     hubFloorLining.position.set(cx, ductY + liningT / 2, cz);
                     addGeometry(hubFloorLining);
@@ -223,7 +220,6 @@ export const DuctOrVentProfile = (env, ctx) => {
                     hubRoofLining.position.set(cx, ductY + holeH - liningT / 2, cz);
                     addGeometry(hubRoofLining);
 
-                    // 4. Branch Logic (N, S, E, W)
                     const branches = [
                         {dir: 'N', conn: nConn, x: cx, z: cz - sideOffset, w: holeW, d: sideW, isZ: false},
                         {dir: 'S', conn: sConn, x: cx, z: cz + sideOffset, w: holeW, d: sideW, isZ: false},
@@ -233,7 +229,6 @@ export const DuctOrVentProfile = (env, ctx) => {
 
                     for (const branch of branches) {
                         if (branch.conn) {
-                            // Struct Top & Bottom
                             if (ductY > 0) {
                                 const bFloor = buildWall(branch.w, branch.d, env.sharedWallMat, ductY, 0);
                                 bFloor.position.set(branch.x, ductY / 2, branch.z);
@@ -244,7 +239,6 @@ export const DuctOrVentProfile = (env, ctx) => {
                             bRoof.position.set(branch.x, ductY + holeH + topH / 2, branch.z);
                             addGeometry(bRoof);
 
-                            // Lining Top & Bottom
                             const lFloor = buildWall(branch.w, branch.d, env.ductMat, liningT, 0);
                             lFloor.position.set(branch.x, ductY + liningT / 2, branch.z);
                             addGeometry(lFloor);
@@ -253,26 +247,23 @@ export const DuctOrVentProfile = (env, ctx) => {
                             lRoof.position.set(branch.x, ductY + holeH - liningT / 2, branch.z);
                             addGeometry(lRoof);
 
-                            // Lining Sides
                             const lSide1 = buildWall(branch.isZ ? branch.w : liningT, branch.isZ ? liningT : branch.d, env.ductMat, holeH, 0);
                             const lSide2 = buildWall(branch.isZ ? branch.w : liningT, branch.isZ ? liningT : branch.d, env.ductMat, holeH, 0);
                             
-                            if (!branch.isZ) { // N or S
+                            if (!branch.isZ) {
                                 lSide1.position.set(branch.x - holeW / 2 + liningT / 2, ductY + holeH / 2, branch.z);
                                 lSide2.position.set(branch.x + holeW / 2 - liningT / 2, ductY + holeH / 2, branch.z);
-                            } else { // E or W
+                            } else {
                                 lSide1.position.set(branch.x, ductY + holeH / 2, branch.z - holeW / 2 + liningT / 2);
                                 lSide2.position.set(branch.x, ductY + holeH / 2, branch.z + holeW / 2 - liningT / 2);
                             }
                             addGeometry(lSide1);
                             addGeometry(lSide2);
                         } else {
-                            // Solid wall blocking this branch
                             const block = buildWall(branch.w, branch.d, env.sharedWallMat);
                             block.position.set(branch.x, 1.5, branch.z);
                             addWall(block);
 
-                            // Lining on the hub boundary capping this branch
                             const capLining = buildWall(branch.isZ ? liningT : holeW, branch.isZ ? holeW : liningT, env.ductMat, holeH, 0);
                             
                             if (branch.dir === 'N') capLining.position.set(cx, ductY + holeH / 2, cz - holeW / 2 + liningT / 2);

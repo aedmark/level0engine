@@ -17,9 +17,6 @@ export default class Compass {
         this._swayX = 0;
         this._swayY = 0;
         this._swayZ = 0;
-        /** [WHY] Seeded from the live camera rather than 0 so the first frame after construction
-         *  reports a zero look-delta. Seeding at 0 would read the camera's whole starting yaw as
-         *  one frame of rotation and fling the arm on spawn. */
         this._prevYaw = engine.camera ? engine.camera.rotation.y : 0;
         this._prevPitch = engine.camera ? engine.camera.rotation.x : 0;
         this._trailYaw = 0;
@@ -137,28 +134,11 @@ export default class Compass {
         thumb.rotation.set(0.35, 0.18, 0.0);
         hand.add(thumb);
 
-        /**
-         * [WHY] The forearm is one limb, so it is built as one chain. Wrist, cuff and sleeve
-         * were previously three meshes positioned independently in hand space while sharing
-         * `rotation.set(-0.30, 0, 0.10)`. The z-component of that placement line ran opposite
-         * to the axis the cylinders were rotated onto, putting the line 34 degrees off the
-         * tilt: measured at the seams, the cuff's top cap sat 0.0288 laterally from the
-         * wrist's bottom cap (53% of the cuff's own radius, so half the cuff was buried in
-         * the wrist) and the sleeve's top cap missed the cuff by 0.0771, or 135% of its
-         * radius. Parenting makes that class of error unrepresentable: the tilt is applied
-         * exactly once at the root and the children carry local Y offsets only, so the seams
-         * are colinear by construction and only the three LEN constants can move a joint.
-         * The root sits where the old wrist's top cap was, which preserves the silhouette
-         * at the hand and lets the divergence unwind down the arm instead of at the cuff.
-         */
         const forearm = new THREE.Group();
         forearm.position.set(0.0083, -0.0724, -0.0660);
         forearm.rotation.set(-0.30, 0, 0.10);
 
         const WRIST_LEN = 0.075, CUFF_LEN = 0.055, SLEEVE_LEN = 0.26;
-        /** [WHY] Fabric sits on top of skin, not flush against it. The laps also cap the open
-         *  ends of the cylinders below them, which is why the cuff is the wider radius at
-         *  both seams -- it swallows the wrist's bottom face and the sleeve's top face. */
         const CUFF_LAP = 0.014, SLEEVE_LAP = 0.010;
         const cuffTop = -(WRIST_LEN - CUFF_LAP);
         const sleeveTop = cuffTop - CUFF_LEN + SLEEVE_LAP;
@@ -355,18 +335,6 @@ export default class Compass {
         return best;
     }
 
-    /**
-     * [ROLE] How hard the compass should be pulled in this frame, 0 (clear) to 1 (fully tucked).
-     * [WHY] The rig is a child of the camera inside the main scene, so at 0.62 out it is a real
-     * world object and anything within arm's length intersects it. Rather than lift it into a
-     * separate render pass -- which would take the hand out of world lighting, and this game
-     * spends most of its runtime in the dark with a flashlight -- the arm simply gets out of the
-     * way. Pulling it in is also the more honest read: you tuck a compass against your chest to
-     * fit through a gap, you do not push it through the wall.
-     * [HOW] One ray from the eye along the direction the rig actually sits, against the same
-     * spatialGrid and AABB.rayIntersectsBox the peek-lean already uses. Cheap: at REACH the query
-     * spans one or two 4-unit grid cells.
-     */
     _proximityTuck(cam) {
         const state = this.player.input ? this.player.input.state : null;
         if (this.player.isSqueezing || (state && state.isCrawling)) return 1;
@@ -415,16 +383,6 @@ export default class Compass {
         const rate = wantStow > this.stow ? 5.2 : 6.8;
         this.stow += (wantStow - this.stow) * Math.min(1, dt * rate);
 
-        /**
-         * [WHY] The tuck drives the stow pose rather than a retract pose of its own. Two reasons.
-         * A second pose would be a second retracted envelope to verify against every wall in the
-         * game, where the stow pose is already shipping and already known not to clip -- it is
-         * what the compass does every time you press M. And it gives the player one vocabulary
-         * instead of two: the compass lowers, for whatever reason it is lowering.
-         * [WHY ASYMMETRIC] 14 in, 6 out. Getting out of a wall is urgent and a fast pull reads as
-         * the player protecting the instrument; easing back out is what stops a compass held
-         * alongside a corridor wall from strobing on every small step toward and away from it.
-         */
         const proximity = this._proximityTuck(cam);
         this._tuck += (proximity - this._tuck) * Math.min(1, dt * (proximity > this._tuck ? 14.0 : 6.0));
         const shown = this.stow * (1 - this._tuck);
@@ -432,11 +390,6 @@ export default class Compass {
         if (shown < 0.002) {
             if (this.stow < 0.002) this.stow = 0;
             this.rig.visible = false;
-            /** [WHY] Keep tracking the camera while stowed. Skipping this would let the look
-             *  reference go stale for as long as the compass is down, and the first frame after
-             *  raising it would read every degree turned in the meantime as one frame of
-             *  rotation. The rate clamp would cap the damage at a full-scale flick, but a
-             *  full-scale flick is still the wrong thing to play when you press M standing still. */
             this._prevYaw = cam.rotation.y;
             this._prevPitch = cam.rotation.x;
             this._trailYaw = 0;
@@ -448,36 +401,16 @@ export default class Compass {
         const drop = (1 - eased) * 0.46;
         const roll = (1 - eased) * 0.85;
 
-        /**
-         * [WHY] The rig is a child of the camera, so the head bob moves the hand and the eye as
-         * one welded object and produces exactly zero relative motion -- the reason a compass
-         * held at arm's length read as painted on the screen. Everything below is the hand
-         * refusing to track the head perfectly: it lags the bob, swings on the step, trails the
-         * turn, and pushes back under acceleration. All four are scaled by `gait` or by a rate
-         * that goes to zero when you stand still, so a stationary player gets a stationary hand.
-         */
         const phase = this.player.headBobPhase || 0;
         const gait = this.player.gait || 0;
 
-        /** [WHY] x on sin(p), y on sin(2p) is a figure eight -- the arm crosses the body once per
-         *  stride but rises and falls twice, once per footfall. A single sine on both axes would
-         *  draw a diagonal line and read as a slide rather than a swing. */
         const swingX = Math.sin(phase) * 0.020 * gait;
         const swingY = Math.sin(phase * 2.0) * 0.013 * gait;
         const swingRoll = Math.sin(phase) * 0.055 * gait;
         const swingPitch = Math.sin(phase * 2.0 + 0.6) * 0.030 * gait;
 
-        /** [WHY] Counter-bob. The camera has already displaced by bobOffset this frame and the rig
-         *  inherited all of it; giving back a third in local space leaves the hand travelling
-         *  two thirds as far as the eye, which is what makes it look connected to a shoulder
-         *  rather than to the skull. Full cancellation looks worse -- the hand hangs dead still
-         *  in a bobbing world and reads as a bug. */
         const counterBob = -(this.player.bobOffset || 0) * 0.34;
 
-        /** [WHY] Look trail. Nothing anywhere read camera rotation, and mouse look is the most
-         *  frequent motion in the game, so this is the bulk of what felt stationary. Rates are
-         *  clamped because a fast flick can move the camera a fifth of a radian inside one frame
-         *  and an unclamped rate would fling the arm off screen. */
         let dYaw = cam.rotation.y - this._prevYaw;
         while (dYaw > Math.PI) dYaw -= Math.PI * 2;
         while (dYaw < -Math.PI) dYaw += Math.PI * 2;
@@ -517,32 +450,12 @@ export default class Compass {
             this.player.velocity.x * this.player.velocity.x +
             this.player.velocity.z * this.player.velocity.z
         );
-        /** [WHY] `Math.min(1, speed / 30.0)` was the same units error as the sway constants: sized
-         *  for `currentSpeed` (30 = a crouch walk, so the term was authored to sit clamped at 1.0
-         *  from a normal walk upward) but fed `velocity`, which peaks at 7.34 on a chased sprint.
-         *  It resolved to 0.098, running the needle at a tenth of its authored 0.004 rad -- a
-         *  3.9e-4 rad wobble on a 0.079 dial, well under a pixel. Reusing the smoothed `gait`
-         *  restores the intent and costs nothing: it is already the clamped, eased speed ratio,
-         *  and it correctly gives a crawl less jostle than a walk rather than treating every
-         *  crouch-and-above the same. */
+
         const jostle = Math.sin(this.engine.time * 11.0) * 0.004 * gait;
         this.angVel += (diff * stiffness - this.angVel * damping) * dt;
         this.angle += (this.angVel + jostle) * dt;
         this.needle.rotation.z = this.angle;
 
-        /**
-         * [WHY] Velocity lag was reading world-space `velocity.x`, so the hand swung according to
-         * which way north was rather than which way the player was moving: strafing east and
-         * strafing north produced opposite sway from identical footwork. Projecting onto the
-         * camera's own right and forward axes makes the lag mean what it was always trying to
-         * mean -- the hand falls behind the body it is attached to.
-         * [WHY THE CONSTANTS MOVED 25x] The old factors were sized for `currentSpeed` (60 at a
-         * walk) but multiplied against `velocity`, which the exp(-25 * delta) damping in
-         * PlayerController holds near 2.9. `-velocity.x * 0.0006` came out to 0.0018 units on a
-         * full-speed strafe, at a rig sitting 0.62 from the eye -- comfortably under one pixel.
-         * The sway was not subtle, it was absent. The `Math.min(speed, 60)` clamp below was
-         * likewise unreachable: peak speed in the game is 7.34, on a chased sprint.
-         */
         const sinY = Math.sin(cam.rotation.y), cosY = Math.cos(cam.rotation.y);
         const vRight = this.player.velocity.x * cosY - this.player.velocity.z * sinY;
         const vForward = -this.player.velocity.x * sinY - this.player.velocity.z * cosY;
@@ -555,15 +468,6 @@ export default class Compass {
         const pullIn = (1 - eased) * 0.28;
         const pullLeft = (1 - eased) * 0.12;
 
-        /**
-         * [WHY] Swing and counter-bob are added after the smoothers, not through them. Velocity
-         * lag is the only noisy input here and the only one that wants filtering; the lissajous
-         * is already an analytic sine and the counter-bob has to stay exactly in phase with the
-         * camera's bob or it cancels against the wrong part of the step. Running these through
-         * the same one-pole filter cost both: the filter's corner sits near 1.75Hz against a
-         * 3.41Hz running stride, so a run came out swinging 19.9mm against a walk's 36.0mm --
-         * the arm going quiet exactly when the body is working hardest.
-         */
         this.rig.position.set(
             this.basePos.x + this._swayX + swingX + this._trailYaw * 0.008 - pullLeft,
             this.basePos.y + this._swayY + swingY + counterBob - this._trailPitch * 0.008 - drop,

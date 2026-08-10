@@ -11,13 +11,6 @@ import {CrawlspaceHallProfile} from './blueprints/CrawlspaceHall.js';
 import {CreviceHallProfile} from './blueprints/CreviceHall.js';
 import {RideQueueHallProfile} from './blueprints/RideQueueHall.js';
 
-/**
- * Cell coordinates get packed into a single number rather than a `${x},${z}` template string.
- * The occupancy / wall / path sets below are probed tens of thousands of times per chunk, and a
- * string key costs an allocation plus a string hash on every one of them. CELL_KEY_SPAN bounds
- * |z|; past that the packing would alias, which is ~16.7 million world units from the origin --
- * far beyond anything reachable by warping.
- */
 const CELL_KEY_SPAN = 4194304;
 const cellKey = (x, z) => x * (CELL_KEY_SPAN * 2) + z;
 

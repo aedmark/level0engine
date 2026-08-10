@@ -34,23 +34,6 @@ export const TunnelBurstProfile = (env, ctx) => {
             const modZ = ((z % env.chunkSize) + env.chunkSize) % env.chunkSize;
             const burstLength = Math.min(rawBurst, dirZ ? env.chunkSize - modZ : env.chunkSize - modX);
 
-            /**
-             * [WHY] A burst always runs +Z or +X from its seed cell, so the far mouth at
-             * +burstLength is ahead of the build cursor and its carve lands, while the near
-             * mouth at -Z/-X is a cell ChunkManager (x outer, z inner) has already passed and
-             * already staged as solid wall. The old `if (!nC) ctx.setWall(x, z - 1, false)` and
-             * its `!wC` twin could not open anything: they only rewrote `isWallGrid` underneath
-             * a wall that was already standing, so every blueprint built afterwards that asked
-             * `ctx.isWall` about that cell was told "open" while a collider sat in it. Measured
-             * at 23.6% of this blueprint's carves silently discarded, and the grid lying about
-             * every one of them.
-             * [WHY NOT MORE] The sealed-mouth bursts are kept. They are entered from whichever
-             * side was already open -- which is most of them -- so refusing to build them costs
-             * real, reachable vents. Deleting them was tried and measured: 10-23% of all bursts,
-             * and the grated crawlable variant went scarce enough to notice inside one session.
-             * The desync was the bug. A burst with one sealed end is just a burst with one
-             * sealed end, and it looks exactly the same as it always did.
-             */
             if (ctx.setWall) {
                 if (dirZ) ctx.setWall(x, z + burstLength, false);
                 else ctx.setWall(x + burstLength, z, false);
