@@ -629,12 +629,18 @@ export default class PlayerController {
          * riding it. `bobOffset` is the camera's own vertical displacement this frame, stagger
          * included. `gait` is how engaged the walk cycle is, 0 to 1, smoothed so a viewmodel
          * fades its swing in and out rather than snapping when you start or stop walking.
-         * [WHY 60] `dynamicWalkSpeed` at zero exhaustion, so gait reaches 1.0 at a full walk and
-         * overshoots into the clamp at a run, matching how bobAmp already treats running.
+         * [WHY 2.9] This is `velocity`, not `currentSpeed`. `currentSpeed` is the acceleration
+         * term (60 at a walk, 125 at a run); the `exp(-25 * delta)` damping above holds the
+         * resulting speed at roughly currentSpeed/25 -- measured 2.93 walking and 6.11 running
+         * at 60fps, and it is mildly framerate-dependent (2.66 / 5.54 at 120fps). Normalising
+         * against 2.9 puts gait at 1.0 for a walk and clamps through the run, and the clamp is
+         * what absorbs the framerate drift. Anything scaled off velocity wants constants in
+         * this range, not in currentSpeed's -- that confusion is what left the old compass sway
+         * at sub-pixel amplitude.
          */
         this.bobOffset = bobOffset;
         const gaitTarget = (this.enableHeadBob && postIntentSpeed > 0.5)
-            ? Math.min(1.0, postIntentSpeed / 60.0)
+            ? Math.min(1.0, postIntentSpeed / 2.9)
             : 0.0;
         this.gait = (this.gait || 0) + (gaitTarget - (this.gait || 0)) * (1.0 - Math.exp(-8.0 * delta));
         this.currentLean += (state.targetLean - this.currentLean) * (1.0 - Math.exp(-15.0 * delta));

@@ -287,10 +287,21 @@ export default class StoryEngine {
             return {text: this.assignments.get(assignKey), progress: this.progress()};
         }
         if (idStr.startsWith('NOTE_')) {
-            const pool = this.ephemera[zone] || this.ephemera.EXIT;
-            const n = this.ephemeraDealt.get(zone || 'EXIT') || 0;
-            this.ephemeraDealt.set(zone || 'EXIT', n + 1);
-            const obj = pool[n % pool.length];
+            let pool = this.ephemera[zone] || [];
+            let n = this.ephemeraDealt.get(zone) || 0;
+            let useZone = zone;
+            if (n >= pool.length || pool.length === 0) {
+                pool = this.ephemera.DEFAULT || [];
+                n = this.ephemeraDealt.get('DEFAULT') || 0;
+                useZone = 'DEFAULT';
+            }
+            if (n >= pool.length || pool.length === 0) {
+                pool = [{text: "[ INDECIPHERABLE SCRAWL ]"}];
+                n = 0;
+                useZone = 'FALLBACK';
+            }
+            this.ephemeraDealt.set(useZone, n + 1);
+            const obj = pool[n];
             const text = obj.text;
             this.assignments.set(assignKey, text);
             this.collected.push(text);
@@ -304,10 +315,21 @@ export default class StoryEngine {
             };
         }
         if (idStr.startsWith('LAPTOP_')) {
-            const pool = this.laptops[zone] || this.laptops.DEFAULT || [{text: "[ NO SIGNAL ]"}];
-            const n = this.laptopsDealt.get(zone || 'DEFAULT') || 0;
-            this.laptopsDealt.set(zone || 'DEFAULT', n + 1);
-            const obj = pool[n % pool.length];
+            let pool = this.laptops[zone] || [];
+            let n = this.laptopsDealt.get(zone) || 0;
+            let useZone = zone;
+            if (n >= pool.length || pool.length === 0) {
+                pool = this.laptops.DEFAULT || [];
+                n = this.laptopsDealt.get('DEFAULT') || 0;
+                useZone = 'DEFAULT';
+            }
+            if (n >= pool.length || pool.length === 0) {
+                pool = [{text: "[ NO SIGNAL ]"}];
+                n = 0;
+                useZone = 'FALLBACK';
+            }
+            this.laptopsDealt.set(useZone, n + 1);
+            const obj = pool[n];
             const text = obj.text;
             this.assignments.set(assignKey, text);
             this.collected.push(text);
@@ -321,10 +343,21 @@ export default class StoryEngine {
             };
         }
         if (idStr.startsWith('TAG_')) {
-            const pool = this.clipboards[zone] || this.clipboards.DEFAULT || [{text: "[ MISSING PAPERWORK ]"}];
-            const n = this.clipboardsDealt.get(zone || 'DEFAULT') || 0;
-            this.clipboardsDealt.set(zone || 'DEFAULT', n + 1);
-            const obj = pool[n % pool.length];
+            let pool = this.clipboards[zone] || [];
+            let n = this.clipboardsDealt.get(zone) || 0;
+            let useZone = zone;
+            if (n >= pool.length || pool.length === 0) {
+                pool = this.clipboards.DEFAULT || [];
+                n = this.clipboardsDealt.get('DEFAULT') || 0;
+                useZone = 'DEFAULT';
+            }
+            if (n >= pool.length || pool.length === 0) {
+                pool = [{text: "[ MISSING PAPERWORK ]"}];
+                n = 0;
+                useZone = 'FALLBACK';
+            }
+            this.clipboardsDealt.set(useZone, n + 1);
+            const obj = pool[n];
             const text = obj.text;
             this.assignments.set(assignKey, text);
             this.collected.push(text);

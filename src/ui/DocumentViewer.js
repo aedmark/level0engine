@@ -64,9 +64,10 @@ export default class DocumentViewer {
                         document.dispatchEvent(new CustomEvent('somatic-corroboration', {detail: fragment.corroboration}));
                     }
                 }
+                const isCaseFile = !isTerminal && !fragment.ephemera && !fragment.laptop && !fragment.clipboard;
                 let fullText = fragment.text + this.claimBanner(fragment) + (isTerminal
                     ? this.terminalFooter(fragment)
-                    : `\n\n---\nDATA RECOVERED: [ ${fragment.progress.found} / ${fragment.progress.total} ]`);
+                    : (isCaseFile ? `\n\n---\nDATA RECOVERED: [ ${fragment.progress.found} / ${fragment.progress.total} ]` : ''));
                 this._currentFullText = fullText;
                 this.terminalBrowseIndex = null;
                 if (isTerminal) {

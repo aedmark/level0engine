@@ -5,7 +5,7 @@ export const DuctOrVentProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, hash} = ctx;
     return {
         name: "DUCT OR VENT",
-        prob: 0.40, build: (x, z) => {
+        prob: 0.20, build: (x, z) => {
             let isFloorLevel = random() > 0.75;
             const addGeometry = (mesh) => {
                 if (isFloorLevel && mesh.userData.isSectorWall) {
@@ -88,6 +88,10 @@ export const DuctOrVentProfile = (env, ctx) => {
                         continue;
                     }
 
+                    if (ctx.isOccupied && ctx.isOccupied(cell.x, cell.z)) {
+                        continue;
+                    }
+
                     if (p) {
                         p.connections[getOpposite(cell.cameFrom)] = true;
                     }
@@ -162,19 +166,19 @@ export const DuctOrVentProfile = (env, ctx) => {
 
             if (isFloorLevel) {
                 const holeW = 1.2;
-                    const holeH = 0.7;
-                    const topH = 3.0 - holeH;
-                    const sideW = (env.cellSize - holeW) / 2;
-                    const sideOffset = (env.cellSize / 2) - (sideW / 2);
-                    const liningH = 0.05;
-                    const sideH = holeH - (liningH * 2);
+                const holeH = 0.7;
+                const ductY = 0.0; // Floor level for crawling
+                const topH = 3.0 - (ductY + holeH);
+                const sideW = (env.cellSize - holeW) / 2;
+                const sideOffset = (env.cellSize / 2) - (sideW / 2);
+                const liningT = 0.04;
 
-                    const addWall = (mesh) => {
-                        mesh.userData.isEntityBlocker = true;
-                        addGeometry(mesh);
-                    };
+                const addWall = (mesh) => {
+                    mesh.userData.isEntityBlocker = true;
+                    addGeometry(mesh);
+                };
 
-                    for (const [key, cell] of network.entries()) {
+                for (const [key, cell] of network.entries()) {
                     const cx = cell.x * env.cellSize;
                     const cz = cell.z * env.cellSize;
 
@@ -186,140 +190,106 @@ export const DuctOrVentProfile = (env, ctx) => {
                     const eConn = cell.connections.E || cell.exits.E;
                     const wConn = cell.connections.W || cell.exits.W;
 
-                    const nw = buildWall(sideW, sideW, env.sharedWallMat);
-                    nw.position.set(cx - sideOffset, 1.5, cz - sideOffset);
-                    addWall(nw);
-
-                    const ne = buildWall(sideW, sideW, env.sharedWallMat);
-                    ne.position.set(cx + sideOffset, 1.5, cz - sideOffset);
-                    addWall(ne);
-
-                    const sw = buildWall(sideW, sideW, env.sharedWallMat);
-                    sw.position.set(cx - sideOffset, 1.5, cz + sideOffset);
-                    addWall(sw);
-
-                    const se = buildWall(sideW, sideW, env.sharedWallMat);
-                    se.position.set(cx + sideOffset, 1.5, cz + sideOffset);
-                    addWall(se);
-
-                    const hubRoof = buildWall(holeW, holeW, env.sharedWallMat, topH, holeH);
-                    hubRoof.position.set(cx, holeH + topH / 2, cz);
-                    addGeometry(hubRoof);
-
-                    const hubFloor = buildWall(holeW, holeW, env.ductMat, liningH);
-                    hubFloor.position.set(cx, liningH / 2, cz);
-                    addGeometry(hubFloor);
-
-                    const hubCeil = buildWall(holeW, holeW, env.ductMat, liningH);
-                    hubCeil.position.set(cx, holeH - liningH / 2, cz);
-                    addGeometry(hubCeil);
-
-                    if (nConn) {
-                        const r = buildWall(holeW, sideW, env.sharedWallMat, topH, holeH);
-                        r.position.set(cx, holeH + topH / 2, cz - sideOffset);
-                        addGeometry(r);
-                        const f = buildWall(holeW, sideW, env.ductMat, liningH);
-                        f.position.set(cx, liningH / 2, cz - sideOffset);
-                        addGeometry(f);
-                        const c = buildWall(holeW, sideW, env.ductMat, liningH);
-                        c.position.set(cx, holeH - liningH / 2, cz - sideOffset);
-                        addGeometry(c);
-                        const ll = buildWall(liningH, sideW, env.ductMat, sideH);
-                        ll.position.set(cx - (holeW / 2) + (liningH / 2), holeH / 2, cz - sideOffset);
-                        addGeometry(ll);
-                        const lr = buildWall(liningH, sideW, env.ductMat, sideH);
-                        lr.position.set(cx + (holeW / 2) - (liningH / 2), holeH / 2, cz - sideOffset);
-                        addGeometry(lr);
-                    } else {
-                        const b = buildWall(holeW, sideW, env.sharedWallMat);
-                        b.position.set(cx, 1.5, cz - sideOffset);
-                        addWall(b);
-                        const l = buildWall(holeW, liningH, env.ductMat, sideH);
-                        l.position.set(cx, holeH / 2, cz - sideOffset + (sideW / 2) - (liningH / 2));
-                        addGeometry(l);
+                    // 1. Structural Corner Pillars (Always Solid)
+                    const corners = [
+                        {x: cx - sideOffset, z: cz - sideOffset}, // NW
+                        {x: cx + sideOffset, z: cz - sideOffset}, // NE
+                        {x: cx - sideOffset, z: cz + sideOffset}, // SW
+                        {x: cx + sideOffset, z: cz + sideOffset}  // SE
+                    ];
+                    for (const pos of corners) {
+                        const pillar = buildWall(sideW, sideW, env.sharedWallMat);
+                        pillar.position.set(pos.x, 1.5, pos.z);
+                        addWall(pillar);
                     }
 
-                    if (sConn) {
-                        const r = buildWall(holeW, sideW, env.sharedWallMat, topH, holeH);
-                        r.position.set(cx, holeH + topH / 2, cz + sideOffset);
-                        addGeometry(r);
-                        const f = buildWall(holeW, sideW, env.ductMat, liningH);
-                        f.position.set(cx, liningH / 2, cz + sideOffset);
-                        addGeometry(f);
-                        const c = buildWall(holeW, sideW, env.ductMat, liningH);
-                        c.position.set(cx, holeH - liningH / 2, cz + sideOffset);
-                        addGeometry(c);
-                        const ll = buildWall(liningH, sideW, env.ductMat, sideH);
-                        ll.position.set(cx - (holeW / 2) + (liningH / 2), holeH / 2, cz + sideOffset);
-                        addGeometry(ll);
-                        const lr = buildWall(liningH, sideW, env.ductMat, sideH);
-                        lr.position.set(cx + (holeW / 2) - (liningH / 2), holeH / 2, cz + sideOffset);
-                        addGeometry(lr);
-                    } else {
-                        const b = buildWall(holeW, sideW, env.sharedWallMat);
-                        b.position.set(cx, 1.5, cz + sideOffset);
-                        addWall(b);
-                        const l = buildWall(holeW, liningH, env.ductMat, sideH);
-                        l.position.set(cx, holeH / 2, cz + sideOffset - (sideW / 2) + (liningH / 2));
-                        addGeometry(l);
+                    // 2. Center Hub Top & Bottom Structure
+                    if (ductY > 0) {
+                        const hubFloorStruct = buildWall(holeW, holeW, env.sharedWallMat, ductY, 0);
+                        hubFloorStruct.position.set(cx, ductY / 2, cz);
+                        addGeometry(hubFloorStruct);
                     }
 
-                    if (wConn) {
-                        const r = buildWall(sideW, holeW, env.sharedWallMat, topH, holeH);
-                        r.position.set(cx - sideOffset, holeH + topH / 2, cz);
-                        addGeometry(r);
-                        const f = buildWall(sideW, holeW, env.ductMat, liningH);
-                        f.position.set(cx - sideOffset, liningH / 2, cz);
-                        addGeometry(f);
-                        const c = buildWall(sideW, holeW, env.ductMat, liningH);
-                        c.position.set(cx - sideOffset, holeH - liningH / 2, cz);
-                        addGeometry(c);
-                        const ll = buildWall(sideW, liningH, env.ductMat, sideH);
-                        ll.position.set(cx - sideOffset, holeH / 2, cz - (holeW / 2) + (liningH / 2));
-                        addGeometry(ll);
-                        const lr = buildWall(sideW, liningH, env.ductMat, sideH);
-                        lr.position.set(cx - sideOffset, holeH / 2, cz + (holeW / 2) - (liningH / 2));
-                        addGeometry(lr);
-                    } else {
-                        const b = buildWall(sideW, holeW, env.sharedWallMat);
-                        b.position.set(cx - sideOffset, 1.5, cz);
-                        addWall(b);
-                        const l = buildWall(liningH, holeW, env.ductMat, sideH);
-                        l.position.set(cx - sideOffset + (sideW / 2) - (liningH / 2), holeH / 2, cz);
-                        addGeometry(l);
-                    }
+                    const hubRoofStruct = buildWall(holeW, holeW, env.sharedWallMat, topH, ductY + holeH);
+                    hubRoofStruct.position.set(cx, ductY + holeH + topH / 2, cz);
+                    addGeometry(hubRoofStruct);
 
-                    if (eConn) {
-                        const r = buildWall(sideW, holeW, env.sharedWallMat, topH, holeH);
-                        r.position.set(cx + sideOffset, holeH + topH / 2, cz);
-                        addGeometry(r);
-                        const f = buildWall(sideW, holeW, env.ductMat, liningH);
-                        f.position.set(cx + sideOffset, liningH / 2, cz);
-                        addGeometry(f);
-                        const c = buildWall(sideW, holeW, env.ductMat, liningH);
-                        c.position.set(cx + sideOffset, holeH - liningH / 2, cz);
-                        addGeometry(c);
-                        const ll = buildWall(sideW, liningH, env.ductMat, sideH);
-                        ll.position.set(cx + sideOffset, holeH / 2, cz - (holeW / 2) + (liningH / 2));
-                        addGeometry(ll);
-                        const lr = buildWall(sideW, liningH, env.ductMat, sideH);
-                        lr.position.set(cx + sideOffset, holeH / 2, cz + (holeW / 2) - (liningH / 2));
-                        addGeometry(lr);
-                    } else {
-                        const b = buildWall(sideW, holeW, env.sharedWallMat);
-                        b.position.set(cx + sideOffset, 1.5, cz);
-                        addWall(b);
-                        const l = buildWall(liningH, holeW, env.ductMat, sideH);
-                        l.position.set(cx + sideOffset - (sideW / 2) + (liningH / 2), holeH / 2, cz);
-                        addGeometry(l);
+                    // 3. Center Hub Linings
+                    const hubFloorLining = buildWall(holeW, holeW, env.ductMat, liningT, 0);
+                    hubFloorLining.position.set(cx, ductY + liningT / 2, cz);
+                    addGeometry(hubFloorLining);
+
+                    const hubRoofLining = buildWall(holeW, holeW, env.ductMat, liningT, 0);
+                    hubRoofLining.position.set(cx, ductY + holeH - liningT / 2, cz);
+                    addGeometry(hubRoofLining);
+
+                    // 4. Branch Logic (N, S, E, W)
+                    const branches = [
+                        {dir: 'N', conn: nConn, x: cx, z: cz - sideOffset, w: holeW, d: sideW, isZ: false},
+                        {dir: 'S', conn: sConn, x: cx, z: cz + sideOffset, w: holeW, d: sideW, isZ: false},
+                        {dir: 'E', conn: eConn, x: cx + sideOffset, z: cz, w: sideW, d: holeW, isZ: true},
+                        {dir: 'W', conn: wConn, x: cx - sideOffset, z: cz, w: sideW, d: holeW, isZ: true}
+                    ];
+
+                    for (const branch of branches) {
+                        if (branch.conn) {
+                            // Struct Top & Bottom
+                            if (ductY > 0) {
+                                const bFloor = buildWall(branch.w, branch.d, env.sharedWallMat, ductY, 0);
+                                bFloor.position.set(branch.x, ductY / 2, branch.z);
+                                addGeometry(bFloor);
+                            }
+
+                            const bRoof = buildWall(branch.w, branch.d, env.sharedWallMat, topH, ductY + holeH);
+                            bRoof.position.set(branch.x, ductY + holeH + topH / 2, branch.z);
+                            addGeometry(bRoof);
+
+                            // Lining Top & Bottom
+                            const lFloor = buildWall(branch.w, branch.d, env.ductMat, liningT, 0);
+                            lFloor.position.set(branch.x, ductY + liningT / 2, branch.z);
+                            addGeometry(lFloor);
+
+                            const lRoof = buildWall(branch.w, branch.d, env.ductMat, liningT, 0);
+                            lRoof.position.set(branch.x, ductY + holeH - liningT / 2, branch.z);
+                            addGeometry(lRoof);
+
+                            // Lining Sides
+                            const lSide1 = buildWall(branch.isZ ? branch.w : liningT, branch.isZ ? liningT : branch.d, env.ductMat, holeH, 0);
+                            const lSide2 = buildWall(branch.isZ ? branch.w : liningT, branch.isZ ? liningT : branch.d, env.ductMat, holeH, 0);
+                            
+                            if (!branch.isZ) { // N or S
+                                lSide1.position.set(branch.x - holeW / 2 + liningT / 2, ductY + holeH / 2, branch.z);
+                                lSide2.position.set(branch.x + holeW / 2 - liningT / 2, ductY + holeH / 2, branch.z);
+                            } else { // E or W
+                                lSide1.position.set(branch.x, ductY + holeH / 2, branch.z - holeW / 2 + liningT / 2);
+                                lSide2.position.set(branch.x, ductY + holeH / 2, branch.z + holeW / 2 - liningT / 2);
+                            }
+                            addGeometry(lSide1);
+                            addGeometry(lSide2);
+                        } else {
+                            // Solid wall blocking this branch
+                            const block = buildWall(branch.w, branch.d, env.sharedWallMat);
+                            block.position.set(branch.x, 1.5, branch.z);
+                            addWall(block);
+
+                            // Lining on the hub boundary capping this branch
+                            const capLining = buildWall(branch.isZ ? liningT : holeW, branch.isZ ? holeW : liningT, env.ductMat, holeH, 0);
+                            
+                            if (branch.dir === 'N') capLining.position.set(cx, ductY + holeH / 2, cz - holeW / 2 + liningT / 2);
+                            else if (branch.dir === 'S') capLining.position.set(cx, ductY + holeH / 2, cz + holeW / 2 - liningT / 2);
+                            else if (branch.dir === 'E') capLining.position.set(cx + holeW / 2 - liningT / 2, ductY + holeH / 2, cz);
+                            else if (branch.dir === 'W') capLining.position.set(cx - holeW / 2 + liningT / 2, ductY + holeH / 2, cz);
+                            
+                            addGeometry(capLining);
+                        }
                     }
 
                     const grateOffset = (env.cellSize / 2) - 0.07;
                     if (ctx.addGrate) {
-                        if (cell.exits.N) ctx.addGrate(cx, 0.35, cz - grateOffset, false);
-                        if (cell.exits.S) ctx.addGrate(cx, 0.35, cz + grateOffset, false);
-                        if (cell.exits.E) ctx.addGrate(cx + grateOffset, 0.35, cz, true);
-                        if (cell.exits.W) ctx.addGrate(cx - grateOffset, 0.35, cz, true);
+                        if (cell.exits.N) ctx.addGrate(cx, ductY + holeH / 2, cz - grateOffset, false);
+                        if (cell.exits.S) ctx.addGrate(cx, ductY + holeH / 2, cz + grateOffset, false);
+                        if (cell.exits.E) ctx.addGrate(cx + grateOffset, ductY + holeH / 2, cz, true);
+                        if (cell.exits.W) ctx.addGrate(cx - grateOffset, ductY + holeH / 2, cz, true);
                     }
                 }
             } else {

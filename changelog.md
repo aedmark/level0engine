@@ -2,6 +2,19 @@
 
 ## [v0.9.3] - 2026-08-10
 
+_Structural Guarantees & Narrative Exhaustion_
+
+### Fixed
+
+- **[WORLD] Duct Networks No Longer Tunnel Into Occupied Space:** The `DuctOrVent` blueprint builds its layout via a breadth-first search into adjacent wall cells. However, it was indiscriminately claiming cells that had already been processed and built upon by the chunk manager in earlier iterations. This resulted in duct geometry projecting directly through solid wall blocks and other solid structures. The BFS now explicitly respects the `ctx.isOccupied` state of adjacent cells, treating them as dead ends and properly capping the vent run with a metal grate.
+- **[WORLD] Starting Chamber Is Guaranteed An Exit Route:** The generator clears a 5x5 spawn chamber at `(0, 0)`, but relied entirely on the chaotic noise algorithm to coincidentally leave a navigable gap connecting this chamber to the primary arterial paths radiating from the chunk center. A bad noise roll could generate a solid perimeter wall that completely sealed the starting room. The chunk manager now enforces a manual `carvePath` umbilical from `(7, 7)` directly down to `(0, 0)` in the starting chunk to guarantee connectivity.
+- **[WORLD] Wall Breaches Align Perpendicular To Walls:** The geometric axis validation inside the `WallBreach` logic was mathematically inverted. When projecting a crawlspace tunnel through a wall, the breach was orienting its opening parallel to the wall rather than perpendicular to it. This caused the grates to project uselessly against solid stone while leaving the traversable pathway obstructed by door frames. The `isRotated` check has been inverted to correctly bisect the host wall.
+- **[WORLD] Airlock Apron Suppresses Floating Stairs:** While airlock aprons correctly cleared out divider walls, the clearance left empty cells that were susceptible to generating a `CratesOrStairway` blueprint. Because the surrounding walls were cleared, this resulted in stairs generating in the middle of open space with their side collisions turned off. The chunk manager now intercepts this fallback near airlock aprons and replaces it with standard solid wall generation to seal the gaps.
+- **[NARRATIVE] Story Engine Escalate Ephemera Pools:** When a sector exhausted its native pool of side-lore (clipboards, laptops, notes), the narrative engine resorted to mathematically wrapping the index back to zero, dealing the exact same document multiple times. The `StoryEngine` now falls back to the global `DEFAULT` pool when a sector pool runs dry, and issues blank `[ MISSING PAPERWORK ]` or `[ NO SIGNAL ]` documents if the default pool is also exhausted, guaranteeing no duplicates.
+- **[UI] Side-Lore Documents Omit Case File Footer:** The `DocumentViewer` was unconditionally rendering the `DATA RECOVERED: [X / Y]` progress tracker at the bottom of all inspectable documents, falsely giving the impression that reading side-lore was failing to increment the case file count. The viewer now recognizes the `ephemera`, `laptop`, and `clipboard` flags and explicitly hides the tracker footer for texts that are not part of the primary case file total.
+
+## [v0.9.2] - 2026-08-10
+
 _Environmental Polishing & Duct Networks_
 
 ### Added
@@ -22,7 +35,7 @@ _Environmental Polishing & Duct Networks_
 - **[AESTHETICS] Clinic Beds Have Support Rails:** The metal rails on the clinic beds were previously floating in mid-air. They now have vertical support bars anchoring them to the main bedframe.
 
 
-## [v0.9.2] - 2026-08-09
+## [v0.9.1] - 2026-08-09
 
 _What's Behind The Door_
 
@@ -59,7 +72,7 @@ _What's Behind The Door_
 - **The doorway planner was developed against a simulation that loads its own source, and that simulation found five bugs that syntax checking could not.** In order: `dir` declared inside the facing-search loop but referenced after it (a hard `ReferenceError` on the first door planted); a later plan's seal walling in an earlier door's approach (4,219 cases); a run winding back to seal its own approach (2,827); the terminus landing on the run's own approach (60); and corridors running alongside another door's approach, letting the player walk in beside a door rather than through it (832, then a further 127 when the run's first cell escaped the same check). All five would have shipped as doors sealed into walls or corridors you could sidestep.
 - **Two known limits, both deliberate.** Extending a breach crawl or planting a doorway consumes `random()` draws that the previous code didn't, so chunks containing either will generate differently on an existing seed — the same is already true of the artery exclusion. And the merged VAR screen re-renders the whole list on every edit, because an edit can migrate an entry between stores and change its resolved preview, so focus leaves the field after a change.
 
-## [v0.9.1] - 2026-08-09
+## [v0.9.0] - 2026-08-09
 
 _The Airlock Autopsy_
 
@@ -74,7 +87,7 @@ _The Airlock Autopsy_
 - **Pre-building Atrium's materials at boot was tried and measured to not help.** A `prewarmSectorShaders()` pass built one full, real Atrium chunk in reserved, unreachable coordinates during the boot loading screen specifically to force those dozen materials through `compile()` early, then fully evicted it afterward (including from `discoveredSectors`/`_macroChunkHashes`, which normal chunk eviction deliberately never touches — the Compass reads those to keep pointing at sectors that scrolled out of range, so a leftover fake entry there would eventually point a player at a location a million units out). It added a consistent 8-10s to every boot. Re-tested against a genuine, later, real Atrium entry anyway: still a 10s stall. Compiled shader programs in this three.js build are keyed in part by the live light/shadow state at compile time, which is unavoidably different at boot (before a single real frame has run, every pooled light still at its just-constructed default) than mid-playthrough — so the same material still needed a fresh program on first real entry regardless. Chasing an exact match for that state felt like a good way to trade a known, bounded boot delay for an unproven, fragile fix, so the prewarm was pulled in favor of the freeze-screen fix above: it doesn't make the compile faster, but it makes the wait honest, and it covers every sector's first-entry cost, not just Atrium's.
 - **A ~2-3 second stall was also observed on plain, non-sector chunks, independent of Atrium, at roughly a 2% rate across several hundred sampled builds in totally different regions of the seed.** Same underlying mechanism suspected — a chunk whose particular roll of blueprints happens to introduce a material combination the scene hasn't compiled yet — but not yet isolated to a specific blueprint. Worth a follow-up pass with the same isolate-and-time approach used here if it turns out to be a frequent enough player complaint on its own.
 
-## [v0.9.0] - 2026-08-09
+## [v0.8.8] - 2026-08-09
 
 _The Load-Bearing Update_
 

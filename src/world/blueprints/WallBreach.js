@@ -11,7 +11,7 @@ export const WallBreachProfile = (env, ctx) => {
         prob: 0,
         build: (x, z, isWallCell) => {
             const breachType = random();
-            const isRotated = isWallCell(x - 1, z) || isWallCell(x + 1, z);
+            const isRotated = isWallCell(x, z - 1) || isWallCell(x, z + 1);
             const rot = isRotated ? Math.PI / 2 : 0;
             const px = x * env.cellSize;
             const pz = z * env.cellSize;
