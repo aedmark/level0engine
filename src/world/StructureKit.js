@@ -373,6 +373,23 @@ export default class StructureKit {
                     );
                     grate.position.set(blocksX ? 0 : width / 2, 0, blocksX ? width / 2 : 0);
                     pivot.add(grate);
+                    
+                    if (opts.isMiniDoor) {
+                        const handleGeo = new THREE.BoxGeometry(
+                            blocksX ? thickness + 0.1 : 0.04, 
+                            0.15, 
+                            blocksX ? 0.04 : thickness + 0.1
+                        );
+                        const handleMat = env.metalMat || mat;
+                        const handle = new THREE.Mesh(handleGeo, handleMat);
+                        handle.position.set(
+                            blocksX ? 0 : width / 2 - 0.15, 
+                            0, 
+                            blocksX ? width / 2 - 0.15 : 0
+                        );
+                        grate.add(handle);
+                    }
+                    
                     pivot.userData.chunkHash = hash;
                     chunkGroup.add(pivot);
                     pivot.updateMatrixWorld(true);
