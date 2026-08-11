@@ -487,7 +487,7 @@ export default class PlayerController {
         const moveX = vx * cosY + vz * sinY;
         const moveZ = -vx * sinY + vz * cosY;
         const visualHeight = this.isCrawling ? 0.3 : (this.isCrouching ? 0.8 : 1.6);
-        const physicalTop = this.isCrawling ? 0.55 : (this.isCrouching ? 1.2 : 2.5);
+        const physicalTop = this.isCrawling ? 0.50 : (this.isCrouching ? 1.2 : 2.5);
         const feetY = this.camera.position.y - visualHeight;
         const snagShrink = this.isSqueezing ? 0.02 : 0.15;
         const stepOffset = this.isCrawling ? 0.2 : 0.5;
@@ -508,6 +508,7 @@ export default class PlayerController {
         for (let i = 0, len = localBoxes.length; i < len; i++) {
             const box = localBoxes[i];
             if (box.isInvisibleBlocker) continue;
+            if (box.isGrate && !box.meshRef.userData.active) continue;
             const isVerticallyRelevant = (box.min.y <= feetY + physicalTop && box.max.y >= feetY - 10.0);
             if (!isVerticallyRelevant && !box.isVoid) continue;
             if (box.isVoid && this._floorBox.intersectsBox(box)) {

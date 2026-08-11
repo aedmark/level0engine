@@ -220,6 +220,23 @@ export const DuctOrVentProfile = (env, ctx) => {
                     hubRoofLining.position.set(cx, ductY + holeH - liningT / 2, cz);
                     addGeometry(hubRoofLining);
 
+                    // Add corner linings to prevent snagging
+                    const cLining1 = buildWall(liningT, liningT, env.ductMat, holeH, 0);
+                    cLining1.position.set(cx - holeW / 2 + liningT / 2, ductY + holeH / 2, cz - holeW / 2 + liningT / 2);
+                    addGeometry(cLining1);
+                    
+                    const cLining2 = buildWall(liningT, liningT, env.ductMat, holeH, 0);
+                    cLining2.position.set(cx + holeW / 2 - liningT / 2, ductY + holeH / 2, cz - holeW / 2 + liningT / 2);
+                    addGeometry(cLining2);
+                    
+                    const cLining3 = buildWall(liningT, liningT, env.ductMat, holeH, 0);
+                    cLining3.position.set(cx - holeW / 2 + liningT / 2, ductY + holeH / 2, cz + holeW / 2 - liningT / 2);
+                    addGeometry(cLining3);
+                    
+                    const cLining4 = buildWall(liningT, liningT, env.ductMat, holeH, 0);
+                    cLining4.position.set(cx + holeW / 2 - liningT / 2, ductY + holeH / 2, cz + holeW / 2 - liningT / 2);
+                    addGeometry(cLining4);
+
                     const branches = [
                         {dir: 'N', conn: nConn, x: cx, z: cz - sideOffset, w: holeW, d: sideW, isZ: false},
                         {dir: 'S', conn: sConn, x: cx, z: cz + sideOffset, w: holeW, d: sideW, isZ: false},

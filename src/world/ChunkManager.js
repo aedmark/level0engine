@@ -1097,6 +1097,10 @@ export default class ChunkManager {
         const { x, z, env, ctx, random, hash, chunkGroup, localX, localZ, isWallCell, isSolidWallCell, breakerPositions } = args;
         let hasTallObstacle = false;
 
+        if (ctx.isOccupied && ctx.isOccupied(x, z)) {
+            hasTallObstacle = true;
+        }
+
         if (!state.spawnedVirtualBreaker && env._virtualBreaker && env._virtualBreaker.chunkHash === hash && !env._virtualBreaker.spawned) {
             spawnBreakerPodium(env, ctx, x, z);
             env._virtualBreaker.spawned = true;
