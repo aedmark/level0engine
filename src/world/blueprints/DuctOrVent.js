@@ -299,6 +299,58 @@ export const DuctOrVentProfile = (env, ctx) => {
                         if (cell.exits.E) ctx.addGrate(cx + grateOffset, ductY + holeH / 2, cz, true);
                         if (cell.exits.W) ctx.addGrate(cx - grateOffset, ductY + holeH / 2, cz, true);
                     }
+
+                    const BASEBOARD_H = 3.0 * (32 / 512);
+                    const TRIM_H = 3.0 * (4 / 512);
+                    const addManualBaseboardFace = (px, pz, length, isX) => {
+                        const bw = isX ? length : 0.06;
+                        const bd = isX ? 0.06 : length;
+                        
+                        const geoBody = env._boxGeo ? env._boxGeo(bw, BASEBOARD_H, bd) : new THREE.BoxGeometry(bw, BASEBOARD_H, bd);
+                        const body = new THREE.Mesh(geoBody, env.baseboardMat);
+                        body.position.set(px, BASEBOARD_H / 2, pz);
+                        body.userData.noCollision = true;
+                        ctx.addGeometry(body);
+
+                        const geoTrim = env._boxGeo ? env._boxGeo(bw, TRIM_H, bd) : new THREE.BoxGeometry(bw, TRIM_H, bd);
+                        const trim = new THREE.Mesh(geoTrim, env.baseboardTrimMat);
+                        trim.position.set(px, BASEBOARD_H + TRIM_H / 2, pz);
+                        trim.userData.noCollision = true;
+                        ctx.addGeometry(trim);
+                    };
+
+                    if (!cell.connections.N) {
+                        if (!cell.exits.N) {
+                            addManualBaseboardFace(cx, cz - 1.5, 3.06, true);
+                        } else {
+                            addManualBaseboardFace(cx - 1.5 + sideW/2, cz - 1.5, sideW + 0.06, true);
+                            addManualBaseboardFace(cx + 1.5 - sideW/2, cz - 1.5, sideW + 0.06, true);
+                        }
+                    }
+                    if (!cell.connections.S) {
+                        if (!cell.exits.S) {
+                            addManualBaseboardFace(cx, cz + 1.5, 3.06, true);
+                        } else {
+                            addManualBaseboardFace(cx - 1.5 + sideW/2, cz + 1.5, sideW + 0.06, true);
+                            addManualBaseboardFace(cx + 1.5 - sideW/2, cz + 1.5, sideW + 0.06, true);
+                        }
+                    }
+                    if (!cell.connections.E) {
+                        if (!cell.exits.E) {
+                            addManualBaseboardFace(cx + 1.5, cz, 3.06, false);
+                        } else {
+                            addManualBaseboardFace(cx + 1.5, cz - 1.5 + sideW/2, sideW + 0.06, false);
+                            addManualBaseboardFace(cx + 1.5, cz + 1.5 - sideW/2, sideW + 0.06, false);
+                        }
+                    }
+                    if (!cell.connections.W) {
+                        if (!cell.exits.W) {
+                            addManualBaseboardFace(cx - 1.5, cz, 3.06, false);
+                        } else {
+                            addManualBaseboardFace(cx - 1.5, cz - 1.5 + sideW/2, sideW + 0.06, false);
+                            addManualBaseboardFace(cx - 1.5, cz + 1.5 - sideW/2, sideW + 0.06, false);
+                        }
+                    }
                 }
             } else {
                 const wall = buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
