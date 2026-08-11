@@ -921,7 +921,14 @@ export default class ChunkManager {
                     const nextPlan = chainBudget-- > 0
                         ? this._planDoorwayRun(ctx, random, t.cx, t.cz, t.heading, inChunk, cellKey, reserved, approaches, RUN_MIN, RUN_MAX)
                         : null;
-                    if (!nextPlan) break;
+                    if (!nextPlan) {
+                        const exits = ["CRAWLSPACE_HALL", "breach", "DUCT OR VENT", "CREVICE_HALL"];
+                        t.name = exits[Math.floor(random() * exits.length)];
+                        ctx.setWall(t.cx, t.cz, t.name === "DUCT OR VENT");
+                        ctx.forceStructure(t.cx, t.cz, t.name);
+                        reserved.add(key(t.cx, t.cz));
+                        break;
+                    }
                     apply(nextPlan, t.cx, t.cz, t.heading);
                     pending = nextPlan.terminus;
                 }
@@ -1046,7 +1053,7 @@ export default class ChunkManager {
             if (endRoll > 0.60) {
                 terminus = {cx: beyond.cx, cz: beyond.cz, name: "HINGED DOORWAY", heading};
             } else if (endRoll > 0.05) {
-                const exits = ["CRAWLSPACE_HALL", "breach", "DUCT OR VENT", "crevice"];
+                const exits = ["CRAWLSPACE_HALL", "breach", "DUCT OR VENT", "CREVICE_HALL"];
                 terminus = {cx: beyond.cx, cz: beyond.cz, name: exits[Math.floor(random() * exits.length)], heading};
             }
         }

@@ -49,6 +49,10 @@ export default class PaintballGun {
             if (this.raised && this.recoil < 0.1) { // Basic fire rate limit
                 this.recoil = 1.0;
                 
+                document.dispatchEvent(new CustomEvent('somatic-paint-pew', {
+                    detail: {distSq: 0, intensity: 0.8}
+                }));
+                
                 if (window.paintballSystem) {
                     // Update world matrix first to ensure accuracy
                     this.group.updateMatrixWorld();

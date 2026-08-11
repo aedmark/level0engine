@@ -23,21 +23,25 @@ export const CreviceHallProfile = (env, ctx) => {
                 const w1 = buildWall(wallThickness, env.cellSize, env.sharedWallMat);
                 w1.position.set(cx - (env.cellSize/2) + (wallThickness/2), 1.5, cz);
                 w1.userData.isEntityBlocker = true;
+                delete w1.userData.baseboardFootprint;
                 addGeometry(w1);
                 
                 const w2 = buildWall(wallThickness, env.cellSize, env.sharedWallMat);
                 w2.position.set(cx + (env.cellSize/2) - (wallThickness/2), 1.5, cz);
                 w2.userData.isEntityBlocker = true;
+                delete w2.userData.baseboardFootprint;
                 addGeometry(w2);
             } else if (pathX && !pathZ) {
                 const w1 = buildWall(env.cellSize, wallThickness, env.sharedWallMat);
                 w1.position.set(cx, 1.5, cz - (env.cellSize/2) + (wallThickness/2));
                 w1.userData.isEntityBlocker = true;
+                delete w1.userData.baseboardFootprint;
                 addGeometry(w1);
                 
                 const w2 = buildWall(env.cellSize, wallThickness, env.sharedWallMat);
                 w2.position.set(cx, 1.5, cz + (env.cellSize/2) - (wallThickness/2));
                 w2.userData.isEntityBlocker = true;
+                delete w2.userData.baseboardFootprint;
                 addGeometry(w2);
             } else {
                 const pillarSize = 1.8;
@@ -47,6 +51,7 @@ export const CreviceHallProfile = (env, ctx) => {
 
                 p.rotation.y = ctx.random() * Math.PI;
                 p.updateMatrixWorld();
+                delete p.userData.baseboardFootprint;
                 addGeometry(p);
             }
         }

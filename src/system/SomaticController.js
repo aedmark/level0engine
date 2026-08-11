@@ -22,6 +22,8 @@ export default class SomaticController {
         document.addEventListener('somatic-airlock-hiss', (e) => this.acoustics.triggerSomaticEvent('airlock_hiss', e.detail.distSq, e.detail.intensity));
         document.addEventListener('somatic-valve', (e) => this.acoustics.triggerSomaticEvent('valve_turn', e.detail.distSq, e.detail.intensity));
         document.addEventListener('somatic-vent', (e) => this.acoustics.triggerSomaticEvent('vent', e.detail.distSq, e.detail.intensity));
+        document.addEventListener('somatic-paint-pew', (e) => this.acoustics.triggerSomaticEvent('paint_pew', e.detail.distSq, e.detail.intensity));
+        document.addEventListener('somatic-paint-splat', (e) => this.acoustics.triggerSomaticEvent('paint_splat', e.detail.distSq, e.detail.intensity));
         document.addEventListener('somatic-lost', (e) => this.acoustics.triggerSomaticEvent(e.detail.isLaugh ? 'laugh' : 'whisper', e.detail.distSq, e.detail.intensity));
         document.addEventListener('somatic-blink', () => {
             const flash = document.getElementById('flash-overlay');

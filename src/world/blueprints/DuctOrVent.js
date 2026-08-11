@@ -8,8 +8,8 @@ export const DuctOrVentProfile = (env, ctx) => {
         prob: 0.20, build: (x, z) => {
             let isFloorLevel = random() > 0.75;
             const addGeometry = (mesh) => {
-                if (isFloorLevel && mesh.userData.isSectorWall) {
-                    mesh.userData.isSectorWall = false;
+                if (isFloorLevel && mesh.userData.baseboardFootprint) {
+                    delete mesh.userData.baseboardFootprint;
                 }
                 ctx.addGeometry(mesh);
             };

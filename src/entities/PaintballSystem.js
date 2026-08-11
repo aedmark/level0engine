@@ -181,6 +181,13 @@ export default class PaintballSystem {
             
             if (hitPoint) {
                 this._createSplatter(hitPoint, hitNormal, pb.color);
+                
+                const cam = this.engine.camera;
+                const distSq = cam ? hitPoint.distanceToSquared(cam.position) : 0;
+                document.dispatchEvent(new CustomEvent('somatic-paint-splat', {
+                    detail: {distSq: distSq, intensity: 0.8}
+                }));
+                
                 this.ballGroup.remove(pb.mesh);
                 this.paintballs.splice(i, 1);
             } else {
