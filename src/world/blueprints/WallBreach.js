@@ -107,18 +107,43 @@ export const WallBreachProfile = (env, ctx) => {
                 const faceOffset = (env.cellSize / 2) - 0.04;
                 const isBreach = (bx, bz) => ctx.getForcedStructure && ctx.getForcedStructure(bx, bz) === 'breach';
 
+                const frameMat = env.woodMat || env.sharedWallMat;
+                const frameD = 0.1;
+                const frameT = GRATE_GAP / 2;
+                const doorW = OPENING_W - GRATE_GAP;
+                const doorH = (HEAD_Y - SILL_H) - GRATE_GAP;
+
                 const addDoor = (isX, sign) => {
                     const px = ccx + (isX ? sign * faceOffset : 0);
                     const pz = ccz + (isX ? 0 : sign * faceOffset);
+                    
                     ctx.addGrate(px, (SILL_H + HEAD_Y) / 2, pz, isX, {
-                        width: snap(OPENING_W - GRATE_GAP),
-                        height: snap((HEAD_Y - SILL_H) - GRATE_GAP),
+                        width: snap(doorW),
+                        height: snap(doorH),
                         thickness: 0.1,
                         hinged: true,
                         openSign: isX ? sign : -sign,
                         mat: env.doorMat,
                         isMiniDoor: true
                     });
+
+                    const addTrim = (tw, th, tx, ty, tz) => {
+                        const trim = buildWall(isX ? frameD : tw, isX ? tw : frameD, frameMat, th, ty);
+                        trim.position.set(ccx + tx, ty + th / 2, ccz + tz);
+                        trim.userData.isEntityBlocker = true;
+                        ctx.addGeometry(trim);
+                    };
+
+                    const frameDepthOffset = sign * faceOffset;
+                    const jambX = isX ? frameDepthOffset : 0;
+                    const jambZ = isX ? 0 : frameDepthOffset;
+                    const sideOffset = OPENING_W / 2 - frameT / 2;
+                    
+                    addTrim(frameT, doorH, jambX + (isX ? 0 : sideOffset), SILL_H + frameT, jambZ + (isX ? sideOffset : 0));
+                    addTrim(frameT, doorH, jambX - (isX ? 0 : sideOffset), SILL_H + frameT, jambZ - (isX ? sideOffset : 0));
+                    
+                    addTrim(OPENING_W, frameT, jambX, HEAD_Y - frameT, jambZ);
+                    addTrim(OPENING_W, frameT, jambX, SILL_H, jambZ);
                 };
 
                 if (nOpen && !isBreach(x, z - 1)) addDoor(false, -1);
