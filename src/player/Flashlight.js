@@ -1,19 +1,15 @@
 /**
- * [ROLE] Visual navigation instrument for the player.
- * [WHY] Provides diegetic guidance towards objectives (thresholds) without standard UI elements.
+ * [ROLE] Visual physical flashlight instrument for the player.
+ * [WHY] Provides diegetic flashlight holding and dynamic beam swaying.
  * [STATE] Stateful, tracks orientation, physics swaying, and visual meshes.
- * [DEPENDS] Three.js (THREE), engine camera, player velocity, DOM events for toggling.
+ * [DEPENDS] Three.js (THREE), engine camera, player velocity, environment spot light.
  */
-import AABB from '../math/AABB.js';
 
-export default class Compass {
+export default class Flashlight {
     constructor(engine, environment, player) {
         this.engine = engine;
         this.environment = environment;
         this.player = player;
-        this.angle = 0;
-        this.angVel = 0;
-        this.hasFix = false;
         this._swayX = 0;
         this._swayY = 0;
         this._swayZ = 0;
@@ -23,22 +19,8 @@ export default class Compass {
         this._trailPitch = 0;
         this._tuck = 0;
         this._probeVec = new THREE.Vector3();
-        this._probeDir = new THREE.Vector3();
-        this._probeHit = new THREE.Vector3();
-        this._fallbackBearing = Math.random() * Math.PI * 2;
-        this.raised = true;
         this.stow = 0;
         this._build();
-        document.addEventListener('somatic-toggle-compass', () => {
-            if (this.player.input && this.player.input.state.isReading) return;
-            this.raised = !this.raised;
-            if (this.raised && this.player.input && this.player.input.state.flashlightActive) {
-                this.player.input.state.flashlightActive = false;
-            }
-        });
-        document.addEventListener('somatic-stow-compass', () => {
-            this.raised = false;
-        });
     }
 
     _skinTexture() {
@@ -122,11 +104,12 @@ export default class Compass {
         heel.position.set(0.004, -0.062, -0.038);
         hand.add(heel);
 
+        // Fingers curled around a flashlight body
         const FINGERS = [
-            {x: -0.030, len: [0.040, 0.030, 0.022], curl: [0.52, 0.92, 0.86], r: 0.0125, y: 0.055},
-            {x: 0.002, len: [0.044, 0.033, 0.024], curl: [0.48, 0.95, 0.90], r: 0.0130, y: 0.057},
-            {x: 0.033, len: [0.041, 0.031, 0.022], curl: [0.53, 0.97, 0.88], r: 0.0122, y: 0.055},
-            {x: 0.061, len: [0.033, 0.025, 0.019], curl: [0.58, 1.00, 0.84], r: 0.0108, y: 0.049}
+            {x: -0.030, len: [0.040, 0.030, 0.022], curl: [1.2, 1.3, 1.1], r: 0.0125, y: 0.055},
+            {x: 0.002, len: [0.044, 0.033, 0.024], curl: [1.25, 1.3, 1.15], r: 0.0130, y: 0.057},
+            {x: 0.033, len: [0.041, 0.031, 0.022], curl: [1.25, 1.35, 1.15], r: 0.0122, y: 0.055},
+            {x: 0.061, len: [0.033, 0.025, 0.019], curl: [1.3, 1.4, 1.2], r: 0.0108, y: 0.049}
         ];
         for (const f of FINGERS) {
             const finger = this._finger(f.len, f.curl, f.r, skin);
@@ -135,9 +118,10 @@ export default class Compass {
             hand.add(finger);
         }
 
-        const thumb = this._finger([0.048, 0.032], [0.0, 0.62], 0.0155, skin);
-        thumb.position.set(-0.086, -0.030, -0.024);
-        thumb.rotation.set(0.35, 0.18, 0.0);
+        // Thumb curled over the top/side
+        const thumb = this._finger([0.048, 0.032], [0.8, 0.62], 0.0155, skin);
+        thumb.position.set(-0.086, -0.010, -0.024);
+        thumb.rotation.set(0.35, 0.18, -1.0);
         hand.add(thumb);
 
         const forearm = new THREE.Group();
@@ -164,181 +148,53 @@ export default class Compass {
         return hand;
     }
 
-    _dialTexture() {
-        const S = 256;
-        const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = S;
-        const c = canvas.getContext('2d');
-        const r = S / 2;
-        c.fillStyle = '#0b0a08';
-        c.fillRect(0, 0, S, S);
-        const face = c.createRadialGradient(r, r * 0.82, 4, r, r, r);
-        face.addColorStop(0, '#d9cfb2');
-        face.addColorStop(0.72, '#bdb08e');
-        face.addColorStop(1, '#8e8468');
-        c.beginPath();
-        c.arc(r, r, r - 6, 0, Math.PI * 2);
-        c.fillStyle = face;
-        c.fill();
-        for (let i = 0; i < 90; i++) {
-            const a = Math.random() * Math.PI * 2;
-            const d = Math.random() * (r - 12);
-            const rad = 1 + Math.random() * 5;
-            c.beginPath();
-            c.arc(r + Math.cos(a) * d, r + Math.sin(a) * d, rad, 0, Math.PI * 2);
-            c.fillStyle = `rgba(96,74,44,${(0.02 + Math.random() * 0.05).toFixed(3)})`;
-            c.fill();
-        }
-        c.strokeStyle = '#3a3225';
-        c.lineWidth = 3;
-        c.beginPath();
-        c.arc(r, r, r - 7, 0, Math.PI * 2);
-        c.stroke();
-        for (let i = 0; i < 72; i++) {
-            const a = (i / 72) * Math.PI * 2 - Math.PI / 2;
-            const major = i % 6 === 0;
-            const len = major ? 15 : (i % 2 === 0 ? 9 : 5);
-            const inner = r - 12 - len;
-            c.strokeStyle = major ? '#2b2318' : '#4a4030';
-            c.lineWidth = major ? 3 : 1.4;
-            c.beginPath();
-            c.moveTo(r + Math.cos(a) * inner, r + Math.sin(a) * inner);
-            c.lineTo(r + Math.cos(a) * (r - 12), r + Math.sin(a) * (r - 12));
-            c.stroke();
-        }
-        c.fillStyle = '#241d13';
-        c.textAlign = 'center';
-        c.textBaseline = 'middle';
-        const marks = [['N', 0], ['E', 90], ['S', 180], ['W', 270]];
-        for (const [ch, deg] of marks) {
-            const a = (deg / 180) * Math.PI - Math.PI / 2;
-            c.font = `${ch === 'N' ? 'bold ' : ''}30px monospace`;
-            c.fillText(ch, r + Math.cos(a) * (r - 42), r + Math.sin(a) * (r - 42));
-        }
-        c.font = '11px monospace';
-        c.fillStyle = 'rgba(36,29,19,0.75)';
-        c.fillText('THRESHOLD', r, r + 40);
-        c.font = '9px monospace';
-        c.fillText('LVL 0 FACILITIES', r, r + 56);
-        const tex = new THREE.CanvasTexture(canvas);
-        tex.anisotropy = 4;
-        return tex;
-    }
-
     _build() {
         const cam = this.engine.camera;
-        if (!cam.parent) this.engine.scene.add(cam);
 
         this.group = new THREE.Group();
-        const brass = new THREE.MeshStandardMaterial({
-            color: 0x8a6a2c, roughness: 0.44, metalness: 0.92,
-            emissive: 0x140d02, emissiveIntensity: 0.5
+        const metal = new THREE.MeshStandardMaterial({
+            color: 0x333333, roughness: 0.6, metalness: 0.8,
+            emissive: 0x050505, emissiveIntensity: 0.5
         });
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.09, 0.022, 28), brass);
+        const rubber = new THREE.MeshStandardMaterial({
+            color: 0x111111, roughness: 0.9, metalness: 0.1
+        });
+        
+        // Flashlight body
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.2, 16), metal);
         body.rotation.x = Math.PI / 2;
         this.group.add(body);
-        const bezel = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.008, 8, 28), brass);
-        this.group.add(bezel);
-        const lug = new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.005, 6, 14), brass);
-        lug.position.set(0, 0.098, 0);
-        this.group.add(lug);
 
-        const dial = new THREE.Mesh(
-            new THREE.CircleGeometry(0.079, 32),
-            new THREE.MeshStandardMaterial({
-                map: this._dialTexture(),
-                roughness: 0.9,
-                emissive: 0xffffff,
-                emissiveIntensity: 0.16
-            })
-        );
-        dial.position.z = 0.012;
-        this.group.add(dial);
+        // Flashlight head (flares out towards -Z)
+        const head = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.045, 0.06, 16), metal);
+        head.position.z = -0.13;
+        head.rotation.x = Math.PI / 2;
+        this.group.add(head);
 
-        this.needle = new THREE.Group();
-        this.needle.position.z = 0.016;
-        const north = new THREE.Mesh(
-            new THREE.BoxGeometry(0.008, 0.062, 0.003),
-            new THREE.MeshStandardMaterial({
-                color: 0x8d2418, roughness: 0.6,
-                emissive: 0x6e3b1a, emissiveIntensity: 0.85
-            })
-        );
-        north.position.y = 0.031;
-        this.needle.add(north);
-        const south = new THREE.Mesh(
-            new THREE.BoxGeometry(0.008, 0.052, 0.003),
-            new THREE.MeshStandardMaterial({
-                color: 0xb9b3a2, roughness: 0.7,
-                emissive: 0x2a2820, emissiveIntensity: 0.4
-            })
-        );
-        south.position.y = -0.026;
-        this.needle.add(south);
-        this.group.add(this.needle);
-        const pin = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.006, 0.006, 0.006, 10),
-            new THREE.MeshStandardMaterial({color: 0x5d5346, roughness: 0.35, metalness: 0.9})
-        );
-        pin.rotation.x = Math.PI / 2;
-        pin.position.z = 0.019;
-        this.group.add(pin);
+        // Rubber grip
+        const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.1, 16), rubber);
+        grip.rotation.x = Math.PI / 2;
+        grip.position.z = 0.02;
+        this.group.add(grip);
 
-        const glass = new THREE.Mesh(
-            new THREE.CircleGeometry(0.082, 32),
-            new THREE.MeshStandardMaterial({
-                color: 0xcfd6d2, roughness: 0.06, metalness: 0.1,
-                transparent: true, opacity: 0.17
-            })
-        );
-        glass.position.z = 0.022;
-        this.group.add(glass);
+        // The spotlight is updated in the update() loop to match the rig's matrix.
 
         this.rig = new THREE.Group();
         this.rig.add(this.group);
-        this.rig.add(this._buildHand());
-        this.rig.position.set(0.30, -0.32, -0.62);
-        this.rig.rotation.set(-0.52, -0.30, 0.12);
+        const hand = this._buildHand();
+        // Rotate hand to wrap fingers around the Z-axis cylinder
+        hand.rotation.set(Math.PI / 6, -Math.PI / 2, 0); 
+        hand.position.set(-0.025, -0.05, 0.05);
+        this.rig.add(hand);
+        
+        // Positioned slightly off-center like the compass, but pointing mostly forward
+        this.rig.position.set(0.35, -0.35, -0.45);
+        this.rig.rotation.set(0, 0.15, 0.05); // Slight inward angle
         this.basePos = this.rig.position.clone();
         this.baseRot = this.rig.rotation.clone();
         this.rig.visible = false;
-        cam.add(this.rig);
-    }
-
-    _nearestThreshold() {
-        const env = this.environment;
-        const p = this.engine.camera.position;
-        let best = null, bestSq = Infinity;
-        const consider = (minX, maxX, minZ, maxZ) => {
-            const nx = Math.max(minX, Math.min(p.x, maxX));
-            const nz = Math.max(minZ, Math.min(p.z, maxZ));
-            const dx = p.x - nx, dz = p.z - nz;
-            const dSq = dx * dx + dz * dz;
-            if (dSq < bestSq) {
-                bestSq = dSq;
-                best = {x: nx, z: nz};
-            }
-        };
-        if (env.macroZones) {
-            for (const zone of env.macroZones.values()) {
-                consider(zone.minX, zone.maxX, zone.minZ, zone.maxZ);
-            }
-        }
-        const claimed = env._macroChunkHashes;
-        if (claimed && claimed.size > 0) {
-            for (const key of claimed) {
-                if (env.macroZones && env.macroZones.has(key)) continue;
-                const comma = key.indexOf(',');
-                if (comma < 1) continue;
-                const cx = parseInt(key.slice(0, comma), 10);
-                const cz = parseInt(key.slice(comma + 1), 10);
-                if (!Number.isFinite(cx) || !Number.isFinite(cz)) continue;
-                const ox = cx * env.chunkSize * env.cellSize;
-                const oz = cz * env.chunkSize * env.cellSize;
-                consider(ox + 2, ox + 58, oz + 2, oz + 58);
-            }
-        }
-        return best;
+        
+        if (cam) cam.add(this.rig);
     }
 
     _proximityTuck(cam) {
@@ -352,7 +208,7 @@ export default class Compass {
         const cy = cam.position.y + this._probeVec.y;
         const cz = cam.position.z + this._probeVec.z;
 
-        const REACH = 0.50; 
+        const REACH = 0.60; 
         const CLEAR = 0.15; 
 
         const boxes = env.spatialGrid.getNearby(cx, cz, REACH + 0.5);
@@ -383,9 +239,12 @@ export default class Compass {
         if (!this.rig) return;
         const dt = Math.min(delta, 0.05);
         const cam = this.engine.camera;
+        
+        const isRaised = this.player.flashlightActive && this.player.flashlightBattery > 0;
+        
         const blocked = this.player.isDead ||
             (this.player.input && this.player.input.state.isReading);
-        const wantStow = (this.raised && !blocked) ? 1 : 0;
+        const wantStow = (isRaised && !blocked) ? 1 : 0;
         const rate = wantStow > this.stow ? 5.2 : 6.8;
         this.stow += (wantStow - this.stow) * Math.min(1, dt * rate);
 
@@ -437,30 +296,10 @@ export default class Compass {
             this.baseRot.z + roll + swingRoll - this._trailYaw * 0.022
         );
 
-        const target = this._nearestThreshold();
-        this.hasFix = target !== null;
-        let want;
-        if (target) {
-            const bearing = Math.atan2(target.x - cam.position.x, target.z - cam.position.z);
-            want = bearing - cam.rotation.y - Math.PI;
-        } else {
-            want = this._fallbackBearing - cam.rotation.y - Math.PI;
-        }
-        let diff = want - this.angle;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-
-        const stiffness = target ? 26.0 : 6.0;
-        const damping = target ? 6.4 : 3.0;
         const speed = Math.sqrt(
             this.player.velocity.x * this.player.velocity.x +
             this.player.velocity.z * this.player.velocity.z
         );
-
-        const jostle = Math.sin(this.engine.time * 11.0) * 0.004 * gait;
-        this.angVel += (diff * stiffness - this.angVel * damping) * dt;
-        this.angle += (this.angVel + jostle) * dt;
-        this.needle.rotation.z = this.angle;
 
         const sinY = Math.sin(cam.rotation.y), cosY = Math.cos(cam.rotation.y);
         const vRight = this.player.velocity.x * cosY - this.player.velocity.z * sinY;
@@ -479,5 +318,23 @@ export default class Compass {
             this.basePos.y + this._swayY + swingY + counterBob - this._trailPitch * 0.008 - drop,
             this.basePos.z + this._swayZ + pullIn
         );
+
+        if (this.environment.flashlight) {
+            this.rig.updateMatrix();
+            const spot = this.environment.flashlight;
+            // The flashlight head is around -0.15 on the Z axis of the rig's local space
+            const localHead = new THREE.Vector3(0, 0, -0.15);
+            // The target should be far ahead on the Z axis
+            const localTarget = new THREE.Vector3(0, 0, -10.0);
+            
+            // Transform these points from the rig's local space to the camera's local space
+            localHead.applyMatrix4(this.rig.matrix);
+            localTarget.applyMatrix4(this.rig.matrix);
+
+            // Set the spot light properties (which are attached to the camera)
+            spot.position.copy(localHead);
+            spot.target.position.copy(localTarget);
+            spot.target.updateMatrixWorld();
+        }
     }
 }

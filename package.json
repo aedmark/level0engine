@@ -7,5 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "type": "module",
-  "private": true
+  "private": true,
+  "dependencies": {
+    "three": "^0.185.1"
+  }
 }

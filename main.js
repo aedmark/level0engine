@@ -7,6 +7,9 @@
 import RenderEngine from './src/core/RenderEngine.js';
 import PlayerController from './src/player/PlayerController.js';
 import Compass from './src/player/Compass.js';
+import Flashlight from './src/player/Flashlight.js';
+import PaintballGun from './src/player/PaintballGun.js';
+import PaintballSystem from './src/entities/PaintballSystem.js';
 import Environment from './src/core/Environment.js';
 import AcousticEngine from './src/audio/AcousticEngine.js';
 import StoryEngine from './src/narrative/StoryEngine.js';
@@ -27,6 +30,10 @@ const player = new PlayerController(engine.camera, engine.renderer.domElement);
 const environment = new Environment(engine, player);
 window.environment = environment;
 const compass = new Compass(engine, environment, player);
+const flashlight = new Flashlight(engine, environment, player);
+const paintballSystem = new PaintballSystem(engine, environment);
+window.paintballSystem = paintballSystem;
+const paintballGun = new PaintballGun(engine, environment, player);
 let sectorHuntActive = false;
 const saveManager = new SaveManager(engine, player, environment, acoustics);
 const somatic = new SomaticController(acoustics);
@@ -246,6 +253,9 @@ function animate() {
     }
     player.update(delta, environment.spatialGrid);
     compass.update(delta);
+    flashlight.update(delta);
+    paintballGun.update(delta);
+    paintballSystem.update(delta);
     if (engine.camera.position.y > 2.8 && player.onWarpZone && !environment.isSpawning) {
         environment.generate(true);
         return;

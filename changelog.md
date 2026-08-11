@@ -4,6 +4,11 @@
 
 _Structural Guarantees & Narrative Exhaustion_
 
+### Changed
+
+- **[VISUALS] Retro FPS Weapon Aesthetics:** The `PaintballGun` model has been stripped of its distracting on-screen hand geometry to achieve a classic, minimalist DOOM-style appearance. The lower receiver (grip and trigger) has been retained but the entire weapon `basePos` has been shifted downwards on the screen (from Y `-0.22` to `-0.35`) so that the empty grip sits cleanly out of frame, focusing the player's view entirely on the barrel and slide mechanics.
+- **[VISUALS] Lowered Compass Interface:** The `Compass` instrument has been adjusted to sit lower on the player's screen (Y shifted from `-0.235` to `-0.32`), creating a more flush alignment with the newly lowered weapon layout and freeing up central screen real estate.
+
 ### Fixed
 
 - **[WORLD] Duct Networks No Longer Tunnel Into Occupied Space:** The `DuctOrVent` blueprint builds its layout via a breadth-first search into adjacent wall cells. However, it was indiscriminately claiming cells that had already been processed and built upon by the chunk manager in earlier iterations. This resulted in duct geometry projecting directly through solid wall blocks and other solid structures. The BFS now explicitly respects the `ctx.isOccupied` state of adjacent cells, treating them as dead ends and properly capping the vent run with a metal grate.

@@ -75,6 +75,9 @@ export default class SomaticInput {
                 return;
             }
             if (this.lockFallback && e.button === 0 && !this.state.isReading) this._dragLook = true;
+            if ((this.isLocked || this.lockFallback) && e.button === 0 && !this.state.isReading) {
+                document.dispatchEvent(new Event('somatic-shoot'));
+            }
             if ((this.isLocked || this.lockFallback) && e.button === 2) this.state.isPeeking = true;
         });
         document.addEventListener('mouseup', (e) => {
@@ -114,6 +117,10 @@ export default class SomaticInput {
         }
         if (event.code === 'KeyF') {
             this.state.flashlightActive = !this.state.flashlightActive;
+            if (this.state.flashlightActive) {
+                document.dispatchEvent(new Event('somatic-stow-compass'));
+                document.dispatchEvent(new Event('somatic-stow-gun'));
+            }
         }
         if (event.code === 'Digit1' && !this.state.isReading) {
             document.dispatchEvent(new Event('somatic-use-battery'));
@@ -126,6 +133,10 @@ export default class SomaticInput {
         }
         if (event.code === 'KeyM' && !this.state.isReading) {
             document.dispatchEvent(new Event('somatic-toggle-compass'));
+            document.dispatchEvent(new Event('somatic-stow-gun'));
+        }
+        if (event.code === 'KeyP' && !this.state.isReading) {
+            document.dispatchEvent(new Event('somatic-toggle-gun'));
         }
         if (event.code === 'KeyJ') {
             document.dispatchEvent(new Event('somatic-journal-toggle'));
