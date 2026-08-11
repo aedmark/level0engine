@@ -61,6 +61,7 @@ export const DebugHUD = {
     bindEvents() {
         document.addEventListener('keydown', (e) => {
             if (e.code !== 'Backquote') return;
+            if (!window.EDMARK_DEBUG_MODE) return;
             if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
             this.toggle();
         });

@@ -88,7 +88,7 @@ export default class Anomaly {
         if (!force && time < this._nextBoundsCheck) return;
         this._nextBoundsCheck = time + 3.0;
         if (!this.env || !this.env.getSectorBounds) return;
-        this._forbiddenBounds = ['ARCHIVE', 'IMPOUND', 'INCINERATOR']
+        this._forbiddenBounds = ['ARCHIVE', 'IMPOUND', 'INCINERATOR', 'BOARDROOM', 'SERVER', 'CLINIC', 'MAINTENANCE', 'CHASM', 'ATRIUM', 'ANNEX', 'CHECKPOINT']
             .map(id => this.env.getSectorBounds(id))
             .filter(Boolean);
     }
@@ -131,10 +131,17 @@ export default class Anomaly {
             return null;
         }
         if (activeSector && activeSector !== 'NORMAL') {
-            this._animate(time, delta);
+            if (this.group.visible) {
+                this.group.visible = false;
+                this.group.position.set(this.camera.position.x + 10000, -1000, this.camera.position.z + 10000);
+            }
             if (this.player.anomalyPressure > 0) this.player.anomalyPressure = 0;
             return null;
         }
+        if (!this.group.visible) {
+            this.group.visible = true;
+        }
+        
         this._refreshForbiddenBounds(time);
         const playerPos = this.camera.position;
         const distToPlayerSq = this.group.position.distanceToSquared(playerPos);
@@ -295,6 +302,7 @@ export default class Anomaly {
         if (this.env && this.env.interactiveDoors) {
             for (let i = 0; i < this.env.interactiveDoors.length; i++) {
                 const door = this.env.interactiveDoors[i];
+                if (door.userData.isAirlockDoor) continue;
                 if (this.group.position.distanceToSquared(door.position) < 16.0) {
                     door.userData.entityOpen = true;
                     door.userData.entityZ = this.group.position.z;

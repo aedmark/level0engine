@@ -51,7 +51,7 @@ export default class RenderEngine {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         const gammaSlider = document.getElementById('gammaSlider');
-        this.baseExposure = gammaSlider ? Number(gammaSlider.value) / 100 : 0.80;
+        this.baseExposure = gammaSlider ? Number(gammaSlider.value) / 100 : 0.70;
         this.renderer.toneMappingExposure = this.baseExposure;
         if ('outputColorSpace' in this.renderer) {
             this.renderer.outputColorSpace = THREE.SRGBColorSpace;

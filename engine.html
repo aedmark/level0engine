@@ -1007,14 +1007,14 @@
 <div id="ui-layer">
     <button id="menuToggleBtn" class="btn">MENU</button>
     <div class="control-panel">
-        <h1>LEVEL 0 ENGINE v0.9.3</h1>
+        <h1>LEVEL 0 ENGINE v0.9.4</h1>
         <div id="controls-text" style="color: rgba(255,255,255,0.7); font-family: monospace; font-size: 14px; pointer-events: none; text-shadow: 1px 1px 2px #000; text-align: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(212,195,130,0.5);">
             WASD to Move | Shift to Run<br>'E' to Interact | <strong style="color: #ffff88; font-size: 16px;">'C' to Crouch</strong><br>'Q' to Squeeze | 'V' to Blink<br>'F' for Flashlight | 'M' for Compass<br>Esc to Exit
         </div>
         <label>Level Seed</label>
         <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
             <input type="text" id="seedInput" autocomplete="off" style="margin-bottom: 0;">
-            <select id="sectorHuntSelect" class="btn" style="margin-bottom: 0; padding: 0.5rem;">
+            <select id="sectorHuntSelect" class="btn" style="display: none; margin-bottom: 0; padding: 0.5rem;">
                 <option value="">Find Sector...</option>
                 <option value="ARCHIVE">Archive</option>
                 <option value="IMPOUND">Impound</option>
@@ -1029,12 +1029,17 @@
                 <option value="CHECKPOINT">Checkpoint</option>
             </select>
         </div>
-        <label>Teleport (Enter Custom X / Z Coordinates)</label>
-        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-            <input type="text" id="teleportX" placeholder="X" style="margin-bottom: 0;">
-            <input type="text" id="teleportZ" placeholder="Z" style="margin-bottom: 0;">
-            <button id="teleportBtn" class="btn" style="margin-top: 0; width: auto; padding: 0.5rem 1rem;">GO</button>
+        <div id="debug-teleport-ui" style="display: none;">
+            <label>Teleport (Enter Custom X / Z Coordinates)</label>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                <input type="text" id="teleportX" placeholder="X" style="margin-bottom: 0;">
+                <input type="text" id="teleportZ" placeholder="Z" style="margin-bottom: 0;">
+                <button id="teleportBtn" class="btn" style="margin-top: 0; width: auto; padding: 0.5rem 1rem;">GO</button>
+            </div>
         </div>
+
+        <button id="customize-controls-btn" class="btn" style="margin-bottom: 1rem; width: 100%; border-color: rgba(255,255,255,0.4);">CUSTOMIZE CONTROLS</button>
+
         <label>Display Format</label>
         <select id="aspectSelect">
             <option value="auto">Dynamic (Full Window)</option>
@@ -1069,7 +1074,7 @@
         <label>Master Volume (%)</label>
         <input type="range" id="volumeSlider" min="0" max="100" value="100">
         <label>Gamma (Exposure)</label>
-        <input type="range" id="gammaSlider" min="10" max="120" value="80">
+        <input type="range" id="gammaSlider" min="10" max="120" value="70">
         <label>Anti-Aliasing</label>
         <select id="aaSelect">
             <option value="0">Off</option>
@@ -1101,6 +1106,39 @@
     </div>
 </div>
 
+<!-- Controls Remapping Modal -->
+<div id="remap-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; overflow-y: auto;">
+    <div style="max-width: 600px; margin: 40px auto; background: #111; border: 1px solid rgba(255,255,255,0.2); padding: 20px; font-family: monospace; color: #fff;">
+        <h2 style="margin-top: 0; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">CUSTOMIZE CONTROLS</h2>
+        
+        <div style="display: flex; justify-content: space-between; margin-bottom: 10px; opacity: 0.5; font-size: 12px; padding-right: 15px;">
+            <span style="flex: 1;">ACTION</span>
+            <span style="width: 120px; text-align: center; margin-right: 0.5rem;">KEYBOARD</span>
+            <span style="width: 120px; text-align: center;">GAMEPAD</span>
+        </div>
+        
+        <div id="remap-list"></div>
+
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button id="remap-reset-btn" class="btn" style="flex: 1; border-color: rgba(255,50,50,0.5); color: #ff8888;">RESET DEFAULTS</button>
+            <button id="remap-close-btn" class="btn" style="flex: 1;">CLOSE</button>
+        </div>
+    </div>
+    
+    <div id="remap-listening" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1001; justify-content: center; align-items: center;">
+        <span style="background: #222; padding: 20px; border: 1px solid #fff; font-family: monospace; color: #fff; font-size: 18px;">Press any key...</span>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('debug-mode-toggled', () => {
+        const display = window.EDMARK_DEBUG_MODE ? '' : 'none';
+        const huntSelect = document.getElementById('sectorHuntSelect');
+        const teleportUi = document.getElementById('debug-teleport-ui');
+        if (huntSelect) huntSelect.style.display = display;
+        if (teleportUi) teleportUi.style.display = display;
+    });
+</script>
 <script type="module" src="main.js"></script>
 </body>
 </html>

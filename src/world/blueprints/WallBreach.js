@@ -30,28 +30,54 @@ export const WallBreachProfile = (env, ctx) => {
 
             const FRAME_CUTOFF = 3 / 7;
             if (breachType > FRAME_CUTOFF) {
-                if (!env.doorFrameMat) {
-                    env.doorFrameMat = (env.pittedMetalMat || env.metalMat).clone();
-                    env.doorFrameMat.metalness = 0.2;
-                    env.doorFrameMat.roughness = 0.7;
+                let dLeft = 0;
+                while (dLeft < 5) {
+                    const chkX = isRotated ? x : x - (dLeft + 1);
+                    const chkZ = isRotated ? z + (dLeft + 1) : z;
+                    if (isWallCell(chkX, chkZ)) break;
+                    dLeft++;
                 }
-                if (!env.doorFrameGeo) {
-                    const g = new THREE.Group();
-                    const pGeo = new THREE.BoxGeometry(0.2, 3.0, 0.6);
-                    const p1 = new THREE.Mesh(pGeo, env.doorFrameMat);
-                    p1.position.set(-1.2, 1.5, 0);
-                    g.add(p1);
-                    const p2 = new THREE.Mesh(pGeo, env.doorFrameMat);
-                    p2.position.set(1.2, 1.5, 0);
-                    g.add(p2);
-                    const tGeo = new THREE.BoxGeometry(2.6, 0.2, 0.6);
-                    const t1 = new THREE.Mesh(tGeo, env.doorFrameMat);
-                    t1.position.set(0, 2.9, 0);
-                    g.add(t1);
-                    env.doorFrameGeo = g;
+
+                let dRight = 0;
+                while (dRight < 5) {
+                    const chkX = isRotated ? x : x + (dRight + 1);
+                    const chkZ = isRotated ? z - (dRight + 1) : z;
+                    if (isWallCell(chkX, chkZ)) break;
+                    dRight++;
                 }
-                const frame = env.doorFrameGeo.clone();
-                addGroupToStaging(frame);
+
+                const g = new THREE.Group();
+                const baseStubW = (env.cellSize - 1.4) / 2;
+                
+                const leftW = baseStubW + dLeft * env.cellSize;
+                const stub1 = buildWall(leftW, 0.2, env.sharedWallMat, 3.0, 0);
+                stub1.position.set(-0.7 - leftW / 2, 1.5, 0);
+                g.add(stub1);
+                
+                const rightW = baseStubW + dRight * env.cellSize;
+                const stub2 = buildWall(rightW, 0.2, env.sharedWallMat, 3.0, 0);
+                stub2.position.set(0.7 + rightW / 2, 1.5, 0);
+                g.add(stub2);
+                
+                const headW = 1.4;
+                const head1 = buildWall(headW, 0.2, env.sharedWallMat, 0.4, 2.6);
+                head1.position.set(0, 2.8, 0);
+                g.add(head1);
+                
+                const frameMat = env.woodMat || env.sharedWallMat;
+                const jamb1 = buildWall(0.1, 0.24, frameMat, 2.6, 0);
+                jamb1.position.set(-headW / 2 + 0.05, 1.3, 0);
+                g.add(jamb1);
+                
+                const jamb2 = buildWall(0.1, 0.24, frameMat, 2.6, 0);
+                jamb2.position.set(headW / 2 - 0.05, 1.3, 0);
+                g.add(jamb2);
+                
+                const topJamb = buildWall(headW - 0.2, 0.24, frameMat, 0.1, 2.5);
+                topJamb.position.set(0, 2.55, 0);
+                g.add(topJamb);
+                
+                addGroupToStaging(g);
             } else {
                 const OPENING_W = 1.2;
                 const SILL_H = 0.6;

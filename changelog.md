@@ -1,5 +1,21 @@
 # Level 0 Engine Changelog
 
+## [v0.9.4] - 2026-08-11
+
+_Airlock Stutter & Anomaly Boundaries_
+
+### Changed
+
+- **[WORLD] Freestanding Walls Use Native Builder:** Replaced raw `BoxGeometry` instancing in `WallBreach.js` with the engine's internal `buildWall` routine. This guarantees that wallpaper UVs correctly scale and tile across the entire length of dynamically generated wall stubs instead of aggressively stretching or compressing the texture.
+- **[WORLD] Ride Queue Pylons Link Into Velvet Ropes:** The `RideQueueHall` generator's random standalone pylons have been updated. They now spawn consecutively and connect to each other with drooping red velvet ropes, transforming a field of bizarre metal posts into a cohesive theme-park-style switchback queue.
+- **[ENTITY] Anomaly Respects Sector Boundaries:** The anomaly's navigation bounds have been updated to avoid the footprint of *all* 11 major sectors (previously it only respected 3). Additionally, if the player enters a sector, the anomaly will immediately despawn and teleport away, naturally respawning via distance checks only once the player returns to the normal backrooms.
+
+### Fixed
+
+- **[WORLD] Airlock Doors Stop Stuttering For Entities:** Fixed a critical state machine loop in `InteractionController.js` where an entity trying to open an airlock while the player was far away would cause the door to repeatedly transition between "Opening" and "Closing" on every frame. The door now correctly stays open as long as the entity is present, resolving a loud, stochastic repeating sound effect.
+- **[WORLD] Entities Cannot Force Airlocks Open:** Entities (such as the Anomaly, Warden, and Incinerator) no longer treat airlock doors as generic interactable sliders. They will ignore them entirely when looking for doors to push through, ensuring airlocks remain strictly manual barriers.
+- **[WORLD] Airlock Doors Don't Ignore Player Input While Closing:** Due to the flutter bug above, clicking an airlock door while it was in the `CLOSING_AFTER_EXIT` state would completely discard the player's interaction. The state machine now allows a closing door to immediately reverse course and reopen if interacted with.
+
 ## [v0.9.3] - 2026-08-10
 
 _Structural Guarantees & Narrative Exhaustion_

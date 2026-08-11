@@ -21,6 +21,7 @@ import KeypadController from './src/ui/KeypadController.js';
 import InquestController from './src/ui/InquestController.js';
 import UIManager from './src/ui/UIManager.js';
 import {DebugHUD} from './src/ui/DebugHUD.js';
+import RemapController from './src/ui/RemapController.js';
 
 await StoryEngine.loadData('./data');
 const engine = new RenderEngine();
@@ -75,6 +76,7 @@ const docViewer = new DocumentViewer(player, acoustics, getStory);
 const journalViewer = new JournalViewer(player, acoustics, getStory);
 const keypad = new KeypadController(player, acoustics, getStory);
 const inquest = new InquestController(player, acoustics, engine, environment, getStory, triggerAscension, triggerBlackout);
+const remapController = new RemapController();
 const savedState = saveManager.loadState();
 if (!document.getElementById('seedInput').value) {
     document.getElementById('seedInput').value = saveManager.generateCardSeed();

@@ -354,6 +354,7 @@ export default class IncineratorEntity {
         if (this.env && this.env.interactiveDoors) {
             for (let i = 0; i < this.env.interactiveDoors.length; i++) {
                 const door = this.env.interactiveDoors[i];
+                if (door.userData.isAirlockDoor) continue;
                 if (this.group.position.distanceToSquared(door.position) < 16.0) {
                     door.userData.entityOpen = true;
                     door.userData.entityZ = this.group.position.z;

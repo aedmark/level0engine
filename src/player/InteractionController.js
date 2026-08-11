@@ -430,7 +430,7 @@ export default class InteractionController {
                 }
                 if (isPlayerInChamber) {
                     airlock.state = 'AWAITING_SWITCH';
-                } else if (!isPlayerInChamber && pDistOuterSq > 30.0) {
+                } else if (!isPlayerInChamber && !openOuter && pDistOuterSq > 30.0) {
                     airlock.state = 'CLOSING_AFTER_EXIT';
                 }
                 break;
@@ -439,7 +439,7 @@ export default class InteractionController {
                 airlock.outerDoor.data.target = 0.0;
                 if (isPlayerInChamber) {
                     airlock.state = 'AWAITING_SWITCH';
-                } else if (!isPlayerInChamber && pDistInnerSq > 30.0) {
+                } else if (!isPlayerInChamber && !openInner && pDistInnerSq > 30.0) {
                     airlock.state = 'CLOSING_AFTER_EXIT';
                 }
                 break;
@@ -447,9 +447,9 @@ export default class InteractionController {
                 if (switchPressed) {
                     airlock.state = 'WAIT_IN_CHAMBER';
                 } else if (!isPlayerInChamber) {
-                    if (airlock.openedFrom === 'OUTSIDE' && pDistOuterSq > 30.0) {
+                    if (airlock.openedFrom === 'OUTSIDE' && !openOuter && pDistOuterSq > 30.0) {
                         airlock.state = 'CLOSING_AFTER_EXIT';
-                    } else if (airlock.openedFrom === 'INSIDE' && pDistInnerSq > 30.0) {
+                    } else if (airlock.openedFrom === 'INSIDE' && !openInner && pDistInnerSq > 30.0) {
                         airlock.state = 'CLOSING_AFTER_EXIT';
                     }
                 }
@@ -510,7 +510,13 @@ export default class InteractionController {
             case 'CLOSING_AFTER_EXIT':
                 airlock.outerDoor.data.target = 0.0;
                 airlock.innerDoor.data.target = 0.0;
-                if (airlock.outerDoor.data.progress === 0 && airlock.innerDoor.data.progress === 0) {
+                if (openOuter) {
+                    airlock.state = 'OUTER_OPENING';
+                    airlock.openedFrom = 'OUTSIDE';
+                } else if (openInner) {
+                    airlock.state = 'INNER_OPENING';
+                    airlock.openedFrom = 'INSIDE';
+                } else if (airlock.outerDoor.data.progress === 0 && airlock.innerDoor.data.progress === 0) {
                     airlock.state = 'IDLE';
                 }
                 break;

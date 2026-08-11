@@ -805,6 +805,14 @@ export default class SetPieces {
                                 }
                             }
                             if (updated) child.instanceMatrix.needsUpdate = true;
+                        } else if (child.isMesh || child.isGroup) {
+                            const wox = Math.round(child.position.x / env.cellSize);
+                            const woz = Math.round(child.position.z / env.cellSize);
+                            if (clearX.includes(wox) && clearZ.includes(woz)) {
+                                child.scale.set(0, 0, 0);
+                                child.visible = false;
+                                child.updateMatrix();
+                            }
                         }
                     }
                 }

@@ -237,7 +237,7 @@ export default class PlayerController {
             this.exhaustion = 0.0;
             this.isWinded = false;
         }
-        this.input.update();
+        this.input.update(delta);
         const state = this.input.state;
         this.camera.position.x -= this._leanOffset.x;
         this.camera.position.z -= this._leanOffset.z;
