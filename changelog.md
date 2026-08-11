@@ -1,5 +1,21 @@
 # Level 0 Engine Changelog
 
+## [v0.9.5] - 2026-08-11
+
+_Automated Trim & Optimizations_
+
+### Changed
+
+- **[WORLD] Automated Baseboard Generation:** Baseboards are no longer manually constructed via raw `THREE.Mesh` objects. Generator blueprints now attach `baseboardFootprint` metadata to meshes, allowing `StructureKit` to automatically generate seamless, continuous baseboards and trim that perfectly contour around corners and features (including columns and vents).
+- **[WORLD] Guaranteed Lore Spawns:** Boardroom chunks now boost the probability of the first spawned document to 100%, guaranteeing that at least one piece of sector-specific lore drops when exploring a Boardroom sector.
+- **[DEBUG] Silent Anomaly Toggling:** The anomaly now automatically despawns and its passive atmospheric pressure effects are immediately cleared whenever the developer enters debug mode (Ctrl+Shift+U). 
+
+### Fixed
+
+- **[PERFORMANCE] Massive Draw Call Duplication:** Fixed a severe performance issue where the engine's `ChunkManager` failed to hide the original `THREE.Mesh` objects after compiling them into an efficient `InstancedMesh`. Every chair leg, water cooler jug, and filing cabinet drawer was rendering twice. Original meshes are now strictly hidden after batching, drastically improving framerates in dense areas like Boardroom sectors.
+- **[WORLD] Lore Buried in Geometry:** Fixed a layout calculation error in `BoardroomSector.js` that caused lore drops placed in hallways to spawn exactly at `y = 0` (z-fighting with the floor) and lore drops on tables to spawn inside the tabletop geometry.
+- **[EDITOR] Lore Editor Crashes on Startup:** Fixed a syntax error in `package.json` that was preventing the Lore Editor's Node.js server from successfully parsing its config and starting up.
+
 ## [v0.9.4] - 2026-08-11
 
 _Airlock Stutter & Anomaly Boundaries_

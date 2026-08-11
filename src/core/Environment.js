@@ -630,7 +630,7 @@ export default class Environment {
                 const v = this[key];
                 if (v && v.isMaterial && /(?:Wall|Floor|Ceiling|Rail)Mat$/.test(key)) set.add(v);
             }
-            for (const m of [this.sharedWallMat, this.headerMat, this.marbleMat, this.structMat]) {
+            for (const m of [this.sharedWallMat, this.headerMat, this.marbleMat, this.structMat, this.baseboardMat, this.baseboardTrimMat]) {
                 if (m) set.add(m);
             }
             this._architecturalMats = set;

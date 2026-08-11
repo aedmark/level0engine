@@ -36,11 +36,16 @@ export const WallBreachProfile = (env, ctx) => {
 
             const FRAME_CUTOFF = 3 / 7;
             if (breachType > FRAME_CUTOFF) {
+                const startX = Math.floor(x / env.chunkSize) * env.chunkSize;
+                const startZ = Math.floor(z / env.chunkSize) * env.chunkSize;
+                const inChunk = (cx, cz) => cx >= startX && cx < startX + env.chunkSize && cz >= startZ && cz < startZ + env.chunkSize;
+
                 const blockers = ["breach", "CREVICE_HALL", "HINGED DOORWAY", "DUCT OR VENT", "HATCH", "CRATES OR STAIRWAY"];
                 let dLeft = 0;
                 while (dLeft < 5) {
                     const chkX = isRotated ? x : x - (dLeft + 1);
                     const chkZ = isRotated ? z + (dLeft + 1) : z;
+                    if (!inChunk(chkX, chkZ)) break;
                     const forced = ctx.getForcedStructure ? ctx.getForcedStructure(chkX, chkZ) : null;
                     if (isWallCell(chkX, chkZ) || blockers.includes(forced)) break;
                     dLeft++;
@@ -50,6 +55,7 @@ export const WallBreachProfile = (env, ctx) => {
                 while (dRight < 5) {
                     const chkX = isRotated ? x : x + (dRight + 1);
                     const chkZ = isRotated ? z - (dRight + 1) : z;
+                    if (!inChunk(chkX, chkZ)) break;
                     const forced = ctx.getForcedStructure ? ctx.getForcedStructure(chkX, chkZ) : null;
                     if (isWallCell(chkX, chkZ) || blockers.includes(forced)) break;
                     dRight++;
@@ -102,6 +108,7 @@ export const WallBreachProfile = (env, ctx) => {
                 const wOpen = !isWallCell(x - 1, z);
 
                 const sill = buildWall(env.cellSize, env.cellSize, env.sharedWallMat, SILL_H);
+                sill.userData.baseboardFootprint = {w: env.cellSize, d: env.cellSize, h: SILL_H};
                 sill.position.set(ccx, SILL_H / 2, ccz);
                 sill.userData.isEntityBlocker = true;
                 ctx.addGeometry(sill);

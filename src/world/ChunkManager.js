@@ -1314,6 +1314,7 @@ export default class ChunkManager {
                         dummyColor.setRGB(shade, shade * 0.95, shade * 0.90);
                         iMesh.setColorAt(index, dummyColor);
                     }
+                    mesh.visible = false;
                 });
                 iMesh.instanceMatrix.needsUpdate = true;
                 if (needsColor && iMesh.instanceColor) iMesh.instanceColor.needsUpdate = true;

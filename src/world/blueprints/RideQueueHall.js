@@ -34,10 +34,12 @@ export const RideQueueHallProfile = (env, ctx) => {
 
                 const top1 = buildWall(pillarThickness, env.cellSize, env.sharedWallMat);
                 top1.position.set(cx - (env.cellSize/2) + (pillarThickness/2), 2.6, cz);
+                delete top1.userData.baseboardFootprint;
                 addGeometry(top1);
                 
                 const top2 = buildWall(pillarThickness, env.cellSize, env.sharedWallMat);
                 top2.position.set(cx + (env.cellSize/2) - (pillarThickness/2), 2.6, cz);
+                delete top2.userData.baseboardFootprint;
                 addGeometry(top2);
                 
             } else if (pathX && !pathZ) {
@@ -53,10 +55,12 @@ export const RideQueueHallProfile = (env, ctx) => {
                 
                 const top1 = buildWall(env.cellSize, pillarThickness, env.sharedWallMat);
                 top1.position.set(cx, 2.6, cz - (env.cellSize/2) + (pillarThickness/2));
+                delete top1.userData.baseboardFootprint;
                 addGeometry(top1);
                 
                 const top2 = buildWall(env.cellSize, pillarThickness, env.sharedWallMat);
                 top2.position.set(cx, 2.6, cz + (env.cellSize/2) - (pillarThickness/2));
+                delete top2.userData.baseboardFootprint;
                 addGeometry(top2);
             } else {
                 const p = buildWall(1.2, 1.2, env.sharedWallMat);

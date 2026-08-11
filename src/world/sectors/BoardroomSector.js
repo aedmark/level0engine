@@ -73,6 +73,9 @@ export const BoardroomSector = (env, ctx) => {
                         else addFurniture(OfficeFurniture.buildPottedPlant(env, bx, 0, bz));
                     }
                 }
+                const b = env._paperBudget ? env._paperBudget.get(hash) : null;
+                const loreCount = b ? b.lore : 0;
+                placeSectorPaper(env, ctx, "BOARDROOM", bx, bz, 0.035, 1.2, loreCount === 0 ? 0.05 : 0.019);
                 return;
             }
             const bowlHere = isBowl(x, z, localX, localZ);
@@ -296,7 +299,9 @@ export const BoardroomSector = (env, ctx) => {
                 }
                 confTable.position.set(bx, 0, bz);
                 addFurniture(confTable);
-                placeSectorPaper(env, ctx, "BOARDROOM", bx, bz, 0.925, 1.0);
+                const b = env._paperBudget ? env._paperBudget.get(hash) : null;
+                const loreCount = b ? b.lore : 0;
+                placeSectorPaper(env, ctx, "BOARDROOM", bx, bz, 0.965, 1.0, loreCount === 0 ? 1.0 : 0.25);
                 const sideOff = 1.15;
                 for (let sc = -1; sc <= 1; sc += 2) {
                     for (let sp = -1; sp <= 1; sp += 2) {

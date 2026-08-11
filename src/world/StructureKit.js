@@ -29,6 +29,10 @@ export default class StructureKit {
         return this.cacheGeo(`P:${w}:${h}`, () => new THREE.PlaneGeometry(w, h));
     }
 
+    cylinderGeo(rt, rb, h, rs) {
+        return this.cacheGeo(`C:${rt}:${rb}:${h}:${rs}`, () => new THREE.CylinderGeometry(rt, rb, h, rs));
+    }
+
     curvedCornerShape(size, margin = 0) {
         const t = 0.15;
         const outer = size + margin;
@@ -119,15 +123,13 @@ export default class StructureKit {
                 }
                 return mesh;
             },
-            buildCylinder: (radiusTop, radiusBottom, height, radialSegments, mat) => {
-                const key = `cyl_${radiusTop}_${radiusBottom}_${height}_${radialSegments}`;
-                let geo = env.geoCache.get(key);
-                if (!geo) {
-                    geo = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, radialSegments);
-                    env.geoCache.set(key, geo);
-                    env.geoCache.set(geo.uuid, true);
+            buildCylinder: (radiusTop, radiusBottom, height, radialSegments, mat, yOffset = 0) => {
+                const geo = this.cylinderGeo(radiusTop, radiusBottom, height, radialSegments);
+                const mesh = new THREE.Mesh(geo, mat);
+                if (mat === env.sharedWallMat && yOffset === 0 && radiusTop === radiusBottom) {
+                    mesh.userData.baseboardFootprint = {r: radiusTop, h: height};
                 }
-                return new THREE.Mesh(geo, mat);
+                return mesh;
             },
             buildArchCutout: (radius, thickness, outerY, depth, yOffset, mat) => {
                 const key = `archCutout_${radius}_${thickness}_${outerY}_${depth}_${yOffset}`;
@@ -267,23 +269,35 @@ export default class StructureKit {
                 const bbFootprint = mesh.userData.baseboardFootprint;
                 const wallBottomY = bbFootprint ? mesh.position.y - bbFootprint.h / 2 : null;
                 if (bbFootprint && Math.abs(wallBottomY) < 0.05) {
-                    const bw = bbFootprint.w + 0.06;
-                    const bd = bbFootprint.d + 0.06;
                     const baseY = wallBottomY;
-                    const body = new THREE.Mesh(this.boxGeo(1, BASEBOARD_H, 1),
-                        mesh.userData.baseboardFaceMats || env.baseboardMat);
+                    let body, trim;
+                    
+                    if (bbFootprint.r !== undefined) {
+                        const br = bbFootprint.r + 0.03;
+                        body = new THREE.Mesh(this.cylinderGeo(br, br, BASEBOARD_H, 16),
+                            mesh.userData.baseboardFaceMats || env.baseboardMat);
+                        trim = new THREE.Mesh(this.cylinderGeo(br, br, TRIM_H, 16),
+                            mesh.userData.baseboardTrimFaceMats || env.baseboardTrimMat);
+                    } else {
+                        const bw = bbFootprint.w + 0.06;
+                        const bd = bbFootprint.d + 0.06;
+                        body = new THREE.Mesh(this.boxGeo(1, BASEBOARD_H, 1),
+                            mesh.userData.baseboardFaceMats || env.baseboardMat);
+                        body.scale.set(bw, 1, bd);
+                        trim = new THREE.Mesh(this.boxGeo(1, TRIM_H, 1),
+                            mesh.userData.baseboardTrimFaceMats || env.baseboardTrimMat);
+                        trim.scale.set(bw, 1, bd);
+                    }
+                    
                     body.position.set(mesh.position.x, baseY + BASEBOARD_H / 2, mesh.position.z);
                     body.rotation.y = mesh.rotation.y;
-                    body.scale.set(bw, 1, bd);
                     body.userData.chunkHash = hash;
                     body.userData.noCollision = true;
                     body.updateMatrixWorld(true);
                     stagingMeshes.push(body);
-                    const trim = new THREE.Mesh(this.boxGeo(1, TRIM_H, 1),
-                        mesh.userData.baseboardTrimFaceMats || env.baseboardTrimMat);
+                    
                     trim.position.set(mesh.position.x, baseY + BASEBOARD_H + TRIM_H / 2, mesh.position.z);
                     trim.rotation.y = mesh.rotation.y;
-                    trim.scale.set(bw, 1, bd);
                     trim.userData.chunkHash = hash;
                     trim.userData.noCollision = true;
                     trim.updateMatrixWorld(true);

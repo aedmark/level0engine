@@ -100,7 +100,7 @@ export function placeEphemera(env, ctx, sectorId, cx0, cz0, y) {
     env._registerInteractable(note, hash);
 }
 
-export function placeSectorPaper(env, ctx, sectorId, cx0, cz0, y, spread) {
+export function placeSectorPaper(env, ctx, sectorId, cx0, cz0, y, spread, chanceOverride) {
     const {random, chunkGroup, hash} = ctx;
     if (!env.documentGeo || !chunkGroup) return false;
     const sp = spread !== undefined ? spread : 1.6;
@@ -108,7 +108,8 @@ export function placeSectorPaper(env, ctx, sectorId, cx0, cz0, y, spread) {
     const b = budget(env, hash);
     const roll = random();
     
-    if (roll < LORE_CHANCE && b.lore < MAX_LORE_PER_CHUNK) {
+    const chance = chanceOverride !== undefined ? chanceOverride : LORE_CHANCE;
+    if (roll < chance && b.lore < MAX_LORE_PER_CHUNK) {
         b.lore++;
         const meshType = env.getStory ? env.getStory().getNextMeshType(sectorId) : 'document';
         

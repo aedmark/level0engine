@@ -130,7 +130,7 @@ export default class Anomaly {
             if (this.player.anomalyPressure > 0) this.player.anomalyPressure = 0;
             return null;
         }
-        if (activeSector && activeSector !== 'NORMAL') {
+        if ((activeSector && activeSector !== 'NORMAL') || window.EDMARK_DEBUG_MODE) {
             if (this.group.visible) {
                 this.group.visible = false;
                 this.group.position.set(this.camera.position.x + 10000, -1000, this.camera.position.z + 10000);

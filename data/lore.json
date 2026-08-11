@@ -1,7 +1,7 @@
 {
   "ANNEX": [
     {
-      "text": "[STICKY NOTE]\n\nIf my door is locked and my laptop is here: I have gone to the pens.\n\nIf my door is locked and my laptop is gone: so am I.\n\n— ${c.lost}",
+      "text": "[STICKY NOTE]\n\nIf my door is locked and my laptop is here: I have gone to the pens.\n\nIf my door is locked and my laptop is gone: so am I.\n\n— ${c.lost.first_name}",
       "type": "note",
       "thread": "LOST",
       "title": "Gone to the Pens",
@@ -105,7 +105,7 @@
       "_locked": true
     },
     {
-      "text": "[SEATING CHART, AMENDED IN PENCIL]\n\nThe chart shows twelve chairs, but there are only eleven names on the roster. The twelfth was never assigned a member, but it has never been empty at the start of a meeting.\n\n${c.lead} asked us to stop counting, because nobody can figure out who isn't supposed to be there.",
+      "text": "[SEATING CHART, AMENDED IN PENCIL]\n\nThe chart shows twelve chairs, but there are only eleven names on the roster. The twelfth was never assigned a member, but it has never been empty at the start of a meeting.\n\n${c.lead.first_name} asked us to stop counting, because nobody can figure out who isn't supposed to be there.",
       "type": "note",
       "thread": "GEOMETRY",
       "title": "Seating Chart",
