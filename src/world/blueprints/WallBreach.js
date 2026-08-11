@@ -20,21 +20,29 @@ export const WallBreachProfile = (env, ctx) => {
                 grp.position.set(px, 0, pz);
                 grp.rotation.y = rot;
                 grp.updateMatrixWorld(true);
-                grp.traverse(child => {
+                const children = [...grp.children];
+                for (const child of children) {
                     if (child.isMesh) {
                         child.userData.isEntityBlocker = true;
+                        
+                        // Detach to apply world transform properly to position/rotation
+                        grp.remove(child);
+                        child.applyMatrix4(grp.matrixWorld);
+                        
                         ctx.addGeometry(child);
                     }
-                });
+                }
             };
 
             const FRAME_CUTOFF = 3 / 7;
             if (breachType > FRAME_CUTOFF) {
+                const blockers = ["breach", "CREVICE_HALL", "HINGED DOORWAY", "DUCT OR VENT", "HATCH", "CRATES OR STAIRWAY"];
                 let dLeft = 0;
                 while (dLeft < 5) {
                     const chkX = isRotated ? x : x - (dLeft + 1);
                     const chkZ = isRotated ? z + (dLeft + 1) : z;
-                    if (isWallCell(chkX, chkZ)) break;
+                    const forced = ctx.getForcedStructure ? ctx.getForcedStructure(chkX, chkZ) : null;
+                    if (isWallCell(chkX, chkZ) || blockers.includes(forced)) break;
                     dLeft++;
                 }
 
@@ -42,7 +50,8 @@ export const WallBreachProfile = (env, ctx) => {
                 while (dRight < 5) {
                     const chkX = isRotated ? x : x + (dRight + 1);
                     const chkZ = isRotated ? z - (dRight + 1) : z;
-                    if (isWallCell(chkX, chkZ)) break;
+                    const forced = ctx.getForcedStructure ? ctx.getForcedStructure(chkX, chkZ) : null;
+                    if (isWallCell(chkX, chkZ) || blockers.includes(forced)) break;
                     dRight++;
                 }
 
