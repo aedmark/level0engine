@@ -5,8 +5,9 @@
  * [DEPENDS] Implicit dependency on THREE.js scene, time, camera position, and fixture data.
  */
 export default class LumenGrid {
-    constructor(scene, shadowQuality = 'high') {
-        this.scene = scene;
+    constructor(env, shadowQuality = 'high') {
+        this.env = env;
+        this.scene = env.scene;
         this.maxActiveLights = 32;
         this.maxShadowLights = 6;
         this.longReachSlots = 8;
@@ -295,6 +296,17 @@ export default class LumenGrid {
     _applyStrobeBehavior(fixture, light, time, fadeEnvelope, intensityScalar) {
         const strobeFreq = 12.0;
         const isOn = Math.sin(time * Math.PI * 2 * strobeFreq + fixture.flickerOffset) > 0;
+        
+        if (fixture._lastStrobeState !== isOn) {
+            fixture._lastStrobeState = isOn;
+            if (isOn && window.acoustics && this.env && this.env.camera) {
+                const distSq = this.env.camera.position.distanceToSquared(light.position);
+                if (Math.random() < 0.15) {
+                    window.acoustics.triggerSomaticEvent('light_flicker', distSq * 25.0, 0.4);
+                }
+            }
+        }
+        
         fixture.currentIntensity = isOn ? fixture.baseIntensity * 1.5 : 0.0;
         light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
         if (fixture.material) fixture.material.emissiveIntensity = (isOn ? 1.5 : 0.0) * fadeEnvelope;
@@ -326,6 +338,13 @@ export default class LumenGrid {
             fixture._flickering = true;
             fixture._flickerUntil = time + 0.04 + Math.random() * 0.12;
             fixture._flickerDepth = Math.random() < 0.3 ? 0.0 : 0.05 + Math.random() * 0.3;
+            
+            if (window.acoustics && this.env && this.env.camera) {
+                const distSq = this.env.camera.position.distanceToSquared(light.position);
+                if (Math.random() < 0.25) {
+                    window.acoustics.triggerSomaticEvent('light_flicker', distSq * 25.0, 0.6);
+                }
+            }
         } else if (fixture._flickering && time >= fixture._flickerUntil) {
             fixture._flickering = false;
             fixture._nextFlicker = Math.random() < 0.4

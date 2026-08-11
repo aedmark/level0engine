@@ -123,6 +123,14 @@ document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e
     if (!targetSector) return;
     const uiLayer = document.getElementById('ui-layer');
     if (uiLayer) uiLayer.style.opacity = '0.5';
+    const panel = document.querySelector('.control-panel');
+    if (panel) panel.style.display = 'none';
+    if (environment && environment.player && environment.player.input) {
+        environment.player.input.state.isReading = false;
+        document.body.requestPointerLock()?.catch(() => {});
+        const vc = document.getElementById('virtual-cursor');
+        if (vc) vc.classList.remove('active');
+    }
     const originalPos = engine.camera.position.clone();
     const chunkWorldSize = environment.chunkSize * environment.cellSize;
     const maxSteps = 200;

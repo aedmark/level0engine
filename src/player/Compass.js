@@ -32,12 +32,17 @@ export default class Compass {
         document.addEventListener('somatic-toggle-compass', () => {
             if (this.player.input && this.player.input.state.isReading) return;
             this.raised = !this.raised;
+            document.dispatchEvent(new Event('somatic-inventory-woosh'));
             if (this.raised && this.player.input && this.player.input.state.flashlightActive) {
                 this.player.input.state.flashlightActive = false;
+                document.dispatchEvent(new CustomEvent('somatic-flashlight', {detail: {on: false}}));
             }
         });
         document.addEventListener('somatic-stow-compass', () => {
-            this.raised = false;
+            if (this.raised) {
+                this.raised = false;
+                document.dispatchEvent(new Event('somatic-inventory-woosh'));
+            }
         });
     }
 

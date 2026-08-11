@@ -325,10 +325,10 @@ export default class ChunkManager {
             env.macroZones.set(hash, {
                 id: activeSector.id,
                 fog: env.atmosphereManager._sectorFog(activeSector.id),
-                minX: startX * env.cellSize + 2,
-                maxX: startX * env.cellSize + 58,
-                minZ: startZ * env.cellSize + 2,
-                maxZ: startZ * env.cellSize + 58,
+                minX: startX * env.cellSize + 8,
+                maxX: startX * env.cellSize + 56,
+                minZ: startZ * env.cellSize + 8,
+                maxZ: startZ * env.cellSize + 56,
                 startX: startX,
                 startZ: startZ
             });
@@ -1103,10 +1103,6 @@ export default class ChunkManager {
     _buildEmptyCell(args, state) {
         const { x, z, env, ctx, random, hash, chunkGroup, localX, localZ, isWallCell, isSolidWallCell, breakerPositions } = args;
         let hasTallObstacle = false;
-
-        if (ctx.isOccupied && ctx.isOccupied(x, z)) {
-            hasTallObstacle = true;
-        }
 
         if (!state.spawnedVirtualBreaker && env._virtualBreaker && env._virtualBreaker.chunkHash === hash && !env._virtualBreaker.spawned) {
             spawnBreakerPodium(env, ctx, x, z);

@@ -32,17 +32,22 @@ export default class PaintballGun {
         document.addEventListener('somatic-toggle-gun', () => {
             if (this.player.input && this.player.input.state.isReading) return;
             this.raised = !this.raised;
+            document.dispatchEvent(new Event('somatic-inventory-woosh'));
             if (this.raised && this.player.input) {
                 // Mutually exclusive: turn off compass and flashlight
                 if (this.player.input.state.flashlightActive) {
                     this.player.input.state.flashlightActive = false;
+                    document.dispatchEvent(new CustomEvent('somatic-flashlight', {detail: {on: false}}));
                 }
                 document.dispatchEvent(new CustomEvent('somatic-stow-compass'));
             }
         });
 
         document.addEventListener('somatic-stow-gun', () => {
-            this.raised = false;
+            if (this.raised) {
+                this.raised = false;
+                document.dispatchEvent(new Event('somatic-inventory-woosh'));
+            }
         });
 
         document.addEventListener('somatic-shoot', () => {

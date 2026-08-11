@@ -89,6 +89,10 @@ export default class BackupDaemonEntity {
             s.launchDelay = Math.random() * 0.15;
             s.mesh.visible = false;
         });
+        if (window.acoustics) {
+            const distSq = this.camera.position.distanceToSquared(slot.group.position);
+            window.acoustics.triggerSomaticEvent('electric_spark', distSq * 15.0, 0.2 + Math.random() * 0.2);
+        }
     }
 
     _activateSlot(slot, position) {

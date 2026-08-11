@@ -53,5 +53,7 @@ export default class SomaticController {
         document.addEventListener('somatic-breaker', (e) => this.acoustics.triggerSomaticEvent('breaker', e.detail.distSq, e.detail.intensity));
         document.addEventListener('somatic-scan-start', (e) => this.acoustics.triggerSomaticEvent('item', e.detail.distSq, e.detail.intensity));
         document.addEventListener('somatic-item', (e) => this.acoustics.triggerSomaticEvent('item', e.detail.distSq, e.detail.intensity));
+        document.addEventListener('somatic-flashlight', (e) => this.acoustics.triggerSomaticEvent(e.detail.on ? 'flashlight_on' : 'flashlight_off', 0, 0.5));
+        document.addEventListener('somatic-inventory-woosh', () => this.acoustics.triggerSomaticEvent('inventory_woosh', 0, 0.6));
     }
 }

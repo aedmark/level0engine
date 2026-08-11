@@ -175,7 +175,7 @@ export default class Environment {
         });
         this.exhaustCloud = new THREE.Points(exhaustGeo, this.exhaustMat);
         this.scene.add(this.exhaustCloud);
-        this.lumenGrid = new LumenGrid(this.scene, RenderEngine.getSavedShadowQuality());
+        this.lumenGrid = new LumenGrid(this, RenderEngine.getSavedShadowQuality());
         this.entityManager = new EntityManager(this.scene, this.camera, this.player, this);
         this.tagPool = [];
         this.tagIndex = 0;
@@ -214,6 +214,7 @@ export default class Environment {
             if (this.player && this.player.input) {
                 this.player.input.state.isReading = isHidden;
                 if (isHidden) {
+                    document.dispatchEvent(new Event('somatic-close-document'));
                     if (document.pointerLockElement) {
                         document.exitPointerLock();
                     }

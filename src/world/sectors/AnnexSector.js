@@ -331,7 +331,10 @@ export const AnnexSector = (env, ctx) => {
                     glow.position.set(0, 0.13, 0.012);
                     lapScreen.add(glow);
                     lap.add(lapScreen);
-                    lap.position.set(deskX, 0.845, deskZ);
+                    const laptopLight = new THREE.PointLight(0xa8ffd0, 0.8, 2.5, 2.0);
+                    laptopLight.position.set(0, 0.2, 0.1);
+                    lap.add(laptopLight);
+                    lap.position.set(deskX, 0.93, deskZ);
                     lap.rotation.y = Math.atan2(dd[0], dd[1]);
                     lap.userData = {
                         type: 'document',
@@ -356,7 +359,10 @@ export const AnnexSector = (env, ctx) => {
                     recLight.material = new THREE.MeshBasicMaterial({color: 0xff0000});
                     recLight.position.set(0.06, 0.04, -0.04);
                     tapeGroup.add(recLight);
-                    tapeGroup.position.set(deskX, 0.82, deskZ);
+                    const pointLight = new THREE.PointLight(0xff0000, 1.0, 1.5, 2.0);
+                    pointLight.position.set(0.06, 0.05, -0.04);
+                    tapeGroup.add(pointLight);
+                    tapeGroup.position.set(deskX, 0.93, deskZ);
                     tapeGroup.rotation.y = random() * Math.PI;
                     tapeGroup.userData = {
                         type: 'document',

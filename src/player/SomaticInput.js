@@ -121,6 +121,7 @@ export default class SomaticInput {
 
         if (isActionPressed('flashlight')) {
             this.state.flashlightActive = !this.state.flashlightActive;
+            document.dispatchEvent(new CustomEvent('somatic-flashlight', {detail: {on: this.state.flashlightActive}}));
             if (this.state.flashlightActive) {
                 document.dispatchEvent(new Event('somatic-stow-compass'));
                 document.dispatchEvent(new Event('somatic-stow-gun'));
@@ -293,6 +294,7 @@ export default class SomaticInput {
 
         if (is('flashlight')) {
             this.state.flashlightActive = !this.state.flashlightActive;
+            document.dispatchEvent(new CustomEvent('somatic-flashlight', {detail: {on: this.state.flashlightActive}}));
             if (this.state.flashlightActive) {
                 document.dispatchEvent(new Event('somatic-stow-compass'));
                 document.dispatchEvent(new Event('somatic-stow-gun'));

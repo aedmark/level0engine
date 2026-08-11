@@ -30,6 +30,9 @@ function buildRecorder(env, x, z, rotation, y) {
     recLight.material = new THREE.MeshBasicMaterial({color: 0xff0000});
     recLight.position.set(0.06, 0.04, -0.04);
     group.add(recLight);
+    const pointLight = new THREE.PointLight(0xff0000, 1.0, 1.5, 2.0);
+    pointLight.position.set(0.06, 0.05, -0.04);
+    group.add(pointLight);
     group.position.set(x, (y !== undefined ? y : 0.02), z);
     group.rotation.y = rotation;
     return group;
@@ -54,6 +57,11 @@ function buildLaptop(env, x, z, rotation, y) {
     glow.position.set(0, 0.13, 0.012);
     lapScreen.add(glow);
     lap.add(lapScreen);
+    
+    const laptopLight = new THREE.PointLight(0xa8ffd0, 0.8, 2.5, 2.0);
+    laptopLight.position.set(0, 0.2, 0.1);
+    lap.add(laptopLight);
+
     lap.position.set(x, (y !== undefined ? y : 0.0125), z);
     lap.rotation.y = rotation;
     return lap;
@@ -74,6 +82,10 @@ function buildClipboard(env, x, z, rotation, y) {
     clip.position.set(0, 0.015, -0.14);
     group.add(clip);
     
+    const clipLight = new THREE.PointLight(0xffffff, 1.2, 3.0, 2.0);
+    clipLight.position.set(0, 0.15, 0);
+    group.add(clipLight);
+    
     group.position.set(x, (y !== undefined ? y : 0.005), z);
     group.rotation.y = rotation;
     return group;
@@ -89,6 +101,11 @@ export function placeEphemera(env, ctx, sectorId, cx0, cz0, y) {
         cz0 + (random() - 0.5) * 1.4
     );
     note.rotation.y = random() * Math.PI;
+    
+    const noteLight = new THREE.PointLight(0xffffff, 1.2, 3.0, 2.0);
+    noteLight.position.set(0, 0.15, 0);
+    note.add(noteLight);
+
     note.userData = {
         type: 'document',
         chunkHash: hash,
@@ -137,6 +154,9 @@ export function placeSectorPaper(env, ctx, sectorId, cx0, cz0, y, spread, chance
                 mesh.position.set(mx, surfaceY, mz);
                 mesh.rotation.y = rot;
                 prefix = 'NOTE_';
+                const nLight = new THREE.PointLight(0xffffff, 1.2, 3.0, 2.0);
+                nLight.position.set(0, 0.15, 0);
+                mesh.add(nLight);
                 break;
             case 'document':
             default:
@@ -144,6 +164,9 @@ export function placeSectorPaper(env, ctx, sectorId, cx0, cz0, y, spread, chance
                 mesh.position.set(mx, surfaceY, mz);
                 mesh.rotation.y = rot;
                 prefix = 'LOG_';
+                const docLight = new THREE.PointLight(0xffffff, 1.2, 3.0, 2.0);
+                docLight.position.set(0, 0.15, 0);
+                mesh.add(docLight);
                 break;
         }
 

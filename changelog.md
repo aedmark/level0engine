@@ -1,5 +1,20 @@
 # Level 0 Engine Changelog
 
+## [v0.9.6] - 2026-08-11
+
+_Acoustics & Lighting Fixes_
+
+### Changed
+
+- **[AUDIO] Light Flicker & Server Spark Acoustics:** Rebuilt the procedural audio profiles for flickering ceiling lights and server rack sparks to sound more realistic. 
+  - Light flickers no longer sound like "laser pews" or footsteps; they now use an inaudible sub-frequency layered with filtered high-band noise to create a soft, subtle static crackle. They also trigger organically on a randomized chance rather than syncing to every visual strobe.
+  - Server sparks now use a low-pitched 120Hz sawtooth wave and bandpass noise sweep to simulate the harsh, heavy hum of a true high-voltage tesla arc, resolving the high-pitched "bird cheep" sound.
+  - Both sounds have had their volume halved and distance thresholds heavily reduced, heavily localizing the audio so they can only be heard when standing almost directly beneath or next to the source.
+
+### Fixed
+
+- **[WORLD] Missing Normal Sector Ceiling Lights:** Fixed a generation logic bug in `ChunkManager.js` where cells were unconditionally marked as occupied prior to placing basic layout decor. This accidentally tripped a safety check meant to prevent tall obstacles from overlapping geometry, ultimately blocking all ceiling light fixtures from spawning in the normal sector. The normal sector is now correctly populated with ceiling lights.
+
 ## [v0.9.5] - 2026-08-11
 
 _Automated Trim & Optimizations_

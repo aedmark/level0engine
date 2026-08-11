@@ -120,11 +120,11 @@ const SECTORS = {
     },
     SERVER: {
         fog: 0.02, fogColor: 0x380159,
-        ambient: 0.20,
+        ambient: 0.30,
         ambience: {
-            noise: 0.1,
+            noise: 0.05,
             peace: 0.0,
-            rumble: 35,
+            rumble: 15,
             freq: 250,
             freqOcc: 120,
             whine: 0.002,
@@ -149,9 +149,9 @@ const SECTORS = {
         fog: 0.03,
         ambient: 0.35,
         ambience: {
-            noise: 0.1,
+            noise: 0.05,
             peace: 0.0,
-            rumble: 60,
+            rumble: 25,
             freq: 180,
             freqOcc: 180,
             whine: 0.003,

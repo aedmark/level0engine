@@ -40,7 +40,7 @@ export default class DocumentViewer {
             this.terminalBrowseIndex = file.archiveIndex;
             const docContent = document.getElementById('document-content');
             if (docContent) docContent.innerText = file.text + this.terminalFooter(file);
-            this.acoustics.triggerSomaticEvent('item', 1.0, 0.15);
+            this.acoustics.triggerSomaticEvent('document_rustle', 1.0, 0.15);
         });
         document.addEventListener('somatic-read', (e) => {
             if (this.player.input.state.isReading) return;
@@ -118,11 +118,11 @@ export default class DocumentViewer {
                     docOverlay.classList.add('clipboard-mode');
                     docContent.innerText = fullText;
                     if (docOverlay) docOverlay.style.display = 'block';
-                    this.acoustics.triggerSomaticEvent('item', 1.0, 0.4);
+                    this.acoustics.triggerSomaticEvent('document_rustle', 1.0, 0.4);
                 } else {
                     docContent.innerText = fullText;
                     if (docOverlay) docOverlay.style.display = 'block';
-                    this.acoustics.triggerSomaticEvent('item', 1.0, 0.4);
+                    this.acoustics.triggerSomaticEvent('document_rustle', 1.0, 0.4);
                 }
             }
         });
@@ -163,7 +163,7 @@ export default class DocumentViewer {
             } else if (docOverlay && docOverlay.style.display !== 'none') {
                 docOverlay.style.display = 'none';
                 document.getElementById('virtual-cursor').classList.remove('active');
-                this.acoustics.triggerSomaticEvent('item', 1.0, 0.2);
+                this.acoustics.triggerSomaticEvent('document_rustle', 1.0, 0.3);
             }
         });
     }

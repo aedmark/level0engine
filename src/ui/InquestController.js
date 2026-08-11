@@ -100,7 +100,7 @@ export default class InquestController {
             const result = document.getElementById('inquest-result');
             result.innerText = '';
             document.getElementById('inquest-overlay').style.display = 'block';
-            this.acoustics.triggerSomaticEvent('item', 1.0, 0.4);
+            this.acoustics.triggerSomaticEvent('document_rustle', 1.0, 0.4);
         });
         document.addEventListener('keydown', (e) => {
             const ov = document.getElementById('inquest-overlay');

@@ -41,7 +41,13 @@ const VOICES = {
     'claw_snap': ['square', 800, 100, 0.05, 0.4, 0.02, 0.2, {type: 'bandpass', start: 2000, end: 500, ramp: 0.1}],
     'claw_ascent': ['sawtooth', 80, 200, 3.0, 0.25, 0.5, 3.0, {type: 'lowpass', start: 400, end: 1200, ramp: 3.0}],
     'paint_pew': ['sine', 800, 300, 0.1, 0.2, 0.01, 0.1, null],
-    'paint_splat': ['square', 120, 40, 0.1, 0.15, 0.01, 0.15, {type: 'lowpass', start: 1200, end: 200, ramp: 0.15}]
+    'paint_splat': ['square', 120, 40, 0.1, 0.15, 0.01, 0.15, {type: 'lowpass', start: 1200, end: 200, ramp: 0.15}],
+    'flashlight_on': ['square', 1000, 300, 0.02, 0.1, 0.01, 0.03, null],
+    'flashlight_off': ['square', 600, 200, 0.02, 0.1, 0.01, 0.03, null],
+    'inventory_woosh': ['sine', 1, 1, 1.0, 0.15, 0.05, 0.25, {type: 'bandpass', start: 1500, end: 300, ramp: 0.2}],
+    'document_rustle': ['sine', 1, 1, 1.0, 0.3, 0.03, 0.35, {type: 'bandpass', start: 3000, end: 1200, ramp: 0.3}],
+    'electric_spark': ['sawtooth', 120, 120, 0, 0.4, 0.01, 0.15, {type: 'bandpass', start: 1500, end: 3000, ramp: 0.1}],
+    'light_flicker': ['sine', 1, 1, 0, 0.075, 0.02, 0.35, {type: 'bandpass', start: 4000, end: 2000, ramp: 0.35}]
 };
 export default class Foley {
     static trigger(engine, type, distanceSq, intensity) {

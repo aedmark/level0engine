@@ -64,6 +64,8 @@ export default class MaterialLibrary {
         });
         env.documentMat = new THREE.MeshStandardMaterial({
             color: 0xffffff,
+            emissive: 0xffffff,
+            emissiveIntensity: 0.15,
             roughness: 0.9,
             metalness: 0.0
         });
