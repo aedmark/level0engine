@@ -10,15 +10,6 @@ export const RideQueueHallProfile = (env, ctx) => {
         name: "RIDE_QUEUE_HALL",
         prob: 0,
         build: (x, z) => {
-            const hasBlocker = (tx, tz) => {
-                const fs = ctx.getForcedStructure ? ctx.getForcedStructure(tx, tz) : null;
-                return fs && fs !== 'RIDE_QUEUE_HALL';
-            };
-            
-            if (hasBlocker(x+1, z) || hasBlocker(x-1, z) || hasBlocker(x, z+1) || hasBlocker(x, z-1)) {
-                return;
-            }
-
             const cx = x * env.cellSize;
             const cz = z * env.cellSize;
             
@@ -99,8 +90,7 @@ export const RideQueueHallProfile = (env, ctx) => {
 
             const isQueueActive = (tx, tz) => {
                 if (!ctx.getForcedStructure) return false;
-                if (ctx.getForcedStructure(tx, tz) !== 'RIDE_QUEUE_HALL') return false;
-                return !(hasBlocker(tx+1, tz) || hasBlocker(tx-1, tz) || hasBlocker(tx, tz+1) || hasBlocker(tx, tz-1));
+                return ctx.getForcedStructure(tx, tz) === 'RIDE_QUEUE_HALL';
             };
 
             if (pathZ && !pathX) {

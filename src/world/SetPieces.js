@@ -774,8 +774,8 @@ export default class SetPieces {
         if (!env.airlocks) env.airlocks = [];
         env.airlocks.push(airlock);
 
-        if (env.chunkManager && env.chunkManager._airlockApron) {
-            const {clearX, clearZ} = env.chunkManager._airlockApron(airlock);
+        if (env.chunkManager && env.chunkManager.layout && env.chunkManager.layout._airlockApron) {
+            const {clearX, clearZ} = env.chunkManager.layout._airlockApron(airlock, env.cellSize);
             const affectedHashes = new Set();
             for (const cx of clearX) {
                 for (const cz of clearZ) {
