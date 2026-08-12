@@ -657,8 +657,8 @@ export default class StaticTextureFactory {
         assets['nightSkyMat'].map.wrapT = THREE.RepeatWrapping;
         assets['ventMat'] = new THREE.MeshStandardMaterial({
             color: 0xffffff,
-            emissive: 0x333333,
-            emissiveIntensity: 0.2,
+            emissive: 0xffffff,
+            emissiveIntensity: 0.7,
             roughness: 0.7,
             metalness: 0.15,
             bumpScale: 0.02,
@@ -674,6 +674,7 @@ export default class StaticTextureFactory {
             side: 0,
             vertexColors: false,
             map: load('ventMat_map'),
+            emissiveMap: load('ventMat_map'),
             bumpMap: loadLinear('ventMat_bumpMap'),
         });
         assets['ventMat'].map.wrapS = THREE.RepeatWrapping;
@@ -682,8 +683,8 @@ export default class StaticTextureFactory {
         assets['ventMat'].bumpMap.wrapT = THREE.RepeatWrapping;
         assets['ductMat'] = new THREE.MeshStandardMaterial({
             color: 0xffffff,
-            emissive: 0x322222,
-            emissiveIntensity: 0.15,
+            emissive: 0xffffff,
+            emissiveIntensity: 0.6,
             roughness: 0.55,
             metalness: 0.75,
             bumpScale: 0.01,
@@ -699,6 +700,7 @@ export default class StaticTextureFactory {
             side: 0,
             vertexColors: false,
             map: load('ductMat_map'),
+            emissiveMap: load('ductMat_map'),
             bumpMap: loadLinear('ductMat_bumpMap'),
         });
         assets['ductMat'].map.repeat.set(2, 2);
