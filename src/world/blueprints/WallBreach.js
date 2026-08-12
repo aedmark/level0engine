@@ -101,29 +101,31 @@ export const WallBreachProfile = (env, ctx) => {
                 const leftW = baseStubW + dLeft * env.cellSize;
                 const stub1 = buildWall(leftW, 0.2, env.sharedWallMat, 3.0, 0);
                 stub1.position.set(-0.7 - leftW / 2, 1.5, 0);
+                stub1.userData.isEntityBlocker = true;
                 g.add(stub1);
                 
                 const rightW = baseStubW + dRight * env.cellSize;
                 const stub2 = buildWall(rightW, 0.2, env.sharedWallMat, 3.0, 0);
                 stub2.position.set(0.7 + rightW / 2, 1.5, 0);
+                stub2.userData.isEntityBlocker = true;
                 g.add(stub2);
                 
                 const headW = 1.4;
-                const head1 = buildWall(headW, 0.2, env.sharedWallMat, 0.4, 2.6);
-                head1.position.set(0, 2.8, 0);
+                const head1 = buildWall(headW, 0.2, env.sharedWallMat, 0.2, 2.8);
+                head1.position.set(0, 2.9, 0);
                 g.add(head1);
                 
                 const frameMat = env.woodMat || env.sharedWallMat;
-                const jamb1 = buildWall(0.1, 0.24, frameMat, 2.6, 0);
-                jamb1.position.set(-headW / 2 + 0.05, 1.3, 0);
+                const jamb1 = buildWall(0.1, 0.24, frameMat, 2.8, 0);
+                jamb1.position.set(-headW / 2 + 0.05, 1.4, 0);
                 g.add(jamb1);
                 
-                const jamb2 = buildWall(0.1, 0.24, frameMat, 2.6, 0);
-                jamb2.position.set(headW / 2 - 0.05, 1.3, 0);
+                const jamb2 = buildWall(0.1, 0.24, frameMat, 2.8, 0);
+                jamb2.position.set(headW / 2 - 0.05, 1.4, 0);
                 g.add(jamb2);
                 
-                const topJamb = buildWall(headW - 0.2, 0.24, frameMat, 0.1, 2.5);
-                topJamb.position.set(0, 2.55, 0);
+                const topJamb = buildWall(headW - 0.2, 0.24, frameMat, 0.1, 2.7);
+                topJamb.position.set(0, 2.75, 0);
                 g.add(topJamb);
                 
                 for (let i = 1; i <= dLeft; i++) {
