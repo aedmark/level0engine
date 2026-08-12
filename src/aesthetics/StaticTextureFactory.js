@@ -2,18 +2,50 @@
 export default class StaticTextureFactory {
     static async generateAssets() {
         const manager = new THREE.LoadingManager();
-        const loader = new THREE.TextureLoader(manager);
-        const load = (name) => {
-            const tex = loader.load('./data/textures/' + name + '.png');
-            tex.encoding = 3001;
-            tex.anisotropy = 16;
-            return tex;
+        const criticalLoader = new THREE.TextureLoader(manager);
+        
+        const loadQueue = [];
+        const dummyCanvas = document.createElement('canvas');
+        dummyCanvas.width = 1; dummyCanvas.height = 1;
+        const dummyCtx = dummyCanvas.getContext('2d');
+        dummyCtx.fillStyle = '#808080';
+        dummyCtx.fillRect(0, 0, 1, 1);
+        
+        const criticalNames = new Set([
+            'wallTexture', 'wallBumpTexture',
+            'structMat_map', 'structMat_bumpMap',
+            'woodMat_map', 'woodMat_bumpMap',
+            'doorMat_0_map', 'doorMat_0_bumpMap',
+            'doorMat_1_map', 'doorMat_1_bumpMap',
+            'doorMat_2_map', 'doorMat_2_bumpMap',
+            'doorMat_3_map', 'doorMat_3_bumpMap',
+            'doorMat_4_map', 'doorMat_4_bumpMap',
+            'doorMat_5_map', 'doorMat_5_bumpMap',
+            'carpetTexture', 'ceilingTexture', 'ceilingBumpTexture',
+            'baseLightMat_map', 'baseLightMat_emissiveMap',
+            'baseBrokenLightMat_map', 'baseBrokenLightMat_emissiveMap',
+            'matteLightMat_map', 'matteLightMat_emissiveMap',
+            'matteBrokenLightMat_map', 'matteBrokenLightMat_emissiveMap'
+        ]);
+
+        const queueTexture = (name, encoding) => {
+            if (criticalNames.has(name)) {
+                const tex = criticalLoader.load('./data/textures/' + name + '.png');
+                if (encoding) tex.encoding = encoding;
+                tex.anisotropy = 16;
+                return tex;
+            } else {
+                const tex = new THREE.Texture(dummyCanvas);
+                if (encoding) tex.encoding = encoding;
+                tex.anisotropy = 16;
+                tex.needsUpdate = true;
+                loadQueue.push({ tex, name });
+                return tex;
+            }
         };
-        const loadLinear = (name) => {
-            const tex = loader.load('./data/textures/' + name + '.png');
-            tex.anisotropy = 16;
-            return tex;
-        };
+
+        const load = (name) => queueTexture(name, 3001);
+        const loadLinear = (name) => queueTexture(name, undefined);
         const assets = {};
         assets['pegboardTex'] = load('pegboardTex');
         assets['pegboardTex'].wrapS = THREE.RepeatWrapping;
@@ -2659,6 +2691,23 @@ export default class StaticTextureFactory {
         assets['cartonMats'][3].map.wrapS = THREE.ClampToEdgeWrapping;
         assets['cartonMats'][3].map.wrapT = THREE.ClampToEdgeWrapping;
         await new Promise(r => { manager.onLoad = r; manager.onError = r; });
+        
+        (async () => {
+            const lazyLoader = new THREE.TextureLoader();
+            for (const item of loadQueue) {
+                try {
+                    const loadedTex = await new Promise((resolve, reject) => {
+                        lazyLoader.load('./data/textures/' + item.name + '.png', resolve, undefined, reject);
+                    });
+                    item.tex.image = loadedTex.image;
+                    item.tex.needsUpdate = true;
+                    await new Promise(r => setTimeout(r, 40));
+                } catch (e) {
+                    console.warn('Failed lazy loading', item.name);
+                }
+            }
+        })();
+        
         return assets;
     }
 }
