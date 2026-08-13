@@ -211,7 +211,8 @@ function animate() {
                 flash.style.opacity = '1';
                 const loading = document.getElementById('loading-indicator');
                 if (loading) {
-                    loading.innerText = 'LOADING SECTOR...';
+                    const loadingText = document.getElementById('loading-text');
+                    if (loadingText) loadingText.innerText = 'LOADING SECTOR...';
                     loading.style.display = 'block';
                 }
             }
@@ -306,7 +307,8 @@ function animate() {
         flash.style.opacity = '1';
     }
     if (loading) {
-        loading.innerText = 'COMPILING SHADERS...';
+        const loadingText = document.getElementById('loading-text');
+        if (loadingText) loadingText.innerText = 'COMPILING SHADERS...';
         loading.style.display = 'block';
     }
     
