@@ -30,6 +30,45 @@ const MIME_TYPES = {
 const server = http.createServer((req, res) => {
     const route = req.url.split('?')[0];
 
+    if (req.method === 'POST' && route === '/export-meta') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+            try {
+                const filePath = path.join(__dirname, 'assets', 'textures', 'metadata.json');
+                fs.mkdirSync(path.dirname(filePath), { recursive: true });
+                fs.writeFileSync(filePath, body);
+                res.writeHead(200, { 'Content-Type': 'text/plain' });
+                res.end('OK');
+            } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'text/plain' });
+                res.end(err.toString());
+            }
+        });
+        return;
+    }
+
+    if (req.method === 'POST' && route === '/export') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+            try {
+                const data = JSON.parse(body);
+                const base64Data = data.image.replace(/^data:image\/\w+;base64,/, "");
+                const buf = Buffer.from(base64Data, 'base64');
+                const filePath = path.join(__dirname, 'assets', 'textures', data.name + '.png');
+                fs.mkdirSync(path.dirname(filePath), { recursive: true });
+                fs.writeFileSync(filePath, buf);
+                res.writeHead(200, { 'Content-Type': 'text/plain' });
+                res.end('OK');
+            } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'text/plain' });
+                res.end(err.toString());
+            }
+        });
+        return;
+    }
+
     let filePath = path.join(__dirname, route === '/' ? 'index.html' : route);
 
     if (!filePath.startsWith(__dirname)) {

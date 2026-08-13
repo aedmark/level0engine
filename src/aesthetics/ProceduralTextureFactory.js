@@ -21,27 +21,36 @@ import ArchiveTextures from './textures/sectors/ArchiveTextures.js';
 import CheckpointTextures from './textures/sectors/CheckpointTextures.js';
 import IncineratorTextures from './textures/sectors/IncineratorTextures.js';
 import ServerTextures from './textures/sectors/ServerTextures.js';
+import StaticTextureLoader from './StaticTextureLoader.js';
 
 export default class ProceduralTextureFactory {
+    static USE_STATIC_TEXTURES = true;
+
     static async generateAssets() {
         const masterNoise = TextureMechanics._generateMasterNoise();
         ProceduralTextureFactory._masterNoise = masterNoise; // save for lazy loading
         
+        if (ProceduralTextureFactory.USE_STATIC_TEXTURES) {
+            const staticAssets = await StaticTextureLoader.loadCoreAssets();
+            ProceduralTextureFactory._applyOpts(staticAssets);
+            return staticAssets;
+        }
+
         const extras = {
-            pegboardTex: PropTextures.generatePegboardTexture(),
-            fernTex: PropTextures.generateFernTexture(),
-        };
-        const structAssets = StructuralTextures._buildStructuralAssets(masterNoise);
-        await TextureMechanics._yield();
-        const surfaceAssets = await SurfaceTextures._buildSurfaceAssets(masterNoise);
-        await TextureMechanics._yield();
+                pegboardTex: PropTextures.generatePegboardTexture(),
+                fernTex: PropTextures.generateFernTexture(),
+            };
+            const structAssets = StructuralTextures._buildStructuralAssets(masterNoise);
+            await TextureMechanics._yield();
+            const surfaceAssets = await SurfaceTextures._buildSurfaceAssets(masterNoise);
+            await TextureMechanics._yield();
+            const cartonAssets = PropTextures._buildCartons();
+            await TextureMechanics._yield();
         const organicAssets = OrganicTextures._buildOrganicAssets(masterNoise);
         await TextureMechanics._yield();
         const techAssets = TechTextures._buildTechAssets(masterNoise);
         await TextureMechanics._yield();
         const hazardAssets = HazardTextures._buildHazardAndMiscAssets(masterNoise);
-        await TextureMechanics._yield();
-        const cartonAssets = PropTextures._buildCartons();
         await TextureMechanics._yield();
         
         // Essential sector textures for MaterialLibrary and Environment setup
@@ -58,12 +67,12 @@ export default class ProceduralTextureFactory {
             ...extras,
             ...structAssets,
             ...surfaceAssets,
+            ...cartonAssets,
             ...organicAssets,
             ...techAssets,
             ...hazardAssets,
             ...serverAssets,
-            ...clinicAssets,
-            ...cartonAssets
+            ...clinicAssets
         };
         
         ProceduralTextureFactory._applyOpts(assets);

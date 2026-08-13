@@ -1,5 +1,15 @@
 # Level 0 Engine Changelog
 
+## [v0.9.8] - 2026-08-12
+
+_Massive Boot Speed Optimization & Automated Texture Baking_
+
+### Added
+
+- **[ENGINE] Automated Static Texture Loader:** We completely overhauled how the engine handles textures on boot. By default, the engine historically generated over 50 complex textures (Core, Organic, Tech, Hazard, Server, and Clinic textures) on the fly via heavy CPU procedural math and canvas drawing. We built a custom exporter (`export_textures.html`) to natively extract and save all generated `THREE.MeshStandardMaterial` properties to a `metadata.json` along with PNG snapshots of the procedurally generated canvases. 
+- **[ENGINE] Zero-CPU Texture Boot:** Created `StaticTextureLoader.js` and wired it into `ProceduralTextureFactory.js`. When `USE_STATIC_TEXTURES` is enabled, the engine now completely bypasses all procedural math and synchronously loading textures. Instead, it reads the dynamically generated `metadata.json` and loads the baked PNGs directly to the GPU via `THREE.TextureLoader`. This completely eliminates the multi-second boot lockup.
+- **[ENGINE] Seamless Modifiability:** Should any of the underlying procedural noise math or material configurations change, running `export_textures.html` on a local node server (`engine_server.js`) instantly re-generates all assets and rewrites the configuration files, keeping the static pipeline up to date with zero manual intervention.
+
 ## [v0.9.7] - 2026-08-12
 
 _Three.js r160 Upgrade & Shader Compilation_
