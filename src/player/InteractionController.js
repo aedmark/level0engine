@@ -139,35 +139,13 @@ export default class InteractionController {
                         (Math.abs(door.userData.closedRot) < 0.1 || Math.abs(door.userData.closedRot - Math.PI) < 0.1);
                     const swingAngle = Math.PI / 2.2;
                     let desiredRot;
-                    const checkClear = (testRot) => {
-                        const testPt = new THREE.Vector3(0.7, 1.5, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), testRot).add(worldPos);
-                        const nearby = env.spatialGrid.getNearby(testPt.x, testPt.z, 0.5);
-                        for (let i = 0; i < nearby.length; i++) {
-                            const b = nearby[i];
-                            if (b.isEntityBlocker && b !== door.userData.box && b.containsPoint(testPt)) {
-                                return false;
-                            }
-                        }
-                        return true;
-                    };
-
-                    let opt1, opt2, approachFavorsOpt1;
                     if (isZDoor) {
-                        opt1 = door.userData.closedRot + swingAngle;
-                        opt2 = door.userData.closedRot - swingAngle;
-                        approachFavorsOpt1 = (triggerPos.z - worldPos.z) < 0;
+                        const approachZ = triggerPos.z - worldPos.z;
+                        desiredRot = approachZ < 0 ? (door.userData.closedRot + swingAngle) : (door.userData.closedRot - swingAngle);
                     } else {
-                        opt1 = door.userData.closedRot - swingAngle;
-                        opt2 = door.userData.closedRot + swingAngle;
-                        approachFavorsOpt1 = (triggerPos.x - worldPos.x) < 0;
+                        const approachX = triggerPos.x - worldPos.x;
+                        desiredRot = approachX < 0 ? (door.userData.closedRot - swingAngle) : (door.userData.closedRot + swingAngle);
                     }
-
-                    const clear1 = checkClear(opt1);
-                    const clear2 = checkClear(opt2);
-
-                    if (clear1 && !clear2) desiredRot = opt1;
-                    else if (clear2 && !clear1) desiredRot = opt2;
-                    else desiredRot = approachFavorsOpt1 ? opt1 : opt2;
                     door.userData.latchedRot = desiredRot;
                     door.userData.isLatched = true;
                     door.userData.swingSpeed = (entityOpen && !playerOpen) ? 35.0 : 8.0;

@@ -1,13 +1,5 @@
 # Level 0 Engine Changelog
 
-## [v0.9.7] - 2026-08-12
-
-_The Circular Reference Safety Net_
-
-### Fixed
-
-- **[ENGINE] Massive Freeze & Crash During Chunk Compilation:** Fixed a critical bug where `Three.js` natively crashed the browser during chunk generation if any complex or circular data accidentally snuck into a Material's or Geometry's `userData`. The crash was initially caught via a slow `try...catch` block, which inadvertently caused massive multi-second freezes as thousands of stack traces were generated under the hood. A custom, lightning-fast cycle-detecting filter has been injected directly into `r128.js`'s `JSON.stringify` serialization routines, instantly scrubbing out heavy 3D objects and cyclic loops in microseconds without throwing errors. The game now boots and streams chunks flawlessly.
-
 ## [v0.9.6] - 2026-08-11
 
 _Acoustics & Lighting Fixes_

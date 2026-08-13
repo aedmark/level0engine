@@ -1,5 +1,3 @@
-import ChunkCache from './ChunkCache.js';
-
 /**
  * [ROLE] Handles persisting and restoring game state.
  * [WHY] Allows players to save configurations and progress using browser local storage.
@@ -148,9 +146,6 @@ export default class SaveManager {
                 for (let key of keys) {
                     await caches.delete(key);
                 }
-            }
-            if (ChunkCache) {
-                await ChunkCache.clearAll();
             }
             const seedInput = document.getElementById('seedInput');
             if (seedInput) seedInput.value = '';

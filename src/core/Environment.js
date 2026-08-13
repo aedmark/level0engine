@@ -1,7 +1,6 @@
 import ChunkManager from '../world/ChunkManager.js';
 import AtmosphereManager from '../aesthetics/AtmosphereManager.js';
 import ProceduralTextureFactory from '../aesthetics/ProceduralTextureFactory.js';
-import StaticTextureFactory from '../aesthetics/StaticTextureFactory.js';
 import EntityManager from '../entities/EntityManager.js';
 import SpatialHashGrid from '../math/SpatialHashGrid.js';
 import TheArchitect from './TheArchitect.js';
@@ -85,7 +84,7 @@ export default class Environment {
             if (loadingInd) loadingInd.style.display = 'block';
         }
         await new Promise(resolve => setTimeout(resolve, 0));
-        const assets = await StaticTextureFactory.generateAssets();
+        const assets = await ProceduralTextureFactory.generateAssets();
         Object.assign(this, assets);
         const {carpetTexture, ceilingTexture, ceilingBumpTexture} = assets;
         carpetTexture.repeat.set(16, 16);

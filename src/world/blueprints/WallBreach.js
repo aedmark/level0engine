@@ -48,23 +48,6 @@ export const WallBreachProfile = (env, ctx) => {
                     if (!inChunk(chkX, chkZ)) break;
                     const forced = ctx.getForcedStructure ? ctx.getForcedStructure(chkX, chkZ) : null;
                     if (isWallCell(chkX, chkZ) || blockers.includes(forced)) break;
-                    
-                    const chkPx = chkX * env.cellSize;
-                    const chkPz = chkZ * env.cellSize;
-                    const probeBox = new THREE.Box3(
-                        new THREE.Vector3(chkPx - 0.5, 1.0, chkPz - 0.5),
-                        new THREE.Vector3(chkPx + 0.5, 2.0, chkPz + 0.5)
-                    );
-                    let hitSurface = false;
-                    const nearby = env.spatialGrid.getNearby(chkPx, chkPz, 2.0);
-                    for (let i = 0; i < nearby.length; i++) {
-                        if (nearby[i].isEntityBlocker && nearby[i].intersectsBox(probeBox)) {
-                            hitSurface = true;
-                            break;
-                        }
-                    }
-                    if (hitSurface) break;
-
                     dLeft++;
                 }
 
@@ -75,23 +58,6 @@ export const WallBreachProfile = (env, ctx) => {
                     if (!inChunk(chkX, chkZ)) break;
                     const forced = ctx.getForcedStructure ? ctx.getForcedStructure(chkX, chkZ) : null;
                     if (isWallCell(chkX, chkZ) || blockers.includes(forced)) break;
-                    
-                    const chkPx = chkX * env.cellSize;
-                    const chkPz = chkZ * env.cellSize;
-                    const probeBox = new THREE.Box3(
-                        new THREE.Vector3(chkPx - 0.5, 1.0, chkPz - 0.5),
-                        new THREE.Vector3(chkPx + 0.5, 2.0, chkPz + 0.5)
-                    );
-                    let hitSurface = false;
-                    const nearby = env.spatialGrid.getNearby(chkPx, chkPz, 2.0);
-                    for (let i = 0; i < nearby.length; i++) {
-                        if (nearby[i].isEntityBlocker && nearby[i].intersectsBox(probeBox)) {
-                            hitSurface = true;
-                            break;
-                        }
-                    }
-                    if (hitSurface) break;
-
                     dRight++;
                 }
 
@@ -101,73 +67,32 @@ export const WallBreachProfile = (env, ctx) => {
                 const leftW = baseStubW + dLeft * env.cellSize;
                 const stub1 = buildWall(leftW, 0.2, env.sharedWallMat, 3.0, 0);
                 stub1.position.set(-0.7 - leftW / 2, 1.5, 0);
-                stub1.userData.isEntityBlocker = true;
                 g.add(stub1);
                 
                 const rightW = baseStubW + dRight * env.cellSize;
                 const stub2 = buildWall(rightW, 0.2, env.sharedWallMat, 3.0, 0);
                 stub2.position.set(0.7 + rightW / 2, 1.5, 0);
-                stub2.userData.isEntityBlocker = true;
                 g.add(stub2);
                 
                 const headW = 1.4;
-                const head1 = buildWall(headW, 0.2, env.sharedWallMat, 0.2, 2.8);
-                head1.position.set(0, 2.9, 0);
+                const head1 = buildWall(headW, 0.2, env.sharedWallMat, 0.4, 2.6);
+                head1.position.set(0, 2.8, 0);
                 g.add(head1);
                 
                 const frameMat = env.woodMat || env.sharedWallMat;
-                const jamb1 = buildWall(0.1, 0.24, frameMat, 2.8, 0);
-                jamb1.position.set(-headW / 2 + 0.05, 1.4, 0);
+                const jamb1 = buildWall(0.1, 0.24, frameMat, 2.6, 0);
+                jamb1.position.set(-headW / 2 + 0.05, 1.3, 0);
                 g.add(jamb1);
                 
-                const jamb2 = buildWall(0.1, 0.24, frameMat, 2.8, 0);
-                jamb2.position.set(headW / 2 - 0.05, 1.4, 0);
+                const jamb2 = buildWall(0.1, 0.24, frameMat, 2.6, 0);
+                jamb2.position.set(headW / 2 - 0.05, 1.3, 0);
                 g.add(jamb2);
                 
-                const topJamb = buildWall(headW - 0.2, 0.24, frameMat, 0.1, 2.7);
-                topJamb.position.set(0, 2.75, 0);
+                const topJamb = buildWall(headW - 0.2, 0.24, frameMat, 0.1, 2.5);
+                topJamb.position.set(0, 2.55, 0);
                 g.add(topJamb);
                 
-                for (let i = 1; i <= dLeft; i++) {
-                    const chkX = isRotated ? x : x - i;
-                    const chkZ = isRotated ? z + i : z;
-                    if (ctx.markOccupied) ctx.markOccupied(chkX, chkZ);
-                }
-                for (let i = 1; i <= dRight; i++) {
-                    const chkX = isRotated ? x : x + i;
-                    const chkZ = isRotated ? z - i : z;
-                    if (ctx.markOccupied) ctx.markOccupied(chkX, chkZ);
-                }
-
                 addGroupToStaging(g);
-
-                const deleteLightsInBox = (mesh) => {
-                    mesh.geometry.computeBoundingBox();
-                    const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
-                    box.expandByScalar(0.4); 
-                    for (let i = env.fixtureData.length - 1; i >= 0; i--) {
-                        if (box.containsPoint(env.fixtureData[i].position)) {
-                            env.fixtureData.splice(i, 1);
-                        }
-                    }
-                    for (let i = env.walls.length - 1; i >= 0; i--) {
-                        const w = env.walls[i];
-                        if (w.geometry === env.sharedPanelGeo && box.containsPoint(w.position)) {
-                            if (w.parent) w.parent.remove(w);
-                            env.walls.splice(i, 1);
-                        }
-                    }
-                    if (ctx.stagingMeshes) {
-                        for (let i = ctx.stagingMeshes.length - 1; i >= 0; i--) {
-                            const w = ctx.stagingMeshes[i];
-                            if (w.geometry === env.sharedPanelGeo && box.containsPoint(w.position)) {
-                                ctx.stagingMeshes.splice(i, 1);
-                            }
-                        }
-                    }
-                };
-                deleteLightsInBox(stub1);
-                deleteLightsInBox(stub2);
             } else {
                 const OPENING_W = 1.2;
                 const SILL_H = 0.6;

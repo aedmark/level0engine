@@ -88,38 +88,25 @@ export const RideQueueHallProfile = (env, ctx) => {
                 return new THREE.TubeGeometry(curve, 6, 0.015, 5, false);
             });
 
-            const isQueueActive = (tx, tz) => {
-                if (!ctx.getForcedStructure) return false;
-                return ctx.getForcedStructure(tx, tz) === 'RIDE_QUEUE_HALL';
-            };
-
             if (pathZ && !pathX) {
-                if (isQueueActive(x, z+1)) {
-                    const rope1 = new THREE.Mesh(halfRopeGeo, env.ropeMat);
-                    rope1.position.set(cx, 0.9, cz);
-                    addGeometry(rope1);
-                }
+                const rope1 = new THREE.Mesh(halfRopeGeo, env.ropeMat);
+                rope1.position.set(cx, 0.9, cz);
+                addGeometry(rope1);
                 
-                if (isQueueActive(x, z-1)) {
-                    const rope2 = new THREE.Mesh(halfRopeGeo, env.ropeMat);
-                    rope2.position.set(cx, 0.9, cz);
-                    rope2.rotation.y = Math.PI;
-                    addGeometry(rope2);
-                }
+                const rope2 = new THREE.Mesh(halfRopeGeo, env.ropeMat);
+                rope2.position.set(cx, 0.9, cz);
+                rope2.rotation.y = Math.PI;
+                addGeometry(rope2);
             } else if (pathX && !pathZ) {
-                if (isQueueActive(x+1, z)) {
-                    const rope1 = new THREE.Mesh(halfRopeGeo, env.ropeMat);
-                    rope1.position.set(cx, 0.9, cz);
-                    rope1.rotation.y = Math.PI / 2;
-                    addGeometry(rope1);
-                }
+                const rope1 = new THREE.Mesh(halfRopeGeo, env.ropeMat);
+                rope1.position.set(cx, 0.9, cz);
+                rope1.rotation.y = Math.PI / 2;
+                addGeometry(rope1);
                 
-                if (isQueueActive(x-1, z)) {
-                    const rope2 = new THREE.Mesh(halfRopeGeo, env.ropeMat);
-                    rope2.position.set(cx, 0.9, cz);
-                    rope2.rotation.y = -Math.PI / 2;
-                    addGeometry(rope2);
-                }
+                const rope2 = new THREE.Mesh(halfRopeGeo, env.ropeMat);
+                rope2.position.set(cx, 0.9, cz);
+                rope2.rotation.y = -Math.PI / 2;
+                addGeometry(rope2);
             }
         }
     };

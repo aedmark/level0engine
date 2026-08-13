@@ -1,23 +1,9 @@
 {
   "name": "level0engine",
   "version": "0.9.6",
-  "description": "<img src=\"./header.png\">",
+  "description": "",
   "main": "index.html",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/aedmark/level0engine.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/aedmark/level0engine/issues"
-  },
-  "homepage": "https://github.com/aedmark/level0engine#readme",
-  "devDependencies": {
-    "esbuild": "^0.28.2"
   }
 }
