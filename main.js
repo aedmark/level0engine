@@ -23,7 +23,7 @@ import UIManager from './src/ui/UIManager.js';
 import {DebugHUD} from './src/ui/DebugHUD.js';
 import RemapController from './src/ui/RemapController.js';
 
-await StoryEngine.loadData('./data');
+const storyPromise = StoryEngine.loadData('./data');
 const engine = new RenderEngine();
 const acoustics = new AcousticEngine();
 window.acoustics = acoustics;
@@ -81,7 +81,7 @@ const savedState = saveManager.loadState();
 if (!document.getElementById('seedInput').value) {
     document.getElementById('seedInput').value = saveManager.generateCardSeed();
 }
-await environment.setup();
+await Promise.all([environment.setup(), storyPromise]);
 if (savedState) {
     if (savedState.story && environment.getStory) {
         environment.getStory().importState(savedState.story);

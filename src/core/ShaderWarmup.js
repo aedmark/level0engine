@@ -44,8 +44,6 @@ export default class ShaderWarmup {
     }
 
     static async _warm(env) {
-        this._materialiseLazySectorAssets(env);
-
         env._programKeepAlive = [];
 
         const materials = this._collectMaterials(env);
