@@ -294,4 +294,28 @@ function animate() {
     engine.render();
 }
 
-animate();
+(async function() {
+    while (environment.isBuildingChunk || environment.chunkQueue.length > 0) {
+        await new Promise(r => setTimeout(r, 20));
+    }
+    const flash = document.getElementById('flash-overlay');
+    const loading = document.getElementById('loading-indicator');
+    if (flash) {
+        flash.style.transition = 'none';
+        flash.style.backgroundColor = 'rgba(0, 0, 0, 1.0)';
+        flash.style.opacity = '1';
+    }
+    if (loading) {
+        loading.innerText = 'COMPILING SHADERS...';
+        loading.style.display = 'block';
+    }
+    
+    await engine.renderer.compileAsync(engine.scene, engine.camera);
+    
+    if (loading) loading.style.display = 'none';
+    if (flash) {
+        flash.style.transition = 'opacity 0.8s ease-out';
+        flash.style.opacity = '0';
+    }
+    animate();
+})();

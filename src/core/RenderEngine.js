@@ -6,17 +6,7 @@
  */
 export default class RenderEngine {
     constructor() {
-        /** [WHY] Standard Three.js fog is linear/depth-based which looks bad when looking up/down in large sectors.
-        * [HOW] Regex replacement of depth calculation in the built-in shader chunk to use radial distance.
-        * [HACK] We monkey-patch the global THREE.ShaderChunk so it applies to all materials without custom shaders.
-        */
-         if (!THREE.__radialFogPatched) {
-            THREE.ShaderChunk.fog_vertex = THREE.ShaderChunk.fog_vertex.replace(
-                /vFogDepth\s*=\s*-\s*mvPosition\.z\s*;/,
-                'vFogDepth = length( mvPosition.xyz );'
-            );
-            THREE.__radialFogPatched = true;
-        }
+        THREE.ColorManagement.enabled = false;
         this.aspectRatio = 1.3333333333;
         this.resolutionScale = RenderEngine.getSavedResolutionScale();
         this.enablePostProcessing = RenderEngine.getSavedPostProcess();
@@ -32,6 +22,7 @@ export default class RenderEngine {
             powerPreference: "high-performance",
             logarithmicDepthBuffer: logDepth
         });
+        this.renderer.useLegacyLights = true;
         /** [WHY] three r128 links shader programs synchronously, and with 32 pooled point lights,
          * 32 pooled spot lights, 13 shadow slots, PCFSoft filtering and a logarithmic depth buffer
          * a single program is very large. checkShaderErrors makes r128 call gl.getProgramInfoLog

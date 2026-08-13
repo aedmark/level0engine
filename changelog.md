@@ -1,5 +1,17 @@
 # Level 0 Engine Changelog
 
+## [v0.9.7] - 2026-08-12
+
+_Three.js r160 Upgrade & Shader Compilation_
+
+### Added
+
+- **[ENGINE] Parallel Shader Compilation:** Upgraded the engine from Three.js `r128` to `r160` to take advantage of the `KHR_parallel_shader_compile` WebGL extension via `renderer.compileAsync()`. This completely eliminates the synchronous main-thread lockup during engine boot, allowing shaders to compile seamlessly in the background across multiple CPU cores. A "COMPILING SHADERS..." loader screen is now displayed while background compilation occurs.
+
+### Fixed
+
+- **[GRAPHICS] r160 Lighting & Color Washout:** Fixed a severe issue where upgrading to `r160` washed the entire scene out with a flat, muddy brownish-yellow tint. We explicitly restored legacy behavior by setting `THREE.ColorManagement.enabled = false` and `renderer.useLegacyLights = true` to preserve the engine's original, carefully tuned lighting attenuation and custom post-processing gamma pipeline.
+- **[GRAPHICS] Massive Geometric Fog Overlay:** Fixed a bizarre visual bug in `r160` where a dark geometric grid laid over the ceiling and floor, blocking the flashlight. This was caused by an old radial fog monkey-patch that silently failed to apply in `r128` (due to variable name `fogDepth`), but successfully applied in `r160` (`vFogDepth`). The patch calculated non-linear radial distance in the vertex shader, which caused extreme perspective interpolation errors across large chunks of geometry. The patch has been removed, safely restoring standard linear fog.
 ## [v0.9.6] - 2026-08-11
 
 _Acoustics & Lighting Fixes_
