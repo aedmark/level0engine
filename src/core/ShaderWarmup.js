@@ -3,12 +3,9 @@ import TheArchitect from './TheArchitect.js';
 /**
  * [ROLE] Links every shader program the world is going to need while the boot loading screen is
  *        still covering the view, and then pins those programs so they are never thrown away.
- * [WHY] three r128 links synchronously and has no compileAsync. With 32 pooled point lights, 32
- *       pooled spot lights, 13 shadow slots, PCFSoft filtering and a logarithmic depth buffer,
- *       each program is enormous, so the first chunk of a sector that introduced unseen materials
- *       used to stall the main thread for seconds. The Atrium was the worst case: AtriumSector
- *       creates roughly a dozen materials lazily, and every one of them wanted a fresh link the
- *       moment you walked in through the airlock.
+ * [WHY] With 32 pooled point lights, 32 pooled spot lights, 13 shadow slots, PCFSoft filtering 
+ *       and a logarithmic depth buffer, each program is enormous. We now use renderer.compileAsync() 
+ *       to link these asynchronously, avoiding the multi-second thread locks from older ThreeJS versions.
  * [STATE] Stateless entry point. Leaves env._programKeepAlive behind and nothing else.
  * [DEPENDS] THREE.js globally, plus the env produced by Environment.setup().
  */
@@ -54,7 +51,7 @@ export default class ShaderWarmup {
         const materials = this._collectMaterials(env);
         const BATCH = 8;
         for (let i = 0; i < materials.length; i += BATCH) {
-            env.chunkManager.warmMaterialVariants(new Set(materials.slice(i, i + BATCH)));
+            await env.chunkManager.warmMaterialVariants(new Set(materials.slice(i, i + BATCH)));
             await new Promise(resolve => setTimeout(resolve, 0));
         }
     }

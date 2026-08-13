@@ -5,6 +5,7 @@
  * [DEPENDS] Pulls in TheArchitect and a set of low-probability blueprint profiles (WallBreach, CrawlspaceHall, CreviceHall, RideQueueHall, BreakerPodiumSpawn).
  */
 import TheArchitect from "../core/TheArchitect.js";
+import StructureKit from "./StructureKit.js";
 import {spawnBreakerPodium} from './blueprints/BreakerPodiumSpawn.js';
 import {WallBreachProfile} from './blueprints/WallBreach.js';
 import {CrawlspaceHallProfile} from './blueprints/CrawlspaceHall.js';

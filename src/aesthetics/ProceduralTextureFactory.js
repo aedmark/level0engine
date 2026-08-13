@@ -25,13 +25,15 @@ import ServerTextures from './textures/sectors/ServerTextures.js';
 export default class ProceduralTextureFactory {
     static async generateAssets() {
         const masterNoise = TextureMechanics._generateMasterNoise();
+        ProceduralTextureFactory._masterNoise = masterNoise; // save for lazy loading
+        
         const extras = {
             pegboardTex: PropTextures.generatePegboardTexture(),
             fernTex: PropTextures.generateFernTexture(),
         };
         const structAssets = StructuralTextures._buildStructuralAssets(masterNoise);
         await TextureMechanics._yield();
-        const surfaceAssets = SurfaceTextures._buildSurfaceAssets(masterNoise);
+        const surfaceAssets = await SurfaceTextures._buildSurfaceAssets(masterNoise);
         await TextureMechanics._yield();
         const organicAssets = OrganicTextures._buildOrganicAssets(masterNoise);
         await TextureMechanics._yield();
@@ -39,25 +41,19 @@ export default class ProceduralTextureFactory {
         await TextureMechanics._yield();
         const hazardAssets = HazardTextures._buildHazardAndMiscAssets(masterNoise);
         await TextureMechanics._yield();
-        const annexAssets = AnnexTextures._buildAnnexAssets(masterNoise);
+        const cartonAssets = PropTextures._buildCartons();
         await TextureMechanics._yield();
-        const impoundAssets = ImpoundTextures._buildImpoundAssets(masterNoise);
-        await TextureMechanics._yield();
-        const boardroomAssets = BoardroomTextures._buildBoardroomAssets(masterNoise);
-        await TextureMechanics._yield();
-        const atriumAssets = AtriumTextures._buildAtriumAssets(masterNoise);
-        await TextureMechanics._yield();
-        const maintenanceAssets = MaintenanceTextures._buildMaintenanceAssets(masterNoise);
-        await TextureMechanics._yield();
-        const archiveAssets = ArchiveTextures._buildArchiveAssets(masterNoise);
-        await TextureMechanics._yield();
-        const checkpointAssets = CheckpointTextures._buildCheckpointAssets(masterNoise);
-        await TextureMechanics._yield();
-        const incineratorAssets = IncineratorTextures._buildIncineratorAssets(masterNoise);
-        await TextureMechanics._yield();
+        
+        // Essential sector textures for MaterialLibrary and Environment setup
         const serverAssets = ServerTextures._buildServerAssets(masterNoise);
         await TextureMechanics._yield();
-        const cartonAssets = PropTextures._buildCartons();
+        
+        let clinicAssets = {};
+        if (ClinicTextures && ClinicTextures._buildClinicAssets) {
+            clinicAssets = ClinicTextures._buildClinicAssets(masterNoise);
+            await TextureMechanics._yield();
+        }
+        
         const assets = {
             ...extras,
             ...structAssets,
@@ -65,17 +61,43 @@ export default class ProceduralTextureFactory {
             ...organicAssets,
             ...techAssets,
             ...hazardAssets,
-            ...annexAssets,
-            ...impoundAssets,
-            ...boardroomAssets,
-            ...atriumAssets,
-            ...maintenanceAssets,
-            ...archiveAssets,
-            ...checkpointAssets,
-            ...incineratorAssets,
             ...serverAssets,
+            ...clinicAssets,
             ...cartonAssets
         };
+        
+        ProceduralTextureFactory._applyOpts(assets);
+        return assets;
+    }
+
+    static async lazyLoadSectorAssets(env) {
+        const masterNoise = ProceduralTextureFactory._masterNoise;
+        if (!masterNoise) return;
+        
+        const lazyModules = [
+            (noise) => AnnexTextures._buildAnnexAssets(noise),
+            (noise) => ImpoundTextures._buildImpoundAssets(noise),
+            (noise) => BoardroomTextures._buildBoardroomAssets(noise),
+            (noise) => AtriumTextures._buildAtriumAssets(noise),
+            (noise) => MaintenanceTextures._buildMaintenanceAssets(noise),
+            (noise) => ArchiveTextures._buildArchiveAssets(noise),
+            (noise) => CheckpointTextures._buildCheckpointAssets(noise),
+            (noise) => IncineratorTextures._buildIncineratorAssets(noise)
+        ];
+        
+        for (const buildFn of lazyModules) {
+            await TextureMechanics._yield();
+            if (!buildFn) continue;
+            
+            const sectorAssets = buildFn(masterNoise);
+            ProceduralTextureFactory._applyOpts(sectorAssets);
+            
+            // Assign dynamically to env.
+            Object.assign(env, sectorAssets);
+        }
+    }
+
+    static _applyOpts(assets) {
         const markSRGB = (texture) => {
             if ('colorSpace' in texture) {
                 texture.colorSpace = THREE.SRGBColorSpace;
@@ -110,6 +132,5 @@ export default class ProceduralTextureFactory {
                 applyOpt(item, key);
             }
         });
-        return assets;
     }
 }

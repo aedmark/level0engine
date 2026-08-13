@@ -9,7 +9,7 @@ import ClinicTextures from '../sectors/ClinicTextures.js';
 import AtriumTextures from '../sectors/AtriumTextures.js';
 
 export default class SurfaceTextures {
-    static _buildSurfaceAssets(masterNoise) {
+    static async _buildSurfaceAssets(masterNoise) {
         const {canvas: carpetCanvas, ctx: carpetCtx} = TextureMechanics._createContext(512, 512);
         const {canvas: noiseCanvas, ctx: noiseCtx} = TextureMechanics._createContext(256, 256);
         const imgData = noiseCtx.createImageData(256, 256);
@@ -30,7 +30,7 @@ export default class SurfaceTextures {
         const carpetTexture = TextureMechanics._createWrappedTexture(carpetCanvas);
         carpetTexture.magFilter = THREE.LinearFilter;
         carpetTexture.minFilter = THREE.LinearMipmapLinearFilter;
-        const {canvas: ceilingCanvas, bumpCanvas: ceilingBumpCanvas} = this._buildNormalCeiling(masterNoise);
+        const {canvas: ceilingCanvas, bumpCanvas: ceilingBumpCanvas} = await this._buildNormalCeiling(masterNoise);
         const ceilingTexture = TextureMechanics._createWrappedTexture(ceilingCanvas);
         const ceilingBumpTexture = TextureMechanics._createWrappedTexture(ceilingBumpCanvas);
         const {canvas: tileCanvas, ctx: tileCtx} = TextureMechanics._createContext(256, 256);
@@ -85,7 +85,7 @@ export default class SurfaceTextures {
         };
     }
 
-    static _buildNormalCeiling(masterNoise) {
+    static async _buildNormalCeiling(masterNoise) {
         const SIZE = 1024;
         const MASK = SIZE - 1;
         const COLS = 4, ROWS = 4;
@@ -152,6 +152,7 @@ export default class SurfaceTextures {
         const px = img.data, bpx = bImg.data;
         const cells = SIZE / P;
         for (let cy = 0; cy < cells; cy++) {
+            if (cy % 8 === 0) await TextureMechanics._yield();
             for (let cx = 0; cx < cells; cx++) {
                 let h = (Math.imul(cx, 374761393) + Math.imul(cy, 668265263)) >>> 0;
                 h = (h ^ (h >>> 13)) >>> 0;

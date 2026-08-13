@@ -204,6 +204,10 @@ export default class Environment {
         this.baseFogDensity = 0.05;
         this.generate();
         await ShaderWarmup.run(this);
+        
+        // Lazy load remaining sector textures in the background
+        ProceduralTextureFactory.lazyLoadSectorAssets(this).catch(console.error);
+        
         const toggleBtn = document.getElementById('menuToggleBtn');
         const toggleMenu = (e) => {
             if (e && e.preventDefault) e.preventDefault();

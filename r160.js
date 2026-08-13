@@ -29442,14 +29442,15 @@ console.warn( 'Scripts "build/three.js" and "build/three.min.js" are deprecated 
 
 				return new Promise( ( resolve ) => {
 
+					let start = performance.now();
 					function checkMaterialsReady() {
 
 						materials.forEach( function ( material ) {
 
 							const materialProperties = properties.get( material );
-							const program = materialProperties.currentProgram;
+							const program = materialProperties ? materialProperties.currentProgram : null;
 
-							if ( program.isReady() ) {
+							if ( ! program || typeof program.isReady !== 'function' || program.isReady() || ( performance.now() - start > 1000 ) ) {
 
 								// remove any programs that report they're ready to use from the list
 								materials.delete( material );
