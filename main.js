@@ -22,8 +22,15 @@ import InquestController from './src/ui/InquestController.js';
 import UIManager from './src/ui/UIManager.js';
 import {DebugHUD} from './src/ui/DebugHUD.js';
 import RemapController from './src/ui/RemapController.js';
+import BootController from './src/ui/BootController.js';
 
-const storyPromise = StoryEngine.loadData('./data');
+const bootCtrl = BootController.getInstance();
+bootCtrl.init();
+bootCtrl.setPhase(1, 'RETICULATING NARRATIVE THREADS & CASE FILES...', 0);
+
+const storyPromise = StoryEngine.loadData('./data', (pct, fileName) => {
+    bootCtrl.setProgress(pct, `PARSED CASE DATA: ${fileName}`);
+});
 const engine = new RenderEngine();
 const acoustics = new AcousticEngine();
 window.acoustics = acoustics;
@@ -204,17 +211,15 @@ function animate() {
             player.isFrozen = true;
             player.input.isFrozen = true;
             player.wasFrozenByLoad = true;
+            bootCtrl.setPhase(3, 'LOADING ANOMALOUS SECTOR...', 50);
+            bootCtrl.addLog('MATERIALIZING SECTOR BOUNDARY CHUNKS...');
             const flash = document.getElementById('flash-overlay');
             if (flash) {
                 flash.style.transition = 'opacity 0.2s ease-out';
                 flash.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
                 flash.style.opacity = '1';
                 const loading = document.getElementById('loading-indicator');
-                if (loading) {
-                    const loadingText = document.getElementById('loading-text');
-                    if (loadingText) loadingText.innerText = 'LOADING SECTOR...';
-                    loading.style.display = 'block';
-                }
+                if (loading) loading.style.display = 'block';
             }
         }
     } else if (player.wasFrozenByLoad) {
@@ -227,9 +232,7 @@ function animate() {
             flash.style.transition = 'opacity 0.8s ease-out';
             flash.style.opacity = '0';
             const loading = document.getElementById('loading-indicator');
-            if (loading) {
-                loading.style.display = 'none';
-            }
+            if (loading) loading.style.display = 'none';
         }
     }
     if (!sectorHuntActive) environment.updateChunks(engine.camera.position);
@@ -299,25 +302,14 @@ function animate() {
     while (environment.isBuildingChunk || environment.chunkQueue.length > 0) {
         await new Promise(r => setTimeout(r, 20));
     }
-    const flash = document.getElementById('flash-overlay');
-    const loading = document.getElementById('loading-indicator');
-    if (flash) {
-        flash.style.transition = 'none';
-        flash.style.backgroundColor = 'rgba(0, 0, 0, 1.0)';
-        flash.style.opacity = '1';
-    }
-    if (loading) {
-        const loadingText = document.getElementById('loading-text');
-        if (loadingText) loadingText.innerText = 'COMPILING SHADERS...';
-        loading.style.display = 'block';
-    }
-    
+
+    bootCtrl.setPhase(5, 'COMPILING SOMATIC PHOSPHOR SHADERS...', 85);
+    bootCtrl.addLog('RUNNING PARALLEL WEBGL SHADER COMPILER...');
+
     await engine.renderer.compileAsync(engine.scene, engine.camera);
-    
-    if (loading) loading.style.display = 'none';
-    if (flash) {
-        flash.style.transition = 'opacity 0.8s ease-out';
-        flash.style.opacity = '0';
-    }
+
+    bootCtrl.setProgress(98, 'SHADER PROGRAM PERMUTATIONS LINKED [OK]');
+
+    await bootCtrl.finish();
     animate();
 })();

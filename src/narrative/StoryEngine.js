@@ -10,16 +10,32 @@ export default class StoryEngine {
     static NAMES_DATA = { FIRST: [], LAST: [], PROJECT_NAMES: [] };
     static CASES_DATA = {};
 
-    static async loadData(dataDir = './data') {
+    static async loadData(dataDir = './data', onProgress = null) {
         try {
             const files = ['parameters', 'lore', 'clues', 'finales', 'foreshadow', 'threads', 'puzzles'];
-            const fetches = files.map(f => fetch(`${dataDir}/${f}.json`).then(res => res.json()));
+            let loadedCount = 0;
+            const results = {};
             
-            const [parameters, lore, clues, finales, foreshadow, threads, puzzles] = await Promise.all(fetches);
+            for (const f of files) {
+                const res = await fetch(`${dataDir}/${f}.json`);
+                const json = await res.json();
+                results[f] = json;
+                loadedCount++;
+                if (onProgress) {
+                    const pct = Math.round((loadedCount / files.length) * 15);
+                    onProgress(pct, `${f}.json`);
+                }
+            }
             
-            StoryEngine.PARAMS = parameters;
-            StoryEngine.PUZZLES = puzzles;
-            StoryEngine.CASES_DATA = { lore, clues, finales, foreshadow, threads };
+            StoryEngine.PARAMS = results.parameters;
+            StoryEngine.PUZZLES = results.puzzles;
+            StoryEngine.CASES_DATA = { 
+                lore: results.lore, 
+                clues: results.clues, 
+                finales: results.finales, 
+                foreshadow: results.foreshadow, 
+                threads: results.threads 
+            };
         } catch (e) {
             console.error("Failed to load narrative data:", e);
         }

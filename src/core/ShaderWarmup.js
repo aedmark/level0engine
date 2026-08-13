@@ -32,24 +32,34 @@ export default class ShaderWarmup {
      * and acquireProgram returns the existing program on a hit, so the actual link work is bounded
      * by the number of distinct permutations however many materials are fed in.
      */
-    static async run(env) {
+    static async run(env, onProgress = null) {
         if (env._programKeepAlive) return;
         const renderer = env.engine && env.engine.renderer;
         if (!renderer || !env.chunkManager) return;
         try {
-            await this._warm(env);
+            if (onProgress) onProgress(72, 'PREWARMING ANOMALOUS SECTOR BLUEPRINTS...');
+            this._materialiseLazySectorAssets(env);
+            await this._warm(env, onProgress);
         } catch (err) {
             console.warn('Shader warmup aborted:', err);
         }
     }
 
-    static async _warm(env) {
+    static async _warm(env, onProgress = null) {
         env._programKeepAlive = [];
 
         const materials = this._collectMaterials(env);
         const BATCH = 8;
+        const totalBatches = Math.ceil(materials.length / BATCH);
+        let batchCount = 0;
+
         for (let i = 0; i < materials.length; i += BATCH) {
             await env.chunkManager.warmMaterialVariants(new Set(materials.slice(i, i + BATCH)));
+            batchCount++;
+            if (onProgress) {
+                const pct = 75 + Math.round((batchCount / Math.max(1, totalBatches)) * 10);
+                onProgress(pct, `PREWARMING MATERIAL VARIANTS [BATCH ${batchCount}/${totalBatches}]...`);
+            }
             await new Promise(resolve => setTimeout(resolve, 0));
         }
     }

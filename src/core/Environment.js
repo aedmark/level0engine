@@ -13,6 +13,7 @@ import InteractionController from '../player/InteractionController.js';
 import {setPodiumScan, setPodiumSpent, SCAN_DURATION} from '../world/BreakerPodium.js';
 import RenderEngine from './RenderEngine.js';
 import ShaderWarmup from './ShaderWarmup.js';
+import BootController from '../ui/BootController.js';
 
 /**
  * [ROLE] Central manager for procedural world generation, chunk management, and entity orchestration.
@@ -75,16 +76,12 @@ export default class Environment {
     }
 
     async setup() {
-        const bootFlash = document.getElementById('flash-overlay');
-        if (bootFlash) {
-            bootFlash.style.transition = 'none';
-            bootFlash.style.backgroundColor = '#000';
-            bootFlash.style.opacity = '1';
-            const loadingInd = document.getElementById('loading-indicator');
-            if (loadingInd) loadingInd.style.display = 'block';
-        }
+        const bootCtrl = BootController.getInstance();
+        bootCtrl.setPhase(2, 'CALIBRATING CARPET MOISTURE & CEILING GRAIN...', 15);
         await new Promise(resolve => setTimeout(resolve, 0));
-        const assets = await ProceduralTextureFactory.generateAssets();
+        const assets = await ProceduralTextureFactory.generateAssets((pct, name) => {
+            bootCtrl.setProgress(pct, `MOUNTING ASSET: ${name}`);
+        });
         Object.assign(this, assets);
         const {carpetTexture, ceilingTexture, ceilingBumpTexture} = assets;
         carpetTexture.repeat.set(16, 16);
@@ -202,8 +199,14 @@ export default class Environment {
         this.camera.add(this.flashlight);
         this.camera.add(this.flashlight.target);
         this.baseFogDensity = 0.05;
+        bootCtrl.setPhase(3, 'ALIGNING MAZE SPATIAL CORRIDORS...', 40);
         this.generate();
-        await ShaderWarmup.run(this);
+        bootCtrl.setProgress(65, `WORLD MESH GRID GENERATED [SEED: 0x${(this.baseSeed >>> 0).toString(16).toUpperCase()}]`);
+
+        bootCtrl.setPhase(4, 'PREWARMING ANOMALOUS SECTOR BLUEPRINTS...', 70);
+        await ShaderWarmup.run(this, (pct, msg) => {
+            bootCtrl.setProgress(pct, msg);
+        });
         
         // Lazy load remaining sector textures in the background
         ProceduralTextureFactory.lazyLoadSectorAssets(this).catch(console.error);

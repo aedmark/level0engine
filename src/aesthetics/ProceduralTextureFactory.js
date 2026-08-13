@@ -26,12 +26,12 @@ import StaticTextureLoader from './StaticTextureLoader.js';
 export default class ProceduralTextureFactory {
     static USE_STATIC_TEXTURES = true;
 
-    static async generateAssets() {
+    static async generateAssets(onProgress = null) {
         const masterNoise = TextureMechanics._generateMasterNoise();
         ProceduralTextureFactory._masterNoise = masterNoise; // save for lazy loading
         
         if (ProceduralTextureFactory.USE_STATIC_TEXTURES) {
-            const staticAssets = await StaticTextureLoader.loadCoreAssets();
+            const staticAssets = await StaticTextureLoader.loadCoreAssets(onProgress);
             ProceduralTextureFactory._applyOpts(staticAssets);
             return staticAssets;
         }

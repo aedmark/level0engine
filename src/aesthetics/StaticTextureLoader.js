@@ -1,7 +1,7 @@
 import TextureMechanics from './textures/TextureMechanics.js';
 
 export default class StaticTextureLoader {
-    static async loadCoreAssets() {
+    static async loadCoreAssets(onProgress = null) {
         const loader = new THREE.TextureLoader();
         
         let metadata;
@@ -94,8 +94,15 @@ export default class StaticTextureLoader {
         };
 
         const loadedAssets = {};
-        for (const [key, meta] of Object.entries(metadata)) {
+        const entries = Object.entries(metadata);
+        let count = 0;
+        for (const [key, meta] of entries) {
             loadedAssets[key] = await loadItem(key, meta);
+            count++;
+            if (onProgress) {
+                const pct = 15 + Math.round((count / entries.length) * 25);
+                onProgress(pct, key);
+            }
         }
         
         return loadedAssets;

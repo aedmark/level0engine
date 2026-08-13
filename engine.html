@@ -814,9 +814,9 @@
             position: absolute;
             top: 0;
             left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-color: white;
+            width: 100%;
+            height: 100%;
+            background-color: #050505;
             z-index: 9999;
             pointer-events: none;
             opacity: 0;
@@ -824,53 +824,128 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            box-sizing: border-box;
         }
 
         #loading-indicator {
             display: none;
+            width: min(560px, 92%);
+            margin: auto;
+            box-sizing: border-box;
         }
 
-        #loading-content {
+        #loading-terminal-box {
+            background: rgba(10, 10, 6, 0.92);
+            border: 1px solid #d4c382;
+            padding: 1.5rem;
+            box-shadow: 0 0 30px rgba(212, 195, 130, 0.15), inset 0 0 15px rgba(0, 0, 0, 0.9);
+            font-family: 'Space Mono', 'Courier New', monospace;
+            color: #d4c382;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #loading-terminal-box::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(rgba(212, 195, 130, 0.03) 50%, transparent 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+        }
+
+        .loading-header {
             display: flex;
-            flex-direction: column;
+            justify-content: space-between;
             align-items: center;
-            text-align: center;
+            font-size: 10px;
+            letter-spacing: 0.15em;
+            color: #a89f68;
+            border-bottom: 1px dashed rgba(212, 195, 130, 0.3);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+        }
+
+        #loading-phase-badge {
+            color: #ffffe0;
+            background: rgba(212, 195, 130, 0.15);
+            padding: 2px 6px;
+            border-radius: 2px;
+            border: 1px solid rgba(212, 195, 130, 0.4);
+            font-weight: bold;
+        }
+
+        #loading-main-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            gap: 1rem;
         }
 
         #loading-text {
-            color: #d4c382;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 1.5rem;
+            color: #ffffe0;
+            font-family: 'VT323', 'Space Mono', monospace;
+            font-size: 1.35rem;
             letter-spacing: 0.1em;
-            animation: pulse 1.5s infinite;
-            text-shadow: 0 0 5px rgba(212, 195, 130, 0.3);
-            margin-bottom: 15px;
+            text-shadow: 0 0 8px rgba(212, 195, 130, 0.5);
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #loading-pct-counter {
+            font-family: 'VT323', 'Space Mono', monospace;
+            font-size: 1.35rem;
+            color: #d4c382;
+            letter-spacing: 0.1em;
+            font-weight: bold;
+            flex-shrink: 0;
         }
 
         #progress-bar-container {
-            width: clamp(200px, 40vw, 400px);
-            height: 4px;
-            background: rgba(212, 195, 130, 0.15);
-            margin: 0 auto;
-            border-radius: 2px;
-            overflow: hidden;
-            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.8);
+            width: 100%;
+            height: 10px;
+            background: rgba(20, 20, 15, 0.9);
+            border: 1px solid rgba(212, 195, 130, 0.4);
+            margin-bottom: 1rem;
+            padding: 1px;
+            box-sizing: border-box;
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.9);
         }
 
         #progress-bar {
             width: 0%;
             height: 100%;
-            background: #d4c382;
-            animation: fakeLoad 5s cubic-bezier(0.1, 0.7, 0.1, 1) forwards;
-            box-shadow: 0 0 10px rgba(212, 195, 130, 0.8);
+            background: linear-gradient(90deg, #a89f68 0%, #d4c382 70%, #ffffe0 100%);
+            box-shadow: 0 0 12px rgba(212, 195, 130, 0.7);
+            transition: none;
         }
 
-        @keyframes fakeLoad {
-            0% { width: 0%; }
-            20% { width: 30%; }
-            50% { width: 60%; }
-            80% { width: 85%; }
-            100% { width: 95%; }
+        #loading-log-box {
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            line-height: 1.45;
+            color: #8c8253;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(212, 195, 130, 0.2);
+            padding: 0.5rem 0.75rem;
+            height: 4.2rem;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        #loading-log-box div {
+            opacity: 0.85;
+        }
+
+        #loading-log-box div:last-child {
+            color: #d4c382;
+            opacity: 1.0;
+            font-weight: bold;
         }
 
         @keyframes pulse {
@@ -966,11 +1041,19 @@
     <div id="canvas-container"></div>
     <div id="flash-overlay">
         <div id="loading-indicator">
-            <div id="loading-content">
-                <div id="loading-text">INITIALIZING SIMULATION...</div>
+            <div id="loading-terminal-box">
+                <div class="loading-header">
+                    <span id="loading-system-title">[ SYSTEM BOOT — EDMARK LABS SOMATIC LINK ]</span>
+                    <span id="loading-phase-badge">PHASE 01/06</span>
+                </div>
+                <div id="loading-main-row">
+                    <div id="loading-text">INITIALIZING SOMATIC LINK...</div>
+                    <div id="loading-pct-counter">[ 0% ]</div>
+                </div>
                 <div id="progress-bar-container">
                     <div id="progress-bar"></div>
                 </div>
+                <div id="loading-log-box"></div>
             </div>
         </div>
     </div>
