@@ -524,119 +524,48 @@ export default class ChunkManager {
                     const doorwayPlans = new Map();
                     ctx.getDoorwayPlan = (px, pz) => doorwayPlans.get(cellKey(px, pz)) || null;
 
-                    const pathThemeRoll = random();
-                    let pathTheme = null;
-                    if (pathThemeRoll > 0.75) pathTheme = 'CRAWLSPACE_HALL';
-                    else if (pathThemeRoll > 0.50) pathTheme = 'CREVICE_HALL';
-                    else if (pathThemeRoll > 0.25) pathTheme = 'RIDE_QUEUE_HALL';
-
-                    const cX = startX + Math.floor(env.chunkSize/2);
-                    const cZ = startZ + Math.floor(env.chunkSize/2);
-                    const pathGrid = new Map();
-                    
-                    const carvePath = (tx, tz) => {
-                        let currX = cX;
-                        let currZ = cZ;
-                        let failsafe = 0;
-                        while ((currX !== tx || currZ !== tz) && failsafe < 200) {
-                            pathGrid.set(cellKey(currX, currZ), true);
-                            const dx = tx - currX;
-                            const dz = tz - currZ;
-                            if (Math.abs(dx) > Math.abs(dz)) {
-                                currX += Math.sign(dx);
-                                if (random() > 0.5 && dz !== 0) currZ += Math.sign(dz);
-                                else if (random() > 0.8) currZ += (random() > 0.5 ? 1 : -1);
-                            } else {
-                                currZ += Math.sign(dz);
-                                if (random() > 0.5 && dx !== 0) currX += Math.sign(dx);
-                                else if (random() > 0.8) currX += (random() > 0.5 ? 1 : -1);
+                    if (!this.worker) {
+                        this.worker = new Worker(new URL('./ChunkWorker.js', import.meta.url));
+                        this.workerResolvers = new Map();
+                        this.worker.onmessage = (e) => {
+                            const { hash, isWallGrid, forcedStructuresGrid, doorwayPlans } = e.data;
+                            const resolver = this.workerResolvers.get(hash);
+                            if (resolver) {
+                                resolver({
+                                    isWallGrid: new Map(isWallGrid),
+                                    forcedStructuresGrid: new Map(forcedStructuresGrid),
+                                    doorwayPlans: new Map(doorwayPlans)
+                                });
+                                this.workerResolvers.delete(hash);
                             }
-                            failsafe++;
-                        }
-                        pathGrid.set(cellKey(tx, tz), true);
-                    };
-                    
-                    carvePath(startX + 7, startZ);
-                    carvePath(startX + 7, startZ + env.chunkSize - 1);
-                    carvePath(startX, startZ + 7);
-                    carvePath(startX + env.chunkSize - 1, startZ + 7);
-                    
-                    if (startX === 0 && startZ === 0) {
-                        carvePath(0, 0);
-                    }
-                    
-                    if (env.airlocks) {
-                        for (const airlock of env.airlocks) {
-                            const chunkCx = (startX + env.chunkSize/2) * env.cellSize;
-                            const chunkCz = (startZ + env.chunkSize/2) * env.cellSize;
-                            const dx = airlock.chamberCenter.x - chunkCx;
-                            const dz = airlock.chamberCenter.z - chunkCz;
-                            if (Math.abs(dx) <= env.chunkSize * env.cellSize && Math.abs(dz) <= env.chunkSize * env.cellSize) {
-                                const wox = Math.round(airlock.outerPos.x / env.cellSize);
-                                const woz = Math.round(airlock.outerPos.z / env.cellSize);
-                                carvePath(wox, woz);
-                            }
-                        }
+                        };
                     }
 
-                    ctx.isWall = (wx, wz) => {
-                        const key = cellKey(wx, wz);
-                        if (isWallGrid.has(key)) return isWallGrid.get(key);
-                        
-                        let zx = wx * 0.15;
-                        let zy = wz * 0.15;
-                        let iter = 0;
-                        let zx2 = zx * zx;
-                        let zy2 = zy * zy;
-                        while (zx2 + zy2 < 4 && iter < 15) {
-                            zy = 2 * zx * zy + cy;
-                            zx = zx2 - zy2 + cx;
-                            zx2 = zx * zx;
-                            zy2 = zy * zy;
-                            iter++;
-                        }
-                        let isW = iter > 6;
-                        const flipSeed = (env.baseSeed + (wx * 104729) + (wz * 1299827)) >>> 0;
-                        const flipRand = ((flipSeed * 1664525 + 1013904223) >>> 0) / 4294967296.0;
-                        if (flipRand > 0.70) isW = !isW;
+                    let structuralShift = 0;
+                    if (env.player && env.player.paranoia > 0.6) {
+                        structuralShift = Math.floor(env.player.paranoia * 1000) * (chunkX % 2 === 0 ? 1 : -1);
+                    }
 
-                        let isOnPath = pathGrid.has(key);
-                        let isNearPath = isOnPath;
-                        if (!isNearPath) {
-                            for (let ox = -1; ox <= 1; ox++) {
-                                for (let oz = -1; oz <= 1; oz++) {
-                                    if (pathGrid.has(cellKey(wx + ox, wz + oz))) {
-                                        isNearPath = true;
-                                        break;
-                                    }
-                                }
-                                if (isNearPath) break;
-                            }
-                        }
+                    const airlocksCopy = env.airlocks ? env.airlocks.map(a => ({
+                        outerPos: {x: a.outerPos.x, z: a.outerPos.z},
+                        chamberCenter: {x: a.chamberCenter.x, z: a.chamberCenter.z},
+                        outSign: a.outSign,
+                        spansX: a.spansX
+                    })) : null;
 
-                        if (isNearPath) isW = true;
+                    const mathData = await new Promise(resolve => {
+                        this.workerResolvers.set(hash, resolve);
+                        this.worker.postMessage({
+                            hash, chunkX, chunkZ, startX, startZ,
+                            chunkSize: env.chunkSize, cellSize: env.cellSize,
+                            baseSeed: env.baseSeed, cx, cy, structuralShift,
+                            airlocks: airlocksCopy
+                        });
+                    });
 
-                        const cx_id = Math.floor(wx / env.chunkSize);
-                        const cz_id = Math.floor(wz / env.chunkSize);
-                        const lx = wx - (cx_id * env.chunkSize);
-                        const lz = wz - (cz_id * env.chunkSize);
-
-                        const isSpawnClear = (cx_id === 0 && cz_id === 0) && (lx <= 4 && lz <= 4);
-                        if (isSpawnClear) isW = false;
-
-                        if (isOnPath && !isSpawnClear) {
-                            if (pathTheme) {
-                                forcedStructuresGrid.set(key, pathTheme);
-                            }
-                            isW = false;
-                        }
-
-                        isWallGrid.set(key, isW);
-                        return isW;
-                    };
-                    
+                    ctx.isWall = (wx, wz) => mathData.isWallGrid.get(cellKey(wx, wz)) || false;
                     ctx.setWall = (wx, wz, val) => {
-                        isWallGrid.set(cellKey(wx, wz), val);
+                        mathData.isWallGrid.set(cellKey(wx, wz), val);
                         if (!val) {
                             for (let i = stagingMeshes.length - 1; i >= 0; i--) {
                                 const m = stagingMeshes[i];
@@ -646,141 +575,9 @@ export default class ChunkManager {
                             }
                         }
                     };
-                    ctx.forceStructure = (wx, wz, name) => forcedStructuresGrid.set(cellKey(wx, wz), name);
-                    ctx.getForcedStructure = (wx, wz) => forcedStructuresGrid.get(cellKey(wx, wz));
-
-                    if (!isMacroStructure) {
-                        const size = env.chunkSize;
-                        const grid = new Int8Array(size * size);
-                        const q = [];
-
-                        for (let lx = 0; lx < size; lx++) {
-                            for (let lz = 0; lz < size; lz++) {
-                                if (!ctx.isWall(startX + lx, startZ + lz)) {
-                                    grid[lz * size + lx] = 1;
-                                    if (lx === 7 || lz === 7 || lx === 3 || lx === 11 || lz === 3 || lz === 11) {
-                                        grid[lz * size + lx] = 2;
-                                        q.push({lx, lz});
-                                    }
-                                }
-                            }
-                        }
-
-                        if (env.airlocks) {
-                            for (const airlock of env.airlocks) {
-                                const chunkCx = (startX + size/2) * env.cellSize;
-                                const chunkCz = (startZ + size/2) * env.cellSize;
-                                const dx = airlock.chamberCenter.x - chunkCx;
-                                const dz = airlock.chamberCenter.z - chunkCz;
-
-                                if (Math.abs(dx) <= size * env.cellSize && Math.abs(dz) <= size * env.cellSize) {
-                                    const {clearX, clearZ} = this._airlockApron(airlock);
-
-                                    for (const cx of clearX) {
-                                        for (const cz of clearZ) {
-                                            const lx = cx - startX;
-                                            const lz = cz - startZ;
-                                            if (lx >= 0 && lx < size && lz >= 0 && lz < size) {
-                                                ctx.setWall(cx, cz, false);
-                                                ctx.forceStructure(cx, cz, null);
-                                                if (grid[lz * size + lx] !== 2) {
-                                                    grid[lz * size + lx] = 2;
-                                                    q.push({lx, lz});
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        const totalCells = size * size;
-                        const INF = 1 << 30;
-                        const bfsDist = new Int32Array(totalCells).fill(INF);
-                        const bfsParent = new Int32Array(totalCells).fill(-1);
-                        let dqBuf = new Int32Array(totalCells * 8);
-                        let dqHead = totalCells * 4;
-                        let dqTail = dqHead;
-                        const recentre = () => {
-                            const used = dqTail - dqHead;
-                            const next = new Int32Array(Math.max(dqBuf.length * 2, used * 4));
-                            const start = (next.length - used) >> 1;
-                            next.set(dqBuf.subarray(dqHead, dqTail), start);
-                            dqBuf = next;
-                            dqHead = start;
-                            dqTail = start + used;
-                        };
-                        const pushFront = (v) => {
-                            if (dqHead === 0) recentre();
-                            dqBuf[--dqHead] = v;
-                        };
-                        const pushBack = (v) => {
-                            if (dqTail === dqBuf.length) recentre();
-                            dqBuf[dqTail++] = v;
-                        };
-                        for (const seed of q) {
-                            const idx = seed.lz * size + seed.lx;
-                            if (bfsDist[idx] === INF) {
-                                bfsDist[idx] = 0;
-                                pushBack(idx);
-                            }
-                        }
-                        while (dqHead < dqTail) {
-                            const idx = dqBuf[dqHead++];
-                            const clx = idx % size;
-                            const clz = (idx - clx) / size;
-                            const d = bfsDist[idx];
-                            const neighbors = [[clx + 1, clz], [clx - 1, clz], [clx, clz + 1], [clx, clz - 1]];
-                            for (const [nlx, nlz] of neighbors) {
-                                if (nlx < 0 || nlz < 0 || nlx >= size || nlz >= size) continue;
-                                const nIdx = nlz * size + nlx;
-                                const cost = grid[nIdx] === 0 ? 1 : 0;
-                                const nd = d + cost;
-                                if (nd < bfsDist[nIdx]) {
-                                    bfsDist[nIdx] = nd;
-                                    bfsParent[nIdx] = idx;
-                                    if (cost === 0) {
-                                        pushFront(nIdx);
-                                    } else {
-                                        pushBack(nIdx);
-                                    }
-                                }
-                            }
-                        }
-
-                        const forcedOpen = new Set();
-                        for (let idx = 0; idx < totalCells; idx++) {
-                            if (grid[idx] === 0 || bfsDist[idx] <= 0) continue;
-                            let cur = idx;
-                            let guard = 0;
-                            while (cur !== -1 && bfsDist[cur] > 0 && guard < totalCells) {
-                                if (grid[cur] === 0) forcedOpen.add(cur);
-                                cur = bfsParent[cur];
-                                guard++;
-                            }
-                        }
-                        for (const idx of forcedOpen) {
-                            const lx = idx % size;
-                            const lz = (idx - lx) / size;
-                            const gx = startX + lx;
-                            const gz = startZ + lz;
-                            ctx.setWall(gx, gz, false);
-                            /**
-                             * [WHY] The clearance keeps its `setWall(false)` unconditionally --
-                             * connectivity is this walk's entire job and an apron cell is already
-                             * open, so it costs nothing to agree. Only the decoration is dropped.
-                             * A 'breach' is a hole punched *through a wall*: jambs, sill, header
-                             * and, since v0.9.3, a hinged grate at each mouth. The apron ran
-                             * earlier and took the wall out, so the breach had nothing to be a
-                             * hole in and its frame and grates were left standing in open floor.
-                             * That is the lattice panel hanging in mid-air in front of an airlock.
-                             */
-                            if (this._isAirlockApron(gx, gz)) continue;
-                            ctx.forceStructure(gx, gz, 'breach');
-                        }
-
-                        this._planDoorways(ctx, random, startX, startZ, size, cellKey, doorwayPlans);
-                    }
+                    ctx.forceStructure = (wx, wz, name) => mathData.forcedStructuresGrid.set(cellKey(wx, wz), name);
+                    ctx.getForcedStructure = (wx, wz) => mathData.forcedStructuresGrid.get(cellKey(wx, wz));
+                    ctx.getDoorwayPlan = (px, pz) => mathData.doorwayPlans.get(cellKey(px, pz)) || null;
                 }
 
                 let isWall = ctx.isWall(x, z);
