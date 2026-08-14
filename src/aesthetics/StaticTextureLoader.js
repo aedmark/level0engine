@@ -111,7 +111,7 @@ export default class StaticTextureLoader {
         };
 
         const loadedAssets = {};
-        const entries = Object.entries(metadata);
+        const entries = Object.entries(metadata).filter(([key]) => key !== 'version');
         let count = 0;
 
         const assetPromises = entries.map(async ([key, meta]) => {

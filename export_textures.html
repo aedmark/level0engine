@@ -18,7 +18,7 @@
                 console.log("Assets generated, exporting...");
                 
                 const exportQueue = [];
-                const metadata = {};
+                const metadata = { version: "1.0.0" };
                 
                 function extractCanvas(item, name, parentKey, index = null) {
                     if (!item) return;
