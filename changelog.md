@@ -1,5 +1,24 @@
 # Level 0 Engine Changelog
 
+## [v1.0.0] - 2026-08-13
+
+_Boot Telemetry, WebP Asset Pipeline, Dual IndexedDB Persistence, and Graphics Exposure Fixes_
+
+### Added
+
+- **[UI] Retro CRT Boot Terminal & Whimsical Telemetry:** Built `BootController.js` and a retro CRT terminal loading modal (`#loading-terminal-box`) featuring phase badges, lerped progress tracking, percentage counters, and whimsical "reticulating splines" style telemetry logs enforcing a smooth 1.5s minimum animation window.
+- **[ASSETS] WebP Texture Suite & Parallel Loader:** Converted all 95 static texture assets from PNG (20.7 MB) to WebP (3.2 MB), slashing texture download payload by **84.7% (17.5 MB reduction)**. Rebuilt `StaticTextureLoader.js` with `Promise.all` parallel batch loading across multi-core browser decoding threads.
+- **[STORAGE] Dual IndexedDB Engine Persistence (`Level0DB` v2):** Extended `TextureCache.js` with two IndexedDB object stores:
+  - `textures`: Caches fetched `.webp` texture blobs and procedurally generated 2D canvas textures locally to eliminate network requests on subsequent boots.
+  - `worldSaves`: High-capacity persistence for player position, depth, seed cards, macro chunk hash sets, discovered sector maps, and narrative case progress via `SaveManager.js`.
+- **[CACHE] Automatic Version Cache Invalidation:** Added `TextureCache.checkVersion()` tied to `"version": "1.0.0"` in `metadata.json` and `package.json`. Releasing a new build automatically purges stale texture blobs from IndexedDB while keeping player save state completely safe.
+
+### Fixed
+
+- **[GRAPHICS] `gammaSlider` Real-Time Output Fix:** Fixed an issue where adjusting the Gamma slider in the options menu had no visual effect on the canvas when post-processing was enabled. Added an `exposure` uniform to `postMaterial` in `RenderEngine.js` and updated `Environment.js` to dynamically scale canvas luminance in real time.
+- **[UI] Boot Terminal Centering:** Fixed an issue where `#loading-indicator` was pushed off-center to the right side of the screen frame by updating CSS overlay bounds from viewport units (`100vw`/`100vh`) to flex-centered relative container styling inside `#screen-wrapper`.
+- **[ENGINE] Refresh Black Screen Cut Elimination:** Resolved an issue where refreshing the browser with a saved state inside a macro sector caused a secondary black screen cut after the loading bar hit 100%. Updated the boot completion loop in `main.js` to wait for macro interior building (`isBuildingMacroInterior`) and clear spawn transition flags before fading out `#flash-overlay`.
+
 ## [v0.9.8] - 2026-08-12
 
 _Massive Boot Speed Optimization & Automated Texture Baking_
