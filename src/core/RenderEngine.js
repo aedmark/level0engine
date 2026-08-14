@@ -53,18 +53,11 @@ export default class RenderEngine {
         this.ambientLight = new THREE.HemisphereLight(0xfff5c2, 0x3d3520, 0.45);
         this.scene.add(this.ambientLight);
         const aaSamples = RenderEngine.getSavedAA();
-        if (aaSamples > 0) {
-            this.target = new THREE.WebGLMultisampleRenderTarget(window.innerWidth, window.innerHeight, {
-                minFilter: THREE.LinearFilter,
-                magFilter: THREE.LinearFilter
-            });
-            this.target.samples = aaSamples;
-        } else {
-            this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
-                minFilter: THREE.LinearFilter,
-                magFilter: THREE.LinearFilter
-            });
-        }
+        this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
+            minFilter: THREE.LinearFilter,
+            magFilter: THREE.LinearFilter,
+            samples: aaSamples > 0 ? aaSamples : 0
+        });
         this.fxaaTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
             minFilter: THREE.LinearFilter,
             magFilter: THREE.LinearFilter

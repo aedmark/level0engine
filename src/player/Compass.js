@@ -119,19 +119,19 @@ export default class Compass {
         });
 
         const palm = new THREE.Mesh(new THREE.BoxGeometry(0.132, 0.122, 0.032), skin);
-        palm.position.set(0.004, -0.008, -0.036);
+        palm.position.set(-0.004, -0.008, -0.036);
         palm.rotation.x = -0.06;
         hand.add(palm);
         const heel = new THREE.Mesh(new THREE.SphereGeometry(0.052, 10, 8), skin);
         heel.scale.set(1.15, 0.72, 0.42);
-        heel.position.set(0.004, -0.062, -0.038);
+        heel.position.set(-0.004, -0.062, -0.038);
         hand.add(heel);
 
         const FINGERS = [
-            {x: -0.030, len: [0.040, 0.030, 0.022], curl: [0.52, 0.92, 0.86], r: 0.0125, y: 0.055},
-            {x: 0.002, len: [0.044, 0.033, 0.024], curl: [0.48, 0.95, 0.90], r: 0.0130, y: 0.057},
-            {x: 0.033, len: [0.041, 0.031, 0.022], curl: [0.53, 0.97, 0.88], r: 0.0122, y: 0.055},
-            {x: 0.061, len: [0.033, 0.025, 0.019], curl: [0.58, 1.00, 0.84], r: 0.0108, y: 0.049}
+            {x: -0.061, len: [0.033, 0.025, 0.019], curl: [0.58, 1.00, 0.84], r: 0.0108, y: 0.049},
+            {x: -0.033, len: [0.041, 0.031, 0.022], curl: [0.53, 0.97, 0.88], r: 0.0122, y: 0.055},
+            {x: -0.002, len: [0.044, 0.033, 0.024], curl: [0.48, 0.95, 0.90], r: 0.0130, y: 0.057},
+            {x: 0.030, len: [0.040, 0.030, 0.022], curl: [0.52, 0.92, 0.86], r: 0.0125, y: 0.055}
         ];
         for (const f of FINGERS) {
             const finger = this._finger(f.len, f.curl, f.r, skin);
@@ -141,13 +141,13 @@ export default class Compass {
         }
 
         const thumb = this._finger([0.048, 0.032], [0.0, 0.62], 0.0155, skin);
-        thumb.position.set(-0.086, -0.030, -0.024);
-        thumb.rotation.set(0.35, 0.18, 0.0);
+        thumb.position.set(0.086, -0.030, -0.024);
+        thumb.rotation.set(0.35, -0.18, 0.0);
         hand.add(thumb);
 
         const forearm = new THREE.Group();
-        forearm.position.set(0.0083, -0.0724, -0.0660);
-        forearm.rotation.set(-0.30, 0, 0.10);
+        forearm.position.set(-0.0083, -0.0724, -0.0660);
+        forearm.rotation.set(-0.30, 0, -0.10);
 
         const WRIST_LEN = 0.075, CUFF_LEN = 0.055, SLEEVE_LEN = 0.26;
         const CUFF_LAP = 0.014, SLEEVE_LAP = 0.010;
