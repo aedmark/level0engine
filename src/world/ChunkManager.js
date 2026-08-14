@@ -11,6 +11,7 @@ import {WallBreachProfile} from './blueprints/WallBreach.js';
 import {CrawlspaceHallProfile} from './blueprints/CrawlspaceHall.js';
 import {CreviceHallProfile} from './blueprints/CreviceHall.js';
 import {RideQueueHallProfile} from './blueprints/RideQueueHall.js';
+import BootController from '../ui/BootController.js';
 
 const CELL_KEY_SPAN = 4194304;
 const cellKey = (x, z) => x * (CELL_KEY_SPAN * 2) + z;
@@ -199,17 +200,20 @@ export default class ChunkManager {
                 }
             }
 
-            const flash = document.getElementById('flash-overlay');
-            if (flash) {
-                flash.style.transition = 'opacity 2.0s ease-in';
-                flash.style.opacity = '0';
-                setTimeout(() => {
-                    if (flash.style.opacity === '0') {
-                        flash.style.backgroundColor = '#fff';
-                        const loadingInd = document.getElementById('loading-indicator');
-                        if (loadingInd) loadingInd.style.display = 'none';
-                    }
-                }, 2050);
+            const bootCtrl = BootController.getInstance();
+            if (!bootCtrl || bootCtrl.isComplete) {
+                const flash = document.getElementById('flash-overlay');
+                if (flash) {
+                    flash.style.transition = 'opacity 2.0s ease-in';
+                    flash.style.opacity = '0';
+                    setTimeout(() => {
+                        if (flash.style.opacity === '0') {
+                            flash.style.backgroundColor = '#fff';
+                            const loadingInd = document.getElementById('loading-indicator');
+                            if (loadingInd) loadingInd.style.display = 'none';
+                        }
+                    }, 2050);
+                }
             }
         }
     }

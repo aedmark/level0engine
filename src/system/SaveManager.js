@@ -1,8 +1,10 @@
+import TextureCache from '../aesthetics/textures/TextureCache.js';
+
 /**
  * [ROLE] Handles persisting and restoring game state.
- * [WHY] Allows players to save configurations and progress using browser local storage.
+ * [WHY] Allows players to save configurations and progress using browser local storage and IndexedDB.
  * [STATE] Stateful, tracks an interval for autosaving.
- * [DEPENDS] Engine state, player state, environment, DOM UI elements (sliders, toggles), localStorage.
+ * [DEPENDS] Engine state, player state, environment, DOM UI elements (sliders, toggles), localStorage, IndexedDB.
  */
 export default class SaveManager {
     constructor(engine, player, environment, acoustics) {
@@ -43,7 +45,7 @@ export default class SaveManager {
             document.getElementById('shadowSelect').value = state.shadows || "high";
             document.getElementById('renderDistSelect').value = state.renderDist !== undefined ? state.renderDist : "1";
             document.getElementById('volumeSlider').value = state.vol !== undefined ? state.vol : "100";
-            document.getElementById('gammaSlider').value = state.gamma || "50";
+            document.getElementById('gammaSlider').value = state.gamma || "70";
             let aaVal = "0";
             if (state.aa === true) aaVal = "4";
             else if (state.aa === false) aaVal = "0";
@@ -56,7 +58,7 @@ export default class SaveManager {
             this.engine.resolutionScale = parseFloat(state.res) || 1.0;
             this.engine.enablePostProcessing = state.post !== false;
             this.engine.camera.fov = Number(state.fov) || 75;
-            this.engine.baseExposure = (Number(state.gamma) || 50) / 100;
+            this.engine.baseExposure = (Number(state.gamma) || 70) / 100;
             this.acoustics.masterVolume = (state.vol !== undefined ? Number(state.vol) : 100) / 100;
             this.engine.camera.updateProjectionMatrix();
             this.player.speedMultiplier = (Number(state.speed) || 100) / 100;
@@ -108,6 +110,7 @@ export default class SaveManager {
             story: this.environment.getStory ? this.environment.getStory().exportState() : null
         };
         localStorage.setItem('level0_state', JSON.stringify(state));
+        TextureCache.saveWorldState('level0_state', state).catch(() => {});
     }
 
     idleSaveState() {
@@ -135,6 +138,7 @@ export default class SaveManager {
             clearInterval(this.saveInterval);
             localStorage.clear();
             sessionStorage.clear();
+            await TextureCache.clearAll();
             if ('serviceWorker' in navigator) {
                 const registrations = await navigator.serviceWorker.getRegistrations();
                 for (let registration of registrations) {

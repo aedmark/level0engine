@@ -103,8 +103,9 @@ if (savedState) {
     if (savedState.bestDepth !== undefined) player.bestDepth = savedState.bestDepth;
     player.updateObjectives();
     environment.baseFogDensity = (Number(savedState.fog) || 5) / 100;
-    environment.updateChunks(engine.camera.position);
 }
+bootCtrl.setPhase(3, 'ALIGNING MAZE SPATIAL CORRIDORS...', 40);
+environment.updateChunks(engine.camera.position);
 somatic.bindEvents();
 docViewer.bindEvents();
 keypad.bindEvents();
@@ -299,7 +300,7 @@ function animate() {
 }
 
 (async function() {
-    while (environment.isBuildingChunk || environment.chunkQueue.length > 0) {
+    while (environment.isBuildingChunk || environment.chunkQueue.length > 0 || environment.isBuildingMacroInterior) {
         await new Promise(r => setTimeout(r, 20));
     }
 
@@ -310,6 +311,17 @@ function animate() {
 
     bootCtrl.setProgress(98, 'SHADER PROGRAM PERMUTATIONS LINKED [OK]');
 
-    await bootCtrl.finish();
+    // Clear transition flags so animation loop doesn't re-trigger black overlay freeze on spawn
+    environment.isSectorTransitioning = false;
+    environment.isBuildingMacroInterior = false;
+    player.wasFrozenByLoad = false;
+    player.isFrozen = false;
+    player.input.isFrozen = false;
+
+    // Render initial frame and start loop FIRST so live 3D scene is active underneath
+    engine.render();
     animate();
+
+    // Fade out boot overlay cleanly over live scene
+    await bootCtrl.finish();
 })();

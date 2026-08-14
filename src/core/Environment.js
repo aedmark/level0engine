@@ -273,7 +273,11 @@ export default class Environment {
             if (window.acoustics) window.acoustics.setVolume(Number(e.target.value) / 100);
         });
         document.getElementById('gammaSlider').addEventListener('input', (e) => {
-            this.engine.baseExposure = Number(e.target.value) / 100;
+            const val = Number(e.target.value) / 100;
+            this.engine.baseExposure = val;
+            if (this.engine.renderer) {
+                this.engine.renderer.toneMappingExposure = val;
+            }
         });
         document.getElementById('headBobToggle').addEventListener('change', (e) => {
             this.player.enableHeadBob = e.target.checked;

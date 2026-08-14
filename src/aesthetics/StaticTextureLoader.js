@@ -1,4 +1,5 @@
 import TextureMechanics from './textures/TextureMechanics.js';
+import TextureCache from './textures/TextureCache.js';
 
 export default class StaticTextureLoader {
     static async loadCoreAssets(onProgress = null) {
@@ -8,6 +9,7 @@ export default class StaticTextureLoader {
         try {
             const resp = await fetch('./assets/textures/metadata.json');
             metadata = await resp.json();
+            await TextureCache.checkVersion(metadata.version || "1.0.0");
         } catch (err) {
             console.error("Failed to load texture metadata.json", err);
             return {};
@@ -15,7 +17,23 @@ export default class StaticTextureLoader {
         
         const loadTexRaw = async (name, repeatX = 1, repeatY = 1, wrapS = THREE.RepeatWrapping, wrapT = THREE.RepeatWrapping) => {
             try {
-                const tex = await loader.loadAsync(`./assets/textures/${name}.png`);
+                let blobUrl = null;
+                const cachedBlob = await TextureCache.getBlob(name);
+                
+                if (cachedBlob) {
+                    blobUrl = URL.createObjectURL(cachedBlob);
+                } else {
+                    const resp = await fetch(`./assets/textures/${name}.webp`);
+                    if (resp.ok) {
+                        const blob = await resp.blob();
+                        TextureCache.saveBlob(name, blob).catch(() => {});
+                        blobUrl = URL.createObjectURL(blob);
+                    } else {
+                        blobUrl = `./assets/textures/${name}.webp`;
+                    }
+                }
+
+                const tex = await loader.loadAsync(blobUrl);
                 
                 // Hardcode fallback overrides for standalone textures since metadata.json missed them
                 if (name === 'wallTexture' || name === 'wallBumpTexture') {
@@ -56,18 +74,17 @@ export default class StaticTextureLoader {
             const ws = meta.wrapS || THREE.RepeatWrapping;
             const wt = meta.wrapT || THREE.RepeatWrapping;
             
-            if (meta.hasMap) {
-                matParams.map = await loadTexRaw(`${name}_map`, rx, ry, ws, wt);
-            }
-            if (meta.hasBumpMap) {
-                matParams.bumpMap = await loadTexRaw(`${name}_bump`, rx, ry, ws, wt);
-            }
-            if (meta.hasEmissiveMap) {
-                matParams.emissiveMap = await loadTexRaw(`${name}_emissive`, rx, ry, ws, wt);
-            }
-            if (meta.hasRoughnessMap) {
-                matParams.roughnessMap = await loadTexRaw(`${name}_roughness`, rx, ry, ws, wt);
-            }
+            const [map, bumpMap, emissiveMap, roughnessMap] = await Promise.all([
+                meta.hasMap ? loadTexRaw(`${name}_map`, rx, ry, ws, wt) : null,
+                meta.hasBumpMap ? loadTexRaw(`${name}_bump`, rx, ry, ws, wt) : null,
+                meta.hasEmissiveMap ? loadTexRaw(`${name}_emissive`, rx, ry, ws, wt) : null,
+                meta.hasRoughnessMap ? loadTexRaw(`${name}_roughness`, rx, ry, ws, wt) : null
+            ]);
+
+            if (map) matParams.map = map;
+            if (bumpMap) matParams.bumpMap = bumpMap;
+            if (emissiveMap) matParams.emissiveMap = emissiveMap;
+            if (roughnessMap) matParams.roughnessMap = roughnessMap;
             
             return new THREE.MeshStandardMaterial(matParams);
         };
@@ -79,30 +96,37 @@ export default class StaticTextureLoader {
                 return await buildMaterial(key, meta);
             } else {
                 // Array case (like doorMat or cartonMats)
-                const arr = [];
                 const keys = Object.keys(meta).sort((a, b) => parseInt(a) - parseInt(b));
-                for (const idx of keys) {
+                const itemPromises = keys.map(async (idx) => {
                     const subMeta = meta[idx];
                     if (subMeta.type === 'Texture') {
-                        arr.push(await loadTexRaw(`${key}_${idx}`));
+                        return await loadTexRaw(`${key}_${idx}`);
                     } else if (subMeta.type === 'Material') {
-                        arr.push(await buildMaterial(`${key}_${idx}`, subMeta));
+                        return await buildMaterial(`${key}_${idx}`, subMeta);
                     }
-                }
-                return arr;
+                    return null;
+                });
+                return await Promise.all(itemPromises);
             }
         };
 
         const loadedAssets = {};
         const entries = Object.entries(metadata);
         let count = 0;
-        for (const [key, meta] of entries) {
-            loadedAssets[key] = await loadItem(key, meta);
+
+        const assetPromises = entries.map(async ([key, meta]) => {
+            const item = await loadItem(key, meta);
             count++;
             if (onProgress) {
                 const pct = 15 + Math.round((count / entries.length) * 25);
                 onProgress(pct, key);
             }
+            return [key, item];
+        });
+
+        const results = await Promise.all(assetPromises);
+        for (const [key, item] of results) {
+            loadedAssets[key] = item;
         }
         
         return loadedAssets;

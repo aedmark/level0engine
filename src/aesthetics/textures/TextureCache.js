@@ -1,7 +1,15 @@
+/**
+ * [ROLE] IndexedDB storage manager for texture blob caching and world/save state persistence.
+ * [WHY] Provides fast local offline caching for static/procedural texture assets and high-capacity
+ *        persistence for world chunk state, macro zones, and player narrative discoveries.
+ * [STATE] Stateful IndexedDB connection singleton ('Level0DB').
+ * [DEPENDS] Native browser IndexedDB API.
+ */
 export default class TextureCache {
-    static dbName = 'Level0TextureDB';
-    static storeName = 'textures';
-    static version = 1;
+    static dbName = 'Level0DB';
+    static textureStore = 'textures';
+    static saveStore = 'worldSaves';
+    static version = 2;
     static db = null;
 
     static init() {
@@ -10,8 +18,11 @@ export default class TextureCache {
             const request = indexedDB.open(this.dbName, this.version);
             request.onupgradeneeded = (e) => {
                 const db = e.target.result;
-                if (!db.objectStoreNames.contains(this.storeName)) {
-                    db.createObjectStore(this.storeName);
+                if (!db.objectStoreNames.contains(this.textureStore)) {
+                    db.createObjectStore(this.textureStore);
+                }
+                if (!db.objectStoreNames.contains(this.saveStore)) {
+                    db.createObjectStore(this.saveStore);
                 }
             };
             request.onsuccess = (e) => {
@@ -22,47 +33,133 @@ export default class TextureCache {
         });
     }
 
+    static async getBlob(id) {
+        try {
+            await this.init();
+            return new Promise((resolve) => {
+                const tx = this.db.transaction(this.textureStore, 'readonly');
+                const store = tx.objectStore(this.textureStore);
+                const req = store.get(id);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => resolve(null);
+            });
+        } catch (e) {
+            return null;
+        }
+    }
+
+    static async saveBlob(id, blob) {
+        try {
+            await this.init();
+            return new Promise((resolve) => {
+                const tx = this.db.transaction(this.textureStore, 'readwrite');
+                const store = tx.objectStore(this.textureStore);
+                store.put(blob, id);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => resolve();
+            });
+        } catch (e) {
+            // Ignore quota or transaction errors silently
+        }
+    }
+
     static async getCanvas(id) {
-        await this.init();
+        const blob = await this.getBlob(id);
+        if (!blob) return null;
         return new Promise((resolve) => {
-            const tx = this.db.transaction(this.storeName, 'readonly');
-            const store = tx.objectStore(this.storeName);
-            const request = store.get(id);
-            request.onsuccess = async () => {
-                const blob = request.result;
-                if (!blob) return resolve(null);
-                
-                const img = new Image();
-                img.src = URL.createObjectURL(blob);
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
-                    URL.revokeObjectURL(img.src);
-                    resolve(canvas);
-                };
-                img.onerror = () => {
-                    URL.revokeObjectURL(img.src);
-                    resolve(null);
-                };
+            const img = new Image();
+            const url = URL.createObjectURL(blob);
+            img.src = url;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                URL.revokeObjectURL(url);
+                resolve(canvas);
             };
-            request.onerror = () => resolve(null);
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                resolve(null);
+            };
         });
     }
 
     static async saveCanvas(id, canvas) {
-        await this.init();
         return new Promise((resolve) => {
-            canvas.toBlob((blob) => {
-                if (!blob) return resolve();
-                const tx = this.db.transaction(this.storeName, 'readwrite');
-                const store = tx.objectStore(this.storeName);
-                store.put(blob, id);
-                tx.oncomplete = () => resolve();
-                tx.onerror = () => resolve();
+            canvas.toBlob(async (blob) => {
+                if (blob) {
+                    await this.saveBlob(id, blob);
+                }
+                resolve();
             }, 'image/png');
         });
+    }
+
+    static async getSaveState(key = 'level0_state') {
+        try {
+            await this.init();
+            return new Promise((resolve) => {
+                const tx = this.db.transaction(this.saveStore, 'readonly');
+                const store = tx.objectStore(this.saveStore);
+                const req = store.get(key);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => resolve(null);
+            });
+        } catch (e) {
+            return null;
+        }
+    }
+
+    static async saveWorldState(key = 'level0_state', stateData) {
+        try {
+            await this.init();
+            return new Promise((resolve) => {
+                const tx = this.db.transaction(this.saveStore, 'readwrite');
+                const store = tx.objectStore(this.saveStore);
+                store.put(stateData, key);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => resolve();
+            });
+        } catch (e) {
+            // Ignore write errors silently
+        }
+    }
+
+    static async clearTexturesOnly() {
+        try {
+            await this.init();
+            const tx = this.db.transaction(this.textureStore, 'readwrite');
+            tx.objectStore(this.textureStore).clear();
+            return new Promise((resolve) => {
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => resolve();
+            });
+        } catch (e) {}
+    }
+
+    static async checkVersion(currentVersion = "1.0.0") {
+        try {
+            const savedVersion = await this.getSaveState('engine_version');
+            if (savedVersion !== currentVersion) {
+                console.log(`[Cache] Asset version update detected (${savedVersion || 'none'} -> ${currentVersion}). Refreshing IndexedDB texture cache...`);
+                await this.clearTexturesOnly();
+                await this.saveWorldState('engine_version', currentVersion);
+            }
+        } catch (e) {}
+    }
+
+    static async clearAll() {
+        try {
+            await this.init();
+            const tx = this.db.transaction([this.textureStore, this.saveStore], 'readwrite');
+            tx.objectStore(this.textureStore).clear();
+            tx.objectStore(this.saveStore).clear();
+            return new Promise((resolve) => {
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => resolve();
+            });
+        } catch (e) {}
     }
 }

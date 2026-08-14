@@ -149,7 +149,8 @@ export default class RenderEngine {
                 heat: {value: 0.0},
                 glare: {value: 0.0},
                 glareColor: {value: new THREE.Color(1, 1, 1)},
-                enableVHS: {value: 1.0}
+                enableVHS: {value: 1.0},
+                exposure: {value: this.baseExposure || 0.70}
             },
             vertexShader: `
                 varying vec2 vUv;
@@ -173,6 +174,7 @@ export default class RenderEngine {
                 uniform float glare;
                 uniform vec3 glareColor;
                 uniform float enableVHS;
+                uniform float exposure;
                 varying vec2 vUv;
                 float random(vec2 st) {
                     return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
@@ -275,6 +277,7 @@ export default class RenderEngine {
                     col = mix(col, vec3(luminance * 0.15), darkness * 0.8 * smoothstep(0.0, 0.5, distSq));
                     col = mix(col, vec3(0.02) * noise, eyesClosed);
                     col *= border;
+                    col *= (exposure / 0.70);
                     col = smoothstep(0.0, 1.0, col);
                     col = linearToSRGB(clamp(col, 0.0, 1.0));
                     gl_FragColor = vec4(col, 1.0);
@@ -423,6 +426,7 @@ export default class RenderEngine {
             this.postMaterial.uniforms.eyesClosed.value = this.eyesClosed || 0.0;
             this.postMaterial.uniforms.glare.value = this.glare || 0.0;
             this.postMaterial.uniforms.enableVHS.value = 1.0;
+            this.postMaterial.uniforms.exposure.value = this.baseExposure !== undefined ? this.baseExposure : 0.70;
             if (this.glareColor) this.postMaterial.uniforms.glareColor.value.copy(this.glareColor);
             if (this.heatTarget !== undefined) {
                 if (this.currentHeat === undefined) this.currentHeat = 0.0;
