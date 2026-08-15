@@ -14,6 +14,7 @@ import {LCornerNookProfile} from './blueprints/LCornerNook.js';
 import {AlcoveCornerProfile} from './blueprints/AlcoveCorner.js';
 import {CratesOrStairwayProfile} from './blueprints/CratesOrStairway.js';
 import {DuctOrVentProfile} from './blueprints/DuctOrVent.js';
+import {CrawlspaceDuctProfile} from './blueprints/CrawlspaceDuct.js';
 import {BlockyObstructionProfile} from './blueprints/BlockyObstruction.js';
 import {TunnelBurstProfile} from './blueprints/TunnelBurst.js';
 import {TheObserverProfile} from './blueprints/TheObserver.js';
@@ -41,6 +42,7 @@ export default class StructuralBlueprints {
             AlcoveCornerProfile(this, ctx),
             CratesOrStairwayProfile(this, ctx),
             DuctOrVentProfile(this, ctx),
+            CrawlspaceDuctProfile(this, ctx),
             BlockyObstructionProfile(this, ctx),
             TunnelBurstProfile(this, ctx),
             TheObserverProfile(this, ctx),

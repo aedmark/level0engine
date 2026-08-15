@@ -8,6 +8,7 @@ import TheArchitect from "../core/TheArchitect.js";
 import StructureKit from "./StructureKit.js";
 import {spawnBreakerPodium} from './blueprints/BreakerPodiumSpawn.js';
 import {EmptyDoorFrameProfile} from './blueprints/EmptyDoorFrame.js';
+import {CrawlspaceDuctProfile} from './blueprints/CrawlspaceDuct.js';
 import {CrawlspaceHallProfile} from './blueprints/CrawlspaceHall.js';
 import {CreviceHallProfile} from './blueprints/CreviceHall.js';
 import {RideQueueHallProfile} from './blueprints/RideQueueHall.js';
@@ -768,7 +769,7 @@ export default class ChunkManager {
                     const t = pending;
                     pending = null;
                     if (t.name !== "HINGED DOORWAY") {
-                        ctx.setWall(t.cx, t.cz, t.name === "DUCT OR VENT");
+                        ctx.setWall(t.cx, t.cz, t.name === "DUCT OR VENT" || t.name === "CRAWLSPACE_DUCT");
                         ctx.forceStructure(t.cx, t.cz, t.name);
                         reserved.add(key(t.cx, t.cz));
                         break;
@@ -777,9 +778,9 @@ export default class ChunkManager {
                         ? this._planDoorwayRun(ctx, random, t.cx, t.cz, t.heading, inChunk, cellKey, reserved, approaches, RUN_MIN, RUN_MAX)
                         : null;
                     if (!nextPlan) {
-                        const exits = ["CRAWLSPACE_HALL", "empty_door_frame", "DUCT OR VENT", "CREVICE_HALL"];
+                        const exits = ["CRAWLSPACE_HALL", "empty_door_frame", "DUCT OR VENT", "CREVICE_HALL", "CRAWLSPACE_DUCT"];
                         t.name = exits[Math.floor(random() * exits.length)];
-                        ctx.setWall(t.cx, t.cz, t.name === "DUCT OR VENT");
+                        ctx.setWall(t.cx, t.cz, t.name === "DUCT OR VENT" || t.name === "CRAWLSPACE_DUCT");
                         ctx.forceStructure(t.cx, t.cz, t.name);
                         reserved.add(key(t.cx, t.cz));
                         break;
@@ -908,7 +909,7 @@ export default class ChunkManager {
             if (endRoll > 0.60) {
                 terminus = {cx: beyond.cx, cz: beyond.cz, name: "HINGED DOORWAY", heading};
             } else if (endRoll > 0.05) {
-                const exits = ["CRAWLSPACE_HALL", "empty_door_frame", "DUCT OR VENT", "CREVICE_HALL"];
+                const exits = ["CRAWLSPACE_HALL", "empty_door_frame", "DUCT OR VENT", "CREVICE_HALL", "CRAWLSPACE_DUCT"];
                 terminus = {cx: beyond.cx, cz: beyond.cz, name: exits[Math.floor(random() * exits.length)], heading};
             }
         }
@@ -968,7 +969,7 @@ export default class ChunkManager {
         }
 
         let forcedName = ctx.getForcedStructure && ctx.getForcedStructure(x, z);
-        if (forcedName && ["empty_door_frame", "CREVICE_HALL", "CRAWLSPACE_HALL"].includes(forcedName)) {
+        if (forcedName && ["empty_door_frame", "CREVICE_HALL", "CRAWLSPACE_HALL", "CRAWLSPACE_DUCT"].includes(forcedName)) {
             const hasAdjacentVent = ctx.getForcedStructure && (
                 ctx.getForcedStructure(x + 1, z) === "DUCT OR VENT" ||
                 ctx.getForcedStructure(x - 1, z) === "DUCT OR VENT" ||
@@ -1010,7 +1011,7 @@ export default class ChunkManager {
         const floorRoll = random();
         let isNearFixture = false;
         if (ctx.getForcedStructure) {
-            const fixtures = ["HINGED DOORWAY", "DUCT OR VENT", "HATCH", "AIRLOCK", "empty_door_frame"];
+            const fixtures = ["HINGED DOORWAY", "DUCT OR VENT", "HATCH", "AIRLOCK", "empty_door_frame", "CRAWLSPACE_DUCT"];
             if (fixtures.includes(ctx.getForcedStructure(x + 1, z))) isNearFixture = true;
             else if (fixtures.includes(ctx.getForcedStructure(x - 1, z))) isNearFixture = true;
             else if (fixtures.includes(ctx.getForcedStructure(x, z + 1))) isNearFixture = true;
