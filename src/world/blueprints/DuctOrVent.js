@@ -26,7 +26,7 @@ export const DuctOrVentProfile = (env, ctx) => {
             };
 
             const cellKey = (cx, cz) => `${cx}_${cz}`;
-            
+
             const initialExits = {N: false, S: false, E: false, W: false};
             if (ctx.isWall && !ctx.isWall(x, z - 1)) { initialExits.N = true; numExits++; }
             if (ctx.isWall && !ctx.isWall(x, z + 1)) { initialExits.S = true; numExits++; }
@@ -61,14 +61,14 @@ export const DuctOrVentProfile = (env, ctx) => {
                     if (random() < 0.4) idx = Math.floor(random() * q.length);
                     const cell = q.splice(idx, 1)[0];
                     const key = cellKey(cell.x, cell.z);
-                    
+
                     const prevCellX = cell.x + (cell.cameFrom === 'E' ? 1 : cell.cameFrom === 'W' ? -1 : 0);
                     const prevCellZ = cell.z + (cell.cameFrom === 'S' ? 1 : cell.cameFrom === 'N' ? -1 : 0);
                     const pKey = cellKey(prevCellX, prevCellZ);
                     const p = network.get(pKey);
 
                     if (network.has(key)) {
-                        if (p && random() < 0.25) { 
+                        if (p && random() < 0.25) {
                             p.connections[getOpposite(cell.cameFrom)] = true;
                             network.get(key).connections[cell.cameFrom] = true;
                         }
@@ -116,13 +116,13 @@ export const DuctOrVentProfile = (env, ctx) => {
                         if (cell.connections.S) connCount++;
                         if (cell.connections.E) connCount++;
                         if (cell.connections.W) connCount++;
-                        
+
                         let exitCount = 0;
                         if (cell.exits.N) exitCount++;
                         if (cell.exits.S) exitCount++;
                         if (cell.exits.E) exitCount++;
                         if (cell.exits.W) exitCount++;
-                        
+
                         if (connCount === 1 && exitCount === 0) {
                             if (cell.connections.N) {
                                 const nKey = cellKey(cell.x, cell.z - 1);
@@ -219,15 +219,15 @@ export const DuctOrVentProfile = (env, ctx) => {
                     const cLining1 = buildWall(liningT, liningT, env.ductMat, holeH, 0);
                     cLining1.position.set(cx - holeW / 2 + liningT / 2, ductY + holeH / 2, cz - holeW / 2 + liningT / 2);
                     addGeometry(cLining1);
-                    
+
                     const cLining2 = buildWall(liningT, liningT, env.ductMat, holeH, 0);
                     cLining2.position.set(cx + holeW / 2 - liningT / 2, ductY + holeH / 2, cz - holeW / 2 + liningT / 2);
                     addGeometry(cLining2);
-                    
+
                     const cLining3 = buildWall(liningT, liningT, env.ductMat, holeH, 0);
                     cLining3.position.set(cx - holeW / 2 + liningT / 2, ductY + holeH / 2, cz + holeW / 2 - liningT / 2);
                     addGeometry(cLining3);
-                    
+
                     const cLining4 = buildWall(liningT, liningT, env.ductMat, holeH, 0);
                     cLining4.position.set(cx + holeW / 2 - liningT / 2, ductY + holeH / 2, cz + holeW / 2 - liningT / 2);
                     addGeometry(cLining4);
@@ -261,7 +261,7 @@ export const DuctOrVentProfile = (env, ctx) => {
 
                             const lSide1 = buildWall(branch.isZ ? branch.w : liningT, branch.isZ ? liningT : branch.d, env.ductMat, holeH, 0);
                             const lSide2 = buildWall(branch.isZ ? branch.w : liningT, branch.isZ ? liningT : branch.d, env.ductMat, holeH, 0);
-                            
+
                             if (!branch.isZ) {
                                 lSide1.position.set(branch.x - holeW / 2 + liningT / 2, ductY + holeH / 2, branch.z);
                                 lSide2.position.set(branch.x + holeW / 2 - liningT / 2, ductY + holeH / 2, branch.z);
@@ -277,12 +277,12 @@ export const DuctOrVentProfile = (env, ctx) => {
                             addWall(block);
 
                             const capLining = buildWall(branch.isZ ? liningT : holeW, branch.isZ ? holeW : liningT, env.ductMat, holeH, 0);
-                            
+
                             if (branch.dir === 'N') capLining.position.set(cx, ductY + holeH / 2, cz - holeW / 2 + liningT / 2);
                             else if (branch.dir === 'S') capLining.position.set(cx, ductY + holeH / 2, cz + holeW / 2 - liningT / 2);
                             else if (branch.dir === 'E') capLining.position.set(cx + holeW / 2 - liningT / 2, ductY + holeH / 2, cz);
                             else if (branch.dir === 'W') capLining.position.set(cx - holeW / 2 + liningT / 2, ductY + holeH / 2, cz);
-                            
+
                             addGeometry(capLining);
                         }
                     }
@@ -306,7 +306,7 @@ export const DuctOrVentProfile = (env, ctx) => {
                 if (ctx.isWall && !ctx.isWall(x, z - 1)) openFaces.push(1);
                 if (ctx.isWall && !ctx.isWall(x + 1, z)) openFaces.push(2);
                 if (ctx.isWall && !ctx.isWall(x - 1, z)) openFaces.push(3);
-                
+
                 let ventFace;
                 if (openFaces.length > 0) {
                     ventFace = openFaces[Math.floor(random() * openFaces.length)];
