@@ -1,9 +1,3 @@
-/**
- * [ROLE] Generates a barricade-like pile of overturned tables and chairs, usually hiding a battery.
- * [WHY] Adds visual storytelling of struggle or blockade, and rewards thorough exploration with hidden items.
- * [STATE] Stateless group builder; adds to global interactable arrays.
- * [DEPENDS] Furniture building context methods and battery prefab.
- */
 export const WreckedFurniturePileProfile = (env, ctx) => {
     const {random, buildTable, buildChair, addFurniture, chunkGroup, hash} = ctx;
     return {

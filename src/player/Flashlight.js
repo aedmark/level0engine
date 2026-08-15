@@ -1,10 +1,3 @@
-/**
- * [ROLE] Visual physical flashlight instrument for the player.
- * [WHY] Provides diegetic flashlight holding and dynamic beam swaying.
- * [STATE] Stateful, tracks orientation, physics swaying, and visual meshes.
- * [DEPENDS] Three.js (THREE), engine camera, player velocity, environment spot light.
- */
-
 export default class Flashlight {
     constructor(engine, environment, player) {
         this.engine = engine;
@@ -104,7 +97,6 @@ export default class Flashlight {
         heel.position.set(0.004, -0.062, -0.038);
         hand.add(heel);
 
-        // Fingers curled around a flashlight body
         const FINGERS = [
             {x: -0.030, len: [0.040, 0.030, 0.022], curl: [1.2, 1.3, 1.1], r: 0.0125, y: 0.055},
             {x: 0.002, len: [0.044, 0.033, 0.024], curl: [1.25, 1.3, 1.15], r: 0.0130, y: 0.057},
@@ -118,7 +110,6 @@ export default class Flashlight {
             hand.add(finger);
         }
 
-        // Thumb curled over the top/side
         const thumb = this._finger([0.048, 0.032], [0.8, 0.62], 0.0155, skin);
         thumb.position.set(-0.086, -0.010, -0.024);
         thumb.rotation.set(0.35, 0.18, -1.0);
@@ -159,37 +150,30 @@ export default class Flashlight {
         const rubber = new THREE.MeshStandardMaterial({
             color: 0x111111, roughness: 0.9, metalness: 0.1
         });
-        
-        // Flashlight body
+
         const body = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.2, 16), metal);
         body.rotation.x = Math.PI / 2;
         this.group.add(body);
 
-        // Flashlight head (flares out towards -Z)
         const head = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.045, 0.06, 16), metal);
         head.position.z = -0.13;
         head.rotation.x = Math.PI / 2;
         this.group.add(head);
 
-        // Rubber grip
         const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.1, 16), rubber);
         grip.rotation.x = Math.PI / 2;
         grip.position.z = 0.02;
         this.group.add(grip);
 
-        // The spotlight is updated in the update() loop to match the rig's matrix.
-
         this.rig = new THREE.Group();
         this.rig.add(this.group);
         const hand = this._buildHand();
-        // Rotate hand to wrap fingers around the Z-axis cylinder
-        hand.rotation.set(Math.PI / 6, -Math.PI / 2, 0); 
+        hand.rotation.set(Math.PI / 6, -Math.PI / 2, 0);
         hand.position.set(-0.025, -0.05, 0.05);
         this.rig.add(hand);
-        
-        // Positioned slightly off-center like the compass, but pointing mostly forward
+
         this.rig.position.set(0.35, -0.35, -0.45);
-        this.rig.rotation.set(0, 0.15, 0.05); // Slight inward angle
+        this.rig.rotation.set(0, 0.15, 0.05);
         this.basePos = this.rig.position.clone();
         this.baseRot = this.rig.rotation.clone();
         this.rig.visible = false;
@@ -330,22 +314,17 @@ export default class Flashlight {
         if (this.environment.flashlight) {
             this.rig.updateMatrix();
             const spot = this.environment.flashlight;
-            // The flashlight head is around -0.15 on the Z axis of the rig's local space
             const localHead = new THREE.Vector3(0, 0, -0.15);
-            // The target should be far ahead on the Z axis
             const localTarget = new THREE.Vector3(0, 0, -10.0);
-            
-            // Transform these points from the rig's local space to the camera's local space
+
             localHead.applyMatrix4(this.rig.matrix);
             localTarget.applyMatrix4(this.rig.matrix);
 
             if (this._tuck > 0) {
-                // Blend towards the head (camera origin) when tucking into a crawl
                 localHead.lerp(new THREE.Vector3(0, 0, 0), this._tuck);
                 localTarget.lerp(new THREE.Vector3(0, 0, -10.0), this._tuck);
             }
 
-            // Set the spot light properties (which are attached to the camera)
             spot.position.copy(localHead);
             spot.target.position.copy(localTarget);
             spot.target.updateMatrixWorld();

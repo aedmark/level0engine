@@ -1,37 +1,6 @@
 import TheArchitect from './TheArchitect.js';
 
-/**
- * [ROLE] Links every shader program the world is going to need while the boot loading screen is
- *        still covering the view, and then pins those programs so they are never thrown away.
- * [WHY] With 32 pooled point lights, 32 pooled spot lights, 13 shadow slots, PCFSoft filtering 
- *       and a logarithmic depth buffer, each program is enormous. We now use renderer.compileAsync() 
- *       to link these asynchronously, avoiding the multi-second thread locks from older ThreeJS versions.
- * [STATE] Stateless entry point. Leaves env._programKeepAlive behind and nothing else.
- * [DEPENDS] THREE.js globally, plus the env produced by Environment.setup().
- */
 export default class ShaderWarmup {
-    /**
-     * Two things have to be true for a warmup to actually take, and an earlier attempt at this
-     * missed both:
-     *
-     * 1. r128's program cache key includes `instancing` and `instancingColor`, so one material is
-     *    up to three distinct programs depending on whether ChunkManager._compileInstances emits
-     *    a plain Mesh, an InstancedMesh, or an InstancedMesh carrying per-instance colour.
-     *    Warming only the plain variant leaves the chunk builder asking for a program that was
-     *    never built, which reads exactly like the warmup having done nothing at all.
-     *
-     * 2. Programs are refcounted per material. When a material switches between plain and
-     *    instanced rendering, r128 releases the old program and acquires the new one, and if that
-     *    release drops the count to zero the program is destroyed and has to be relinked from
-     *    scratch next time. Warming both variants on the same material would therefore destroy
-     *    the first program on the way to building the second. So each variant is warmed on its
-     *    own clone, and the clones are retained for the life of the page: the refcount never
-     *    reaches zero, and every later switch between plain and instanced is a cache hit.
-     *
-     * Every material gets all three probes. three keys its program cache on the real permutation
-     * and acquireProgram returns the existing program on a hit, so the actual link work is bounded
-     * by the number of distinct permutations however many materials are fed in.
-     */
     static async run(env, onProgress = null) {
         if (env._programKeepAlive) return;
         const renderer = env.engine && env.engine.renderer;
@@ -64,13 +33,6 @@ export default class ShaderWarmup {
         }
     }
 
-    /**
-     * Sector builders create most of their materials lazily, behind `if (!env.someMat)` guards at
-     * factory scope. getSectorMatrix() runs all twelve sector factories in one go -- which is
-     * already what ChunkManager does for every macro chunk it builds -- so a single throwaway
-     * call materialises the whole set without producing any geometry. Same for the structural
-     * matrix that ordinary maze chunks draw from.
-     */
     static _materialiseLazySectorAssets(env) {
         const scratchGroup = new THREE.Group();
         let seed = (env.baseSeed ^ 0x9e3779b9) >>> 0;
@@ -89,12 +51,6 @@ export default class ShaderWarmup {
         }
     }
 
-    /**
-     * Two passes. First a shallow walk of env, where materials sit directly on the object, in
-     * small arrays (productBoxMats, cableMats) or in the Map/plain-object pools (_lightMatPool,
-     * _pooledLightMats). Then a full scene traversal, which is what catches everything parked in
-     * the graph rather than hung off env.
-     */
     static _collectMaterials(env) {
         const found = new Map();
         const visit = (value, depth) => {

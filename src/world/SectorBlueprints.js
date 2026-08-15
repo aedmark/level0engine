@@ -1,9 +1,3 @@
-/**
- * [ROLE] Aggregates and provides the array of all available sector blueprint configurations.
- * [WHY] Centralizes the sector list to make it easier to expand or iterate over world zones.
- * [STATE] Stateless matrix provider.
- * [DEPENDS] Imports individual sector scripts.
- */
 import {ExitSector} from './sectors/ExitSector.js';
 import {ImpoundSector} from './sectors/ImpoundSector.js';
 import {ClinicSector} from './sectors/ClinicSector.js';

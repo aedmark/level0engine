@@ -1,9 +1,3 @@
-/**
- * [ROLE] Generates a corridor cell lined with thin pillars and a floating header, evoking a switchback queue lane.
- * [WHY] Adds spatial variety to straight corridor stretches with an aesthetic distinct from plain walls.
- * [STATE] Stateless; returns a configuration object with a build function. `prob: 0` means it's only placed by explicit reference, not random rolls.
- * [DEPENDS] Depends on env properties and context functions like addGeometry, buildWall, and isWall.
- */
 export const RideQueueHallProfile = (env, ctx) => {
     const { addGeometry, buildWall, isWall } = ctx;
     return {

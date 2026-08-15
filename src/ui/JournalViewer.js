@@ -1,9 +1,3 @@
-/**
- * [ROLE] Manages the UI overlay for the player's personal Journal (PDA).
- * [WHY] Allows the player to review all collected narrative fragments at any time.
- * [STATE] Stateful. Tracks the selected entry index and typewriter interval.
- * [DEPENDS] DOM elements (`journal-overlay`), CustomEvents (`somatic-journal-toggle`).
- */
 export default class JournalViewer {
     constructor(player, acoustics, getStoryFn) {
         this.player = player;

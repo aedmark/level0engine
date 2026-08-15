@@ -1,10 +1,3 @@
-/**
- * [ROLE] Central coordinator for Three.js rendering.
- * [WHY] Isolates Three.js boilerplate and scene graph management from game logic.
- * [STATE] Stateful singleton-like. Owns Scene, Camera, and WebGLRenderer.
- * [DEPENDS] Expects #canvas-container in the DOM. Reads from window.localStorage for graphics settings.
- */
-
 export default class RenderEngine {
     constructor() {
         THREE.ColorManagement.enabled = false;
@@ -24,16 +17,6 @@ export default class RenderEngine {
             logarithmicDepthBuffer: logDepth
         });
         this.renderer.useLegacyLights = true;
-        /** [WHY] three r128 links shader programs synchronously, and with 32 pooled point lights,
-         * 32 pooled spot lights, 13 shadow slots, PCFSoft filtering and a logarithmic depth buffer
-         * a single program is very large. checkShaderErrors makes r128 call gl.getProgramInfoLog
-         * immediately after gl.linkProgram, which blocks the main thread until the driver has
-         * finished that link -- so a batch of first-seen materials costs sum(link) instead of
-         * max(link). With it off the driver is free to link the whole batch on its own threads
-         * (KHR_parallel_shader_compile) and we only pay once, when the first draw needs them.
-         * [TRADEOFF] Link/compile failures become silent. Append ?shaderdebug to the URL to get
-         * the error reporting back while working on shaders.
-         */
         this.renderer.debug.checkShaderErrors =
             new URLSearchParams(window.location.search).has('shaderdebug');
         this.renderer.setPixelRatio(1.0);

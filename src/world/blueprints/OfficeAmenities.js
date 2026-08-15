@@ -1,11 +1,5 @@
 import * as OfficeFurniture from '../OfficeFurniture.js';
 
-/**
- * [ROLE] Spawns lounge amenities (couches, potted plants) in a cell.
- * [WHY] Populates the generic maze with recognizable props to enhance the office atmosphere.
- * [STATE] Stateless generator.
- * [DEPENDS] OfficeFurniture builder functions and context.
- */
 export const OfficeAmenitiesProfile = (env, ctx) => {
     const {random, addFurniture, buildCouch, buildWall, addGeometry} = ctx;
     return {

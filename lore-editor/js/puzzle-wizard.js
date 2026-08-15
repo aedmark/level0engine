@@ -1,9 +1,3 @@
-/**
- * [ROLE] Guided step-by-step wizard for authoring a new keypad puzzle, its access-code expression, and its lock threads.
- * [WHY] Access codes are hand-written JS expressions evaluated against seeded core vars; the wizard offers vetted patterns instead of raw eval-able code from scratch.
- * [STATE] Owns the wizardState global for the duration of the wizard; discarded on cancel or completion.
- * [DEPENDS] Reads paramsData (state.js) for known core vars; the expressions it assembles are evaluated the same way puzzles.json's ACCESS_CODE is at runtime.
- */
 const ACCESS_PATTERNS = {
             year_pen: { label: 'Year + Pen (classic)', expr: "String(ctx.year).slice(2) + String(ctx.pen).padStart(2, '0')" },
             hours_pen: { label: 'Hours + Pen', expr: "String(ctx.hours).slice(0, 2) + String(ctx.pen).padStart(2, '0')" },

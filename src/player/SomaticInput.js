@@ -274,7 +274,6 @@ export default class SomaticInput {
             }
         }
 
-        // Hardcoded debug shortcuts
         if (event.code === 'KeyU' && event.ctrlKey && event.shiftKey) {
             window.EDMARK_DEBUG_MODE = !window.EDMARK_DEBUG_MODE;
             console.log("EDMARK_DEBUG_MODE:", window.EDMARK_DEBUG_MODE);

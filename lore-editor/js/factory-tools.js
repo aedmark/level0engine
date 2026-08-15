@@ -1,9 +1,3 @@
-/**
- * [ROLE] Exports the live data files as a single downloadable lore pack, imports one back in, and restores factory defaults.
- * [WHY] Gives authors a way to back up, share, or roll back a full set of lore edits as one file instead of per-JSON-file.
- * [STATE] Stateless; triggers file downloads/reads and delegates persistence to the server, clearing crossFileCache after any write.
- * [DEPENDS] Calls editor_server.js's /api/export, /api/import, and /api/factory-reset endpoints.
- */
 async function exportLorePack() {
             try {
                 const res = await fetch('/api/export');

@@ -1,9 +1,3 @@
-/**
- * [ROLE] Manages input and validation for the UI keypad overlay.
- * [WHY] Provides a locked-door mechanic driven by narrative clues instead of physical keys.
- * [STATE] Stateful. Stores the current inputted digits for the active keypad interaction.
- * [DEPENDS] DOM elements (`keypad-display`, `keypad-overlay`), CustomEvents (`somatic-keypad`).
- */
 export default class KeypadController {
     constructor(player, acoustics, getStoryFn) {
         this.player = player;

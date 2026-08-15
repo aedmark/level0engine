@@ -1,9 +1,3 @@
-/**
- * [ROLE] Asynchronously generates procedural textures by composing multiple texture modules.
- * [WHY] Replaces static image assets with generated canvases to reduce load times and bandwidth.
- * [STATE] Stateless factory class.
- * [DEPENDS] Relies on TextureMechanics, multiple texture generation modules, and THREE.js.
- */
 import TextureMechanics from './textures/TextureMechanics.js';
 import StructuralTextures from './textures/common/StructuralTextures.js';
 import SurfaceTextures from './textures/common/SurfaceTextures.js';
@@ -28,8 +22,8 @@ export default class ProceduralTextureFactory {
 
     static async generateAssets(onProgress = null) {
         const masterNoise = TextureMechanics._generateMasterNoise();
-        ProceduralTextureFactory._masterNoise = masterNoise; // save for lazy loading
-        
+        ProceduralTextureFactory._masterNoise = masterNoise;
+
         if (ProceduralTextureFactory.USE_STATIC_TEXTURES) {
             const staticAssets = await StaticTextureLoader.loadCoreAssets(onProgress);
             staticAssets.flangeMat = TechTextures._buildFlangeAsset(masterNoise);
@@ -53,8 +47,7 @@ export default class ProceduralTextureFactory {
         await TextureMechanics._yield();
         const hazardAssets = HazardTextures._buildHazardAndMiscAssets(masterNoise);
         await TextureMechanics._yield();
-        
-        // Essential sector textures for MaterialLibrary and Environment setup
+
         const serverAssets = ServerTextures._buildServerAssets(masterNoise);
         await TextureMechanics._yield();
         
@@ -101,8 +94,7 @@ export default class ProceduralTextureFactory {
             
             const sectorAssets = buildFn(masterNoise);
             ProceduralTextureFactory._applyOpts(sectorAssets);
-            
-            // Assign dynamically to env.
+
             Object.assign(env, sectorAssets);
         }
     }

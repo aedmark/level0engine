@@ -1,12 +1,6 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
-/**
- * [ROLE] Defines the generation logic for the "Impound" sector.
- * [WHY] Generates fenced areas containing confiscated items, vehicles, or large junk for industrial variety.
- * [STATE] Stateless factory. Returns a builder object that modifies the world generation environment.
- * [DEPENDS] Uses `env` and `ctx` for staging gates, placing massive items, and setting up large spotlight fixtures.
- */
 export const ImpoundSector = (env, ctx) => {
     const {
         random,

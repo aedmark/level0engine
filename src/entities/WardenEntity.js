@@ -1,9 +1,3 @@
-/**
- * [ROLE] Searchlight-based hazard entity.
- * [WHY] A stealth-focused enemy that punishes the player for being caught in its sweeping spotlight.
- * [STATE] Stateful. Holds three.js meshes, spotlight targeting, and patrol state.
- * [DEPENDS] three.js (implicit), environment data, HazardUtils.
- */
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 import {isRayPathBlocked, computeAxisBlocking} from './HazardUtils.js';

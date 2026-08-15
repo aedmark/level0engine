@@ -1,12 +1,3 @@
-/**
- * [ROLE] Generates a low-clearance corridor cell with a dropped ceiling, trimmed along its
- *        bottom edge with the same baseboard the walls use where they meet the floor.
- * [WHY] Adds a claustrophobic traversal variant (forces crouching) distinct from a standard full-height corridor.
- * [STATE] Stateless; returns a configuration object with a build function. `prob: 0` means it's only placed by explicit reference, not random rolls.
- * [DEPENDS] Depends on env properties and addGeometry. The isWallCell argument is part of the
- *           shared profile signature but unused here: the trim wraps every face regardless of
- *           what neighbours the cell.
- */
 export const CrawlspaceHallProfile = (env, ctx) => {
     const { addGeometry } = ctx;
     return {

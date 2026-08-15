@@ -2,12 +2,6 @@ import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
 
-/**
- * [ROLE] Defines the generation logic for the "Incinerator" sector.
- * [WHY] Constructs industrial burner areas with ducts, grates, and fiery lighting to provide a hostile aesthetic.
- * [STATE] Stateless factory. Returns a builder object that modifies the world generation environment.
- * [DEPENDS] Relies on `env` and `ctx` for custom materials (embers), volumetric lighting, and pipe network generation.
- */
 export const IncineratorSector = (env, ctx) => {
     const {
         random,

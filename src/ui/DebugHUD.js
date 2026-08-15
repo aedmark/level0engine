@@ -1,9 +1,3 @@
-/**
- * [ROLE] Renders debugging telemetry on the screen.
- * [WHY] Allows developers to inspect engine internals, performance, and player state in real-time.
- * [STATE] Singleton object. Maintains internal performance counters and last update times.
- * [DEPENDS] DOM element `#debug-hud`, keyboard events, `document.activeElement`.
- */
 export const DebugHUD = {
     el: null,
     visible: false,

@@ -1,9 +1,3 @@
-/**
- * [ROLE] Generates a grouping of vertical pipes.
- * [WHY] Adds vertical industrial set dressing, breaking up plain spaces and providing small sightline blockers.
- * [STATE] Stateless generation profile.
- * [DEPENDS] Pipe geometry, pipe material, and context geometry adding functions.
- */
 export const PipeClusterProfile = (env, ctx) => {
     const {random, addGeometry} = ctx;
     return {

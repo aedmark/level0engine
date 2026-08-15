@@ -1,9 +1,3 @@
-/**
- * [ROLE] Places interactive narrative items (documents, tapes) in the game world.
- * [WHY] Distributes lore and story elements dynamically within the chunk generation based on probabilities and budgets.
- * [STATE] Stateless utility. Modifies `env._paperBudget` to cap items per chunk and registers interactables.
- * [DEPENDS] Requires `THREE` globally, `env` geometry/material definitions, and chunk generation context `ctx`.
- */
 const LORE_CHANCE = 0.019;
 const MAX_LORE_PER_CHUNK = 4;
 

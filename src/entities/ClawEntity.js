@@ -1,9 +1,3 @@
-/**
- * [ROLE] Giant mechanical claw entity in the Atrium.
- * [WHY] Punishes players who linger or move too slowly inside store aisles.
- * [STATE] Stateful. Manages claw mesh, descent animation, and tracking timers.
- * [DEPENDS] three.js (implicit), environment data, Math utils.
- */
 import Vec3 from '../math/Vec3.js';
 import {isRayPathBlocked} from './HazardUtils.js';
 

@@ -1,9 +1,3 @@
-/**
- * [ROLE] Utility functions for entity navigation and collision.
- * [WHY] Consolidates redundant raycasting and AABB intersection logic used across multiple entity classes.
- * [STATE] Stateless utility module.
- * [DEPENDS] AABB, environment spatial grid.
- */
 import AABB from '../math/AABB.js';
 
 export function isRayPathBlocked(env, searchCenterX, searchCenterZ, searchDist, rayOrigin, rayDir, distSqLimit, rayTargetScratch) {

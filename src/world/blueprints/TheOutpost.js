@@ -1,9 +1,3 @@
-/**
- * [ROLE] Constructs a small, partially enclosed safe room containing a cot and supplies.
- * [WHY] Gives the player a thematic resting spot and loot source, breaking up hallway navigation.
- * [STATE] Stateless generator; pushes collectables into the interactables list and blocks pathing with AABB.
- * [DEPENDS] AABB grid insertion, battery/almond water prefabs, and special light/cot geometry.
- */
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 

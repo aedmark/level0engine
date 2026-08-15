@@ -1,9 +1,3 @@
-/**
- * [ROLE] Renders the editor's left-hand file/tool list and other shared DOM chrome from the current state.
- * [WHY] Keeps the HTML-string-building logic for the file browser separate from the state and business logic it reads from.
- * [STATE] Stateless; reads the global state declared in state.js and writes directly to the DOM, owns no data itself.
- * [DEPENDS] Reads globals from state.js (files, selectedFile); its buttons call into factory-tools.js, inspector.js, and validation.js's open/export functions.
- */
 function renderFileList() {
             let html = '';
             const groups = [

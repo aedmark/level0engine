@@ -1,9 +1,3 @@
-/**
- * [ROLE] Generates randomized lore, documents, and narrative text snippets.
- * [WHY] Drives the procedural storytelling by assembling clue fragments based on random seeds and truth states.
- * [STATE] Stateless utility functions returning generated objects.
- * [DEPENDS] Procedural seed context, global variables for hours/pen/etc.
- */
 export function buildCaseFiles(ctx, data) {
     const d = JSON.parse(JSON.stringify(data));
     const c = ctx.cast;

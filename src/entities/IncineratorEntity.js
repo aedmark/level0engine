@@ -1,9 +1,3 @@
-/**
- * [ROLE] Heat-based hazard entity.
- * [WHY] Drains player stamina and coherence over time when spotted, encouraging breaking line-of-sight.
- * [STATE] Stateful. Manages complex procedural mesh animations and heat accumulation logic.
- * [DEPENDS] three.js (implicit), environment data, HazardUtils.
- */
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 import {isRayPathBlocked, computeAxisBlocking} from './HazardUtils.js';

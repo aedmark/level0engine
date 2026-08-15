@@ -1,10 +1,3 @@
-/**
- * [ROLE] IndexedDB storage manager for texture blob caching and world/save state persistence.
- * [WHY] Provides fast local offline caching for static/procedural texture assets and high-capacity
- *        persistence for world chunk state, macro zones, and player narrative discoveries.
- * [STATE] Stateful IndexedDB connection singleton ('Level0DB').
- * [DEPENDS] Native browser IndexedDB API.
- */
 export default class TextureCache {
     static dbName = 'Level0DB';
     static textureStore = 'textures';
@@ -59,7 +52,6 @@ export default class TextureCache {
                 tx.onerror = () => resolve();
             });
         } catch (e) {
-            // Ignore quota or transaction errors silently
         }
     }
 
@@ -123,7 +115,6 @@ export default class TextureCache {
                 tx.onerror = () => resolve();
             });
         } catch (e) {
-            // Ignore write errors silently
         }
     }
 

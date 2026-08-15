@@ -1,9 +1,3 @@
-/**
- * [ROLE] Manages the UI overlay for reading in-game documents, terminals, and tape transcripts.
- * [WHY] Provides an immersive narrative delivery mechanism, handling text revealing and document formatting.
- * [STATE] Stateful. Tracks typewriter intervals and terminal browsing indices.
- * [DEPENDS] DOM elements (e.g. `document-overlay`), CustomEvents (`somatic-read`, `somatic-doc-nav`).
- */
 export default class DocumentViewer {
     constructor(player, acoustics, getStoryFn) {
         this.player = player;

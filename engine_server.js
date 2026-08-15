@@ -1,9 +1,3 @@
-/**
- * [ROLE] Zero-dependency static file server for the main game engine.
- * [WHY] Serves the ES6 modules over http:// instead of file://, since strict CORS policy blocks module imports from the local filesystem.
- * [STATE] Stateless request handler; no data is persisted or mutated.
- * [DEPENDS] Node's http/fs/path/url modules; serves every file under the project root by MIME type.
- */
 import http from 'http';
 import fs from 'fs';
 import path from 'path';

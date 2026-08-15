@@ -79,6 +79,9 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                         if (ctx.isAirlockApron && ctx.isAirlockApron(cell.x, cell.z)) {
                             continue;
                         }
+                        if (ctx.isLowClearance && ctx.isLowClearance(cell.x, cell.z)) {
+                            continue;
+                        }
                         if (p && numExits < maxExits) {
                             p.exits[getOpposite(cell.cameFrom)] = true;
                             numExits++;
@@ -164,8 +167,8 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
 
             if (isFloorLevel) {
                 const holeW = 1.2;
-                const holeH = 1.2; // 1.2 x 1.2 square
-                const ductY = 0.6; // SILL_H
+                const holeH = 1.2;
+                const ductY = 0.6;
                 const topH = 3.0 - (ductY + holeH);
                 const sideW = (env.cellSize - holeW) / 2;
                 const sideOffset = (env.cellSize / 2) - (sideW / 2);
@@ -210,15 +213,6 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                     hubRoofStruct.position.set(cx, ductY + holeH + topH / 2, cz);
                     addGeometry(hubRoofStruct);
 
-                    /** [WHY] These linings are geometrically redundant -- the structural blocks
-                     * already form a closed tunnel -- but they are the only surface in this
-                     * blueprint that is duct interior and nothing else. Every structural block
-                     * here is dual-faced: its inward face lines the duct, its outward face is
-                     * corridor wall. A material applies to a whole mesh, not a face, so darkening
-                     * a block would punch a dark patch into the corridor around the grate. Built
-                     * from ductWallMat, these thin inserts carry the ambient occlusion on their
-                     * own and let the structural blocks stay lit normally from the corridor side.
-                     * They also restore the anti-snag padding on the interior corners. */
                     const hubFloorLining = buildWall(holeW, holeW, env.ductWallMat, liningT, 0);
                     hubFloorLining.position.set(cx, ductY + liningT / 2, cz);
                     addGeometry(hubFloorLining);
@@ -293,14 +287,6 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                             block.position.set(branch.x, 1.5, branch.z);
                             addWall(block);
 
-                            /** The dead-end plug is dual-faced like every other block here, so the
-                             * duct-facing side gets its own insert rather than darkening the plug.
-                             * [WHY-NO-noCollision] Tempting to flag this decorative plate as
-                             * noCollision, but ctx.setWall(x, z, false) doubles as a retroactive
-                             * sweep that deletes staged geometry inside the cleared cell, and it
-                             * explicitly skips noCollision meshes. Flagging it would exempt the
-                             * plate from a wipe that removes everything around it, leaving black
-                             * plates floating in an otherwise empty cell. */
                             const capLining = buildWall(branch.isZ ? liningT : holeW, branch.isZ ? holeW : liningT, env.ductWallMat, holeH, 0);
                             capLining.position.set(
                                 branch.x - (branch.isZ ? Math.sign(branch.x - cx) * (branch.w / 2 - liningT / 2) : 0),
@@ -317,8 +303,8 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                     const doorW = holeW - GRATE_GAP;
                     const doorH = holeH - GRATE_GAP;
                     const frameMat = env.woodMat || env.sharedWallMat;
-                    const frameD = 0.12; // Increase depth slightly to avoid Z-fighting with pillars
-                    const frameT = 0.08; // Increase thickness to avoid Z-fighting with linings
+                    const frameD = 0.12;
+                    const frameT = 0.08;
 
                     const addDoor = (isX, sign) => {
                         const px = cx + (isX ? sign * faceOffset : 0);

@@ -1,9 +1,3 @@
-/**
- * [ROLE] Editor bootstrap -- loads the HowTo doc, core parameter/puzzle data, and the file list on page load.
- * [WHY] Keeps startup fetch sequencing in one place instead of scattering initial loads across every panel module.
- * [STATE] Populates the shared globals declared in state.js (paramsData, puzzlesData, files) as a side effect; runs once via the trailing init() call.
- * [DEPENDS] Fetches editor_server.js's /api/data endpoints; assumes renderVariableToolbar and renderFileList (rendering.js) are already defined globally.
- */
 async function init() {
             try {
                 fetch('/HowTo.md').then(res => res.text()).then(text => {

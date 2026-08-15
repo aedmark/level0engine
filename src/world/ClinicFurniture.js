@@ -1,9 +1,3 @@
-/**
- * [ROLE] Generates various 3D models for clinic-themed furniture (beds, monitors, wheelchairs, etc.).
- * [WHY] Provides domain-specific visual assets to populate the clinic sector of the map, enriching the environment.
- * [STATE] Stateless builders. Adds materials to `env.sharedAssets` and caches geometries.
- * [DEPENDS] Requires `THREE` globally and the environment `env` object for caching.
- */
 function ecgScreenTexture() {
     const W = 128, H = 64;
     const canvas = document.createElement('canvas');

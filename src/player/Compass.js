@@ -1,9 +1,3 @@
-/**
- * [ROLE] Visual navigation instrument for the player.
- * [WHY] Provides diegetic guidance towards objectives (thresholds) without standard UI elements.
- * [STATE] Stateful, tracks orientation, physics swaying, and visual meshes.
- * [DEPENDS] Three.js (THREE), engine camera, player velocity, DOM events for toggling.
- */
 import AABB from '../math/AABB.js';
 
 export default class Compass {

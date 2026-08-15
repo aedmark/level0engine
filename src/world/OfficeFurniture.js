@@ -1,10 +1,4 @@
 
-/**
- * [ROLE] Provides builder functions for office-themed set-dressing props (water coolers, potted plants, and similar).
- * [WHY] Keeps generic office furniture builders out of sector-specific files so multiple sectors can furnish rooms with the same props.
- * [STATE] Stateless factory functions; each caches its own geometry/materials on the shared `env` object on first use.
- * [DEPENDS] Requires `THREE` globally and an `env` object carrying shared materials and cached geometry helpers.
- */
 export function buildWaterCooler(env, x, y, z, rotY = 0) {
     const group = new THREE.Group();
     if (!env.coolerBodyGeo) env.coolerBodyGeo = new THREE.BoxGeometry(0.45, 1.15, 0.45);

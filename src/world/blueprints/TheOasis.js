@@ -1,9 +1,3 @@
-/**
- * [ROLE] Generates a guaranteed safe zone (checkpoint) with restorative items (almond water, batteries).
- * [WHY] Provides a pacing break, safe harbor, and reward point for the player during exploration.
- * [STATE] Integrates tightly with global state; checks `claimOasis` to ensure only one oasis is built. Pushes interactables to tracking lists.
- * [DEPENDS] Requires specific prefabs (almond water, batteries), lighting updates, and entity grid insertion.
- */
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
@@ -101,9 +95,6 @@ export const TheOasisProfile = (env, ctx) => {
                     isFake: false
                 });
             } else {
-                /** [WHY] Only one oasis exists per chunk, so every roll after the first declines.
-                 * Returning false hands the cell back to ChunkManager to fill with a plain wall
-                 * rather than building a second, untagged copy of one here. */
                 return false;
             }
         }

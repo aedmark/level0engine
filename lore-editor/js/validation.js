@@ -1,9 +1,3 @@
-/**
- * [ROLE] Builds a mock narrative context and resolves template strings against it to validate lore data.
- * [WHY] Lets authors catch broken variable references and template syntax errors without loading the real game engine.
- * [STATE] Stateless; pure functions over whatever params/puzzles data is passed in.
- * [DEPENDS] Mirrors the template syntax StoryEngine.js resolves at runtime; reads global params/puzzles data from state.js.
- */
 function buildMockCtx(params, puzzles, coreVarsOverride) {
             const roles = (params && params.ROLES) || ["lead", "custodian", "archivist", "lost"];
             const cast = {};

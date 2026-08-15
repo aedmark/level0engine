@@ -1,9 +1,3 @@
-/**
- * [ROLE] Central dispatcher for game events (audio/visual feedback).
- * [WHY] Maps custom somatic-* events to acoustic engine triggers and UI flashes.
- * [STATE] Stateless event binder.
- * [DEPENDS] Acoustics subsystem, DOM events, DOM elements (flash-overlay).
- */
 export default class SomaticController {
     constructor(acoustics) {
         this.acoustics = acoustics;

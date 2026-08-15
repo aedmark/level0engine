@@ -1,9 +1,3 @@
-/**
- * [ROLE] Provides a utility toolkit for procedural generation scripts, offering common functions for geometry, caching, and building parts.
- * [WHY] Reduces duplication in procedural generation algorithms by wrapping caching logic and common boilerplate.
- * [STATE] Class instance wraps the `env` object. Helper methods mutate the environment (spatial grid, staging meshes, etc.).
- * [DEPENDS] Requires `THREE` globally and an active environment object `env`.
- */
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 
@@ -63,16 +57,6 @@ export default class StructureKit {
             chunkGroup,
             stagingMeshes,
             playerPos: env.camera ? env.camera.position : null,
-            /**
-             * The one way to build a featureless full-cell wall.
-             *
-             * [WHY] There used to be two: ChunkManager's fallback, which tagged the mesh with
-             * isDefaultWall/cellX/cellZ, and The Oasis's decline path, which built a bare wall with
-             * no tagging at all. Because the probability table always matched something, only the
-             * untagged one ever ran -- so ctx.setWall's fast path, which finds a cell's wall by
-             * exactly that metadata, could never hit and always fell through to the positional
-             * sweep. Routing both through here means every plain wall is addressable by cell.
-             */
             buildDefaultWall: (x, z) => {
                 const wall = helpers.buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
                 wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);
@@ -153,29 +137,6 @@ export default class StructureKit {
                 }
                 return mesh;
             },
-            /**
-             * Inserts collision for an arch block built by buildArchCutout.
-             *
-             * [WHY] The block is one mesh with a semicircular hole punched through it, so its
-             * automatic bounding box is a solid slab across the whole opening. Standing,
-             * physicalTop is 2.5 against a box whose underside sits at the springing line, so the
-             * player was stopped dead by an arch showing (radius + springing) of clear headroom at
-             * the centre -- you had to crouch through something that plainly looked walkable.
-             *
-             * [HOW] Two exact boxes for the solid haunches either side, then a staircase under the
-             * arc for the spandrel above it. Steps are equal-angle, so the error collapses to
-             * nothing at the crown (where headroom decides whether you fit) and concentrates at the
-             * springing, where it just fattens the pillar a few centimetres. Each step starts at the
-             * arc's *lowest* point in its slice, so collision never opens up more space than the
-             * geometry shows.
-             *
-             * @param {THREE.Mesh} mesh - the positioned, rotated arch block
-             * @param {number} radius - arch radius, as passed to buildArchCutout
-             * @param {number} thickness - haunch thickness either side of the opening
-             * @param {number} outerY - height of the block above the springing line
-             * @param {number} depth - extrude depth (the block is centred on it)
-             * @param {number} [steps=24] - staircase resolution under the arc
-             */
             addArchCutoutColliders: (mesh, radius, thickness, outerY, depth, steps = 24) => {
                 const EPS = 0.01;
                 const outerX = radius + thickness;
@@ -296,31 +257,6 @@ export default class StructureKit {
                 }
                 return new THREE.Mesh(geo, mat);
             },
-            /**
-             * Inserts collision for a curved corner block built by buildCurvedCornerBlock.
-             *
-             * [WHY] The block is a single curved mesh, so its automatic bounding box would be the
-             * whole cell -- it has to be flagged noCollision and given explicit colliders. Those
-             * used to be two 0.3m slabs laid along the cell's outer edges, which is the collision
-             * hull of a square corner, not a rounded one. The curve cuts up to
-             * (size * sqrt(2) - size) into the cell, so the player could walk straight through the
-             * visible surface and only stop at the right-angle corner hiding behind it.
-             *
-             * [HOW] Collision here is strictly AABB vs AABB, so a curve can only be approximated by
-             * a staircase. Each step spans one equal-angle slice of the arc and starts at the arc's
-             * *lowest* point in that slice, so the boxes sit fractionally proud of the surface: the
-             * player is stopped just before the wall and can never clip into it. At 32 steps the
-             * worst-case standoff is about 0.10m against a 0.40m player radius.
-             *
-             * Boxes are built in the 2D shape space that curvedCornerShape defines, then pushed
-             * through the mesh's own world matrix. Every orientation is a multiple of 90 degrees,
-             * so the transformed bounds stay exact and all four rotations fall out for free --
-             * no per-orientation cases to keep in sync with the geometry.
-             *
-             * @param {THREE.Mesh} mesh - the positioned, rotated curved block
-             * @param {number} size - cell size the block was built at
-             * @param {number} [steps=32] - staircase resolution
-             */
             addCurvedCornerColliders: (mesh, size, steps = 32) => {
                 const EPS = 0.01;
                 const half = size / 2;
@@ -334,7 +270,6 @@ export default class StructureKit {
                     const sx1 = size * Math.sin(a1);
                     const sy0 = size * Math.cos(a1);
                     if (sx1 - sx0 < EPS || size - sy0 < EPS) continue;
-                    // shape space -> geometry local: the extrude is translated by (-size/2, -size/2, -1.5)
                     b3.min.set(sx0 - half, sy0 - half, -halfDepth);
                     b3.max.set(sx1 - half, size - half, halfDepth);
                     b3.applyMatrix4(mesh.matrixWorld);
@@ -373,13 +308,6 @@ export default class StructureKit {
                 trim.userData.noCollision = true;
                 helpers.addGeometry(trim);
             },
-            /**
-             * Adds a single Mesh to the chunk's staging array for instancing and adds it to the spatial grid.
-             * WARNING: MUST be a THREE.Mesh. Passing a THREE.Group will crash the compiler when it reads `geometry.boundingBox`.
-             * If you have a Group, traverse it and pass its mesh children individually!
-             * @param {THREE.Mesh} mesh - The mesh to add
-             * @param {boolean} [isWarp=false] - Whether this object acts as a warp zone
-             */
             addGeometry: (mesh, isWarp = false) => {
                 mesh.userData.chunkHash = hash;
                 mesh.updateMatrixWorld(true);
@@ -457,21 +385,6 @@ export default class StructureKit {
                 chunkGroup.add(obs);
                 env.observers.push(obs);
             },
-            /**
-             * Places an interactable grate. Spawns closed (active: true) and blocking;
-             * InteractionController swings it open on 'E' and empties its collision box.
-             * @param {Object} [opts] - Overrides for callers needing a non-vent panel
-             * @param {number} [opts.width=1.08] - Span across the opening
-             * @param {number} [opts.height=0.58] - Vertical span
-             * @param {number} [opts.thickness=0.05] - Depth through the wall
-             * @param {THREE.Material} [opts.mat=env.wallVentMat] - Surface material
-             * @param {boolean} [opts.hinged=false] - Swing open on an edge pivot instead of
-             *   the default fall-flat drop. Needed for panels mounted flush in a wall, where
-             *   spinning about the panel's own centre would pass it through that wall.
-             * @param {number} [opts.openSign=1] - Which way a hinged panel swings. Defaults to
-             *   the +axis face; pass -1 for a grate on the opposite end of a span so it opens
-             *   outward too rather than folding back into the passage.
-             */
             buildFlange: (px, py, pz, isX, dirSign) => {
                 const fT = 0.04;
                 const fW = 0.14;

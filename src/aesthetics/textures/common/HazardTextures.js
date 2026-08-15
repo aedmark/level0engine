@@ -1,9 +1,3 @@
-/**
- * [ROLE] Generates textures for hazard elements like fences, signs, and glowing materials.
- * [WHY] Procedurally generated to create scalable and performant caution-themed assets without downloading large maps.
- * [STATE] Stateless factory module.
- * [DEPENDS] Uses TextureMechanics and Canvas API; creates THREE.js materials.
- */
 import TextureMechanics from '../TextureMechanics.js';
 import PropTextures from './PropTextures.js';
 

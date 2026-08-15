@@ -1,9 +1,3 @@
-/**
- * [ROLE] Builds and manages the 3D geometry and interactive state of the "Breaker Podium" object.
- * [WHY] Serves as a specific interactive prop in the game world, used for progression or triggering events.
- * [STATE] Stateless builder/utility. Modifies passed `podium` objects via `userData`.
- * [DEPENDS] Requires `THREE` globally and the environment `env` object containing material/geometry caches.
- */
 const PLATE_W = 0.30;
 const PLATE_H = 0.32;
 const HEAD_TILT = 0.46;

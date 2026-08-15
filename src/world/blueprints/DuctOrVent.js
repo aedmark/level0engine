@@ -88,6 +88,11 @@ export const DuctOrVentProfile = (env, ctx) => {
                         if (ctx.isAirlockApron && ctx.isAirlockApron(cell.x, cell.z)) {
                             continue;
                         }
+                        /** See CrawlspaceDuct -- the BFS opens most exits here, not from the seed
+                         * cell, so the crawl-height refusal has to be repeated on this path. */
+                        if (ctx.isLowClearance && ctx.isLowClearance(cell.x, cell.z)) {
+                            continue;
+                        }
                         if (p && numExits < maxExits) {
                             p.exits[getOpposite(cell.cameFrom)] = true;
                             numExits++;

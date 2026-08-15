@@ -19,21 +19,21 @@ const DEFAULT_BINDINGS = {
         jump: ['Space']
     },
     gamepad: {
-        jump: [0], // A
-        closeDoc: [1], // B
-        flashlight: [2], // X
-        compass: [3], // Y
-        closeEyes: [4], // LB
-        squeeze: [5], // RB
-        peek: [6], // LT 
-        interact: [7], // RT
-        tag: [8], // Select
-        sprint: [10], // L3
-        crouch: [11], // R3
-        battery: [12], // D-Up
-        almondWater: [13], // D-Down
-        paintball: [14], // D-Left
-        journal: [15] // D-Right
+        jump: [0],
+        closeDoc: [1],
+        flashlight: [2],
+        compass: [3],
+        closeEyes: [4],
+        squeeze: [5],
+        peek: [6],
+        interact: [7],
+        tag: [8],
+        sprint: [10],
+        crouch: [11],
+        battery: [12],
+        almondWater: [13],
+        paintball: [14],
+        journal: [15]
     }
 };
 
@@ -111,8 +111,7 @@ class InputBindings {
         let code = event.code;
         const binds = this.bindings.keyboard[action];
         if (!binds) return false;
-        
-        // Handle shift specially to accommodate ShiftLeft vs ShiftRight when mapping
+
         if (action === 'sprint' && event.key === 'Shift') return true;
         
         return binds.includes(code);
@@ -154,7 +153,6 @@ class InputBindings {
         for (let action in this.bindings.keyboard) {
              this.bindings.keyboard[action].forEach(k => prevent.add(k));
         }
-        // Always prevent some defaults
         prevent.add('Space');
         prevent.add('Tab');
         return prevent;

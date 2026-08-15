@@ -1,9 +1,3 @@
-/**
- * [ROLE] Spawns a rare invisible observer entity or a blank wall block.
- * [WHY] Adds a subtle, unsettling ambient event (a feeling of being watched) without direct confrontation.
- * [STATE] Stateless generation profile, though it delegates to context methods that mutate world entity lists.
- * [DEPENDS] Access to addObserver context function and cell dimensions.
- */
 export const TheObserverProfile = (env, ctx) => {
     const {random, buildWall, addGeometry} = ctx;
     return {

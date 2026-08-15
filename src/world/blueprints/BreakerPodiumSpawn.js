@@ -1,9 +1,3 @@
-/**
- * [ROLE] Spawns a breaker podium interaction point or a hallucination variant.
- * [WHY] Provides objective interaction locations or tricks the player based on sanity.
- * [STATE] Stateless blueprint generator, but modifies environment tracking lists (e.g., interactables, _globalSwitches) during build.
- * [DEPENDS] Requires BreakerPodium builder, env interaction arrays, player paranoia state.
- */
 import {buildBreakerPodium, PODIUM_PLATE_Y} from '../BreakerPodium.js';
 
 export const spawnBreakerPodium = (env, ctx, x, z) => {

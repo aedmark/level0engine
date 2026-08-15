@@ -1,9 +1,3 @@
-/**
- * [ROLE] Tracks which chunks should be loaded around the player and drives their generation, staging, and eviction.
- * [WHY] The maze is infinite; only a bounded window of chunks around the player can exist as live geometry at once.
- * [STATE] Class instance wraps the `env` object, reading/writing env.currentChunkCoords and the chunk cache as the player moves.
- * [DEPENDS] Pulls in TheArchitect and a set of low-probability blueprint profiles (WallBreach, CrawlspaceHall, CreviceHall, RideQueueHall, BreakerPodiumSpawn).
- */
 import TheArchitect from "../core/TheArchitect.js";
 import StructureKit from "./StructureKit.js";
 import {spawnBreakerPodium} from './blueprints/BreakerPodiumSpawn.js';
@@ -593,19 +587,6 @@ export default class ChunkManager {
                     };
                     ctx.forceStructure = (wx, wz, name) => mathData.forcedStructuresGrid.set(cellKey(wx, wz), name);
                     ctx.getForcedStructure = (wx, wz) => mathData.forcedStructuresGrid.get(cellKey(wx, wz));
-                    /**
-                     * True where an open cell has had its headroom dropped below standing height.
-                     *
-                     * [WHY] Duct blueprints use this to refuse an exit. A grate opening into a
-                     * crawl-height corridor leaves nowhere to stand up and line yourself up with
-                     * the hatch -- you arrive already crouched, in a space too low to rise in. The
-                     * pathTheme pass themes a whole corridor run this way in a quarter of chunks,
-                     * and ducts take roughly a fifth of all wall cells, so the two meet often.
-                     *
-                     * Answerable here because CRAWLSPACE_HALL is assigned in the pre-pass, well
-                     * before any duct rolls its structure -- a randomly placed duct can still see
-                     * the hall coming even though the reverse is not true.
-                     */
                     ctx.isLowClearance = (wx, wz) =>
                         mathData.forcedStructuresGrid.get(cellKey(wx, wz)) === 'CRAWLSPACE_HALL';
                     ctx.getDoorwayPlan = (px, pz) => mathData.doorwayPlans.get(cellKey(px, pz)) || null;
@@ -620,10 +601,6 @@ export default class ChunkManager {
                     const structure = forcedName
                         ? structuralMatrix.find(s => s.name === forcedName)
                         : TheArchitect.selectStructure(structuralMatrix, structRoll);
-                    /** [WHY] A blueprint may decline the cell by returning false -- The Oasis does
-                     * this once its chunk already has one. Treat that exactly like no match at all
-                     * and fall through to a plain wall, so declining never leaves a hole and never
-                     * grows a second untagged wall implementation. */
                     let built = false;
                     if (structure && !(this._isAirlockApron(x, z) && structure.name === "CRATES OR STAIRWAY")) {
                         built = structure.build(x, z) !== false;
@@ -703,28 +680,6 @@ export default class ChunkManager {
         }
     }
 
-    /**
-     * Lays out hinged doorways and the corridors behind them, before any geometry is staged.
-     *
-     * This has to happen in the pre-pass. Carving from inside the build loop could only ever
-     * claim cells the loop had not yet reached -- x-major iteration, so the half-plane ahead
-     * of the cursor -- which pinned every door to a +Z facing. Nothing is built yet here, so
-     * a run is free to head in any of the four directions.
-     *
-     * A plan reserves three kinds of cell: the corridor itself (opened), the alcove recesses
-     * hanging off it (left as wall so their profiles read as a shallow nook), and a seal of
-     * plain wall around the whole thing. The seal is the point of the exercise -- unforced
-     * border cells roll the full structural matrix and land on header gaps, vents and tunnels,
-     * which perforates the space and reduces the door to decoration.
-     *
-     * @param {Object} ctx - Chunk helper context (isWall/setWall/forceStructure/markOccupied)
-     * @param {Function} random - The chunk's seeded RNG
-     * @param {number} startX - Chunk origin cell X
-     * @param {number} startZ - Chunk origin cell Z
-     * @param {number} size - Chunk size in cells
-     * @param {Function} cellKey - Cell coordinate hasher
-     * @param {Map} outPlans - Receives cellKey -> {rot, facing} for each planted door
-     */
     _planDoorways(ctx, random, startX, startZ, size, cellKey, outPlans) {
         const DOORWAY_RATE = 0.08;
         const RUN_MIN = 4;
@@ -742,10 +697,6 @@ export default class ChunkManager {
             for (let cz = startZ; cz <= endZ; cz++) {
                 if (reserved.has(cellKey(cx, cz))) continue;
                 if (ctx.getForcedStructure && ctx.getForcedStructure(cx, cz)) continue;
-                /** [WHY] Redundant today -- apron cells are non-wall, so the next line already
-                 *  rejects them as seeds -- and deliberately kept. It states the intent where a
-                 *  reader looks for it, and it costs no `random()` draw because both checks sit
-                 *  above the DOORWAY_RATE roll, so adding it does not shift any seed. */
                 if (this._isAirlockApron(cx, cz)) continue;
                 if (!ctx.isWall(cx, cz)) continue;
                 if (random() > DOORWAY_RATE) continue;
@@ -820,11 +771,6 @@ export default class ChunkManager {
         }
     }
 
-    /**
-     * Walks one winding run out from a doorway, gathering the corridor, its alcove recesses,
-     * the seal around both, and how it ends. Returns null if there isn't room for a run worth
-     * having, which lets the caller try another facing.
-     */
     _planDoorwayRun(ctx, random, doorX, doorZ, dir, inChunk, cellKey, reserved, approaches, runMin, runMax) {
         const claimed = new Set();
         const key = (a, b) => cellKey(a, b);
@@ -836,13 +782,6 @@ export default class ChunkManager {
             return approaches.has(key(cx + 1, cz)) || approaches.has(key(cx - 1, cz)) ||
                    approaches.has(key(cx, cz + 1)) || approaches.has(key(cx, cz - 1));
         };
-        /** [WHY] The apron test belongs here rather than at the call site because `free` is the
-         *  single chokepoint every corridor cell and every alcove passes through. The airlock
-         *  clearance runs earlier in the pre-pass and marks its cells with `forceStructure(null)`,
-         *  which is falsy -- so the seed filter's `getForcedStructure` check waves them through,
-         *  and a run seeded on an ordinary wall elsewhere in the chunk was free to wind straight
-         *  across the approach the clearance exists to keep empty. Measured before this line:
-         *  4.4 of the apron's 12 cells rebuilt on an average chunk. */
         const free = (cx, cz) => inChunk(cx, cz) &&
             !this._isAirlockApron(cx, cz) &&
             !reserved.has(key(cx, cz)) && !claimed.has(key(cx, cz)) &&
@@ -909,9 +848,6 @@ export default class ChunkManager {
                     if (claimed.has(key(sx, sz))) continue;
                     if (sx === doorX && sz === doorZ) continue;
                     if (isApproach(sx, sz)) continue;
-                    /** [WHY] Seal cells are walls, and a seal landing in the apron is a wall
-                     *  planted in the middle of the cleared approach. `SOLID FILL` was the single
-                     *  largest intruder at 3.96 cells per chunk. */
                     if (this._isAirlockApron(sx, sz)) continue;
                     if (reserved.has(key(sx, sz))) continue;
                     if (sealSet.has(key(sx, sz))) continue;
@@ -924,12 +860,6 @@ export default class ChunkManager {
         let terminus = null;
         const last = corridor[corridor.length - 1];
         const beyond = {cx: last.cx + heading.dx, cz: last.cz + heading.dz};
-        /** [WHY] `beyond` is one cell past the corridor and never passes through `free`, so it
-         *  needs the apron test spelled out. This is the path that put a HINGED DOORWAY inside a
-         *  cleared approach on ~10% of chunks -- a door standing in open floor with no wall
-         *  around it, because the clearance had already removed everything it would have hung in.
-         *  Refusing the terminus here just dead-ends the run, which is one of the three endings
-         *  a run is already allowed to have, so nothing downstream needs to change. */
         if (inChunk(beyond.cx, beyond.cz) && !reserved.has(key(beyond.cx, beyond.cz)) &&
             !claimed.has(key(beyond.cx, beyond.cz)) && !isApproach(beyond.cx, beyond.cz) &&
             !this._isAirlockApron(beyond.cx, beyond.cz)) {
@@ -945,13 +875,6 @@ export default class ChunkManager {
         return {corridor, alcoves, seal, terminus, heading};
     }
 
-    /**
-     * The cells kept clear in front of an airlock: 3 wide by 4 deep, running
-     * outward from the outer door. Single source of truth for both the wall-grid
-     * clearance and the empty-cell obstacle suppression, so the two can't drift.
-     * @param {Object} airlock - Entry from env.airlocks
-     * @returns {{clearX: number[], clearZ: number[]}} Cell coords, in grid units
-     */
     _airlockApron(airlock) {
         const env = this.env;
         const wox = Math.round(airlock.outerPos.x / env.cellSize);
@@ -969,11 +892,6 @@ export default class ChunkManager {
         };
     }
 
-    /**
-     * True if a cell sits in any active airlock's approach apron.
-     * @param {number} x - Cell X in grid units
-     * @param {number} z - Cell Z in grid units
-     */
     _isAirlockApron(x, z) {
         const airlocks = this.env.airlocks;
         if (!airlocks) return false;
@@ -997,19 +915,6 @@ export default class ChunkManager {
         }
 
         let forcedName = ctx.getForcedStructure && ctx.getForcedStructure(x, z);
-        /**
-         * A cell that would block or cramp a neighbouring duct mouth gives up its treatment.
-         *
-         * [WHY] Duct blueprints already refuse to open a grate into a crawl-height cell, but that
-         * only helps when the duct rolls at random -- a duct placed here on purpose, as the
-         * terminus of a corridor run, would just lose its only exit and collapse into plain wall,
-         * taking the set piece with it. So when both sides were placed deliberately, the corridor
-         * treatment is the one that yields: the cell reverts to full height, leaving somewhere to
-         * stand up and line yourself up with the hatch.
-         *
-         * CRAWLSPACE_HALL matters most here because pathTheme themes whole corridor runs with it,
-         * so a hall very often lands right where a duct wants its door.
-         */
         const YIELDS_TO_DUCT = ["empty_door_frame", "CRAWLSPACE_HALL"];
         const DUCT_STRUCTURES = ["DUCT OR VENT", "CRAWLSPACE_DUCT", "TUNNEL BURST"];
         if (forcedName && YIELDS_TO_DUCT.includes(forcedName) && ctx.getForcedStructure) {
@@ -1259,39 +1164,11 @@ export default class ChunkManager {
         }
     }
 
-    /**
-     * [ROLE] Ensures everything currently parented under `chunkGroup` has linked programs.
-     * [WHY] Called before every yield in the build loops, not just at the end. The loops yield
-     *       every 5ms and animate() renders during those yields, so a chunk is on screen and being
-     *       drawn while it is still filling in. Anything a sector adds straight to chunkGroup --
-     *       vending machines, foundations, void canopies, entrance hallways -- would otherwise be
-     *       drawn before its program was linked, and that first draw blocks for as long as the
-     *       link takes.
-     * [NOTE] An earlier attempt hid the chunk for the whole build instead. That worked, but it
-     *        also meant the ~9 chunks queued on entering a sector all stayed invisible until each
-     *        finished, so the world blinked out for a second or two once the sector-load screen
-     *        lifted. Warming per yield keeps the original progressive fill-in.
-     */
     warmChunkMaterials(chunkGroup) {
         const unwarmed = this._unwarmedMaterials(chunkGroup);
         if (unwarmed !== null) this.warmMaterialVariants(unwarmed);
     }
 
-    /**
-     * [ROLE] Guarantees every (material, instancing variant) pair has a fully linked program.
-     * [WHY] renderer.compile() cannot do this on its own: it dedupes per material, calling
-     *       initMaterial once for whichever object it reached first. A material used by both a
-     *       plain Mesh and an InstancedMesh in the same chunk therefore gets only one of its two
-     *       programs compiled, and the other links on the first frame that draws it -- measured at
-     *       200-400ms hitches while simply walking through fresh chunks. Compiling one explicit
-     *       probe per variant sidesteps the dedupe entirely.
-     * [WHY-2] The probes are retained for the life of the page. three refcounts programs per
-     *       material, so when a chunk is evicted and its materials disposed the program would
-     *       otherwise be destroyed and need relinking the next time that permutation appears.
-     *       A retained clone keeps the refcount above zero.
-     * [NOTE] The chunk's own material instances are deliberately not compiled here. They share a
-     *        cache key with their probe, so their first draw is a cache hit with no link.
-     */
     warmMaterialVariants(materials) {
         const env = this.env;
         if (!materials || materials.size === 0) return;
@@ -1324,15 +1201,6 @@ export default class ChunkManager {
         return ChunkManager.__probeColor;
     }
 
-    /**
-     * [ROLE] Returns the materials in `group` that have not been warmed yet, or null when there is
-     *        nothing new and the whole compile can be skipped -- the common case once the world
-     *        has been running for a bit.
-     * [WHY] Tracked per material rather than per (material, variant): warmMaterialVariants always
-     *       builds all three variants, so a material is either fully covered or not covered at all.
-     *       An earlier version tracked variants separately, which meant a material first seen as a
-     *       plain Mesh was marked done and then linked again the first time it appeared instanced.
-     */
     _unwarmedMaterials(group) {
         const env = this.env;
         if (!env._warmedMaterials) env._warmedMaterials = new Set();
@@ -1354,16 +1222,6 @@ export default class ChunkManager {
         return unwarmed;
     }
 
-    /**
-     * [ROLE] Compiles `group` against the live lighting rig without walking the rest of the scene.
-     * [WHY] r128's renderer.compile() traverses everything under the scene it is handed. Passing
-     *       env.scene meant every chunk build re-visited every mesh in every live chunk. The
-     *       program permutation only depends on the lights (and the camera, which carries the
-     *       flashlight), so swapping children to just those plus the new batch produces an
-     *       identical compile for a fraction of the traversal.
-     * [HACK] Reaches into scene.children directly. Nothing else can run during the synchronous
-     *        compile call, and the array is restored in a finally block.
-     */
     _scopedCompile(group) {
         const env = this.env;
         const scene = env.scene;
@@ -1386,20 +1244,6 @@ export default class ChunkManager {
         this._drainProgramLinks();
     }
 
-    /**
-     * [ROLE] Forces every issued shader link to finish now, while the sector-load freeze screen is
-     *        still up, instead of on the next frame that happens to draw the new material.
-     * [WHY] renderer.compile() calls gl.linkProgram but never waits on the result, and with
-     *       checkShaderErrors off nothing else does either -- r128 only blocks when
-     *       WebGLProgram.getUniforms() lazily asks for ACTIVE_UNIFORMS, which is the first *draw*.
-     *       Measured: one frame spending 1604ms across 16 getProgramParameter calls right after an
-     *       Atrium chunk landed, with the shadow pass at 1ms and buffer uploads not even
-     *       registering. Draining here keeps the cost inside the build, where the loading screen
-     *       already covers it, and because every linkProgram in the batch has been issued before
-     *       the first blocking query the driver is free to have linked them in parallel.
-     * [NOTE] getUniforms/getAttributes memoise internally, so re-touching known programs is free --
-     *        no bookkeeping needed on our side.
-     */
     _drainProgramLinks() {
         const programs = this.env.engine.renderer.info.programs;
         if (!programs) return;
@@ -1411,11 +1255,6 @@ export default class ChunkManager {
         }
     }
 
-    /**
-     * [WHY] A disposed material must drop out of the warmed set, or a later material that happened
-     *       to reuse its uuid would be skipped. The program itself survives regardless -- the
-     *       retained probe clone in _programKeepAlive holds the reference.
-     */
     _forgetMaterialPrograms(material) {
         const warmed = this.env._warmedMaterials;
         if (warmed) warmed.delete(material.uuid + material.version);

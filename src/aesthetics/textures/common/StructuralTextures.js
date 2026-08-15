@@ -1,9 +1,3 @@
-/**
- * [ROLE] Generates core architectural surface materials like walls, headers, and structural elements.
- * [WHY] These materials are ubiquitous; procedural generation ensures consistent resolution and seamless wrapping.
- * [STATE] Stateless factory module.
- * [DEPENDS] Integrates SurfaceTextures and PropTextures with TextureMechanics.
- */
 import TextureMechanics from '../TextureMechanics.js';
 import SurfaceTextures from './SurfaceTextures.js';
 import PropTextures from './PropTextures.js';

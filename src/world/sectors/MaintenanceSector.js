@@ -2,12 +2,6 @@ import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
 
-/**
- * [ROLE] Defines the generation logic for the "Maintenance" sector.
- * [WHY] Fills out utility corridors with pipes, breaker boxes, fans, and caution cones for behind-the-scenes areas.
- * [STATE] Stateless factory. Returns a builder object that modifies the world generation environment.
- * [DEPENDS] Extensively modifies `env.animators` and `env.interactables` for spinning fans, valves, and breaker boxes.
- */
 export const MaintenanceSector = (env, ctx) => {
     const {
         random,

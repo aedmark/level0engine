@@ -1,14 +1,3 @@
-/**
- * [ROLE] Spawns a physical, interactable hinged door inside a frame, at any of four facings.
- * [WHY] Creates discrete room divisions and requires player interaction, controlling pacing.
- * [STATE] Stateless builder, but pushes door entities into environment tracking arrays (interactiveDoors, spatialGrid).
- * [DEPENDS] Shared geometry, chunk groups, grid hashes, door materials, and ctx.getDoorwayPlan for its facing.
- *
- * The corridor behind a door is laid out by ChunkManager's pre-pass, not here. Carving from
- * inside the build loop could only claim cells the loop had not yet reached, which pinned every
- * door to a +Z facing; the planner runs before anything is staged, so it can face any direction.
- * This file just reads the facing back and builds geometry on it.
- */
 export const HingedDoorwayProfile = (env, ctx) => {
     const {buildWall, addGeometry, chunkGroup, hash} = ctx;
     return {

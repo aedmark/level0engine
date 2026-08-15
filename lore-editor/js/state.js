@@ -1,9 +1,3 @@
-/**
- * [ROLE] Holds the editor's shared mutable state and the fetch/cache helpers that populate it.
- * [WHY] Centralizes cross-file data access so every panel (validation, wizards, inspector) reads the same live and factory JSON instead of fetching redundantly.
- * [STATE] Declares the actual global variables (files, selectedFile, fileData, wizardState, etc.) that every other lore-editor script reads and mutates directly.
- * [DEPENDS] Fetches from editor_server.js's /api/data endpoint; consumed by essentially every other file in lore-editor/js.
- */
 let files = [];
         let selectedFile = null;
         let fileData = null;

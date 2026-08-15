@@ -1,10 +1,3 @@
-/**
- * [ROLE] Controls the real-time engine boot sequence UI, telemetry logs, and honest progress tracking.
- * [WHY] Replaces static/fake loading animations with deterministic work metrics, dark-whimsical liminal telemetry,
- *        smooth lerp interpolation, and an enforced minimum display window so fast boots feel intentional and premium.
- * [STATE] Stateful singleton during boot. Manages progress target, displayed lerped value, phase index, and console log lines.
- * [DEPENDS] Reads and updates DOM elements in engine.html.
- */
 export default class BootController {
     static instance = null;
 
@@ -23,15 +16,14 @@ export default class BootController {
         this.logs = [];
         this.maxLogs = 4;
         this.startTime = 0;
-        this.minDurationMs = 1500; // Enforce minimum smooth animation window (1.5s)
+        this.minDurationMs = 1500;
         this.isComplete = false;
         this.rafId = null;
         this.resolveFinish = null;
 
-        // Whimsical telemetry lines inspired by Sims "reticulating splines" tailored for Level 0 Engine
         this.whimsicalPool = {
             1: [
-                'RETICULATING CASE FILE THREADS...',
+                'RETICULATING CASE THREADS...',
                 'PARSING ARCHIVAL PAYROLL REGISTRIES...',
                 'RECOVERING LOST LOG ENTRIES...',
                 'INDEXING UNSETTLED DISCOVERIES...',
@@ -110,7 +102,6 @@ export default class BootController {
             this.targetProgress = Math.max(this.targetProgress, targetPct);
         }
 
-        // Add a random whimsical flavor line for this phase if not provided
         const pool = this.whimsicalPool[phaseNum] || [];
         if (pool.length > 0) {
             const flavor = pool[Math.floor(Math.random() * pool.length)];
@@ -132,8 +123,7 @@ export default class BootController {
         if (!msg) return;
         const timestamp = ((performance.now() - (this.startTime || performance.now())) / 1000).toFixed(2);
         const formatted = `> [${timestamp}s] ${msg}`;
-        
-        // Avoid consecutive duplicate log lines
+
         if (this.logs.length > 0 && this.logs[this.logs.length - 1] === formatted) return;
         
         this.logs.push(formatted);
@@ -157,13 +147,10 @@ export default class BootController {
         const now = performance.now();
         const elapsed = now - this.startTime;
 
-        // Time-based progress ceiling ensuring enforced minimum duration sweep (1.5s total duration)
         const timeProgressCap = Math.min(100, (elapsed / this.minDurationMs) * 100);
 
-        // Actual progress target capped by minimum animation time (prevents instantaneous flash on cached loads)
         const effectiveTarget = Math.min(this.targetProgress, timeProgressCap);
 
-        // Smooth lerp easing for visual progress
         const lerpSpeed = 0.15;
         const diff = effectiveTarget - this.displayedProgress;
 
@@ -173,7 +160,6 @@ export default class BootController {
             this.displayedProgress = effectiveTarget;
         }
 
-        // If real target is 100% and min time hasn't elapsed, keep advancing displayed progress smoothly up to 100%
         if (this.targetProgress >= 100 && elapsed >= this.minDurationMs) {
             if (this.displayedProgress < 99.9) {
                 this.displayedProgress += (100 - this.displayedProgress) * 0.25;
@@ -195,8 +181,7 @@ export default class BootController {
 
     updateDOM() {
         const pctInt = Math.floor(this.displayedProgress);
-        
-        // Title & Stepper
+
         const titleEl = document.getElementById('loading-text');
         if (titleEl) {
             titleEl.textContent = this.phaseTitle;
@@ -212,13 +197,11 @@ export default class BootController {
             pctEl.textContent = `[ ${pctInt.toString().padStart(3, ' ')}% ]`;
         }
 
-        // Progress Bar Width
         const barEl = document.getElementById('progress-bar');
         if (barEl) {
             barEl.style.width = `${this.displayedProgress}%`;
         }
 
-        // Rolling Telemetry Log Box
         const logBox = document.getElementById('loading-log-box');
         if (logBox) {
             logBox.innerHTML = this.logs.map(line => `<div>${this.escapeHTML(line)}</div>`).join('');

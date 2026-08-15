@@ -1,9 +1,3 @@
-/**
- * [ROLE] Forces a linear string of tunnel segments or ventilation shafts.
- * [WHY] Creates localized claustrophobic crawlspaces that disrupt normal room flow.
- * [STATE] Alters context wall state across multiple tiles (a "burst" of blocks).
- * [DEPENDS] Chunk boundary logic, wall setting context functions, AABB grids, and environmental grates.
- */
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 import {makeDuctInterior} from '../../core/DuctLighting.js';
@@ -14,8 +8,6 @@ export const TunnelBurstProfile = (env, ctx) => {
         name: "TUNNEL BURST",
         prob: 0.0538, build: (x, z) => {
             if (!env.ductLiningMat) {
-                /** [WHY] See DuctOrVent -- the lining carries the ambient-occlusion treatment so
-                 * the global ambient cannot reach inside the tunnel. */
                 env.ductLiningMat = makeDuctInterior(env.ductMat.clone());
                 env.ductLiningMat.userData.noShadow = true;
                 env.sharedAssets.add(env.ductLiningMat.uuid);

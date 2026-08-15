@@ -1,9 +1,3 @@
-/**
- * [ROLE] Spawns a suspended wall partition hanging from the ceiling.
- * [WHY] Subdivides a space visually without obstructing the floor path, adding architectural detail.
- * [STATE] Stateless profile.
- * [DEPENDS] Cell dimensions, wall material, and environment builder methods.
- */
 export const PartitionHeaderProfile = (env, ctx) => {
     const {random, buildWall, addGeometry} = ctx;
     return {

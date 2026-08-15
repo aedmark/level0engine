@@ -34,8 +34,7 @@ export default class StaticTextureLoader {
                 }
 
                 const tex = await loader.loadAsync(blobUrl);
-                
-                // Hardcode fallback overrides for standalone textures since metadata.json missed them
+
                 if (name === 'wallTexture' || name === 'wallBumpTexture') {
                     repeatX = 4;
                     repeatY = 1;
@@ -95,7 +94,6 @@ export default class StaticTextureLoader {
             } else if (meta.type === 'Material') {
                 return await buildMaterial(key, meta);
             } else {
-                // Array case (like doorMat or cartonMats)
                 const keys = Object.keys(meta).sort((a, b) => parseInt(a) - parseInt(b));
                 const itemPromises = keys.map(async (idx) => {
                     const subMeta = meta[idx];

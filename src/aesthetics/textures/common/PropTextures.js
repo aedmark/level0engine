@@ -1,9 +1,3 @@
-/**
- * [ROLE] Central procedural generator for highly reusable prop materials (wood, pipes, breaker panels, stainless steel).
- * [WHY] Complex layered props require bespoke noise and wear patterns, generated procedurally to minimize asset footprint.
- * [STATE] Stateless factory module.
- * [DEPENDS] Uses TextureMechanics and Canvas API; builds assets consumed by specific sector generators.
- */
 import TextureMechanics from '../TextureMechanics.js';
 
 export default class PropTextures {

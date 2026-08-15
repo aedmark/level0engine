@@ -3,12 +3,6 @@ import AABB from '../../math/AABB.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
 import * as OfficeFurniture from '../OfficeFurniture.js';
 
-/**
- * [ROLE] Defines the generation logic for the "Server" sector.
- * [WHY] Generates data center rooms populated with server racks, workstations, and tangled cables for a tech-heavy theme.
- * [STATE] Stateless factory. Returns a builder object that modifies the world generation environment.
- * [DEPENDS] Uses `env` for managing hanging cables arrays, interacting with custom geometry caching, and lighting.
- */
 export const ServerSector = (env, ctx) => {
     const {
         random,

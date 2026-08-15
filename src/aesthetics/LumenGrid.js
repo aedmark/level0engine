@@ -1,10 +1,3 @@
-/**
- * [ROLE] Manages grid-based lighting, shadows, and dynamic fixture pooling for the scene.
- * [WHY] Scene performance requires capping active and shadow-casting lights, reusing instances via a pool.
- * [STATE] Stateful. Manages internal pools of THREE.Light instances and tracks active fixtures.
- * [DEPENDS] Implicit dependency on THREE.js scene, time, camera position, and fixture data.
- */
-
 export default class LumenGrid {
     constructor(env, shadowQuality = 'high') {
         this.env = env;

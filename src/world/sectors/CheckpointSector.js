@@ -3,12 +3,6 @@ import AABB from '../../math/AABB.js';
 import * as OfficeFurniture from '../OfficeFurniture.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
 
-/**
- * [ROLE] Defines the generation logic for the "Checkpoint" sector.
- * [WHY] Structures security and decontamination zones with hazmat suits, crates, and barriers to gate progress.
- * [STATE] Stateless factory. Returns a builder object that modifies the world generation environment.
- * [DEPENDS] Uses `env` and `ctx` to place complex props and relies on external builders for rooms and columns.
- */
 export const CheckpointSector = (env, ctx) => {
     const {
         random,

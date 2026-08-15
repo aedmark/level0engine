@@ -1,9 +1,3 @@
-/**
- * [ROLE] Manages atmospheric effects including fog, particles, player vision adaptation, and environmental audio occlusion.
- * [WHY] These interconnected systems create the game's ambiance and must be updated every frame based on the player's position and sector.
- * [STATE] Stateful. Tracks active sector effects, current player objectives, and dynamic lighting/glare values.
- * [DEPENDS] Depends on THREE.js scene, player state, spatial grid, active chunk data, and lumen grid for darkness pressure.
- */
 import SECTORS, {DEFAULT_DUST, DEFAULT_EXHAUST, DEFAULT_AMBIENT, MIN_AMBIENT} from '../world/Sectors.js';
 
 export default class AtmosphereManager {
@@ -468,13 +462,6 @@ export default class AtmosphereManager {
             const sectorAmbient = row && row.ambient !== undefined ? row.ambient : DEFAULT_AMBIENT;
             const targetAmbient = Math.max(MIN_AMBIENT, sectorAmbient * (1.0 - darknessPressure * 0.5));
 
-            /** [WHY] There is deliberately no `isCrawling` case here any more. Zeroing this light
-             * darkened the whole scene rather than the duct, and firing it on posture meant the
-             * duct looked fully lit until the player was inside it and then faded to black. Duct
-             * interiors now reject ambient at the material level via core/DuctLighting.js, so they
-             * are already dark when the grate opens and entering changes nothing. That needs no
-             * per-frame work here: AO scales whatever ambient this light is currently putting out,
-             * so a duct in a blacked-out wing is darker than one in a lit wing for free. */
             env.engine.ambientLight.intensity += (targetAmbient - env.engine.ambientLight.intensity) * 0.05;
 
             if (env.engine.ambientLight.isHemisphereLight) {

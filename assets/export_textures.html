@@ -5,20 +5,19 @@
 </head>
 <body>
     <h1>Exporting Textures...</h1>
-    <script src="r160.js"></script>
+    <script src="../r160.js"></script>
     <script type="module">
-        import ProceduralTextureFactory from './src/aesthetics/ProceduralTextureFactory.js';
+        import ProceduralTextureFactory from '../src/aesthetics/ProceduralTextureFactory.js';
         
         async function run() {
             try {
                 console.log("Generating assets...");
-                // Force Procedural to bypass static during export
                 ProceduralTextureFactory.USE_STATIC_TEXTURES = false;
                 const assets = await ProceduralTextureFactory.generateAssets();
                 console.log("Assets generated, exporting...");
                 
                 const exportQueue = [];
-                const metadata = { version: "1.0.0" };
+                const metadata = { version: "1.1.0" };
                 
                 function extractCanvas(item, name, parentKey, index = null) {
                     if (!item) return;

@@ -1,9 +1,3 @@
-/**
- * [ROLE] Primary antagonist entity logic.
- * [WHY] Central AI for the default chasing anomaly, handling line-of-sight, locomotion, and pressure mechanics.
- * [STATE] Stateful. Holds three.js meshes, target coordinates, and behavior timers.
- * [DEPENDS] three.js (implicit), environment data, HazardUtils, Math utils.
- */
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 import {isRayPathBlocked, computeAxisBlocking} from './HazardUtils.js';

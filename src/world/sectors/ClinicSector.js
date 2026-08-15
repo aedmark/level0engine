@@ -7,12 +7,6 @@ import {
 } from '../ClinicFurniture.js';
 import * as OfficeFurniture from '../OfficeFurniture.js';
 
-/**
- * [ROLE] Defines the generation logic for the "Clinic" sector.
- * [WHY] Populates medical environments with beds, IV poles, and monitors to provide environmental storytelling.
- * [STATE] Stateless factory. Returns a builder object that modifies the world generation environment.
- * [DEPENDS] Imports specific furniture builders from `ClinicFurniture.js` and utilizes `env` for materials.
- */
 export const ClinicSector = (env, ctx) => {
     const {
         random,

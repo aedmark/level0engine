@@ -2,12 +2,6 @@ import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
 
-/**
- * [ROLE] Defines the generation logic for the "Atrium" sector.
- * [WHY] Constructs large, open, multi-tiered spaces and commercial elements (like vending machines) to serve as imposing central hubs.
- * [STATE] Stateless factory. Returns a builder object that modifies the world generation environment.
- * [DEPENDS] Relies on `env` and `ctx` for spatial grid insertion, staging meshes, and light fixture data.
- */
 export const AtriumSector = (env, ctx) => {
     const {
         random,

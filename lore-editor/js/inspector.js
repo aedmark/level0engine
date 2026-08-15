@@ -1,10 +1,4 @@
-/**
- * [ROLE] Runs a randomized mock playthrough context across every lore file to surface cross-references that would break in a real seed.
- * [WHY] A puzzle's claims and templates depend on data spread across seven separate JSON files; this is the one tool that loads and checks them all together.
- * [STATE] Owns inspectorData/inspectorMockCtx globals for the duration the inspector panel is open; re-fetched fresh from state.js on each open.
- * [DEPENDS] Fetches all seven data files via editor_server.js's /api/data; builds its mock context the same way validation.js does.
- */
-        let inspectorData = null;
+let inspectorData = null;
         let inspectorMockCtx = {};
 
         function randomCoreVars(params) {

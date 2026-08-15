@@ -1,12 +1,6 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
-/**
- * [ROLE] Defines the generation logic for the "Archive" sector.
- * [WHY] Creates dense, maze-like library environments with bookshelves, clutter, and reading areas for narrative exploration.
- * [STATE] Stateless factory. Returns a builder object that modifies the world generation environment.
- * [DEPENDS] Depends on `env` and `ctx` for geometry placement, materials, and shared asset caching.
- */
 export const ArchiveSector = (env, ctx) => {
     const {
         random,

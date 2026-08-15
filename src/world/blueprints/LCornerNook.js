@@ -1,9 +1,3 @@
-/**
- * [ROLE] Builds an L-shaped corner wall setup, occasionally with a table.
- * [WHY] Gives structure to corners, preventing empty dead-ends and providing cover/set dressing.
- * [STATE] Stateless profile.
- * [DEPENDS] Cell dimensions, wall and furniture building context methods.
- */
 export const LCornerNookProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, buildTable, addFurniture} = ctx;
     return {

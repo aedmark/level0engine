@@ -1,9 +1,3 @@
-/**
- * [ROLE] Core audio engine orchestrating spatial sound and mixing.
- * [WHY] Centralizes the Web Audio API context and provides a unified entry point for sound generation and updates.
- * [STATE] Stateful. Holds the active AudioContext and manages node caches/references.
- * [DEPENDS] Web Audio API (window.AudioContext), Synthesizer, Mixer, Foley.
- */
 import Synthesizer from './Synthesizer.js';
 import Mixer from './Mixer.js';
 import Foley from './Foley.js';

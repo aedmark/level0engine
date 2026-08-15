@@ -1,9 +1,3 @@
-/**
- * [ROLE] Generates a rounded archway structure in a single cell.
- * [WHY] Alters vertical space and provides a curved architectural variant.
- * [STATE] Stateless blueprint profile.
- * [DEPENDS] Environment materials, geometry builders, and cell dimensions.
- */
 export const CurvedArchwayProfile = (env, ctx) => {
     const {random, buildWall, buildArchCutout, addGeometry} = ctx;
     return {
@@ -53,8 +47,6 @@ export const CurvedArchwayProfile = (env, ctx) => {
                     arch.rotation.y = Math.PI / 2;
                 }
                 arch.userData.isEntityBlocker = true;
-                /** Collision follows the cutout instead of the block's bounding box, which spanned
-                 * the whole opening and forced a crouch through an arch with head height to spare. */
                 arch.userData.noCollision = true;
                 addGeometry(arch);
                 ctx.addArchCutoutColliders(arch, radius, pillarThickness, archHeight, env.cellSize);

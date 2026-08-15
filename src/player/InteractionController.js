@@ -1,9 +1,3 @@
-/**
- * [ROLE] Manages player interactions with world objects (doors, valves, items, anomalies).
- * [WHY] Decouples the logic of interactive elements from the core player movement and environment code.
- * [STATE] Stateless worker acting on environment and player state.
- * [DEPENDS] Three.js, DOM events (somatic-*), environment object data.
- */
 export default class InteractionController {
     constructor(env) {
         this.env = env;

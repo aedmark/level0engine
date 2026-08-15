@@ -3,12 +3,6 @@ import AABB from '../../math/AABB.js';
 import * as OfficeFurniture from '../OfficeFurniture.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
 
-/**
- * [ROLE] Defines the generation logic for the "Boardroom" sector.
- * [WHY] Generates executive meeting rooms with glass walls, conference tables, and CRT terminals for corporate aesthetics.
- * [STATE] Stateless factory. Returns a builder object that modifies the world generation environment.
- * [DEPENDS] Depends on `env` and `ctx` for interactive doors, spatial grid, and staging meshes.
- */
 export const BoardroomSector = (env, ctx) => {
     const {
         random,

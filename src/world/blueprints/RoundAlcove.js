@@ -1,9 +1,3 @@
-/**
- * [ROLE] Generates a rounded corner layout with an optional chair.
- * [WHY] Adds spatial variety with smooth curves instead of sharp corners.
- * [STATE] Stateless; returns a configuration object with a build function.
- * [DEPENDS] Depends on env properties and context functions like buildCurvedCornerBlock, buildChair.
- */
 export const RoundAlcoveProfile = (env, ctx) => {
     const {random, buildCurvedCornerBlock, addGeometry, buildChair, addFurniture, addCurvedAlcoveBaseboard} = ctx;
     return {
@@ -51,9 +45,6 @@ export const RoundAlcoveProfile = (env, ctx) => {
             block.position.set(cx, 1.5, cz);
             block.userData.noCollision = true;
 
-            /** Collision follows the curve rather than the square corner behind it. The previous
-             * two edge slabs described a right-angled corner, leaving the whole volume under the
-             * bulge walkable. See addCurvedCornerColliders. */
             ctx.addCurvedCornerColliders(block, env.cellSize);
 
             addGeometry(block);

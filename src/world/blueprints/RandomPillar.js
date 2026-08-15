@@ -1,9 +1,3 @@
-/**
- * [ROLE] Spawns a randomly sized pillar/column in the center of a cell.
- * [WHY] Simple structural obstacle to block line of sight and pathing.
- * [STATE] Stateless generator.
- * [DEPENDS] Wall material and context wall builder.
- */
 export const RandomPillarProfile = (env, ctx) => {
     const {random, buildWall, addGeometry} = ctx;
     return {

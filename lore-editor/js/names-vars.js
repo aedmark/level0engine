@@ -1,9 +1,3 @@
-/**
- * [ROLE] Renders and edits the name-list and key/value "vars" panels used by parameters.json and a puzzle's LOCK_THREADS.
- * [WHY] Those two data shapes recur across multiple files, so their list-rendering and factory-lock logic is factored out instead of duplicated per file.
- * [STATE] Reads/writes into the currently selected fileData/selectedCategory from state.js; renders directly into the DOM.
- * [DEPENDS] Uses getFactoryData (state.js) to know which entries are factory-locked; reads globals selectedFile/selectedCategory/selectedIndex/fileData.
- */
 function getTargetObj() {
             if (selectedFile === 'puzzles.json' && selectedCategory === null) {
                 if (selectedIndex !== null && fileData[selectedIndex]) {

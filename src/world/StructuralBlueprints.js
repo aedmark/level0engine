@@ -1,20 +1,3 @@
-/**
- * [ROLE] Aggregates structural blueprint profiles (architectural variants) and picks one per wall cell.
- * [WHY] To randomly but consistently select different architectural configurations for world generation.
- * [HISTORY] `prob` used to be a threshold, not a probability: the matrix was sorted descending and
- *           selection was `find(roll >= s.prob)`, so a blueprint's real chance was the gap to the
- *           entry above it rather than its own number. Nothing read that way, so the values were
- *           authored as if they were probabilities and every one of them was wrong -- The Observer
- *           declared 0.035 and fired at 6.5%, seven set pieces were squeezed into 0.1-0.45% bands,
- *           and The Oasis declared 0.00 yet took 2% of all cells. Worse, a trailing 0.00 entry made
- *           `find` always match, so the plain-wall fallback in ChunkManager could never run and the
- *           `isDefaultWall` metadata it attaches never existed -- which in turn left setWall's
- *           fast-path removal permanently dead. `prob` is now a real probability and selection walks
- *           a cumulative sum. The values were rewritten to the windows each blueprint had before,
- *           so the world is unchanged; only the numbers are now honest.
- * [STATE] Stateless apart from a one-time validation warning.
- * [DEPENDS] Imports individual blueprint scripts.
- */
 import {RandomPillarProfile} from './blueprints/RandomPillar.js';
 import {PipeClusterProfile} from './blueprints/PipeCluster.js';
 import {WideHeaderGapProfile} from './blueprints/WideHeaderGap.js';
@@ -81,17 +64,6 @@ export default class StructuralBlueprints {
         return matrix;
     }
 
-    /**
-     * Picks a blueprint for one wall cell by walking a cumulative sum.
-     *
-     * Returns null when the roll falls past the end of the table, which is the signal to build a
-     * plain wall. That remainder is deliberate headroom: probabilities summing to less than 1.0
-     * mean "the rest of the time, nothing special happens here".
-     *
-     * @param {Array} matrix - profiles from getStructuralMatrix
-     * @param {number} roll - uniform random in [0, 1)
-     * @returns {Object|null} the chosen profile, or null for a plain wall
-     */
     static select(matrix, roll) {
         let acc = 0;
         for (let i = 0; i < matrix.length; i++) {
