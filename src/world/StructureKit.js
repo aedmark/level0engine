@@ -34,10 +34,10 @@ export default class StructureKit {
     }
 
     curvedCornerShape(size, margin = 0) {
-        const t = 0.15;
+        const t = 0.0;
         const outer = size + margin;
         const inner = -margin;
-        const radius = size - t - margin;
+        const radius = size - margin;
         const shape = new THREE.Shape();
         shape.moveTo(outer, inner);
         shape.lineTo(outer, outer);
@@ -59,7 +59,7 @@ export default class StructureKit {
             hash,
             chunkGroup,
             stagingMeshes,
-            playerPos: env.camera.position,
+            playerPos: env.camera ? env.camera.position : null,
             claimOasis: (x, z) => {
                 if (hasOasis) {
                     if (x !== undefined && z !== undefined) {
@@ -180,7 +180,7 @@ export default class StructureKit {
                 return new THREE.Mesh(geo, mat);
             },
             buildCurvedCornerBlock: (size, mat) => {
-                const t = 0.15;
+                const t = 0.0;
                 const key = `curvedCorner_${size}_${t}`;
                 let geo = env.geoCache.get(key);
                 if (!geo) {
@@ -190,7 +190,7 @@ export default class StructureKit {
 
                     const pos = geo.attributes.position;
                     const uv = geo.attributes.uv;
-                    const arcLen = (size - t) * (Math.PI / 2);
+                    const arcLen = size * (Math.PI / 2);
 
                     for (let i = 0; i < pos.count; i++) {
                         const x = pos.getX(i);
@@ -201,14 +201,14 @@ export default class StructureKit {
                         if (x < 0.01) {
                             s = size - y;
                         } else if (y < 0.01) {
-                            s = t + arcLen + (x - (size - t));
+                            s = arcLen + x;
                         } else if (x > size - 0.01) {
-                            s = t + arcLen + t + y;
+                            s = arcLen + y;
                         } else if (y > size - 0.01) {
-                            s = t + arcLen + t + size + (size - x);
+                            s = arcLen + size + (size - x);
                         } else {
                             const angle = Math.atan2(y, x);
-                            s = t + (size - t) * (Math.PI / 2 - angle);
+                            s = size * (Math.PI / 2 - angle);
                         }
 
                         uv.setXY(i, s / env.cellSize, z / 3.0);
@@ -346,6 +346,81 @@ export default class StructureKit {
              *   the +axis face; pass -1 for a grate on the opposite end of a span so it opens
              *   outward too rather than folding back into the passage.
              */
+            buildFlange: (px, py, pz, isX, dirSign) => {
+                const fT = 0.04;
+                const fW = 0.14;
+                const hW = 1.12;
+                const hH = 0.68;
+                const oW = hW + fW * 2;
+                const mat = env.flangeMat || env.ductMat;
+
+                const shape = new THREE.Shape();
+                shape.moveTo(-oW / 2, 0);
+                shape.lineTo(oW / 2, 0);
+                shape.lineTo(oW / 2, hH + fW);
+                shape.lineTo(-oW / 2, hH + fW);
+                shape.lineTo(-oW / 2, 0);
+
+                const hole = new THREE.Path();
+                hole.moveTo(-hW / 2, 0);
+                hole.lineTo(-hW / 2, hH);
+                hole.lineTo(hW / 2, hH);
+                hole.lineTo(hW / 2, 0);
+                hole.lineTo(-hW / 2, 0);
+                shape.holes.push(hole);
+
+                const fGeo = new THREE.ExtrudeGeometry(shape, {
+                    depth: fT,
+                    bevelEnabled: true,
+                    bevelThickness: 0.005,
+                    bevelSize: 0.005,
+                    bevelSegments: 2
+                });
+                fGeo.translate(0, 0, -fT / 2);
+
+                const pos = fGeo.attributes.position;
+                const uv = fGeo.attributes.uv;
+                for (let i = 0; i < pos.count; i++) {
+                    uv.setXY(i, pos.getX(i) * 2, pos.getY(i) * 2);
+                }
+                uv.needsUpdate = true;
+
+                const tFlange = new THREE.Mesh(fGeo, mat);
+                tFlange.userData.noCollision = true;
+                const cDepth = isX ? px + dirSign * (fT / 2) : pz + dirSign * (fT / 2);
+
+                if (isX) {
+                    tFlange.position.set(cDepth, py, pz);
+                    tFlange.rotation.y = dirSign === 1 ? Math.PI / 2 : -Math.PI / 2;
+                } else {
+                    tFlange.position.set(px, py, cDepth);
+                    tFlange.rotation.y = dirSign === 1 ? 0 : Math.PI;
+                }
+
+                helpers.addGeometry(tFlange);
+
+                const screwGeo = env._boxGeo(0.015, 0.015, 0.015);
+                const screwMat = env.pittedMetalMat || env.metalMat || mat;
+                const sDepth = isX ? cDepth + dirSign * (fT / 2 + 0.005) : cDepth + dirSign * (fT / 2 + 0.005);
+                const sY = py + hH + fW / 2;
+                const screwPositions = [];
+                if (isX) {
+                    screwPositions.push({x: sDepth, y: sY, z: pz - hW / 2});
+                    screwPositions.push({x: sDepth, y: sY, z: pz + hW / 2});
+                    screwPositions.push({x: sDepth, y: py + 0.05, z: pz - hW / 2 - fW / 2});
+                    screwPositions.push({x: sDepth, y: py + 0.05, z: pz + hW / 2 + fW / 2});
+                } else {
+                    screwPositions.push({x: px - hW / 2, y: sY, z: sDepth});
+                    screwPositions.push({x: px + hW / 2, y: sY, z: sDepth});
+                    screwPositions.push({x: px - hW / 2 - fW / 2, y: py + 0.05, z: sDepth});
+                    screwPositions.push({x: px + hW / 2 + fW / 2, y: py + 0.05, z: sDepth});
+                }
+                for (const pos of screwPositions) {
+                    const s = new THREE.Mesh(screwGeo, screwMat);
+                    s.position.set(pos.x, pos.y, pos.z);
+                    helpers.addGeometry(s);
+                }
+            },
             addGrate: (px, py, pz, blocksX, opts = {}) => {
                 const {
                     width = 1.08,
@@ -376,7 +451,8 @@ export default class StructureKit {
                 const grate = new THREE.Mesh(grateGeo, mat);
                 grate.userData = {
                     type: 'grate', active: true, chunkHash: hash,
-                    blocksX: blocksX, worldPos: {x: px, z: pz}
+                    blocksX: blocksX, worldPos: {x: px, z: pz},
+                    fallDir: opts.fallDir
                 };
                 if (hinged) {
                     const pivot = new THREE.Group();
@@ -587,9 +663,9 @@ export default class StructureKit {
                         env.spatialGrid.insert(box);
                         stagingMeshes.push(jMesh);
                     }
-                    const headerH = height - 2.4;
+                    const headerH = height - 2.6;
                     if (headerH > 0) {
-                        const headY = 3.4 + headerH / 2;
+                        const headY = 2.6 + headerH / 2;
                         const keyH = `header_${headerH}`;
                         let hGeo = env.geoCache.get(keyH);
                         if (!hGeo) {

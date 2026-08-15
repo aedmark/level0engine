@@ -32,6 +32,7 @@ export default class ProceduralTextureFactory {
         
         if (ProceduralTextureFactory.USE_STATIC_TEXTURES) {
             const staticAssets = await StaticTextureLoader.loadCoreAssets(onProgress);
+            staticAssets.flangeMat = TechTextures._buildFlangeAsset(masterNoise);
             ProceduralTextureFactory._applyOpts(staticAssets);
             return staticAssets;
         }

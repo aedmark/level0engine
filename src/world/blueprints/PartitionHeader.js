@@ -18,8 +18,8 @@ export const PartitionHeaderProfile = (env, ctx) => {
             const p2 = buildWall(isZ ? pW : env.cellSize, isZ ? env.cellSize : pW, env.sharedWallMat);
             p2.position.set(x * env.cellSize + (isZ ? offset : 0), 1.5, z * env.cellSize + (isZ ? 0 : offset));
             addGeometry(p2);
-            const header = buildWall(isZ ? env.cellSize - (pW * 2) : env.cellSize, isZ ? env.cellSize : env.cellSize - (pW * 2), env.headerMat, 0.8, 2.2);
-            header.position.set(x * env.cellSize, 2.6, z * env.cellSize);
+            const header = buildWall(isZ ? env.cellSize - (pW * 2) : env.cellSize, isZ ? env.cellSize : env.cellSize - (pW * 2), env.headerMat, 0.4, 2.6);
+            header.position.set(x * env.cellSize, 2.8, z * env.cellSize);
             addGeometry(header);
         }
     };

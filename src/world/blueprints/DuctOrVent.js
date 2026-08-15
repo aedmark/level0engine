@@ -28,10 +28,10 @@ export const DuctOrVentProfile = (env, ctx) => {
             const cellKey = (cx, cz) => `${cx}_${cz}`;
 
             const initialExits = {N: false, S: false, E: false, W: false};
-            if (ctx.isWall && !ctx.isWall(x, z - 1)) { initialExits.N = true; numExits++; }
-            if (ctx.isWall && !ctx.isWall(x, z + 1)) { initialExits.S = true; numExits++; }
-            if (ctx.isWall && !ctx.isWall(x + 1, z)) { initialExits.E = true; numExits++; }
-            if (ctx.isWall && !ctx.isWall(x - 1, z)) { initialExits.W = true; numExits++; }
+            if (ctx.isWall && !ctx.isWall(x, z - 1) && !(ctx.isAirlockApron && ctx.isAirlockApron(x, z - 1))) { initialExits.N = true; numExits++; }
+            if (ctx.isWall && !ctx.isWall(x, z + 1) && !(ctx.isAirlockApron && ctx.isAirlockApron(x, z + 1))) { initialExits.S = true; numExits++; }
+            if (ctx.isWall && !ctx.isWall(x + 1, z) && !(ctx.isAirlockApron && ctx.isAirlockApron(x + 1, z))) { initialExits.E = true; numExits++; }
+            if (ctx.isWall && !ctx.isWall(x - 1, z) && !(ctx.isAirlockApron && ctx.isAirlockApron(x - 1, z))) { initialExits.W = true; numExits++; }
 
             if (numExits === 0) {
                 isFloorLevel = false;
@@ -76,6 +76,9 @@ export const DuctOrVentProfile = (env, ctx) => {
                     }
 
                     if (ctx.isWall && !ctx.isWall(cell.x, cell.z)) {
+                        if (ctx.isAirlockApron && ctx.isAirlockApron(cell.x, cell.z)) {
+                            continue;
+                        }
                         if (p && numExits < maxExits) {
                             p.exits[getOpposite(cell.cameFrom)] = true;
                             numExits++;
@@ -251,24 +254,30 @@ export const DuctOrVentProfile = (env, ctx) => {
                             bRoof.position.set(branch.x, ductY + holeH + topH / 2, branch.z);
                             addGeometry(bRoof);
 
-                            const lFloor = buildWall(branch.w, branch.d, env.ductMat, liningT, 0);
-                            lFloor.position.set(branch.x, ductY + liningT / 2, branch.z);
-                            addGeometry(lFloor);
+                            const adjW = 1.08; 
+                            const adjH = holeH - 0.04;
+                            const adjT = 0.04;
 
-                            const lRoof = buildWall(branch.w, branch.d, env.ductMat, liningT, 0);
-                            lRoof.position.set(branch.x, ductY + holeH - liningT / 2, branch.z);
-                            addGeometry(lRoof);
-
-                            const lSide1 = buildWall(branch.isZ ? branch.w : liningT, branch.isZ ? liningT : branch.d, env.ductMat, holeH, 0);
-                            const lSide2 = buildWall(branch.isZ ? branch.w : liningT, branch.isZ ? liningT : branch.d, env.ductMat, holeH, 0);
+                            const lDepth = branch.d - 0.02;
+                            const lWidth = branch.w - 0.02;
+                            const lFloor = buildWall(branch.isZ ? lWidth : adjW, branch.isZ ? adjW : lDepth, env.ductMat, adjT, 0);
+                            const lRoof = buildWall(branch.isZ ? lWidth : adjW, branch.isZ ? adjW : lDepth, env.ductMat, adjT, 0);
+                            const lSide1 = buildWall(branch.isZ ? lWidth : adjT, branch.isZ ? adjT : lDepth, env.ductMat, adjH, 0);
+                            const lSide2 = buildWall(branch.isZ ? lWidth : adjT, branch.isZ ? adjT : lDepth, env.ductMat, adjH, 0);
 
                             if (!branch.isZ) {
-                                lSide1.position.set(branch.x - holeW / 2 + liningT / 2, ductY + holeH / 2, branch.z);
-                                lSide2.position.set(branch.x + holeW / 2 - liningT / 2, ductY + holeH / 2, branch.z);
+                                lFloor.position.set(branch.x, ductY + 0.03, branch.z);
+                                lRoof.position.set(branch.x, ductY + holeH - 0.03, branch.z);
+                                lSide1.position.set(branch.x - 0.57, ductY + holeH / 2, branch.z);
+                                lSide2.position.set(branch.x + 0.57, ductY + holeH / 2, branch.z);
                             } else {
-                                lSide1.position.set(branch.x, ductY + holeH / 2, branch.z - holeW / 2 + liningT / 2);
-                                lSide2.position.set(branch.x, ductY + holeH / 2, branch.z + holeW / 2 - liningT / 2);
+                                lFloor.position.set(branch.x, ductY + 0.03, branch.z);
+                                lRoof.position.set(branch.x, ductY + holeH - 0.03, branch.z);
+                                lSide1.position.set(branch.x, ductY + holeH / 2, branch.z - 0.57);
+                                lSide2.position.set(branch.x, ductY + holeH / 2, branch.z + 0.57);
                             }
+                            addGeometry(lFloor);
+                            addGeometry(lRoof);
                             addGeometry(lSide1);
                             addGeometry(lSide2);
                         } else {
@@ -287,12 +296,27 @@ export const DuctOrVentProfile = (env, ctx) => {
                         }
                     }
 
-                    const grateOffset = (env.cellSize / 2) - 0.07;
+                    const grateOffset = (env.cellSize / 2) + 0.07;
+                    const fOffset = env.cellSize / 2;
+
+
                     if (ctx.addGrate) {
-                        if (cell.exits.N) ctx.addGrate(cx, ductY + holeH / 2, cz - grateOffset, false);
-                        if (cell.exits.S) ctx.addGrate(cx, ductY + holeH / 2, cz + grateOffset, false);
-                        if (cell.exits.E) ctx.addGrate(cx + grateOffset, ductY + holeH / 2, cz, true);
-                        if (cell.exits.W) ctx.addGrate(cx - grateOffset, ductY + holeH / 2, cz, true);
+                        if (cell.exits.N) {
+                            if (ctx.buildFlange) ctx.buildFlange(cx, ductY, cz - fOffset, false, -1);
+                            ctx.addGrate(cx, 0.37, cz - grateOffset, false, {width: 1.28, height: 0.74, fallDir: -1});
+                        }
+                        if (cell.exits.S) {
+                            if (ctx.buildFlange) ctx.buildFlange(cx, ductY, cz + fOffset, false, 1);
+                            ctx.addGrate(cx, 0.37, cz + grateOffset, false, {width: 1.28, height: 0.74, fallDir: 1});
+                        }
+                        if (cell.exits.E) {
+                            if (ctx.buildFlange) ctx.buildFlange(cx + fOffset, ductY, cz, true, 1);
+                            ctx.addGrate(cx + grateOffset, 0.37, cz, true, {width: 1.28, height: 0.74, fallDir: 1});
+                        }
+                        if (cell.exits.W) {
+                            if (ctx.buildFlange) ctx.buildFlange(cx - fOffset, ductY, cz, true, -1);
+                            ctx.addGrate(cx - grateOffset, 0.37, cz, true, {width: 1.28, height: 0.74, fallDir: -1});
+                        }
                     }
 
 
@@ -300,48 +324,10 @@ export const DuctOrVentProfile = (env, ctx) => {
             } else {
                 const wall = buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
                 wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);
+                wall.userData.isDefaultWall = true;
+                wall.userData.cellX = x;
+                wall.userData.cellZ = z;
                 addGeometry(wall);
-                const openFaces = [];
-                if (ctx.isWall && !ctx.isWall(x, z + 1)) openFaces.push(0);
-                if (ctx.isWall && !ctx.isWall(x, z - 1)) openFaces.push(1);
-                if (ctx.isWall && !ctx.isWall(x + 1, z)) openFaces.push(2);
-                if (ctx.isWall && !ctx.isWall(x - 1, z)) openFaces.push(3);
-
-                let ventFace;
-                if (openFaces.length > 0) {
-                    ventFace = openFaces[Math.floor(random() * openFaces.length)];
-                } else {
-                    ventFace = Math.floor(random() * 4);
-                    if (ctx.setWall) {
-                        if (ventFace === 0) ctx.setWall(x, z + 1, false);
-                        else if (ventFace === 1) ctx.setWall(x, z - 1, false);
-                        else if (ventFace === 2) ctx.setWall(x + 1, z, false);
-                        else if (ventFace === 3) ctx.setWall(x - 1, z, false);
-                    }
-                }
-
-                if (ctx.markOccupied) {
-                    if (ventFace === 0) ctx.markOccupied(x, z + 1);
-                    else if (ventFace === 1) ctx.markOccupied(x, z - 1);
-                    else if (ventFace === 2) ctx.markOccupied(x + 1, z);
-                    else if (ventFace === 3) ctx.markOccupied(x - 1, z);
-                }
-
-                const ventGeo = env._boxGeo(1.2, 0.6, 0.05);
-                const vent = new THREE.Mesh(ventGeo, env.wallVentMat);
-                const finalOffset = (env.cellSize / 2) + 0.01;
-                if (ventFace === 0) {
-                    vent.position.set(x * env.cellSize, 2.6, z * env.cellSize + finalOffset);
-                } else if (ventFace === 1) {
-                    vent.position.set(x * env.cellSize, 2.6, z * env.cellSize - finalOffset);
-                } else if (ventFace === 2) {
-                    vent.rotation.y = Math.PI / 2;
-                    vent.position.set(x * env.cellSize + finalOffset, 2.6, z * env.cellSize);
-                } else {
-                    vent.rotation.y = Math.PI / 2;
-                    vent.position.set(x * env.cellSize - finalOffset, 2.6, z * env.cellSize);
-                }
-                addGeometry(vent);
             }
         }
     };

@@ -207,11 +207,26 @@ export default class InteractionController {
                             }
                         }
                     } else {
-                        const targetRot = -Math.PI / 2;
-                        const diff = obj.userData.blocksX ? (targetRot - obj.rotation.z) : (targetRot - obj.rotation.x);
+                        if (obj.userData.targetRot === undefined) {
+                            if (obj.userData.blocksX) {
+                                const fallSign = obj.userData.fallDir !== undefined ? obj.userData.fallDir : ((playerPos.x > obj.position.x) ? 1 : -1);
+                                obj.userData.targetRot = -fallSign * Math.PI / 2;
+                                obj.userData.targetPos = obj.position.x + fallSign * obj.position.y;
+                            } else {
+                                const fallSign = obj.userData.fallDir !== undefined ? obj.userData.fallDir : ((playerPos.z > obj.position.z) ? 1 : -1);
+                                obj.userData.targetRot = fallSign * Math.PI / 2;
+                                obj.userData.targetPos = obj.position.z + fallSign * obj.position.y;
+                            }
+                        }
+                        const diff = obj.userData.blocksX ? (obj.userData.targetRot - obj.rotation.z) : (obj.userData.targetRot - obj.rotation.x);
                         if (Math.abs(diff) > 0.01) {
-                            if (obj.userData.blocksX) obj.rotation.z += diff * 15.0 * delta;
-                            else obj.rotation.x += diff * 15.0 * delta;
+                            if (obj.userData.blocksX) {
+                                obj.rotation.z += diff * 15.0 * delta;
+                                obj.position.x += (obj.userData.targetPos - obj.position.x) * 15.0 * delta;
+                            } else {
+                                obj.rotation.x += diff * 15.0 * delta;
+                                obj.position.z += (obj.userData.targetPos - obj.position.z) * 15.0 * delta;
+                            }
                             obj.position.y += (0.05 - obj.position.y) * 15.0 * delta;
                             env.lumenGrid.shadowsDirty = true;
                             if (obj.userData.box && !obj.userData.box.isEmpty()) {

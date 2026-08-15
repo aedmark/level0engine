@@ -568,6 +568,7 @@ export default class ChunkManager {
                     });
 
                     ctx.isWall = (wx, wz) => mathData.isWallGrid.get(cellKey(wx, wz)) || false;
+                    ctx.isAirlockApron = (wx, wz) => this._isAirlockApron(wx, wz);
                     ctx.setWall = (wx, wz, val) => {
                         mathData.isWallGrid.set(cellKey(wx, wz), val);
                         if (!val) {
@@ -614,6 +615,58 @@ export default class ChunkManager {
             this.warmChunkMaterials(chunkGroup);
             await new Promise(resolve => setTimeout(resolve, 0));
             if (!env.activeChunks.has(hash)) return;
+        }
+        if (env._breachWalls && env._breachWalls.length > 0) {
+            const toRemoveGroup = [];
+            const toRemoveStaging = [];
+            for (const wall of env._breachWalls) {
+                wall.updateMatrixWorld(true);
+                if (!wall.geometry.boundingBox) wall.geometry.computeBoundingBox();
+                const box = wall.geometry.boundingBox.clone().applyMatrix4(wall.matrixWorld);
+                
+                const checkList = [...chunkGroup.children, ...stagingMeshes];
+                for (const child of checkList) {
+                    if (toRemoveGroup.includes(child) || toRemoveStaging.includes(child)) continue;
+                    let isFixture = false;
+                    if (child.userData.type === 'grate') isFixture = true;
+                    if (child.userData.type === 'door') isFixture = true;
+                    if (child.userData.type === 'hatch') isFixture = true;
+                    if (child.userData.isMiniDoor) isFixture = true;
+                    if (child.geometry === env.sharedPanelGeo) isFixture = true;
+                    if (child.isLight) isFixture = true;
+                    
+                    if (isFixture) {
+                        child.updateMatrixWorld(true);
+                        if (!child.geometry.boundingBox) child.geometry.computeBoundingBox();
+                        const childBox = child.geometry.boundingBox.clone().applyMatrix4(child.matrixWorld);
+                        if (box.intersectsBox(childBox)) {
+                            if (chunkGroup.children.includes(child)) toRemoveGroup.push(child);
+                            else toRemoveStaging.push(child);
+                        }
+                    }
+                }
+            }
+            toRemoveGroup.forEach(c => {
+                chunkGroup.remove(c);
+                if (env.walls) {
+                    const idx = env.walls.indexOf(c);
+                    if (idx > -1) env.walls.splice(idx, 1);
+                }
+            });
+            toRemoveStaging.forEach(c => {
+                const idx = stagingMeshes.indexOf(c);
+                if (idx > -1) stagingMeshes.splice(idx, 1);
+            });
+            if (env.fixtureData) {
+                env.fixtureData = env.fixtureData.filter(f => {
+                    for (const wall of env._breachWalls) {
+                        const box = wall.geometry.boundingBox.clone().applyMatrix4(wall.matrixWorld);
+                        if (box.containsPoint(f.position)) return false;
+                    }
+                    return true;
+                });
+            }
+            env._breachWalls = [];
         }
         await this._compileInstances(hash, chunkGroup, stagingMeshes, random);
         if (env.activeChunks.has(hash)) {
@@ -914,7 +967,17 @@ export default class ChunkManager {
             hasTallObstacle = true;
         }
 
-        const forcedName = ctx.getForcedStructure && ctx.getForcedStructure(x, z);
+        let forcedName = ctx.getForcedStructure && ctx.getForcedStructure(x, z);
+        if (forcedName && ["breach", "CREVICE_HALL", "CRAWLSPACE_HALL"].includes(forcedName)) {
+            const hasAdjacentVent = ctx.getForcedStructure && (
+                ctx.getForcedStructure(x + 1, z) === "DUCT OR VENT" ||
+                ctx.getForcedStructure(x - 1, z) === "DUCT OR VENT" ||
+                ctx.getForcedStructure(x, z + 1) === "DUCT OR VENT" ||
+                ctx.getForcedStructure(x, z - 1) === "DUCT OR VENT"
+            );
+            if (hasAdjacentVent) forcedName = null;
+        }
+
         if (forcedName === 'breach') {
             hasTallObstacle = true;
             const breachProfile = WallBreachProfile(env, ctx);
@@ -945,7 +1008,16 @@ export default class ChunkManager {
         const isAirlockApproach = this._isAirlockApron(x, z);
 
         const floorRoll = random();
-        if (!hasTallObstacle && floorRoll > 0.80 && !isArtery && !isAirlockApproach) {
+        let isNearFixture = false;
+        if (ctx.getForcedStructure) {
+            const fixtures = ["HINGED DOORWAY", "DUCT OR VENT", "HATCH", "AIRLOCK", "breach"];
+            if (fixtures.includes(ctx.getForcedStructure(x + 1, z))) isNearFixture = true;
+            else if (fixtures.includes(ctx.getForcedStructure(x - 1, z))) isNearFixture = true;
+            else if (fixtures.includes(ctx.getForcedStructure(x, z + 1))) isNearFixture = true;
+            else if (fixtures.includes(ctx.getForcedStructure(x, z - 1))) isNearFixture = true;
+        }
+        
+        if (!hasTallObstacle && floorRoll > 0.80 && !isArtery && !isAirlockApproach && !isNearFixture) {
             hasTallObstacle = true;
             const divW = random() > 0.5 ? env.cellSize * 0.8 : env.cellSize * 0.2;
             const divD = divW === env.cellSize * 0.8 ? env.cellSize * 0.2 : env.cellSize * 0.8;

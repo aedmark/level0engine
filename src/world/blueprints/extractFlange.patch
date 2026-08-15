@@ -1,0 +1,81 @@
+--- src/world/StructureKit.js
++++ src/world/StructureKit.js
+@@ -346,6 +346,55 @@
+             *   outward too rather than folding back into the passage.
+             */
++            buildFlange: (px, py, pz, isX, dirSign) => {
++                const fT = 0.04;
++                const fW = 0.14;
++                const hW = 1.12;
++                const hH = 0.68;
++                const oW = hW + fW * 2;
++                const mat = env.flangeMat || env.ductMat;
++
++                const shape = new THREE.Shape();
++                shape.moveTo(-oW / 2, 0);
++                shape.lineTo(oW / 2, 0);
++                shape.lineTo(oW / 2, hH + fW);
++                shape.lineTo(-oW / 2, hH + fW);
++                shape.lineTo(-oW / 2, 0);
++
++                const hole = new THREE.Path();
++                hole.moveTo(-hW / 2, 0);
++                hole.lineTo(-hW / 2, hH);
++                hole.lineTo(hW / 2, hH);
++                hole.lineTo(hW / 2, 0);
++                hole.lineTo(-hW / 2, 0);
++                shape.holes.push(hole);
++
++                const fGeo = new THREE.ExtrudeGeometry(shape, {
++                    depth: fT,
++                    bevelEnabled: true,
++                    bevelThickness: 0.005,
++                    bevelSize: 0.005,
++                    bevelSegments: 2
++                });
++                fGeo.translate(0, 0, -fT / 2);
++
++                const pos = fGeo.attributes.position;
++                const uv = fGeo.attributes.uv;
++                for (let i = 0; i < pos.count; i++) {
++                    uv.setXY(i, pos.getX(i) * 2, pos.getY(i) * 2);
++                }
++                uv.needsUpdate = true;
++
++                const tFlange = new THREE.Mesh(fGeo, mat);
++                tFlange.userData.noCollision = true;
++                const cDepth = isX ? px + dirSign * (fT / 2) : pz + dirSign * (fT / 2);
++
++                if (isX) {
++                    tFlange.position.set(cDepth, py, pz);
++                    tFlange.rotation.y = dirSign === 1 ? Math.PI / 2 : -Math.PI / 2;
++                } else {
++                    tFlange.position.set(px, py, cDepth);
++                    tFlange.rotation.y = dirSign === 1 ? 0 : Math.PI;
++                }
++
++                helpers.addGeometry(tFlange);
++
++                const screwGeo = env._boxGeo(0.015, 0.015, 0.015);
++                const screwMat = env.pittedMetalMat || env.metalMat || mat;
++                const sDepth = isX ? cDepth + dirSign * (fT / 2 + 0.005) : cDepth + dirSign * (fT / 2 + 0.005);
++                const sY = py + hH + fW / 2;
++                const screwPositions = [];
++                if (isX) {
++                    screwPositions.push({x: sDepth, y: sY, z: pz - hW / 2});
++                    screwPositions.push({x: sDepth, y: sY, z: pz + hW / 2});
++                    screwPositions.push({x: sDepth, y: py + 0.05, z: pz - hW / 2 - fW / 2});
++                    screwPositions.push({x: sDepth, y: py + 0.05, z: pz + hW / 2 + fW / 2});
++                } else {
++                    screwPositions.push({x: px - hW / 2, y: sY, z: sDepth});
++                    screwPositions.push({x: px + hW / 2, y: sY, z: sDepth});
++                    screwPositions.push({x: px - hW / 2 - fW / 2, y: py + 0.05, z: sDepth});
++                    screwPositions.push({x: px + hW / 2 + fW / 2, y: py + 0.05, z: sDepth});
++                }
++                for (const pos of screwPositions) {
++                    const s = new THREE.Mesh(screwGeo, screwMat);
++                    s.position.set(pos.x, pos.y, pos.z);
++                    helpers.addGeometry(s);
++                }
++            },
+            addGrate: (px, py, pz, blocksX, opts = {}) => {

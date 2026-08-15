@@ -7,6 +7,27 @@
 import TextureMechanics from '../TextureMechanics.js';
 
 export default class TechTextures {
+    static _buildFlangeAsset(masterNoise) {
+        const {canvas: flangeCanvas, ctx: flangeCtx} = TextureMechanics._createContext(256, 256);
+        flangeCtx.fillStyle = '#8a9296';
+        flangeCtx.fillRect(0, 0, 256, 256);
+        flangeCtx.globalAlpha = 0.4;
+        flangeCtx.drawImage(masterNoise, 0, 0, 256, 256);
+        flangeCtx.globalAlpha = 1.0;
+        flangeCtx.lineWidth = 6;
+        flangeCtx.strokeStyle = '#5a6266';
+        flangeCtx.strokeRect(3, 3, 250, 250);
+        
+        const flangeTexture = TextureMechanics._createWrappedTexture(flangeCanvas, 2, 2);
+        return new THREE.MeshStandardMaterial({
+            map: flangeTexture,
+            roughness: 0.5,
+            metalness: 0.9,
+            bumpMap: flangeTexture,
+            bumpScale: 0.02
+        });
+    }
+
     static _buildTechAssets(masterNoise) {
         const {canvas: ventCanvas, ctx: ventCtx} = TextureMechanics._createContext(512, 256);
         ventCtx.fillStyle = '#808080';
@@ -148,6 +169,8 @@ export default class TechTextures {
         matteBrokenLightMat.metalness = 0;
         matteBrokenLightMat.roughness = 0.95;
 
+        const flangeMat = TechTextures._buildFlangeAsset(masterNoise);
+
         return {
             ventMat,
             ductMat,
@@ -156,7 +179,8 @@ export default class TechTextures {
             baseBrokenLightMat,
             baseHousingMat,
             matteLightMat,
-            matteBrokenLightMat
+            matteBrokenLightMat,
+            flangeMat
         };
     }
 }

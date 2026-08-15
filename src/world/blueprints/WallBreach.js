@@ -74,6 +74,9 @@ export const WallBreachProfile = (env, ctx) => {
                 stub2.position.set(0.7 + rightW / 2, 1.5, 0);
                 g.add(stub2);
                 
+                env._breachWalls = env._breachWalls || [];
+                env._breachWalls.push(stub1, stub2);
+
                 const headW = 1.4;
                 const head1 = buildWall(headW, 0.2, env.sharedWallMat, 0.4, 2.6);
                 head1.position.set(0, 2.8, 0);
@@ -95,8 +98,8 @@ export const WallBreachProfile = (env, ctx) => {
                 addGroupToStaging(g);
             } else {
                 const OPENING_W = 1.2;
-                const SILL_H = 0.6;
-                const HEAD_Y = 1.8;
+                const SILL_H = 0.0;
+                const HEAD_Y = 2.2;
                 const jambW = (env.cellSize - OPENING_W) / 2;
                 const headH = 3.0 - HEAD_Y;
                 const ccx = x * env.cellSize;
@@ -107,11 +110,13 @@ export const WallBreachProfile = (env, ctx) => {
                 const eOpen = !isWallCell(x + 1, z);
                 const wOpen = !isWallCell(x - 1, z);
 
-                const sill = buildWall(env.cellSize, env.cellSize, env.sharedWallMat, SILL_H);
-                sill.userData.baseboardFootprint = {w: env.cellSize, d: env.cellSize, h: SILL_H};
-                sill.position.set(ccx, SILL_H / 2, ccz);
-                sill.userData.isEntityBlocker = true;
-                ctx.addGeometry(sill);
+                if (SILL_H > 0) {
+                    const sill = buildWall(env.cellSize, env.cellSize, env.sharedWallMat, SILL_H);
+                    sill.userData.baseboardFootprint = {w: env.cellSize, d: env.cellSize, h: SILL_H};
+                    sill.position.set(ccx, SILL_H / 2, ccz);
+                    sill.userData.isEntityBlocker = true;
+                    ctx.addGeometry(sill);
+                }
 
                 const header = buildWall(env.cellSize, env.cellSize, env.sharedWallMat, headH, HEAD_Y);
                 header.position.set(ccx, HEAD_Y + headH / 2, ccz);
@@ -125,6 +130,9 @@ export const WallBreachProfile = (env, ctx) => {
                     const pillar = buildWall(jambW, jambW, env.sharedWallMat, HEAD_Y - SILL_H, SILL_H);
                     pillar.position.set(ccx + c.x * (env.cellSize / 2 - jambW / 2), (HEAD_Y + SILL_H) / 2, ccz + c.z * (env.cellSize / 2 - jambW / 2));
                     pillar.userData.isEntityBlocker = true;
+                    if (SILL_H === 0) {
+                        pillar.userData.baseboardFootprint = {w: jambW, d: jambW, h: HEAD_Y - SILL_H};
+                    }
                     ctx.addGeometry(pillar);
                 });
 
@@ -136,6 +144,9 @@ export const WallBreachProfile = (env, ctx) => {
                     const fz = isX ? 0 : sign * (env.cellSize / 2 - jambW / 2);
                     fill.position.set(ccx + fx, (HEAD_Y + SILL_H) / 2, ccz + fz);
                     fill.userData.isEntityBlocker = true;
+                    if (SILL_H === 0) {
+                        fill.userData.baseboardFootprint = {w: fw, d: fd, h: HEAD_Y - SILL_H};
+                    }
                     ctx.addGeometry(fill);
                 };
 

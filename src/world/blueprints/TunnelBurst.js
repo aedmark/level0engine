@@ -13,10 +13,11 @@ export const TunnelBurstProfile = (env, ctx) => {
         name: "TUNNEL BURST",
         prob: 0.10, build: (x, z) => {
             const typeRoll = random();
-            const nC = ctx.isWall && !ctx.isWall(x, z - 1);
-            const sC = ctx.isWall && !ctx.isWall(x, z + 1);
-            const wC = ctx.isWall && !ctx.isWall(x - 1, z);
-            const eC = ctx.isWall && !ctx.isWall(x + 1, z);
+            const isClearExit = (cx, cz) => ctx.isWall && !ctx.isWall(cx, cz) && !(ctx.isAirlockApron && ctx.isAirlockApron(cx, cz));
+            const nC = isClearExit(x, z - 1);
+            const sC = isClearExit(x, z + 1);
+            const wC = isClearExit(x - 1, z);
+            const eC = isClearExit(x + 1, z);
 
             let dirZ = random() > 0.5;
             if (nC || sC) dirZ = true;
@@ -60,19 +61,26 @@ export const TunnelBurstProfile = (env, ctx) => {
                     const roof = buildWall(dirZ ? tunnelW : env.cellSize - 0.02, dirZ ? env.cellSize - 0.02 : tunnelW, env.sharedWallMat, roofH_block, tunnelH);
                     roof.position.set(segX * env.cellSize, tunnelH + (roofH_block / 2), segZ * env.cellSize);
                     addGeometry(roof);
-                    const liningFloor = buildWall(dirZ ? tunnelW : env.cellSize - 0.02, dirZ ? env.cellSize - 0.02 : tunnelW, env.ductMat, liningH);
-                    liningFloor.position.set(segX * env.cellSize, liningH / 2, segZ * env.cellSize);
+                    const adjW = 1.08;
+                    const adjH = tunnelH - 0.03;
+                    const adjT = 0.02;
+                    const floorTopAdjT = 0.04;
+                    const len = env.cellSize - 0.02;
+
+                    const liningFloor = buildWall(dirZ ? adjW : len, dirZ ? len : adjW, env.ductMat, floorTopAdjT);
+                    liningFloor.position.set(segX * env.cellSize, 0.03, segZ * env.cellSize);
                     addGeometry(liningFloor);
-                    const liningCeil = buildWall(dirZ ? tunnelW : env.cellSize - 0.02, dirZ ? env.cellSize - 0.02 : tunnelW, env.ductMat, liningH);
-                    liningCeil.position.set(segX * env.cellSize, tunnelH - (liningH / 2), segZ * env.cellSize);
+
+                    const liningCeil = buildWall(dirZ ? adjW : len, dirZ ? len : adjW, env.ductMat, floorTopAdjT);
+                    liningCeil.position.set(segX * env.cellSize, tunnelH - 0.03, segZ * env.cellSize);
                     addGeometry(liningCeil);
-                    const liningSideW = dirZ ? liningH : env.cellSize - 0.02;
-                    const liningSideD = dirZ ? env.cellSize - 0.02 : liningH;
-                    const liningLeft = buildWall(liningSideW, liningSideD, env.ductMat, sideH);
-                    liningLeft.position.set(segX * env.cellSize + (dirZ ? -sideOffsetLining : 0), tunnelH / 2, segZ * env.cellSize + (dirZ ? 0 : -sideOffsetLining));
+
+                    const liningLeft = buildWall(dirZ ? adjT : len, dirZ ? len : adjT, env.ductMat, adjH);
+                    liningLeft.position.set(segX * env.cellSize + (dirZ ? -0.57 : 0), 0.345, segZ * env.cellSize + (dirZ ? 0 : -0.57));
                     addGeometry(liningLeft);
-                    const liningRight = buildWall(liningSideW, liningSideD, env.ductMat, sideH);
-                    liningRight.position.set(segX * env.cellSize + (dirZ ? sideOffsetLining : 0), tunnelH / 2, segZ * env.cellSize + (dirZ ? 0 : sideOffsetLining));
+
+                    const liningRight = buildWall(dirZ ? adjT : len, dirZ ? len : adjT, env.ductMat, adjH);
+                    liningRight.position.set(segX * env.cellSize + (dirZ ? 0.57 : 0), 0.345, segZ * env.cellSize + (dirZ ? 0 : 0.57));
                     addGeometry(liningRight);
                     const blockBox = new AABB(
                         new Vec3(segX * env.cellSize - (dirZ ? tunnelW / 2 : env.cellSize / 2), 0, segZ * env.cellSize - (dirZ ? env.cellSize / 2 : tunnelW / 2)),
@@ -82,14 +90,25 @@ export const TunnelBurstProfile = (env, ctx) => {
                     blockBox.isInvisibleBlocker = true;
                     blockBox.chunkHash = hash;
                     env.spatialGrid.insert(blockBox);
-                    const grateOffset = (env.cellSize / 2) - 0.07;
+                    const grateOffset = (env.cellSize / 2) + 0.036;
+                    const fOffset = env.cellSize / 2;
                     if (i === 0) {
-                        if (dirZ) ctx.addGrate(segX * env.cellSize, 0.35, segZ * env.cellSize - grateOffset, false);
-                        else ctx.addGrate(segX * env.cellSize - grateOffset, 0.35, segZ * env.cellSize, true);
+                        if (dirZ && isClearExit(x, z - 1)) {
+                            if (ctx.buildFlange) ctx.buildFlange(segX * env.cellSize, 0.0, segZ * env.cellSize - fOffset, false, -1);
+                            ctx.addGrate(segX * env.cellSize, 0.37, segZ * env.cellSize - grateOffset, false, {width: 1.28, height: 0.74, fallDir: -1});
+                        } else if (!dirZ && isClearExit(x - 1, z)) {
+                            if (ctx.buildFlange) ctx.buildFlange(segX * env.cellSize - fOffset, 0.0, segZ * env.cellSize, true, -1);
+                            ctx.addGrate(segX * env.cellSize - grateOffset, 0.37, segZ * env.cellSize, true, {width: 1.28, height: 0.74, fallDir: -1});
+                        }
                     }
                     if (i === burstLength - 1) {
-                        if (dirZ) ctx.addGrate(segX * env.cellSize, 0.35, segZ * env.cellSize + grateOffset, false);
-                        else ctx.addGrate(segX * env.cellSize + grateOffset, 0.35, segZ * env.cellSize, true);
+                        if (dirZ && isClearExit(x, z + burstLength)) {
+                            if (ctx.buildFlange) ctx.buildFlange(segX * env.cellSize, 0.0, segZ * env.cellSize + fOffset, false, 1);
+                            ctx.addGrate(segX * env.cellSize, 0.37, segZ * env.cellSize + grateOffset, false, {width: 1.28, height: 0.74, fallDir: 1});
+                        } else if (!dirZ && isClearExit(x + burstLength, z)) {
+                            if (ctx.buildFlange) ctx.buildFlange(segX * env.cellSize + fOffset, 0.0, segZ * env.cellSize, true, 1);
+                            ctx.addGrate(segX * env.cellSize + grateOffset, 0.37, segZ * env.cellSize, true, {width: 1.28, height: 0.74, fallDir: 1});
+                        }
                     }
                 }
             } else if (typeRoll > 0.33) {

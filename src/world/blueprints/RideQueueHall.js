@@ -88,25 +88,55 @@ export const RideQueueHallProfile = (env, ctx) => {
                 return new THREE.TubeGeometry(curve, 6, 0.015, 5, false);
             });
 
+            const isQueue = (bx, bz) => ctx.getForcedStructure && ctx.getForcedStructure(bx, bz) === 'RIDE_QUEUE_HALL';
+
             if (pathZ && !pathX) {
-                const rope1 = new THREE.Mesh(halfRopeGeo, env.ropeMat);
-                rope1.position.set(cx, 0.9, cz);
-                addGeometry(rope1);
+                if (!isWall(x, z + 1)) {
+                    const rope1 = new THREE.Mesh(halfRopeGeo, env.ropeMat);
+                    rope1.position.set(cx, 0.9, cz);
+                    addGeometry(rope1);
+                    
+                    const p1 = new THREE.Mesh(sGeo, env.metalMat || env.pittedMetalMat);
+                    p1.position.set(cx, 0.5, cz + env.cellSize/2);
+                    addGeometry(p1);
+                }
                 
-                const rope2 = new THREE.Mesh(halfRopeGeo, env.ropeMat);
-                rope2.position.set(cx, 0.9, cz);
-                rope2.rotation.y = Math.PI;
-                addGeometry(rope2);
+                if (!isWall(x, z - 1)) {
+                    const rope2 = new THREE.Mesh(halfRopeGeo, env.ropeMat);
+                    rope2.position.set(cx, 0.9, cz);
+                    rope2.rotation.y = Math.PI;
+                    addGeometry(rope2);
+
+                    if (!isQueue(x, z - 1)) {
+                        const p2 = new THREE.Mesh(sGeo, env.metalMat || env.pittedMetalMat);
+                        p2.position.set(cx, 0.5, cz - env.cellSize/2);
+                        addGeometry(p2);
+                    }
+                }
             } else if (pathX && !pathZ) {
-                const rope1 = new THREE.Mesh(halfRopeGeo, env.ropeMat);
-                rope1.position.set(cx, 0.9, cz);
-                rope1.rotation.y = Math.PI / 2;
-                addGeometry(rope1);
+                if (!isWall(x + 1, z)) {
+                    const rope1 = new THREE.Mesh(halfRopeGeo, env.ropeMat);
+                    rope1.position.set(cx, 0.9, cz);
+                    rope1.rotation.y = Math.PI / 2;
+                    addGeometry(rope1);
+                    
+                    const p1 = new THREE.Mesh(sGeo, env.metalMat || env.pittedMetalMat);
+                    p1.position.set(cx + env.cellSize/2, 0.5, cz);
+                    addGeometry(p1);
+                }
                 
-                const rope2 = new THREE.Mesh(halfRopeGeo, env.ropeMat);
-                rope2.position.set(cx, 0.9, cz);
-                rope2.rotation.y = -Math.PI / 2;
-                addGeometry(rope2);
+                if (!isWall(x - 1, z)) {
+                    const rope2 = new THREE.Mesh(halfRopeGeo, env.ropeMat);
+                    rope2.position.set(cx, 0.9, cz);
+                    rope2.rotation.y = -Math.PI / 2;
+                    addGeometry(rope2);
+                    
+                    if (!isQueue(x - 1, z)) {
+                        const p2 = new THREE.Mesh(sGeo, env.metalMat || env.pittedMetalMat);
+                        p2.position.set(cx - env.cellSize/2, 0.5, cz);
+                        addGeometry(p2);
+                    }
+                }
             }
         }
     };
