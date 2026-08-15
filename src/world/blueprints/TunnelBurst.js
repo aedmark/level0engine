@@ -6,6 +6,7 @@
  */
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
+import {makeDuctInterior} from '../../core/DuctLighting.js';
 
 export const TunnelBurstProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, hash} = ctx;
@@ -13,10 +14,10 @@ export const TunnelBurstProfile = (env, ctx) => {
         name: "TUNNEL BURST",
         prob: 0.10, build: (x, z) => {
             if (!env.ductLiningMat) {
-                env.ductLiningMat = env.ductMat.clone();
-                /** [WHY] See DuctOrVent -- ductInterior moves lining surfaces onto DUCT_LAYER so
+                /** [WHY] See DuctOrVent -- the lining carries the ambient-occlusion treatment so
                  * the global ambient cannot reach inside the tunnel. */
-                env.ductLiningMat.userData = { noShadow: true, ductInterior: true };
+                env.ductLiningMat = makeDuctInterior(env.ductMat.clone());
+                env.ductLiningMat.userData.noShadow = true;
                 env.sharedAssets.add(env.ductLiningMat.uuid);
             }
             const typeRoll = random();

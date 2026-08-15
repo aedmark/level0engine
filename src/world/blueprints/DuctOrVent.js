@@ -1,5 +1,6 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
+import {makeDuctInterior} from '../../core/DuctLighting.js';
 
 export const DuctOrVentProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, hash} = ctx;
@@ -9,12 +10,11 @@ export const DuctOrVentProfile = (env, ctx) => {
             let isFloorLevel = random() > 0.50;
             const addGeometry = ctx.addGeometry;
             if (!env.ductLiningMat) {
-                env.ductLiningMat = env.ductMat.clone();
-                /** [WHY] ductInterior puts every surface built from this material on DUCT_LAYER,
-                 * out of reach of the scene-wide ambient. The lining is the only thing the player
-                 * sees from inside the duct, so flagging it here darkens the interior without
-                 * touching the structural blocks whose outward faces are corridor wall. */
-                env.ductLiningMat.userData = { noShadow: true, ductInterior: true };
+                /** [WHY] The lining is the only thing the player sees from inside the duct, so
+                 * the ambient-occlusion treatment goes here and the structural blocks behind it
+                 * keep lighting normally on their corridor-facing side. */
+                env.ductLiningMat = makeDuctInterior(env.ductMat.clone());
+                env.ductLiningMat.userData.noShadow = true;
                 env.sharedAssets.add(env.ductLiningMat.uuid);
             }
 

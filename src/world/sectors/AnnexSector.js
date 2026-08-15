@@ -3,7 +3,6 @@ import AABB from '../../math/AABB.js';
 import * as OfficeFurniture from '../OfficeFurniture.js';
 import * as ClinicFurniture from '../ClinicFurniture.js';
 import { buildBreakerPodium, setPodiumBroken } from '../BreakerPodium.js';
-import {illuminateDucts} from '../../core/LightLayers.js';
 
 /**
  * [ROLE] Defines the generation logic for the "Annex" sector.
@@ -333,7 +332,6 @@ export const AnnexSector = (env, ctx) => {
                     lapScreen.add(glow);
                     lap.add(lapScreen);
                     const laptopLight = new THREE.PointLight(0xa8ffd0, 0.8, 2.5, 2.0);
-                    illuminateDucts(laptopLight);
                     laptopLight.position.set(0, 0.2, 0.1);
                     lap.add(laptopLight);
                     lap.position.set(deskX, 0.93, deskZ);
@@ -362,7 +360,6 @@ export const AnnexSector = (env, ctx) => {
                     recLight.position.set(0.06, 0.04, -0.04);
                     tapeGroup.add(recLight);
                     const pointLight = new THREE.PointLight(0xff0000, 1.0, 1.5, 2.0);
-                    illuminateDucts(pointLight);
                     pointLight.position.set(0.06, 0.05, -0.04);
                     tapeGroup.add(pointLight);
                     tapeGroup.position.set(deskX, 0.93, deskZ);

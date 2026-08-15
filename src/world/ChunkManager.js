@@ -13,7 +13,6 @@ import {CrawlspaceHallProfile} from './blueprints/CrawlspaceHall.js';
 import {CreviceHallProfile} from './blueprints/CreviceHall.js';
 import {RideQueueHallProfile} from './blueprints/RideQueueHall.js';
 import BootController from '../ui/BootController.js';
-import {isDuctMaterial, markDuctInterior} from '../core/LightLayers.js';
 
 const CELL_KEY_SPAN = 4194304;
 const cellKey = (x, z) => x * (CELL_KEY_SPAN * 2) + z;
@@ -1180,9 +1179,6 @@ export default class ChunkManager {
             }
             const group = groups[i];
             const isDecal = !Array.isArray(group.material) && (group.material === env.glowMat);
-            /** [WHY] Grouping above is keyed on geometry+material, so every mesh in this batch
-             * shares one material and the duct test resolves once for the whole batch. */
-            const isDuct = isDuctMaterial(group.material);
             if (group.meshes.length > 1 && !Array.isArray(group.material)) {
                 const iMesh = new THREE.InstancedMesh(group.geometry, group.material, group.meshes.length);
                 if (!isDecal) {
@@ -1203,7 +1199,6 @@ export default class ChunkManager {
                 });
                 iMesh.instanceMatrix.needsUpdate = true;
                 if (needsColor && iMesh.instanceColor) iMesh.instanceColor.needsUpdate = true;
-                if (isDuct) markDuctInterior(iMesh);
                 tempGroup.add(iMesh);
                 if (!isDecal) env.walls.push(iMesh);
             } else {
@@ -1215,7 +1210,6 @@ export default class ChunkManager {
                         mesh.receiveShadow = true;
                         env.walls.push(mesh);
                     }
-                    if (isDuct) markDuctInterior(mesh);
                     tempGroup.add(mesh);
                 }
             }

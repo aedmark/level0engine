@@ -7,7 +7,6 @@
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 import {isRayPathBlocked, computeAxisBlocking} from './HazardUtils.js';
-import {illuminateDucts} from '../core/LightLayers.js';
 
 export default class WardenEntity {
     constructor(scene, camera, player, environment) {
@@ -120,7 +119,6 @@ export default class WardenEntity {
             this.upperBody.add(eye);
         }
         this.light = new THREE.SpotLight(0xffffff, 2.0, 30.0, Math.PI / 6, 0.3, 1.0);
-        illuminateDucts(this.light);
         this.light.position.set(0, 3.6, 0);
         this.light.castShadow = true;
         this.light.shadow.mapSize.width = 256;

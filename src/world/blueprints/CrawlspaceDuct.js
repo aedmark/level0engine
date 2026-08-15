@@ -214,11 +214,11 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                      * already form a closed tunnel -- but they are the only surface in this
                      * blueprint that is duct interior and nothing else. Every structural block
                      * here is dual-faced: its inward face lines the duct, its outward face is
-                     * corridor wall. Render layers work per object, not per face, so darkening a
-                     * block would punch a dark patch into the corridor around the grate. Built
-                     * from ductWallMat, these thin inserts carry DUCT_LAYER on their own and let
-                     * the structural blocks stay lit normally from the corridor side. They also
-                     * restore the anti-snag padding on the interior corners. */
+                     * corridor wall. A material applies to a whole mesh, not a face, so darkening
+                     * a block would punch a dark patch into the corridor around the grate. Built
+                     * from ductWallMat, these thin inserts carry the ambient occlusion on their
+                     * own and let the structural blocks stay lit normally from the corridor side.
+                     * They also restore the anti-snag padding on the interior corners. */
                     const hubFloorLining = buildWall(holeW, holeW, env.ductWallMat, liningT, 0);
                     hubFloorLining.position.set(cx, ductY + liningT / 2, cz);
                     addGeometry(hubFloorLining);

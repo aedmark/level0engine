@@ -4,6 +4,8 @@
  * [STATE] Singleton-like utility. Modifies the passed environment object with shared resources.
  * [DEPENDS] Depends on THREE.js and the provided environment state for texture injection.
  */
+import {makeDuctInterior} from '../core/DuctLighting.js';
+
 export default class MaterialLibrary {
     static injectMaterials(env) {
         if (env.sharedWallGeo) return;
@@ -16,14 +18,11 @@ export default class MaterialLibrary {
             bumpMap: env.wallBumpTexture || env.wallTexture,
             bumpScale: 0.012
         });
-        /** [WHY] Visually identical to sharedWallMat, but a distinct instance so the duct-interior
-         * flag can ride on it. ChunkManager._compileInstances batches by geometry+material, so a
-         * separate material instance guarantees duct surfaces land in their own InstancedMesh and
-         * the DUCT_LAYER can be applied to the whole batch. The name ends in "WallMat" so
+        /** [WHY] Same look as sharedWallMat, but a distinct instance so the ambient-occlusion
+         * treatment can ride on it without darkening every wall in the maze. Ends in "WallMat" so
          * Environment._isArchitectural picks it up and skips the per-instance colour jitter,
-         * matching how sharedWallMat is treated. */
-        env.ductWallMat = env.sharedWallMat.clone();
-        env.ductWallMat.userData = {ductInterior: true};
+         * matching how sharedWallMat is treated. See core/DuctLighting.js. */
+        env.ductWallMat = makeDuctInterior(env.sharedWallMat.clone());
         if (env.sharedAssets) env.sharedAssets.add(env.ductWallMat.uuid);
         env.sharedPanelGeo = new THREE.BoxGeometry(0.98, 0.05, 1.98);
         env.pipeGeo = new THREE.CylinderGeometry(0.08, 0.08, env.cellSize, 8);

@@ -4,7 +4,6 @@
  * [STATE] Stateful singleton-like. Owns Scene, Camera, and WebGLRenderer.
  * [DEPENDS] Expects #canvas-container in the DOM. Reads from window.localStorage for graphics settings.
  */
-import {DUCT_LAYER} from './LightLayers.js';
 
 export default class RenderEngine {
     constructor() {
@@ -52,19 +51,8 @@ export default class RenderEngine {
             this.renderer.outputEncoding = THREE.sRGBEncoding;
         }
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
-        /** [WHY] The main ambient deliberately stays on channel 0 only. Duct interiors sit on
-         * DUCT_LAYER and are therefore invisible to it -- that exclusion is the whole mechanism
-         * behind dark crawlspaces, and it costs nothing per frame. */
         this.ambientLight = new THREE.HemisphereLight(0xfff5c2, 0x3d3520, 0.45);
         this.scene.add(this.ambientLight);
-        /** [WHY] A duct lit by literally nothing reads as a rendering fault rather than a dark
-         * space -- the player sees a flat black polygon with no silhouette. This near-zero
-         * companion light gives the interior just enough shape to parse as geometry while still
-         * forcing the flashlight. AtmosphereManager drives its intensity. */
-        this.ductAmbientLight = new THREE.HemisphereLight(0xfff5c2, 0x3d3520, 0.0);
-        this.ductAmbientLight.layers.set(DUCT_LAYER);
-        this.scene.add(this.ductAmbientLight);
-        this.camera.layers.enable(DUCT_LAYER);
         const aaSamples = RenderEngine.getSavedAA();
         this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
             minFilter: THREE.LinearFilter,

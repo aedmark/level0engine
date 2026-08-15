@@ -5,7 +5,6 @@
  * [DEPENDS] three.js (implicit), environment data, Math utils.
  */
 import Vec3 from '../math/Vec3.js';
-import {illuminateDucts} from '../core/LightLayers.js';
 
 export default class ArchivistEntity {
     constructor(scene, camera, player, environment) {
@@ -68,7 +67,6 @@ export default class ArchivistEntity {
             this.group.add(mote);
         }
         this.light = new THREE.PointLight(0xc9a6ff, 1.1, 6.0);
-        illuminateDucts(this.light);
         this.light.position.y = 1.2;
         this.group.add(this.light);
         this.scene.add(this.group);
