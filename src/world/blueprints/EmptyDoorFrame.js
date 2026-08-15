@@ -37,7 +37,7 @@ export const EmptyDoorFrameProfile = (env, ctx) => {
             const startZ = Math.floor(z / env.chunkSize) * env.chunkSize;
             const inChunk = (cx, cz) => cx >= startX && cx < startX + env.chunkSize && cz >= startZ && cz < startZ + env.chunkSize;
 
-            const blockers = ["empty_door_frame", "CREVICE_HALL", "HINGED DOORWAY", "DUCT OR VENT", "CRAWLSPACE_DUCT", "HATCH", "CRATES OR STAIRWAY"];
+            const blockers = ["empty_door_frame", "CREVICE_HALL", "HINGED DOORWAY", "DUCT OR VENT", "CRAWLSPACE_DUCT", "HATCH", "CRATES OR STAIRWAY", "THE OASIS"];
             let dLeft = 0;
             while (dLeft < 5) {
                 const chkX = isRotated ? x : x - (dLeft + 1);

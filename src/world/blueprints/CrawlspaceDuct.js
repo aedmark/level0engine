@@ -6,7 +6,7 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
     return {
         name: "CRAWLSPACE_DUCT",
         prob: 0.28, build: (x, z) => {
-            let isFloorLevel = random() > 0.75;
+            let isFloorLevel = random() > 0.50;
             const addGeometry = ctx.addGeometry;
 
             const startX = Math.floor(x / env.chunkSize) * env.chunkSize;
@@ -210,28 +210,36 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                     hubRoofStruct.position.set(cx, ductY + holeH + topH / 2, cz);
                     addGeometry(hubRoofStruct);
 
-                    const hubFloorLining = buildWall(holeW, holeW, env.sharedWallMat, liningT, 0);
+                    /** [WHY] These linings are geometrically redundant -- the structural blocks
+                     * already form a closed tunnel -- but they are the only surface in this
+                     * blueprint that is duct interior and nothing else. Every structural block
+                     * here is dual-faced: its inward face lines the duct, its outward face is
+                     * corridor wall. Render layers work per object, not per face, so darkening a
+                     * block would punch a dark patch into the corridor around the grate. Built
+                     * from ductWallMat, these thin inserts carry DUCT_LAYER on their own and let
+                     * the structural blocks stay lit normally from the corridor side. They also
+                     * restore the anti-snag padding on the interior corners. */
+                    const hubFloorLining = buildWall(holeW, holeW, env.ductWallMat, liningT, 0);
                     hubFloorLining.position.set(cx, ductY + liningT / 2, cz);
                     addGeometry(hubFloorLining);
 
-                    const hubRoofLining = buildWall(holeW, holeW, env.sharedWallMat, liningT, 0);
+                    const hubRoofLining = buildWall(holeW, holeW, env.ductWallMat, liningT, 0);
                     hubRoofLining.position.set(cx, ductY + holeH - liningT / 2, cz);
                     addGeometry(hubRoofLining);
 
-                    // Add corner linings to prevent snagging
-                    const cLining1 = buildWall(liningT, liningT, env.sharedWallMat, holeH, 0);
+                    const cLining1 = buildWall(liningT, liningT, env.ductWallMat, holeH, 0);
                     cLining1.position.set(cx - holeW / 2 + liningT / 2, ductY + holeH / 2, cz - holeW / 2 + liningT / 2);
                     addGeometry(cLining1);
 
-                    const cLining2 = buildWall(liningT, liningT, env.sharedWallMat, holeH, 0);
+                    const cLining2 = buildWall(liningT, liningT, env.ductWallMat, holeH, 0);
                     cLining2.position.set(cx + holeW / 2 - liningT / 2, ductY + holeH / 2, cz - holeW / 2 + liningT / 2);
                     addGeometry(cLining2);
 
-                    const cLining3 = buildWall(liningT, liningT, env.sharedWallMat, holeH, 0);
+                    const cLining3 = buildWall(liningT, liningT, env.ductWallMat, holeH, 0);
                     cLining3.position.set(cx - holeW / 2 + liningT / 2, ductY + holeH / 2, cz + holeW / 2 - liningT / 2);
                     addGeometry(cLining3);
 
-                    const cLining4 = buildWall(liningT, liningT, env.sharedWallMat, holeH, 0);
+                    const cLining4 = buildWall(liningT, liningT, env.ductWallMat, holeH, 0);
                     cLining4.position.set(cx + holeW / 2 - liningT / 2, ductY + holeH / 2, cz + holeW / 2 - liningT / 2);
                     addGeometry(cLining4);
 
@@ -254,16 +262,16 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                             bRoof.position.set(branch.x, ductY + holeH + topH / 2, branch.z);
                             addGeometry(bRoof);
 
-                            const adjW = 1.08; 
+                            const adjW = 1.08;
                             const adjH = holeH - 0.04;
                             const adjT = 0.04;
 
                             const lDepth = branch.d - 0.02;
                             const lWidth = branch.w - 0.02;
-                            const lFloor = buildWall(branch.isZ ? lWidth : adjW, branch.isZ ? adjW : lDepth, env.sharedWallMat, adjT, 0);
-                            const lRoof = buildWall(branch.isZ ? lWidth : adjW, branch.isZ ? adjW : lDepth, env.sharedWallMat, adjT, 0);
-                            const lSide1 = buildWall(branch.isZ ? lWidth : adjT, branch.isZ ? adjT : lDepth, env.sharedWallMat, adjH, 0);
-                            const lSide2 = buildWall(branch.isZ ? lWidth : adjT, branch.isZ ? adjT : lDepth, env.sharedWallMat, adjH, 0);
+                            const lFloor = buildWall(branch.isZ ? lWidth : adjW, branch.isZ ? adjW : lDepth, env.ductWallMat, adjT, 0);
+                            const lRoof = buildWall(branch.isZ ? lWidth : adjW, branch.isZ ? adjW : lDepth, env.ductWallMat, adjT, 0);
+                            const lSide1 = buildWall(branch.isZ ? lWidth : adjT, branch.isZ ? adjT : lDepth, env.ductWallMat, adjH, 0);
+                            const lSide2 = buildWall(branch.isZ ? lWidth : adjT, branch.isZ ? adjT : lDepth, env.ductWallMat, adjH, 0);
 
                             if (!branch.isZ) {
                                 lFloor.position.set(branch.x, ductY + 0.03, branch.z);
@@ -285,13 +293,15 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                             block.position.set(branch.x, 1.5, branch.z);
                             addWall(block);
 
-                            const capLining = buildWall(branch.isZ ? liningT : holeW, branch.isZ ? holeW : liningT, env.sharedWallMat, holeH, 0);
-
-                            if (branch.dir === 'N') capLining.position.set(cx, ductY + holeH / 2, cz - holeW / 2 + liningT / 2);
-                            else if (branch.dir === 'S') capLining.position.set(cx, ductY + holeH / 2, cz + holeW / 2 - liningT / 2);
-                            else if (branch.dir === 'E') capLining.position.set(cx + holeW / 2 - liningT / 2, ductY + holeH / 2, cz);
-                            else if (branch.dir === 'W') capLining.position.set(cx - holeW / 2 + liningT / 2, ductY + holeH / 2, cz);
-
+                            /** The dead-end plug is dual-faced like every other block here, so the
+                             * duct-facing side gets its own insert rather than darkening the plug. */
+                            const capLining = buildWall(branch.isZ ? liningT : holeW, branch.isZ ? holeW : liningT, env.ductWallMat, holeH, 0);
+                            capLining.position.set(
+                                branch.x - (branch.isZ ? Math.sign(branch.x - cx) * (branch.w / 2 - liningT / 2) : 0),
+                                ductY + holeH / 2,
+                                branch.z - (branch.isZ ? 0 : Math.sign(branch.z - cz) * (branch.d / 2 - liningT / 2))
+                            );
+                            capLining.userData.noCollision = true;
                             addGeometry(capLining);
                         }
                     }

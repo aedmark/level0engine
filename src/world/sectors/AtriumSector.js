@@ -1,6 +1,7 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
+import {illuminateDucts} from '../../core/LightLayers.js';
 
 /**
  * [ROLE] Defines the generation logic for the "Atrium" sector.
@@ -277,6 +278,7 @@ export const AtriumSector = (env, ctx) => {
         });
         
         const vendingGlow = new THREE.PointLight(0xccffff, VENDING_INTENSITY, VENDING_REACH);
+        illuminateDucts(vendingGlow);
         vendingGlow.position.set(0, 0.48, 0.72);
         body.add(vendingGlow);
     };

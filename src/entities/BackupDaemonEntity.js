@@ -6,6 +6,7 @@
  */
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
+import {illuminateDucts} from '../core/LightLayers.js';
 
 export default class BackupDaemonEntity {
     constructor(scene, camera, player, environment) {
@@ -45,6 +46,7 @@ export default class BackupDaemonEntity {
             this.group.add(spark);
         }
         this.light = new THREE.PointLight(0x8ff2ff, 0.7, 4.5, 2.0);
+        illuminateDucts(this.light);
         this.group.add(this.light);
         this.scene.add(this.group);
     }
@@ -59,6 +61,7 @@ export default class BackupDaemonEntity {
         if (!this._sparkMat) this._sparkMat = new THREE.MeshBasicMaterial({color: 0xffd83c});
         const group = new THREE.Group();
         const light = new THREE.PointLight(0x9ff6ff, 0, 3.2, 2.0);
+        illuminateDucts(light);
         group.add(light);
         const shards = [];
         for (let i = 0; i < 6; i++) {

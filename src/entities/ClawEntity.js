@@ -6,6 +6,7 @@
  */
 import Vec3 from '../math/Vec3.js';
 import {isRayPathBlocked} from './HazardUtils.js';
+import {illuminateDucts} from '../core/LightLayers.js';
 
 export default class ClawEntity {
     constructor(scene, camera, player, environment) {
@@ -65,6 +66,7 @@ export default class ClawEntity {
         }
 
         this.warningLight = new THREE.SpotLight(0xff0000, 0, 15.0, Math.PI / 4, 0.5, 1);
+        illuminateDucts(this.warningLight);
         this.warningLight.position.set(0, -0.2, 0);
         this.warningLightTarget = new THREE.Object3D();
         this.warningLightTarget.position.set(0, -10, 0);
@@ -73,6 +75,7 @@ export default class ClawEntity {
         this.group.add(this.warningLight);
 
         this.clawLight = new THREE.PointLight(0xffaaaa, 0, 8.0);
+        illuminateDucts(this.clawLight);
         this.group.add(this.clawLight);
         
         if (this.camera) {

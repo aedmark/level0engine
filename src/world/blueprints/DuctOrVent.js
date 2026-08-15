@@ -6,8 +6,17 @@ export const DuctOrVentProfile = (env, ctx) => {
     return {
         name: "DUCT OR VENT",
         prob: 0.20, build: (x, z) => {
-            let isFloorLevel = random() > 0.75;
+            let isFloorLevel = random() > 0.50;
             const addGeometry = ctx.addGeometry;
+            if (!env.ductLiningMat) {
+                env.ductLiningMat = env.ductMat.clone();
+                /** [WHY] ductInterior puts every surface built from this material on DUCT_LAYER,
+                 * out of reach of the scene-wide ambient. The lining is the only thing the player
+                 * sees from inside the duct, so flagging it here darkens the interior without
+                 * touching the structural blocks whose outward faces are corridor wall. */
+                env.ductLiningMat.userData = { noShadow: true, ductInterior: true };
+                env.sharedAssets.add(env.ductLiningMat.uuid);
+            }
 
             const startX = Math.floor(x / env.chunkSize) * env.chunkSize;
             const startZ = Math.floor(z / env.chunkSize) * env.chunkSize;
@@ -210,28 +219,28 @@ export const DuctOrVentProfile = (env, ctx) => {
                     hubRoofStruct.position.set(cx, ductY + holeH + topH / 2, cz);
                     addGeometry(hubRoofStruct);
 
-                    const hubFloorLining = buildWall(holeW, holeW, env.ductMat, liningT, 0);
+                    const hubFloorLining = buildWall(holeW, holeW, env.ductLiningMat, liningT, 0);
                     hubFloorLining.position.set(cx, ductY + liningT / 2, cz);
                     addGeometry(hubFloorLining);
 
-                    const hubRoofLining = buildWall(holeW, holeW, env.ductMat, liningT, 0);
+                    const hubRoofLining = buildWall(holeW, holeW, env.ductLiningMat, liningT, 0);
                     hubRoofLining.position.set(cx, ductY + holeH - liningT / 2, cz);
                     addGeometry(hubRoofLining);
 
                     // Add corner linings to prevent snagging
-                    const cLining1 = buildWall(liningT, liningT, env.ductMat, holeH, 0);
+                    const cLining1 = buildWall(liningT, liningT, env.ductLiningMat, holeH, 0);
                     cLining1.position.set(cx - holeW / 2 + liningT / 2, ductY + holeH / 2, cz - holeW / 2 + liningT / 2);
                     addGeometry(cLining1);
 
-                    const cLining2 = buildWall(liningT, liningT, env.ductMat, holeH, 0);
+                    const cLining2 = buildWall(liningT, liningT, env.ductLiningMat, holeH, 0);
                     cLining2.position.set(cx + holeW / 2 - liningT / 2, ductY + holeH / 2, cz - holeW / 2 + liningT / 2);
                     addGeometry(cLining2);
 
-                    const cLining3 = buildWall(liningT, liningT, env.ductMat, holeH, 0);
+                    const cLining3 = buildWall(liningT, liningT, env.ductLiningMat, holeH, 0);
                     cLining3.position.set(cx - holeW / 2 + liningT / 2, ductY + holeH / 2, cz + holeW / 2 - liningT / 2);
                     addGeometry(cLining3);
 
-                    const cLining4 = buildWall(liningT, liningT, env.ductMat, holeH, 0);
+                    const cLining4 = buildWall(liningT, liningT, env.ductLiningMat, holeH, 0);
                     cLining4.position.set(cx + holeW / 2 - liningT / 2, ductY + holeH / 2, cz + holeW / 2 - liningT / 2);
                     addGeometry(cLining4);
 
@@ -260,10 +269,10 @@ export const DuctOrVentProfile = (env, ctx) => {
 
                             const lDepth = branch.d - 0.02;
                             const lWidth = branch.w - 0.02;
-                            const lFloor = buildWall(branch.isZ ? lWidth : adjW, branch.isZ ? adjW : lDepth, env.ductMat, adjT, 0);
-                            const lRoof = buildWall(branch.isZ ? lWidth : adjW, branch.isZ ? adjW : lDepth, env.ductMat, adjT, 0);
-                            const lSide1 = buildWall(branch.isZ ? lWidth : adjT, branch.isZ ? adjT : lDepth, env.ductMat, adjH, 0);
-                            const lSide2 = buildWall(branch.isZ ? lWidth : adjT, branch.isZ ? adjT : lDepth, env.ductMat, adjH, 0);
+                            const lFloor = buildWall(branch.isZ ? lWidth : adjW, branch.isZ ? adjW : lDepth, env.ductLiningMat, adjT, 0);
+                            const lRoof = buildWall(branch.isZ ? lWidth : adjW, branch.isZ ? adjW : lDepth, env.ductLiningMat, adjT, 0);
+                            const lSide1 = buildWall(branch.isZ ? lWidth : adjT, branch.isZ ? adjT : lDepth, env.ductLiningMat, adjH, 0);
+                            const lSide2 = buildWall(branch.isZ ? lWidth : adjT, branch.isZ ? adjT : lDepth, env.ductLiningMat, adjH, 0);
 
                             if (!branch.isZ) {
                                 lFloor.position.set(branch.x, ductY + 0.03, branch.z);
@@ -285,7 +294,7 @@ export const DuctOrVentProfile = (env, ctx) => {
                             block.position.set(branch.x, 1.5, branch.z);
                             addWall(block);
 
-                            const capLining = buildWall(branch.isZ ? liningT : holeW, branch.isZ ? holeW : liningT, env.ductMat, holeH, 0);
+                            const capLining = buildWall(branch.isZ ? liningT : holeW, branch.isZ ? holeW : liningT, env.ductLiningMat, holeH, 0);
 
                             if (branch.dir === 'N') capLining.position.set(cx, ductY + holeH / 2, cz - holeW / 2 + liningT / 2);
                             else if (branch.dir === 'S') capLining.position.set(cx, ductY + holeH / 2, cz + holeW / 2 - liningT / 2);

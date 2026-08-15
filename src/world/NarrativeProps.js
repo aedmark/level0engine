@@ -4,6 +4,7 @@
  * [STATE] Stateless utility. Modifies `env._paperBudget` to cap items per chunk and registers interactables.
  * [DEPENDS] Requires `THREE` globally, `env` geometry/material definitions, and chunk generation context `ctx`.
  */
+import {illuminateDucts} from '../core/LightLayers.js';
 const LORE_CHANCE = 0.019;
 const MAX_LORE_PER_CHUNK = 4;
 
@@ -31,6 +32,7 @@ function buildRecorder(env, x, z, rotation, y) {
     recLight.position.set(0.06, 0.04, -0.04);
     group.add(recLight);
     const pointLight = new THREE.PointLight(0xff0000, 1.0, 1.5, 2.0);
+    illuminateDucts(pointLight);
     pointLight.position.set(0.06, 0.05, -0.04);
     group.add(pointLight);
     group.position.set(x, (y !== undefined ? y : 0.02), z);
@@ -59,6 +61,7 @@ function buildLaptop(env, x, z, rotation, y) {
     lap.add(lapScreen);
     
     const laptopLight = new THREE.PointLight(0xa8ffd0, 0.8, 2.5, 2.0);
+    illuminateDucts(laptopLight);
     laptopLight.position.set(0, 0.2, 0.1);
     lap.add(laptopLight);
 
@@ -83,6 +86,7 @@ function buildClipboard(env, x, z, rotation, y) {
     group.add(clip);
     
     const clipLight = new THREE.PointLight(0xffffff, 1.2, 3.0, 2.0);
+    illuminateDucts(clipLight);
     clipLight.position.set(0, 0.15, 0);
     group.add(clipLight);
     
@@ -103,6 +107,7 @@ export function placeEphemera(env, ctx, sectorId, cx0, cz0, y) {
     note.rotation.y = random() * Math.PI;
     
     const noteLight = new THREE.PointLight(0xffffff, 1.2, 3.0, 2.0);
+    illuminateDucts(noteLight);
     noteLight.position.set(0, 0.15, 0);
     note.add(noteLight);
 
@@ -155,6 +160,7 @@ export function placeSectorPaper(env, ctx, sectorId, cx0, cz0, y, spread, chance
                 mesh.rotation.y = rot;
                 prefix = 'NOTE_';
                 const nLight = new THREE.PointLight(0xffffff, 1.2, 3.0, 2.0);
+                illuminateDucts(nLight);
                 nLight.position.set(0, 0.15, 0);
                 mesh.add(nLight);
                 break;
@@ -165,6 +171,7 @@ export function placeSectorPaper(env, ctx, sectorId, cx0, cz0, y, spread, chance
                 mesh.rotation.y = rot;
                 prefix = 'LOG_';
                 const docLight = new THREE.PointLight(0xffffff, 1.2, 3.0, 2.0);
+                illuminateDucts(docLight);
                 docLight.position.set(0, 0.15, 0);
                 mesh.add(docLight);
                 break;

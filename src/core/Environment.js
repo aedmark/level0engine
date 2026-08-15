@@ -14,6 +14,7 @@ import {setPodiumScan, setPodiumSpent, SCAN_DURATION} from '../world/BreakerPodi
 import RenderEngine from './RenderEngine.js';
 import ShaderWarmup from './ShaderWarmup.js';
 import BootController from '../ui/BootController.js';
+import {illuminateDucts, raycastDucts} from './LightLayers.js';
 
 /**
  * [ROLE] Central manager for procedural world generation, chunk management, and entity orchestration.
@@ -196,6 +197,7 @@ export default class Environment {
         this.flashlight.shadow.camera.far = 45;
         this.flashlight.shadow.bias = -0.002;
         this.flashlight.shadow.normalBias = 0.02;
+        illuminateDucts(this.flashlight);
         this.camera.add(this.flashlight);
         this.camera.add(this.flashlight.target);
         this.baseFogDensity = 0.05;
@@ -297,6 +299,9 @@ export default class Environment {
         document.getElementById('captureBtn').addEventListener('click', capture);
         document.addEventListener('capture-screenshot', capture);
         this.tagRaycaster = new THREE.Raycaster();
+        /** [WHY] env.walls now contains duct batches on DUCT_LAYER. A default raycaster only tests
+         * channel 0, so without this the player could not spray a tag on a duct wall. */
+        raycastDucts(this.tagRaycaster);
         document.addEventListener('somatic-teleport-zone', () => {
             if (this.macroZones.size > 0) {
                 const zones = Array.from(this.macroZones.values());

@@ -13,6 +13,7 @@ import {CrawlspaceHallProfile} from './blueprints/CrawlspaceHall.js';
 import {CreviceHallProfile} from './blueprints/CreviceHall.js';
 import {RideQueueHallProfile} from './blueprints/RideQueueHall.js';
 import BootController from '../ui/BootController.js';
+import {isDuctMaterial, markDuctInterior} from '../core/LightLayers.js';
 
 const CELL_KEY_SPAN = 4194304;
 const cellKey = (x, z) => x * (CELL_KEY_SPAN * 2) + z;
@@ -573,9 +574,19 @@ export default class ChunkManager {
                     ctx.setWall = (wx, wz, val) => {
                         mathData.isWallGrid.set(cellKey(wx, wz), val);
                         if (!val) {
+                            const clearX = wx * env.cellSize;
+                            const clearZ = wz * env.cellSize;
+                            const halfCell = env.cellSize * 0.5;
                             for (let i = stagingMeshes.length - 1; i >= 0; i--) {
                                 const m = stagingMeshes[i];
                                 if (m.userData.isDefaultWall && m.userData.cellX === wx && m.userData.cellZ === wz) {
+                                    stagingMeshes.splice(i, 1);
+                                } else if (m.userData.noCollision || m.userData.isMiniDoor) {
+                                    continue;
+                                } else if (
+                                    Math.abs(m.position.x - clearX) < halfCell &&
+                                    Math.abs(m.position.z - clearZ) < halfCell
+                                ) {
                                     stagingMeshes.splice(i, 1);
                                 }
                             }
@@ -778,7 +789,7 @@ export default class ChunkManager {
                         ? this._planDoorwayRun(ctx, random, t.cx, t.cz, t.heading, inChunk, cellKey, reserved, approaches, RUN_MIN, RUN_MAX)
                         : null;
                     if (!nextPlan) {
-                        const exits = ["CRAWLSPACE_HALL", "empty_door_frame", "DUCT OR VENT", "CREVICE_HALL", "CRAWLSPACE_DUCT"];
+                        const exits = ["CRAWLSPACE_HALL", "CRAWLSPACE_HALL", "CRAWLSPACE_HALL", "empty_door_frame", "DUCT OR VENT", "DUCT OR VENT", "DUCT OR VENT", "CREVICE_HALL", "CRAWLSPACE_DUCT", "CRAWLSPACE_DUCT", "CRAWLSPACE_DUCT"];
                         t.name = exits[Math.floor(random() * exits.length)];
                         ctx.setWall(t.cx, t.cz, t.name === "DUCT OR VENT" || t.name === "CRAWLSPACE_DUCT");
                         ctx.forceStructure(t.cx, t.cz, t.name);
@@ -909,7 +920,7 @@ export default class ChunkManager {
             if (endRoll > 0.60) {
                 terminus = {cx: beyond.cx, cz: beyond.cz, name: "HINGED DOORWAY", heading};
             } else if (endRoll > 0.05) {
-                const exits = ["CRAWLSPACE_HALL", "empty_door_frame", "DUCT OR VENT", "CREVICE_HALL", "CRAWLSPACE_DUCT"];
+                const exits = ["CRAWLSPACE_HALL", "CRAWLSPACE_HALL", "CRAWLSPACE_HALL", "empty_door_frame", "DUCT OR VENT", "DUCT OR VENT", "DUCT OR VENT", "CREVICE_HALL", "CRAWLSPACE_DUCT", "CRAWLSPACE_DUCT", "CRAWLSPACE_DUCT"];
                 terminus = {cx: beyond.cx, cz: beyond.cz, name: exits[Math.floor(random() * exits.length)], heading};
             }
         }
@@ -969,7 +980,7 @@ export default class ChunkManager {
         }
 
         let forcedName = ctx.getForcedStructure && ctx.getForcedStructure(x, z);
-        if (forcedName && ["empty_door_frame", "CREVICE_HALL", "CRAWLSPACE_HALL", "CRAWLSPACE_DUCT"].includes(forcedName)) {
+        if (forcedName && ["empty_door_frame"].includes(forcedName)) {
             const hasAdjacentVent = ctx.getForcedStructure && (
                 ctx.getForcedStructure(x + 1, z) === "DUCT OR VENT" ||
                 ctx.getForcedStructure(x - 1, z) === "DUCT OR VENT" ||
@@ -1169,6 +1180,9 @@ export default class ChunkManager {
             }
             const group = groups[i];
             const isDecal = !Array.isArray(group.material) && (group.material === env.glowMat);
+            /** [WHY] Grouping above is keyed on geometry+material, so every mesh in this batch
+             * shares one material and the duct test resolves once for the whole batch. */
+            const isDuct = isDuctMaterial(group.material);
             if (group.meshes.length > 1 && !Array.isArray(group.material)) {
                 const iMesh = new THREE.InstancedMesh(group.geometry, group.material, group.meshes.length);
                 if (!isDecal) {
@@ -1189,6 +1203,7 @@ export default class ChunkManager {
                 });
                 iMesh.instanceMatrix.needsUpdate = true;
                 if (needsColor && iMesh.instanceColor) iMesh.instanceColor.needsUpdate = true;
+                if (isDuct) markDuctInterior(iMesh);
                 tempGroup.add(iMesh);
                 if (!isDecal) env.walls.push(iMesh);
             } else {
@@ -1200,6 +1215,7 @@ export default class ChunkManager {
                         mesh.receiveShadow = true;
                         env.walls.push(mesh);
                     }
+                    if (isDuct) markDuctInterior(mesh);
                     tempGroup.add(mesh);
                 }
             }

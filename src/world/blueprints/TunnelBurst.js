@@ -12,6 +12,13 @@ export const TunnelBurstProfile = (env, ctx) => {
     return {
         name: "TUNNEL BURST",
         prob: 0.10, build: (x, z) => {
+            if (!env.ductLiningMat) {
+                env.ductLiningMat = env.ductMat.clone();
+                /** [WHY] See DuctOrVent -- ductInterior moves lining surfaces onto DUCT_LAYER so
+                 * the global ambient cannot reach inside the tunnel. */
+                env.ductLiningMat.userData = { noShadow: true, ductInterior: true };
+                env.sharedAssets.add(env.ductLiningMat.uuid);
+            }
             const typeRoll = random();
             const isClearExit = (cx, cz) => ctx.isWall && !ctx.isWall(cx, cz) && !(ctx.isAirlockApron && ctx.isAirlockApron(cx, cz));
             const nC = isClearExit(x, z - 1);
@@ -67,19 +74,19 @@ export const TunnelBurstProfile = (env, ctx) => {
                     const floorTopAdjT = 0.04;
                     const len = env.cellSize - 0.02;
 
-                    const liningFloor = buildWall(dirZ ? adjW : len, dirZ ? len : adjW, env.ductMat, floorTopAdjT);
+                    const liningFloor = buildWall(dirZ ? adjW : len, dirZ ? len : adjW, env.ductLiningMat, floorTopAdjT);
                     liningFloor.position.set(segX * env.cellSize, 0.03, segZ * env.cellSize);
                     addGeometry(liningFloor);
 
-                    const liningCeil = buildWall(dirZ ? adjW : len, dirZ ? len : adjW, env.ductMat, floorTopAdjT);
+                    const liningCeil = buildWall(dirZ ? adjW : len, dirZ ? len : adjW, env.ductLiningMat, floorTopAdjT);
                     liningCeil.position.set(segX * env.cellSize, tunnelH - 0.03, segZ * env.cellSize);
                     addGeometry(liningCeil);
 
-                    const liningLeft = buildWall(dirZ ? adjT : len, dirZ ? len : adjT, env.ductMat, adjH);
+                    const liningLeft = buildWall(dirZ ? adjT : len, dirZ ? len : adjT, env.ductLiningMat, adjH);
                     liningLeft.position.set(segX * env.cellSize + (dirZ ? -0.57 : 0), 0.345, segZ * env.cellSize + (dirZ ? 0 : -0.57));
                     addGeometry(liningLeft);
 
-                    const liningRight = buildWall(dirZ ? adjT : len, dirZ ? len : adjT, env.ductMat, adjH);
+                    const liningRight = buildWall(dirZ ? adjT : len, dirZ ? len : adjT, env.ductLiningMat, adjH);
                     liningRight.position.set(segX * env.cellSize + (dirZ ? 0.57 : 0), 0.345, segZ * env.cellSize + (dirZ ? 0 : 0.57));
                     addGeometry(liningRight);
                     const blockBox = new AABB(

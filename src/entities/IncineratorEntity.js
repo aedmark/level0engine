@@ -7,6 +7,7 @@
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 import {isRayPathBlocked, computeAxisBlocking} from './HazardUtils.js';
+import {illuminateDucts} from '../core/LightLayers.js';
 
 export default class IncineratorEntity {
     constructor(scene, camera, player, environment) {
@@ -100,6 +101,7 @@ export default class IncineratorEntity {
         this.lureBulb.position.set(0, 0.55, -0.15);
         this.lureGroup.add(this.lureBulb);
         this.lureLight = new THREE.PointLight(0xfff2a0, 0.5, 4.0, 2.0);
+        illuminateDucts(this.lureLight);
         this.lureLight.position.copy(this.lureBulb.position);
         this.lureGroup.add(this.lureLight);
         this.bodyGroup.add(this.lureGroup);
@@ -133,6 +135,7 @@ export default class IncineratorEntity {
         this.core.position.y = 0.5;
         this.bodyGroup.add(this.core);
         this.light = new THREE.PointLight(0xff4400, 1.1, 40.0, 1.5);
+        illuminateDucts(this.light);
         this.light.position.set(0, 0.5, 0);
         this.bodyGroup.add(this.light);
         this._buildEmberSlot();
@@ -152,6 +155,7 @@ export default class IncineratorEntity {
         this._emberAnchorY = 0.7;
         group.position.set(0, this._emberAnchorY, 0);
         const light = new THREE.PointLight(0xff8822, 0, 3.0, 2.0);
+        illuminateDucts(light);
         group.add(light);
         const shards = [];
         for (let i = 0; i < 7; i++) {

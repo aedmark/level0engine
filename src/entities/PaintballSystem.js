@@ -1,3 +1,4 @@
+import {raycastDucts} from '../core/LightLayers.js';
 
 export default class PaintballSystem {
     constructor(engine, environment) {
@@ -13,7 +14,10 @@ export default class PaintballSystem {
         this.engine.scene.add(this.splatterGroup);
 
         this.raycaster = new THREE.Raycaster();
-        
+        /** [WHY] Duct geometry sits on DUCT_LAYER, which a default raycaster skips -- paintballs
+         * would pass straight through duct walls without this. */
+        raycastDucts(this.raycaster);
+
         // Basic sphere geometry for paintball
         this.ballGeo = new THREE.SphereGeometry(0.04, 8, 8);
         

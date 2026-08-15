@@ -4,6 +4,8 @@
  * [STATE] Stateful. Manages internal pools of THREE.Light instances and tracks active fixtures.
  * [DEPENDS] Implicit dependency on THREE.js scene, time, camera position, and fixture data.
  */
+import {illuminateDucts} from '../core/LightLayers.js';
+
 export default class LumenGrid {
     constructor(env, shadowQuality = 'high') {
         this.env = env;
@@ -41,6 +43,11 @@ export default class LumenGrid {
                 setupShadow(pointLight, pointShadowSize);
                 setupShadow(spotLight, spotShadowSize);
             }
+            /** [WHY] Pooled fixtures must reach duct interiors, otherwise light from a ceiling
+             * fixture would stop dead at an open grate instead of spilling a metre inside -- which
+             * is the cue that tells the player the duct is a space and not a painted-on hole. */
+            illuminateDucts(pointLight);
+            illuminateDucts(spotLight);
             this.scene.add(pointLight);
             this.scene.add(spotLight);
             this.scene.add(spotLight.target);

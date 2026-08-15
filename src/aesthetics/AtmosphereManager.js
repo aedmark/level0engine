@@ -6,6 +6,10 @@
  */
 import SECTORS, {DEFAULT_DUST, DEFAULT_EXHAUST, DEFAULT_AMBIENT, MIN_AMBIENT} from '../world/Sectors.js';
 
+/** Fraction of the surrounding sector's ambient that a sealed duct interior receives. Tuning
+ *  knob for how much the flashlight has to do: 0 is pure black, higher gives away more. */
+const DUCT_AMBIENT_FRACTION = 0.02;
+
 export default class AtmosphereManager {
     constructor(env) {
         this.env = env;
@@ -467,8 +471,22 @@ export default class AtmosphereManager {
             const row = SECTORS[activeSector];
             const sectorAmbient = row && row.ambient !== undefined ? row.ambient : DEFAULT_AMBIENT;
             const targetAmbient = Math.max(MIN_AMBIENT, sectorAmbient * (1.0 - darknessPressure * 0.5));
+
+            /** [WHY] There is deliberately no `isCrawling` case here any more. Zeroing this light
+             * darkened the whole scene, not the duct, and firing it on posture meant the duct
+             * looked fully lit until the player was inside it and then faded to black. Duct
+             * interiors are now excluded from this light by DUCT_LAYER, so they are already dark
+             * when the grate opens and entering changes nothing. */
             env.engine.ambientLight.intensity += (targetAmbient - env.engine.ambientLight.intensity) * 0.05;
-            
+
+            if (env.engine.ductAmbientLight) {
+                /** Tracks the sector's ambient so a duct in a blacked-out wing is darker than one
+                 * in a lit wing, but scaled far down: enough to read silhouette, not contents. */
+                const targetDuctAmbient = Math.max(MIN_AMBIENT, targetAmbient * DUCT_AMBIENT_FRACTION);
+                env.engine.ductAmbientLight.intensity +=
+                    (targetDuctAmbient - env.engine.ductAmbientLight.intensity) * 0.05;
+            }
+
             if (env.engine.ambientLight.isHemisphereLight) {
                 const targetGroundHex = row && row.groundColor !== undefined ? row.groundColor : 0x3d3520;
                 if (!env._targetGroundColor) env._targetGroundColor = new THREE.Color();
