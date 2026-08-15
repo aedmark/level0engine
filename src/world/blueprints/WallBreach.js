@@ -83,16 +83,16 @@ export const WallBreachProfile = (env, ctx) => {
                 g.add(head1);
                 
                 const frameMat = env.woodMat || env.sharedWallMat;
-                const jamb1 = buildWall(0.1, 0.24, frameMat, 2.6, 0);
-                jamb1.position.set(-headW / 2 + 0.05, 1.3, 0);
+                const jamb1 = buildWall(0.1, 0.24, frameMat, 2.67, 0);
+                jamb1.position.set(-headW / 2 + 0.05, 1.335, 0);
                 g.add(jamb1);
                 
-                const jamb2 = buildWall(0.1, 0.24, frameMat, 2.6, 0);
-                jamb2.position.set(headW / 2 - 0.05, 1.3, 0);
+                const jamb2 = buildWall(0.1, 0.24, frameMat, 2.67, 0);
+                jamb2.position.set(headW / 2 - 0.05, 1.335, 0);
                 g.add(jamb2);
                 
-                const topJamb = buildWall(headW - 0.2, 0.24, frameMat, 0.1, 2.5);
-                topJamb.position.set(0, 2.55, 0);
+                const topJamb = buildWall(headW - 0.2, 0.24, frameMat, 0.1, 2.62);
+                topJamb.position.set(0, 2.62, 0);
                 g.add(topJamb);
                 
                 addGroupToStaging(g);
