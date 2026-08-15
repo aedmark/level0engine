@@ -259,6 +259,14 @@ export default class Flashlight {
             this._prevPitch = cam.rotation.x;
             this._trailYaw = 0;
             this._trailPitch = 0;
+            
+            if (this.environment.flashlight && isRaised) {
+                const spot = this.environment.flashlight;
+                spot.position.set(0, 0, 0);
+                spot.target.position.set(0, 0, -10.0);
+                spot.target.updateMatrixWorld();
+            }
+
             return;
         }
         this.rig.visible = true;
@@ -330,6 +338,12 @@ export default class Flashlight {
             // Transform these points from the rig's local space to the camera's local space
             localHead.applyMatrix4(this.rig.matrix);
             localTarget.applyMatrix4(this.rig.matrix);
+
+            if (this._tuck > 0) {
+                // Blend towards the head (camera origin) when tucking into a crawl
+                localHead.lerp(new THREE.Vector3(0, 0, 0), this._tuck);
+                localTarget.lerp(new THREE.Vector3(0, 0, -10.0), this._tuck);
+            }
 
             // Set the spot light properties (which are attached to the camera)
             spot.position.copy(localHead);

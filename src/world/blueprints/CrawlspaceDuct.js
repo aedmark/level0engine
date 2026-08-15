@@ -294,14 +294,19 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                             addWall(block);
 
                             /** The dead-end plug is dual-faced like every other block here, so the
-                             * duct-facing side gets its own insert rather than darkening the plug. */
+                             * duct-facing side gets its own insert rather than darkening the plug.
+                             * [WHY-NO-noCollision] Tempting to flag this decorative plate as
+                             * noCollision, but ctx.setWall(x, z, false) doubles as a retroactive
+                             * sweep that deletes staged geometry inside the cleared cell, and it
+                             * explicitly skips noCollision meshes. Flagging it would exempt the
+                             * plate from a wipe that removes everything around it, leaving black
+                             * plates floating in an otherwise empty cell. */
                             const capLining = buildWall(branch.isZ ? liningT : holeW, branch.isZ ? holeW : liningT, env.ductWallMat, holeH, 0);
                             capLining.position.set(
                                 branch.x - (branch.isZ ? Math.sign(branch.x - cx) * (branch.w / 2 - liningT / 2) : 0),
                                 ductY + holeH / 2,
                                 branch.z - (branch.isZ ? 0 : Math.sign(branch.z - cz) * (branch.d / 2 - liningT / 2))
                             );
-                            capLining.userData.noCollision = true;
                             addGeometry(capLining);
                         }
                     }
