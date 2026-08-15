@@ -8,7 +8,7 @@ export const WreckedFurniturePileProfile = (env, ctx) => {
     const {random, buildTable, buildChair, addFurniture, chunkGroup, hash} = ctx;
     return {
         name: "THE WRECKED FURNITURE PILE",
-        prob: 0.0215, build: (x, z) => {
+        prob: 0.002, build: (x, z) => {
             const cx = x * env.cellSize;
             const cz = z * env.cellSize;
             const pile = new THREE.Group();

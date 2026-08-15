@@ -8,7 +8,7 @@ export const PipeClusterProfile = (env, ctx) => {
     const {random, addGeometry} = ctx;
     return {
         name: "PIPE CLUSTER",
-        prob: 0.92, build: (x, z) => {
+        prob: 0.08, build: (x, z) => {
             const colCount = Math.floor(random() * 3) + 2;
             for (let i = 0; i < colCount; i++) {
                 const support = new THREE.Mesh(env.vPipeGeo, env.pipeMat || env.rustMat);

@@ -602,17 +602,20 @@ export default class ChunkManager {
                     wallCells.add(cellKey(x, z));
                     const forcedName = ctx.getForcedStructure && ctx.getForcedStructure(x, z);
                     const structRoll = random();
-                    const structure = forcedName ? structuralMatrix.find(s => s.name === forcedName) : structuralMatrix.find(s => structRoll >= s.prob);
+                    const structure = forcedName
+                        ? structuralMatrix.find(s => s.name === forcedName)
+                        : TheArchitect.selectStructure(structuralMatrix, structRoll);
+                    /** [WHY] A blueprint may decline the cell by returning false -- The Oasis does
+                     * this once its chunk already has one. Treat that exactly like no match at all
+                     * and fall through to a plain wall, so declining never leaves a hole and never
+                     * grows a second untagged wall implementation. */
+                    let built = false;
                     if (structure && !(this._isAirlockApron(x, z) && structure.name === "CRATES OR STAIRWAY")) {
-                        structure.build(x, z);
-                    } else {
+                        built = structure.build(x, z) !== false;
+                    }
+                    if (!built) {
                         solidWallCells.add(cellKey(x, z));
-                        const wall = ctx.buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
-                        wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);
-                        wall.userData.isDefaultWall = true;
-                        wall.userData.cellX = x;
-                        wall.userData.cellZ = z;
-                        ctx.addGeometry(wall);
+                        ctx.buildDefaultWall(x, z);
                     }
                 } else {
                     this._buildEmptyCell({

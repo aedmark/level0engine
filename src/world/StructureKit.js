@@ -60,6 +60,25 @@ export default class StructureKit {
             chunkGroup,
             stagingMeshes,
             playerPos: env.camera ? env.camera.position : null,
+            /**
+             * The one way to build a featureless full-cell wall.
+             *
+             * [WHY] There used to be two: ChunkManager's fallback, which tagged the mesh with
+             * isDefaultWall/cellX/cellZ, and The Oasis's decline path, which built a bare wall with
+             * no tagging at all. Because the probability table always matched something, only the
+             * untagged one ever ran -- so ctx.setWall's fast path, which finds a cell's wall by
+             * exactly that metadata, could never hit and always fell through to the positional
+             * sweep. Routing both through here means every plain wall is addressable by cell.
+             */
+            buildDefaultWall: (x, z) => {
+                const wall = helpers.buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
+                wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);
+                wall.userData.isDefaultWall = true;
+                wall.userData.cellX = x;
+                wall.userData.cellZ = z;
+                helpers.addGeometry(wall);
+                return wall;
+            },
             claimOasis: (x, z) => {
                 if (hasOasis) {
                     if (x !== undefined && z !== undefined) {

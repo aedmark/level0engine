@@ -8,7 +8,7 @@ export const SettlingFieldProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, buildChair, addFurniture, hash, stagingMeshes} = ctx;
     return {
         name: "THE SETTLING FIELD",
-        prob: 0.028, build: (x, z) => {
+        prob: 0.001, build: (x, z) => {
             if (ctx.markOccupied) ctx.markOccupied(x, z);
             const cx = x * env.cellSize;
             const cz = z * env.cellSize;

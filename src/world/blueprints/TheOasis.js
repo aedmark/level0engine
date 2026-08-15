@@ -11,7 +11,7 @@ export const TheOasisProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, buildTable, chunkGroup, hash, stagingMeshes} = ctx;
     return {
         name: "THE OASIS",
-        prob: 0.00, build: (x, z) => {
+        prob: 0.02, build: (x, z) => {
             if (ctx.claimOasis && ctx.claimOasis(x, z)) {
                 const cx = x * env.cellSize;
                 const cz = z * env.cellSize;
@@ -101,9 +101,10 @@ export const TheOasisProfile = (env, ctx) => {
                     isFake: false
                 });
             } else {
-                const wall = buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
-                wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);
-                addGeometry(wall);
+                /** [WHY] Only one oasis exists per chunk, so every roll after the first declines.
+                 * Returning false hands the cell back to ChunkManager to fill with a plain wall
+                 * rather than building a second, untagged copy of one here. */
+                return false;
             }
         }
     };

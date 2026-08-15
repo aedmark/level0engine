@@ -8,7 +8,7 @@ export const CurvedArchwayProfile = (env, ctx) => {
     const {random, buildWall, buildArchCutout, addGeometry} = ctx;
     return {
         name: "CURVED ARCHWAY",
-        prob: 0.029, build: (x, z) => {
+        prob: 0.002, build: (x, z) => {
             const cx = x * env.cellSize;
             const cz = z * env.cellSize;
             if (ctx.markOccupied) ctx.markOccupied(x, z);

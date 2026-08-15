@@ -12,7 +12,7 @@ export const TunnelBurstProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, hash} = ctx;
     return {
         name: "TUNNEL BURST",
-        prob: 0.10, build: (x, z) => {
+        prob: 0.05, build: (x, z) => {
             if (!env.ductLiningMat) {
                 /** [WHY] See DuctOrVent -- the lining carries the ambient-occlusion treatment so
                  * the global ambient cannot reach inside the tunnel. */

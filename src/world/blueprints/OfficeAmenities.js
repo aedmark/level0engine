@@ -10,7 +10,7 @@ export const OfficeAmenitiesProfile = (env, ctx) => {
     const {random, addFurniture, buildCouch, buildWall, addGeometry} = ctx;
     return {
         name: "LOUNGE AMENITIES",
-        prob: 0.15, build: (x, z) => {
+        prob: 0.05, build: (x, z) => {
             const cx = x * env.cellSize;
             const cz = z * env.cellSize;
             

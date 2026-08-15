@@ -6,7 +6,7 @@ export const DuctOrVentProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, hash} = ctx;
     return {
         name: "DUCT OR VENT",
-        prob: 0.20, build: (x, z) => {
+        prob: 0.08, build: (x, z) => {
             let isFloorLevel = random() > 0.50;
             const addGeometry = ctx.addGeometry;
             if (!env.ductLiningMat) {

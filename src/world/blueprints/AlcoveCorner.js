@@ -8,7 +8,7 @@ export const AlcoveCornerProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, buildChair, addFurniture} = ctx;
     return {
         name: "ALCOVE CORNER",
-        prob: 0.60, build: (x, z) => {
+        prob: 0.05, build: (x, z) => {
             const back = buildWall(env.cellSize, 0.5, env.sharedWallMat);
             back.position.set(x * env.cellSize, 1.5, z * env.cellSize - (env.cellSize / 2) + 0.25);
             addGeometry(back);

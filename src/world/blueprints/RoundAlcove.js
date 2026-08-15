@@ -11,7 +11,7 @@ export const RoundAlcoveProfile = (env, ctx) => {
     const {random, buildCurvedCornerBlock, addGeometry, buildChair, addFurniture, addCurvedAlcoveBaseboard} = ctx;
     return {
         name: "ROUND ALCOVE",
-        prob: 0.55, build: (x, z) => {
+        prob: 0.05, build: (x, z) => {
             const cx = x * env.cellSize;
             const cz = z * env.cellSize;
 

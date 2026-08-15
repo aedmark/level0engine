@@ -5,7 +5,7 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, hash} = ctx;
     return {
         name: "CRAWLSPACE_DUCT",
-        prob: 0.28, build: (x, z) => {
+        prob: 0.08, build: (x, z) => {
             let isFloorLevel = random() > 0.50;
             const addGeometry = ctx.addGeometry;
 
