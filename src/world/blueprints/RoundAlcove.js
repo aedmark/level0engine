@@ -4,14 +4,11 @@
  * [STATE] Stateless; returns a configuration object with a build function.
  * [DEPENDS] Depends on env properties and context functions like buildCurvedCornerBlock, buildChair.
  */
-import Vec3 from '../../math/Vec3.js';
-import AABB from '../../math/AABB.js';
-
 export const RoundAlcoveProfile = (env, ctx) => {
     const {random, buildCurvedCornerBlock, addGeometry, buildChair, addFurniture, addCurvedAlcoveBaseboard} = ctx;
     return {
         name: "ROUND ALCOVE",
-        prob: 0.05, build: (x, z) => {
+        prob: 0.0538, build: (x, z) => {
             const cx = x * env.cellSize;
             const cz = z * env.cellSize;
 
@@ -54,29 +51,10 @@ export const RoundAlcoveProfile = (env, ctx) => {
             block.position.set(cx, 1.5, cz);
             block.userData.noCollision = true;
 
-            const tBox = 0.3;
-            const halfSize = env.cellSize / 2;
-            const colliders = [];
-
-            if (chosenIndex === 0) {
-                colliders.push(new AABB(new Vec3(cx + halfSize - tBox, 0, cz - halfSize), new Vec3(cx + halfSize, 3.0, cz + halfSize)));
-                colliders.push(new AABB(new Vec3(cx - halfSize, 0, cz - halfSize), new Vec3(cx + halfSize, 3.0, cz - halfSize + tBox)));
-            } else if (chosenIndex === 1) {
-                colliders.push(new AABB(new Vec3(cx - halfSize, 0, cz - halfSize), new Vec3(cx + halfSize, 3.0, cz - halfSize + tBox)));
-                colliders.push(new AABB(new Vec3(cx - halfSize, 0, cz - halfSize), new Vec3(cx - halfSize + tBox, 3.0, cz + halfSize)));
-            } else if (chosenIndex === 2) {
-                colliders.push(new AABB(new Vec3(cx - halfSize, 0, cz - halfSize), new Vec3(cx - halfSize + tBox, 3.0, cz + halfSize)));
-                colliders.push(new AABB(new Vec3(cx - halfSize, 0, cz + halfSize - tBox), new Vec3(cx + halfSize, 3.0, cz + halfSize)));
-            } else if (chosenIndex === 3) {
-                colliders.push(new AABB(new Vec3(cx - halfSize, 0, cz + halfSize - tBox), new Vec3(cx + halfSize, 3.0, cz + halfSize)));
-                colliders.push(new AABB(new Vec3(cx + halfSize - tBox, 0, cz - halfSize), new Vec3(cx + halfSize, 3.0, cz + halfSize)));
-            }
-
-            for (const box of colliders) {
-                box.isEntityBlocker = true;
-                box.chunkHash = ctx.hash;
-                env.spatialGrid.insert(box);
-            }
+            /** Collision follows the curve rather than the square corner behind it. The previous
+             * two edge slabs described a right-angled corner, leaving the whole volume under the
+             * bulge walkable. See addCurvedCornerColliders. */
+            ctx.addCurvedCornerColliders(block, env.cellSize);
 
             addGeometry(block);
             addCurvedAlcoveBaseboard(cx, cz, angle);

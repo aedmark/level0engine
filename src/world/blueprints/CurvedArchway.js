@@ -8,7 +8,7 @@ export const CurvedArchwayProfile = (env, ctx) => {
     const {random, buildWall, buildArchCutout, addGeometry} = ctx;
     return {
         name: "CURVED ARCHWAY",
-        prob: 0.002, build: (x, z) => {
+        prob: 0.01, build: (x, z) => {
             const cx = x * env.cellSize;
             const cz = z * env.cellSize;
             if (ctx.markOccupied) ctx.markOccupied(x, z);
@@ -53,7 +53,11 @@ export const CurvedArchwayProfile = (env, ctx) => {
                     arch.rotation.y = Math.PI / 2;
                 }
                 arch.userData.isEntityBlocker = true;
+                /** Collision follows the cutout instead of the block's bounding box, which spanned
+                 * the whole opening and forced a crouch through an arch with head height to spare. */
+                arch.userData.noCollision = true;
                 addGeometry(arch);
+                ctx.addArchCutoutColliders(arch, radius, pillarThickness, archHeight, env.cellSize);
             }
         }
     };

@@ -11,7 +11,7 @@ export const TheOasisProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, buildTable, chunkGroup, hash, stagingMeshes} = ctx;
     return {
         name: "THE OASIS",
-        prob: 0.02, build: (x, z) => {
+        prob: 0.0215, build: (x, z) => {
             if (ctx.claimOasis && ctx.claimOasis(x, z)) {
                 const cx = x * env.cellSize;
                 const cz = z * env.cellSize;

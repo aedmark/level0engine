@@ -8,7 +8,7 @@ export const PartitionHeaderProfile = (env, ctx) => {
     const {random, buildWall, addGeometry} = ctx;
     return {
         name: "PARTITION HEADER",
-        prob: 0.02, build: (x, z) => {
+        prob: 0.0215, build: (x, z) => {
             const isZ = random() > 0.5;
             const pW = 0.6;
             const offset = (env.cellSize / 2) - (pW / 2);

@@ -12,7 +12,7 @@ export const TunnelBurstProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, hash} = ctx;
     return {
         name: "TUNNEL BURST",
-        prob: 0.05, build: (x, z) => {
+        prob: 0.0538, build: (x, z) => {
             if (!env.ductLiningMat) {
                 /** [WHY] See DuctOrVent -- the lining carries the ambient-occlusion treatment so
                  * the global ambient cannot reach inside the tunnel. */
@@ -21,7 +21,7 @@ export const TunnelBurstProfile = (env, ctx) => {
                 env.sharedAssets.add(env.ductLiningMat.uuid);
             }
             const typeRoll = random();
-            const isClearExit = (cx, cz) => ctx.isWall && !ctx.isWall(cx, cz) && !(ctx.isAirlockApron && ctx.isAirlockApron(cx, cz));
+            const isClearExit = (cx, cz) => ctx.isWall && !ctx.isWall(cx, cz) && !(ctx.isAirlockApron && ctx.isAirlockApron(cx, cz)) && !(ctx.isLowClearance && ctx.isLowClearance(cx, cz));
             const nC = isClearExit(x, z - 1);
             const sC = isClearExit(x, z + 1);
             const wC = isClearExit(x - 1, z);

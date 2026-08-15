@@ -8,7 +8,7 @@ export const NarrowHeaderGapProfile = (env, ctx) => {
     const {random, buildWall, addGeometry} = ctx;
     return {
         name: "NARROW HEADER GAP",
-        prob: 0.04, build: (x, z) => {
+        prob: 0.0431, build: (x, z) => {
             const dir = Math.floor(random() * 2), offset = (env.cellSize / 2) - 0.25;
             const w1 = dir === 0 ? 0.5 : env.cellSize, d1 = dir === 0 ? env.cellSize : 0.5;
             const gapW = dir === 0 ? env.cellSize - 1.0 : env.cellSize,

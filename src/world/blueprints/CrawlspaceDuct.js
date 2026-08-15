@@ -5,7 +5,7 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, hash} = ctx;
     return {
         name: "CRAWLSPACE_DUCT",
-        prob: 0.08, build: (x, z) => {
+        prob: 0.0862, build: (x, z) => {
             let isFloorLevel = random() > 0.50;
             const addGeometry = ctx.addGeometry;
 
@@ -28,10 +28,10 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
             const cellKey = (cx, cz) => `${cx}_${cz}`;
 
             const initialExits = {N: false, S: false, E: false, W: false};
-            if (ctx.isWall && !ctx.isWall(x, z - 1) && !(ctx.isAirlockApron && ctx.isAirlockApron(x, z - 1))) { initialExits.N = true; numExits++; }
-            if (ctx.isWall && !ctx.isWall(x, z + 1) && !(ctx.isAirlockApron && ctx.isAirlockApron(x, z + 1))) { initialExits.S = true; numExits++; }
-            if (ctx.isWall && !ctx.isWall(x + 1, z) && !(ctx.isAirlockApron && ctx.isAirlockApron(x + 1, z))) { initialExits.E = true; numExits++; }
-            if (ctx.isWall && !ctx.isWall(x - 1, z) && !(ctx.isAirlockApron && ctx.isAirlockApron(x - 1, z))) { initialExits.W = true; numExits++; }
+            if (ctx.isWall && !ctx.isWall(x, z - 1) && !(ctx.isAirlockApron && ctx.isAirlockApron(x, z - 1)) && !(ctx.isLowClearance && ctx.isLowClearance(x, z - 1))) { initialExits.N = true; numExits++; }
+            if (ctx.isWall && !ctx.isWall(x, z + 1) && !(ctx.isAirlockApron && ctx.isAirlockApron(x, z + 1)) && !(ctx.isLowClearance && ctx.isLowClearance(x, z + 1))) { initialExits.S = true; numExits++; }
+            if (ctx.isWall && !ctx.isWall(x + 1, z) && !(ctx.isAirlockApron && ctx.isAirlockApron(x + 1, z)) && !(ctx.isLowClearance && ctx.isLowClearance(x + 1, z))) { initialExits.E = true; numExits++; }
+            if (ctx.isWall && !ctx.isWall(x - 1, z) && !(ctx.isAirlockApron && ctx.isAirlockApron(x - 1, z)) && !(ctx.isLowClearance && ctx.isLowClearance(x - 1, z))) { initialExits.W = true; numExits++; }
 
             if (numExits === 0) {
                 isFloorLevel = false;

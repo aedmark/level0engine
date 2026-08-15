@@ -4,6 +4,9 @@
  * [STATE] Class instance wraps the `env` object. Helper methods mutate the environment (spatial grid, staging meshes, etc.).
  * [DEPENDS] Requires `THREE` globally and an active environment object `env`.
  */
+import Vec3 from '../math/Vec3.js';
+import AABB from '../math/AABB.js';
+
 export default class StructureKit {
     constructor(env) {
         this.env = env;
@@ -150,6 +153,59 @@ export default class StructureKit {
                 }
                 return mesh;
             },
+            /**
+             * Inserts collision for an arch block built by buildArchCutout.
+             *
+             * [WHY] The block is one mesh with a semicircular hole punched through it, so its
+             * automatic bounding box is a solid slab across the whole opening. Standing,
+             * physicalTop is 2.5 against a box whose underside sits at the springing line, so the
+             * player was stopped dead by an arch showing (radius + springing) of clear headroom at
+             * the centre -- you had to crouch through something that plainly looked walkable.
+             *
+             * [HOW] Two exact boxes for the solid haunches either side, then a staircase under the
+             * arc for the spandrel above it. Steps are equal-angle, so the error collapses to
+             * nothing at the crown (where headroom decides whether you fit) and concentrates at the
+             * springing, where it just fattens the pillar a few centimetres. Each step starts at the
+             * arc's *lowest* point in its slice, so collision never opens up more space than the
+             * geometry shows.
+             *
+             * @param {THREE.Mesh} mesh - the positioned, rotated arch block
+             * @param {number} radius - arch radius, as passed to buildArchCutout
+             * @param {number} thickness - haunch thickness either side of the opening
+             * @param {number} outerY - height of the block above the springing line
+             * @param {number} depth - extrude depth (the block is centred on it)
+             * @param {number} [steps=24] - staircase resolution under the arc
+             */
+            addArchCutoutColliders: (mesh, radius, thickness, outerY, depth, steps = 24) => {
+                const EPS = 0.01;
+                const outerX = radius + thickness;
+                const halfDepth = depth / 2;
+                mesh.updateMatrixWorld(true);
+                const b3 = new THREE.Box3();
+                const insert = (x0, y0, x1, y1) => {
+                    if (x1 - x0 < EPS || y1 - y0 < EPS) return;
+                    b3.min.set(x0, y0, -halfDepth);
+                    b3.max.set(x1, y1, halfDepth);
+                    b3.applyMatrix4(mesh.matrixWorld);
+                    const box = new AABB(
+                        new Vec3(b3.min.x, b3.min.y, b3.min.z),
+                        new Vec3(b3.max.x, b3.max.y, b3.max.z)
+                    );
+                    box.isEntityBlocker = true;
+                    box.chunkHash = hash;
+                    env.spatialGrid.insert(box);
+                };
+                insert(-outerX, 0, -radius, outerY);
+                insert(radius, 0, outerX, outerY);
+                for (let i = 0; i < steps; i++) {
+                    const t0 = Math.PI * (i / steps);
+                    const t1 = Math.PI * ((i + 1) / steps);
+                    const xa = radius * Math.cos(t0);
+                    const xb = radius * Math.cos(t1);
+                    const yb = radius * Math.min(Math.sin(t0), Math.sin(t1));
+                    insert(Math.min(xa, xb), yb, Math.max(xa, xb), outerY);
+                }
+            },
             buildArchCutout: (radius, thickness, outerY, depth, yOffset, mat) => {
                 const key = `archCutout_${radius}_${thickness}_${outerY}_${depth}_${yOffset}`;
                 let geo = env.geoCache.get(key);
@@ -239,6 +295,57 @@ export default class StructureKit {
                     env.geoCache.set(geo.uuid, true);
                 }
                 return new THREE.Mesh(geo, mat);
+            },
+            /**
+             * Inserts collision for a curved corner block built by buildCurvedCornerBlock.
+             *
+             * [WHY] The block is a single curved mesh, so its automatic bounding box would be the
+             * whole cell -- it has to be flagged noCollision and given explicit colliders. Those
+             * used to be two 0.3m slabs laid along the cell's outer edges, which is the collision
+             * hull of a square corner, not a rounded one. The curve cuts up to
+             * (size * sqrt(2) - size) into the cell, so the player could walk straight through the
+             * visible surface and only stop at the right-angle corner hiding behind it.
+             *
+             * [HOW] Collision here is strictly AABB vs AABB, so a curve can only be approximated by
+             * a staircase. Each step spans one equal-angle slice of the arc and starts at the arc's
+             * *lowest* point in that slice, so the boxes sit fractionally proud of the surface: the
+             * player is stopped just before the wall and can never clip into it. At 32 steps the
+             * worst-case standoff is about 0.10m against a 0.40m player radius.
+             *
+             * Boxes are built in the 2D shape space that curvedCornerShape defines, then pushed
+             * through the mesh's own world matrix. Every orientation is a multiple of 90 degrees,
+             * so the transformed bounds stay exact and all four rotations fall out for free --
+             * no per-orientation cases to keep in sync with the geometry.
+             *
+             * @param {THREE.Mesh} mesh - the positioned, rotated curved block
+             * @param {number} size - cell size the block was built at
+             * @param {number} [steps=32] - staircase resolution
+             */
+            addCurvedCornerColliders: (mesh, size, steps = 32) => {
+                const EPS = 0.01;
+                const half = size / 2;
+                const halfDepth = 3.0 / 2;
+                mesh.updateMatrixWorld(true);
+                const b3 = new THREE.Box3();
+                for (let i = 0; i < steps; i++) {
+                    const a0 = (Math.PI / 2) * (i / steps);
+                    const a1 = (Math.PI / 2) * ((i + 1) / steps);
+                    const sx0 = size * Math.sin(a0);
+                    const sx1 = size * Math.sin(a1);
+                    const sy0 = size * Math.cos(a1);
+                    if (sx1 - sx0 < EPS || size - sy0 < EPS) continue;
+                    // shape space -> geometry local: the extrude is translated by (-size/2, -size/2, -1.5)
+                    b3.min.set(sx0 - half, sy0 - half, -halfDepth);
+                    b3.max.set(sx1 - half, size - half, halfDepth);
+                    b3.applyMatrix4(mesh.matrixWorld);
+                    const box = new AABB(
+                        new Vec3(b3.min.x, b3.min.y, b3.min.z),
+                        new Vec3(b3.max.x, b3.max.y, b3.max.z)
+                    );
+                    box.isEntityBlocker = true;
+                    box.chunkHash = hash;
+                    env.spatialGrid.insert(box);
+                }
             },
             curvedFlatGeo: (size, height) => {
                 const key = `curvedFlat_${size}_${height}`;

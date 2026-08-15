@@ -8,7 +8,7 @@ export const CratesOrStairwayProfile = (env, ctx) => {
     const {random, buildWall, addGeometry} = ctx;
     return {
         name: "CRATES OR STAIRWAY",
-        prob: 0.07, build: (x, z) => {
+        prob: 0.0754, build: (x, z) => {
             const structureType = random();
             if (structureType > 0.40) {
                 const dir = Math.floor(random() * 4);

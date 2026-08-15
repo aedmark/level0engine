@@ -593,6 +593,21 @@ export default class ChunkManager {
                     };
                     ctx.forceStructure = (wx, wz, name) => mathData.forcedStructuresGrid.set(cellKey(wx, wz), name);
                     ctx.getForcedStructure = (wx, wz) => mathData.forcedStructuresGrid.get(cellKey(wx, wz));
+                    /**
+                     * True where an open cell has had its headroom dropped below standing height.
+                     *
+                     * [WHY] Duct blueprints use this to refuse an exit. A grate opening into a
+                     * crawl-height corridor leaves nowhere to stand up and line yourself up with
+                     * the hatch -- you arrive already crouched, in a space too low to rise in. The
+                     * pathTheme pass themes a whole corridor run this way in a quarter of chunks,
+                     * and ducts take roughly a fifth of all wall cells, so the two meet often.
+                     *
+                     * Answerable here because CRAWLSPACE_HALL is assigned in the pre-pass, well
+                     * before any duct rolls its structure -- a randomly placed duct can still see
+                     * the hall coming even though the reverse is not true.
+                     */
+                    ctx.isLowClearance = (wx, wz) =>
+                        mathData.forcedStructuresGrid.get(cellKey(wx, wz)) === 'CRAWLSPACE_HALL';
                     ctx.getDoorwayPlan = (px, pz) => mathData.doorwayPlans.get(cellKey(px, pz)) || null;
                 }
 
@@ -982,14 +997,28 @@ export default class ChunkManager {
         }
 
         let forcedName = ctx.getForcedStructure && ctx.getForcedStructure(x, z);
-        if (forcedName && ["empty_door_frame"].includes(forcedName)) {
-            const hasAdjacentVent = ctx.getForcedStructure && (
-                ctx.getForcedStructure(x + 1, z) === "DUCT OR VENT" ||
-                ctx.getForcedStructure(x - 1, z) === "DUCT OR VENT" ||
-                ctx.getForcedStructure(x, z + 1) === "DUCT OR VENT" ||
-                ctx.getForcedStructure(x, z - 1) === "DUCT OR VENT"
-            );
-            if (hasAdjacentVent) forcedName = null;
+        /**
+         * A cell that would block or cramp a neighbouring duct mouth gives up its treatment.
+         *
+         * [WHY] Duct blueprints already refuse to open a grate into a crawl-height cell, but that
+         * only helps when the duct rolls at random -- a duct placed here on purpose, as the
+         * terminus of a corridor run, would just lose its only exit and collapse into plain wall,
+         * taking the set piece with it. So when both sides were placed deliberately, the corridor
+         * treatment is the one that yields: the cell reverts to full height, leaving somewhere to
+         * stand up and line yourself up with the hatch.
+         *
+         * CRAWLSPACE_HALL matters most here because pathTheme themes whole corridor runs with it,
+         * so a hall very often lands right where a duct wants its door.
+         */
+        const YIELDS_TO_DUCT = ["empty_door_frame", "CRAWLSPACE_HALL"];
+        const DUCT_STRUCTURES = ["DUCT OR VENT", "CRAWLSPACE_DUCT", "TUNNEL BURST"];
+        if (forcedName && YIELDS_TO_DUCT.includes(forcedName) && ctx.getForcedStructure) {
+            const abuttingDuct =
+                DUCT_STRUCTURES.includes(ctx.getForcedStructure(x + 1, z)) ||
+                DUCT_STRUCTURES.includes(ctx.getForcedStructure(x - 1, z)) ||
+                DUCT_STRUCTURES.includes(ctx.getForcedStructure(x, z + 1)) ||
+                DUCT_STRUCTURES.includes(ctx.getForcedStructure(x, z - 1));
+            if (abuttingDuct) forcedName = null;
         }
 
         if (forcedName === 'empty_door_frame') {

@@ -8,7 +8,7 @@ export const LCornerNookProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, buildTable, addFurniture} = ctx;
     return {
         name: "L-CORNER NOOK",
-        prob: 0.09, build: (x, z) => {
+        prob: 0.0969, build: (x, z) => {
             const w1 = buildWall(env.cellSize, 0.5, env.sharedWallMat);
             w1.position.set(x * env.cellSize, 1.5, z * env.cellSize - (env.cellSize / 2) + 0.25);
             addGeometry(w1);

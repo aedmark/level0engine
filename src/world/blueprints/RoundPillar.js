@@ -8,7 +8,7 @@ export const RoundPillarProfile = (env, ctx) => {
     const {random, buildCylinder, addGeometry} = ctx;
     return {
         name: "ROUND PILLAR",
-        prob: 0.02, build: (x, z) => {
+        prob: 0.0215, build: (x, z) => {
             let maxRadius = 1.25;
             if (ctx.isWall && (!ctx.isWall(x-1, z) || !ctx.isWall(x+1, z) || !ctx.isWall(x, z-1) || !ctx.isWall(x, z+1))) {
                 maxRadius = 0.85;
