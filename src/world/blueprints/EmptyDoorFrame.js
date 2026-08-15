@@ -1,13 +1,13 @@
 /**
- * [ROLE] Generates a breached wall opening (a broken door frame or a grated crawl gap) in place of a solid wall cell.
+ * [ROLE] Generates an Empty Door Frame (that spans partitions) or a grated crawl gap in place of a solid wall cell.
  * [WHY] Gives the maze visual variety and alternate routes where a wall would otherwise be a dead, uniform surface.
  * [STATE] Stateless; returns a configuration object with a build function. `prob: 0` means it's only placed by explicit reference, not random rolls.
- * [DEPENDS] Depends on env properties and context functions like addGeometry, addGrate, buildWall, random, the caller's isWallCell, and env.pittedMetalMat/metalMat (cloned into env.doorFrameMat for ambient-lit visibility).
+ * [DEPENDS] Depends on env properties and context functions like addGeometry, addGrate, buildWall, random, the caller's isWallCell, and env.doorFrameMat.
  */
-export const WallBreachProfile = (env, ctx) => {
+export const EmptyDoorFrameProfile = (env, ctx) => {
     const { random, buildWall } = ctx;
     return {
-        name: "breach",
+        name: "empty_door_frame",
         prob: 0,
         build: (x, z, isWallCell) => {
             const breachType = random();
@@ -40,7 +40,7 @@ export const WallBreachProfile = (env, ctx) => {
                 const startZ = Math.floor(z / env.chunkSize) * env.chunkSize;
                 const inChunk = (cx, cz) => cx >= startX && cx < startX + env.chunkSize && cz >= startZ && cz < startZ + env.chunkSize;
 
-                const blockers = ["breach", "CREVICE_HALL", "HINGED DOORWAY", "DUCT OR VENT", "HATCH", "CRATES OR STAIRWAY"];
+                const blockers = ["empty_door_frame", "CREVICE_HALL", "HINGED DOORWAY", "DUCT OR VENT", "HATCH", "CRATES OR STAIRWAY"];
                 let dLeft = 0;
                 while (dLeft < 5) {
                     const chkX = isRotated ? x : x - (dLeft + 1);
@@ -98,8 +98,8 @@ export const WallBreachProfile = (env, ctx) => {
                 addGroupToStaging(g);
             } else {
                 const OPENING_W = 1.2;
-                const SILL_H = 0.0;
-                const HEAD_Y = 2.2;
+                const SILL_H = 0.6;
+                const HEAD_Y = 1.8;
                 const jambW = (env.cellSize - OPENING_W) / 2;
                 const headH = 3.0 - HEAD_Y;
                 const ccx = x * env.cellSize;
@@ -158,7 +158,7 @@ export const WallBreachProfile = (env, ctx) => {
                 const GRATE_GAP = 0.12;
                 const snap = (v) => Math.round(v * 10000) / 10000;
                 const faceOffset = (env.cellSize / 2) - 0.04;
-                const isBreach = (bx, bz) => ctx.getForcedStructure && ctx.getForcedStructure(bx, bz) === 'breach';
+                const isBreach = (bx, bz) => ctx.getForcedStructure && ctx.getForcedStructure(bx, bz) === 'empty_door_frame';
 
                 const frameMat = env.woodMat || env.sharedWallMat;
                 const frameD = 0.1;

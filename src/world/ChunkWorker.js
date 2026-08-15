@@ -127,7 +127,7 @@ function _planDoorwayRun(random, doorX, doorZ, dir, inChunk, cellKey, reserved, 
         if (endRoll > 0.60) {
             terminus = {cx: beyond.cx, cz: beyond.cz, name: "HINGED DOORWAY", heading};
         } else if (endRoll > 0.05) {
-            const exits = ["CRAWLSPACE_HALL", "breach", "DUCT OR VENT", "CREVICE_HALL"];
+            const exits = ["CRAWLSPACE_HALL", "empty_door_frame", "DUCT OR VENT", "CREVICE_HALL"];
             terminus = {cx: beyond.cx, cz: beyond.cz, name: exits[Math.floor(random() * exits.length)], heading};
         }
     }
@@ -212,7 +212,7 @@ function _planDoorways(random, startX, startZ, size, isWallFn, forcedStructureFn
                     ? _planDoorwayRun(random, t.cx, t.cz, t.heading, inChunk, cellKey, reserved, approaches, RUN_MIN, RUN_MAX, airlocks, cellSize)
                     : null;
                 if (!nextPlan) {
-                    const exits = ["CRAWLSPACE_HALL", "breach", "DUCT OR VENT", "CREVICE_HALL"];
+                    const exits = ["CRAWLSPACE_HALL", "empty_door_frame", "DUCT OR VENT", "CREVICE_HALL"];
                     t.name = exits[Math.floor(random() * exits.length)];
                     setWallFn(t.cx, t.cz, t.name === "DUCT OR VENT");
                     forceStructureFn(t.cx, t.cz, t.name);
@@ -484,7 +484,7 @@ self.onmessage = function(e) {
         const gz = startZ + lz;
         setWallFn(gx, gz, false);
         if (_isAirlockApron(gx, gz, airlocks, cellSize)) continue;
-        forceStructureFn(gx, gz, 'breach');
+        forceStructureFn(gx, gz, 'empty_door_frame');
     }
 
     _planDoorways(random, startX, startZ, chunkSize, isWallFn, getForcedStructureFn, setWallFn, forceStructureFn, airlocks, cellSize, doorwayPlans);
