@@ -997,15 +997,8 @@ export default class ChunkManager {
     // Three builds a material's depth and distanceRGBA programs inside the shadow
     // pass, and renderer.compile() never runs that pass — so warmMaterialVariants,
     // which only ever compiles the visible variant, structurally cannot produce
-    // them however many probes it renders. They compile instead on the first frame
-    // that a shadow-casting light sees the material, synchronously, inside the
-    // render call. Measured on a live build: 107 programs after boot against 209
-    // after a few minutes of play, and 43 of the 54 shadow programs arriving during
-    // play. Streaming into geography needing 26 of them cost a single 2764ms frame.
-    //
-    // This queue pays that cost in small slices while the player is walking around
-    // rather than all at once when they round a corner. Deliberately not folded
-    // into boot: boot is already 14 to 20 seconds and is its own complaint.
+    // them, so they compile on the first frame a shadow-casting light sees the
+    // material. Queued here, drained in slices before the chunk becomes visible.
     queueShadowPrewarm(materials) {
         if (!materials) return;
         if (!this._shadowQueue) { this._shadowQueue = []; this._shadowQueued = new Set(); }
@@ -1037,16 +1030,23 @@ export default class ChunkManager {
         const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 20);
         camera.position.set(0, 0, 3);
         if (!env._probeGeo) env._probeGeo = new THREE.PlaneGeometry(0.001, 0.001);
-        const plain = new THREE.Mesh(env._probeGeo, null);
-        const instanced = new THREE.InstancedMesh(env._probeGeo, null, 1);
-        for (const mesh of [plain, instanced]) {
+        // instanceColor is in the depth program key too, so the instanced coloured
+        // case needs its own probe. Measured: 28 late programs down to 13.
+        const coloured = new THREE.InstancedMesh(env._probeGeo, null, 1);
+        coloured.setColorAt(0, new THREE.Color(1, 1, 1));
+        const probes = [
+            new THREE.Mesh(env._probeGeo, null),
+            new THREE.InstancedMesh(env._probeGeo, null, 1),
+            coloured
+        ];
+        for (const mesh of probes) {
             mesh.castShadow = true;
             mesh.receiveShadow = true;
         }
         const group = new THREE.Group();
-        group.add(plain, instanced);
+        group.add(...probes);
         this._shadowRig = {
-            point, spot, camera, group, plain, instanced,
+            point, spot, camera, group, probes,
             target: new THREE.WebGLRenderTarget(4, 4),
             scoped: [point, spot, spot.target, group]
         };
@@ -1078,8 +1078,7 @@ export default class ChunkManager {
             do {
                 const material = queue.pop();
                 if (!material) break;
-                rig.plain.material = material;
-                rig.instanced.material = material;
+                for (const probe of rig.probes) probe.material = material;
                 rig.point.shadow.needsUpdate = true;
                 rig.spot.shadow.needsUpdate = true;
                 renderer.render(scene, rig.camera);
@@ -1088,8 +1087,7 @@ export default class ChunkManager {
         } catch (err) {
             console.warn('Shadow prewarm failed:', err);
         } finally {
-            rig.plain.material = null;
-            rig.instanced.material = null;
+            for (const probe of rig.probes) probe.material = null;
             renderer.setRenderTarget(savedTarget);
             renderer.shadowMap.enabled = savedEnabled;
             renderer.shadowMap.autoUpdate = savedAuto;
@@ -1165,32 +1163,14 @@ export default class ChunkManager {
         scene.children = scoped;
         const wasVisible = group.visible;
         group.visible = true;
-        const __c0 = performance.now();
         try {
             env.engine.renderer.compile(scene, env.camera);
         } finally {
             group.visible = wasVisible;
             scene.children = saved;
         }
-        const __c1 = performance.now();
         if (drainNow) this._drainProgramLinks();
-        const __c2 = performance.now();
-        if (env._scopedProfile) {
-            env._scopedProfile.compileMs += __c1 - __c0;
-            env._scopedProfile.drainMs += __c2 - __c1;
-            env._scopedProfile.calls++;
-        }
     }
-
-    // getUniforms() blocks until the driver has finished linking, which is the
-    // point — we want the stall here rather than on the frame that first uses the
-    // program. But it was being called on every program after every batch, so a
-    // program linked once was waited on dozens of times, and each batch blocked
-    // before the next was queued. That serialises KHR_parallel_shader_compile into
-    // exactly the sequential link the r160 upgrade was meant to escape. Measured at
-    // boot: 7126ms here against 89ms of actual renderer.compile(). Draining each
-    // program once, after every compile is queued, lets the driver link them in
-    // parallel while we are still submitting work.
     _drainProgramLinks(budgetMs = Infinity) {
         const renderer = this.env.engine.renderer;
         const programs = renderer.info.programs;
@@ -1210,10 +1190,6 @@ export default class ChunkManager {
             const program = programs[i];
             if (!program || typeof program.getUniforms !== 'function') continue;
             if (this._drainedPrograms.has(program)) continue;
-            // Ask whether the driver has finished linking rather than waiting for
-            // it. A program still in flight is skipped and picked up on a later
-            // pass; calling getUniforms() on it would block the frame, which is
-            // the entire cost we are trying to move off the critical path.
             if (polling && program.program &&
                 !gl.getProgramParameter(program.program, ext.COMPLETION_STATUS_KHR)) continue;
             this._drainedPrograms.add(program);

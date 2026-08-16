@@ -291,9 +291,8 @@ function animate() {
     UIManager.update(time, engine, player, environment);
     DebugHUD.update(time, delta, telemetry, engine, player, environment);
     engine.render();
-    // Retire a slice of the shadow-program backlog after the frame is on screen,
-    // so the compile lands in the gap before the next one rather than inside it.
     environment.drainShadowPrewarm(2.0);
+    environment.drainProgramLinks(1.5);
 }
 
 (async function() {
