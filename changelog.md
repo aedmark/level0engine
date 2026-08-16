@@ -1,5 +1,14 @@
 # Level 0 Engine Changelog
 
+## [v1.1.4] - 2026-08-16
+
+_Immutable Checkpoints and Surviving the Initial Drop_
+
+### Fixed
+
+- **[SYSTEM] Falling Through Geometry on Reload:** When reloading from a save state deep inside the facility, players were occasionally dying instantly or teleporting into the middle of uninitialized sectors. The root cause was that gravity was still affecting the player during the initial 2-second boot window while the `ChunkManager` was asynchronously compiling the floor collision boxes. The player would fall out of bounds (`y < -15`), triggering a blackout death that randomized their location and forced the `needsSafeSpawn` routine to aggressively teleport them. The `Environment.isSpawning` state is now passed up to `main.js` to strictly enforce `player.isFrozen` until the initial geography has completely materialized. Additionally, `needsSafeSpawn` is now explicitly bypassed when successfully loading an existing save.
+- **[SYSTEM] Incomplete Save Payloads:** `SaveManager.saveState` and the bootstrap logic in `main.js` were missing several key player parameters. Save states now successfully capture and perfectly restore stance (`isCrouching`, `isCrawling`), flashlight toggle status (`flashlightActive`), and the missing `hasExitKey` boolean inside the inventory.
+
 ## [v1.1.3] - 2026-08-16
 
 _Warming the Shader Programs the Engine Actually Uses_

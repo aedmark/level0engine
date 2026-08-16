@@ -91,12 +91,17 @@ if (savedState) {
     engine.camera.rotation.set(savedState.rx, savedState.ry, 0, 'YXZ');
     player.stamina = savedState.stamina;
     if (savedState.battery !== undefined) player.flashlightBattery = savedState.battery;
+    if (savedState.flashlightActive !== undefined) player.input.state.flashlightActive = savedState.flashlightActive;
+    if (savedState.isCrouching !== undefined) player.input.state.isCrouching = savedState.isCrouching;
+    if (savedState.isCrawling !== undefined) player.input.state.isCrawling = savedState.isCrawling;
     if (savedState.invBat !== undefined) player.inventory.batteries = savedState.invBat;
     if (savedState.invH2o !== undefined) player.inventory.almondWater = savedState.invH2o;
+    if (savedState.hasExitKey !== undefined) player.inventory.hasExitKey = savedState.hasExitKey;
     if (savedState.depth !== undefined) player.depth = savedState.depth;
     if (savedState.bestDepth !== undefined) player.bestDepth = savedState.bestDepth;
     player.updateObjectives();
     environment.baseFogDensity = (Number(savedState.fog) || 5) / 100;
+    environment.needsSafeSpawn = false;
 }
 bootCtrl.setPhase(3, 'ALIGNING MAZE SPATIAL CORRIDORS...', 40);
 environment.updateChunks(engine.camera.position);
@@ -201,13 +206,15 @@ function animate() {
         engine.render();
         return;
     }
-    if ((environment.isBuildingChunk && environment.isSectorTransitioning) || environment.isBuildingMacroInterior) {
+    if (environment.isSpawning || (environment.isBuildingChunk && environment.isSectorTransitioning) || environment.isBuildingMacroInterior) {
         if (!player.wasFrozenByLoad) {
             player.isFrozen = true;
             player.input.isFrozen = true;
             player.wasFrozenByLoad = true;
-            bootCtrl.setPhase(3, 'LOADING ANOMALOUS SECTOR...', 50);
-            bootCtrl.addLog('MATERIALIZING SECTOR BOUNDARY CHUNKS...');
+            if (!environment.isSpawning) {
+                bootCtrl.setPhase(3, 'LOADING ANOMALOUS SECTOR...', 50);
+                bootCtrl.addLog('MATERIALIZING SECTOR BOUNDARY CHUNKS...');
+            }
             const flash = document.getElementById('flash-overlay');
             if (flash) {
                 flash.style.transition = 'opacity 0.2s ease-out';

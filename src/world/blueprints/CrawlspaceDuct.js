@@ -1,5 +1,6 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
+import {makeDuctDoorMat} from '../../core/DuctLighting.js';
 
 export const CrawlspaceDuctProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, hash} = ctx;
@@ -317,7 +318,7 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                             thickness: 0.1,
                             hinged: true,
                             openSign: isX ? sign : -sign,
-                            mat: env.doorMat,
+                            mat: makeDuctDoorMat(env.doorMat, isX, sign),
                             isMiniDoor: true
                         });
 
