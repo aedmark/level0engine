@@ -2,7 +2,9 @@ export const BlockyObstructionProfile = (env, ctx) => {
     const {random, buildWall, addGeometry} = ctx;
     return {
         name: "BLOCKY OBSTRUCTION",
-        prob: 0.1207, build: (x, z) => {
+        // 0.1207 originally. 0.02 moved to CURVED ARCHWAY; the matrix has to keep
+        // summing to 1.0 or entries past the crossover can never be selected.
+        prob: 0.1007, build: (x, z) => {
             const isStraight = random() > 0.5;
             const blockW = 1.85;
             const offset = 1.075;

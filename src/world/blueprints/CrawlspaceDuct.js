@@ -331,9 +331,21 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                         const jambX = isX ? frameDepthOffset : 0;
                         const jambZ = isX ? 0 : frameDepthOffset;
                         const sideTrimOffset = holeW / 2 - frameT / 2;
-                        
-                        addTrim(frameT, doorH, jambX + (isX ? 0 : sideTrimOffset), ductY + frameT, jambZ + (isX ? sideTrimOffset : 0));
-                        addTrim(frameT, doorH, jambX - (isX ? 0 : sideTrimOffset), ductY + frameT, jambZ - (isX ? sideTrimOffset : 0));
+
+                        // The side casings were sized off the door while the head and sill
+                        // are sized off the opening, so they overran the head by 0.06 and the
+                        // sill by only 0.02. That mismatch is the corner that looks a few
+                        // centimetres short, and the overlap left the wood front face doubled
+                        // over itself at all four corners. Sizing them off the opening instead
+                        // runs them exactly between the rails. buildWall grows every box by
+                        // 0.01 a side, so the extra 0.02 inset is what lets the grown edges
+                        // meet flush rather than overlap.
+                        const railInset = frameT + 0.02;
+                        const jambY = ductY + railInset;
+                        const jambH = holeH - railInset * 2;
+
+                        addTrim(frameT, jambH, jambX + (isX ? 0 : sideTrimOffset), jambY, jambZ + (isX ? sideTrimOffset : 0));
+                        addTrim(frameT, jambH, jambX - (isX ? 0 : sideTrimOffset), jambY, jambZ - (isX ? sideTrimOffset : 0));
                         addTrim(holeW, frameT, jambX, ductY + holeH - frameT, jambZ);
                         addTrim(holeW, frameT, jambX, ductY, jambZ);
                     };

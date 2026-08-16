@@ -300,11 +300,16 @@ export function buildWheelchair(env) {
     return group;
 }
 
-export function buildWaitingBench(env) {
+/**
+ * opts lets a caller outside the clinic borrow this bench in its own palette.
+ * Materials and scale only — the geometry is cached under fixed keys, so anything
+ * that would change a dimension has to stay fixed.
+ */
+export function buildWaitingBench(env, opts = {}) {
     ensureClinicFurnitureMats(env);
     const group = new THREE.Group();
-    const frameMat = env.metalMat;
-    const padMat = env.clinicVinylMat;
+    const frameMat = opts.frameMat || env.metalMat;
+    const padMat = opts.padMat || env.clinicVinylMat;
     const width = 1.8, seatH = 0.46, depth = 0.5;
 
     const padGeo = env._boxGeo(0.56, 0.06, depth - 0.06);
@@ -355,7 +360,7 @@ export function buildWaitingBench(env) {
         group.add(post);
     }
 
-    group.scale.setScalar(1.4);
+    group.scale.setScalar(opts.scale || 1.4);
     group.traverse((m) => {
         if (m.isMesh) m.castShadow = true;
     });

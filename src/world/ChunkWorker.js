@@ -26,7 +26,7 @@ function _isAirlockApron(x, z, airlocks, cellSize) {
     return false;
 }
 
-function _planDoorwayRun(random, doorX, doorZ, dir, inChunk, cellKey, reserved, approaches, runMin, runMax, airlocks, cellSize) {
+function _planDoorwayRun(random, doorX, doorZ, dir, inChunk, cellKey, reserved, approaches, runMin, runMax, airlocks, cellSize, getForcedFn, pathTheme) {
     const claimed = new Set();
     const key = (a, b) => cellKey(a, b);
     const approachX = doorX - dir.dx;
@@ -40,8 +40,17 @@ function _planDoorwayRun(random, doorX, doorZ, dir, inChunk, cellKey, reserved, 
 
     const isApron = (cx, cz) => _isAirlockApron(cx, cz, airlocks, cellSize);
 
+    // A themed artery is one continuous piece of architecture that the player is meant
+    // to walk the length of. A doorway run carves straight through cells and then seals
+    // a solid ring around what it carved, neither of which checks whether the cell was
+    // already part of an artery. The result is a queue or a crevice chopped into stubs,
+    // most of them walled off from anything reachable. Artery cells are off limits to
+    // both operations.
+    const isArtery = (cx, cz) => !!pathTheme && !!getForcedFn && getForcedFn(cx, cz) === pathTheme;
+
     const free = (cx, cz) => inChunk(cx, cz) &&
         !isApron(cx, cz) &&
+        !isArtery(cx, cz) &&
         !reserved.has(key(cx, cz)) && !claimed.has(key(cx, cz)) &&
         !isApproach(cx, cz) &&
         !(cx === doorX && cz === doorZ);
@@ -108,6 +117,7 @@ function _planDoorwayRun(random, doorX, doorZ, dir, inChunk, cellKey, reserved, 
                 if (sx === doorX && sz === doorZ) continue;
                 if (isApproach(sx, sz)) continue;
                 if (isApron(sx, sz)) continue;
+                if (isArtery(sx, sz)) continue;
                 if (reserved.has(key(sx, sz))) continue;
                 if (sealSet.has(key(sx, sz))) continue;
                 sealSet.add(key(sx, sz));
@@ -122,7 +132,7 @@ function _planDoorwayRun(random, doorX, doorZ, dir, inChunk, cellKey, reserved, 
 
     if (inChunk(beyond.cx, beyond.cz) && !reserved.has(key(beyond.cx, beyond.cz)) &&
         !claimed.has(key(beyond.cx, beyond.cz)) && !isApproach(beyond.cx, beyond.cz) &&
-        !isApron(beyond.cx, beyond.cz)) {
+        !isApron(beyond.cx, beyond.cz) && !isArtery(beyond.cx, beyond.cz)) {
         const endRoll = random();
         if (endRoll > 0.60) {
             terminus = {cx: beyond.cx, cz: beyond.cz, name: "HINGED DOORWAY", heading};
@@ -135,7 +145,7 @@ function _planDoorwayRun(random, doorX, doorZ, dir, inChunk, cellKey, reserved, 
     return {corridor, alcoves, seal, terminus, heading};
 }
 
-function _planDoorways(random, startX, startZ, size, isWallFn, forcedStructureFn, setWallFn, forceStructureFn, airlocks, cellSize, outPlans) {
+function _planDoorways(random, startX, startZ, size, isWallFn, forcedStructureFn, setWallFn, forceStructureFn, airlocks, cellSize, outPlans, pathTheme) {
     const DOORWAY_RATE = 0.08;
     const RUN_MIN = 4;
     const RUN_MAX = 8;
@@ -166,7 +176,7 @@ function _planDoorways(random, startX, startZ, size, isWallFn, forcedStructureFn
                 const approachZ = cz - cand.dz;
                 if (!inChunk(approachX, approachZ)) continue;
                 if (isWallFn(approachX, approachZ)) continue;
-                plan = _planDoorwayRun(random, cx, cz, cand, inChunk, cellKey, reserved, approaches, RUN_MIN, RUN_MAX, airlocks, cellSize);
+                plan = _planDoorwayRun(random, cx, cz, cand, inChunk, cellKey, reserved, approaches, RUN_MIN, RUN_MAX, airlocks, cellSize, forcedStructureFn, pathTheme);
                 if (plan) dir = cand;
             }
             if (!plan) continue;
@@ -209,7 +219,7 @@ function _planDoorways(random, startX, startZ, size, isWallFn, forcedStructureFn
                     break;
                 }
                 const nextPlan = chainBudget-- > 0
-                    ? _planDoorwayRun(random, t.cx, t.cz, t.heading, inChunk, cellKey, reserved, approaches, RUN_MIN, RUN_MAX, airlocks, cellSize)
+                    ? _planDoorwayRun(random, t.cx, t.cz, t.heading, inChunk, cellKey, reserved, approaches, RUN_MIN, RUN_MAX, airlocks, cellSize, forcedStructureFn, pathTheme)
                     : null;
                 if (!nextPlan) {
                     const exits = ["CRAWLSPACE_HALL", "CRAWLSPACE_HALL", "CRAWLSPACE_HALL", "empty_door_frame", "DUCT OR VENT", "DUCT OR VENT", "DUCT OR VENT", "CREVICE_HALL", "CRAWLSPACE_DUCT", "CRAWLSPACE_DUCT", "CRAWLSPACE_DUCT"];
@@ -253,28 +263,103 @@ self.onmessage = function(e) {
 
     const pathThemeRoll = random();
     let pathTheme = null;
-    if (pathThemeRoll > 0.75) pathTheme = 'CRAWLSPACE_HALL';
-    else if (pathThemeRoll > 0.50) pathTheme = 'CREVICE_HALL';
-    else if (pathThemeRoll > 0.25) pathTheme = 'RIDE_QUEUE_HALL';
+    if (pathThemeRoll > 0.80) pathTheme = 'CRAWLSPACE_HALL';
+    else if (pathThemeRoll > 0.60) pathTheme = 'CREVICE_HALL';
+    else if (pathThemeRoll > 0.40) pathTheme = 'RIDE_QUEUE_HALL';
+    else if (pathThemeRoll > 0.18) pathTheme = 'ARCH_HALL';
+
+    // The arcade is the one theme whose geometry spans the whole cell, so its runs
+    // are carved differently: strictly orthogonal steps, and detours that swing off
+    // the direct line before recovering. Diagonal steps would fragment the vault
+    // into disconnected pieces, and a straight run would not curl.
+    const wanderingPath = pathTheme === 'ARCH_HALL';
+    const clampX = (v) => Math.max(startX, Math.min(startX + chunkSize - 1, v));
+    const clampZ = (v) => Math.max(startZ, Math.min(startZ + chunkSize - 1, v));
 
     const cX = startX + Math.floor(chunkSize/2);
     const cZ = startZ + Math.floor(chunkSize/2);
     const pathGrid = new Map();
-    
+
+    // How many carved cells a candidate step would touch. One means it only touches
+    // the cell being stepped from, which is what keeps a run reading as a corridor.
+    const pathTouchCount = (px, pz) => {
+        let n = 0;
+        if (pathGrid.has(cellKey(px + 1, pz))) n++;
+        if (pathGrid.has(cellKey(px - 1, pz))) n++;
+        if (pathGrid.has(cellKey(px, pz + 1))) n++;
+        if (pathGrid.has(cellKey(px, pz - 1))) n++;
+        return n;
+    };
+
     const carvePath = (tx, tz) => {
         let currX = cX;
         let currZ = cZ;
         let failsafe = 0;
+        let detour = 0;
+        let detourAlongX = false;
+        let detourSign = 1;
         while ((currX !== tx || currZ !== tz) && failsafe < 200) {
             pathGrid.set(cellKey(currX, currZ), true);
             const dx = tx - currX;
             const dz = tz - currZ;
+            if (wanderingPath) {
+                // The run commits to one axis for several cells before turning. A
+                // greedy step-toward-target would zigzag every cell and read as a
+                // staircase; committed segments give the vault something to recede
+                // down before it bends away.
+                const spent = detourAlongX ? dx === 0 : dz === 0;
+                if (detour <= 0 || spent) {
+                    let preferX = Math.abs(dx) > Math.abs(dz);
+                    if (random() > 0.70) preferX = !preferX;
+                    if (preferX && dx === 0) preferX = false;
+                    if (!preferX && dz === 0) preferX = true;
+                    const delta = preferX ? dx : dz;
+                    detourAlongX = preferX;
+                    detourSign = delta !== 0 ? Math.sign(delta) : (random() > 0.5 ? 1 : -1);
+                    // A rare stretch against the target is what makes a run curl back
+                    // on itself instead of only ever fanning outward.
+                    if (random() > 0.86) detourSign = -detourSign;
+                    detour = 2 + Math.floor(random() * 4);
+                }
+                detour--;
+                const ax = detourAlongX ? detourSign : 0;
+                const az = detourAlongX ? 0 : detourSign;
+
+                let nextX = clampX(currX + ax);
+                let nextZ = clampZ(currZ + az);
+                if (pathTouchCount(nextX, nextZ) > 1) {
+                    // The run is about to fold back alongside itself, which smears the
+                    // vault into an open blob instead of a hall. Straighten out toward
+                    // the target and abandon the detour.
+                    detour = 0;
+                    const backX = Math.abs(dx) > Math.abs(dz) ? Math.sign(dx) : 0;
+                    const backZ = backX === 0 ? Math.sign(dz) : 0;
+                    const altX = clampX(currX + backX);
+                    const altZ = clampZ(currZ + backZ);
+                    if (pathTouchCount(altX, altZ) <= 1) {
+                        nextX = altX;
+                        nextZ = altZ;
+                    }
+                }
+                currX = nextX;
+                currZ = nextZ;
+                failsafe++;
+                continue;
+            }
+            // Both axes can move in one step. The loop only records the position it
+            // lands on, so a diagonal step left no cell at the elbow — and since every
+            // cell touching the path is forced to wall, the two halves of the artery
+            // ended up meeting at a corner you cannot walk through. Recording the elbow
+            // keeps the run orthogonally connected. No extra random() calls, so the
+            // sequence and therefore every existing seed is unchanged.
             if (Math.abs(dx) > Math.abs(dz)) {
                 currX += Math.sign(dx);
+                pathGrid.set(cellKey(currX, currZ), true);
                 if (random() > 0.5 && dz !== 0) currZ += Math.sign(dz);
                 else if (random() > 0.8) currZ += (random() > 0.5 ? 1 : -1);
             } else {
                 currZ += Math.sign(dz);
+                pathGrid.set(cellKey(currX, currZ), true);
                 if (random() > 0.5 && dx !== 0) currX += Math.sign(dx);
                 else if (random() > 0.8) currX += (random() > 0.5 ? 1 : -1);
             }
@@ -486,7 +571,7 @@ self.onmessage = function(e) {
         forceStructureFn(gx, gz, 'empty_door_frame');
     }
 
-    _planDoorways(random, startX, startZ, chunkSize, isWallFn, getForcedStructureFn, setWallFn, forceStructureFn, airlocks, cellSize, doorwayPlans);
+    _planDoorways(random, startX, startZ, chunkSize, isWallFn, getForcedStructureFn, setWallFn, forceStructureFn, airlocks, cellSize, doorwayPlans, pathTheme);
 
     self.postMessage({
         hash,

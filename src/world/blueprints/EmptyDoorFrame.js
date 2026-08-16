@@ -73,15 +73,20 @@ export const EmptyDoorFrameProfile = (env, ctx) => {
             g.add(head1);
             
             const frameMat = env.woodMat || env.sharedWallMat;
-            const jamb1 = buildWall(0.1, 0.24, frameMat, 2.67, 0);
+            // The casing was 0.24 deep, which buildWall inflates to 0.26 — exactly the
+            // depth of the baseboard band running into it. Wood and baseboard ended up
+            // coplanar and fighting across the bottom of both jambs. Standing the casing
+            // proud of the baseboard settles it and matches how trim actually stacks.
+            const CASING_DEPTH = 0.28;
+            const jamb1 = buildWall(0.1, CASING_DEPTH, frameMat, 2.67, 0);
             jamb1.position.set(-headW / 2 + 0.05, 1.335, 0);
             g.add(jamb1);
-            
-            const jamb2 = buildWall(0.1, 0.24, frameMat, 2.67, 0);
+
+            const jamb2 = buildWall(0.1, CASING_DEPTH, frameMat, 2.67, 0);
             jamb2.position.set(headW / 2 - 0.05, 1.335, 0);
             g.add(jamb2);
-            
-            const topJamb = buildWall(headW - 0.2, 0.24, frameMat, 0.1, 2.62);
+
+            const topJamb = buildWall(headW - 0.2, CASING_DEPTH, frameMat, 0.1, 2.62);
             topJamb.position.set(0, 2.62, 0);
             g.add(topJamb);
             

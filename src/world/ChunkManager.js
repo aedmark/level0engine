@@ -6,6 +6,7 @@ import {CrawlspaceDuctProfile} from './blueprints/CrawlspaceDuct.js';
 import {CrawlspaceHallProfile} from './blueprints/CrawlspaceHall.js';
 import {CreviceHallProfile} from './blueprints/CreviceHall.js';
 import {RideQueueHallProfile} from './blueprints/RideQueueHall.js';
+import {ArchHallProfile} from './blueprints/ArchHall.js';
 import BootController from '../ui/BootController.js';
 import * as SectorPlacement from './SectorPlacement.js';
 
@@ -898,6 +899,13 @@ export default class ChunkManager {
             hasTallObstacle = true;
             const rideProfile = RideQueueHallProfile(env, ctx);
             rideProfile.build(x, z, isWallCell);
+        } else if (forcedName === 'ARCH_HALL') {
+            // The arcade lights itself: a crown seam under the vault, a ceiling panel
+            // over the open landings. It also owns its own floor, so the usual random
+            // dividers and breaker panels stay out of the run.
+            hasTallObstacle = true;
+            const archProfile = ArchHallProfile(env, ctx);
+            archProfile.build(x, z, isWallCell);
         }
 
         const inNRing = localZ === 3 && localX >= 3 && localX <= 11;

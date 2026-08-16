@@ -1,6 +1,23 @@
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 
+/**
+ * Height an arch's collision has to stay clear of so a walking player is left alone.
+ *
+ * PlayerController forces a crouch whenever the lowest collider within the player's
+ * radius sits below 2.5, and its standing collision box is 2.5 tall. That number is a
+ * headroom gate for deliberate obstacles like the compression archway, not a body —
+ * the eye sits at 1.6. An arch's haunches curve down through that band where they meet
+ * the walls, so they were gating on a body that is not there: two steps off the
+ * centreline of a 2.4 wide opening and the player ducked for no reason. Nothing goes
+ * missing visually, because the lowest soffit above any position the camera can
+ * actually reach is 2.40, a clear 0.8 above the eye.
+ *
+ * Pass this to addArchCutoutColliders as walkClearance for any arch meant to be walked
+ * through. Leave it off for an arch meant to be an obstacle.
+ */
+export const ARCH_WALK_CLEARANCE = 2.55;
+
 export default class StructureKit {
     constructor(env) {
         this.env = env;
@@ -137,7 +154,11 @@ export default class StructureKit {
                 }
                 return mesh;
             },
-            addArchCutoutColliders: (mesh, radius, thickness, outerY, depth, springY, steps = 24) => {
+            // walkClearance lifts the arc colliders so they never dip below a given
+            // height. An arch's haunches curve down to the springline at the walls, which
+            // is correct for a solid but hostile to anyone walking under it. Defaults to 0
+            // for the exact original behaviour.
+            addArchCutoutColliders: (mesh, radius, thickness, outerY, depth, springY, steps = 24, walkClearance = 0) => {
                 const EPS = 0.01;
                 const outerX = radius + thickness;
                 const totalY = springY + outerY;
@@ -164,7 +185,8 @@ export default class StructureKit {
                     const t1 = Math.PI * ((i + 1) / steps);
                     const xa = radius * Math.cos(t0);
                     const xb = radius * Math.cos(t1);
-                    const yb = springY + radius * Math.min(Math.sin(t0), Math.sin(t1));
+                    let yb = springY + radius * Math.min(Math.sin(t0), Math.sin(t1));
+                    if (yb < walkClearance) yb = walkClearance;
                     insert(Math.min(xa, xb), yb, Math.max(xa, xb), totalY);
                 }
             },
