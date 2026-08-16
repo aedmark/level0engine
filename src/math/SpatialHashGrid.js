@@ -36,29 +36,43 @@ export default class SpatialHashGrid {
         }
     }
 
-    removeByChunk(chunkHash) {
-        const boxes = this.chunkMap.get(chunkHash);
-        if (!boxes) return;
-        for (const box of boxes) {
-            const startX = Math.floor(box.min.x / this.cellSize);
-            const startZ = Math.floor(box.min.z / this.cellSize);
-            const endX = Math.floor(box.max.x / this.cellSize);
-            const endZ = Math.floor(box.max.z / this.cellSize);
-            for (let x = startX; x <= endX; x++) {
-                for (let z = startZ; z <= endZ; z++) {
-                    const key = this._hash(x, z);
-                    const cell = this.cells.get(key);
-                    if (cell) {
-                        const idx = cell.indexOf(box);
-                        if (idx !== -1) {
-                            const last = cell.pop();
-                            if (idx < cell.length) cell[idx] = last;
-                        }
-                        if (cell.length === 0) this.cells.delete(key);
+    _unindex(box) {
+        const startX = Math.floor(box.min.x / this.cellSize);
+        const startZ = Math.floor(box.min.z / this.cellSize);
+        const endX = Math.floor(box.max.x / this.cellSize);
+        const endZ = Math.floor(box.max.z / this.cellSize);
+        for (let x = startX; x <= endX; x++) {
+            for (let z = startZ; z <= endZ; z++) {
+                const key = this._hash(x, z);
+                const cell = this.cells.get(key);
+                if (cell) {
+                    const idx = cell.indexOf(box);
+                    if (idx !== -1) {
+                        const last = cell.pop();
+                        if (idx < cell.length) cell[idx] = last;
                     }
+                    if (cell.length === 0) this.cells.delete(key);
                 }
             }
         }
+    }
+
+    // Pulls a single box out of the grid. A wall that shrinks or disappears
+    // during chunk assembly has to take its collision with it, or the player
+    // walks into geometry that is no longer on screen.
+    remove(box) {
+        if (!box) return;
+        this._unindex(box);
+        if (box.chunkHash) {
+            const boxes = this.chunkMap.get(box.chunkHash);
+            if (boxes) boxes.delete(box);
+        }
+    }
+
+    removeByChunk(chunkHash) {
+        const boxes = this.chunkMap.get(chunkHash);
+        if (!boxes) return;
+        for (const box of boxes) this._unindex(box);
         this.chunkMap.delete(chunkHash);
     }
 

@@ -527,17 +527,29 @@ export default class ChunkManager {
                             const clearX = wx * env.cellSize;
                             const clearZ = wz * env.cellSize;
                             const halfCell = env.cellSize * 0.5;
+                            // Reverse walk: baseboards are staged directly after
+                            // their wall, so they are met first and skipped, then
+                            // retired alongside it when the wall itself comes up.
                             for (let i = stagingMeshes.length - 1; i >= 0; i--) {
                                 const m = stagingMeshes[i];
-                                if (m.userData.isDefaultWall && m.userData.cellX === wx && m.userData.cellZ === wz) {
-                                    stagingMeshes.splice(i, 1);
+                                if (m.userData.baseboardOwner) {
+                                    continue;
+                                } else if (m.userData.isDefaultWall && m.userData.cellX === wx && m.userData.cellZ === wz) {
+                                    ctx.retireStagedMesh(m);
+                                } else if (m.userData.wallSpan) {
+                                    // A partition that reaches into this cell is
+                                    // shortened to the cell face, not removed.
+                                    const clearance = ctx.spanClearanceToCell(m, wx, wz);
+                                    if (clearance >= m.userData.wallSpan.length) continue;
+                                    if (clearance < 0.05) ctx.retireStagedMesh(m);
+                                    else ctx.retractSpanWall(m, clearance);
                                 } else if (m.userData.noCollision || m.userData.isMiniDoor) {
                                     continue;
                                 } else if (
                                     Math.abs(m.position.x - clearX) < halfCell &&
                                     Math.abs(m.position.z - clearZ) < halfCell
                                 ) {
-                                    stagingMeshes.splice(i, 1);
+                                    ctx.retireStagedMesh(m);
                                 }
                             }
                         }
@@ -583,10 +595,28 @@ export default class ChunkManager {
             const toRemoveGroup = [];
             const toRemoveStaging = [];
             for (const wall of env._breachWalls) {
+                if (wall.userData.retired) continue;
+                // A chunk that aborted mid-build can leave its partitions in
+                // the shared list. Measuring those against this chunk's claims
+                // would clip walls that live somewhere else entirely.
+                if (wall.userData.chunkHash !== hash) continue;
                 wall.updateMatrixWorld(true);
                 if (!wall.geometry.boundingBox) wall.geometry.computeBoundingBox();
                 const box = wall.geometry.boundingBox.clone().applyMatrix4(wall.matrixWorld);
-                
+                const span = wall.userData.wallSpan;
+                let clearance = span ? span.length : Infinity;
+
+                // Claims first. The blocker scan at build time only sees cells
+                // a structure has already forced, so a duct network carved
+                // earlier in the chunk is invisible to it. This pass runs after
+                // everything is staged, which is the only point where the
+                // answer does not depend on who was built first.
+                if (span) {
+                    for (const cell of ctx.claimedCells.values()) {
+                        clearance = Math.min(clearance, ctx.spanClearanceToCell(wall, cell.x, cell.z));
+                    }
+                }
+
                 const checkList = [...chunkGroup.children, ...stagingMeshes];
                 for (const child of checkList) {
                     if (toRemoveGroup.includes(child) || toRemoveStaging.includes(child)) continue;
@@ -597,16 +627,31 @@ export default class ChunkManager {
                     if (child.userData.isMiniDoor) isFixture = true;
                     if (child.geometry === env.sharedPanelGeo) isFixture = true;
                     if (child.isLight) isFixture = true;
-                    
+
                     if (isFixture) {
                         child.updateMatrixWorld(true);
                         if (!child.geometry.boundingBox) child.geometry.computeBoundingBox();
                         const childBox = child.geometry.boundingBox.clone().applyMatrix4(child.matrixWorld);
                         if (box.intersectsBox(childBox)) {
-                            if (chunkGroup.children.includes(child)) toRemoveGroup.push(child);
-                            else toRemoveStaging.push(child);
+                            // The rule is that a partition must not obstruct a
+                            // door, hatch or vent. The wall yields by stopping
+                            // short. Deleting the fixture was the old reading of
+                            // the same rule, and it is kept only for walls that
+                            // have no declared span to retract along.
+                            if (span) {
+                                clearance = Math.min(clearance, ctx.spanClearanceToBox(wall, childBox));
+                            } else if (chunkGroup.children.includes(child)) {
+                                toRemoveGroup.push(child);
+                            } else {
+                                toRemoveStaging.push(child);
+                            }
                         }
                     }
+                }
+
+                if (span && clearance < span.length) {
+                    if (clearance < 0.05) ctx.retireStagedMesh(wall);
+                    else ctx.retractSpanWall(wall, clearance);
                 }
             }
             toRemoveGroup.forEach(c => {
@@ -623,6 +668,7 @@ export default class ChunkManager {
             if (env.fixtureData) {
                 env.fixtureData = env.fixtureData.filter(f => {
                     for (const wall of env._breachWalls) {
+                        if (wall.userData.retired) continue;
                         const box = wall.geometry.boundingBox.clone().applyMatrix4(wall.matrixWorld);
                         if (box.containsPoint(f.position)) return false;
                     }

@@ -184,6 +184,7 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                     const cz = cell.z * env.cellSize;
 
                     if (ctx.markOccupied) ctx.markOccupied(cell.x, cell.z);
+                    if (ctx.claimCell) ctx.claimCell(cell.x, cell.z);
                     if (ctx.setWall) ctx.setWall(cell.x, cell.z, false);
 
                     const nConn = cell.connections.N || cell.exits.N;

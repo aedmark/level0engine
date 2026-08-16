@@ -366,6 +366,7 @@ export default class StructureKit {
                     if (mesh.userData.isEntityBlocker) box.isEntityBlocker = true;
                     if (isWarp) box.isWarpZone = true;
                     env.spatialGrid.insert(box);
+                    mesh.userData.collisionBox = box;
                 }
                 stagingMeshes.push(mesh);
                 const bbFootprint = mesh.userData.baseboardFootprint;
@@ -404,7 +405,124 @@ export default class StructureKit {
                     trim.userData.noCollision = true;
                     trim.updateMatrixWorld(true);
                     stagingMeshes.push(trim);
+
+                    // Trim used to be an orphan: cleanup passes filter on
+                    // noCollision, which the baseboard carries, so it survived
+                    // every removal its wall did not. The link makes the wall
+                    // and its trim one object as far as later passes care.
+                    mesh.userData.baseboardParts = [body, trim];
+                    body.userData.baseboardOwner = mesh;
+                    trim.userData.baseboardOwner = mesh;
                 }
+            },
+            // Multi-cell structures — duct and crawlspace networks — carve out
+            // several cells but only their origin cell is ever marked forced.
+            // A partition scanning outward at build time therefore sees an
+            // empty cell where a duct hub actually stands, and grows straight
+            // through it. Claims are the cells a structure has taken, readable
+            // after the whole chunk is staged, so build order stops mattering.
+            claimedCells: new Map(),
+            claimCell: (cx, cz) => {
+                helpers.claimedCells.set(`${cx},${cz}`, {x: cx, z: cz});
+            },
+            isCellClaimed: (cx, cz) => helpers.claimedCells.has(`${cx},${cz}`),
+            // A span wall is a partition that grows out from a fixed anchor —
+            // a door jamb, usually — until it meets something. When that
+            // something only appears later in the build, we shorten the wall
+            // back to where it should have stopped. A partition that stops is
+            // architecture. A partition that vanishes is a hole in the world.
+            retractSpanWall: (mesh, newLength) => {
+                const span = mesh.userData.wallSpan;
+                if (!span) return false;
+                // buildWall quantises to 1/20 so the geometry cache stays small.
+                // Floor rather than round: rounding up would push the retracted
+                // end back into the very thing we are retracting away from.
+                const len = Math.floor(Math.max(0, newLength) * 20 + 1e-6) / 20;
+                if (len < 0.05) return false;
+                if (len >= span.length) return true;
+
+                const rebuilt = helpers.buildWall(len, span.thickness, span.mat, span.height, span.yOffset);
+                mesh.geometry = rebuilt.geometry;
+                mesh.position.set(
+                    span.anchorX + span.dirX * (len / 2),
+                    span.y,
+                    span.anchorZ + span.dirZ * (len / 2)
+                );
+                mesh.updateMatrixWorld(true);
+                span.length = len;
+
+                if (mesh.userData.collisionBox) {
+                    env.spatialGrid.remove(mesh.userData.collisionBox);
+                    if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+                    const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
+                    box.chunkHash = hash;
+                    if (mesh.userData.isEntityBlocker) box.isEntityBlocker = true;
+                    env.spatialGrid.insert(box);
+                    mesh.userData.collisionBox = box;
+                }
+
+                if (mesh.userData.baseboardFootprint) mesh.userData.baseboardFootprint.w = len;
+                // The span always grows along the wall's local X, so the
+                // baseboard follows on the same axis regardless of rotation.
+                for (const part of mesh.userData.baseboardParts || []) {
+                    part.scale.x = len + 0.06;
+                    part.position.x = mesh.position.x;
+                    part.position.z = mesh.position.z;
+                    part.updateMatrixWorld(true);
+                }
+                return true;
+            },
+            retireStagedMesh: (mesh) => {
+                const idx = stagingMeshes.indexOf(mesh);
+                if (idx > -1) stagingMeshes.splice(idx, 1);
+                if (mesh.userData.collisionBox) {
+                    env.spatialGrid.remove(mesh.userData.collisionBox);
+                    mesh.userData.collisionBox = null;
+                }
+                for (const part of mesh.userData.baseboardParts || []) {
+                    const partIdx = stagingMeshes.indexOf(part);
+                    if (partIdx > -1) stagingMeshes.splice(partIdx, 1);
+                    part.userData.baseboardOwner = null;
+                }
+                mesh.userData.baseboardParts = null;
+                mesh.userData.retired = true;
+            },
+            // How far this span may grow before it enters the given cell.
+            // Returns the span's current length when the cell is out of its way.
+            spanClearanceToCell: (mesh, wx, wz) => {
+                const span = mesh.userData.wallSpan;
+                if (!span) return Infinity;
+                const half = env.cellSize / 2;
+                const alongX = Math.abs(span.dirX) > 0.5;
+                const perpPos = alongX ? span.anchorZ : span.anchorX;
+                const perpCell = (alongX ? wz : wx) * env.cellSize;
+                if (Math.abs(perpPos - perpCell) > half + span.thickness / 2) return span.length;
+
+                const dir = alongX ? span.dirX : span.dirZ;
+                const anchor = alongX ? span.anchorX : span.anchorZ;
+                const cellCentre = (alongX ? wx : wz) * env.cellSize;
+                const stopAt = (cellCentre - dir * half - anchor) * dir;
+                if (stopAt < 0) {
+                    // The cell sits behind the anchor. Either it swallows the
+                    // anchor, in which case the wall has nothing left to stand
+                    // on, or it is on the far side of the frame and none of this
+                    // wall's business. Clearing a cell to the right must not
+                    // shorten the partition growing to the left.
+                    return Math.abs(anchor - cellCentre) <= half ? 0 : span.length;
+                }
+                return Math.min(span.length, stopAt);
+            },
+            // How far this span may grow before it enters an already-placed box.
+            spanClearanceToBox: (mesh, box) => {
+                const span = mesh.userData.wallSpan;
+                if (!span) return Infinity;
+                const alongX = Math.abs(span.dirX) > 0.5;
+                const dir = alongX ? span.dirX : span.dirZ;
+                const anchor = alongX ? span.anchorX : span.anchorZ;
+                const nearFace = alongX
+                    ? (dir > 0 ? box.min.x : box.max.x)
+                    : (dir > 0 ? box.min.z : box.max.z);
+                return Math.min(span.length, (nearFace - anchor) * dir - 0.02);
             },
             addFurniture: (group) => {
                 if (Math.abs(group.position.x) < 4.0 && Math.abs(group.position.z) < 4.0) return;
