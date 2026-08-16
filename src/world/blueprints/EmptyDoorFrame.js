@@ -50,13 +50,22 @@ export const EmptyDoorFrameProfile = (env, ctx) => {
             const inChunk = (cx, cz) => cx >= startX && cx < startX + env.chunkSize && cz >= startZ && cz < startZ + env.chunkSize;
 
             const blockers = ["empty_door_frame", "CREVICE_HALL", "HINGED DOORWAY", "DUCT OR VENT", "CRAWLSPACE_DUCT", "HATCH", "CRATES OR STAIRWAY", "THE OASIS"];
+            // A pillar holds a wall cell without filling it. Threading one is
+            // the look we want, so the scan counts past it and keeps going
+            // until it meets a cell that is genuinely solid.
+            const blocks = (cx, cz) => {
+                const forced = ctx.getForcedStructure ? ctx.getForcedStructure(cx, cz) : null;
+                if (blockers.includes(forced)) return true;
+                if (!isWallCell(cx, cz)) return false;
+                return !(ctx.isCellPermeable && ctx.isCellPermeable(cx, cz));
+            };
+
             let dLeft = 0;
             while (dLeft < 5) {
                 const chkX = isRotated ? x : x - (dLeft + 1);
                 const chkZ = isRotated ? z + (dLeft + 1) : z;
                 if (!inChunk(chkX, chkZ)) break;
-                const forced = ctx.getForcedStructure ? ctx.getForcedStructure(chkX, chkZ) : null;
-                if (isWallCell(chkX, chkZ) || blockers.includes(forced)) break;
+                if (blocks(chkX, chkZ)) break;
                 dLeft++;
             }
 
@@ -65,8 +74,7 @@ export const EmptyDoorFrameProfile = (env, ctx) => {
                 const chkX = isRotated ? x : x + (dRight + 1);
                 const chkZ = isRotated ? z - (dRight + 1) : z;
                 if (!inChunk(chkX, chkZ)) break;
-                const forced = ctx.getForcedStructure ? ctx.getForcedStructure(chkX, chkZ) : null;
-                if (isWallCell(chkX, chkZ) || blockers.includes(forced)) break;
+                if (blocks(chkX, chkZ)) break;
                 dRight++;
             }
 

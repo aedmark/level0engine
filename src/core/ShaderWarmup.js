@@ -16,14 +16,23 @@ export default class ShaderWarmup {
 
     static async _warm(env, onProgress = null) {
         env._programKeepAlive = [];
+        env._scopedProfile = { compileMs: 0, drainMs: 0, calls: 0 };
 
+        const __t0 = performance.now();
         const materials = this._collectMaterials(env);
+        const __tCollect = performance.now() - __t0;
+        env._bootProfile = { collectMs: __tCollect, materials: materials.length, batches: [], totalMs: 0 };
         const BATCH = 8;
         const totalBatches = Math.ceil(materials.length / BATCH);
         let batchCount = 0;
 
         for (let i = 0; i < materials.length; i += BATCH) {
-            await env.chunkManager.warmMaterialVariants(new Set(materials.slice(i, i + BATCH)));
+            const __b = performance.now();
+            // Queue the compiles without waiting on the links. Blocking per batch
+            // meant the driver linked one batch while nothing else was submitted;
+            // the whole set is drained once below, after every compile is in flight.
+            await env.chunkManager.warmMaterialVariants(new Set(materials.slice(i, i + BATCH)), false);
+            env._bootProfile.batches.push(Math.round(performance.now() - __b));
             batchCount++;
             if (onProgress) {
                 const pct = 75 + Math.round((batchCount / Math.max(1, totalBatches)) * 10);
@@ -31,6 +40,13 @@ export default class ShaderWarmup {
             }
             await new Promise(resolve => setTimeout(resolve, 0));
         }
+        // One blocking wait for the whole set, once the driver has had the entire
+        // compile phase to link in the background.
+        const __d0 = performance.now();
+        if (onProgress) onProgress(85, 'LINKING SHADER PROGRAM PERMUTATIONS...');
+        env.chunkManager._drainProgramLinks();
+        env._bootProfile.finalDrainMs = Math.round(performance.now() - __d0);
+        env._bootProfile.totalMs = Math.round(performance.now() - __t0);
     }
 
     static _materialiseLazySectorAssets(env) {

@@ -426,6 +426,16 @@ export default class StructureKit {
                 helpers.claimedCells.set(`${cx},${cz}`, {x: cx, z: cz});
             },
             isCellClaimed: (cx, cz) => helpers.claimedCells.has(`${cx},${cz}`),
+            // The mirror of a claim. A pillar sits on a wall cell without
+            // filling it, so a partition running through one reads as
+            // deliberate rather than broken. Permeability only ever softens the
+            // wall-cell test; it is never consulted against a claim, so a
+            // pillar cannot make a duct passable.
+            permeableCells: new Map(),
+            markPermeable: (cx, cz) => {
+                helpers.permeableCells.set(`${cx},${cz}`, {x: cx, z: cz});
+            },
+            isCellPermeable: (cx, cz) => helpers.permeableCells.has(`${cx},${cz}`),
             // A span wall is a partition that grows out from a fixed anchor —
             // a door jamb, usually — until it meets something. When that
             // something only appears later in the build, we shorten the wall

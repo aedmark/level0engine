@@ -26,7 +26,16 @@ function _isAirlockApron(x, z, airlocks, cellSize) {
     return false;
 }
 
-function _planDoorwayRun(random, doorX, doorZ, dir, inChunk, cellKey, reserved, approaches, runMin, runMax, airlocks, cellSize, getForcedFn, pathTheme) {
+// What a doorway run is allowed to end in. Every entry leaves its cell a wall
+// cell, so the terminus is a way through rather than a way out: you crawl the
+// duct or you open the next door. The old list also held CRAWLSPACE_HALL,
+// CREVICE_HALL and empty_door_frame, all of which set the cell non-wall — and
+// since the seal ring only ever covered cells adjacent to the corridor, opening
+// the terminus connected the run straight back to open level one cell further
+// on. That is the short hallway that leads nowhere.
+const TERMINUS_EXITS = ["DUCT OR VENT", "DUCT OR VENT", "CRAWLSPACE_DUCT", "CRAWLSPACE_DUCT"];
+
+function _planDoorwayRun(random, doorX, doorZ, dir, inChunk, cellKey, reserved, approaches, runMin, runMax, airlocks, cellSize, getForcedFn, pathTheme, isWallFn) {
     const claimed = new Set();
     const key = (a, b) => cellKey(a, b);
     const approachX = doorX - dir.dx;
@@ -126,6 +135,35 @@ function _planDoorwayRun(random, doorX, doorZ, dir, inChunk, cellKey, reserved, 
         }
     });
 
+    // A door is only worth standing in front of if it is the sole way in. The
+    // seal above tries to guarantee that, but it declines to touch four kinds of
+    // cell — outside the chunk, another run's reserved cells, artery cells and
+    // airlock aprons — and every one of those declines leaves a mouth the player
+    // can walk around to. Rather than special-case them one at a time, ask the
+    // question directly: after this plan is applied, does any carved cell touch
+    // open floor that is not part of the run? If so the corridor is a detour,
+    // not a room, and it is not worth a door. The caller falls through to a
+    // normal structure roll on that wall cell.
+    //
+    // Safe to ask before choosing a terminus, because every terminus this
+    // planner will now pick leaves its cell solid.
+    const corridorKeys = new Set(corridor.map(c => key(c.cx, c.cz)));
+    const alcoveKeys = new Set(alcoves.map(c => key(c.cx, c.cz)));
+    const openAfterPlan = (cx, cz) => {
+        const k = key(cx, cz);
+        if (corridorKeys.has(k)) return true;
+        if (alcoveKeys.has(k) || sealSet.has(k)) return false;
+        if (cx === doorX && cz === doorZ) return false;
+        return isWallFn ? !isWallFn(cx, cz) : false;
+    };
+    for (const c of corridor) {
+        const around = [[c.cx + 1, c.cz], [c.cx - 1, c.cz], [c.cx, c.cz + 1], [c.cx, c.cz - 1]];
+        for (const [nx, nz] of around) {
+            if (corridorKeys.has(key(nx, nz))) continue;
+            if (openAfterPlan(nx, nz)) return null;
+        }
+    }
+
     let terminus = null;
     const last = corridor[corridor.length - 1];
     const beyond = {cx: last.cx + heading.dx, cz: last.cz + heading.dz};
@@ -137,8 +175,7 @@ function _planDoorwayRun(random, doorX, doorZ, dir, inChunk, cellKey, reserved, 
         if (endRoll > 0.60) {
             terminus = {cx: beyond.cx, cz: beyond.cz, name: "HINGED DOORWAY", heading};
         } else if (endRoll > 0.05) {
-            const exits = ["CRAWLSPACE_HALL", "CRAWLSPACE_HALL", "CRAWLSPACE_HALL", "empty_door_frame", "DUCT OR VENT", "DUCT OR VENT", "DUCT OR VENT", "CREVICE_HALL", "CRAWLSPACE_DUCT", "CRAWLSPACE_DUCT", "CRAWLSPACE_DUCT"];
-            terminus = {cx: beyond.cx, cz: beyond.cz, name: exits[Math.floor(random() * exits.length)], heading};
+            terminus = {cx: beyond.cx, cz: beyond.cz, name: TERMINUS_EXITS[Math.floor(random() * TERMINUS_EXITS.length)], heading};
         }
     }
 
@@ -176,7 +213,7 @@ function _planDoorways(random, startX, startZ, size, isWallFn, forcedStructureFn
                 const approachZ = cz - cand.dz;
                 if (!inChunk(approachX, approachZ)) continue;
                 if (isWallFn(approachX, approachZ)) continue;
-                plan = _planDoorwayRun(random, cx, cz, cand, inChunk, cellKey, reserved, approaches, RUN_MIN, RUN_MAX, airlocks, cellSize, forcedStructureFn, pathTheme);
+                plan = _planDoorwayRun(random, cx, cz, cand, inChunk, cellKey, reserved, approaches, RUN_MIN, RUN_MAX, airlocks, cellSize, forcedStructureFn, pathTheme, isWallFn);
                 if (plan) dir = cand;
             }
             if (!plan) continue;
@@ -184,7 +221,14 @@ function _planDoorways(random, startX, startZ, size, isWallFn, forcedStructureFn
             const apply = (p, dx, dz, facing) => {
                 p.corridor.forEach(c => {
                     setWallFn(c.cx, c.cz, false);
-                    forceStructureFn(c.cx, c.cz, null);
+                    // The run behind a door is built from the same vocabulary as
+                    // the chunk's arteries. A carved cell left with no forced
+                    // structure reads as bare corridor, which is what made these
+                    // feel like filler even once they were private. The hall
+                    // profiles each read their own neighbours to decide whether
+                    // they are a straight, a turn or a dead end, so they stamp
+                    // onto a doorway run exactly as they do onto an artery.
+                    forceStructureFn(c.cx, c.cz, pathTheme || null);
                     reserved.add(key(c.cx, c.cz));
                 });
                 p.alcoves.forEach(c => {
@@ -213,18 +257,23 @@ function _planDoorways(random, startX, startZ, size, isWallFn, forcedStructureFn
                 const t = pending;
                 pending = null;
                 if (t.name !== "HINGED DOORWAY") {
-                    setWallFn(t.cx, t.cz, t.name === "DUCT OR VENT" || t.name === "CRAWLSPACE_DUCT");
+                    // Every terminus exit keeps its cell solid. The run ends in a
+                    // wall you crawl through, never in an opening you can reach
+                    // from the far side.
+                    setWallFn(t.cx, t.cz, true);
                     forceStructureFn(t.cx, t.cz, t.name);
                     reserved.add(key(t.cx, t.cz));
                     break;
                 }
                 const nextPlan = chainBudget-- > 0
-                    ? _planDoorwayRun(random, t.cx, t.cz, t.heading, inChunk, cellKey, reserved, approaches, RUN_MIN, RUN_MAX, airlocks, cellSize, forcedStructureFn, pathTheme)
+                    ? _planDoorwayRun(random, t.cx, t.cz, t.heading, inChunk, cellKey, reserved, approaches, RUN_MIN, RUN_MAX, airlocks, cellSize, forcedStructureFn, pathTheme, isWallFn)
                     : null;
                 if (!nextPlan) {
-                    const exits = ["CRAWLSPACE_HALL", "CRAWLSPACE_HALL", "CRAWLSPACE_HALL", "empty_door_frame", "DUCT OR VENT", "DUCT OR VENT", "DUCT OR VENT", "CREVICE_HALL", "CRAWLSPACE_DUCT", "CRAWLSPACE_DUCT", "CRAWLSPACE_DUCT"];
-                    t.name = exits[Math.floor(random() * exits.length)];
-                    setWallFn(t.cx, t.cz, t.name === "DUCT OR VENT" || t.name === "CRAWLSPACE_DUCT");
+                    t.name = TERMINUS_EXITS[Math.floor(random() * TERMINUS_EXITS.length)];
+                    // Every terminus exit keeps its cell solid. The run ends in a
+                    // wall you crawl through, never in an opening you can reach
+                    // from the far side.
+                    setWallFn(t.cx, t.cz, true);
                     forceStructureFn(t.cx, t.cz, t.name);
                     reserved.add(key(t.cx, t.cz));
                     break;

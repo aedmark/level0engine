@@ -669,6 +669,7 @@ export default class Environment {
     updateChunks(playerPos) { return this.chunkManager.updateChunks(playerPos); }
     processChunkQueue() { return this.chunkManager.processChunkQueue(); }
     buildChunk(chunkX, chunkZ, hash) { return this.chunkManager.buildChunk(chunkX, chunkZ, hash); }
+    drainShadowPrewarm(budgetMs) { return this.chunkManager.drainShadowPrewarm(budgetMs); }
     beginMacroChunkContent(hash) { return this.chunkManager.beginMacroChunkContent(hash); }
     isMacroChunkContentReady(hash) { return this.chunkManager.isMacroChunkContentReady(hash); }
     

@@ -678,204 +678,19 @@ export default class ChunkManager {
             env._breachWalls = [];
         }
         await this._compileInstances(hash, chunkGroup, stagingMeshes, random);
+        // A chunk can mint a material and put it on screen inside the same frame,
+        // which outruns the per-frame drain and lands the compile in the frame that
+        // reveals it. We are already inside a yielding build here and the chunk is
+        // not visible yet, so retire its backlog now, in slices, while it is still
+        // free to do so. Capped so a large queue cannot stall the build either.
+        for (let pass = 0; pass < 12 && this._shadowQueue && this._shadowQueue.length > 0; pass++) {
+            this.drainShadowPrewarm(8.0);
+            if (!env.activeChunks.has(hash)) return;
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
         if (env.activeChunks.has(hash)) {
             chunkGroup.userData.contentReady = true;
         }
-    }
-
-    _planDoorways(ctx, random, startX, startZ, size, cellKey, outPlans) {
-        const DOORWAY_RATE = 0.08;
-        const RUN_MIN = 4;
-        const RUN_MAX = 8;
-        const SOLID = "SOLID FILL";
-        const DIRS = [{dx: 0, dz: 1}, {dx: 1, dz: 0}, {dx: 0, dz: -1}, {dx: -1, dz: 0}];
-
-        const endX = startX + size - 1;
-        const endZ = startZ + size - 1;
-        const inChunk = (cx, cz) => cx >= startX && cx <= endX && cz >= startZ && cz <= endZ;
-        const reserved = new Set();
-        const approaches = new Set();
-
-        for (let cx = startX; cx <= endX; cx++) {
-            for (let cz = startZ; cz <= endZ; cz++) {
-                if (reserved.has(cellKey(cx, cz))) continue;
-                if (ctx.getForcedStructure && ctx.getForcedStructure(cx, cz)) continue;
-                if (this._isAirlockApron(cx, cz)) continue;
-                if (!ctx.isWall(cx, cz)) continue;
-                if (random() > DOORWAY_RATE) continue;
-
-                const offset = Math.floor(random() * DIRS.length);
-                let plan = null;
-                let dir = null;
-                for (let d = 0; d < DIRS.length && !plan; d++) {
-                    const cand = DIRS[(d + offset) % DIRS.length];
-                    const approachX = cx - cand.dx;
-                    const approachZ = cz - cand.dz;
-                    if (!inChunk(approachX, approachZ)) continue;
-                    if (ctx.isWall(approachX, approachZ)) continue;
-                    plan = this._planDoorwayRun(ctx, random, cx, cz, cand, inChunk, cellKey, reserved, approaches, RUN_MIN, RUN_MAX);
-                    if (plan) dir = cand;
-                }
-                if (!plan) continue;
-
-                const key = (a, b) => cellKey(a, b);
-                const apply = (p, dx, dz, facing) => {
-                    p.corridor.forEach(c => {
-                        ctx.setWall(c.cx, c.cz, false);
-                        ctx.forceStructure(c.cx, c.cz, null);
-                        reserved.add(key(c.cx, c.cz));
-                    });
-                    p.alcoves.forEach(c => {
-                        ctx.setWall(c.cx, c.cz, true);
-                        ctx.forceStructure(c.cx, c.cz, random() > 0.5 ? "ALCOVE CORNER" : "ROUND ALCOVE");
-                        reserved.add(key(c.cx, c.cz));
-                    });
-                    p.seal.forEach(c => {
-                        ctx.setWall(c.cx, c.cz, true);
-                        ctx.forceStructure(c.cx, c.cz, SOLID);
-                        reserved.add(key(c.cx, c.cz));
-                    });
-                    ctx.setWall(dx, dz, true);
-                    ctx.forceStructure(dx, dz, "HINGED DOORWAY");
-                    reserved.add(key(dx, dz));
-                    reserved.add(key(dx - facing.dx, dz - facing.dz));
-                    approaches.add(key(dx - facing.dx, dz - facing.dz));
-                    outPlans.set(key(dx, dz), {rot: Math.atan2(facing.dx, facing.dz), facing});
-                };
-
-                apply(plan, cx, cz, dir);
-
-                let pending = plan.terminus;
-                let chainBudget = 2;
-                while (pending) {
-                    const t = pending;
-                    pending = null;
-                    if (t.name !== "HINGED DOORWAY") {
-                        ctx.setWall(t.cx, t.cz, t.name === "DUCT OR VENT" || t.name === "CRAWLSPACE_DUCT");
-                        ctx.forceStructure(t.cx, t.cz, t.name);
-                        reserved.add(key(t.cx, t.cz));
-                        break;
-                    }
-                    const nextPlan = chainBudget-- > 0
-                        ? this._planDoorwayRun(ctx, random, t.cx, t.cz, t.heading, inChunk, cellKey, reserved, approaches, RUN_MIN, RUN_MAX)
-                        : null;
-                    if (!nextPlan) {
-                        const exits = ["CRAWLSPACE_HALL", "CRAWLSPACE_HALL", "CRAWLSPACE_HALL", "empty_door_frame", "DUCT OR VENT", "DUCT OR VENT", "DUCT OR VENT", "CREVICE_HALL", "CRAWLSPACE_DUCT", "CRAWLSPACE_DUCT", "CRAWLSPACE_DUCT"];
-                        t.name = exits[Math.floor(random() * exits.length)];
-                        ctx.setWall(t.cx, t.cz, t.name === "DUCT OR VENT" || t.name === "CRAWLSPACE_DUCT");
-                        ctx.forceStructure(t.cx, t.cz, t.name);
-                        reserved.add(key(t.cx, t.cz));
-                        break;
-                    }
-                    apply(nextPlan, t.cx, t.cz, t.heading);
-                    pending = nextPlan.terminus;
-                }
-            }
-        }
-    }
-
-    _planDoorwayRun(ctx, random, doorX, doorZ, dir, inChunk, cellKey, reserved, approaches, runMin, runMax) {
-        const claimed = new Set();
-        const key = (a, b) => cellKey(a, b);
-        const approachX = doorX - dir.dx;
-        const approachZ = doorZ - dir.dz;
-        const isApproach = (cx, cz) => cx === approachX && cz === approachZ;
-        const touchesApproach = (cx, cz) => {
-            if (Math.abs(cx - approachX) + Math.abs(cz - approachZ) === 1) return true;
-            return approaches.has(key(cx + 1, cz)) || approaches.has(key(cx - 1, cz)) ||
-                   approaches.has(key(cx, cz + 1)) || approaches.has(key(cx, cz - 1));
-        };
-        const free = (cx, cz) => inChunk(cx, cz) &&
-            !this._isAirlockApron(cx, cz) &&
-            !reserved.has(key(cx, cz)) && !claimed.has(key(cx, cz)) &&
-            !isApproach(cx, cz) &&
-            !(cx === doorX && cz === doorZ);
-        const contacts = (cx, cz) => {
-            let n = 0;
-            if (claimed.has(key(cx + 1, cz))) n++;
-            if (claimed.has(key(cx - 1, cz))) n++;
-            if (claimed.has(key(cx, cz + 1))) n++;
-            if (claimed.has(key(cx, cz - 1))) n++;
-            return n;
-        };
-
-        let cur = {cx: doorX + dir.dx, cz: doorZ + dir.dz};
-        if (!free(cur.cx, cur.cz) || touchesApproach(cur.cx, cur.cz)) return null;
-
-        const corridor = [cur];
-        const alcoves = [];
-        claimed.add(key(cur.cx, cur.cz));
-        let heading = {dx: dir.dx, dz: dir.dz};
-        const runLength = runMin + Math.floor(random() * (runMax - runMin + 1));
-
-        for (let step = 1; step < runLength; step++) {
-            const left = {dx: -heading.dz, dz: heading.dx};
-            const right = {dx: heading.dz, dz: -heading.dx};
-            const options = random() > 0.62
-                ? (random() > 0.5 ? [left, right, heading] : [right, left, heading])
-                : [heading, left, right];
-            let advanced = null;
-            for (const cand of options) {
-                const nx = cur.cx + cand.dx;
-                const nz = cur.cz + cand.dz;
-                if (!free(nx, nz) || contacts(nx, nz) > 1 || touchesApproach(nx, nz)) continue;
-                advanced = {cand, nx, nz};
-                break;
-            }
-            if (!advanced) break;
-
-            if (advanced.cand.dx !== heading.dx || advanced.cand.dz !== heading.dz) {
-                const nook = {cx: cur.cx + heading.dx, cz: cur.cz + heading.dz};
-                if (free(nook.cx, nook.cz) && random() > 0.35) {
-                    claimed.add(key(nook.cx, nook.cz));
-                    alcoves.push(nook);
-                }
-            }
-            heading = advanced.cand;
-            cur = {cx: advanced.nx, cz: advanced.nz};
-            corridor.push(cur);
-            claimed.add(key(cur.cx, cur.cz));
-        }
-
-        if (corridor.length < 2) return null;
-
-        const sealSet = new Set();
-        const seal = [];
-        corridor.concat(alcoves).forEach(c => {
-            for (let ox = -1; ox <= 1; ox++) {
-                for (let oz = -1; oz <= 1; oz++) {
-                    if (!ox && !oz) continue;
-                    const sx = c.cx + ox;
-                    const sz = c.cz + oz;
-                    if (!inChunk(sx, sz)) continue;
-                    if (claimed.has(key(sx, sz))) continue;
-                    if (sx === doorX && sz === doorZ) continue;
-                    if (isApproach(sx, sz)) continue;
-                    if (this._isAirlockApron(sx, sz)) continue;
-                    if (reserved.has(key(sx, sz))) continue;
-                    if (sealSet.has(key(sx, sz))) continue;
-                    sealSet.add(key(sx, sz));
-                    seal.push({cx: sx, cz: sz});
-                }
-            }
-        });
-
-        let terminus = null;
-        const last = corridor[corridor.length - 1];
-        const beyond = {cx: last.cx + heading.dx, cz: last.cz + heading.dz};
-        if (inChunk(beyond.cx, beyond.cz) && !reserved.has(key(beyond.cx, beyond.cz)) &&
-            !claimed.has(key(beyond.cx, beyond.cz)) && !isApproach(beyond.cx, beyond.cz) &&
-            !this._isAirlockApron(beyond.cx, beyond.cz)) {
-            const endRoll = random();
-            if (endRoll > 0.60) {
-                terminus = {cx: beyond.cx, cz: beyond.cz, name: "HINGED DOORWAY", heading};
-            } else if (endRoll > 0.05) {
-                const exits = ["CRAWLSPACE_HALL", "CRAWLSPACE_HALL", "CRAWLSPACE_HALL", "empty_door_frame", "DUCT OR VENT", "DUCT OR VENT", "DUCT OR VENT", "CREVICE_HALL", "CRAWLSPACE_DUCT", "CRAWLSPACE_DUCT", "CRAWLSPACE_DUCT"];
-                terminus = {cx: beyond.cx, cz: beyond.cz, name: exits[Math.floor(random() * exits.length)], heading};
-            }
-        }
-
-        return {corridor, alcoves, seal, terminus, heading};
     }
 
     _airlockApron(airlock) {
@@ -1179,9 +994,114 @@ export default class ChunkManager {
         if (unwarmed !== null) this.warmMaterialVariants(unwarmed);
     }
 
-    warmMaterialVariants(materials) {
+    // Three builds a material's depth and distanceRGBA programs inside the shadow
+    // pass, and renderer.compile() never runs that pass — so warmMaterialVariants,
+    // which only ever compiles the visible variant, structurally cannot produce
+    // them however many probes it renders. They compile instead on the first frame
+    // that a shadow-casting light sees the material, synchronously, inside the
+    // render call. Measured on a live build: 107 programs after boot against 209
+    // after a few minutes of play, and 43 of the 54 shadow programs arriving during
+    // play. Streaming into geography needing 26 of them cost a single 2764ms frame.
+    //
+    // This queue pays that cost in small slices while the player is walking around
+    // rather than all at once when they round a corner. Deliberately not folded
+    // into boot: boot is already 14 to 20 seconds and is its own complaint.
+    queueShadowPrewarm(materials) {
+        if (!materials) return;
+        if (!this._shadowQueue) { this._shadowQueue = []; this._shadowQueued = new Set(); }
+        for (const material of materials) {
+            if (!material || !material.isMaterial) continue;
+            const key = material.uuid + material.version;
+            if (this._shadowQueued.has(key)) continue;
+            this._shadowQueued.add(key);
+            this._shadowQueue.push(material);
+        }
+    }
+
+    _shadowProbeRig() {
+        const env = this.env;
+        if (this._shadowRig) return this._shadowRig;
+        // Own lights rather than the scene's. A depth program's cache key does not
+        // depend on light counts, so two throwaway lights compile exactly the same
+        // programs the real fixtures will need, and their shadow maps are scratch
+        // that nothing ever samples. Borrowing the real lights would leave their
+        // maps holding a picture of a probe plane.
+        const point = new THREE.PointLight(0xffffff, 1, 10);
+        point.castShadow = true;
+        point.shadow.mapSize.set(64, 64);
+        point.position.set(1, 1, 1);
+        const spot = new THREE.SpotLight(0xffffff, 1, 10);
+        spot.castShadow = true;
+        spot.shadow.mapSize.set(64, 64);
+        spot.position.set(1, 1, 1);
+        const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 20);
+        camera.position.set(0, 0, 3);
+        if (!env._probeGeo) env._probeGeo = new THREE.PlaneGeometry(0.001, 0.001);
+        const plain = new THREE.Mesh(env._probeGeo, null);
+        const instanced = new THREE.InstancedMesh(env._probeGeo, null, 1);
+        for (const mesh of [plain, instanced]) {
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+        }
+        const group = new THREE.Group();
+        group.add(plain, instanced);
+        this._shadowRig = {
+            point, spot, camera, group, plain, instanced,
+            target: new THREE.WebGLRenderTarget(4, 4),
+            scoped: [point, spot, spot.target, group]
+        };
+        return this._shadowRig;
+    }
+
+    drainShadowPrewarm(budgetMs = 2.0) {
+        const queue = this._shadowQueue;
+        if (!queue || queue.length === 0) return 0;
+        const env = this.env;
+        const renderer = env.engine && env.engine.renderer;
+        if (!renderer) return 0;
+
+        const rig = this._shadowProbeRig();
+        const scene = env.scene;
+        const savedChildren = scene.children;
+        const savedTarget = renderer.getRenderTarget();
+        const savedEnabled = renderer.shadowMap.enabled;
+        const savedAuto = renderer.shadowMap.autoUpdate;
+        let warmed = 0;
+        const start = performance.now();
+        try {
+            scene.children = rig.scoped;
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.autoUpdate = true;
+            renderer.setRenderTarget(rig.target);
+            // Always retire at least one, so a material more expensive than the
+            // whole budget cannot wedge the queue.
+            do {
+                const material = queue.pop();
+                if (!material) break;
+                rig.plain.material = material;
+                rig.instanced.material = material;
+                rig.point.shadow.needsUpdate = true;
+                rig.spot.shadow.needsUpdate = true;
+                renderer.render(scene, rig.camera);
+                warmed++;
+            } while (queue.length > 0 && performance.now() - start < budgetMs);
+        } catch (err) {
+            console.warn('Shadow prewarm failed:', err);
+        } finally {
+            rig.plain.material = null;
+            rig.instanced.material = null;
+            renderer.setRenderTarget(savedTarget);
+            renderer.shadowMap.enabled = savedEnabled;
+            renderer.shadowMap.autoUpdate = savedAuto;
+            scene.children = savedChildren;
+        }
+        return warmed;
+    }
+
+    warmMaterialVariants(materials, drainNow = true) {
         const env = this.env;
         if (!materials || materials.size === 0) return;
+        this.queueShadowPrewarm(materials);
         if (!env._programKeepAlive) env._programKeepAlive = [];
         if (!env._warmedMaterials) env._warmedMaterials = new Set();
         if (!env._probeGeo) env._probeGeo = new THREE.PlaneGeometry(0.001, 0.001);
@@ -1203,7 +1123,7 @@ export default class ChunkManager {
             colouredMesh.setColorAt(0, ChunkManager._probeColor());
             batch.add(colouredMesh);
         }
-        this._scopedCompile(batch);
+        this._scopedCompile(batch, drainNow);
     }
 
     static _probeColor() {
@@ -1232,7 +1152,7 @@ export default class ChunkManager {
         return unwarmed;
     }
 
-    _scopedCompile(group) {
+    _scopedCompile(group, drainNow = true) {
         const env = this.env;
         const scene = env.scene;
         const saved = scene.children;
@@ -1245,23 +1165,62 @@ export default class ChunkManager {
         scene.children = scoped;
         const wasVisible = group.visible;
         group.visible = true;
+        const __c0 = performance.now();
         try {
             env.engine.renderer.compile(scene, env.camera);
         } finally {
             group.visible = wasVisible;
             scene.children = saved;
         }
-        this._drainProgramLinks();
+        const __c1 = performance.now();
+        if (drainNow) this._drainProgramLinks();
+        const __c2 = performance.now();
+        if (env._scopedProfile) {
+            env._scopedProfile.compileMs += __c1 - __c0;
+            env._scopedProfile.drainMs += __c2 - __c1;
+            env._scopedProfile.calls++;
+        }
     }
 
-    _drainProgramLinks() {
-        const programs = this.env.engine.renderer.info.programs;
-        if (!programs) return;
+    // getUniforms() blocks until the driver has finished linking, which is the
+    // point — we want the stall here rather than on the frame that first uses the
+    // program. But it was being called on every program after every batch, so a
+    // program linked once was waited on dozens of times, and each batch blocked
+    // before the next was queued. That serialises KHR_parallel_shader_compile into
+    // exactly the sequential link the r160 upgrade was meant to escape. Measured at
+    // boot: 7126ms here against 89ms of actual renderer.compile(). Draining each
+    // program once, after every compile is queued, lets the driver link them in
+    // parallel while we are still submitting work.
+    _drainProgramLinks(budgetMs = Infinity) {
+        const renderer = this.env.engine.renderer;
+        const programs = renderer.info.programs;
+        if (!programs) return 0;
+        if (!this._drainedPrograms) this._drainedPrograms = new WeakSet();
+        if (this._parallelExt === undefined) {
+            const gl = renderer.getContext();
+            this._parallelExt = gl.getExtension('KHR_parallel_shader_compile') || null;
+            this._gl = gl;
+        }
+        const ext = this._parallelExt;
+        const gl = this._gl;
+        const polling = ext !== null && budgetMs !== Infinity;
+        const start = performance.now();
+        let drained = 0;
         for (let i = 0; i < programs.length; i++) {
             const program = programs[i];
             if (!program || typeof program.getUniforms !== 'function') continue;
+            if (this._drainedPrograms.has(program)) continue;
+            // Ask whether the driver has finished linking rather than waiting for
+            // it. A program still in flight is skipped and picked up on a later
+            // pass; calling getUniforms() on it would block the frame, which is
+            // the entire cost we are trying to move off the critical path.
+            if (polling && program.program &&
+                !gl.getProgramParameter(program.program, ext.COMPLETION_STATUS_KHR)) continue;
+            this._drainedPrograms.add(program);
             program.getUniforms();
             program.getAttributes();
+            drained++;
+            if (performance.now() - start > budgetMs) break;
         }
     }
 
