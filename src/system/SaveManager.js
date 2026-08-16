@@ -73,6 +73,7 @@ export default class SaveManager {
     }
 
     saveState() {
+        if (this.player && this.player.isDead) return;
         const state = {
             px: this.engine.camera.position.x,
             py: this.engine.camera.position.y,

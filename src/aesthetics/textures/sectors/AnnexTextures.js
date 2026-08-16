@@ -93,7 +93,7 @@ export default class AnnexTextures {
         }
         const doorTexture = new THREE.CanvasTexture(doorCanvas);
         
-        const annexDoorMatFront = new THREE.MeshStandardMaterial({map: doorTexture, roughness: 0.7, metalness: 0.1,emissive: 0x222222, emissiveIntensity: 0.5,});
+        const annexDoorMatFront = new THREE.MeshStandardMaterial({map: doorTexture, roughness: 0.7, metalness: 0.1});
         const annexDoorMatBack = new THREE.MeshStandardMaterial({
             map: doorTexture,
             roughness: 0.7,

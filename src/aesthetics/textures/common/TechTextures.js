@@ -63,8 +63,6 @@ export default class TechTextures {
             roughness: 0.7,
             metalness: 0.15,
             bumpMap: ventTexture,
-            emissive: 0x333333,
-            emissiveIntensity: 0.2,
             bumpScale: 0.02
         });
         const {canvas: ductCanvas, ctx: ductCtx} = TextureMechanics._createContext(256, 256);
@@ -91,8 +89,6 @@ export default class TechTextures {
             map: ductTexture,
             roughness: 0.55,
             metalness: 0.75,
-            emissive: 0x322222,
-            emissiveIntensity: 0.15,
             bumpMap: ductTexture,
             bumpScale: 0.01
         });

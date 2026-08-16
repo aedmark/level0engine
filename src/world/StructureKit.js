@@ -669,6 +669,8 @@ export default class StructureKit {
                     blocksX: blocksX, worldPos: {x: px, z: pz},
                     fallDir: opts.fallDir
                 };
+                grate.castShadow = (!mat.userData || !mat.userData.noShadow);
+                grate.receiveShadow = true;
                 if (hinged) {
                     const pivot = new THREE.Group();
                     pivot.position.set(
@@ -687,6 +689,8 @@ export default class StructureKit {
                         );
                         const handleMat = env.metalMat || mat;
                         const handle = new THREE.Mesh(handleGeo, handleMat);
+                        handle.castShadow = true;
+                        handle.receiveShadow = true;
                         handle.position.set(
                             blocksX ? 0 : width / 2 - 0.15, 
                             0, 
