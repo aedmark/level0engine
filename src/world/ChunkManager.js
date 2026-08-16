@@ -1034,19 +1034,18 @@ export default class ChunkManager {
         // case needs its own probe. Measured: 28 late programs down to 13.
         const coloured = new THREE.InstancedMesh(env._probeGeo, null, 1);
         coloured.setColorAt(0, new THREE.Color(1, 1, 1));
-        const probes = [
-            new THREE.Mesh(env._probeGeo, null),
-            new THREE.InstancedMesh(env._probeGeo, null, 1),
-            coloured
-        ];
+        const plain = new THREE.Mesh(env._probeGeo, null);
+        const instanced = new THREE.InstancedMesh(env._probeGeo, null, 1);
+        const probes = [plain, instanced, coloured];
         for (const mesh of probes) {
             mesh.castShadow = true;
             mesh.receiveShadow = true;
+            mesh.frustumCulled = false;
         }
         const group = new THREE.Group();
         group.add(...probes);
         this._shadowRig = {
-            point, spot, camera, group, probes,
+            point, spot, camera, group, probes, plain, instanced, coloured,
             target: new THREE.WebGLRenderTarget(4, 4),
             scoped: [point, spot, spot.target, group]
         };
@@ -1073,12 +1072,12 @@ export default class ChunkManager {
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.autoUpdate = true;
             renderer.setRenderTarget(rig.target);
-            // Always retire at least one, so a material more expensive than the
-            // whole budget cannot wedge the queue.
+            // Always retire at least one, so a spec more expensive than the whole
+            // budget cannot wedge the queue.
             do {
                 const material = queue.pop();
                 if (!material) break;
-                for (const probe of rig.probes) probe.material = material;
+                for (const p of rig.probes) p.material = material;
                 rig.point.shadow.needsUpdate = true;
                 rig.spot.shadow.needsUpdate = true;
                 renderer.render(scene, rig.camera);
@@ -1087,7 +1086,7 @@ export default class ChunkManager {
         } catch (err) {
             console.warn('Shadow prewarm failed:', err);
         } finally {
-            for (const probe of rig.probes) probe.material = null;
+            for (const p of rig.probes) p.material = null;
             renderer.setRenderTarget(savedTarget);
             renderer.shadowMap.enabled = savedEnabled;
             renderer.shadowMap.autoUpdate = savedAuto;
