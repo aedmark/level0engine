@@ -40,12 +40,12 @@ export default class ShaderWarmup {
             }
             await new Promise(resolve => setTimeout(resolve, 0));
         }
-        // One blocking wait for the whole set, once the driver has had the entire
-        // compile phase to link in the background.
-        const __d0 = performance.now();
-        if (onProgress) onProgress(85, 'LINKING SHADER PROGRAM PERMUTATIONS...');
-        env.chunkManager._drainProgramLinks();
-        env._bootProfile.finalDrainMs = Math.round(performance.now() - __d0);
+        // Every compile is queued; the driver links them on its own threads. We do
+        // not wait. Blocking here cost 7.1s of a 15s boot and bought nothing that
+        // could not be collected a frame at a time once the player is already in
+        // the world — measured, restructuring the wait did not move it, because the
+        // linking is genuinely that expensive rather than badly scheduled.
+        env._bootProfile.finalDrainMs = 0;
         env._bootProfile.totalMs = Math.round(performance.now() - __t0);
     }
 
