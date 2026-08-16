@@ -7,6 +7,7 @@ import {CrawlspaceHallProfile} from './blueprints/CrawlspaceHall.js';
 import {CreviceHallProfile} from './blueprints/CreviceHall.js';
 import {RideQueueHallProfile} from './blueprints/RideQueueHall.js';
 import BootController from '../ui/BootController.js';
+import * as SectorPlacement from './SectorPlacement.js';
 
 const CELL_KEY_SPAN = 4194304;
 const cellKey = (x, z) => x * (CELL_KEY_SPAN * 2) + z;
@@ -250,11 +251,7 @@ export default class ChunkManager {
         const chunkGroup = new THREE.Group();
         env.scene.add(chunkGroup);
         env.activeChunks.set(hash, chunkGroup);
-        let structuralShift = 0;
-        if (env.player && env.player.paranoia > 0.6) {
-            structuralShift = Math.floor(env.player.paranoia * 1000) * (chunkX % 2 === 0 ? 1 : -1);
-        }
-        let prngSeed = (env.baseSeed + structuralShift + (chunkX * 104729) + (chunkZ * 1299827)) >>> 0;
+        let prngSeed = (env.baseSeed + (chunkX * 104729) + (chunkZ * 1299827)) >>> 0;
         const random = () => {
             prngSeed = (prngSeed * 1664525 + 1013904223) >>> 0;
             return prngSeed / 4294967296.0;
@@ -263,32 +260,9 @@ export default class ChunkManager {
         const ctx = env._createChunkHelpers(hash, chunkGroup, stagingMeshes, random);
         const startX = chunkX * env.chunkSize;
         const startZ = chunkZ * env.chunkSize;
-        let isMacroStructure = false;
-        if (env.discoveredSectors.has(hash)) {
-            isMacroStructure = true;
-            env._macroChunkHashes.add(hash);
-        } else {
-            isMacroStructure = random() > 0.60 &&
-                Math.max(Math.abs(chunkX), Math.abs(chunkZ)) >= env.macroSpawnExclusionRadius;
-            if (isMacroStructure) {
-                const spacing = env.macroMinSpacingChunks;
-                let tooCloseToAnotherMacro = false;
-                for (let dx = -spacing; dx <= spacing && !tooCloseToAnotherMacro; dx++) {
-                    for (let dz = -spacing; dz <= spacing; dz++) {
-                        if (dx === 0 && dz === 0) continue;
-                        if (env._macroChunkHashes.has(`${chunkX + dx},${chunkZ + dz}`)) {
-                            tooCloseToAnotherMacro = true;
-                            break;
-                        }
-                    }
-                }
-                if (tooCloseToAnotherMacro) {
-                    isMacroStructure = false;
-                } else {
-                    env._macroChunkHashes.add(hash);
-                }
-            }
-        }
+        const placement = SectorPlacement.placementConfig(env);
+        const isMacroStructure = SectorPlacement.isMacroChunk(placement, chunkX, chunkZ);
+        if (isMacroStructure) env._macroChunkHashes.add(hash);
         const structuralMatrix = isMacroStructure ? null : TheArchitect.getStructuralMatrix.call(env, ctx);
         const sectorMatrix = isMacroStructure ? TheArchitect.getSectorMatrix.call(env, ctx) : null;
         let activeSector = null;
@@ -299,27 +273,14 @@ export default class ChunkManager {
         if (isMacroStructure) {
             const isExitPhase = env.player && env.player.objectives && env.player.objectives.fixed >= env.player.objectives.total &&
                 env.player.inventory.hasExitKey && !env.player.objectives.escaped;
-            const poolKey = isExitPhase ? 'exit' : 'normal';
-            let activeSectorId;
-            if (env.discoveredSectors.has(hash)) {
-                activeSectorId = env.discoveredSectors.get(hash);
-            } else {
-                if (!env._sectorBags) env._sectorBags = {};
-                if (!env._sectorBags[poolKey] || env._sectorBags[poolKey].length === 0) {
-                    const ids = sectorMatrix
-                        .filter(s => isExitPhase ? s.id !== "CHECKPOINT" : s.id !== "EXIT")
-                        .map(s => s.id);
-                    for (let i = ids.length - 1; i > 0; i--) {
-                        const j = Math.floor(random() * (i + 1));
-                        const tmp = ids[i];
-                        ids[i] = ids[j];
-                        ids[j] = tmp;
-                    }
-                    env._sectorBags[poolKey] = ids;
-                }
-                activeSectorId = env._sectorBags[poolKey].pop();
-                env.discoveredSectors.set(hash, activeSectorId);
+
+            const pool = sectorMatrix.filter(s => s.id !== "EXIT").map(s => s.id);
+            let activeSectorId = SectorPlacement.sectorIdFor(placement, pool, chunkX, chunkZ);
+
+            if (isExitPhase && SectorPlacement.isExitChunk(placement, chunkX, chunkZ)) {
+                activeSectorId = "EXIT";
             }
+            env.discoveredSectors.set(hash, activeSectorId);
             activeSector = sectorMatrix.find(s => s.id === activeSectorId);
             if (activeSector && activeSector.id === "IMPOUND") cHeight = 20.0;
             env.macroZones.set(hash, {
@@ -540,11 +501,6 @@ export default class ChunkManager {
                         };
                     }
 
-                    let structuralShift = 0;
-                    if (env.player && env.player.paranoia > 0.6) {
-                        structuralShift = Math.floor(env.player.paranoia * 1000) * (chunkX % 2 === 0 ? 1 : -1);
-                    }
-
                     const airlocksCopy = env.airlocks ? env.airlocks.map(a => ({
                         outerPos: {x: a.outerPos.x, z: a.outerPos.z},
                         chamberCenter: {x: a.chamberCenter.x, z: a.chamberCenter.z},
@@ -557,7 +513,7 @@ export default class ChunkManager {
                         this.worker.postMessage({
                             hash, chunkX, chunkZ, startX, startZ,
                             chunkSize: env.chunkSize, cellSize: env.cellSize,
-                            baseSeed: env.baseSeed, cx, cy, structuralShift,
+                            baseSeed: env.baseSeed, cx, cy,
                             airlocks: airlocksCopy
                         });
                     });

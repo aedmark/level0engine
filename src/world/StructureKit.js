@@ -137,9 +137,10 @@ export default class StructureKit {
                 }
                 return mesh;
             },
-            addArchCutoutColliders: (mesh, radius, thickness, outerY, depth, steps = 24) => {
+            addArchCutoutColliders: (mesh, radius, thickness, outerY, depth, springY, steps = 24) => {
                 const EPS = 0.01;
                 const outerX = radius + thickness;
+                const totalY = springY + outerY;
                 const halfDepth = depth / 2;
                 mesh.updateMatrixWorld(true);
                 const b3 = new THREE.Box3();
@@ -156,32 +157,35 @@ export default class StructureKit {
                     box.chunkHash = hash;
                     env.spatialGrid.insert(box);
                 };
-                insert(-outerX, 0, -radius, outerY);
-                insert(radius, 0, outerX, outerY);
+                insert(-outerX, 0, -radius, totalY);
+                insert(radius, 0, outerX, totalY);
                 for (let i = 0; i < steps; i++) {
                     const t0 = Math.PI * (i / steps);
                     const t1 = Math.PI * ((i + 1) / steps);
                     const xa = radius * Math.cos(t0);
                     const xb = radius * Math.cos(t1);
-                    const yb = radius * Math.min(Math.sin(t0), Math.sin(t1));
-                    insert(Math.min(xa, xb), yb, Math.max(xa, xb), outerY);
+                    const yb = springY + radius * Math.min(Math.sin(t0), Math.sin(t1));
+                    insert(Math.min(xa, xb), yb, Math.max(xa, xb), totalY);
                 }
             },
-            buildArchCutout: (radius, thickness, outerY, depth, yOffset, mat) => {
-                const key = `archCutout_${radius}_${thickness}_${outerY}_${depth}_${yOffset}`;
+            buildArchCutout: (radius, thickness, outerY, depth, springY, mat) => {
+                const key = `archCutout_${radius}_${thickness}_${outerY}_${depth}_${springY}`;
                 let geo = env.geoCache.get(key);
                 if (!geo) {
                     const shape = new THREE.Shape();
                     const outerX = radius + thickness;
+                    const totalY = springY + outerY;
 
                     shape.moveTo(-outerX, 0);
-                    shape.lineTo(-outerX, outerY);
-                    shape.lineTo(outerX, outerY);
+                    shape.lineTo(-outerX, totalY);
+                    shape.lineTo(outerX, totalY);
                     shape.lineTo(outerX, 0);
                     shape.lineTo(radius, 0);
-                    shape.absarc(0, 0, radius, 0, Math.PI, false);
+                    shape.lineTo(radius, springY);
+                    shape.absarc(0, springY, radius, 0, Math.PI, false);
+                    shape.lineTo(-radius, 0);
 
-                    geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false, curveSegments: 8 });
+                    geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false, curveSegments: 24 });
                     geo.translate(0, 0, -depth / 2);
 
                     const pos = geo.attributes.position;
@@ -189,24 +193,30 @@ export default class StructureKit {
                     geo.computeVertexNormals();
                     const norm = geo.attributes.normal;
 
+                    const overTheTop = springY + radius * Math.PI;
+
                     for (let i = 0; i < pos.count; i++) {
                         const x = pos.getX(i);
                         const y = pos.getY(i);
                         const z = pos.getZ(i);
-                        const nz = Math.abs(norm.getZ(i));
 
-                        if (nz > 0.5) {
-                            uv.setXY(i, x / env.cellSize, (yOffset + y) / 3.0);
-                        } else {
-                            if (Math.abs(x) >= outerX - 0.01 || y >= outerY - 0.01 || y < 0.01) {
-                                uv.setXY(i, z / env.cellSize, (yOffset + y) / 3.0);
-                            } else {
-                                let angle = Math.atan2(y, x);
-                                if (angle < 0) angle += Math.PI * 2;
-                                let dist = radius * angle;
-                                uv.setXY(i, z / env.cellSize, (yOffset + dist) / 3.0);
-                            }
+                        if (Math.abs(norm.getZ(i)) > 0.5) {
+                            uv.setXY(i, x / env.cellSize, y / 3.0);
+                            continue;
                         }
+
+                        if (Math.abs(x) >= outerX - 0.01 || y >= totalY - 0.01) {
+                            uv.setXY(i, z / env.cellSize, y / 3.0);
+                            continue;
+                        }
+
+                        let walked;
+                        if (y <= springY + 0.01) {
+                            walked = x > 0 ? y : overTheTop + (springY - y);
+                        } else {
+                            walked = springY + radius * Math.atan2(y - springY, x);
+                        }
+                        uv.setXY(i, z / env.cellSize, walked / 3.0);
                     }
                     uv.needsUpdate = true;
 
@@ -293,6 +303,22 @@ export default class StructureKit {
                     env.geoCache.set(geo.uuid, true);
                 }
                 return geo;
+            },
+            addBaseboardBox: (cx, cz, w, d) => {
+                const bw = w + 0.06;
+                const bd = d + 0.06;
+
+                const body = new THREE.Mesh(this.boxGeo(1, BASEBOARD_H, 1), env.baseboardMat);
+                body.scale.set(bw, 1, bd);
+                body.position.set(cx, BASEBOARD_H / 2, cz);
+                body.userData.noCollision = true;
+                helpers.addGeometry(body);
+
+                const trim = new THREE.Mesh(this.boxGeo(1, TRIM_H, 1), env.baseboardTrimMat);
+                trim.scale.set(bw, 1, bd);
+                trim.position.set(cx, BASEBOARD_H + TRIM_H / 2, cz);
+                trim.userData.noCollision = true;
+                helpers.addGeometry(trim);
             },
             addCurvedAlcoveBaseboard: (cx, cz, angle) => {
                 const size = env.cellSize;

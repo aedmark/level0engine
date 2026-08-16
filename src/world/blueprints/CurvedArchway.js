@@ -1,5 +1,5 @@
 export const CurvedArchwayProfile = (env, ctx) => {
-    const {random, buildWall, buildArchCutout, addGeometry} = ctx;
+    const {random, buildArchCutout, addGeometry} = ctx;
     return {
         name: "CURVED ARCHWAY",
         prob: 0.01, build: (x, z) => {
@@ -28,28 +28,28 @@ export const CurvedArchwayProfile = (env, ctx) => {
             const radius = outerX - pillarThickness;
             
             const archHeight = radius + 0.3;
-            const verticalClearance = 3.0 - archHeight; 
-            
-            const supportLeft = buildWall(isAlignedZ ? pillarThickness : env.cellSize, isAlignedZ ? env.cellSize : pillarThickness, env.sharedWallMat, verticalClearance, 0);
-            supportLeft.position.set(cx + (isAlignedZ ? -outerX + pillarThickness/2 : 0), verticalClearance / 2, cz + (isAlignedZ ? 0 : -outerX + pillarThickness/2));
-            supportLeft.userData.isEntityBlocker = true;
-            addGeometry(supportLeft);
-            
-            const supportRight = buildWall(isAlignedZ ? pillarThickness : env.cellSize, isAlignedZ ? env.cellSize : pillarThickness, env.sharedWallMat, verticalClearance, 0);
-            supportRight.position.set(cx + (isAlignedZ ? outerX - pillarThickness/2 : 0), verticalClearance / 2, cz + (isAlignedZ ? 0 : outerX - pillarThickness/2));
-            supportRight.userData.isEntityBlocker = true;
-            addGeometry(supportRight);
-            
+            const springHeight = 3.0 - archHeight;
+
             if (buildArchCutout) {
-                const arch = buildArchCutout(radius, pillarThickness, archHeight, env.cellSize, verticalClearance, env.sharedWallMat);
-                arch.position.set(cx, verticalClearance, cz);
+                const arch = buildArchCutout(radius, pillarThickness, archHeight, env.cellSize, springHeight, env.sharedWallMat);
+                arch.position.set(cx, 0, cz);
                 if (!isAlignedZ) {
                     arch.rotation.y = Math.PI / 2;
                 }
                 arch.userData.isEntityBlocker = true;
                 arch.userData.noCollision = true;
                 addGeometry(arch);
-                ctx.addArchCutoutColliders(arch, radius, pillarThickness, archHeight, env.cellSize);
+                ctx.addArchCutoutColliders(arch, radius, pillarThickness, archHeight, env.cellSize, springHeight);
+
+                const jambOffset = outerX - pillarThickness / 2;
+                for (const side of [-1, 1]) {
+                    ctx.addBaseboardBox(
+                        cx + (isAlignedZ ? side * jambOffset : 0),
+                        cz + (isAlignedZ ? 0 : side * jambOffset),
+                        isAlignedZ ? pillarThickness : env.cellSize,
+                        isAlignedZ ? env.cellSize : pillarThickness
+                    );
+                }
             }
         }
     };

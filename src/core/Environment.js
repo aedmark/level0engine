@@ -56,9 +56,9 @@ export default class Environment {
         this.breakerScan = null;
         this._scanDir = new THREE.Vector3();
         this._scanAim = new THREE.Vector3();
-        
+
         this._macroChunkHashes = new Set();
-        this._sectorBags = null;
+        this._placementCfg = null;
         this.macroSpawnExclusionRadius = 1;
         this.macroMinSpacingChunks = 2;
         this._pendingMacroContent = new Map();
@@ -440,7 +440,7 @@ export default class Environment {
         this._breakerHuntHops = this.interactionController.rollHuntHops();
         this._runSalt32 = (Math.random() * 4294967296) >>> 0;
         this._macroChunkHashes = new Set();
-        this._sectorBags = null;
+        this._placementCfg = null;
         this._pendingMacroContent.clear();
         if (this.tagPool) {
             this.tagPool.forEach(tag => tag.visible = false);

@@ -1,6 +1,23 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 
+const BOOK_W = 0.35, BOOK_H = 0.08, BOOK_D = 0.45;
+const BOOK_JITTER = 0.08;
+const STACK_RADIUS = Math.hypot(BOOK_W, BOOK_D) / 2 + Math.hypot(BOOK_JITTER, BOOK_JITTER) / 2;
+const STACK_CLEARANCE = STACK_RADIUS * 2;
+
+const pileRing = (cx, cz, spread, count) => {
+    const sides = Math.max(count, 2);
+    const minRing = STACK_CLEARANCE / (2 * Math.sin(Math.PI / sides));
+    const ringR = Math.max(minRing, spread / 2);
+    const chord = 2 * ringR * Math.sin(Math.PI / sides);
+    return {
+        ringR,
+        slack: Math.max(0, chord - STACK_CLEARANCE) * 0.35,
+        phase: Math.atan2(cz, cx) * 3.7 + (cx + cz) * 0.31
+    };
+};
+
 export const ArchiveSector = (env, ctx) => {
     const {
         random,
@@ -57,16 +74,19 @@ export const ArchiveSector = (env, ctx) => {
             const spawnClutter = (cx, cy, cz, radius = 1.0) => {
                 const r = random();
                 if (r > 0.6) {
-                    if (!env.singleBookGeo) env.singleBookGeo = new THREE.BoxGeometry(0.35, 0.08, 0.45);
+                    if (!env.singleBookGeo) env.singleBookGeo = new THREE.BoxGeometry(BOOK_W, BOOK_H, BOOK_D);
                     const numStacks = 2 + Math.floor(random() * 3);
+                    const ring = pileRing(cx, cz, radius * 0.8, numStacks);
                     for (let s = 0; s < numStacks; s++) {
-                        const stackX = cx + (random() - 0.5) * radius * 0.8;
-                        const stackZ = cz + (random() - 0.5) * radius * 0.8;
+                        const spoke = ring.phase + (s / numStacks) * Math.PI * 2;
+                        const pileR = ring.ringR + (random() - 0.5) * ring.slack;
+                        const pileA = spoke + ((random() - 0.5) * ring.slack) / ring.ringR;
+                        const pile = {x: cx + Math.cos(pileA) * pileR, z: cz + Math.sin(pileA) * pileR};
                         const stackH = 1 + Math.floor(random() * 5);
                         for (let i = 0; i < stackH; i++) {
                             const matSet = env.bookMatSets ? env.bookMatSets[Math.floor(random() * env.bookMatSets.length)] : env.bookRowMat;
                             const bk = new THREE.Mesh(env.singleBookGeo, matSet);
-                            bk.position.set(stackX + (random() - 0.5) * 0.08, cy + 0.04 + i * 0.08, stackZ + (random() - 0.5) * 0.08);
+                            bk.position.set(pile.x + (random() - 0.5) * BOOK_JITTER, cy + BOOK_H / 2 + i * BOOK_H, pile.z + (random() - 0.5) * BOOK_JITTER);
                             bk.rotation.y = random() * Math.PI * 2;
                             addGeometry(bk);
                         }

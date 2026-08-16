@@ -238,11 +238,10 @@ self.onmessage = function(e) {
         cx,
         cy,
         airlocks,
-        structuralShift,
         hash
     } = e.data;
 
-    let prngSeed = (baseSeed + structuralShift + (chunkX * 104729) + (chunkZ * 1299827)) >>> 0;
+    let prngSeed = (baseSeed + (chunkX * 104729) + (chunkZ * 1299827)) >>> 0;
     const random = () => {
         prngSeed = (prngSeed * 1664525 + 1013904223) >>> 0;
         return prngSeed / 4294967296.0;
