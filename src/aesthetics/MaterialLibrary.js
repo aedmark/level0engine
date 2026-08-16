@@ -43,7 +43,11 @@ export default class MaterialLibrary {
         env.wallVentMat.map.repeat.set(1, 1);
         env.wallVentMat.userData = { noShadow: true };
         env.serverFloorMat.map.repeat.set(32, 32);
+        if (env.serverFloorMat.bumpMap) env.serverFloorMat.bumpMap.repeat.set(32, 32);
+        if (env.serverFloorMat.emissiveMap) env.serverFloorMat.emissiveMap.repeat.set(32, 32);
         env.serverCeilingMat.map.repeat.set(32, 32);
+        if (env.serverCeilingMat.bumpMap) env.serverCeilingMat.bumpMap.repeat.set(32, 32);
+        if (env.serverCeilingMat.emissiveMap) env.serverCeilingMat.emissiveMap.repeat.set(32, 32);
         env.breakerBaseGeo = new THREE.BoxGeometry(0.6, 0.8, 0.20);
         env.breakerDoorGeo = new THREE.BoxGeometry(0.6, 0.8, 0.05);
         env.breakerDoorGeo.translate(0.3, 0, 0);
