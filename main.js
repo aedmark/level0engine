@@ -17,6 +17,12 @@ import UIManager from './src/ui/UIManager.js';
 import {DebugHUD} from './src/ui/DebugHUD.js';
 import RemapController from './src/ui/RemapController.js';
 import BootController from './src/ui/BootController.js';
+import ContinuePrompt from './src/ui/ContinuePrompt.js';
+
+// Blocks here, before anything else runs, if a prior save exists — the player picks
+// Continue or New Game. New Game purges localStorage/IndexedDB/caches first, so
+// everything below (including the boot sequence itself) starts from a clean slate.
+await ContinuePrompt.resolve();
 
 const bootCtrl = BootController.getInstance();
 bootCtrl.init();
@@ -26,6 +32,7 @@ const storyPromise = StoryEngine.loadData('./data', (pct, fileName) => {
     bootCtrl.setProgress(pct, `PARSED CASE DATA: ${fileName}`);
 });
 const engine = new RenderEngine();
+bootCtrl.logDeviceInfo(engine);
 const acoustics = new AcousticEngine();
 window.acoustics = acoustics;
 const player = new PlayerController(engine.camera, engine.renderer.domElement);
@@ -310,9 +317,10 @@ function animate() {
     bootCtrl.setPhase(5, 'COMPILING SOMATIC PHOSPHOR SHADERS...', 85);
     bootCtrl.addLog('RUNNING PARALLEL WEBGL SHADER COMPILER...');
 
+    const compileStart = performance.now();
     await engine.renderer.compileAsync(engine.scene, engine.camera);
 
-    bootCtrl.setProgress(98, 'SHADER PROGRAM PERMUTATIONS LINKED [OK]');
+    bootCtrl.setProgress(98, `SHADER PROGRAM PERMUTATIONS LINKED [OK] (${Math.round(performance.now() - compileStart)}ms)`);
 
     environment.isSectorTransitioning = false;
     environment.isBuildingMacroInterior = false;

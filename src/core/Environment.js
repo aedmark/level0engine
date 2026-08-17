@@ -73,9 +73,11 @@ export default class Environment {
         const bootCtrl = BootController.getInstance();
         bootCtrl.setPhase(2, 'CALIBRATING CARPET MOISTURE & CEILING GRAIN...', 15);
         await new Promise(resolve => setTimeout(resolve, 0));
+        const coreAssetsStart = performance.now();
         const assets = await ProceduralTextureFactory.generateAssets((pct, name) => {
             bootCtrl.setProgress(pct, `MOUNTING ASSET: ${name}`);
         });
+        bootCtrl.addLog(`CORE ASSETS LOADED (${Math.round(performance.now() - coreAssetsStart)}ms)`);
         Object.assign(this, assets);
         const {carpetTexture, ceilingTexture, ceilingBumpTexture} = assets;
         carpetTexture.repeat.set(16, 16);
@@ -194,8 +196,9 @@ export default class Environment {
         this.camera.add(this.flashlight.target);
         this.baseFogDensity = 0.05;
         bootCtrl.setPhase(3, 'ALIGNING MAZE SPATIAL CORRIDORS...', 40);
+        const generateStart = performance.now();
         this.generate();
-        bootCtrl.setProgress(65, `WORLD MESH GRID GENERATED [SEED: 0x${(this.baseSeed >>> 0).toString(16).toUpperCase()}]`);
+        bootCtrl.setProgress(65, `WORLD MESH GRID GENERATED [SEED: 0x${(this.baseSeed >>> 0).toString(16).toUpperCase()}] (${Math.round(performance.now() - generateStart)}ms)`);
 
         bootCtrl.setPhase(4, 'PREWARMING ANOMALOUS SECTOR BLUEPRINTS...', 70);
         // Awaited here, not fired in the background after warmup: annexWallMat,
@@ -204,11 +207,20 @@ export default class Environment {
         // so every sector these textures belong to was guaranteed a cold, synchronous
         // shader compile the first time a player actually reached it. Paying the cost
         // here folds it into the loading bar instead of into gameplay.
-        await ProceduralTextureFactory.lazyLoadSectorAssets(this).catch(console.error);
+        const sectorAssetsStart = performance.now();
+        await ProceduralTextureFactory.lazyLoadSectorAssets(this, (i, total, name, ms) => {
+            bootCtrl.setProgress(70 + Math.round((i / total) * 3), `SECTOR TEXTURE BUNDLE [${name}] BUILT (${ms}ms)`);
+        }).catch(err => {
+            console.error('[BOOT] lazyLoadSectorAssets failed:', err);
+            bootCtrl.addLog(`SECTOR TEXTURE BUNDLE BUILD FAILED: ${err && err.message}`);
+        });
+        bootCtrl.addLog(`ALL SECTOR TEXTURE BUNDLES READY (${Math.round(performance.now() - sectorAssetsStart)}ms)`);
 
+        const warmupStart = performance.now();
         await ShaderWarmup.run(this, (pct, msg) => {
             bootCtrl.setProgress(pct, msg);
         });
+        bootCtrl.addLog(`SHADER MATERIAL WARMUP DONE (${Math.round(performance.now() - warmupStart)}ms)`);
 
         const toggleBtn = document.getElementById('menuToggleBtn');
         const toggleMenu = (e) => {

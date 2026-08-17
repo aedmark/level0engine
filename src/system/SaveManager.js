@@ -45,7 +45,7 @@ export default class SaveManager {
             else if (state.aa === false) aaVal = "0";
             else if (state.aa !== undefined) aaVal = state.aa.toString();
             document.getElementById('aaSelect').value = aaVal;
-            document.getElementById('fxaaToggle').checked = state.fxaa !== false;
+            document.getElementById('fxaaToggle').checked = state.fxaa === true;
             document.getElementById('postToggle').checked = state.post !== false;
             document.getElementById('headBobToggle').checked = state.headBob !== false;
             this.engine.aspectRatio = state.aspect === 'auto' ? 'auto' : parseFloat(state.aspect || 1.3333333333);
@@ -120,6 +120,30 @@ export default class SaveManager {
         }
     }
 
+    /**
+     * Wipes every trace of a prior run — save blob, cached textures, service workers,
+     * the Cache API — so the next asset request has nothing to hit but the network.
+     * Static and instance-free: the pre-boot "New Game" prompt needs to run this before
+     * a SaveManager (or even an Environment) exists, so nothing here may depend on `this`.
+     */
+    static async purgeAllStorage() {
+        localStorage.clear();
+        sessionStorage.clear();
+        await TextureCache.clearAll();
+        if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (let registration of registrations) {
+                await registration.unregister();
+            }
+        }
+        if ('caches' in window) {
+            const keys = await caches.keys();
+            for (let key of keys) {
+                await caches.delete(key);
+            }
+        }
+    }
+
     startAutoSave() {
         this.saveInterval = setInterval(() => this.idleSaveState(), 2500);
         document.getElementById('saveApplyBtn')?.addEventListener('click', () => {
@@ -135,21 +159,7 @@ export default class SaveManager {
                 flash.style.opacity = '1';
             }
             clearInterval(this.saveInterval);
-            localStorage.clear();
-            sessionStorage.clear();
-            await TextureCache.clearAll();
-            if ('serviceWorker' in navigator) {
-                const registrations = await navigator.serviceWorker.getRegistrations();
-                for (let registration of registrations) {
-                    await registration.unregister();
-                }
-            }
-            if ('caches' in window) {
-                const keys = await caches.keys();
-                for (let key of keys) {
-                    await caches.delete(key);
-                }
-            }
+            await SaveManager.purgeAllStorage();
             const seedInput = document.getElementById('seedInput');
             if (seedInput) seedInput.value = '';
             window.location.href = window.location.href.split('?')[0];

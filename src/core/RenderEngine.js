@@ -304,13 +304,18 @@ export default class RenderEngine {
     }
 
     static getSavedFXAA() {
+        // Defaults to off, not on. FXAA is a second full-screen fragment pass on top of
+        // the CRT/vignette pass, both running at whatever the internal resolution is
+        // set to — on fill-rate-bound hardware it's real cost for a blur most players
+        // won't miss under the VHS/CRT post stack. A saved, explicit `true` is honored,
+        // so anyone who already opted in keeps it.
         try {
             const raw = localStorage.getItem('level0_state');
-            if (!raw) return true;
+            if (!raw) return false;
             const state = JSON.parse(raw);
-            return state.fxaa !== false;
+            return state.fxaa === true;
         } catch (e) {
-            return true;
+            return false;
         }
     }
 

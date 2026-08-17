@@ -1,3 +1,5 @@
+import RenderEngine from '../core/RenderEngine.js';
+
 export default class BootController {
     static instance = null;
 
@@ -15,6 +17,9 @@ export default class BootController {
         this.phaseTitle = 'INITIALIZING SOMATIC LINK...';
         this.logs = [];
         this.maxLogs = 4;
+        this.fullLog = [];
+        this.phaseDurations = [];
+        this._phaseStartTime = 0;
         this.startTime = 0;
         this.minDurationMs = 1500;
         this.isComplete = false;
@@ -72,7 +77,10 @@ export default class BootController {
         this.phaseIndex = 1;
         this.phaseTitle = 'INITIALIZING SOMATIC LINK...';
         this.logs = [];
+        this.fullLog = [];
+        this.phaseDurations = [];
         this.startTime = performance.now();
+        this._phaseStartTime = this.startTime;
         this.isComplete = false;
 
         const overlay = document.getElementById('flash-overlay');
@@ -88,6 +96,11 @@ export default class BootController {
             indicator.style.display = 'block';
         }
 
+        console.log(
+            '%c[BOOT] Starting — full timeline logged below, phase durations tabulated at the end. ' +
+            'If boot is unexpectedly slow, copy this console output.',
+            'color:#7fd; font-weight:bold;'
+        );
         this.addLog('SYSTEM.INIT // EDMARK LABS SOMATIC LINK v0.9.8');
         this.addLog('ESTABLISHING ISOLATED MEMORY MANIFOLD...');
 
@@ -95,12 +108,56 @@ export default class BootController {
         this.rafId = requestAnimationFrame(this._onFrame);
     }
 
+    /**
+     * Dumps everything relevant to "why is this person's boot/framerate different
+     * from mine" — GPU/driver strings, CPU/memory hints, tab visibility, and the
+     * exact graphics settings this session is booting with. Call once the RenderEngine
+     * exists (BootController.init() runs before it's constructed, so this can't live there).
+     */
+    logDeviceInfo(engine) {
+        const info = {
+            userAgent: navigator.userAgent,
+            hardwareConcurrency: navigator.hardwareConcurrency ?? 'n/a',
+            deviceMemoryGB: navigator.deviceMemory ?? 'n/a',
+            screen: `${screen.width}x${screen.height} @ dpr${window.devicePixelRatio}`,
+            viewport: `${window.innerWidth}x${window.innerHeight}`,
+            documentVisibility: document.visibilityState,
+            hasFocus: document.hasFocus()
+        };
+        try {
+            const gl = engine.renderer.getContext();
+            const dbgInfo = gl.getExtension('WEBGL_debug_renderer_info');
+            info.glVendor = dbgInfo ? gl.getParameter(dbgInfo.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR);
+            info.glRenderer = dbgInfo ? gl.getParameter(dbgInfo.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+            info.glVersion = gl.getParameter(gl.VERSION);
+            info.isWebGL2 = engine.renderer.capabilities.isWebGL2;
+            info.maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+        } catch (e) {
+            info.glError = String(e);
+        }
+        info.settings = {
+            resolutionScale: RenderEngine.getSavedResolutionScale(),
+            shadowQuality: RenderEngine.getSavedShadowQuality(),
+            aaSamples: RenderEngine.getSavedAA(),
+            fxaa: RenderEngine.getSavedFXAA(),
+            postProcessing: RenderEngine.getSavedPostProcess()
+        };
+        console.log('%c[BOOT] Device / settings snapshot:', 'color:#7fd; font-weight:bold;', info);
+        this.fullLog.push(`[DEVICE] ${JSON.stringify(info)}`);
+    }
+
     setPhase(phaseNum, title, targetPct) {
+        if (phaseNum !== this.phaseIndex) {
+            this._recordPhaseDuration(this.phaseIndex);
+            this._phaseStartTime = performance.now();
+        }
         this.phaseIndex = phaseNum;
         if (title) this.phaseTitle = title;
         if (targetPct !== undefined) {
             this.targetProgress = Math.max(this.targetProgress, targetPct);
         }
+
+        console.log(`%c[BOOT] ---- PHASE ${phaseNum}: ${title || this.phaseTitle} ----`, 'color:#fd7; font-weight:bold;');
 
         const pool = this.whimsicalPool[phaseNum] || [];
         if (pool.length > 0) {
@@ -109,6 +166,11 @@ export default class BootController {
         }
 
         this.updateDOM();
+    }
+
+    _recordPhaseDuration(phaseNum) {
+        const durationMs = performance.now() - this._phaseStartTime;
+        this.phaseDurations.push({phase: phaseNum, durationMs: Math.round(durationMs)});
     }
 
     setProgress(targetPct, logMsg) {
@@ -125,11 +187,13 @@ export default class BootController {
         const formatted = `> [${timestamp}s] ${msg}`;
 
         if (this.logs.length > 0 && this.logs[this.logs.length - 1] === formatted) return;
-        
+
         this.logs.push(formatted);
         if (this.logs.length > this.maxLogs) {
             this.logs.shift();
         }
+        this.fullLog.push(formatted);
+        console.log(`[BOOT] ${formatted}`);
         this.updateDOM();
     }
 
@@ -213,6 +277,12 @@ export default class BootController {
         this.targetProgress = 100;
         this.setPhase(6, 'STABILIZING SOMATIC LINK...', 100);
         this.addLog('SOMATIC LINK STABILIZED. THRESHOLD OPEN.');
+        this._recordPhaseDuration(this.phaseIndex);
+
+        const totalMs = Math.round(performance.now() - this.startTime);
+        console.log(`%c[BOOT] Complete in ${totalMs}ms. Phase breakdown:`, 'color:#7fd; font-weight:bold;');
+        console.table(this.phaseDurations);
+        console.log('[BOOT] Full log:', this.fullLog);
 
         return new Promise((resolve) => {
             this.resolveFinish = () => {

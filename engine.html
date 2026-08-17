@@ -954,6 +954,53 @@
             font-weight: bold;
         }
 
+        #continue-check-overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #050505;
+            z-index: 10001;
+            justify-content: center;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        #continue-check-box {
+            background: rgba(10, 10, 6, 0.92);
+            border: 1px solid #d4c382;
+            padding: 1.5rem;
+            box-shadow: 0 0 30px rgba(212, 195, 130, 0.15), inset 0 0 15px rgba(0, 0, 0, 0.9);
+            font-family: 'Space Mono', 'Courier New', monospace;
+            color: #d4c382;
+            width: min(480px, 92%);
+            box-sizing: border-box;
+        }
+
+        #continue-check-box p {
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: #a89f68;
+            margin: 0 0 1.25rem 0;
+        }
+
+        #newGameBtn {
+            border-color: rgba(255, 80, 80, 0.5);
+            color: #ff8888;
+        }
+
+        #newGameBtn:hover {
+            background: rgba(255, 80, 80, 0.85);
+            color: #111;
+        }
+
+        #newGameBtn:disabled, #continueGameBtn:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+
         @keyframes pulse {
             0% { opacity: 0.3; }
             50% { opacity: 1; }
@@ -1045,6 +1092,16 @@
 <div id="virtual-cursor"></div>
 <div id="screen-wrapper">
     <div id="canvas-container"></div>
+    <div id="continue-check-overlay">
+        <div id="continue-check-box">
+            <div class="loading-header">
+                <span>[ EXISTING SOMATIC IMPRINT DETECTED ]</span>
+            </div>
+            <p>A prior session was found in local memory. Resume where you left off, or wipe the manifold and start a new case? New Game clears all saved progress and cached assets — the engine will re-fetch and regenerate everything from scratch.</p>
+            <button id="continueGameBtn" class="btn">CONTINUE SESSION</button>
+            <button id="newGameBtn" class="btn">PURGE &amp; START NEW GAME</button>
+        </div>
+    </div>
     <div id="flash-overlay">
         <div id="loading-indicator">
             <div id="loading-terminal-box">
@@ -1141,7 +1198,7 @@
 <div id="ui-layer">
     <button id="menuToggleBtn" class="btn">MENU</button>
     <div class="control-panel">
-        <h1>LEVEL 0 ENGINE v1.1.4</h1>
+        <h1>LEVEL 0 ENGINE v1.1.5</h1>
         <div id="controls-text" style="color: rgba(255,255,255,0.7); font-family: monospace; font-size: 14px; pointer-events: none; text-shadow: 1px 1px 2px #000; text-align: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(212,195,130,0.5);">
             WASD to Move | Shift to Run<br>'E' to Interact | <strong style="color: #ffff88; font-size: 16px;">'C' to Crouch</strong><br>'Q' to Squeeze | 'V' to Blink<br>'F' for Flashlight | 'M' for Compass<br>Esc to Exit
         </div>
@@ -1217,7 +1274,7 @@
             <option value="8">8x MSAA</option>
         </select>
         <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; cursor: pointer;">
-            <input type="checkbox" id="fxaaToggle" checked style="width: auto; margin: 0;">
+            <input type="checkbox" id="fxaaToggle" style="width: auto; margin: 0;">
             Enable FXAA
         </label>
         <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; cursor: pointer;">

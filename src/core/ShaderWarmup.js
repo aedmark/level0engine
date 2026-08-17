@@ -8,8 +8,10 @@ export default class ShaderWarmup {
         if (!renderer || !env.chunkManager) return;
         try {
             if (onProgress) onProgress(72, 'PREWARMING ANOMALOUS SECTOR BLUEPRINTS...');
+            const t0 = performance.now();
             this._materialiseLazySectorAssets(env);
             warmLazySectorMaterials(env);
+            console.log(`[BOOT] Lazy blueprint/material materialisation: ${Math.round(performance.now() - t0)}ms`);
             await this._warm(env, onProgress);
         } catch (err) {
             console.warn('Shader warmup aborted:', err);
@@ -23,13 +25,20 @@ export default class ShaderWarmup {
         const BATCH = 8;
         const totalBatches = Math.ceil(materials.length / BATCH);
         let batchCount = 0;
+        console.log(`[BOOT] Shader warmup: ${materials.length} distinct materials to compile across ${totalBatches} batches.`);
 
         for (let i = 0; i < materials.length; i += BATCH) {
+            const batchStart = performance.now();
             await env.chunkManager.warmMaterialVariants(new Set(materials.slice(i, i + BATCH)), false);
+            const batchMs = Math.round(performance.now() - batchStart);
             batchCount++;
             if (onProgress) {
                 const pct = 75 + Math.round((batchCount / Math.max(1, totalBatches)) * 10);
-                onProgress(pct, `PREWARMING MATERIAL VARIANTS [BATCH ${batchCount}/${totalBatches}]...`);
+                onProgress(pct, `PREWARMING MATERIAL VARIANTS [BATCH ${batchCount}/${totalBatches}] (${batchMs}ms)`);
+            }
+            if (batchMs > 200) {
+                console.warn(`[BOOT] Slow warmup batch ${batchCount}/${totalBatches}: ${batchMs}ms for materials`,
+                    materials.slice(i, i + BATCH).map(m => m.type + (m.name ? `(${m.name})` : '')));
             }
             await new Promise(resolve => setTimeout(resolve, 0));
         }

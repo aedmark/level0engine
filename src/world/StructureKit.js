@@ -698,12 +698,8 @@ export default class StructureKit {
                         const refPos = b.meshRef.userData.worldPos || b.meshRef.position;
                         const dist = Math.abs(refPos.x - px) + Math.abs(refPos.z - pz);
                         if (dist < 0.1) {
-                            const detach = b.meshRef.userData.pivot || b.meshRef;
-                            if (detach.parent) {
-                                detach.parent.remove(detach);
-                            }
-                            env.interactables = env.interactables.filter(item => item !== b.meshRef);
-                            b.isGrate = false;
+                            // A grate is already perfectly placed here by another cell.
+                            // Do not add a duplicate, and do not delete the existing one.
                             return;
                         }
                     }

@@ -73,29 +73,35 @@ export default class ProceduralTextureFactory {
         return assets;
     }
 
-    static async lazyLoadSectorAssets(env) {
+    static async lazyLoadSectorAssets(env, onProgress = null) {
         const masterNoise = ProceduralTextureFactory._masterNoise;
         if (!masterNoise) return;
-        
+
         const lazyModules = [
-            (noise) => AnnexTextures._buildAnnexAssets(noise),
-            (noise) => ImpoundTextures._buildImpoundAssets(noise),
-            (noise) => BoardroomTextures._buildBoardroomAssets(noise),
-            (noise) => AtriumTextures._buildAtriumAssets(noise),
-            (noise) => MaintenanceTextures._buildMaintenanceAssets(noise),
-            (noise) => ArchiveTextures._buildArchiveAssets(noise),
-            (noise) => CheckpointTextures._buildCheckpointAssets(noise),
-            (noise) => IncineratorTextures._buildIncineratorAssets(noise)
+            ['ANNEX', (noise) => AnnexTextures._buildAnnexAssets(noise)],
+            ['IMPOUND', (noise) => ImpoundTextures._buildImpoundAssets(noise)],
+            ['BOARDROOM', (noise) => BoardroomTextures._buildBoardroomAssets(noise)],
+            ['ATRIUM', (noise) => AtriumTextures._buildAtriumAssets(noise)],
+            ['MAINTENANCE', (noise) => MaintenanceTextures._buildMaintenanceAssets(noise)],
+            ['ARCHIVE', (noise) => ArchiveTextures._buildArchiveAssets(noise)],
+            ['CHECKPOINT', (noise) => CheckpointTextures._buildCheckpointAssets(noise)],
+            ['INCINERATOR', (noise) => IncineratorTextures._buildIncineratorAssets(noise)]
         ];
-        
-        for (const buildFn of lazyModules) {
+
+        let i = 0;
+        for (const [name, buildFn] of lazyModules) {
             await TextureMechanics._yield();
+            i++;
             if (!buildFn) continue;
-            
+
+            const t0 = performance.now();
             const sectorAssets = buildFn(masterNoise);
             ProceduralTextureFactory._applyOpts(sectorAssets);
 
             Object.assign(env, sectorAssets);
+            if (onProgress) {
+                onProgress(i, lazyModules.length, name, Math.round(performance.now() - t0));
+            }
         }
     }
 
