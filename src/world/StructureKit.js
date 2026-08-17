@@ -18,10 +18,38 @@ import AABB from '../math/AABB.js';
  */
 export const ARCH_WALK_CLEARANCE = 2.55;
 
+/**
+ * How close to vertical a seat's local up axis has to stay before the player is allowed
+ * to sit in it. 0.7 is a shade under 45 degrees of tilt.
+ *
+ * Several blueprints dress a room by felling a chair onto its side (rotation.z = ±PI/2)
+ * or bolting one to the ceiling upside down. Those are scenery, and sitting in them
+ * would drop the camera through the floor or into the ceiling slab. The orientation
+ * already records that state, so addFurniture reads the transform rather than asking
+ * every builder to remember to clear a flag.
+ */
+const SEAT_UPRIGHT_DOT = 0.7;
+
+/**
+ * Desk top slab: centre height and thickness. Its work surface is the sum of the two
+ * halves, published as userData.surfaceY on every desk so nothing has to rebuild it.
+ */
+const DESK_TOP_Y = 1.125;
+const DESK_TOP_THICK = 0.075;
+
 export default class StructureKit {
     constructor(env) {
         this.env = env;
         this._furnitureBox = new THREE.Box3();
+        this._seatQuat = new THREE.Quaternion();
+        this._seatUp = new THREE.Vector3();
+    }
+
+    /** True while the cushion still faces the sky. See SEAT_UPRIGHT_DOT. */
+    isUprightSeat(group) {
+        group.getWorldQuaternion(this._seatQuat);
+        this._seatUp.set(0, 1, 0).applyQuaternion(this._seatQuat);
+        return this._seatUp.y >= SEAT_UPRIGHT_DOT;
     }
 
     cacheGeo(key, make) {
@@ -534,14 +562,27 @@ export default class StructureKit {
                     : (dir > 0 ? box.min.z : box.max.z);
                 return Math.min(span.length, (nearFace - anchor) * dir - 0.02);
             },
+            /**
+             * Places a furniture group and reports whether it survived.
+             *
+             * Seats register as interactable here, at the end, rather than inside their
+             * builders. Placement can fail for two reasons — the spawn exclusion below,
+             * or a collision with something already in the cell — and a seat registered
+             * before that verdict stays reachable while its meshes never render. That is
+             * what let the player sit inside archive desks and impound tabletops: the
+             * chair tucked against the desk always lost the collision probe, so the only
+             * thing left of it was an invisible seat sitting in the middle of the desk.
+             *
+             * Registering after placement means an early return leaves nothing behind.
+             */
             addFurniture: (group) => {
-                if (Math.abs(group.position.x) < 4.0 && Math.abs(group.position.z) < 4.0) return;
+                if (Math.abs(group.position.x) < 4.0 && Math.abs(group.position.z) < 4.0) return false;
                 group.userData.chunkHash = hash;
                 group.updateMatrixWorld(true);
                 const probe = this._furnitureBox.setFromObject(group);
                 const localBoxes = env.spatialGrid.getNearby(group.position.x, group.position.z, 2.0);
                 for (let i = 0; i < localBoxes.length; i++) {
-                    if (localBoxes[i].intersectsBox(probe)) return;
+                    if (localBoxes[i].intersectsBox(probe)) return false;
                 }
                 const box = probe.clone();
                 box.chunkHash = hash;
@@ -553,6 +594,11 @@ export default class StructureKit {
                         stagingMeshes.push(child);
                     }
                 });
+                if (group.userData.type === 'seat' && this.isUprightSeat(group)) {
+                    if (!env.interactables) env.interactables = [];
+                    env.interactables.push(group);
+                }
+                return true;
             },
             addObserver: (px, pz) => {
                 const obs = new THREE.Mesh(env.observerGeo, env.observerMat.clone());
@@ -740,9 +786,9 @@ export default class StructureKit {
                 group.position.set(x, y, z);
                 group.rotation.y = rotY;
 
+                // Marked, not registered. addFurniture registers it once it knows the
+                // chair actually made it into the world.
                 group.userData = {type: 'seat', active: true};
-                if (!env.interactables) env.interactables = [];
-                env.interactables.push(group);
 
                 return group;
             },
@@ -775,9 +821,8 @@ export default class StructureKit {
                 group.position.set(x, y, z);
                 group.rotation.y = rotY;
 
+                // Marked, not registered. See buildChair.
                 group.userData = {type: 'seat', active: true};
-                if (!env.interactables) env.interactables = [];
-                env.interactables.push(group);
 
                 return group;
             },
@@ -800,10 +845,14 @@ export default class StructureKit {
             },
             buildDesk: (x, y, z, rotY = 0) => {
                 const group = new THREE.Group();
-                const topGeo = env._cacheGeo('deskTop15', () => new THREE.BoxGeometry(2.4, 0.075, 1.2));
+                const topGeo = env._cacheGeo('deskTop15', () => new THREE.BoxGeometry(2.4, DESK_TOP_THICK, 1.2));
                 const top = new THREE.Mesh(topGeo, env.woodMat);
-                top.position.set(0, 1.125, 0);
+                top.position.set(0, DESK_TOP_Y, 0);
                 group.add(top);
+                // Anything set down on this desk needs the top of the slab, not its
+                // centre. Publishing it here means callers stop re-deriving it and
+                // stop getting it wrong by half a slab.
+                group.userData.surfaceY = DESK_TOP_Y + DESK_TOP_THICK / 2;
                 const baseMat = env.paintedSteelMat || env.metalMat;
                 const pedGeo = env._cacheGeo('deskPed15', () => new THREE.BoxGeometry(0.6, 1.08, 1.14));
                 const pedL = new THREE.Mesh(pedGeo, baseMat);
@@ -958,8 +1007,14 @@ export default class StructureKit {
                             localZ === env.chunkSize - 1 ? trimMat : wMat,
                             localZ === 0 ? trimMat : wMat
                         ];
-                        wall.userData.baseboardFaceMats = faceMats(env.baseboardMat);
-                        wall.userData.baseboardTrimFaceMats = faceMats(env.baseboardTrimMat);
+                        // A sector's wall material may publish its own trim. Without one
+                        // the shared baseboard lands against a palette it was never
+                        // matched to and reads as a gap under the wainscot.
+                        const wallUD = wMat.userData || {};
+                        wall.userData.baseboardFaceMats =
+                            faceMats(wallUD.baseboardMat || env.baseboardMat);
+                        wall.userData.baseboardTrimFaceMats =
+                            faceMats(wallUD.baseboardTrimMat || env.baseboardTrimMat);
                     }
                     helpers.addGeometry(wall);
                 };

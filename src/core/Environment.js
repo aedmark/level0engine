@@ -198,12 +198,18 @@ export default class Environment {
         bootCtrl.setProgress(65, `WORLD MESH GRID GENERATED [SEED: 0x${(this.baseSeed >>> 0).toString(16).toUpperCase()}]`);
 
         bootCtrl.setPhase(4, 'PREWARMING ANOMALOUS SECTOR BLUEPRINTS...', 70);
+        // Awaited here, not fired in the background after warmup: annexWallMat,
+        // archiveBowlMat and the rest of the per-sector bundle used to land on `env`
+        // only after ShaderWarmup had already taken its material-collection snapshot,
+        // so every sector these textures belong to was guaranteed a cold, synchronous
+        // shader compile the first time a player actually reached it. Paying the cost
+        // here folds it into the loading bar instead of into gameplay.
+        await ProceduralTextureFactory.lazyLoadSectorAssets(this).catch(console.error);
+
         await ShaderWarmup.run(this, (pct, msg) => {
             bootCtrl.setProgress(pct, msg);
         });
 
-        ProceduralTextureFactory.lazyLoadSectorAssets(this).catch(console.error);
-        
         const toggleBtn = document.getElementById('menuToggleBtn');
         const toggleMenu = (e) => {
             if (e && e.preventDefault) e.preventDefault();

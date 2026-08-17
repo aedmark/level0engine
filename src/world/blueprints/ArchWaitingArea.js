@@ -137,29 +137,17 @@ export function placeArchWaitingArea(env, ctx, cellX, cellZ, dirX, dirZ) {
     seat.position.set(cx + dirX * offset, 0, cz + dirZ * offset);
     seat.rotation.y = rotY;
 
-    // Sittable, like the chairs and couches elsewhere. Waiting is the point.
-    const selfRegistered = seat.userData && seat.userData.type === 'seat';
-    if (!selfRegistered) {
-        seat.userData = {type: 'seat', active: true};
-        if (!env.interactables) env.interactables = [];
-        env.interactables.push(seat);
-    }
+    // Sittable, like the chairs and couches elsewhere. Waiting is the point. The bench
+    // and pew variants are built locally and carry no type of their own, so mark all
+    // three the same way and let addFurniture decide whether the mark ever counts.
+    if (!seat.userData) seat.userData = {};
+    seat.userData.type = 'seat';
+    seat.userData.active = true;
 
-    // addFurniture probes the spatial grid and bails if anything is already there,
-    // so a blocked cell silently gets no bench rather than a bench inside a pillar.
-    const before = ctx.stagingMeshes ? ctx.stagingMeshes.length : 0;
-    addFurniture(seat);
-    const placed = ctx.stagingMeshes ? ctx.stagingMeshes.length > before : true;
-    if (!placed) {
-        // buildCouch registers itself as it is built, so an unplaced one has to be
-        // pulled back out of the interactables list either way or it lingers as a
-        // phantom the player can interact with through a wall.
-        if (env.interactables) {
-            const i = env.interactables.indexOf(seat);
-            if (i > -1) env.interactables.splice(i, 1);
-        }
-        return false;
-    }
+    // addFurniture probes the spatial grid and bails if anything is already there, so a
+    // blocked cell silently gets no bench rather than a bench inside a pillar. It only
+    // registers the seat on success, so a refusal leaves nothing to unwind.
+    if (!addFurniture(seat)) return false;
 
     const label = BAY_LABELS[Math.floor(random() * BAY_LABELS.length)];
     const placard = new THREE.Mesh(env._boxGeo(0.42, 0.21, 0.03), placardMaterial(env, label));

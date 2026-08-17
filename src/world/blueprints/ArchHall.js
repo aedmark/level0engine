@@ -98,49 +98,99 @@ export const ArchHallProfile = (env, ctx) => {
     };
 
     /**
-     * Runs a thin glowing seam along the crown of the intrados. Straight cells lose
-     * their ceiling light panel to the vault, so the seam is what actually reads the
-     * corridor's depth as it recedes and curls away.
+     * Replaces the continuous apex seam with segmented, realistic fluorescent ballasts.
+     * Straight cells get two spaced-out fixtures, each with a housing, emissive panel,
+     * and a protective louver grille.
      */
     const addApexSeam = (cx, cz, alongZ) => {
-        const isBroken = random() > 0.72;
-        const geo = env._cacheGeo(
-            `arch_seam_${alongZ ? 'z' : 'x'}`,
-            () => new THREE.BoxGeometry(
-                alongZ ? 0.34 : env.cellSize,
-                0.05,
-                alongZ ? env.cellSize : 0.34
-            )
-        );
-        // Rotate through a small pool of material instances. The flicker system drives
-        // emissive intensity per fixture, so seams sharing one material would all
-        // pulse in lockstep and the run would strobe as a single unit.
-        env._archSeamIndex = ((env._archSeamIndex || 0) + 1) % 8;
-        const mat = ctx.getLightMaterial(
-            0xfff0cc,
-            isBroken ? 0x1a1712 : 0xffe9b0,
-            isBroken,
-            true,
-            `archSeam${env._archSeamIndex}`
-        );
-        const seam = new THREE.Mesh(geo, mat);
-        seam.position.set(cx, apexY - 0.05, cz);
-        seam.userData.noCollision = true;
-        addGeometry(seam);
+        // Place two ballasts per cell for a realistic cadence
+        const offsets = [-env.cellSize / 4, env.cellSize / 4];
 
-        if (isBroken) return;
-        const isTracked = random() > 0.55;
-        env.fixtureData.push({
-            chunkHash: ctx.hash,
-            position: new THREE.Vector3(cx, apexY - 0.2, cz),
-            flickerOffset: random() * 500,
-            material: mat,
-            isFaulty: isTracked ? (random() > 0.80) : false,
-            baseIntensity: isTracked ? 0.5 : 0.0,
-            targetIntensity: isTracked ? 0.5 : 0.0,
-            currentIntensity: isTracked ? 0.5 : 0.0,
-            isFake: !isTracked
-        });
+        for (let i = 0; i < offsets.length; i++) {
+            const offset = offsets[i];
+            const bx = cx + (alongZ ? 0 : offset);
+            const bz = cz + (alongZ ? offset : 0);
+
+            const isBroken = random() > 0.72;
+
+            // Housing (attached to ceiling)
+            const housingGeo = env._cacheGeo(
+                `arch_ballast_housing_${alongZ ? 'z' : 'x'}`,
+                () => new THREE.BoxGeometry(
+                    alongZ ? 0.34 : 1.4,
+                    0.08,
+                    alongZ ? 1.4 : 0.34
+                )
+            );
+            const housing = new THREE.Mesh(housingGeo, env.baseHousingMat);
+            housing.position.set(bx, apexY - 0.04, bz);
+            housing.userData.noCollision = true;
+            addGeometry(housing);
+
+            // Rotate through a small pool of material instances for independent flicker
+            env._archSeamIndex = ((env._archSeamIndex || 0) + 1) % 8;
+            const mat = ctx.getLightMaterial(
+                0xfff0cc,
+                isBroken ? 0x1a1712 : 0xffe9b0,
+                isBroken,
+                true,
+                `archSeam${env._archSeamIndex}`
+            );
+
+            // Light panel (slightly inset width, slightly recessed to let housing form a border)
+            const panelGeo = env._cacheGeo(
+                `arch_ballast_panel_${alongZ ? 'z' : 'x'}`,
+                () => new THREE.BoxGeometry(
+                    alongZ ? 0.26 : 1.34,
+                    0.02,
+                    alongZ ? 1.34 : 0.26
+                )
+            );
+            const panel = new THREE.Mesh(panelGeo, mat);
+            panel.position.set(bx, apexY - 0.08, bz);
+            panel.userData.noCollision = true;
+            addGeometry(panel);
+
+            // Louver grille
+            const numSlats = 14;
+            const slatSpacing = 1.34 / numSlats;
+            const startSlat = -(1.34 / 2) + (slatSpacing / 2);
+
+            const slatGeo = env._cacheGeo(
+                `arch_ballast_slat_${alongZ ? 'z' : 'x'}`,
+                () => new THREE.BoxGeometry(
+                    alongZ ? 0.34 : 0.02,
+                    0.04,
+                    alongZ ? 0.02 : 0.34
+                )
+            );
+
+            for (let s = 0; s < numSlats; s++) {
+                const slatOffset = startSlat + s * slatSpacing;
+                const slatX = bx + (alongZ ? 0 : slatOffset);
+                const slatZ = bz + (alongZ ? slatOffset : 0);
+
+                const slat = new THREE.Mesh(slatGeo, env.baseHousingMat);
+                slat.position.set(slatX, apexY - 0.09, slatZ);
+                slat.userData.noCollision = true;
+                addGeometry(slat);
+            }
+
+            if (isBroken) continue;
+
+            const isTracked = random() > 0.55;
+            env.fixtureData.push({
+                chunkHash: ctx.hash,
+                position: new THREE.Vector3(bx, apexY - 0.2, bz),
+                flickerOffset: random() * 500,
+                material: mat,
+                isFaulty: isTracked ? (random() > 0.80) : false,
+                baseIntensity: isTracked ? 0.5 : 0.0,
+                targetIntensity: isTracked ? 0.5 : 0.0,
+                currentIntensity: isTracked ? 0.5 : 0.0,
+                isFake: !isTracked
+            });
+        }
     };
 
     /**

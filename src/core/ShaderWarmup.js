@@ -1,4 +1,5 @@
 import TheArchitect from './TheArchitect.js';
+import {warmLazySectorMaterials} from './LazyMaterialWarmup.js';
 
 export default class ShaderWarmup {
     static async run(env, onProgress = null) {
@@ -8,6 +9,7 @@ export default class ShaderWarmup {
         try {
             if (onProgress) onProgress(72, 'PREWARMING ANOMALOUS SECTOR BLUEPRINTS...');
             this._materialiseLazySectorAssets(env);
+            warmLazySectorMaterials(env);
             await this._warm(env, onProgress);
         } catch (err) {
             console.warn('Shader warmup aborted:', err);
