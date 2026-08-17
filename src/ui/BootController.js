@@ -5,32 +5,34 @@ import RenderEngine from '../core/RenderEngine.js';
  * bar's weighting.
  *
  * `from`/`to` are percentage bands, and they are sized by *measured* cost rather than by
- * how important a step feels. A representative warm boot (6131ms of engine time) breaks
+ * how important a step feels. A representative warm boot (4607ms of engine time) breaks
  * down as:
  *
- *     DATA      365ms  ( 6.0%)   narrative JSON + engine object construction
- *     ASSETS    177ms  ( 2.9%)   core WebP texture load
+ *     DATA      195ms  ( 4.2%)   narrative JSON + engine object construction
+ *     ASSETS    180ms  ( 3.9%)   core WebP texture load
  *     GRID        2ms  ( 0.0%)   world grid generation
- *     BLUEPRNT  355ms  ( 5.8%)   sector textures + material warmup
- *     CHUNKS   3678ms  (60.0%)   initial chunk build   <-- dominates everything
- *     SHADERS  1553ms  (25.3%)   program link + first frame
+ *     BLUEPRNT  282ms  ( 6.1%)   sector textures + material warmup
+ *     CHUNKS   2000ms  (43.4%)   initial chunk build
+ *     SHADERS  1947ms  (42.3%)   program link + first frame
  *     STABLE      1ms  ( 0.0%)
  *
  * The old hardcoded milestones (15/40/65/70/85/98, scattered across three files) gave
- * the two cheapest steps 40% of the bar, and gave the chunk build — three fifths of the
- * wall clock — no representation at all: it ran inside a single unreported `await`, so
- * the bar sat motionless for seconds in the middle of its sweep.
+ * the two cheapest steps 40% of the bar, and gave the chunk build no representation at
+ * all: it ran inside a single unreported `await`, so the bar sat motionless for seconds
+ * in the middle of its sweep.
  *
- * Re-measure with the console table this controller prints and adjust `from`/`to` here
- * — no other file hardcodes a boot percentage any more.
+ * These bands were re-measured after form-aware shader warming cut the chunk phase from
+ * 3678ms to 2000ms, which moved it from three fifths of boot to roughly level with the
+ * program link. Re-measure with the console table this controller prints and adjust
+ * `from`/`to` here — no other file hardcodes a boot percentage any more.
  */
 export const BOOT_PHASES = [
-    {key: 'DATA',     title: 'RETICULATING NARRATIVE THREADS & CASE FILES...', from: 0,  to: 6},
-    {key: 'ASSETS',   title: 'CALIBRATING CARPET MOISTURE & CEILING GRAIN...', from: 6,  to: 9},
-    {key: 'GRID',     title: 'ALIGNING MAZE SPATIAL CORRIDORS...',             from: 9,  to: 10},
-    {key: 'BLUEPRNT', title: 'PREWARMING ANOMALOUS SECTOR BLUEPRINTS...',      from: 10, to: 16},
-    {key: 'CHUNKS',   title: 'MATERIALIZING SPATIAL CHUNK GEOMETRY...',        from: 16, to: 76},
-    {key: 'SHADERS',  title: 'COMPILING SOMATIC PHOSPHOR SHADERS...',          from: 76, to: 99},
+    {key: 'DATA',     title: 'RETICULATING NARRATIVE THREADS & CASE FILES...', from: 0,  to: 4},
+    {key: 'ASSETS',   title: 'CALIBRATING CARPET MOISTURE & CEILING GRAIN...', from: 4,  to: 8},
+    {key: 'GRID',     title: 'ALIGNING MAZE SPATIAL CORRIDORS...',             from: 8,  to: 9},
+    {key: 'BLUEPRNT', title: 'PREWARMING ANOMALOUS SECTOR BLUEPRINTS...',      from: 9,  to: 15},
+    {key: 'CHUNKS',   title: 'MATERIALIZING SPATIAL CHUNK GEOMETRY...',        from: 15, to: 58},
+    {key: 'SHADERS',  title: 'COMPILING SOMATIC PHOSPHOR SHADERS...',          from: 58, to: 99},
     {key: 'STABLE',   title: 'STABILIZING SOMATIC LINK...',                    from: 99, to: 100}
 ];
 

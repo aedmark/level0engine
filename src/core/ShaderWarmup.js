@@ -2,6 +2,9 @@ import TheArchitect from './TheArchitect.js';
 import {warmLazySectorMaterials} from './LazyMaterialWarmup.js';
 import AmbientEnvMap from '../aesthetics/AmbientEnvMap.js';
 
+/** See the note in _warm: the instanced forms are deferred to the chunks that need them. */
+const BOOT_WARM_FORMS = new Set(['plain']);
+
 export default class ShaderWarmup {
     static async run(env, onProgress = null) {
         if (env._programKeepAlive) return;
@@ -43,7 +46,23 @@ export default class ShaderWarmup {
 
         for (let i = 0; i < materials.length; i += BATCH) {
             const batchStart = performance.now();
-            await env.chunkManager.warmMaterialVariants(new Set(materials.slice(i, i + BATCH)), false);
+            // Only the `plain` form is warmed blind here.
+            //
+            // This pass runs before any chunk exists, so it cannot know how a material
+            // will actually be used, and warming all three forms meant compiling three
+            // programs each for 200+ materials — measured at 3.7s, which was 96% of the
+            // entire chunk-build phase and 60% of boot. A survey of a live scene found
+            // that of 328 materials, 317 are used as `plain`, 28 as `coloured` and 7 as
+            // `instanced`, with **no** material using all three. So `plain` is nearly
+            // always the right guess and the other two are nearly always dead work.
+            //
+            // The two instanced forms are not dropped, just deferred to whoever actually
+            // needs them: `_compileInstances` decides a group's form, then
+            // `warmChunkMaterials` reports that exact form, and the shadow drain at the
+            // tail of `_buildChunkInterior` compiles it — all before the chunk is marked
+            // `contentReady`, so it still lands ahead of visibility.
+            const batch = new Map(materials.slice(i, i + BATCH).map(m => [m, BOOT_WARM_FORMS]));
+            await env.chunkManager.warmMaterialVariants(batch, false);
             const batchMs = Math.round(performance.now() - batchStart);
             batchCount++;
             if (onProgress) {

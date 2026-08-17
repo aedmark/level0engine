@@ -13,9 +13,67 @@ import * as SectorPlacement from './SectorPlacement.js';
 const CELL_KEY_SPAN = 4194304;
 const cellKey = (x, z) => x * (CELL_KEY_SPAN * 2) + z;
 
+/**
+ * Phases a single chunk build is broken into for profiling. `yielded` is wall-clock
+ * spent parked in a `setTimeout(0)` between slices rather than doing work, which is the
+ * one number that distinguishes "this chunk is expensive" from "this chunk yielded a
+ * lot and the scheduler was slow to come back".
+ */
+const CHUNK_PROFILE_PHASES = ['worker', 'cells', 'breach', 'instances', 'shadow', 'warm', 'yielded'];
+
+/**
+ * One material per probe render.
+ *
+ * Batching 8 materials into a single `renderer.render()` was tried and reverted: it
+ * moved total shadow-prewarm time only 3735ms -> 3547ms, inside run-to-run noise, which
+ * establishes that the cost here is the driver compiling each depth program (~4.7ms per
+ * program, ~750 programs) and not the per-render overhead being amortised. It also made
+ * the per-frame drain in `animate()` strictly worse, since a batch cannot be interrupted
+ * and its 2ms budget would only be checked after eight materials rather than one.
+ */
+const SHADOW_PROBE_BATCH = 1;
+
+/** The three mesh forms that are distinct entries in the visible and depth program caches. */
+const ALL_PROBE_FORMS = new Set(['plain', 'instanced', 'coloured']);
+
 export default class ChunkManager {
     constructor(env) {
         this.env = env;
+    }
+
+    /** Starts a profile record for one chunk. Cheap enough to leave on permanently. */
+    _profBegin(hash) {
+        const p = {hash, t0: performance.now()};
+        for (const k of CHUNK_PROFILE_PHASES) p[k] = 0;
+        this._prof = p;
+        return p;
+    }
+
+    _profAdd(phase, ms) {
+        if (this._prof) this._prof[phase] += ms;
+    }
+
+    /**
+     * Folds the finished record into env.genStats, keeping both a running total per
+     * phase and a full copy of the single worst chunk — which is the one that matters
+     * here, since the initial build is dominated by one chunk rather than spread evenly.
+     */
+    _profEnd() {
+        const p = this._prof;
+        if (!p) return;
+        this._prof = null;
+        const env = this.env;
+        const total = performance.now() - p.t0;
+        p.total = Math.round(total);
+        for (const k of CHUNK_PROFILE_PHASES) p[k] = Math.round(p[k]);
+        if (!env.genStats) env.genStats = {count: 0, totalMs: 0, worstMs: 0, lastMs: 0};
+        const stats = env.genStats;
+        if (!stats.phases) {
+            stats.phases = {};
+            for (const k of CHUNK_PROFILE_PHASES) stats.phases[k] = 0;
+        }
+        for (const k of CHUNK_PROFILE_PHASES) stats.phases[k] += p[k];
+        if (!stats.worstProfile || total > stats.worstProfile.total) stats.worstProfile = p;
     }
 
     updateChunks(playerPos) {
@@ -143,6 +201,7 @@ export default class ChunkManager {
                 if (env.chunksToKeep && env.chunksToKeep.has(chunk.hash)) {
                     const genT0 = performance.now();
                     await this.buildChunk(chunk.x, chunk.z, chunk.hash);
+                    this._profEnd();
                     const genMs = performance.now() - genT0;
                     if (!env.genStats) env.genStats = {count: 0, totalMs: 0, worstMs: 0, lastMs: 0};
                     env.genStats.count++;
@@ -249,6 +308,7 @@ export default class ChunkManager {
     }
     async buildChunk(chunkX, chunkZ, hash) {
         const env = this.env;
+        this._profBegin(hash);
         const chunkGroup = new THREE.Group();
         env.scene.add(chunkGroup);
         env.activeChunks.set(hash, chunkGroup);
@@ -460,12 +520,21 @@ export default class ChunkManager {
         const solidWallCells = new Set();
         const isSolidWallCell = (wx, wz) => solidWallCells.has(cellKey(wx, wz));
         let chunkStartTime = performance.now();
+        let cellsAccum = 0;
         for (let x = startX; x < startX + env.chunkSize; x++) {
             for (let z = startZ; z < startZ + env.chunkSize; z++) {
                 if (!env.activeChunks.has(hash)) return;
                 if (performance.now() - chunkStartTime > 5.0) {
+                    cellsAccum += performance.now() - chunkStartTime;
+                    const wt0 = performance.now();
                     this.warmChunkMaterials(chunkGroup);
+                    const wt1 = performance.now();
                     await new Promise(resolve => setTimeout(resolve, 0));
+                    const wt2 = performance.now();
+                    this._profAdd('warm', wt1 - wt0);
+                    this._profAdd('yielded', wt2 - wt1);
+                    this._profAdd('cells', cellsAccum);
+                    cellsAccum = 0;
                     chunkStartTime = performance.now();
                     if (!env.activeChunks.has(hash)) return;
                 }
@@ -509,6 +578,7 @@ export default class ChunkManager {
                         spansX: a.spansX
                     })) : null;
 
+                    const workerT0 = performance.now();
                     const mathData = await new Promise(resolve => {
                         this.workerResolvers.set(hash, resolve);
                         this.worker.postMessage({
@@ -518,6 +588,8 @@ export default class ChunkManager {
                             airlocks: airlocksCopy
                         });
                     });
+                    this._profAdd('worker', performance.now() - workerT0);
+                    chunkStartTime = performance.now();
 
                     ctx.isWall = (wx, wz) => mathData.isWallGrid.get(cellKey(wx, wz)) || false;
                     ctx.isAirlockApron = (wx, wz) => this._isAirlockApron(wx, wz);
@@ -581,11 +653,13 @@ export default class ChunkManager {
                 }
             }
         }
+        this._profAdd('cells', cellsAccum + (performance.now() - chunkStartTime));
         if (performance.now() - chunkStartTime > 5.0) {
             this.warmChunkMaterials(chunkGroup);
             await new Promise(resolve => setTimeout(resolve, 0));
             if (!env.activeChunks.has(hash)) return;
         }
+        const breachT0 = performance.now();
         if (env._breachWalls && env._breachWalls.length > 0) {
             const toRemoveGroup = [];
             const toRemoveStaging = [];
@@ -659,12 +733,19 @@ export default class ChunkManager {
             }
             env._breachWalls = [];
         }
+        this._profAdd('breach', performance.now() - breachT0);
+
+        const instT0 = performance.now();
         await this._compileInstances(hash, chunkGroup, stagingMeshes, random);
+        this._profAdd('instances', performance.now() - instT0);
+
+        const shadowT0 = performance.now();
         for (let pass = 0; pass < 12 && this._shadowQueue && this._shadowQueue.length > 0; pass++) {
             this.drainShadowPrewarm(8.0);
             if (!env.activeChunks.has(hash)) return;
             await new Promise(resolve => setTimeout(resolve, 0));
         }
+        this._profAdd('shadow', performance.now() - shadowT0);
         if (env.activeChunks.has(hash)) {
             chunkGroup.userData.contentReady = true;
         }
@@ -864,9 +945,13 @@ export default class ChunkManager {
         if (!args) return;
         env._pendingMacroContent.delete(hash);
         env.isBuildingMacroInterior = true;
+        this._profBegin(hash);
         this._buildChunkInterior(args)
             .catch(err => console.error('Macro chunk content build failed:', err))
-            .finally(() => { env.isBuildingMacroInterior = false; });
+            .finally(() => {
+                this._profEnd();
+                env.isBuildingMacroInterior = false;
+            });
     }
     isMacroChunkContentReady(hash) {
         const env = this.env;
@@ -983,18 +1068,43 @@ export default class ChunkManager {
         if (unwarmed !== null) this.warmMaterialVariants(unwarmed, false);
     }
 
+    /**
+     * Queues shadow-depth prewarm entries. Accepts the same `Set<Material>` (all forms)
+     * or `Map<Material, Set<form>>` (only these forms) as warmMaterialVariants.
+     *
+     * Entries are `{material, form}` pairs and dedupe on both, so warming a material as
+     * `plain` never suppresses a later, genuinely-needed `coloured` warm for it.
+     */
     queueShadowPrewarm(materials) {
         if (!materials) return;
         if (!this._shadowQueue) { this._shadowQueue = []; this._shadowQueued = new Set(); }
-        for (const material of materials) {
+        const isMap = materials instanceof Map;
+        const entries = isMap ? materials : new Map([...materials].map(m => [m, ALL_PROBE_FORMS]));
+        for (const [material, forms] of entries) {
             if (!material || !material.isMaterial) continue;
-            const key = material.uuid + material.version;
-            if (this._shadowQueued.has(key)) continue;
-            this._shadowQueued.add(key);
-            this._shadowQueue.push(material);
+            for (const form of forms) {
+                const key = ChunkManager._warmKey(material, form);
+                if (this._shadowQueued.has(key)) continue;
+                this._shadowQueued.add(key);
+                this._shadowQueue.push({material, form});
+            }
         }
     }
 
+    /**
+     * Probe rig for shadow-depth prewarming, built once.
+     *
+     * Holds SHADOW_PROBE_BATCH independent slots rather than a single one. Each slot is
+     * the same plain / instanced / instanced-with-colour triple as before — those three
+     * differ in the depth program's cache key, so all three are still required per
+     * material — but having several lets one `renderer.render()` compile a whole batch
+     * of materials instead of exactly one.
+     *
+     * That distinction turned out to be the entire cost of chunk streaming: profiling a
+     * boot showed 3735ms of 3902ms total chunk-build time inside this drain, because the
+     * per-render overhead (two shadow-map passes, render-target bind, scene-graph swap)
+     * was being paid once per material across 200+ materials.
+     */
     _shadowProbeRig() {
         const env = this.env;
         if (this._shadowRig) return this._shadowRig;
@@ -1009,20 +1119,27 @@ export default class ChunkManager {
         const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 20);
         camera.position.set(0, 0, 3);
         if (!env._probeGeo) env._probeGeo = new THREE.PlaneGeometry(0.001, 0.001);
-        const coloured = new THREE.InstancedMesh(env._probeGeo, null, 1);
-        coloured.setColorAt(0, new THREE.Color(1, 1, 1));
-        const plain = new THREE.Mesh(env._probeGeo, null);
-        const instanced = new THREE.InstancedMesh(env._probeGeo, null, 1);
-        const probes = [plain, instanced, coloured];
-        for (const mesh of probes) {
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            mesh.frustumCulled = false;
-        }
+
         const group = new THREE.Group();
-        group.add(...probes);
+        const slots = [];
+        for (let i = 0; i < SHADOW_PROBE_BATCH; i++) {
+            const coloured = new THREE.InstancedMesh(env._probeGeo, null, 1);
+            coloured.setColorAt(0, ChunkManager._probeColor());
+            const plain = new THREE.Mesh(env._probeGeo, null);
+            const instanced = new THREE.InstancedMesh(env._probeGeo, null, 1);
+            const byForm = {plain, instanced, coloured};
+            for (const mesh of [plain, instanced, coloured]) {
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                mesh.frustumCulled = false;
+                mesh.visible = false;
+                group.add(mesh);
+            }
+            slots.push(byForm);
+        }
+
         this._shadowRig = {
-            point, spot, camera, group, probes, plain, instanced, coloured,
+            point, spot, camera, group, slots,
             target: new THREE.WebGLRenderTarget(4, 4),
             scoped: [point, spot, spot.target, group]
         };
@@ -1050,18 +1167,44 @@ export default class ChunkManager {
             renderer.shadowMap.autoUpdate = true;
             renderer.setRenderTarget(rig.target);
             do {
-                const material = queue.pop();
-                if (!material) break;
-                for (const p of rig.probes) p.material = material;
+                // Fill as many slots as the queue and the batch size allow, then compile
+                // the whole batch in one render. The budget is still only checked between
+                // batches — a single render cannot be interrupted — but each check now
+                // covers up to SHADOW_PROBE_BATCH materials' worth of progress instead of
+                // one, so the same budget buys far more of the queue.
+                let filled = 0;
+                const active = [];
+                while (filled < rig.slots.length && queue.length > 0) {
+                    const entry = queue.pop();
+                    if (!entry || !entry.material) break;
+                    // Only the probe matching this entry's form is lit up — the other two
+                    // in the slot stay hidden, so we compile exactly the variant that was
+                    // asked for instead of all three.
+                    const probe = rig.slots[filled][entry.form] || rig.slots[filled].plain;
+                    probe.material = entry.material;
+                    probe.visible = true;
+                    active.push(probe);
+                    filled++;
+                }
+                if (filled === 0) break;
                 rig.point.shadow.needsUpdate = true;
                 rig.spot.shadow.needsUpdate = true;
                 renderer.render(scene, rig.camera);
-                warmed++;
+                for (const p of active) {
+                    p.material = null;
+                    p.visible = false;
+                }
+                warmed += filled;
             } while (queue.length > 0 && performance.now() - start < budgetMs);
         } catch (err) {
             console.warn('Shadow prewarm failed:', err);
         } finally {
-            for (const p of rig.probes) p.material = null;
+            for (const slot of rig.slots) {
+                for (const p of [slot.plain, slot.instanced, slot.coloured]) {
+                    p.material = null;
+                    p.visible = false;
+                }
+            }
             renderer.setRenderTarget(savedTarget);
             renderer.shadowMap.enabled = savedEnabled;
             renderer.shadowMap.autoUpdate = savedAuto;
@@ -1070,8 +1213,25 @@ export default class ChunkManager {
         return warmed;
     }
 
-    // Defaults to NOT draining: a blocking drain is a deliberate, boot-only choice now,
-    // never something a caller gets by omission.
+    /**
+     * Warms the visible and shadow programs for a set of materials.
+     *
+     * `materials` may be a `Set<Material>` — meaning "every form, I don't know how these
+     * will be used", which is what the boot ShaderWarmup passes since no chunk exists yet
+     * to inspect — or a `Map<Material, Set<form>>` naming exactly the forms required.
+     *
+     * The distinction is worth a lot. `plain`, `instanced` and `instanced + instanceColor`
+     * are three separate entries in both the visible and the depth program cache keys, so
+     * warming blind costs 3 programs per material per pass. Surveying a live scene showed
+     * 328 distinct materials producing 984 compiled shadow variants of which only 352 were
+     * ever used — **64% waste** — and, decisively, *no* material was used in all three
+     * forms while 304 of 328 were used in exactly one. Chunk builds know the answer,
+     * because `_compileInstances` has already decided each group's form by the time
+     * `warmChunkMaterials` inspects it.
+     *
+     * Defaults to NOT draining: a blocking drain is a deliberate, boot-only choice, never
+     * something a caller gets by omission.
+     */
     warmMaterialVariants(materials, drainNow = false) {
         const env = this.env;
         if (!materials || materials.size === 0) return;
@@ -1081,23 +1241,32 @@ export default class ChunkManager {
         if (!env._probeGeo) env._probeGeo = new THREE.PlaneGeometry(0.001, 0.001);
         const keepAlive = env._programKeepAlive;
         const batch = new THREE.Group();
-        for (const material of materials) {
-            env._warmedMaterials.add(material.uuid + material.version);
-            const plain = material.clone();
-            keepAlive.push(plain);
-            batch.add(new THREE.Mesh(env._probeGeo, plain));
 
-            const instanced = material.clone();
-            keepAlive.push(instanced);
-            batch.add(new THREE.InstancedMesh(env._probeGeo, instanced, 1));
+        const isMap = materials instanceof Map;
+        const entries = isMap ? materials : new Map([...materials].map(m => [m, ALL_PROBE_FORMS]));
 
-            const coloured = material.clone();
-            keepAlive.push(coloured);
-            const colouredMesh = new THREE.InstancedMesh(env._probeGeo, coloured, 1);
-            colouredMesh.setColorAt(0, ChunkManager._probeColor());
-            batch.add(colouredMesh);
+        for (const [material, forms] of entries) {
+            for (const form of forms) {
+                env._warmedMaterials.add(ChunkManager._warmKey(material, form));
+                const clone = material.clone();
+                keepAlive.push(clone);
+                if (form === 'plain') {
+                    batch.add(new THREE.Mesh(env._probeGeo, clone));
+                } else if (form === 'instanced') {
+                    batch.add(new THREE.InstancedMesh(env._probeGeo, clone, 1));
+                } else {
+                    const colouredMesh = new THREE.InstancedMesh(env._probeGeo, clone, 1);
+                    colouredMesh.setColorAt(0, ChunkManager._probeColor());
+                    batch.add(colouredMesh);
+                }
+            }
         }
         this._scopedCompile(batch, drainNow);
+    }
+
+    /** Warm-state key. Includes the form, so warming one form never masks another. */
+    static _warmKey(material, form) {
+        return `${material.uuid}${material.version}|${form}`;
     }
 
     static _probeColor() {
@@ -1105,22 +1274,39 @@ export default class ChunkManager {
         return ChunkManager.__probeColor;
     }
 
+    /**
+     * Returns a `Map<Material, Set<form>>` of the material/form combinations present in
+     * this group that have not been warmed yet, or null if there are none.
+     *
+     * The form is read off the object itself rather than assumed, so a chunk asks for
+     * exactly the variants it just built. Because the warm key includes the form, a
+     * material already warmed as `plain` is still reported here if this group uses it as
+     * `coloured` — warming one form must never mask another, which is the failure mode
+     * that would reintroduce a cold compile on first sight.
+     */
     _unwarmedMaterials(group) {
         const env = this.env;
         if (!env._warmedMaterials) env._warmedMaterials = new Set();
         const warmed = env._warmedMaterials;
         let unwarmed = null;
-        const note = (material) => {
-            if (warmed.has(material.uuid + material.version)) return;
-            (unwarmed || (unwarmed = new Set())).add(material);
+        const note = (material, form) => {
+            if (!material || !material.isMaterial) return;
+            if (warmed.has(ChunkManager._warmKey(material, form))) return;
+            if (!unwarmed) unwarmed = new Map();
+            let forms = unwarmed.get(material);
+            if (!forms) { forms = new Set(); unwarmed.set(material, forms); }
+            forms.add(form);
         };
         group.traverse((obj) => {
             const material = obj.material;
             if (!material) return;
+            const form = obj.isInstancedMesh
+                ? (obj.instanceColor ? 'coloured' : 'instanced')
+                : 'plain';
             if (Array.isArray(material)) {
-                for (let m = 0; m < material.length; m++) note(material[m]);
+                for (let m = 0; m < material.length; m++) note(material[m], form);
             } else {
-                note(material);
+                note(material, form);
             }
         });
         return unwarmed;
@@ -1179,7 +1365,12 @@ export default class ChunkManager {
 
     _forgetMaterialPrograms(material) {
         const warmed = this.env._warmedMaterials;
-        if (warmed) warmed.delete(material.uuid + material.version);
+        // Every form key for this material, since the warm state is now per-form and a
+        // bare uuid+version key no longer matches anything.
+        if (!warmed) return;
+        for (const form of ALL_PROBE_FORMS) {
+            warmed.delete(ChunkManager._warmKey(material, form));
+        }
     }
 
 }
