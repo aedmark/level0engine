@@ -9,18 +9,21 @@ export default class StoryEngine {
             const files = ['parameters', 'lore', 'clues', 'finales', 'foreshadow', 'threads', 'puzzles'];
             let loadedCount = 0;
             const results = {};
-            
-            for (const f of files) {
+
+            // All seven fire at once rather than seven sequential round trips. Each still
+            // reports progress the moment it individually lands, so the boot log keeps its
+            // per-file granularity — the lines just arrive in completion order instead of
+            // declaration order, and the whole batch now finishes in roughly the time the
+            // slowest single file takes.
+            await Promise.all(files.map(async (f) => {
                 const res = await fetch(`${dataDir}/${f}.json`);
-                const json = await res.json();
-                results[f] = json;
+                if (!res.ok) throw new Error(`${f}.json -> HTTP ${res.status}`);
+                results[f] = await res.json();
                 loadedCount++;
-                if (onProgress) {
-                    const pct = Math.round((loadedCount / files.length) * 15);
-                    onProgress(pct, `${f}.json`);
-                }
-            }
-            
+                // 0..1 fraction of this step; the caller decides where it lands on the bar.
+                if (onProgress) onProgress(loadedCount / files.length, `${f}.json`);
+            }));
+
             StoryEngine.PARAMS = results.parameters;
             StoryEngine.PUZZLES = results.puzzles;
             StoryEngine.CASES_DATA = { 

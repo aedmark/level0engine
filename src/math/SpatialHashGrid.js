@@ -76,6 +76,50 @@ export default class SpatialHashGrid {
         this.chunkMap.delete(chunkHash);
     }
 
+    // Walks only the cells a segment actually crosses in XZ and hands each box
+    // in them to `visit` once; returning true from `visit` stops the walk early.
+    // A radius query wide enough to cover a 20m sight line would sweep well over
+    // a hundred cells, where the line itself crosses about six.
+    forEachAlongSegment(x0, z0, x1, z1, visit) {
+        const cs = this.cellSize;
+        let cx = Math.floor(x0 / cs);
+        let cz = Math.floor(z0 / cs);
+        const endX = Math.floor(x1 / cs);
+        const endZ = Math.floor(z1 / cs);
+        const dx = x1 - x0;
+        const dz = z1 - z0;
+        const stepX = dx > 0 ? 1 : -1;
+        const stepZ = dz > 0 ? 1 : -1;
+        const absDx = Math.abs(dx);
+        const absDz = Math.abs(dz);
+        const tDeltaX = absDx > 1e-9 ? cs / absDx : Infinity;
+        const tDeltaZ = absDz > 1e-9 ? cs / absDz : Infinity;
+        let tMaxX = absDx > 1e-9 ? ((dx > 0 ? (cx + 1) * cs - x0 : x0 - cx * cs) / absDx) : Infinity;
+        let tMaxZ = absDz > 1e-9 ? ((dz > 0 ? (cz + 1) * cs - z0 : z0 - cz * cs) / absDz) : Infinity;
+        this.queryId++;
+        const guardLimit = Math.abs(endX - cx) + Math.abs(endZ - cz) + 2;
+        for (let guard = 0; guard < guardLimit; guard++) {
+            const cell = this.cells.get(this._hash(cx, cz));
+            if (cell) {
+                for (let i = 0; i < cell.length; i++) {
+                    const box = cell[i];
+                    if (box._queryId === this.queryId) continue;
+                    box._queryId = this.queryId;
+                    if (visit(box)) return true;
+                }
+            }
+            if (cx === endX && cz === endZ) break;
+            if (tMaxX < tMaxZ) {
+                tMaxX += tDeltaX;
+                cx += stepX;
+            } else {
+                tMaxZ += tDeltaZ;
+                cz += stepZ;
+            }
+        }
+        return false;
+    }
+
     getNearby(x, z, radius) {
         let count = 0;
         this.queryId++;

@@ -963,9 +963,24 @@ export default class ChunkManager {
         }
     }
 
+    /**
+     * Called at every yield point inside a chunk build, so it must never block.
+     *
+     * It used to drain program links synchronously (the old `drainNow` default), which
+     * meant every 5ms slice of chunk generation ended by calling getUniforms() on every
+     * pending program *without* checking KHR_parallel_shader_compile's completion
+     * status — forcing the main thread to sit and wait for the driver to finish linking.
+     * That is what produced the hitching on first traversal into fresh geometry, and it
+     * only showed up on the first visit because `_warmedMaterials` suppresses the warm
+     * on every later one.
+     *
+     * Now it only kicks off the compile. The per-frame `drainProgramLinks(1.5)` in the
+     * main loop picks the results up under a budget, using the polling path that skips
+     * programs the driver has not finished yet.
+     */
     warmChunkMaterials(chunkGroup) {
         const unwarmed = this._unwarmedMaterials(chunkGroup);
-        if (unwarmed !== null) this.warmMaterialVariants(unwarmed);
+        if (unwarmed !== null) this.warmMaterialVariants(unwarmed, false);
     }
 
     queueShadowPrewarm(materials) {
@@ -1055,7 +1070,9 @@ export default class ChunkManager {
         return warmed;
     }
 
-    warmMaterialVariants(materials, drainNow = true) {
+    // Defaults to NOT draining: a blocking drain is a deliberate, boot-only choice now,
+    // never something a caller gets by omission.
+    warmMaterialVariants(materials, drainNow = false) {
         const env = this.env;
         if (!materials || materials.size === 0) return;
         this.queueShadowPrewarm(materials);
@@ -1109,7 +1126,7 @@ export default class ChunkManager {
         return unwarmed;
     }
 
-    _scopedCompile(group, drainNow = true) {
+    _scopedCompile(group, drainNow = false) {
         const env = this.env;
         const scene = env.scene;
         const saved = scene.children;
@@ -1157,6 +1174,7 @@ export default class ChunkManager {
             drained++;
             if (performance.now() - start > budgetMs) break;
         }
+        return drained;
     }
 
     _forgetMaterialPrograms(material) {

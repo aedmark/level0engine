@@ -30,6 +30,11 @@ export const DebugHUD = {
             ? Math.sqrt(anomaly.group.position.distanceToSquared(cam)).toFixed(1) + 'm'
             : 'inactive';
         const grace = anomaly && anomaly.graceTimer > 0 ? ` grace:${anomaly.graceTimer.toFixed(1)}s` : '';
+        const mind = anomaly && anomaly.mood
+            ? `  ${anomaly.mood} sta:${anomaly.stamina.toFixed(0)}${anomaly.isWinded ? '!' : ''}` +
+              ` int:${(anomaly.interest * 100).toFixed(0)}%` +
+              (anomaly.mood === 'DORMANT' ? ` wake:${anomaly.dormantTimer.toFixed(0)}s` : '')
+            : '';
         const pois = environment.pointsOfInterest || [];
         const unclaimed = pois.filter(p => !p.active).length;
         const seedStr = document.getElementById('seedInput').value;
@@ -38,7 +43,7 @@ export const DebugHUD = {
             `SECT  ${telemetry.activeSector}  CHUNK ${environment.currentChunkCoords.x},${environment.currentChunkCoords.z}\n` +
             `POS   ${cam.x.toFixed(1)}, ${cam.y.toFixed(2)}, ${cam.z.toFixed(1)}${player.isGodMode ? '  [GOD]' : ''}\n` +
             `FPS   ${this._fps.toFixed(0)}  CALLS ${info.calls}  TRIS ${(info.triangles / 1000).toFixed(0)}k\n` +
-            `ANOM  ${anomalyDist}${grace}${player.isChased ? ' CHASING' : ''}\n` +
+            `ANOM  ${anomalyDist}${grace}${player.isChased ? ' CHASING' : ''}${mind}\n` +
             `POI   ${unclaimed}/${pois.length} unclaimed  HOPS ${environment._breakerHuntHops ?? '-'}\n` +
             `FIXT  ${environment.fixtureData.length}  CHUNKS ${environment.activeChunks.size}\n` +
             `GLARE raw ${(environment._glareRaw ?? 0).toFixed(3)}` +

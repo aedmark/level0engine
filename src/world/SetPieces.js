@@ -34,8 +34,13 @@ export default class SetPieces {
                 jamb.position.set(bx, 1.325, cz0 + s * 0.75);
                 addGeometry(jamb);
             }
+            // Sits on the header face, clear of the door. The leaf is a full
+            // 0 to 2.65 and swings through everything in the opening, so the
+            // band has to start above 2.65; the header runs 2.64 to 3.01, so
+            // 2.73 puts the 0.14 band at 2.66 to 2.80 — 1cm over the leaf's
+            // sweep, with solid header behind it and no slot to see through.
             const mark = new THREE.Mesh(env._boxGeo(0.04, 0.14, 1.5), env.hazardMat);
-            mark.position.set(bx + dir * 0.15, 2.5, cz0);
+            mark.position.set(bx + dir * 0.15, 2.73, cz0);
             decor(mark);
         } else {
             for (let s = -1; s <= 1; s += 2) {
@@ -53,7 +58,7 @@ export default class SetPieces {
                 addGeometry(jamb);
             }
             const mark = new THREE.Mesh(env._boxGeo(1.5, 0.14, 0.04), env.hazardMat);
-            mark.position.set(cx0, 2.5, bz + dir * 0.15);
+            mark.position.set(cx0, 2.73, bz + dir * 0.15);
             decor(mark);
         }
         let doorMesh;

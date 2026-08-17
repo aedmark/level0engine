@@ -8,7 +8,9 @@ export default class ShaderWarmup {
         const renderer = env.engine && env.engine.renderer;
         if (!renderer || !env.chunkManager) return;
         try {
-            if (onProgress) onProgress(72, 'PREWARMING ANOMALOUS SECTOR BLUEPRINTS...');
+            // onProgress now reports a 0..1 fraction of this step, not an absolute
+            // percentage — the caller owns where that lands on the bar.
+            if (onProgress) onProgress(0, 'PREWARMING ANOMALOUS SECTOR BLUEPRINTS...');
             const t0 = performance.now();
             this._materialiseLazySectorAssets(env);
             warmLazySectorMaterials(env);
@@ -45,8 +47,8 @@ export default class ShaderWarmup {
             const batchMs = Math.round(performance.now() - batchStart);
             batchCount++;
             if (onProgress) {
-                const pct = 75 + Math.round((batchCount / Math.max(1, totalBatches)) * 10);
-                onProgress(pct, `PREWARMING MATERIAL VARIANTS [BATCH ${batchCount}/${totalBatches}] (${batchMs}ms)`);
+                onProgress(batchCount / Math.max(1, totalBatches),
+                    `PREWARMING MATERIAL VARIANTS [BATCH ${batchCount}/${totalBatches}] (${batchMs}ms)`);
             }
             if (batchMs > 200) {
                 console.warn(`[BOOT] Slow warmup batch ${batchCount}/${totalBatches}: ${batchMs}ms for materials`,

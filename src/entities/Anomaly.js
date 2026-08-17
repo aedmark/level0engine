@@ -1,6 +1,45 @@
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
-import {isRayPathBlocked, computeAxisBlocking} from './HazardUtils.js';
+import {isRayPathBlocked, stepGroundedBody} from './HazardUtils.js';
+
+// The anomaly is held to the player's own numbers. PlayerController drives the
+// camera through a velocity damped at exp(-25 * delta), so its acceleration
+// constants settle at roughly a/25 m/s: a fresh sprint under pursuit is 6.0 m/s,
+// an ordinary walk 2.4 m/s, and an exhausted stumble about 1.84 m/s. Every speed
+// below is chosen against those figures, so a rested player always out-runs a
+// sprint and a spent player always out-walks a spent anomaly.
+const SPRINT_SPEED = 5.3;
+const PURSUE_SPEED = 3.4;
+const WINDED_SPEED = 1.7;
+const PROWL_SPEED = 1.5;
+
+// Stamina mirrors the player's own budget: 100 units burned at the same 12/sec
+// the player pays while being chased, which is a little over eight seconds of
+// sprint, and the same "winded until half recovered" hysteresis on the way out.
+const MAX_STAMINA = 100.0;
+const SPRINT_BURN = 12.0;
+const JOG_BURN = 4.0;
+const SECOND_WIND = 50.0;
+const HUNT_RECOVERY = 1.0;
+const SEARCH_RECOVERY = 3.0;
+const PROWL_RECOVERY = 8.0;
+const DORMANT_RECOVERY = 25.0;
+
+// How long it will keep looking before it decides the trail is cold. Scaled by
+// how well the player is actually hiding, so a genuinely concealed player buys
+// this back at up to three times the rate.
+const ATTENTION_SPAN = 22.0;
+const RETREAT_DISTANCE_SQ = 3025.0;
+const DORMANT_MIN = 40.0;
+const DORMANT_MAX = 80.0;
+
+// Body dimensions and step height, matching a standing player: radius 0.4 plus
+// the anomaly's wider core, a 2.5 physical top and the same 0.5 step-up.
+const BODY_RADIUS = 0.6;
+const BODY_HEIGHT = 2.6;
+const STEP_HEIGHT = 0.5;
+const HOVER_HEIGHT = 1.5;
+const GRAVITY = 30.0;
 
 export default class Anomaly {
     constructor(scene, camera, player, environment) {
@@ -11,21 +50,30 @@ export default class Anomaly {
         this.isActive = false;
         this.group = new THREE.Group();
         this.target = new Vec3();
+        this.lastKnown = new Vec3();
+        this.hasLastKnown = false;
         this.breadcrumbs = [];
         this.backtrackTimer = 0;
         this.breadcrumbTimer = 0;
         this.graceTimer = 0;
-        this.timeSinceContact = 0;
+        this.mood = 'PROWL';
+        this.interest = 0.0;
+        this.stamina = MAX_STAMINA;
+        this.isWinded = false;
+        this.dormantTimer = 0;
+        this.searchProbeTimer = 0;
+        this.stuckFor = 0;
+        this.feetY = 0;
+        this.fallVelocity = 0;
+        this._stuckSampleTimer = 0;
+        this._progressMark = new Vec3();
+        this._dormantAnchor = new Vec3();
         this._dir = new Vec3();
         this._toPlayer = new Vec3();
         this._lookDir = new Vec3();
-        this._nextPos = new Vec3();
-        this._box = new AABB();
-        this._boxX = new AABB();
-        this._boxZ = new AABB();
-        this._min = new Vec3();
-        this._max = new Vec3();
+        this._eye = new Vec3();
         this._rayTarget = new Vec3();
+        this._scratch = {boxX: new AABB(), boxZ: new AABB(), floorBox: new AABB()};
         this._buildMesh();
         document.addEventListener('somatic-step', (e) => this._handleNoise(e, 9.0));
         document.addEventListener('somatic-door', (e) => this._handleNoise(e, 30.0));
@@ -34,16 +82,36 @@ export default class Anomaly {
     }
 
     _handleNoise(e, baseRadius) {
-        if (!this.isActive || this.player.isChased) return;
+        if (!this.isActive || this.graceTimer > 0) return;
         const intensity = e.detail.intensity || 1.0;
         const radiusSq = (baseRadius * intensity) ** 2;
-        if (this.group.position.distanceToSquared(this.camera.position) < radiusSq) {
-            this.target.copy(this.camera.position);
-            this.target.x += (Math.random() - 0.5) * 8.0;
-            this.target.z += (Math.random() - 0.5) * 8.0;
-            this.backtrackTimer = 0;
-            this.timeSinceContact = 0;
+        if (this.mood === 'DORMANT') {
+            // A footstep never reaches it once it has withdrawn; only something
+            // loud enough to carry across the level pulls it back out early.
+            if (baseRadius < 30.0) return;
+            if (this.camera.position.distanceToSquared(this._dormantAnchor) > radiusSq) return;
+            this._wake(this.camera.position, 0.7);
+            return;
         }
+        if (this.player.isChased) return;
+        if (this.group.position.distanceToSquared(this.camera.position) >= radiusSq) return;
+        this._noteContact(this.camera.position, 8.0);
+    }
+
+    // Files a position it has reason to believe the player occupies. It only
+    // ever navigates to what it has seen or heard, never to where the player
+    // actually is.
+    _noteContact(pos, scatter) {
+        this.lastKnown.set(
+            pos.x + (Math.random() - 0.5) * scatter,
+            pos.y,
+            pos.z + (Math.random() - 0.5) * scatter
+        );
+        this.hasLastKnown = true;
+        this.interest = 1.0;
+        this.searchProbeTimer = 0;
+        this.backtrackTimer = 0;
+        if (this.mood !== 'HUNT') this.mood = 'SEARCH';
     }
 
     _buildMesh() {
@@ -70,10 +138,21 @@ export default class Anomaly {
         this.backtrackTimer = 0;
         this.breadcrumbTimer = 0;
         this.graceTimer = 90.0;
-        this.timeSinceContact = 0;
+        this.mood = 'PROWL';
+        this.interest = 0.0;
+        this.hasLastKnown = false;
+        this.stamina = MAX_STAMINA;
+        this.isWinded = false;
+        this.dormantTimer = 0;
+        this.searchProbeTimer = 0;
+        this.stuckFor = 0;
+        this.rage = 0.0;
+        this.feetY = 0;
+        this.fallVelocity = 0;
         this._refreshForbiddenBounds(0, true);
         this.group.position.set(x + 10000, -1000, z + 10000);
         this.target.copy(this.group.position);
+        this._progressMark.copy(this.group.position);
         this.group.visible = true;
     }
 
@@ -132,23 +211,20 @@ export default class Anomaly {
             if (this.player.anomalyPressure > 0) this.player.anomalyPressure = 0;
             return null;
         }
+
+        this._refreshForbiddenBounds(time);
+        const playerPos = this.camera.position;
+        if (this.mood === 'DORMANT') {
+            this._updateDormant(delta, playerPos);
+            return null;
+        }
         if (!this.group.visible) {
             this.group.visible = true;
         }
-        
-        this._refreshForbiddenBounds(time);
-        const playerPos = this.camera.position;
+
         const distToPlayerSq = this.group.position.distanceToSquared(playerPos);
-        if (distToPlayerSq > 6400.0) {
-            const spawnAngle = Math.random() * Math.PI * 2;
-            const spawnDist = 40.0 + (Math.random() * 15.0);
-            const respawn = this._pushOutsideBounds(
-                playerPos.x + Math.cos(spawnAngle) * spawnDist,
-                playerPos.z + Math.sin(spawnAngle) * spawnDist
-            );
-            this.group.position.set(respawn.x, 1.5, respawn.z);
-            this.target.copy(this.group.position);
-            this.breadcrumbs = [];
+        if (distToPlayerSq > 6400.0 && this.mood !== 'RETREAT') {
+            this._respawnNearPlayer(playerPos, 40.0, 15.0);
             return null;
         }
         if (distToPlayerSq < 0.64 && !this.player.isGodMode) {
@@ -158,14 +234,111 @@ export default class Anomaly {
             return {consumed: true};
         }
         this._animate(time, delta);
-        const speed = this._updateSenses(playerPos, distToPlayerSq, delta, time);
-        this._resolveLocomotion(speed, delta, time);
+        const speed = this._updateAwareness(playerPos, distToPlayerSq, delta, time);
+        this._resolveLocomotion(speed, delta, time, playerPos);
         let pressure = 0;
         if (distToPlayerSq < 225.0) {
             pressure = 1.0 - (Math.sqrt(distToPlayerSq) / 15.0);
+            // It reads as background dread rather than an active threat when it
+            // is not the one doing the hunting.
+            if (this.mood !== 'HUNT') pressure *= 0.65;
         }
         this.player.anomalyPressure = pressure;
         return null;
+    }
+
+    // Off the board entirely: parked far out of the level, invisible, exerting
+    // no pressure, getting its breath back. This is the window the player earns
+    // by hiding successfully.
+    _updateDormant(delta, playerPos) {
+        if (this.group.visible) {
+            this.group.visible = false;
+            this._dormantAnchor.copy(this.group.position);
+            this.group.position.set(playerPos.x + 10000, -1000, playerPos.z + 10000);
+        }
+        this.stamina = Math.min(MAX_STAMINA, this.stamina + DORMANT_RECOVERY * delta);
+        if (this.stamina > SECOND_WIND) this.isWinded = false;
+        this.player.isChased = false;
+        if (this.player.anomalyPressure > 0) this.player.anomalyPressure = 0;
+        this.dormantTimer -= delta;
+        if (this.dormantTimer <= 0) this._wake(playerPos, 0.0);
+    }
+
+    _wake(playerPos, interest) {
+        if (!this._respawnNearPlayer(playerPos, 45.0, 15.0)) return;
+        this.mood = 'PROWL';
+        this.interest = interest;
+        this.stuckFor = 0;
+        if (interest > 0) {
+            this.lastKnown.copy(playerPos);
+            this.hasLastKnown = true;
+            this.mood = 'SEARCH';
+        }
+    }
+
+    // A body that has to walk around walls must not be able to appear inside
+    // one. Sampling the grid the same way the locomotion solver does keeps the
+    // ring spawn honest; the footprint is checked a little wider than the body
+    // so it never materialises flush against a surface it then has to escape.
+    _isSpawnClear(x, z) {
+        if (this._findForbiddenBounds(x, z, BODY_RADIUS)) return false;
+        const clearance = BODY_RADIUS + 0.2;
+        const boxes = this.env.spatialGrid.getNearby(x, z, clearance + 1.0);
+        for (let i = 0; i < boxes.length; i++) {
+            const b = boxes[i];
+            if (b.isInvisibleBlocker) continue;
+            if (b.isGrate && b.meshRef && !b.meshRef.userData.active) continue;
+            const overlapsFootprint = b.max.x >= x - clearance && b.min.x <= x + clearance &&
+                b.max.z >= z - clearance && b.min.z <= z + clearance;
+            if (!overlapsFootprint) continue;
+            if (b.isVoid) return false;
+            if (b.min.y > BODY_HEIGHT || b.max.y < STEP_HEIGHT) continue;
+            return false;
+        }
+        return true;
+    }
+
+    // Returns false rather than forcing a body into a wall when the ring is too
+    // built up to offer a clear spot. Callers simply try again next frame.
+    _respawnNearPlayer(playerPos, minDist, spread) {
+        let respawn = null;
+        for (let attempt = 0; attempt < 24; attempt++) {
+            const spawnAngle = Math.random() * Math.PI * 2;
+            const spawnDist = minDist + (Math.random() * spread);
+            const candidate = this._pushOutsideBounds(
+                playerPos.x + Math.cos(spawnAngle) * spawnDist,
+                playerPos.z + Math.sin(spawnAngle) * spawnDist
+            );
+            if (this._isSpawnClear(candidate.x, candidate.z)) {
+                respawn = candidate;
+                break;
+            }
+        }
+        if (!respawn) return false;
+        this.feetY = 0;
+        this.fallVelocity = 0;
+        this.group.position.set(respawn.x, HOVER_HEIGHT, respawn.z);
+        this.target.copy(this.group.position);
+        this._progressMark.copy(this.group.position);
+        this.breadcrumbs = [];
+        this.backtrackTimer = 0;
+        this.group.visible = true;
+        return true;
+    }
+
+    _goDormant(playerPos) {
+        this.mood = 'DORMANT';
+        this.dormantTimer = DORMANT_MIN + Math.random() * (DORMANT_MAX - DORMANT_MIN);
+        this.interest = 0.0;
+        this.hasLastKnown = false;
+        this.stuckFor = 0;
+        this.fallVelocity = 0;
+        this.feetY = 0;
+        this._dormantAnchor.copy(this.group.position);
+        this.group.visible = false;
+        this.group.position.set(playerPos.x + 10000, -1000, playerPos.z + 10000);
+        this.player.isChased = false;
+        this.player.anomalyPressure = 0;
     }
 
     _animate(time, delta) {
@@ -187,96 +360,221 @@ export default class Anomaly {
         }
     }
 
-    _updateSenses(playerPos, distToPlayerSq, delta, time) {
-        this.timeSinceContact = (this.timeSinceContact || 0) + delta;
-        const catchUp = Math.min(1.0, this.timeSinceContact / 45.0);
-        this.breadcrumbTimer = (this.breadcrumbTimer || 0) + delta;
-        if (this.breadcrumbTimer > 0.5 && this.backtrackTimer <= 0) {
-            this.breadcrumbTimer = 0;
-            this.breadcrumbs.push(this.group.position.clone());
-            if (this.breadcrumbs.length > 20) this.breadcrumbs.shift();
-        }
-        let detectionRadius = 25.0;
+    _canSeePlayer(playerPos, distToPlayerSq, time) {
         let stealthMultiplier = 1.0;
         if (this.player.isCrouching) stealthMultiplier -= 0.5;
         if (!this.player.flashlightActive) stealthMultiplier -= 0.3;
         const darknessCloak = this.player.darknessPressure || 0.0;
         if (darknessCloak > 0.5) stealthMultiplier *= 0.2;
-        detectionRadius = (detectionRadius * stealthMultiplier) + (this.player.isRunning ? 25.0 : 0.0) + (this.player.exhaustion * 15.0);
-        const perceptionThresholdSq = Math.max(9.0, detectionRadius * detectionRadius);
+        const detectionRadius = (25.0 * stealthMultiplier)
+            + (this.player.isRunning ? 25.0 : 0.0)
+            + (this.player.exhaustion * 15.0);
+        this._perceptionThresholdSq = Math.max(9.0, detectionRadius * detectionRadius);
+        if (distToPlayerSq >= this._perceptionThresholdSq) {
+            this._lastLOSResult = false;
+            return false;
+        }
         if (this._lastLOSTime === undefined) this._lastLOSTime = 0;
-        let hasLOS = this._lastLOSResult || false;
-        if (distToPlayerSq < Math.max(perceptionThresholdSq, 625.0)) {
-            if (time - this._lastLOSTime > 0.1) {
-                const toPlayerDir = this._toPlayer.subVectors(playerPos, this.group.position).normalize();
-                const searchDist = Math.sqrt(distToPlayerSq);
-                hasLOS = !isRayPathBlocked(
-                    this.env, this.group.position.x, this.group.position.z, searchDist,
-                    this.group.position, toPlayerDir, distToPlayerSq, this._rayTarget
-                );
-                if (darknessCloak > 0.6 && !this.player.flashlightActive) {
-                    hasLOS = false;
-                }
-                this._lastLOSResult = hasLOS;
-                this._lastLOSTime = time;
+        if (time - this._lastLOSTime > 0.1) {
+            this._lastLOSTime = time;
+            this._eye.set(this.group.position.x, this.group.position.y, this.group.position.z);
+            const toPlayerDir = this._toPlayer.subVectors(playerPos, this._eye).normalize();
+            const searchDist = Math.sqrt(distToPlayerSq);
+            let hasLOS = !isRayPathBlocked(
+                this.env, this._eye.x, this._eye.z, searchDist,
+                this._eye, toPlayerDir, distToPlayerSq, this._rayTarget, true
+            );
+            if (darknessCloak > 0.6 && !this.player.flashlightActive) hasLOS = false;
+            this._lastLOSResult = hasLOS;
+        }
+        return this._lastLOSResult || false;
+    }
+
+    // How fast the trail goes cold. Standing still in the dark burns its
+    // attention down in about seven seconds; sprinting around in the open makes
+    // it stay for the best part of a minute.
+    _boredomRate() {
+        const vx = this.player.velocity ? this.player.velocity.x : 0;
+        const vz = this.player.velocity ? this.player.velocity.z : 0;
+        const playerSpeedSq = (vx * vx) + (vz * vz);
+        let rate = 1.0;
+        if (playerSpeedSq < 0.25) rate += 0.6;
+        if (this.player.isCrouching) rate += 0.6;
+        if (!this.player.flashlightActive) rate += 0.3;
+        if ((this.player.darknessPressure || 0.0) > 0.5) rate += 0.5;
+        if (this.player.isRunning && playerSpeedSq > 4.0) rate -= 0.5;
+        // Geometry it cannot solve counts as a dead end, not as a reason to keep
+        // grinding against a wall next to the player. The threshold sits past
+        // the 5s breadcrumb backtrack so a snag it can route out of does not
+        // cost it the trail.
+        if (this.stuckFor > 6.0) rate += 1.2;
+        return Math.max(0.25, rate);
+    }
+
+    _updateStuckMeter(delta) {
+        this._stuckSampleTimer += delta;
+        if (this._stuckSampleTimer < 1.0) return;
+        const moved = this.group.position.distanceToSquared(this._progressMark);
+        this._progressMark.copy(this.group.position);
+        this.stuckFor = moved < 0.25 ? this.stuckFor + this._stuckSampleTimer : 0.0;
+        this._stuckSampleTimer = 0;
+    }
+
+    _pickSearchProbe(delta) {
+        this.searchProbeTimer -= delta;
+        const arrived = this.group.position.distanceToSquared(this.target) < 4.0;
+        if (this.searchProbeTimer > 0 && !arrived) return;
+        this.searchProbeTimer = 3.0 + Math.random() * 2.0;
+        const spread = 4.0 + (1.0 - this.interest) * 8.0;
+        const probe = this._pushOutsideBounds(
+            this.lastKnown.x + (Math.random() - 0.5) * spread * 2.0,
+            this.lastKnown.z + (Math.random() - 0.5) * spread * 2.0
+        );
+        this.target.set(probe.x, this.group.position.y, probe.z);
+    }
+
+    _updateAwareness(playerPos, distToPlayerSq, delta, time) {
+        this._updateStuckMeter(delta);
+        this.breadcrumbTimer += delta;
+        if (this.breadcrumbTimer > 0.5 && this.backtrackTimer <= 0) {
+            this.breadcrumbTimer = 0;
+            this.breadcrumbs.push(this.group.position.clone());
+            if (this.breadcrumbs.length > 20) this.breadcrumbs.shift();
+        }
+
+        const sees = this._canSeePlayer(playerPos, distToPlayerSq, time);
+        if (sees) {
+            this.mood = 'HUNT';
+            this.interest = 1.0;
+            this.lastKnown.copy(playerPos);
+            this.hasLastKnown = true;
+            this.searchProbeTimer = 0;
+            this.stuckFor = 0;
+        } else if (this.mood === 'HUNT') {
+            this.mood = 'SEARCH';
+            this.searchProbeTimer = 0;
+        }
+
+        if (this.mood === 'SEARCH') {
+            this.interest -= (delta / ATTENTION_SPAN) * this._boredomRate();
+            if (this.interest <= 0.0) {
+                this.interest = 0.0;
+                this.mood = 'RETREAT';
+                this.hasLastKnown = false;
+                this.breadcrumbs = [];
+                this.backtrackTimer = 0;
             }
         }
-        if (this.backtrackTimer > 0) {
+
+        if (this.backtrackTimer > 0 && this.mood !== 'RETREAT') {
             this.backtrackTimer -= delta;
             if (this.breadcrumbs.length > 0) {
                 const targetCrumb = this.breadcrumbs[this.breadcrumbs.length - 1];
                 this.target.copy(targetCrumb);
-                if (this.group.position.distanceToSquared(targetCrumb) < 1.0) {
-                    this.breadcrumbs.pop();
-                }
+                if (this.group.position.distanceToSquared(targetCrumb) < 1.0) this.breadcrumbs.pop();
             } else {
                 this.backtrackTimer = 0;
             }
-            this.player.isChased = false;
-        } else if (distToPlayerSq < perceptionThresholdSq && hasLOS) {
+        } else if (this.mood === 'HUNT') {
             this.target.copy(playerPos);
-            this.player.isChased = distToPlayerSq < 225.0;
-            this.timeSinceContact = 0;
+        } else if (this.mood === 'SEARCH' && this.hasLastKnown) {
+            this._pickSearchProbe(delta);
+        } else if (this.mood === 'RETREAT') {
+            this._steerAway(playerPos, distToPlayerSq);
         } else {
-            this.player.isChased = false;
-            let distracted = false;
-            if (this.env && this.env.tagPool) {
-                for (let i = 0; i < this.env.tagPool.length; i++) {
-                    const tag = this.env.tagPool[i];
-                    if (tag.visible && tag.position.distanceToSquared(this.group.position) < 400.0) {
-                        this.target.lerp(tag.position, 0.015);
-                        distracted = true;
-                        if (tag.position.distanceToSquared(this.group.position) < 4.0 && Math.random() < 0.05) {
-                            tag.visible = false;
-                            document.dispatchEvent(new CustomEvent('somatic-door', {
-                                detail: {
-                                    distSq: 25.0,
-                                    intensity: 0.8
-                                }
-                            }));
-                        }
-                        break;
-                    }
+            this._prowl(playerPos);
+        }
+
+        this.player.isChased = this.mood === 'HUNT' && distToPlayerSq < 225.0;
+
+        let speed;
+        if (this.mood === 'HUNT') {
+            speed = distToPlayerSq < 400.0 ? SPRINT_SPEED : PURSUE_SPEED;
+        } else if (this.mood === 'SEARCH' || this.mood === 'RETREAT') {
+            speed = PURSUE_SPEED;
+        } else {
+            speed = PROWL_SPEED;
+        }
+        this.rage = this.rage || 0.0;
+        speed += this.rage * 0.6;
+        if (this._applyObservation(playerPos, distToPlayerSq, delta)) speed = 0.0;
+        return this._applyStamina(speed, delta);
+    }
+
+    // Same shape as the player's metabolism: burn while sprinting, seize up at
+    // zero, and stay winded until half the bar is back. It cannot chase past the
+    // end of its own stamina any more than the player can run past the end of
+    // theirs.
+    _applyStamina(speed, delta) {
+        const burn = speed > 4.0 ? SPRINT_BURN : (speed > 2.5 ? JOG_BURN : 0.0);
+        if (burn > 0 && !this.isWinded) {
+            this.stamina = Math.max(0.0, this.stamina - burn * delta);
+            if (this.stamina <= 0.0) this.isWinded = true;
+        } else {
+            let recovery;
+            if (this.mood === 'HUNT') recovery = HUNT_RECOVERY;
+            else if (this.mood === 'SEARCH') recovery = SEARCH_RECOVERY;
+            else recovery = PROWL_RECOVERY;
+            this.stamina = Math.min(MAX_STAMINA, this.stamina + recovery * delta);
+            if (this.isWinded && this.stamina > SECOND_WIND) this.isWinded = false;
+        }
+        if (this.isWinded) return Math.min(speed, WINDED_SPEED);
+        return speed;
+    }
+
+    _steerAway(playerPos, distToPlayerSq) {
+        if (distToPlayerSq > RETREAT_DISTANCE_SQ) {
+            this._goDormant(playerPos);
+            return;
+        }
+        const away = this._dir.subVectors(this.group.position, playerPos);
+        away.y = 0;
+        if (away.lengthSq() < 0.01) away.set(1, 0, 0);
+        away.normalize();
+        const exit = this._pushOutsideBounds(
+            this.group.position.x + away.x * 25.0,
+            this.group.position.z + away.z * 25.0
+        );
+        this.target.set(exit.x, this.group.position.y, exit.z);
+        // A retreat it cannot walk out of still ends the engagement.
+        if (this.stuckFor > 6.0) this._goDormant(playerPos);
+    }
+
+    // Wandering, drawn by dropped UV tags but not by the player. It has to see
+    // or hear them to take an interest.
+    _prowl(playerPos) {
+        if (this.env && this.env.tagPool) {
+            for (let i = 0; i < this.env.tagPool.length; i++) {
+                const tag = this.env.tagPool[i];
+                if (!tag.visible) continue;
+                const tagDistSq = tag.position.distanceToSquared(this.group.position);
+                if (tagDistSq >= 400.0) continue;
+                this.target.lerp(tag.position, 0.015);
+                if (tagDistSq < 4.0 && Math.random() < 0.05) {
+                    tag.visible = false;
+                    document.dispatchEvent(new CustomEvent('somatic-door', {
+                        detail: {distSq: 25.0, intensity: 0.8}
+                    }));
                 }
-            }
-            if (!distracted) {
-                if (Math.random() < 0.02) {
-                    this.target.x += (Math.random() - 0.5) * 15.0;
-                    this.target.z += (Math.random() - 0.5) * 15.0;
-                }
-                this.target.lerp(playerPos, 0.005 + catchUp * 0.045);
+                return;
             }
         }
-        const baseSpeed = (distToPlayerSq < 225.0 ? 4.2 : 1.8) + catchUp * 1.2;
-        this.rage = this.rage || 0.0;
-        let speed = baseSpeed + (this.rage * 2.0);
+        if (this.group.position.distanceToSquared(this.target) < 4.0 || Math.random() < 0.01) {
+            const wander = this._pushOutsideBounds(
+                this.group.position.x + (Math.random() - 0.5) * 30.0,
+                this.group.position.z + (Math.random() - 0.5) * 30.0
+            );
+            this.target.set(wander.x, this.group.position.y, wander.z);
+        }
+    }
+
+    _applyObservation(playerPos, distToPlayerSq, delta) {
         let isObserved = false;
-        if (this.player.flashlightActive && distToPlayerSq < 625.0 && hasLOS) {
+        if (this.player.flashlightActive && distToPlayerSq < 625.0 && this._lastLOSResult) {
             const toEntity = this._toPlayer.subVectors(this.group.position, playerPos).normalize();
             const lookDir = this._lookDir.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
             if (lookDir.dot(toEntity) > 0.85) {
                 isObserved = true;
-                speed = 0.0;
                 this.rage = Math.min(1.0, this.rage + (delta * 0.15));
                 const panicJitter = 0.8 * (1.0 - (this.player.flashlightBattery / 100.0)) + 0.1;
                 this.core.position.set((Math.random() - 0.5) * panicJitter, (Math.random() - 0.5) * panicJitter, (Math.random() - 0.5) * panicJitter);
@@ -289,10 +587,10 @@ export default class Anomaly {
             this.core.position.set(0, 0, 0);
             this.rage = Math.max(0.0, this.rage - (delta * 0.05));
         }
-        return speed;
+        return isObserved;
     }
 
-    _resolveLocomotion(speed, delta, time) {
+    _resolveLocomotion(speed, delta, time, playerPos) {
         if (this.env && this.env.interactiveDoors) {
             for (let i = 0; i < this.env.interactiveDoors.length; i++) {
                 const door = this.env.interactiveDoors[i];
@@ -311,56 +609,48 @@ export default class Anomaly {
                 }
             }
         }
-        const dir = this._dir.subVectors(this.target, this.group.position);
+        const pos = this.group.position;
+        const dir = this._dir.subVectors(this.target, pos);
         dir.y = 0;
-        const distToTarget = dir.length();
-        if (distToTarget > 0.1) {
+        let moveX = 0;
+        let moveZ = 0;
+        if (dir.length() > 0.1) {
             dir.normalize();
-            const moveVec = dir.multiplyScalar(speed * delta);
-            this._nextPos.copy(this.group.position).add(moveVec);
-            this._min.set(this._nextPos.x - 0.6, 0.0, this._nextPos.z - 0.6);
-            this._max.set(this._nextPos.x + 0.6, 3.0, this._nextPos.z + 0.6);
-            this._box.set(this._min, this._max);
-            let blocked = !!this._findForbiddenBounds(this._nextPos.x, this._nextPos.z, 0.6);
-            const localBoxes = this.env.spatialGrid.getNearby(this._nextPos.x, this._nextPos.z, 2.0);
-            if (!blocked) {
-                for (let i = 0; i < localBoxes.length; i++) {
-                    if (localBoxes[i].isEntityBlocker && this._box.intersectsBox(localBoxes[i])) {
-                        blocked = true;
-                        break;
-                    }
-                }
-            }
-            if (!blocked) {
-                this.group.position.add(moveVec);
-            } else {
-                const {blockedX, blockedZ} = computeAxisBlocking(
-                    this._boxX, this._boxZ, this._box, this.group.position.x, this.group.position.z, localBoxes,
-                    !!this._findForbiddenBounds(this._nextPos.x, this.group.position.z, 0.6),
-                    !!this._findForbiddenBounds(this.group.position.x, this._nextPos.z, 0.6)
-                );
-                if (!blockedX && !blockedZ) {
-                    if (Math.abs(moveVec.x) > Math.abs(moveVec.z)) {
-                        this.group.position.x += moveVec.x;
-                    } else {
-                        this.group.position.z += moveVec.z;
-                    }
-                } else if (!blockedX) {
-                    this.group.position.x += moveVec.x;
-                } else if (!blockedZ) {
-                    this.group.position.z += moveVec.z;
-                } else {
-                    if (this.backtrackTimer <= 0) {
-                        this.backtrackTimer = 5.0;
-                    }
-                    this.group.position.x += (Math.random() - 0.5) * speed * delta;
-                    this.group.position.z += (Math.random() - 0.5) * speed * delta;
-                }
-            }
+            moveX = dir.x * speed * delta;
+            moveZ = dir.z * speed * delta;
         }
-        const pushed = this._pushOutsideBounds(this.group.position.x, this.group.position.z);
-        this.group.position.x = pushed.x;
-        this.group.position.z = pushed.z;
-        this.group.position.y = 1.5 + Math.sin(time * 2.0) * 0.2;
+        const body = {
+            x: pos.x,
+            z: pos.z,
+            feetY: this.feetY,
+            radius: BODY_RADIUS,
+            height: BODY_HEIGHT,
+            stepOffset: STEP_HEIGHT
+        };
+        const step = stepGroundedBody(this.env.spatialGrid, body, moveX, moveZ, this._scratch);
+        const hitX = step.hitX || !!this._findForbiddenBounds(pos.x + moveX, pos.z, BODY_RADIUS);
+        const hitZ = step.hitZ || !!this._findForbiddenBounds(pos.x, pos.z + moveZ, BODY_RADIUS);
+        if (!hitX) pos.x += moveX;
+        if (!hitZ) pos.z += moveZ;
+        if (hitX && hitZ && (moveX !== 0 || moveZ !== 0)) {
+            // Both axes walled off. It retraces its own trail rather than
+            // sliding through the geometry that stopped it.
+            if (this.backtrackTimer <= 0 && this.mood !== 'RETREAT') this.backtrackTimer = 5.0;
+        }
+        if (step.groundY === -100) {
+            this.fallVelocity += GRAVITY * delta;
+            this.feetY -= this.fallVelocity * delta;
+            if (this.feetY < -15.0) {
+                this._goDormant(playerPos);
+                return;
+            }
+        } else {
+            this.fallVelocity = 0;
+            this.feetY += (step.groundY - this.feetY) * (1.0 - Math.exp(-12.0 * delta));
+        }
+        const pushed = this._pushOutsideBounds(pos.x, pos.z);
+        pos.x = pushed.x;
+        pos.z = pushed.z;
+        pos.y = this.feetY + HOVER_HEIGHT + Math.sin(time * 2.0) * 0.2;
     }
 }

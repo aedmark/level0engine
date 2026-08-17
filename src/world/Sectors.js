@@ -141,7 +141,7 @@ const SECTORS = {
     },
     CLINIC: {
         fog: 0.03,
-        ambient: 0.12,
+        ambient: 0.22,
         ambience: {
             noise: 0.05,
             peace: 0.0,
@@ -260,13 +260,13 @@ const SECTORS = {
         reverb: {rt60: 0.35, predelay: 0.005, wet: 0.08}
     },
     EXIT: {
-        fog: 0.05, ambient: 0.06,
+        fog: 0.05, ambient: 0.56,
         foley: {oscFreq: 700, filterType: 'bandpass', filterFreq: 2700, gain: 0.14, attack: 0.008, decay: 0.075},
         reverb: {rt60: 0.9, predelay: 0.012, wet: 0.14}
     },
     CHECKPOINT: {
         fog: 0.01,
-        ambient: 0.18,
+        ambient: 0.38,
         ambience: {
             noise: 0.2,
             peace: 0.0,

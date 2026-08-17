@@ -77,11 +77,27 @@ export default class ProceduralTextureFactory {
         return assets;
     }
 
-    static async lazyLoadSectorAssets(env, onProgress = null) {
-        const masterNoise = ProceduralTextureFactory._masterNoise;
-        if (!masterNoise) return;
-
-        const lazyModules = [
+    /**
+     * The eight per-sector texture bundles.
+     *
+     * Each entry is tried against the exported static set first and only synthesised on
+     * the CPU if that misses. `StaticTextureLoader.loadSectorAssets` returns null for a
+     * sector whose bundle is absent, incomplete, or flagged by the exporter as carrying
+     * assets it cannot represent (BufferGeometry, nested/aliased material sets) — so
+     * ARCHIVE and MAINTENANCE, which both hand back geometry alongside their materials,
+     * stay on the generator lane by design rather than by accident.
+     *
+     * The generator is never removed from the build: it remains the fallback for a
+     * missing export, a failed decode, and for regenerating the static set in the first
+     * place via assets/export_textures.html.
+     */
+    /**
+     * Single source of truth for the per-sector generators, shared by the boot loader
+     * below and by assets/export_textures.html. Adding a sector here is enough for both
+     * the runtime fallback and the static export to pick it up.
+     */
+    static sectorGenerators() {
+        return [
             ['ANNEX', (noise) => AnnexTextures._buildAnnexAssets(noise)],
             ['IMPOUND', (noise) => ImpoundTextures._buildImpoundAssets(noise)],
             ['BOARDROOM', (noise) => BoardroomTextures._buildBoardroomAssets(noise)],
@@ -91,22 +107,42 @@ export default class ProceduralTextureFactory {
             ['CHECKPOINT', (noise) => CheckpointTextures._buildCheckpointAssets(noise)],
             ['INCINERATOR', (noise) => IncineratorTextures._buildIncineratorAssets(noise)]
         ];
+    }
+
+    static async lazyLoadSectorAssets(env, onProgress = null) {
+        const masterNoise = ProceduralTextureFactory._masterNoise;
+        if (!masterNoise) return;
+
+        const lazyModules = ProceduralTextureFactory.sectorGenerators();
 
         let i = 0;
+        let staticHits = 0;
         for (const [name, buildFn] of lazyModules) {
             await TextureMechanics._yield();
             i++;
             if (!buildFn) continue;
 
             const t0 = performance.now();
-            const sectorAssets = buildFn(masterNoise);
-            ProceduralTextureFactory._applyOpts(sectorAssets);
+            let sectorAssets = null;
+            let source = 'static';
 
+            if (ProceduralTextureFactory.USE_STATIC_TEXTURES) {
+                sectorAssets = await StaticTextureLoader.loadSectorAssets(name);
+            }
+            if (sectorAssets) {
+                staticHits++;
+            } else {
+                source = 'generated';
+                sectorAssets = buildFn(masterNoise);
+            }
+
+            ProceduralTextureFactory._applyOpts(sectorAssets);
             Object.assign(env, sectorAssets);
             if (onProgress) {
-                onProgress(i, lazyModules.length, name, Math.round(performance.now() - t0));
+                onProgress(i, lazyModules.length, `${name}/${source}`, Math.round(performance.now() - t0));
             }
         }
+        console.log(`[TEXTURES] Sector bundles: ${staticHits} static, ${lazyModules.length - staticHits} generated.`);
     }
 
     static _applyOpts(assets) {

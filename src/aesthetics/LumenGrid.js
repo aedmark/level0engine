@@ -1,3 +1,21 @@
+// Only 6 of the 32 pooled lights cast shadows; the other 26 are bare point
+// lights that would otherwise light straight through a wall, throwing a
+// specular highlight from a fixture around the corner onto the floor at the
+// player's feet. Each candidate fixture gets a cheap sight-line test to the
+// camera, and one that fails is dimmed to a spill floor and pushed to the back
+// of the slot queue so the slots go to fixtures that are actually in the room.
+const OCCLUDED_LIGHT_FLOOR = 0.20;
+// A wall blocks light; a header over a doorway or a desk does not. Only boxes
+// tall enough to be architecture qualify, which leaves doorways open for light
+// to spill through the way they should.
+const OCCLUDER_MIN_HEIGHT = 2.0;
+// Both ends of the sight line are pulled in, so a fixture mounted flush against
+// the wall it lives on does not occlude itself.
+const SIGHTLINE_END_INSET = 0.45;
+const OCCLUSION_TEST_INTERVAL = 0.25;
+const MAX_OCCLUSION_TESTS_PER_FRAME = 8;
+const OCCLUSION_SLOT_PENALTY = 900.0;
+
 export default class LumenGrid {
     constructor(env, shadowQuality = 'high') {
         this.env = env;
@@ -58,7 +76,8 @@ export default class LumenGrid {
         }
         this._activeFixtures.fill(null);
 
-        darknessPressure = this._cullAndSortFixtures(cameraPos, fixtureData, currentChunkHash);
+        this._occlusionTestsThisFrame = 0;
+        darknessPressure = this._cullAndSortFixtures(cameraPos, fixtureData, currentChunkHash, time);
 
         let nearestFixture = null;
         let minLightDistSq = Infinity;
@@ -136,7 +155,87 @@ export default class LumenGrid {
         return {darknessPressure, nearestFixture, minLightDistSq};
     }
 
-    _cullAndSortFixtures(cameraPos, fixtureData, currentChunkHash) {
+    // Segment/AABB slab test over the sight line, parameterised on [0,1] so the
+    // wall behind the camera or beyond the light never counts as a blocker.
+    _segmentHitsBox(ox, oy, oz, dx, dy, dz, box) {
+        let tmin = 0.0;
+        let tmax = 1.0;
+        if (Math.abs(dx) < 1e-9) {
+            if (ox < box.min.x || ox > box.max.x) return false;
+        } else {
+            let t1 = (box.min.x - ox) / dx;
+            let t2 = (box.max.x - ox) / dx;
+            if (t1 > t2) { const t = t1; t1 = t2; t2 = t; }
+            if (t1 > tmin) tmin = t1;
+            if (t2 < tmax) tmax = t2;
+            if (tmin > tmax) return false;
+        }
+        if (Math.abs(dy) < 1e-9) {
+            if (oy < box.min.y || oy > box.max.y) return false;
+        } else {
+            let t1 = (box.min.y - oy) / dy;
+            let t2 = (box.max.y - oy) / dy;
+            if (t1 > t2) { const t = t1; t1 = t2; t2 = t; }
+            if (t1 > tmin) tmin = t1;
+            if (t2 < tmax) tmax = t2;
+            if (tmin > tmax) return false;
+        }
+        if (Math.abs(dz) < 1e-9) {
+            if (oz < box.min.z || oz > box.max.z) return false;
+        } else {
+            let t1 = (box.min.z - oz) / dz;
+            let t2 = (box.max.z - oz) / dz;
+            if (t1 > t2) { const t = t1; t1 = t2; t2 = t; }
+            if (t1 > tmin) tmin = t1;
+            if (t2 < tmax) tmax = t2;
+            if (tmin > tmax) return false;
+        }
+        return true;
+    }
+
+    _isSightLineBlocked(fixturePos, cameraPos) {
+        const grid = this.env && this.env.spatialGrid;
+        if (!grid || !grid.forEachAlongSegment) return false;
+        let dx = cameraPos.x - fixturePos.x;
+        let dy = cameraPos.y - fixturePos.y;
+        let dz = cameraPos.z - fixturePos.z;
+        const len = Math.sqrt((dx * dx) + (dy * dy) + (dz * dz));
+        if (len < SIGHTLINE_END_INSET * 2.5) return false;
+        const inset = SIGHTLINE_END_INSET / len;
+        const ox = fixturePos.x + dx * inset;
+        const oy = fixturePos.y + dy * inset;
+        const oz = fixturePos.z + dz * inset;
+        const scale = 1.0 - (inset * 2.0);
+        dx *= scale;
+        dy *= scale;
+        dz *= scale;
+        return grid.forEachAlongSegment(ox, oz, ox + dx, oz + dz, (box) => {
+            if (box.isInvisibleBlocker || box.isVoid || box.isWarpZone) return false;
+            if (box.isGrate && box.meshRef && !box.meshRef.userData.active) return false;
+            if (box.max.y - box.min.y < OCCLUDER_MIN_HEIGHT) return false;
+            return this._segmentHitsBox(ox, oy, oz, dx, dy, dz, box);
+        });
+    }
+
+    _updateFixtureVisibility(fixture, cameraPos, time) {
+        if (fixture._visibility === undefined) {
+            fixture._visibility = 1.0;
+            fixture._occluded = false;
+            // Staggered off the fixture's existing flicker offset so a room full
+            // of lights does not retest on the same frame.
+            fixture._visTestAt = -(fixture.flickerOffset || 0) * 0.05;
+        }
+        if (time - fixture._visTestAt >= OCCLUSION_TEST_INTERVAL &&
+            this._occlusionTestsThisFrame < MAX_OCCLUSION_TESTS_PER_FRAME) {
+            fixture._visTestAt = time;
+            this._occlusionTestsThisFrame++;
+            fixture._occluded = this._isSightLineBlocked(fixture.position, cameraPos);
+        }
+        const target = fixture._occluded ? OCCLUDED_LIGHT_FLOOR : 1.0;
+        fixture._visibility += (target - fixture._visibility) * 0.06;
+    }
+
+    _cullAndSortFixtures(cameraPos, fixtureData, currentChunkHash, time) {
         let darknessPressure = 0;
         const baseCullingLimit = this.maxActiveLights > 12 ? 55.0 : 35.0;
         
@@ -172,9 +271,14 @@ export default class LumenGrid {
                 }
                 if (!fixture.isFake) {
                     fixture.distSq = distSq;
+                    this._updateFixtureVisibility(fixture, cameraPos, time);
                     fixture._biasedDistSq = fixture.hasShadow ? distSq - 120.0 : distSq;
                     if (this._prevActive.has(fixture)) fixture._biasedDistSq -= 30.0;
                     if (fixture.slotBias) fixture._biasedDistSq += fixture.slotBias;
+                    // Yields its slot to anything the player can actually see,
+                    // but only once it has already faded down, so losing the
+                    // slot is a small step rather than a snap to black.
+                    if (fixture._visibility < 0.3) fixture._biasedDistSq += OCCLUSION_SLOT_PENALTY;
                     this._insertFixture(fixture);
                 }
             } else {
@@ -262,7 +366,12 @@ export default class LumenGrid {
             fixture._currentScalar += (targetScalar - fixture._currentScalar) * 0.05;
             intensityScalar = fixture._currentScalar;
         }
-        
+        // Applied to the light only, never to fadeEnvelope: the fixture's own
+        // emissive panel has to keep glowing at full strength, since a light you
+        // can see through a doorway at a grazing angle can still fail the
+        // sight-line test to the camera.
+        if (fixture._visibility !== undefined) intensityScalar *= fixture._visibility;
+
         // Pool lights are recycled between fixtures, so colour has to be reasserted every
         // frame. Most fixtures take it from the emissive material they are lighting;
         // fixtures with no mesh of their own (prop glows) carry their own colour.

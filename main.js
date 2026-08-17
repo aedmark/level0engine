@@ -19,17 +19,30 @@ import RemapController from './src/ui/RemapController.js';
 import BootController from './src/ui/BootController.js';
 import ContinuePrompt from './src/ui/ContinuePrompt.js';
 
+// Everything the browser did before this line — HTML parse, r160.js, the 121-module
+// graph — is already spent by the time any engine code runs, and BootController's own
+// clock cannot see it. Captured here so the final report can attribute it honestly
+// instead of quoting an engine-only number as if it were total boot time.
+const T_MODULES_READY = performance.now();
+
 // Blocks here, before anything else runs, if a prior save exists — the player picks
 // Continue or New Game. New Game purges localStorage/IndexedDB/caches first, so
 // everything below (including the boot sequence itself) starts from a clean slate.
 await ContinuePrompt.resolve();
 
-const bootCtrl = BootController.getInstance();
-bootCtrl.init();
-bootCtrl.setPhase(1, 'RETICULATING NARRATIVE THREADS & CASE FILES...', 0);
+// Reported separately from engine time: a player deliberating at the Continue screen
+// is not the engine being slow, and folding it in made boot look arbitrarily bad.
+const T_PROMPT_DONE = performance.now();
 
-const storyPromise = StoryEngine.loadData('./data', (pct, fileName) => {
-    bootCtrl.setProgress(pct, `PARSED CASE DATA: ${fileName}`);
+const bootCtrl = BootController.getInstance();
+bootCtrl.init({
+    preInitMs: T_MODULES_READY,
+    promptMs: T_PROMPT_DONE - T_MODULES_READY
+});
+bootCtrl.setPhase('DATA');
+
+const storyPromise = StoryEngine.loadData('./data', (fraction, fileName) => {
+    bootCtrl.setPhaseProgress(fraction, `PARSED CASE DATA: ${fileName}`);
 });
 const engine = new RenderEngine();
 bootCtrl.logDeviceInfo(engine);
@@ -110,7 +123,9 @@ if (savedState) {
     environment.baseFogDensity = (Number(savedState.fog) || 5) / 100;
     environment.needsSafeSpawn = false;
 }
-bootCtrl.setPhase(3, 'ALIGNING MAZE SPATIAL CORRIDORS...', 40);
+// No setPhase here: environment.setup() has already advanced the boot sequence to
+// phase 4, and re-announcing phase 3 drove the badge backwards and logged a duplicate,
+// bogus phase-3 duration into the console table.
 environment.updateChunks(engine.camera.position);
 somatic.bindEvents();
 docViewer.bindEvents();
@@ -219,7 +234,10 @@ function animate() {
             player.input.isFrozen = true;
             player.wasFrozenByLoad = true;
             if (!environment.isSpawning) {
-                bootCtrl.setPhase(3, 'LOADING ANOMALOUS SECTOR...', 50);
+                // A real reset, not a setPhase on the already-finished boot sequence:
+                // that left the bar pinned at 100% with a stale "PHASE 03/06" badge,
+                // because targetProgress only climbs and the rAF loop had already exited.
+                bootCtrl.beginSubLoad('LOADING ANOMALOUS SECTOR...');
                 bootCtrl.addLog('MATERIALIZING SECTOR BOUNDARY CHUNKS...');
             }
             const flash = document.getElementById('flash-overlay');
@@ -236,6 +254,9 @@ function animate() {
         player.input.isFrozen = false;
         player.wasFrozenByLoad = false;
         environment.isSectorTransitioning = false;
+        // Closes out whatever beginSubLoad opened above, so the overlay's own rAF loop
+        // stops rather than spinning for the rest of the session.
+        bootCtrl.endSubLoad();
         const flash = document.getElementById('flash-overlay');
         if (flash) {
             flash.style.transition = 'opacity 0.8s ease-out';
@@ -309,18 +330,102 @@ function animate() {
     environment.drainProgramLinks(1.5);
 }
 
-(async function() {
-    while (environment.isBuildingChunk || environment.chunkQueue.length > 0 || environment.isBuildingMacroInterior) {
-        await new Promise(r => setTimeout(r, 20));
+/**
+ * How many slices the boot shader compile is split into.
+ *
+ * Measured on the reference machine:
+ *
+ *     1 slice   -> 1075ms, no real checkpoints (crawl only)
+ *     3 slices  ->  938ms, two real checkpoints
+ *     27 slices -> 4853ms  <- naive one-slice-per-group; badly superlinear
+ *
+ * A few coarse slices cost nothing (they measured slightly faster than the single call,
+ * within noise) while giving the bar real checkpoints to land on. Slicing finely is
+ * where it falls apart — the cost grows far faster than the call count, so treat 27 as
+ * a hard lesson rather than a tunable. Raising this much above single digits should be
+ * re-measured, not assumed.
+ */
+const COMPILE_SLICES = 3;
+
+/**
+ * Compiles the scene a few top-level groups at a time instead of in one opaque call.
+ *
+ * `renderer.compileAsync(scene, camera)` over the whole scene took ~1075ms on the
+ * reference machine and reports nothing while it runs, so the bar parked at its ceiling
+ * for over a second — the single worst "is it frozen?" moment in the whole sequence.
+ * Slicing it yields real progress between groups, and a synthetic crawl covers each
+ * individual slice (which is still opaque internally).
+ *
+ * Lights and cameras stay resident in every slice because materials compile against the
+ * lighting they will actually be rendered with; dropping them would compile the wrong
+ * shader permutations and defeat the entire warmup. Swapping `scene.children` rather
+ * than reparenting keeps every world matrix and the scene's own fog/environment intact
+ * — the same technique ChunkManager._scopedCompile already relies on.
+ */
+async function compileSceneInGroups(engine, bootCtrl, targetSlices = COMPILE_SLICES) {
+    const scene = engine.scene;
+    const allChildren = scene.children;
+    const resident = [];
+    const rest = [];
+    for (const child of allChildren) {
+        (child.isLight || child.isCamera ? resident : rest).push(child);
     }
 
-    bootCtrl.setPhase(5, 'COMPILING SOMATIC PHOSPHOR SHADERS...', 85);
+    if (rest.length === 0) {
+        await engine.renderer.compileAsync(scene, engine.camera);
+        return;
+    }
+
+    const sliceCount = Math.max(1, Math.min(targetSlices, rest.length));
+    const groupsPerSlice = Math.ceil(rest.length / sliceCount);
+    try {
+        for (let i = 0; i < sliceCount; i++) {
+            const slice = rest.slice(i * groupsPerSlice, (i + 1) * groupsPerSlice);
+            scene.children = resident.concat(slice);
+            // Each slice is still opaque, so crawl within the width it owns while it runs.
+            bootCtrl.beginCrawl(600, (i + 1) / sliceCount);
+            const t0 = performance.now();
+            await engine.renderer.compileAsync(scene, engine.camera);
+            bootCtrl.setPhaseProgress((i + 1) / sliceCount,
+                `LINKED PROGRAM GROUP ${i + 1}/${sliceCount} (${Math.round(performance.now() - t0)}ms)`);
+        }
+    } finally {
+        scene.children = allChildren;
+    }
+}
+
+(async function() {
+    // The initial chunk build is the single largest stretch of boot — around 4.5s of a
+    // ~7s cold start — and it used to run inside this bare await with no reporting at
+    // all, freezing the bar mid-sweep for most of the load. It now owns its own phase
+    // and reports against the chunk count the streamer is actually targeting.
+    bootCtrl.setPhase('CHUNKS');
+    const chunkStart = performance.now();
+    const expectedChunks = Math.max(1, environment.chunksToKeep ? environment.chunksToKeep.size : 9);
+    let lastFlavor = performance.now();
+
+    while (environment.isBuildingChunk || environment.chunkQueue.length > 0 || environment.isBuildingMacroInterior) {
+        const built = environment.genStats ? environment.genStats.count : 0;
+        bootCtrl.setPhaseProgress(Math.min(0.97, built / expectedChunks));
+        // The flavor lines are the only thing telling a player this phase is alive
+        // during long stalls on slower hardware.
+        if (performance.now() - lastFlavor > 1800) {
+            bootCtrl.triggerWhimsicalFlavor('CHUNKS');
+            lastFlavor = performance.now();
+        }
+        await new Promise(r => setTimeout(r, 20));
+    }
+    const builtTotal = environment.genStats ? environment.genStats.count : 0;
+    bootCtrl.setPhaseProgress(1,
+        `SPATIAL CHUNK GEOMETRY MATERIALIZED [${builtTotal} CHUNKS] (${Math.round(performance.now() - chunkStart)}ms)`);
+
+    bootCtrl.setPhase('SHADERS');
     bootCtrl.addLog('RUNNING PARALLEL WEBGL SHADER COMPILER...');
 
     const compileStart = performance.now();
-    await engine.renderer.compileAsync(engine.scene, engine.camera);
+    await compileSceneInGroups(engine, bootCtrl);
 
-    bootCtrl.setProgress(98, `SHADER PROGRAM PERMUTATIONS LINKED [OK] (${Math.round(performance.now() - compileStart)}ms)`);
+    bootCtrl.setPhaseProgress(1, `SHADER PROGRAM PERMUTATIONS LINKED [OK] (${Math.round(performance.now() - compileStart)}ms)`);
 
     environment.isSectorTransitioning = false;
     environment.isBuildingMacroInterior = false;

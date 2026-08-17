@@ -71,11 +71,11 @@ export default class Environment {
 
     async setup() {
         const bootCtrl = BootController.getInstance();
-        bootCtrl.setPhase(2, 'CALIBRATING CARPET MOISTURE & CEILING GRAIN...', 15);
+        bootCtrl.setPhase('ASSETS');
         await new Promise(resolve => setTimeout(resolve, 0));
         const coreAssetsStart = performance.now();
-        const assets = await ProceduralTextureFactory.generateAssets((pct, name) => {
-            bootCtrl.setProgress(pct, `MOUNTING ASSET: ${name}`);
+        const assets = await ProceduralTextureFactory.generateAssets((fraction, name) => {
+            bootCtrl.setPhaseProgress(fraction, `MOUNTING ASSET: ${name}`);
         });
         bootCtrl.addLog(`CORE ASSETS LOADED (${Math.round(performance.now() - coreAssetsStart)}ms)`);
         Object.assign(this, assets);
@@ -195,12 +195,12 @@ export default class Environment {
         this.camera.add(this.flashlight);
         this.camera.add(this.flashlight.target);
         this.baseFogDensity = 0.05;
-        bootCtrl.setPhase(3, 'ALIGNING MAZE SPATIAL CORRIDORS...', 40);
+        bootCtrl.setPhase('GRID');
         const generateStart = performance.now();
         this.generate();
-        bootCtrl.setProgress(65, `WORLD MESH GRID GENERATED [SEED: 0x${(this.baseSeed >>> 0).toString(16).toUpperCase()}] (${Math.round(performance.now() - generateStart)}ms)`);
+        bootCtrl.setPhaseProgress(1, `WORLD MESH GRID GENERATED [SEED: 0x${(this.baseSeed >>> 0).toString(16).toUpperCase()}] (${Math.round(performance.now() - generateStart)}ms)`);
 
-        bootCtrl.setPhase(4, 'PREWARMING ANOMALOUS SECTOR BLUEPRINTS...', 70);
+        bootCtrl.setPhase('BLUEPRNT');
         // Awaited here, not fired in the background after warmup: annexWallMat,
         // archiveBowlMat and the rest of the per-sector bundle used to land on `env`
         // only after ShaderWarmup had already taken its material-collection snapshot,
@@ -208,8 +208,10 @@ export default class Environment {
         // shader compile the first time a player actually reached it. Paying the cost
         // here folds it into the loading bar instead of into gameplay.
         const sectorAssetsStart = performance.now();
+        // Sector textures own the first third of this phase's band; the shader warmup
+        // below owns the rest, which matches how the two actually split the time.
         await ProceduralTextureFactory.lazyLoadSectorAssets(this, (i, total, name, ms) => {
-            bootCtrl.setProgress(70 + Math.round((i / total) * 3), `SECTOR TEXTURE BUNDLE [${name}] BUILT (${ms}ms)`);
+            bootCtrl.setPhaseProgress((i / total) * 0.33, `SECTOR TEXTURE BUNDLE [${name}] BUILT (${ms}ms)`);
         }).catch(err => {
             console.error('[BOOT] lazyLoadSectorAssets failed:', err);
             bootCtrl.addLog(`SECTOR TEXTURE BUNDLE BUILD FAILED: ${err && err.message}`);
@@ -217,8 +219,8 @@ export default class Environment {
         bootCtrl.addLog(`ALL SECTOR TEXTURE BUNDLES READY (${Math.round(performance.now() - sectorAssetsStart)}ms)`);
 
         const warmupStart = performance.now();
-        await ShaderWarmup.run(this, (pct, msg) => {
-            bootCtrl.setProgress(pct, msg);
+        await ShaderWarmup.run(this, (fraction, msg) => {
+            bootCtrl.setPhaseProgress(0.33 + fraction * 0.67, msg);
         });
         bootCtrl.addLog(`SHADER MATERIAL WARMUP DONE (${Math.round(performance.now() - warmupStart)}ms)`);
 
