@@ -1,5 +1,6 @@
 import TheArchitect from './TheArchitect.js';
 import {warmLazySectorMaterials} from './LazyMaterialWarmup.js';
+import AmbientEnvMap from '../aesthetics/AmbientEnvMap.js';
 
 export default class ShaderWarmup {
     static async run(env, onProgress = null) {
@@ -12,16 +13,27 @@ export default class ShaderWarmup {
             this._materialiseLazySectorAssets(env);
             warmLazySectorMaterials(env);
             console.log(`[BOOT] Lazy blueprint/material materialisation: ${Math.round(performance.now() - t0)}ms`);
-            await this._warm(env, onProgress);
+
+            // Env map applied before materials are collected for _warm below, so the
+            // compile pass sees its effect on the handful of allowlisted materials it
+            // touches — see AmbientEnvMap.SAFE_MATERIAL_KEYS for why that list is short
+            // rather than "every metallic material."
+            const envMapStart = performance.now();
+            env.ambientEnvMap = AmbientEnvMap.generate(renderer);
+            const metallicCount = AmbientEnvMap.applyToMaterials(env, env.ambientEnvMap);
+            console.log(`[BOOT] Ambient env map baked, applied to ${metallicCount} metallic materials (${Math.round(performance.now() - envMapStart)}ms)`);
+
+            const materials = this._collectMaterials(env);
+            await this._warm(env, onProgress, materials);
         } catch (err) {
             console.warn('Shader warmup aborted:', err);
         }
     }
 
-    static async _warm(env, onProgress = null) {
+    static async _warm(env, onProgress = null, materials = null) {
         env._programKeepAlive = [];
 
-        const materials = this._collectMaterials(env);
+        materials = materials || this._collectMaterials(env);
         const BATCH = 8;
         const totalBatches = Math.ceil(materials.length / BATCH);
         let batchCount = 0;

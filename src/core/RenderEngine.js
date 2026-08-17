@@ -34,7 +34,11 @@ export default class RenderEngine {
             this.renderer.outputEncoding = THREE.sRGBEncoding;
         }
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
-        this.ambientLight = new THREE.HemisphereLight(0xfff5c2, 0x3d3520, 0.45);
+        // Matches the new DEFAULT_AMBIENT (Sectors.js) — AtmosphereManager lerps this
+        // toward the active sector's own target within the first second anyway, but
+        // starting at the old 0.45 meant the very first frames were brighter than
+        // almost every sector's steady-state value.
+        this.ambientLight = new THREE.HemisphereLight(0xfff5c2, 0x3d3520, 0.30);
         this.scene.add(this.ambientLight);
         const aaSamples = RenderEngine.getSavedAA();
         this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {

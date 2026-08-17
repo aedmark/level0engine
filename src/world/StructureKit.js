@@ -235,7 +235,7 @@ export default class StructureKit {
                     shape.absarc(0, springY, radius, 0, Math.PI, false);
                     shape.lineTo(-radius, 0);
 
-                    geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false, curveSegments: 24 });
+                    geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false, curveSegments: 32 });
                     geo.translate(0, 0, -depth / 2);
 
                     const pos = geo.attributes.position;
@@ -265,10 +265,30 @@ export default class StructureKit {
                             walked = x > 0 ? y : overTheTop + (springY - y);
                         } else {
                             walked = springY + radius * Math.atan2(y - springY, x);
+
+                            // ExtrudeGeometry hands back a non-indexed mesh, so
+                            // computeVertexNormals gives every wall quad one flat normal and
+                            // the intrados reads as 32 discrete facets, each catching the
+                            // light differently. Replace those with the analytic normal of
+                            // the cylinder the arc was swept from — shared edges then agree
+                            // and the curve shades as one surface. Sign comes from the flat
+                            // normal so this stays agnostic to the shape's winding.
+                            const dy = y - springY;
+                            const d = Math.hypot(x, dy);
+                            if (Math.abs(d - radius) < 0.01) {
+                                let nx = x / d;
+                                let ny = dy / d;
+                                if (nx * norm.getX(i) + ny * norm.getY(i) < 0) {
+                                    nx = -nx;
+                                    ny = -ny;
+                                }
+                                norm.setXYZ(i, nx, ny, 0);
+                            }
                         }
                         uv.setXY(i, z / env.cellSize, walked / 3.0);
                     }
                     uv.needsUpdate = true;
+                    norm.needsUpdate = true;
 
                     env.geoCache.set(key, geo);
                     env.geoCache.set(geo.uuid, true);

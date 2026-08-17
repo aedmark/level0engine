@@ -5,8 +5,6 @@ export const CurvedArchwayProfile = (env, ctx) => {
     const {random, buildArchCutout, addGeometry} = ctx;
     return {
         name: "CURVED ARCHWAY",
-        // 0.01 originally, which put an arch in only half of all chunks and a waiting
-        // area in one chunk in five. The extra 0.02 comes out of BLOCKY OBSTRUCTION.
         prob: 0.03, build: (x, z) => {
             const cx = x * env.cellSize;
             const cz = z * env.cellSize;
@@ -56,10 +54,6 @@ export const CurvedArchwayProfile = (env, ctx) => {
                     );
                 }
 
-                // Somewhere to wait. The seat goes in one of the two cells flanking the
-                // arch, backed against a wall running across the passage so you sit
-                // facing the opening rather than beside it. Roughly two arches in three,
-                // one side only — a facing pair at every arch would read as stamped.
                 if (random() > 0.34) {
                     const along = isAlignedZ ? {dx: 0, dz: 1} : {dx: 1, dz: 0};
                     const across = isAlignedZ ? {dx: 1, dz: 0} : {dx: 0, dz: 1};
@@ -69,11 +63,6 @@ export const CurvedArchwayProfile = (env, ctx) => {
                         const fz = z + along.dz * side;
                         if (ctx.isWall(fx, fz)) continue;
 
-                        // The seat needs a wall at its back. Without one it strands itself
-                        // in open floor, which reads as a bug rather than a bus stop.
-                        // The far wall is tried first: when the flanking cell dead-ends,
-                        // backing onto it seats you looking straight back through the arch,
-                        // which frames the opening better than sitting alongside it.
                         const backs = [];
                         if (ctx.isWall(fx + along.dx * side, fz + along.dz * side)) {
                             backs.push({dx: along.dx * side, dz: along.dz * side});

@@ -31,14 +31,14 @@ export const DEFAULT_REVERB = {
     wet: 0.14
 };
 
-export const DEFAULT_AMBIENT = 1.00;
+export const DEFAULT_AMBIENT = 0.30;
 
 export const MIN_AMBIENT = 0.005;
 
 const SECTORS = {
     NORMAL: {
-        fog: 0.03,
-        ambient: DEFAULT_AMBIENT,
+        fog: 0.01,
+        ambient: 0.80,
         ambience: {
             noise: 0.0,
             peace: 0.0,
@@ -54,7 +54,7 @@ const SECTORS = {
     },
     ARCHIVE: {
         fog: 0.07, fogColor: 0x000000,
-        ambient: 0.30,
+        ambient: 0.10,
         ambience: {
             noise: 0.06,
             peace: 0.0,
@@ -76,7 +76,7 @@ const SECTORS = {
     },
     IMPOUND: {
         fog: 0.12, fogColor: 0x1A1313,
-        ambient: 0.02,
+        ambient: 0.01,
         ambience: {
             noise: 0.19,
             peace: 0.0,
@@ -98,7 +98,7 @@ const SECTORS = {
     },
     BOARDROOM: {
         fog: 0.02, fogColor: 0xa0bbd6,
-        ambient: 0.85, groundColor: 0x8899aa,
+        ambient: 0.28, groundColor: 0x8899aa,
         ambience: {
             noise: 0.05,
             peace: 0.0,
@@ -114,7 +114,7 @@ const SECTORS = {
     },
     SERVER: {
         fog: 0.02, fogColor: 0x380159,
-        ambient: 0.30,
+        ambient: 0.10,
         ambience: {
             noise: 0.05,
             peace: 0.0,
@@ -141,7 +141,7 @@ const SECTORS = {
     },
     CLINIC: {
         fog: 0.03,
-        ambient: 0.35,
+        ambient: 0.12,
         ambience: {
             noise: 0.05,
             peace: 0.0,
@@ -158,7 +158,7 @@ const SECTORS = {
 
     MAINTENANCE: {
         fog: 0.08, fogColor: 0x572503,
-        ambient: 0.18,
+        ambient: 0.06,
         ambience: {
             noise: 0.55,
             peace: 0.0,
@@ -174,7 +174,7 @@ const SECTORS = {
     },
     INCINERATOR: {
         fog: 0.20, fogColor: 0xD15900,
-        ambient: 0.15,
+        ambient: 0.05,
         ambience: {
             noise: 0.65,
             peace: 0.01,
@@ -195,7 +195,7 @@ const SECTORS = {
     },
     CHASM: {
         fog: 0.20, fogColor: 0x050733,
-        ambient: 0.1,
+        ambient: 0.03,
         ambience: {
             noise: 0.25,
             peace: 0.0,
@@ -217,7 +217,7 @@ const SECTORS = {
     },
     ATRIUM: {
         fog: 0.08, fogColor: 0x000000,
-        ambient: 0.1,
+        ambient: 0.03,
         ambience: {
             noise: 0.13,
             peace: 0.0,
@@ -239,7 +239,7 @@ const SECTORS = {
     },
     ANNEX: {
         fog: 0.03,
-        ambient: 0.45, groundColor: 0x666255,
+        ambient: 0.15, groundColor: 0x666255,
         ambience: {
             noise: 0.03,
             peace: 0.0,
@@ -260,13 +260,13 @@ const SECTORS = {
         reverb: {rt60: 0.35, predelay: 0.005, wet: 0.08}
     },
     EXIT: {
-        fog: 0.05, ambient: 0.18,
+        fog: 0.05, ambient: 0.06,
         foley: {oscFreq: 700, filterType: 'bandpass', filterFreq: 2700, gain: 0.14, attack: 0.008, decay: 0.075},
         reverb: {rt60: 0.9, predelay: 0.012, wet: 0.14}
     },
     CHECKPOINT: {
         fog: 0.01,
-        ambient: 0.55,
+        ambient: 0.18,
         ambience: {
             noise: 0.2,
             peace: 0.0,

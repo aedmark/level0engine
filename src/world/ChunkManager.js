@@ -527,9 +527,6 @@ export default class ChunkManager {
                             const clearX = wx * env.cellSize;
                             const clearZ = wz * env.cellSize;
                             const halfCell = env.cellSize * 0.5;
-                            // Reverse walk: baseboards are staged directly after
-                            // their wall, so they are met first and skipped, then
-                            // retired alongside it when the wall itself comes up.
                             for (let i = stagingMeshes.length - 1; i >= 0; i--) {
                                 const m = stagingMeshes[i];
                                 if (m.userData.baseboardOwner) {
@@ -537,8 +534,6 @@ export default class ChunkManager {
                                 } else if (m.userData.isDefaultWall && m.userData.cellX === wx && m.userData.cellZ === wz) {
                                     ctx.retireStagedMesh(m);
                                 } else if (m.userData.wallSpan) {
-                                    // A partition that reaches into this cell is
-                                    // shortened to the cell face, not removed.
                                     const clearance = ctx.spanClearanceToCell(m, wx, wz);
                                     if (clearance >= m.userData.wallSpan.length) continue;
                                     if (clearance < 0.05) ctx.retireStagedMesh(m);
@@ -596,9 +591,6 @@ export default class ChunkManager {
             const toRemoveStaging = [];
             for (const wall of env._breachWalls) {
                 if (wall.userData.retired) continue;
-                // A chunk that aborted mid-build can leave its partitions in
-                // the shared list. Measuring those against this chunk's claims
-                // would clip walls that live somewhere else entirely.
                 if (wall.userData.chunkHash !== hash) continue;
                 wall.updateMatrixWorld(true);
                 if (!wall.geometry.boundingBox) wall.geometry.computeBoundingBox();
@@ -606,11 +598,6 @@ export default class ChunkManager {
                 const span = wall.userData.wallSpan;
                 let clearance = span ? span.length : Infinity;
 
-                // Claims first. The blocker scan at build time only sees cells
-                // a structure has already forced, so a duct network carved
-                // earlier in the chunk is invisible to it. This pass runs after
-                // everything is staged, which is the only point where the
-                // answer does not depend on who was built first.
                 if (span) {
                     for (const cell of ctx.claimedCells.values()) {
                         clearance = Math.min(clearance, ctx.spanClearanceToCell(wall, cell.x, cell.z));
@@ -633,11 +620,6 @@ export default class ChunkManager {
                         if (!child.geometry.boundingBox) child.geometry.computeBoundingBox();
                         const childBox = child.geometry.boundingBox.clone().applyMatrix4(child.matrixWorld);
                         if (box.intersectsBox(childBox)) {
-                            // The rule is that a partition must not obstruct a
-                            // door, hatch or vent. The wall yields by stopping
-                            // short. Deleting the fixture was the old reading of
-                            // the same rule, and it is kept only for walls that
-                            // have no declared span to retract along.
                             if (span) {
                                 clearance = Math.min(clearance, ctx.spanClearanceToBox(wall, childBox));
                             } else if (chunkGroup.children.includes(child)) {
@@ -678,11 +660,6 @@ export default class ChunkManager {
             env._breachWalls = [];
         }
         await this._compileInstances(hash, chunkGroup, stagingMeshes, random);
-        // A chunk can mint a material and put it on screen inside the same frame,
-        // which outruns the per-frame drain and lands the compile in the frame that
-        // reveals it. We are already inside a yielding build here and the chunk is
-        // not visible yet, so retire its backlog now, in slices, while it is still
-        // free to do so. Capped so a large queue cannot stall the build either.
         for (let pass = 0; pass < 12 && this._shadowQueue && this._shadowQueue.length > 0; pass++) {
             this.drainShadowPrewarm(8.0);
             if (!env.activeChunks.has(hash)) return;
@@ -761,9 +738,6 @@ export default class ChunkManager {
             const rideProfile = RideQueueHallProfile(env, ctx);
             rideProfile.build(x, z, isWallCell);
         } else if (forcedName === 'ARCH_HALL') {
-            // The arcade lights itself: a crown seam under the vault, a ceiling panel
-            // over the open landings. It also owns its own floor, so the usual random
-            // dividers and breaker panels stay out of the run.
             hasTallObstacle = true;
             const archProfile = ArchHallProfile(env, ctx);
             archProfile.build(x, z, isWallCell);
@@ -994,11 +968,6 @@ export default class ChunkManager {
         if (unwarmed !== null) this.warmMaterialVariants(unwarmed);
     }
 
-    // Three builds a material's depth and distanceRGBA programs inside the shadow
-    // pass, and renderer.compile() never runs that pass — so warmMaterialVariants,
-    // which only ever compiles the visible variant, structurally cannot produce
-    // them, so they compile on the first frame a shadow-casting light sees the
-    // material. Queued here, drained in slices before the chunk becomes visible.
     queueShadowPrewarm(materials) {
         if (!materials) return;
         if (!this._shadowQueue) { this._shadowQueue = []; this._shadowQueued = new Set(); }
@@ -1014,11 +983,6 @@ export default class ChunkManager {
     _shadowProbeRig() {
         const env = this.env;
         if (this._shadowRig) return this._shadowRig;
-        // Own lights rather than the scene's. A depth program's cache key does not
-        // depend on light counts, so two throwaway lights compile exactly the same
-        // programs the real fixtures will need, and their shadow maps are scratch
-        // that nothing ever samples. Borrowing the real lights would leave their
-        // maps holding a picture of a probe plane.
         const point = new THREE.PointLight(0xffffff, 1, 10);
         point.castShadow = true;
         point.shadow.mapSize.set(64, 64);
@@ -1030,8 +994,6 @@ export default class ChunkManager {
         const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 20);
         camera.position.set(0, 0, 3);
         if (!env._probeGeo) env._probeGeo = new THREE.PlaneGeometry(0.001, 0.001);
-        // instanceColor is in the depth program key too, so the instanced coloured
-        // case needs its own probe. Measured: 28 late programs down to 13.
         const coloured = new THREE.InstancedMesh(env._probeGeo, null, 1);
         coloured.setColorAt(0, new THREE.Color(1, 1, 1));
         const plain = new THREE.Mesh(env._probeGeo, null);
@@ -1072,8 +1034,6 @@ export default class ChunkManager {
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.autoUpdate = true;
             renderer.setRenderTarget(rig.target);
-            // Always retire at least one, so a spec more expensive than the whole
-            // budget cannot wedge the queue.
             do {
                 const material = queue.pop();
                 if (!material) break;

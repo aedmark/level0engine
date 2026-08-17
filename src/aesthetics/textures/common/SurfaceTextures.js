@@ -40,7 +40,12 @@ export default class SurfaceTextures {
         const tileMat = new THREE.MeshStandardMaterial({
             map: tileTexture,
             roughness: 0.4,
-            metalness: 0.6,
+            // Was 0.6 — waxed-tile levels of metallic, on the single most common floor
+            // in the level, with nothing but a handful of unshadowed point lights to
+            // catch. Low enough now that its shine comes mostly from the baked ambient
+            // env map (see AmbientEnvMap.js) rather than from punching a hot circle
+            // under every fixture it passes under.
+            metalness: 0.15,
             shadowSide: THREE.DoubleSide
         });
         const {canvas: clinicCanvas, ctx: cCtx} = TextureMechanics._createContext(256, 256);
