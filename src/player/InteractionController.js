@@ -1,3 +1,5 @@
+import {releasePropLighting} from '../world/PropGlow.js';
+
 export default class InteractionController {
     constructor(env) {
         this.env = env;
@@ -780,6 +782,7 @@ export default class InteractionController {
                 document.dispatchEvent(new CustomEvent('somatic-vent', {detail: {distSq: 1.0, intensity: 1.5}}));
             } else if (hit && hit.userData.type === 'exit_key' && hit.userData.active) {
                 hit.userData.active = false;
+                releasePropLighting(env, hit);
                 hit.visible = false;
                 env.player.inventory.hasExitKey = true;
                 env.player.updateObjectives();
@@ -787,17 +790,20 @@ export default class InteractionController {
             } else if (hit && hit.userData.type === 'battery' && hit.userData.active) {
                 if (env.player.inventory.batteries < env.player.MAX_BATTERIES) {
                     hit.userData.active = false;
+                    releasePropLighting(env, hit);
                     hit.visible = false;
                     document.dispatchEvent(new Event('somatic-pickup-battery'));
                 }
             } else if (hit && hit.userData.type === 'almond' && hit.userData.active) {
                 if (env.player.inventory.almondWater < env.player.MAX_ALMOND_WATER) {
                     hit.userData.active = false;
+                    releasePropLighting(env, hit);
                     hit.visible = false;
                     document.dispatchEvent(new Event('somatic-pickup-almond'));
                 }
             } else if (hit && hit.userData.type === 'document' && hit.userData.active) {
                 hit.userData.active = false;
+                releasePropLighting(env, hit);
                 hit.visible = false;
                 document.dispatchEvent(new CustomEvent('somatic-read', {
                     detail: {docId: hit.userData.docId, zone: hit.userData.zone || null}

@@ -26,13 +26,6 @@ function _isAirlockApron(x, z, airlocks, cellSize) {
     return false;
 }
 
-// What a doorway run is allowed to end in. Every entry leaves its cell a wall
-// cell, so the terminus is a way through rather than a way out: you crawl the
-// duct or you open the next door. The old list also held CRAWLSPACE_HALL,
-// CREVICE_HALL and empty_door_frame, all of which set the cell non-wall — and
-// since the seal ring only ever covered cells adjacent to the corridor, opening
-// the terminus connected the run straight back to open level one cell further
-// on. That is the short hallway that leads nowhere.
 const TERMINUS_EXITS = ["DUCT OR VENT", "DUCT OR VENT", "CRAWLSPACE_DUCT", "CRAWLSPACE_DUCT"];
 
 function _planDoorwayRun(random, doorX, doorZ, dir, inChunk, cellKey, reserved, approaches, runMin, runMax, airlocks, cellSize, getForcedFn, pathTheme, isWallFn) {
@@ -49,12 +42,6 @@ function _planDoorwayRun(random, doorX, doorZ, dir, inChunk, cellKey, reserved, 
 
     const isApron = (cx, cz) => _isAirlockApron(cx, cz, airlocks, cellSize);
 
-    // A themed artery is one continuous piece of architecture that the player is meant
-    // to walk the length of. A doorway run carves straight through cells and then seals
-    // a solid ring around what it carved, neither of which checks whether the cell was
-    // already part of an artery. The result is a queue or a crevice chopped into stubs,
-    // most of them walled off from anything reachable. Artery cells are off limits to
-    // both operations.
     const isArtery = (cx, cz) => !!pathTheme && !!getForcedFn && getForcedFn(cx, cz) === pathTheme;
 
     const free = (cx, cz) => inChunk(cx, cz) &&
@@ -135,18 +122,6 @@ function _planDoorwayRun(random, doorX, doorZ, dir, inChunk, cellKey, reserved, 
         }
     });
 
-    // A door is only worth standing in front of if it is the sole way in. The
-    // seal above tries to guarantee that, but it declines to touch four kinds of
-    // cell — outside the chunk, another run's reserved cells, artery cells and
-    // airlock aprons — and every one of those declines leaves a mouth the player
-    // can walk around to. Rather than special-case them one at a time, ask the
-    // question directly: after this plan is applied, does any carved cell touch
-    // open floor that is not part of the run? If so the corridor is a detour,
-    // not a room, and it is not worth a door. The caller falls through to a
-    // normal structure roll on that wall cell.
-    //
-    // Safe to ask before choosing a terminus, because every terminus this
-    // planner will now pick leaves its cell solid.
     const corridorKeys = new Set(corridor.map(c => key(c.cx, c.cz)));
     const alcoveKeys = new Set(alcoves.map(c => key(c.cx, c.cz)));
     const openAfterPlan = (cx, cz) => {
@@ -221,13 +196,6 @@ function _planDoorways(random, startX, startZ, size, isWallFn, forcedStructureFn
             const apply = (p, dx, dz, facing) => {
                 p.corridor.forEach(c => {
                     setWallFn(c.cx, c.cz, false);
-                    // The run behind a door is built from the same vocabulary as
-                    // the chunk's arteries. A carved cell left with no forced
-                    // structure reads as bare corridor, which is what made these
-                    // feel like filler even once they were private. The hall
-                    // profiles each read their own neighbours to decide whether
-                    // they are a straight, a turn or a dead end, so they stamp
-                    // onto a doorway run exactly as they do onto an artery.
                     forceStructureFn(c.cx, c.cz, pathTheme || null);
                     reserved.add(key(c.cx, c.cz));
                 });
@@ -257,9 +225,6 @@ function _planDoorways(random, startX, startZ, size, isWallFn, forcedStructureFn
                 const t = pending;
                 pending = null;
                 if (t.name !== "HINGED DOORWAY") {
-                    // Every terminus exit keeps its cell solid. The run ends in a
-                    // wall you crawl through, never in an opening you can reach
-                    // from the far side.
                     setWallFn(t.cx, t.cz, true);
                     forceStructureFn(t.cx, t.cz, t.name);
                     reserved.add(key(t.cx, t.cz));
@@ -270,9 +235,6 @@ function _planDoorways(random, startX, startZ, size, isWallFn, forcedStructureFn
                     : null;
                 if (!nextPlan) {
                     t.name = TERMINUS_EXITS[Math.floor(random() * TERMINUS_EXITS.length)];
-                    // Every terminus exit keeps its cell solid. The run ends in a
-                    // wall you crawl through, never in an opening you can reach
-                    // from the far side.
                     setWallFn(t.cx, t.cz, true);
                     forceStructureFn(t.cx, t.cz, t.name);
                     reserved.add(key(t.cx, t.cz));
@@ -317,10 +279,6 @@ self.onmessage = function(e) {
     else if (pathThemeRoll > 0.40) pathTheme = 'RIDE_QUEUE_HALL';
     else if (pathThemeRoll > 0.18) pathTheme = 'ARCH_HALL';
 
-    // The arcade is the one theme whose geometry spans the whole cell, so its runs
-    // are carved differently: strictly orthogonal steps, and detours that swing off
-    // the direct line before recovering. Diagonal steps would fragment the vault
-    // into disconnected pieces, and a straight run would not curl.
     const wanderingPath = pathTheme === 'ARCH_HALL';
     const clampX = (v) => Math.max(startX, Math.min(startX + chunkSize - 1, v));
     const clampZ = (v) => Math.max(startZ, Math.min(startZ + chunkSize - 1, v));
@@ -329,8 +287,6 @@ self.onmessage = function(e) {
     const cZ = startZ + Math.floor(chunkSize/2);
     const pathGrid = new Map();
 
-    // How many carved cells a candidate step would touch. One means it only touches
-    // the cell being stepped from, which is what keeps a run reading as a corridor.
     const pathTouchCount = (px, pz) => {
         let n = 0;
         if (pathGrid.has(cellKey(px + 1, pz))) n++;
@@ -352,10 +308,6 @@ self.onmessage = function(e) {
             const dx = tx - currX;
             const dz = tz - currZ;
             if (wanderingPath) {
-                // The run commits to one axis for several cells before turning. A
-                // greedy step-toward-target would zigzag every cell and read as a
-                // staircase; committed segments give the vault something to recede
-                // down before it bends away.
                 const spent = detourAlongX ? dx === 0 : dz === 0;
                 if (detour <= 0 || spent) {
                     let preferX = Math.abs(dx) > Math.abs(dz);
@@ -365,8 +317,6 @@ self.onmessage = function(e) {
                     const delta = preferX ? dx : dz;
                     detourAlongX = preferX;
                     detourSign = delta !== 0 ? Math.sign(delta) : (random() > 0.5 ? 1 : -1);
-                    // A rare stretch against the target is what makes a run curl back
-                    // on itself instead of only ever fanning outward.
                     if (random() > 0.86) detourSign = -detourSign;
                     detour = 2 + Math.floor(random() * 4);
                 }
@@ -377,9 +327,6 @@ self.onmessage = function(e) {
                 let nextX = clampX(currX + ax);
                 let nextZ = clampZ(currZ + az);
                 if (pathTouchCount(nextX, nextZ) > 1) {
-                    // The run is about to fold back alongside itself, which smears the
-                    // vault into an open blob instead of a hall. Straighten out toward
-                    // the target and abandon the detour.
                     detour = 0;
                     const backX = Math.abs(dx) > Math.abs(dz) ? Math.sign(dx) : 0;
                     const backZ = backX === 0 ? Math.sign(dz) : 0;
@@ -395,12 +342,6 @@ self.onmessage = function(e) {
                 failsafe++;
                 continue;
             }
-            // Both axes can move in one step. The loop only records the position it
-            // lands on, so a diagonal step left no cell at the elbow — and since every
-            // cell touching the path is forced to wall, the two halves of the artery
-            // ended up meeting at a corner you cannot walk through. Recording the elbow
-            // keeps the run orthogonally connected. No extra random() calls, so the
-            // sequence and therefore every existing seed is unchanged.
             if (Math.abs(dx) > Math.abs(dz)) {
                 currX += Math.sign(dx);
                 pathGrid.set(cellKey(currX, currZ), true);

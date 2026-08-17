@@ -3,6 +3,8 @@ import AABB from '../../math/AABB.js';
 import * as OfficeFurniture from '../OfficeFurniture.js';
 import * as ClinicFurniture from '../ClinicFurniture.js';
 import { buildBreakerPodium, setPodiumBroken } from '../BreakerPodium.js';
+import { attachPropGlow } from '../PropGlow.js';
+import { PROP_GLOW } from '../NarrativeProps.js';
 
 export const AnnexSector = (env, ctx) => {
     const {
@@ -339,9 +341,6 @@ export const AnnexSector = (env, ctx) => {
                     glow.position.set(0, 0.13, 0.012);
                     lapScreen.add(glow);
                     lap.add(lapScreen);
-                    const laptopLight = new THREE.PointLight(0xa8ffd0, 0.8, 2.5, 2.0);
-                    laptopLight.position.set(0, 0.2, 0.1);
-                    lap.add(laptopLight);
                     lap.position.set(deskX, 0.93, deskZ);
                     lap.rotation.y = Math.atan2(dd[0], dd[1]);
                     lap.userData = {
@@ -353,6 +352,7 @@ export const AnnexSector = (env, ctx) => {
                     };
                     chunkGroup.add(lap);
                     lap.updateMatrixWorld(true);
+                    attachPropGlow(env, lap, hash, {...PROP_GLOW.laptop, flickerOffset: random() * 500});
                     env._registerInteractable(lap, hash);
                 } else if (spawnRoll < 0.75) {
                     const tapeGroup = new THREE.Group();
@@ -367,9 +367,6 @@ export const AnnexSector = (env, ctx) => {
                     recLight.material = new THREE.MeshBasicMaterial({color: 0xff0000});
                     recLight.position.set(0.06, 0.04, -0.04);
                     tapeGroup.add(recLight);
-                    const pointLight = new THREE.PointLight(0xff0000, 1.0, 1.5, 2.0);
-                    pointLight.position.set(0.06, 0.05, -0.04);
-                    tapeGroup.add(pointLight);
                     tapeGroup.position.set(deskX, 0.93, deskZ);
                     tapeGroup.rotation.y = random() * Math.PI;
                     tapeGroup.userData = {
@@ -380,6 +377,8 @@ export const AnnexSector = (env, ctx) => {
                         docId: 'TAPE_' + Math.floor(random() * 9999)
                     };
                     chunkGroup.add(tapeGroup);
+                    tapeGroup.updateMatrixWorld(true);
+                    attachPropGlow(env, tapeGroup, hash, {...PROP_GLOW.tape, flickerOffset: random() * 500});
                     env._registerInteractable(tapeGroup, hash);
                 }
             } else if (contentRoll < 0.75) {

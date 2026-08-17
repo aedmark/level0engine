@@ -102,7 +102,10 @@ export default class LumenGrid {
                     }
                 }
                 
-                if (fixture.distSq < minLightDistSq) {
+                // noGlare fixtures still light the room but are invisible to glare and
+                // pupil adaptation — a prop glow at your feet is not what the eye is
+                // adjusting to, and it was not a fixture at all before it was pooled.
+                if (!fixture.noGlare && fixture.distSq < minLightDistSq) {
                     minLightDistSq = fixture.distSq;
                     nearestFixture = fixture;
                 }
@@ -171,6 +174,7 @@ export default class LumenGrid {
                     fixture.distSq = distSq;
                     fixture._biasedDistSq = fixture.hasShadow ? distSq - 120.0 : distSq;
                     if (this._prevActive.has(fixture)) fixture._biasedDistSq -= 30.0;
+                    if (fixture.slotBias) fixture._biasedDistSq += fixture.slotBias;
                     this._insertFixture(fixture);
                 }
             } else {
@@ -259,7 +263,12 @@ export default class LumenGrid {
             intensityScalar = fixture._currentScalar;
         }
         
-        if (fixture.material && fixture.material.emissive) {
+        // Pool lights are recycled between fixtures, so colour has to be reasserted every
+        // frame. Most fixtures take it from the emissive material they are lighting;
+        // fixtures with no mesh of their own (prop glows) carry their own colour.
+        if (fixture.color) {
+            light.color.copy(fixture.color);
+        } else if (fixture.material && fixture.material.emissive) {
             light.color.copy(fixture.material.emissive);
         }
         

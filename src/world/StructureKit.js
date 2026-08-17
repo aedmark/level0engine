@@ -1,39 +1,10 @@
 import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 
-/**
- * Height an arch's collision has to stay clear of so a walking player is left alone.
- *
- * PlayerController forces a crouch whenever the lowest collider within the player's
- * radius sits below 2.5, and its standing collision box is 2.5 tall. That number is a
- * headroom gate for deliberate obstacles like the compression archway, not a body —
- * the eye sits at 1.6. An arch's haunches curve down through that band where they meet
- * the walls, so they were gating on a body that is not there: two steps off the
- * centreline of a 2.4 wide opening and the player ducked for no reason. Nothing goes
- * missing visually, because the lowest soffit above any position the camera can
- * actually reach is 2.40, a clear 0.8 above the eye.
- *
- * Pass this to addArchCutoutColliders as walkClearance for any arch meant to be walked
- * through. Leave it off for an arch meant to be an obstacle.
- */
 export const ARCH_WALK_CLEARANCE = 2.55;
 
-/**
- * How close to vertical a seat's local up axis has to stay before the player is allowed
- * to sit in it. 0.7 is a shade under 45 degrees of tilt.
- *
- * Several blueprints dress a room by felling a chair onto its side (rotation.z = ±PI/2)
- * or bolting one to the ceiling upside down. Those are scenery, and sitting in them
- * would drop the camera through the floor or into the ceiling slab. The orientation
- * already records that state, so addFurniture reads the transform rather than asking
- * every builder to remember to clear a flag.
- */
 const SEAT_UPRIGHT_DOT = 0.7;
 
-/**
- * Desk top slab: centre height and thickness. Its work surface is the sum of the two
- * halves, published as userData.surfaceY on every desk so nothing has to rebuild it.
- */
 const DESK_TOP_Y = 1.125;
 const DESK_TOP_THICK = 0.075;
 
@@ -45,7 +16,6 @@ export default class StructureKit {
         this._seatUp = new THREE.Vector3();
     }
 
-    /** True while the cushion still faces the sky. See SEAT_UPRIGHT_DOT. */
     isUprightSeat(group) {
         group.getWorldQuaternion(this._seatQuat);
         this._seatUp.set(0, 1, 0).applyQuaternion(this._seatQuat);
@@ -182,10 +152,6 @@ export default class StructureKit {
                 }
                 return mesh;
             },
-            // walkClearance lifts the arc colliders so they never dip below a given
-            // height. An arch's haunches curve down to the springline at the walls, which
-            // is correct for a solid but hostile to anyone walking under it. Defaults to 0
-            // for the exact original behaviour.
             addArchCutoutColliders: (mesh, radius, thickness, outerY, depth, springY, steps = 24, walkClearance = 0) => {
                 const EPS = 0.01;
                 const outerX = radius + thickness;
@@ -266,13 +232,6 @@ export default class StructureKit {
                         } else {
                             walked = springY + radius * Math.atan2(y - springY, x);
 
-                            // ExtrudeGeometry hands back a non-indexed mesh, so
-                            // computeVertexNormals gives every wall quad one flat normal and
-                            // the intrados reads as 32 discrete facets, each catching the
-                            // light differently. Replace those with the analytic normal of
-                            // the cylinder the arc was swept from — shared edges then agree
-                            // and the curve shades as one surface. Sign comes from the flat
-                            // normal so this stays agnostic to the shape's winding.
                             const dy = y - springY;
                             const d = Math.hypot(x, dy);
                             if (Math.abs(d - radius) < 0.01) {
@@ -454,47 +413,24 @@ export default class StructureKit {
                     trim.updateMatrixWorld(true);
                     stagingMeshes.push(trim);
 
-                    // Trim used to be an orphan: cleanup passes filter on
-                    // noCollision, which the baseboard carries, so it survived
-                    // every removal its wall did not. The link makes the wall
-                    // and its trim one object as far as later passes care.
                     mesh.userData.baseboardParts = [body, trim];
                     body.userData.baseboardOwner = mesh;
                     trim.userData.baseboardOwner = mesh;
                 }
             },
-            // Multi-cell structures — duct and crawlspace networks — carve out
-            // several cells but only their origin cell is ever marked forced.
-            // A partition scanning outward at build time therefore sees an
-            // empty cell where a duct hub actually stands, and grows straight
-            // through it. Claims are the cells a structure has taken, readable
-            // after the whole chunk is staged, so build order stops mattering.
             claimedCells: new Map(),
             claimCell: (cx, cz) => {
                 helpers.claimedCells.set(`${cx},${cz}`, {x: cx, z: cz});
             },
             isCellClaimed: (cx, cz) => helpers.claimedCells.has(`${cx},${cz}`),
-            // The mirror of a claim. A pillar sits on a wall cell without
-            // filling it, so a partition running through one reads as
-            // deliberate rather than broken. Permeability only ever softens the
-            // wall-cell test; it is never consulted against a claim, so a
-            // pillar cannot make a duct passable.
             permeableCells: new Map(),
             markPermeable: (cx, cz) => {
                 helpers.permeableCells.set(`${cx},${cz}`, {x: cx, z: cz});
             },
             isCellPermeable: (cx, cz) => helpers.permeableCells.has(`${cx},${cz}`),
-            // A span wall is a partition that grows out from a fixed anchor —
-            // a door jamb, usually — until it meets something. When that
-            // something only appears later in the build, we shorten the wall
-            // back to where it should have stopped. A partition that stops is
-            // architecture. A partition that vanishes is a hole in the world.
             retractSpanWall: (mesh, newLength) => {
                 const span = mesh.userData.wallSpan;
                 if (!span) return false;
-                // buildWall quantises to 1/20 so the geometry cache stays small.
-                // Floor rather than round: rounding up would push the retracted
-                // end back into the very thing we are retracting away from.
                 const len = Math.floor(Math.max(0, newLength) * 20 + 1e-6) / 20;
                 if (len < 0.05) return false;
                 if (len >= span.length) return true;
@@ -520,8 +456,6 @@ export default class StructureKit {
                 }
 
                 if (mesh.userData.baseboardFootprint) mesh.userData.baseboardFootprint.w = len;
-                // The span always grows along the wall's local X, so the
-                // baseboard follows on the same axis regardless of rotation.
                 for (const part of mesh.userData.baseboardParts || []) {
                     part.scale.x = len + 0.06;
                     part.position.x = mesh.position.x;
@@ -545,8 +479,6 @@ export default class StructureKit {
                 mesh.userData.baseboardParts = null;
                 mesh.userData.retired = true;
             },
-            // How far this span may grow before it enters the given cell.
-            // Returns the span's current length when the cell is out of its way.
             spanClearanceToCell: (mesh, wx, wz) => {
                 const span = mesh.userData.wallSpan;
                 if (!span) return Infinity;
@@ -561,16 +493,10 @@ export default class StructureKit {
                 const cellCentre = (alongX ? wx : wz) * env.cellSize;
                 const stopAt = (cellCentre - dir * half - anchor) * dir;
                 if (stopAt < 0) {
-                    // The cell sits behind the anchor. Either it swallows the
-                    // anchor, in which case the wall has nothing left to stand
-                    // on, or it is on the far side of the frame and none of this
-                    // wall's business. Clearing a cell to the right must not
-                    // shorten the partition growing to the left.
                     return Math.abs(anchor - cellCentre) <= half ? 0 : span.length;
                 }
                 return Math.min(span.length, stopAt);
             },
-            // How far this span may grow before it enters an already-placed box.
             spanClearanceToBox: (mesh, box) => {
                 const span = mesh.userData.wallSpan;
                 if (!span) return Infinity;
@@ -582,19 +508,6 @@ export default class StructureKit {
                     : (dir > 0 ? box.min.z : box.max.z);
                 return Math.min(span.length, (nearFace - anchor) * dir - 0.02);
             },
-            /**
-             * Places a furniture group and reports whether it survived.
-             *
-             * Seats register as interactable here, at the end, rather than inside their
-             * builders. Placement can fail for two reasons — the spawn exclusion below,
-             * or a collision with something already in the cell — and a seat registered
-             * before that verdict stays reachable while its meshes never render. That is
-             * what let the player sit inside archive desks and impound tabletops: the
-             * chair tucked against the desk always lost the collision probe, so the only
-             * thing left of it was an invisible seat sitting in the middle of the desk.
-             *
-             * Registering after placement means an early return leaves nothing behind.
-             */
             addFurniture: (group) => {
                 if (Math.abs(group.position.x) < 4.0 && Math.abs(group.position.z) < 4.0) return false;
                 group.userData.chunkHash = hash;
@@ -710,8 +623,7 @@ export default class StructureKit {
                 });
                 const group = new THREE.Group();
                 const zOffset = thickness / 2;
-                
-                // Front and back sides
+
                 for (const side of [1, -1]) {
                     const sideZ = side * zOffset;
                     
@@ -756,8 +668,6 @@ export default class StructureKit {
                         const refPos = b.meshRef.userData.worldPos || b.meshRef.position;
                         const dist = Math.abs(refPos.x - px) + Math.abs(refPos.z - pz);
                         if (dist < 0.1) {
-                            // A grate is already perfectly placed here by another cell.
-                            // Do not add a duplicate, and do not delete the existing one.
                             return;
                         }
                     }
@@ -832,8 +742,6 @@ export default class StructureKit {
                 group.position.set(x, y, z);
                 group.rotation.y = rotY;
 
-                // Marked, not registered. addFurniture registers it once it knows the
-                // chair actually made it into the world.
                 group.userData = {type: 'seat', active: true};
 
                 return group;
@@ -867,7 +775,6 @@ export default class StructureKit {
                 group.position.set(x, y, z);
                 group.rotation.y = rotY;
 
-                // Marked, not registered. See buildChair.
                 group.userData = {type: 'seat', active: true};
 
                 return group;
@@ -895,9 +802,6 @@ export default class StructureKit {
                 const top = new THREE.Mesh(topGeo, env.woodMat);
                 top.position.set(0, DESK_TOP_Y, 0);
                 group.add(top);
-                // Anything set down on this desk needs the top of the slab, not its
-                // centre. Publishing it here means callers stop re-deriving it and
-                // stop getting it wrong by half a slab.
                 group.userData.surfaceY = DESK_TOP_Y + DESK_TOP_THICK / 2;
                 const baseMat = env.paintedSteelMat || env.metalMat;
                 const pedGeo = env._cacheGeo('deskPed15', () => new THREE.BoxGeometry(0.6, 1.08, 1.14));
@@ -1043,15 +947,6 @@ export default class StructureKit {
                     wall.castShadow = true;
                     wall.receiveShadow = true;
                     wall.userData.isEntityBlocker = true;
-                    // Always the plain, unthemed baseboard, wrapped around the whole
-                    // perimeter block — on the true exterior face that's exactly what the
-                    // corridor needs, and the sector-facing side is a non-issue precisely
-                    // because it is never meant to be seen: a themed sector lines the
-                    // inside of its own perimeter shell with a second wall in its own
-                    // material (see ArchiveSector.js/IncineratorSector.js's liner), which
-                    // stands directly in front of this block and hides its baseboard along
-                    // with the rest of it. A sector with no liner shows the plain baseboard
-                    // from inside too, same as it shows the plain wall behind it.
                     wall.userData.baseboardFootprint = {w: segW, d: segD, h: segH};
                     helpers.addGeometry(wall);
                 };

@@ -73,14 +73,7 @@ export default class SomaticInput {
                 if (vCursor) {
                     vCursor.style.left = this.cursorX + 'px';
                     vCursor.style.top = this.cursorY + 'px';
-                    vCursor.style.display = 'none';
-                    const element = document.elementFromPoint(this.cursorX, this.cursorY);
-                    vCursor.style.display = '';
-                    if (element !== this.hoveredElement) {
-                        if (this.hoveredElement) this.hoveredElement.classList.remove('virtual-hover');
-                        this.hoveredElement = element;
-                        if (this.hoveredElement) this.hoveredElement.classList.add('virtual-hover');
-                    }
+                    this._queueHoverProbe();
                 }
             } else if (!this.isFrozen && (this.isLocked || this.lockFallback)) {
                 if (this.state.isPeeking) {
@@ -377,6 +370,28 @@ export default class SomaticInput {
         if (is('moveRight')) this.state.moveRight = false;
     }
 
+    _queueHoverProbe() {
+        if (this._hoverProbeQueued) return;
+        this._hoverProbeQueued = true;
+        requestAnimationFrame(() => {
+            this._hoverProbeQueued = false;
+            if (!this.state.isReading) {
+                if (this.hoveredElement) {
+                    this.hoveredElement.classList.remove('virtual-hover');
+                    this.hoveredElement = null;
+                }
+                return;
+            }
+            // #virtual-cursor is pointer-events:none, so it is never the hit result and
+            // does not need to be hidden for the probe.
+            const element = document.elementFromPoint(this.cursorX, this.cursorY);
+            if (element === this.hoveredElement) return;
+            if (this.hoveredElement) this.hoveredElement.classList.remove('virtual-hover');
+            this.hoveredElement = element;
+            if (this.hoveredElement) this.hoveredElement.classList.add('virtual-hover');
+        });
+    }
+
     _onMouseMove(e) {
         if (this.isFrozen) return;
         if (!this.isLocked && !(this.lockFallback && this._dragLook)) return;
@@ -391,20 +406,13 @@ export default class SomaticInput {
             if (vCursor) {
                 vCursor.style.left = this.cursorX + 'px';
                 vCursor.style.top = this.cursorY + 'px';
-
-                vCursor.style.display = 'none';
-                const element = document.elementFromPoint(this.cursorX, this.cursorY);
-                vCursor.style.display = '';
-                
-                if (element !== this.hoveredElement) {
-                    if (this.hoveredElement) {
-                        this.hoveredElement.classList.remove('virtual-hover');
-                    }
-                    this.hoveredElement = element;
-                    if (this.hoveredElement) {
-                        this.hoveredElement.classList.add('virtual-hover');
-                    }
-                }
+                // Hit-testing is deferred to the next frame rather than run inline.
+                // elementFromPoint forces a synchronous style+layout flush, and under
+                // pointer lock a high-polling mouse delivers mousemove far faster than
+                // the frame rate — so doing it inline meant hundreds of forced layouts
+                // per second while a document is open. One probe per frame is all the
+                // hover state can actually be used at.
+                this._queueHoverProbe();
             }
             return;
         }

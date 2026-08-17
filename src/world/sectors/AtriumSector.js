@@ -1,6 +1,7 @@
 import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
+import {attachPropGlow} from '../PropGlow.js';
 
 export const AtriumSector = (env, ctx) => {
     const {
@@ -270,9 +271,16 @@ export const AtriumSector = (env, ctx) => {
             currentIntensity: VENDING_INTENSITY
         });
         
-        const vendingGlow = new THREE.PointLight(0xccffff, VENDING_INTENSITY, VENDING_REACH);
-        vendingGlow.position.set(0, 0.48, 0.72);
-        body.add(vendingGlow);
+        // Omnidirectional fill in front of the machine, sitting alongside the spot fixture
+        // above. Pooled rather than parented so an atrium chunk loading or unloading does
+        // not change the scene's light count — see PropGlow.js.
+        attachPropGlow(env, body, hash, {
+            color: 0xccffff,
+            intensity: VENDING_INTENSITY,
+            distance: VENDING_REACH,
+            offset: [0, 0.48, 0.72],
+            flickerOffset: random() * 500
+        });
     };
     const buildShoppingCart = (cx, cz, overturned = false) => {
         const cart = new THREE.Group();
