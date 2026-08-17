@@ -71,6 +71,39 @@ export const ArchiveSector = (env, ctx) => {
         ceilingMat: null,
         build: (x, z, localX, localZ, maze) => {
             if (ctx.buildPerimeter(x, z, localX, localZ, env.archiveWallMat || env.structMat, "ARCHIVE", 6.0)) {
+                // The perimeter shell's interior face is only ever the plain corridor
+                // baseboard the exterior side needs — there is no themed variant of it to
+                // fall back to, by design, since the wall texture already paints its own
+                // baseboard band into the bitmap. A thin liner in the sector's own
+                // material, run along the inside of the shell, covers that whole face —
+                // baseboard included — the same way IncineratorSector's liner does.
+                const edge = env.chunkSize - 1;
+                const isDoorwayNS = localX === 7 && (localZ === 0 || localZ === edge);
+                const isDoorwayEW = localZ === 7 && (localX === 0 || localX === edge);
+                if (!isDoorwayNS && !isDoorwayEW) {
+                    const liners = [];
+                    if (localX === 0) liners.push([1, 0]);
+                    if (localX === edge) liners.push([-1, 0]);
+                    if (localZ === 0) liners.push([0, 1]);
+                    if (localZ === edge) liners.push([0, -1]);
+                    const isCorner = (localX === 0 || localX === edge) && (localZ === 0 || localZ === edge);
+                    if (isCorner) {
+                        const sxp = localX === 0 ? 1 : -1;
+                        const szp = localZ === 0 ? 1 : -1;
+                        const post = buildWall(0.4, 0.4, env.archiveWallMat || env.structMat, 6.0);
+                        post.position.set(x * env.cellSize + sxp * 2.2, 3.0, z * env.cellSize + szp * 2.2);
+                        addGeometry(post);
+                    } else {
+                        for (let li = 0; li < liners.length; li++) {
+                            const ldx = liners[li][0], ldz = liners[li][1];
+                            const liner = buildWall(
+                                ldx !== 0 ? 0.4 : env.cellSize, ldz !== 0 ? 0.4 : env.cellSize,
+                                env.archiveWallMat || env.structMat, 6.0);
+                            liner.position.set(x * env.cellSize + ldx * 2.2, 3.0, z * env.cellSize + ldz * 2.2);
+                            addGeometry(liner);
+                        }
+                    }
+                }
                 return;
             }
             const isWall = maze && maze[localX][localZ];

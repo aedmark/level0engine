@@ -105,6 +105,13 @@ export const AnomalousPointOfInterestProfile = (env, ctx) => {
                 place(header, 0, 2.77, 0);
                 addGeometry(header);
                 const door = new THREE.Mesh(env._boxGeo(1.32, 2.60, 0.1), env.doorMat);
+                
+                if (ctx.buildDoorKnob) {
+                    const handle = ctx.buildDoorKnob(0.1, false);
+                    handle.position.set(0.56, 0.0, 0);
+                    door.add(handle);
+                }
+                
                 place(door, 0, 1.33, 0);
                 door.userData = {
                     interact: (p) => {

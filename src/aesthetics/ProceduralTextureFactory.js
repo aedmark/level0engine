@@ -27,6 +27,10 @@ export default class ProceduralTextureFactory {
         if (ProceduralTextureFactory.USE_STATIC_TEXTURES) {
             const staticAssets = await StaticTextureLoader.loadCoreAssets(onProgress);
             staticAssets.flangeMat = TechTextures._buildFlangeAsset(masterNoise);
+            
+            const structAssets = StructuralTextures._buildStructuralAssets(masterNoise);
+            staticAssets.doorMat = structAssets.doorMat;
+            
             ProceduralTextureFactory._applyOpts(staticAssets);
             return staticAssets;
         }

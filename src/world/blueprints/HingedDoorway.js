@@ -63,6 +63,13 @@ export const HingedDoorwayProfile = (env, ctx) => {
                 return g;
             });
             const door = new THREE.Mesh(doorGeo, env.doorMat);
+            
+            if (ctx.buildDoorKnob) {
+                const handle = ctx.buildDoorKnob(0.1, false);
+                handle.position.set(1.30, 0.0, 0.05);
+                door.add(handle);
+            }
+            
             door.position.copy(toWorld(-0.7, 1.325, 1.85));
             door.rotation.y = rot;
             door.castShadow = door.receiveShadow = true;

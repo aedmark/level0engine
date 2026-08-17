@@ -53,7 +53,7 @@ export default class Mixer {
         const bellPulse = activeSector === "MAINTENANCE" && !isBlackout ? (Math.max(0, Math.sin(time * 2.5)) ** 6.0) * 0.07 : 0.0;
         if (engine.hazardBellGain) setMixParam(engine, time, 'hazardBell', engine.hazardBellGain.gain, bellPulse, 0.05);
         if (engine.peaceGain) setMixParam(engine, time, 'peace', engine.peaceGain.gain, Math.max(0, mix.peace - structuralTension), 2.0);
-        if (engine.entityGain) setMixParam(engine, time, 'entity', engine.entityGain.gain, anomalyPressure > 0.0 ? anomalyPressure * 0.4 : 0.0, 0.2);
+        if (engine.entityGain) setMixParam(engine, time, 'entity', engine.entityGain.gain, anomalyPressure > 0.0 ? anomalyPressure * 0.15 : 0.0, 0.2);
         if (engine.paranoiaGain) {
             setMixParam(engine, time, 'paranoiaVol', engine.paranoiaGain.gain, structuralTension > 0.0 ? structuralTension * 0.2 : 0.0, 1.0);
             setMixParam(engine, time, 'paranoiaLFO', engine.paranoiaLFO.frequency, Math.max(0.5, 4.0 - (structuralTension * 4.0)), 1.0);

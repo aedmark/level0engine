@@ -682,6 +682,44 @@ export default class StructureKit {
                     helpers.addGeometry(s);
                 }
             },
+            buildDoorKnob: (thickness, blocksX) => {
+                const brassMat = env.brassMat || new THREE.MeshStandardMaterial({
+                    color: 0xc9a34b,
+                    metalness: 0.8,
+                    roughness: 0.3
+                });
+                const group = new THREE.Group();
+                const zOffset = thickness / 2;
+                
+                // Front and back sides
+                for (const side of [1, -1]) {
+                    const sideZ = side * zOffset;
+                    
+                    const roseGeo = new THREE.CylinderGeometry(0.045, 0.045, 0.015, 16);
+                    const rose = new THREE.Mesh(roseGeo, brassMat);
+                    rose.rotation.x = Math.PI / 2;
+                    rose.position.set(0, 0, sideZ + side * 0.0075);
+                    group.add(rose);
+                    
+                    const shaftGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.05, 12);
+                    const shaft = new THREE.Mesh(shaftGeo, brassMat);
+                    shaft.rotation.x = Math.PI / 2;
+                    shaft.position.set(0, 0, sideZ + side * 0.03);
+                    group.add(shaft);
+                    
+                    const knobGeo = new THREE.SphereGeometry(0.045, 16, 16);
+                    const knob = new THREE.Mesh(knobGeo, brassMat);
+                    knob.position.set(0, 0, sideZ + side * 0.065);
+                    group.add(knob);
+                }
+                
+                if (blocksX) {
+                    group.rotation.y = Math.PI / 2;
+                }
+                
+                group.children.forEach(c => { c.castShadow = true; c.receiveShadow = true; });
+                return group;
+            },
             addGrate: (px, py, pz, blocksX, opts = {}) => {
                 const {
                     width = 1.08,
@@ -724,15 +762,7 @@ export default class StructureKit {
                     pivot.add(grate);
                     
                     if (opts.isMiniDoor) {
-                        const handleGeo = new THREE.BoxGeometry(
-                            blocksX ? thickness + 0.1 : 0.04, 
-                            0.15, 
-                            blocksX ? 0.04 : thickness + 0.1
-                        );
-                        const handleMat = env.metalMat || mat;
-                        const handle = new THREE.Mesh(handleGeo, handleMat);
-                        handle.castShadow = true;
-                        handle.receiveShadow = true;
+                        const handle = helpers.buildDoorKnob(thickness, blocksX);
                         handle.position.set(
                             blocksX ? 0 : width / 2 - 0.15, 
                             0, 
@@ -993,25 +1023,16 @@ export default class StructureKit {
                     wall.castShadow = true;
                     wall.receiveShadow = true;
                     wall.userData.isEntityBlocker = true;
+                    // Always the plain, unthemed baseboard, wrapped around the whole
+                    // perimeter block — on the true exterior face that's exactly what the
+                    // corridor needs, and the sector-facing side is a non-issue precisely
+                    // because it is never meant to be seen: a themed sector lines the
+                    // inside of its own perimeter shell with a second wall in its own
+                    // material (see ArchiveSector.js/IncineratorSector.js's liner), which
+                    // stands directly in front of this block and hides its baseboard along
+                    // with the rest of it. A sector with no liner shows the plain baseboard
+                    // from inside too, same as it shows the plain wall behind it.
                     wall.userData.baseboardFootprint = {w: segW, d: segD, h: segH};
-                    if (wMat !== env.sharedWallMat) {
-                        const faceMats = (trimMat) => [
-                            localX === env.chunkSize - 1 ? trimMat : wMat,
-                            localX === 0 ? trimMat : wMat,
-                            trimMat,
-                            trimMat,
-                            localZ === env.chunkSize - 1 ? trimMat : wMat,
-                            localZ === 0 ? trimMat : wMat
-                        ];
-                        // A sector's wall material may publish its own trim. Without one
-                        // the shared baseboard lands against a palette it was never
-                        // matched to and reads as a gap under the wainscot.
-                        const wallUD = wMat.userData || {};
-                        wall.userData.baseboardFaceMats =
-                            faceMats(wallUD.baseboardMat || env.baseboardMat);
-                        wall.userData.baseboardTrimFaceMats =
-                            faceMats(wallUD.baseboardTrimMat || env.baseboardTrimMat);
-                    }
                     helpers.addGeometry(wall);
                 };
                 if (!isShoulder) {

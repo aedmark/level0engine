@@ -316,10 +316,10 @@ export default class PlayerController {
             baseSpeed = 20.0;
             state.isRunning = false;
         } else if (state.isCrawling) {
-            baseSpeed = 15.0;
+            baseSpeed = 33.0;
             state.isRunning = false;
         } else if (state.isCrouching) {
-            baseSpeed = 30.0;
+            baseSpeed = 45.0;
             state.isRunning = false;
         } else if (state.isRunning) {
             baseSpeed = this.isChased ? dynamicRunSpeed + 25.0 : dynamicRunSpeed;

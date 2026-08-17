@@ -193,6 +193,13 @@ export const AnnexSector = (env, ctx) => {
                     return g;
                 });
                 doorMesh = new THREE.Mesh(doorGeo, doorMatArr);
+                
+                if (ctx.buildDoorKnob) {
+                    const handle = ctx.buildDoorKnob(0.1, false);
+                    handle.position.set(1.30, 0.0, 0.05);
+                    doorMesh.add(handle);
+                }
+                
                 doorMesh.position.set(wx - doorW / 2, 1.325, wz);
                 doorMesh.userData = (isOpenable || isKeypad) ? {
                     chunkHash: hash,
@@ -217,6 +224,13 @@ export const AnnexSector = (env, ctx) => {
                     return g;
                 });
                 doorMesh = new THREE.Mesh(doorGeo, doorMatArr);
+                
+                if (ctx.buildDoorKnob) {
+                    const handle = ctx.buildDoorKnob(0.1, true);
+                    handle.position.set(0.05, 0.0, 1.30);
+                    doorMesh.add(handle);
+                }
+                
                 doorMesh.position.set(wx, 1.325, wz - doorW / 2);
                 doorMesh.userData = (isOpenable || isKeypad) ? {
                     chunkHash: hash,
