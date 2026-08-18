@@ -54,8 +54,8 @@ The editor's Puzzle Inspector, the Data Validation tab, and the little corrobora
 The engine supports dynamic string replacement so that the text adapts to the specific, randomized parameters of the current run. You can safely include the following tokens in your JSON strings:
 
 * **Cast Tokens**:
-    * `${c.[role]}` or `${[role]}`: The procedurally generated full name of any role defined in `parameters.json` `ROLES` (e.g., `${lead}`, `${scapegoat}`).
-    * `${[ROLE]}`: The generated full name of any role in ALL CAPS (e.g., `${LOST}`, `${SCAPEGOAT}`).
+    * `${c.[role]}`: The procedurally generated full name of any role defined in `parameters.json` `ROLES` (e.g., `${c.lead}`, `${c.scapegoat}`).
+    * `${[ROLE]}`: The generated full name of any role in ALL CAPS (e.g., `${LEAD}`, `${SCAPEGOAT}`).
     * `${[role].first_name}`: Extracts only the first name of the role (e.g., `${lead.first_name}`).
     * `${[role].last_name}`: Extracts only the last name of the role (e.g., `${lead.last_name}`).
     * `${first_name}` / `${last_name}`: Pulls a generic, random first or last name from the parameter pools. The parser guarantees that multiple uses of this within the *same document* will render the *same* generic name for consistency!

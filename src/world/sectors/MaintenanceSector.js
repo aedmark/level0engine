@@ -130,6 +130,10 @@ export const MaintenanceSector = (env, ctx) => {
                             const coneBaseMat = env.cautionConeBaseMat || coneMat;
                             const coneBody = new THREE.Mesh(coneGeo, coneMat);
                             const coneBase = new THREE.Mesh(baseGeo, coneBaseMat);
+                            coneBody.castShadow = true;
+                            coneBody.receiveShadow = true;
+                            coneBase.castShadow = true;
+                            coneBase.receiveShadow = true;
                             coneGroup.add(coneBody, coneBase);
                             const jx = (random() * 1.0) - 0.1;
                             const jz = (random() * 1.0) - 0.1;

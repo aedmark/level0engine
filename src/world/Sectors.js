@@ -98,7 +98,7 @@ const SECTORS = {
     },
     BOARDROOM: {
         fog: 0.02, fogColor: 0xa0bbd6,
-        ambient: 0.28, groundColor: 0x8899aa,
+        ambient: 0.69, groundColor: 0x8899aa,
         ambience: {
             noise: 0.05,
             peace: 0.0,
