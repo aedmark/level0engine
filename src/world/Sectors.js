@@ -140,8 +140,8 @@ const SECTORS = {
         reverb: {rt60: 0.55, predelay: 0.007, wet: 0.10}
     },
     CLINIC: {
-        fog: 0.05,
-        ambient: 0.32,
+        fog: 0.03,
+        ambient: 0.15,
         ambience: {
             noise: 0.05,
             peace: 0.0,
