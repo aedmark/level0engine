@@ -100,10 +100,11 @@ export default class SurfaceTextures {
      */
     static _buildDuctInteriorSet(masterNoise) {
         const wallMat = SurfaceTextures._buildPaisleyWallpaper(masterNoise, {seed: 8831942});
-        const ceilMat = SurfaceTextures._buildPaisleyWallpaper(masterNoise, {
-            seed: 5512307, faded: true, stained: true
-        });
+        // Ceiling and floor are the same boards: in a crawlspace the ceiling *is* the
+        // underside of the floor above, so papering it was the odd choice. One material
+        // rather than two clones, so the two also share a merge group.
         const floorMat = SurfaceTextures._buildDuctFloor(masterNoise);
+        const tornMat = SurfaceTextures._buildDuctTornEdge(masterNoise);
 
         // 0.8m of world per tile on every face. One UV unit is 4m on every axis except
         // wall V, which buildWall maps to 3m, so only that repeat differs.
@@ -113,14 +114,135 @@ export default class SurfaceTextures {
             }
         };
         setRepeat(wallMat, 5, 3.75);
-        setRepeat(ceilMat, 5, 5);
         setRepeat(floorMat, 5, 5);
+        // One texture height over the strip, so the tear sits at the floor and nowhere else.
+        // 2.5 across = a 1.6m period, double the wallpaper's, so the tear outlasts the
+        // panel it sits on instead of repeating two or three times along it.
+        setRepeat(tornMat, 2.5, 1);
 
+        const boards = makeDuctInterior(floorMat);
         return {
             ductWallMat: makeDuctInterior(wallMat),
-            ductCeilingMat: makeDuctInterior(ceilMat),
-            ductFloorMat: makeDuctInterior(floorMat)
+            ductFloorMat: boards,
+            ductCeilingMat: boards,
+            ductTornMat: makeDuctInterior(tornMat)
         };
+    }
+
+    /**
+     * The torn lower edge of the wallpaper. Damage, not decoration.
+     *
+     * The paper is intact almost everywhere and meets the floor; only a thin skirt of
+     * plaster shows along the bottom, lifting into a few small blisters. The first attempt
+     * ran a single large sine the width of the tile, which produced a continuous rolling
+     * silhouette outlined in pale cream — a mountain range, and one that repeated visibly.
+     * So the profile is now a low flat baseline plus a handful of narrow gaussian lifts,
+     * with only fine high-frequency jitter carrying the ragged fibre.
+     *
+     * Two things keep the repeat quiet. The lifts are gaussians evaluated across the wrap
+     * (k = -1, 0, 1), so they cross the seam intact rather than being cut off, and the
+     * jitter harmonics are integer so they meet themselves exactly. And the strip is tiled
+     * at 1.6m against the wallpaper's 0.8m, so its period is longer than the panels it sits
+     * on and no wall shows the same tear twice.
+     */
+    static _buildDuctTornEdge(masterNoise) {
+        const W = 1024, H = 128;
+        const rand = TextureMechanics._seededRandom(60418);
+        const {canvas, ctx} = TextureMechanics._createContext(W, H, false);
+        const {canvas: bumpCanvas, ctx: bctx} = TextureMechanics._createContext(W, H);
+
+        bctx.fillStyle = '#808080';
+        bctx.fillRect(0, 0, W, H);
+
+        const tau = Math.PI * 2;
+        // fraction of the strip height showing plaster, as a function of x
+        const lifts = [
+            {c: 0.14, w: 0.055, h: 0.30},
+            {c: 0.37, w: 0.030, h: 0.16},
+            {c: 0.58, w: 0.070, h: 0.38},
+            {c: 0.84, w: 0.040, h: 0.22}
+        ];
+        const exposure = (px) => {
+            const t = px / W;
+            let e = 0.085;
+            for (const b of lifts) {
+                for (let k = -1; k <= 1; k++) {
+                    const d = (t - b.c + k) / b.w;
+                    e += b.h * Math.exp(-d * d * 4);
+                }
+            }
+            e += 0.016 * Math.sin(t * tau * 9 + 1.1)
+               + 0.011 * Math.sin(t * tau * 17 + 2.7)
+               + 0.007 * Math.sin(t * tau * 29 + 0.4)
+               + 0.005 * Math.sin(t * tau * 43 + 5.2);
+            return Math.max(0.02, Math.min(0.86, e));
+        };
+        // canvas y grows downward and v=0 samples the canvas bottom, so the floor is y = H
+        const tearAt = (px) => H * (1 - exposure(px));
+
+        const tracePlaster = (c) => {
+            c.beginPath();
+            c.moveTo(0, tearAt(0));
+            for (let px = 1; px <= W; px++) c.lineTo(px, tearAt(px));
+            c.lineTo(W, H);
+            c.lineTo(0, H);
+            c.closePath();
+        };
+
+        tracePlaster(ctx);
+        ctx.fillStyle = '#4e463a';
+        ctx.fill();
+
+        ctx.save();
+        tracePlaster(ctx);
+        ctx.clip();
+        for (let i = 0; i < 700; i++) {
+            const gx = rand() * W, gy = rand() * H, gr = rand() * 2.0 + 0.3;
+            ctx.fillStyle = rand() > 0.5
+                ? `rgba(28,24,18,${0.06 + rand() * 0.18})`
+                : `rgba(126,118,102,${0.04 + rand() * 0.12})`;
+            ctx.beginPath();
+            ctx.arc(gx, gy, gr, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        // the lifted paper shades the plaster it hangs over
+        const shade = ctx.createLinearGradient(0, 0, 0, H);
+        shade.addColorStop(0, 'rgba(0,0,0,0.55)');
+        shade.addColorStop(0.5, 'rgba(0,0,0,0.22)');
+        shade.addColorStop(1, 'rgba(0,0,0,0.34)');
+        ctx.fillStyle = shade;
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
+
+        // A hairline along the cut, not a band. The previous version filled a 3-7px ribbon
+        // of pale cream that traced the whole silhouette, which is what read as fungus.
+        ctx.beginPath();
+        ctx.moveTo(0, tearAt(0));
+        for (let px = 1; px <= W; px++) ctx.lineTo(px, tearAt(px));
+        ctx.strokeStyle = 'rgba(178,164,136,0.42)';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+
+        tracePlaster(bctx);
+        bctx.fillStyle = '#6a6a6a';
+        bctx.fill();
+        bctx.beginPath();
+        bctx.moveTo(0, tearAt(0));
+        for (let px = 1; px <= W; px++) bctx.lineTo(px, tearAt(px));
+        bctx.strokeStyle = '#bdbdbd';
+        bctx.lineWidth = 2;
+        bctx.stroke();
+
+        TextureMechanics._ditherCanvas(bctx, W, H, rand, 4);
+
+        return new THREE.MeshStandardMaterial({
+            map: TextureMechanics._createWrappedTexture(canvas, 1, 1, true),
+            bumpMap: TextureMechanics._createWrappedTexture(bumpCanvas, 1, 1, true),
+            bumpScale: 0.015,
+            roughness: 0.96,
+            metalness: 0.0,
+            alphaTest: 0.5
+        });
     }
 
     /**

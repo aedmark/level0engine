@@ -347,7 +347,7 @@ export default class PlayerController {
             this.stamina = this.maxStamina;
             this.isWinded = false;
         } else if ((state.isRunning || this.isSqueezing) && isMoving && !this.isWinded) {
-            const baseBurn = this.isSqueezing ? 1.5 : (this.isChased ? 12.0 : 8.0);
+            const baseBurn = this.isSqueezing ? 1.0 : (this.isChased ? 10.0 : 6.0);
             const burnRate = baseBurn * (1.0 + ((1.0 - this.coherence) * 0.6));
             this.stamina = Math.max(0, this.stamina - burnRate * delta);
             if (this.coherence < 0.2) {

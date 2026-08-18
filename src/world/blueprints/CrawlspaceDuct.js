@@ -26,7 +26,8 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
         w = q(w); d = q(d); h = q(h);
         const bleedY = opts.bleedY || 0;
         const horizontal = !!opts.horizontal;
-        const key = `ductlin_${w}_${h}_${d}_${bleedY}_${horizontal ? 1 : 0}`;
+        const uvFitV = !!opts.uvFitV;
+        const key = `ductlin_${w}_${h}_${d}_${bleedY}_${horizontal ? 1 : 0}_${uvFitV ? 1 : 0}`;
         let geo = env.geoCache && env.geoCache.get(key);
         if (!geo) {
             geo = new THREE.BoxGeometry(w, h + bleedY, d);
@@ -37,14 +38,18 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                     uv.setY(i, uv.getY(i) * (d / env.cellSize));
                 }
             } else {
-                // mirrors buildWall, so lining and maze wall share a texture scale
+                // mirrors buildWall, so lining and maze wall share a texture scale.
+                // uvFitV instead maps the texture exactly once over the piece's height,
+                // which is what lets the torn strip pin its tear line to the floor rather
+                // than repeating it every 0.8m up the wall.
+                const vScale = uvFitV ? 1 : (h / 3.0);
                 for (let i = 0; i < 8; i++) {
                     uv.setX(i, uv.getX(i) * (d / env.cellSize));
-                    uv.setY(i, uv.getY(i) * (h / 3.0));
+                    uv.setY(i, uv.getY(i) * vScale);
                 }
                 for (let i = 16; i < 24; i++) {
                     uv.setX(i, uv.getX(i) * (w / env.cellSize));
-                    uv.setY(i, uv.getY(i) * (h / 3.0));
+                    uv.setY(i, uv.getY(i) * vScale);
                 }
             }
             if (env.geoCache) {
@@ -69,7 +74,7 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
             const network = new Map();
             let numExits = 0;
             const maxTiles = 15;
-            const maxExits = 2 + Math.floor(random() * 2);
+            const maxExits = 3 + Math.floor(random() * 2);
 
             const getOpposite = (dir) => {
                 if (dir === 'N') return 'S';
@@ -81,14 +86,34 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
 
             const cellKey = (cx, cz) => `${cx}_${cz}`;
 
-            const initialExits = {N: false, S: false, E: false, W: false};
-            if (ctx.isWall && !ctx.isWall(x, z - 1) && !(ctx.isAirlockApron && ctx.isAirlockApron(x, z - 1)) && !(ctx.isLowClearance && ctx.isLowClearance(x, z - 1))) { initialExits.N = true; numExits++; }
-            if (ctx.isWall && !ctx.isWall(x, z + 1) && !(ctx.isAirlockApron && ctx.isAirlockApron(x, z + 1)) && !(ctx.isLowClearance && ctx.isLowClearance(x, z + 1))) { initialExits.S = true; numExits++; }
-            if (ctx.isWall && !ctx.isWall(x + 1, z) && !(ctx.isAirlockApron && ctx.isAirlockApron(x + 1, z)) && !(ctx.isLowClearance && ctx.isLowClearance(x + 1, z))) { initialExits.E = true; numExits++; }
-            if (ctx.isWall && !ctx.isWall(x - 1, z) && !(ctx.isAirlockApron && ctx.isAirlockApron(x - 1, z)) && !(ctx.isLowClearance && ctx.isLowClearance(x - 1, z))) { initialExits.W = true; numExits++; }
+            /** A neighbouring cell a duct may legally open a door into. */
+            const openable = (nx, nz) => !!(ctx.isWall && !ctx.isWall(nx, nz)
+                && !(ctx.isAirlockApron && ctx.isAirlockApron(nx, nz))
+                && !(ctx.isLowClearance && ctx.isLowClearance(nx, nz)));
 
-            if (numExits === 0) {
+            /**
+             * One entrance, not one per open side.
+             *
+             * Every open side of the starting cell used to become a door *and* increment
+             * numExits, so a duct punched into a wall between two corridors began with the
+             * whole maxExits budget already spent. `numExits < maxExits` then refused every
+             * exit growth tried to place, and the run could wander its full 15 tiles with
+             * both doors side by side at the mouth — crawl the length of it and the only way
+             * out is where you came in. Claiming a single opening leaves the rest of the
+             * budget for growth to spend along the run, where it buys something.
+             */
+            const initialExits = {N: false, S: false, E: false, W: false};
+            const startOpenings = [];
+            if (openable(x, z - 1)) startOpenings.push('N');
+            if (openable(x, z + 1)) startOpenings.push('S');
+            if (openable(x + 1, z)) startOpenings.push('E');
+            if (openable(x - 1, z)) startOpenings.push('W');
+
+            if (startOpenings.length === 0) {
                 isFloorLevel = false;
+            } else {
+                initialExits[startOpenings[Math.floor(random() * startOpenings.length)]] = true;
+                numExits++;
             }
 
             if (isFloorLevel) {
@@ -130,13 +155,7 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                     }
 
                     if (ctx.isWall && !ctx.isWall(cell.x, cell.z)) {
-                        if (ctx.isAirlockApron && ctx.isAirlockApron(cell.x, cell.z)) {
-                            continue;
-                        }
-                        if (ctx.isLowClearance && ctx.isLowClearance(cell.x, cell.z)) {
-                            continue;
-                        }
-                        if (p && numExits < maxExits) {
+                        if (openable(cell.x, cell.z) && p && numExits < maxExits) {
                             p.exits[getOpposite(cell.cameFrom)] = true;
                             numExits++;
                         }
@@ -206,6 +225,49 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                     }
                 }
 
+                /**
+                 * The exit budget is usually spent before growth even begins.
+                 *
+                 * initialExits counts every open neighbour of the starting cell and
+                 * increments numExits for each, so a duct punched into a wall between two
+                 * corridors starts with the whole maxExits budget (2 or 3) already gone.
+                 * Every later opportunity is then refused by `numExits < maxExits`, and the
+                 * run can wander its full 15 tiles with both doors side by side back at the
+                 * entrance — crawl the length of it and the only way out is where you came
+                 * in. The >= 2 exit check below passes happily, because it counts exits
+                 * without caring where they are.
+                 *
+                 * Rather than re-budget growth and change every duct's shape, guarantee the
+                 * property that actually matters: one way out that is not beside the way in.
+                 */
+                const MIN_EXIT_SPREAD = 3;
+                const cellDist = (c) => Math.abs(c.x - x) + Math.abs(c.z - z);
+                let farthestExit = 0;
+                for (const cell of network.values()) {
+                    if (cell.exits.N || cell.exits.S || cell.exits.E || cell.exits.W) {
+                        farthestExit = Math.max(farthestExit, cellDist(cell));
+                    }
+                }
+
+                if (farthestExit < MIN_EXIT_SPREAD) {
+                    const candidates = [];
+                    for (const cell of network.values()) {
+                        const sides = [
+                            ['N', cell.x, cell.z - 1], ['S', cell.x, cell.z + 1],
+                            ['E', cell.x + 1, cell.z], ['W', cell.x - 1, cell.z]
+                        ];
+                        for (const [dir, nx, nz] of sides) {
+                            if (!cell.exits[dir] && openable(nx, nz)) {
+                                candidates.push({cell, dir, d: cellDist(cell)});
+                            }
+                        }
+                    }
+                    candidates.sort((a, b) => b.d - a.d);
+                    if (candidates.length && candidates[0].d > farthestExit) {
+                        candidates[0].cell.exits[candidates[0].dir] = true;
+                    }
+                }
+
                 let totalRemainingExits = 0;
                 for (const cell of network.values()) {
                     if (cell.exits.N) totalRemainingExits++;
@@ -227,6 +289,29 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                 const sideW = (env.cellSize - holeW) / 2;
                 const sideOffset = (env.cellSize / 2) - (sideW / 2);
                 const liningT = 0.04;
+
+                /**
+                 * Torn wallpaper edge along the foot of each wall panel.
+                 *
+                 * The strip stands TEAR_PROUD in front of the panel's inner face so nothing
+                 * is coplanar with it, and is given uvFitV so its texture maps once over
+                 * TEAR_H — every wall lining piece is exactly holeH tall, so the tear lands
+                 * at the same height on all of them. Skipped on the 4cm corner posts, where
+                 * it would be invisible and only cost geometry.
+                 */
+                const TEAR_H = 0.12;
+                const TEAR_T = 0.004;
+                const TEAR_PROUD = 0.002;
+                const innerFace = holeW / 2 - liningT;
+                const tearCentreY = ductY + 0.04 + TEAR_H / 2;
+                const tearInset = TEAR_PROUD + TEAR_T / 2;
+
+                const addTornEdge = (px, pz, spanX, spanZ) => {
+                    if (!env.ductTornMat) return;
+                    const strip = buildDuctLining(spanX, spanZ, env.ductTornMat, TEAR_H, {uvFitV: true});
+                    strip.position.set(px, tearCentreY, pz);
+                    addGeometry(strip);
+                };
 
                 const addWall = (mesh) => {
                     mesh.userData.isEntityBlocker = true;
@@ -337,6 +422,14 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                             addGeometry(lRoof);
                             addGeometry(lSide1);
                             addGeometry(lSide2);
+
+                            if (!branch.isZ) {
+                                addTornEdge(branch.x - innerFace + tearInset, branch.z, TEAR_T, lDepth);
+                                addTornEdge(branch.x + innerFace - tearInset, branch.z, TEAR_T, lDepth);
+                            } else {
+                                addTornEdge(branch.x, branch.z - innerFace + tearInset, lWidth, TEAR_T);
+                                addTornEdge(branch.x, branch.z + innerFace - tearInset, lWidth, TEAR_T);
+                            }
                         } else {
                             const block = buildWall(branch.w, branch.d, env.sharedWallMat);
                             block.position.set(branch.x, 1.5, branch.z);
@@ -364,6 +457,14 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                                 branch.isZ ? cz : cz + Math.sign(branch.z - cz) * capOff
                             );
                             addGeometry(capLining);
+
+                            const capFace = innerFace - tearInset;
+                            addTornEdge(
+                                branch.isZ ? cx + Math.sign(branch.x - cx) * capFace : cx,
+                                branch.isZ ? cz : cz + Math.sign(branch.z - cz) * capFace,
+                                branch.isZ ? TEAR_T : capSpan,
+                                branch.isZ ? capSpan : TEAR_T
+                            );
                         }
                     }
 
