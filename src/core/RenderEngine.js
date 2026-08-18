@@ -10,7 +10,7 @@ export default class RenderEngine {
         this.scene.fog = new THREE.FogExp2(0xa89f68, 0.05);
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
         this.camera.position.y = 1.6;
-        const logDepth = !new URLSearchParams(window.location.search).has('nologdepth');
+        const logDepth = new URLSearchParams(window.location.search).has('logdepth');
         this.renderer = new THREE.WebGLRenderer({
             antialias: RenderEngine.getSavedAA() > 0,
             powerPreference: "high-performance",

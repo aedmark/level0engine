@@ -551,6 +551,9 @@ export default class SetPieces {
             env.airlockRedMat = new THREE.MeshBasicMaterial({color: 0xff2222});
             env.airlockGreenMat = new THREE.MeshBasicMaterial({color: 0x22ff44});
         }
+        if (!env.airlockSealMat) {
+            env.airlockSealMat = new THREE.MeshStandardMaterial({color: 0x111111, roughness: 0.9, metalness: 0.1});
+        }
         const shellMat = env.stainlessMat || env.titaniumMat || env.metalMat;
         const doorMat = env.stainlessDoorMat || env.titaniumMat || shellMat;
         const inSign = outSign * -1;
@@ -599,10 +602,13 @@ export default class SetPieces {
                 ? getDoorGeo('doorPanel', 1.98, 2.6, 0.24)
                 : getDoorGeo('doorPanel', 0.24, 2.6, 1.98);
             const stripeGeo = spansX
-                ? getDoorGeo('doorStripe', 0.14, 2.6, 0.26)
-                : getDoorGeo('doorStripe', 0.26, 2.6, 0.14);
+                ? getDoorGeo('doorStripe', 0.12, 2.6, 0.26)
+                : getDoorGeo('doorStripe', 0.26, 2.6, 0.12);
             const mkPanel = (side) => {
-                const p = new THREE.Mesh(panelGeo, doorMat);
+                const mats = [doorMat, doorMat, doorMat, doorMat, doorMat, doorMat];
+                if (spansX) mats[side === -1 ? 0 : 1] = env.airlockSealMat;
+                else mats[side === -1 ? 4 : 5] = env.airlockSealMat;
+                const p = new THREE.Mesh(panelGeo, mats);
                 if (spansX) p.position.set(side * 0.96, 1.3, 0);
                 else p.position.set(0, 1.3, side * 0.96);
                 const stripe = new THREE.Mesh(stripeGeo, env.hazardMat);

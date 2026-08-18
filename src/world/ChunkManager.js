@@ -740,7 +740,7 @@ export default class ChunkManager {
         this._profAdd('instances', performance.now() - instT0);
 
         const shadowT0 = performance.now();
-        for (let pass = 0; pass < 12 && this._shadowQueue && this._shadowQueue.length > 0; pass++) {
+        for (let pass = 0; pass < 150 && this._shadowQueue && this._shadowQueue.length > 0; pass++) {
             this.drainShadowPrewarm(8.0);
             if (!env.activeChunks.has(hash)) return;
             await new Promise(resolve => setTimeout(resolve, 0));

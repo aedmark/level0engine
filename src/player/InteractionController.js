@@ -29,7 +29,7 @@ export default class InteractionController {
         const env = this.env;
         const ud = door.userData;
         if (ud.isAirlockDoor) return;
-        const worldPos = (typeof door.getWorldPosition === 'function') ? door.getWorldPosition(this._objWorldPos) : door.position;
+        const worldPos = door.matrixWorld ? this._objWorldPos.setFromMatrixPosition(door.matrixWorld) : door.position;
         const pDistSq = playerPos.distanceToSquared(worldPos);
         const entityOpen = ud.entityOpen === true;
         ud.entityOpen = false;
@@ -97,7 +97,7 @@ export default class InteractionController {
         const checkObj = (obj) => {
             if (obj.userData.isSlider && !obj.userData.isAirlockDoor) return;
             if (obj.userData.active === false) return;
-            const worldPos = (typeof obj.getWorldPosition === 'function') ? obj.getWorldPosition(this._objWorldPos) : obj.position;
+            const worldPos = obj.matrixWorld ? this._objWorldPos.setFromMatrixPosition(obj.matrixWorld) : obj.position;
             const distSq = worldPos.distanceToSquared(playerPos);
             if (distSq < closestDistSq) {
                 this._lookDir.subVectors(worldPos, playerPos).normalize();
@@ -120,7 +120,7 @@ export default class InteractionController {
                 return;
             }
             if (door.userData.codeLocked) door.userData.entityOpen = false;
-            const worldPos = (typeof door.getWorldPosition === 'function') ? door.getWorldPosition(this._objWorldPos) : door.position;
+            const worldPos = door.matrixWorld ? this._objWorldPos.setFromMatrixPosition(door.matrixWorld) : door.position;
             const pDistSq = playerPos.distanceToSquared(worldPos);
             if (pDistSq > 400.0 && !door.userData.isLatched && !door.userData.entityOpen) return;
             const playerOpen = door.userData.playerOpen === true;
@@ -695,7 +695,7 @@ export default class InteractionController {
             let closestDistSq = 9.0;
             const checkObj = (obj) => {
                 if (obj.userData.isSlider && !obj.userData.isAirlockDoor) return;
-                const worldPos = (typeof obj.getWorldPosition === 'function') ? obj.getWorldPosition(this._objWorldPos) : obj.position;
+                const worldPos = obj.matrixWorld ? this._objWorldPos.setFromMatrixPosition(obj.matrixWorld) : obj.position;
                 const distSq = worldPos.distanceToSquared(e.detail.position);
                 if (distSq < closestDistSq) {
                     env._interactDir.subVectors(worldPos, e.detail.position).normalize();
