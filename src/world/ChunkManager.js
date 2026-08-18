@@ -623,6 +623,35 @@ export default class ChunkManager {
                     ctx.isLowClearance = (wx, wz) =>
                         mathData.forcedStructuresGrid.get(cellKey(wx, wz)) === 'CRAWLSPACE_HALL';
                     ctx.getDoorwayPlan = (px, pz) => mathData.doorwayPlans.get(cellKey(px, pz)) || null;
+
+                    const elevator = env._spawnElevator;
+                    if (elevator && elevator.chunkHash === hash && (elevator.cellX === null || elevator.cellX === undefined)) {
+                        let bestX = null, bestZ = null;
+                        let fallbackX = null, fallbackZ = null;
+                        for (let cx = startX; cx < startX + env.chunkSize; cx++) {
+                            for (let cz = startZ; cz < startZ + env.chunkSize; cz++) {
+                                if (!ctx.isWall(cx, cz) && !ctx.isOccupied(cx, cz) && !ctx.isAirlockApron(cx, cz)) {
+                                    if (fallbackX === null) { fallbackX = cx; fallbackZ = cz; }
+                                    let open = 0;
+                                    if (!ctx.isWall(cx, cz + 1)) open++;
+                                    if (!ctx.isWall(cx + 1, cz)) open++;
+                                    if (!ctx.isWall(cx, cz - 1)) open++;
+                                    if (!ctx.isWall(cx - 1, cz)) open++;
+                                    // A cell with exactly 1 open neighbor is a dead end.
+                                    if (open === 1) {
+                                        bestX = cx; bestZ = cz;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (bestX !== null) break;
+                        }
+                        if (bestX !== null) {
+                            elevator.cellX = bestX; elevator.cellZ = bestZ;
+                        } else if (fallbackX !== null) {
+                            elevator.cellX = fallbackX; elevator.cellZ = fallbackZ;
+                        }
+                    }
                 }
 
                 let isWall = ctx.isWall(x, z);

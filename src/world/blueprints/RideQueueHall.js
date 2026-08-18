@@ -63,7 +63,14 @@ export const RideQueueHallProfile = (env, ctx) => {
                 addGeometry(p);
             }
 
-            const sGeo = env._cacheGeo('stanchion', () => new THREE.CylinderGeometry(0.04, 0.04, 1.0, 8));
+            const sGeo = env._cacheGeo('stanchion', () => {
+                const geo = new THREE.CylinderGeometry(0.04, 0.04, 1.0, 8);
+                geo.computeBoundingBox();
+                // Stanchions are placed at y=0.5. We drop max local Y so world Y stops at 0.3
+                // (0.3 - 0.5 = -0.2)
+                geo.boundingBox.max.y = -0.2;
+                return geo;
+            });
             const stanchion = new THREE.Mesh(sGeo, env.metalMat || env.pittedMetalMat);
             stanchion.position.set(cx, 0.5, cz);
             addGeometry(stanchion);
@@ -79,10 +86,27 @@ export const RideQueueHallProfile = (env, ctx) => {
                     new THREE.Vector3(0, -0.3, env.cellSize / 4),
                     new THREE.Vector3(0, 0, env.cellSize / 2)
                 );
-                return new THREE.TubeGeometry(curve, 6, 0.015, 5, false);
+                const geo = new THREE.TubeGeometry(curve, 6, 0.015, 5, false);
+                geo.computeBoundingBox();
+                // Ropes are placed at y=0.9. Drop max local Y so world Y stops at 0.3.
+                // (0.3 - 0.9 = -0.6). Also lower min.y just to be safe.
+                geo.boundingBox.max.y = -0.6;
+                geo.boundingBox.min.y = -0.9;
+                return geo;
             });
 
-            const isQueue = (bx, bz) => ctx.getForcedStructure && ctx.getForcedStructure(bx, bz) === 'RIDE_QUEUE_HALL';
+            const isStraightQueueZ = (bx, bz) => {
+                if (!ctx.getForcedStructure || ctx.getForcedStructure(bx, bz) !== 'RIDE_QUEUE_HALL') return false;
+                const pZ = !isWall(bx, bz+1) || !isWall(bx, bz-1);
+                const pX = !isWall(bx+1, bz) || !isWall(bx-1, bz);
+                return pZ && !pX;
+            };
+            const isStraightQueueX = (bx, bz) => {
+                if (!ctx.getForcedStructure || ctx.getForcedStructure(bx, bz) !== 'RIDE_QUEUE_HALL') return false;
+                const pZ = !isWall(bx, bz+1) || !isWall(bx, bz-1);
+                const pX = !isWall(bx+1, bz) || !isWall(bx-1, bz);
+                return pX && !pZ;
+            };
 
             if (pathZ && !pathX) {
                 if (!isWall(x, z + 1)) {
@@ -101,7 +125,7 @@ export const RideQueueHallProfile = (env, ctx) => {
                     rope2.rotation.y = Math.PI;
                     addGeometry(rope2);
 
-                    if (!isQueue(x, z - 1)) {
+                    if (!isStraightQueueZ(x, z - 1)) {
                         const p2 = new THREE.Mesh(sGeo, env.metalMat || env.pittedMetalMat);
                         p2.position.set(cx, 0.5, cz - env.cellSize/2);
                         addGeometry(p2);
@@ -125,7 +149,7 @@ export const RideQueueHallProfile = (env, ctx) => {
                     rope2.rotation.y = -Math.PI / 2;
                     addGeometry(rope2);
                     
-                    if (!isQueue(x - 1, z)) {
+                    if (!isStraightQueueX(x - 1, z)) {
                         const p2 = new THREE.Mesh(sGeo, env.metalMat || env.pittedMetalMat);
                         p2.position.set(cx - env.cellSize/2, 0.5, cz);
                         addGeometry(p2);

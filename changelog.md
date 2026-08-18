@@ -1,5 +1,24 @@
 # Level 0 Engine Changelog
 
+## [v1.2.4] - 2026-08-18
+
+_Stepping Over Ropes And Out Of The Dead Ends_
+
+### Changed
+
+- **[AUDIO] Inactive Convolvers Disconnect To Save CPU (`Synthesizer.js`, `AcousticEngine.js`):** Convolution is the most expensive node in the Web Audio graph, and Firefox notoriously continues dedicating CPU time to it even after the tail decays. The `AcousticEngine` now gracefully crossfades and fully unhooks inactive wet `ConvolverNode`s from the audio graph, recovering the background CPU cost.
+
+### Fixed
+
+- **[INPUT] Mouse Look Stability Decoupled From Browser Event Rates (`SomaticInput.js`):** Mouse rotation is now accumulated in `_pendingMouseMovement` and applied predictably during the frame update loop instead of immediately inside the `mousemove` event handler. This fixes erratic camera sensitivity in browsers like Firefox which dispatch multiple uncoalesced mouse events per frame.
+- **[WORLD] The Spawn Elevator No Longer Traps The Player (`ChunkManager.js`):** The spawn chunk logic previously laid claim to the first non-wall cell it encountered. Because the elevator explicitly seals its rear three walls, spawning inside a critical hallway segment could physically sever the maze. A pre-pass now correctly anchors the elevator inside a dead-end cell (exactly 1 open neighbor) so it behaves as a clean end-cap for a branch.
+- **[WORLD] Queue Line Ropes Left Floating Without Poles (`RideQueueHall.js`):** A straight queue cell previously omitted its terminating boundary pole if the adjacent cell was *any* queue block, assuming its neighbor would build the pole instead. Corner queue blocks do not build boundary poles, leaving the connection floating. Logic now specifically validates that the neighbor is a *straight* queue of matching orientation before omitting its own pole.
+- **[GAMEPLAY] Queue Hitboxes Forced Crouching (`RideQueueHall.js`):** The bounding boxes for queue ropes and stanchions have been explicitly clamped to a maximum world-space Y-height of `0.3m`. This drops the geometry's collision bounds low enough that the player controller treats them as a shallow stair step, allowing players to walk straight over them without needing to manually crouch under the original 1.0m hitboxes.
+- **[GRAPHICS] Tucked Flashlight Grazing Angle In Vents (`Flashlight.js`):** When crawling, the flashlight tucked exactly to `(0, 0, 0)` center. In a narrow straight vent, this perfectly centered angle resulted in near-zero diffuse light bounce (`dot(N, L)`) on the parallel walls. The tucked position is now offset to `(0.15, -0.2, -0.1)`, providing a steeper grazing angle and successfully illuminating the tunnel.
+- **[GRAPHICS] Spawn Elevator Exterior Fixes (`ElevatorSpawn.js`):** Fixed light leaks and exposed z-fighting around the elevator by dropping a shroud over the exterior structure. Reused the `woodMat` paneling from the Oasis for consistent aesthetics. Additionally, enabled `castShadow` on the blast door meshes.
+- **[GRAPHICS] Battery Z-Fighting (`MaterialLibrary.js`):** Re-positioned the top and bottom metallic rims of the battery prefab by `±0.001` vertically to fix Z-fighting with the underlying yellow paint on the battery body.
+
+
 ## [v1.2.3] - 2026-08-18
 
 _Somewhere To Wake Up, And The Manual On The Table_
