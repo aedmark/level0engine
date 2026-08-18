@@ -2,7 +2,6 @@ import TheArchitect from './TheArchitect.js';
 import {warmLazySectorMaterials} from './LazyMaterialWarmup.js';
 import AmbientEnvMap from '../aesthetics/AmbientEnvMap.js';
 
-/** See the note in _warm: the instanced forms are deferred to the chunks that need them. */
 const BOOT_WARM_FORMS = new Set(['plain']);
 
 export default class ShaderWarmup {
@@ -11,18 +10,12 @@ export default class ShaderWarmup {
         const renderer = env.engine && env.engine.renderer;
         if (!renderer || !env.chunkManager) return;
         try {
-            // onProgress now reports a 0..1 fraction of this step, not an absolute
-            // percentage — the caller owns where that lands on the bar.
             if (onProgress) onProgress(0, 'PREWARMING ANOMALOUS SECTOR BLUEPRINTS...');
             const t0 = performance.now();
             this._materialiseLazySectorAssets(env);
             warmLazySectorMaterials(env);
             console.log(`[BOOT] Lazy blueprint/material materialisation: ${Math.round(performance.now() - t0)}ms`);
 
-            // Env map applied before materials are collected for _warm below, so the
-            // compile pass sees its effect on the handful of allowlisted materials it
-            // touches — see AmbientEnvMap.SAFE_MATERIAL_KEYS for why that list is short
-            // rather than "every metallic material."
             const envMapStart = performance.now();
             env.ambientEnvMap = AmbientEnvMap.generate(renderer);
             const metallicCount = AmbientEnvMap.applyToMaterials(env, env.ambientEnvMap);
@@ -46,21 +39,6 @@ export default class ShaderWarmup {
 
         for (let i = 0; i < materials.length; i += BATCH) {
             const batchStart = performance.now();
-            // Only the `plain` form is warmed blind here.
-            //
-            // This pass runs before any chunk exists, so it cannot know how a material
-            // will actually be used, and warming all three forms meant compiling three
-            // programs each for 200+ materials — measured at 3.7s, which was 96% of the
-            // entire chunk-build phase and 60% of boot. A survey of a live scene found
-            // that of 328 materials, 317 are used as `plain`, 28 as `coloured` and 7 as
-            // `instanced`, with **no** material using all three. So `plain` is nearly
-            // always the right guess and the other two are nearly always dead work.
-            //
-            // The two instanced forms are not dropped, just deferred to whoever actually
-            // needs them: `_compileInstances` decides a group's form, then
-            // `warmChunkMaterials` reports that exact form, and the shadow drain at the
-            // tail of `_buildChunkInterior` compiles it — all before the chunk is marked
-            // `contentReady`, so it still lands ahead of visibility.
             const batch = new Map(materials.slice(i, i + BATCH).map(m => [m, BOOT_WARM_FORMS]));
             await env.chunkManager.warmMaterialVariants(batch, false);
             const batchMs = Math.round(performance.now() - batchStart);

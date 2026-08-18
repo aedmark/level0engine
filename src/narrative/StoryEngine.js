@@ -10,17 +10,11 @@ export default class StoryEngine {
             let loadedCount = 0;
             const results = {};
 
-            // All seven fire at once rather than seven sequential round trips. Each still
-            // reports progress the moment it individually lands, so the boot log keeps its
-            // per-file granularity — the lines just arrive in completion order instead of
-            // declaration order, and the whole batch now finishes in roughly the time the
-            // slowest single file takes.
             await Promise.all(files.map(async (f) => {
                 const res = await fetch(`${dataDir}/${f}.json`);
                 if (!res.ok) throw new Error(`${f}.json -> HTTP ${res.status}`);
                 results[f] = await res.json();
                 loadedCount++;
-                // 0..1 fraction of this step; the caller decides where it lands on the bar.
                 if (onProgress) onProgress(loadedCount / files.length, `${f}.json`);
             }));
 

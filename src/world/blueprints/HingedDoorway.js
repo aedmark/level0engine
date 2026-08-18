@@ -36,12 +36,6 @@ export const HingedDoorwayProfile = (env, ctx) => {
             addGeometry(top);
 
             const frameMat = env.woodMat;
-            // buildWall inflates its box by 0.02, so the piers actually reach the cell
-            // face at 2.01 rather than 2.00. Casing built with the exact _boxGeo used to
-            // land its outer face on that same plane, giving a hairline of wood and wall
-            // fighting for the full height of the frame. Real casing stands proud of the
-            // wall anyway, so it now sits forward of the pier face instead of flush with it.
-            // It has to clear the baseboard too, which is a further 0.02 out at 2.03.
             const CASING_PROUD = 0.04;
             const casingZ = 1.85 + CASING_PROUD;
             const jambL = new THREE.Mesh(env._boxGeo(0.1, 2.65, 0.32), frameMat);

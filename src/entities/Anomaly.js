@@ -2,20 +2,11 @@ import Vec3 from '../math/Vec3.js';
 import AABB from '../math/AABB.js';
 import {isRayPathBlocked, stepGroundedBody} from './HazardUtils.js';
 
-// The anomaly is held to the player's own numbers. PlayerController drives the
-// camera through a velocity damped at exp(-25 * delta), so its acceleration
-// constants settle at roughly a/25 m/s: a fresh sprint under pursuit is 6.0 m/s,
-// an ordinary walk 2.4 m/s, and an exhausted stumble about 1.84 m/s. Every speed
-// below is chosen against those figures, so a rested player always out-runs a
-// sprint and a spent player always out-walks a spent anomaly.
 const SPRINT_SPEED = 5.3;
 const PURSUE_SPEED = 3.4;
 const WINDED_SPEED = 1.7;
 const PROWL_SPEED = 1.5;
 
-// Stamina mirrors the player's own budget: 100 units burned at the same 12/sec
-// the player pays while being chased, which is a little over eight seconds of
-// sprint, and the same "winded until half recovered" hysteresis on the way out.
 const MAX_STAMINA = 100.0;
 const SPRINT_BURN = 12.0;
 const JOG_BURN = 4.0;
@@ -25,16 +16,11 @@ const SEARCH_RECOVERY = 3.0;
 const PROWL_RECOVERY = 8.0;
 const DORMANT_RECOVERY = 25.0;
 
-// How long it will keep looking before it decides the trail is cold. Scaled by
-// how well the player is actually hiding, so a genuinely concealed player buys
-// this back at up to three times the rate.
 const ATTENTION_SPAN = 22.0;
 const RETREAT_DISTANCE_SQ = 3025.0;
 const DORMANT_MIN = 40.0;
 const DORMANT_MAX = 80.0;
 
-// Body dimensions and step height, matching a standing player: radius 0.4 plus
-// the anomaly's wider core, a 2.5 physical top and the same 0.5 step-up.
 const BODY_RADIUS = 0.6;
 const BODY_HEIGHT = 2.6;
 const STEP_HEIGHT = 0.5;
@@ -86,8 +72,6 @@ export default class Anomaly {
         const intensity = e.detail.intensity || 1.0;
         const radiusSq = (baseRadius * intensity) ** 2;
         if (this.mood === 'DORMANT') {
-            // A footstep never reaches it once it has withdrawn; only something
-            // loud enough to carry across the level pulls it back out early.
             if (baseRadius < 30.0) return;
             if (this.camera.position.distanceToSquared(this._dormantAnchor) > radiusSq) return;
             this._wake(this.camera.position, 0.7);
@@ -98,9 +82,6 @@ export default class Anomaly {
         this._noteContact(this.camera.position, 8.0);
     }
 
-    // Files a position it has reason to believe the player occupies. It only
-    // ever navigates to what it has seen or heard, never to where the player
-    // actually is.
     _noteContact(pos, scatter) {
         this.lastKnown.set(
             pos.x + (Math.random() - 0.5) * scatter,
@@ -239,17 +220,12 @@ export default class Anomaly {
         let pressure = 0;
         if (distToPlayerSq < 225.0) {
             pressure = 1.0 - (Math.sqrt(distToPlayerSq) / 15.0);
-            // It reads as background dread rather than an active threat when it
-            // is not the one doing the hunting.
             if (this.mood !== 'HUNT') pressure *= 0.65;
         }
         this.player.anomalyPressure = pressure;
         return null;
     }
 
-    // Off the board entirely: parked far out of the level, invisible, exerting
-    // no pressure, getting its breath back. This is the window the player earns
-    // by hiding successfully.
     _updateDormant(delta, playerPos) {
         if (this.group.visible) {
             this.group.visible = false;
@@ -276,10 +252,6 @@ export default class Anomaly {
         }
     }
 
-    // A body that has to walk around walls must not be able to appear inside
-    // one. Sampling the grid the same way the locomotion solver does keeps the
-    // ring spawn honest; the footprint is checked a little wider than the body
-    // so it never materialises flush against a surface it then has to escape.
     _isSpawnClear(x, z) {
         if (this._findForbiddenBounds(x, z, BODY_RADIUS)) return false;
         const clearance = BODY_RADIUS + 0.2;
@@ -298,8 +270,6 @@ export default class Anomaly {
         return true;
     }
 
-    // Returns false rather than forcing a body into a wall when the ring is too
-    // built up to offer a clear spot. Callers simply try again next frame.
     _respawnNearPlayer(playerPos, minDist, spread) {
         let respawn = null;
         for (let attempt = 0; attempt < 24; attempt++) {
@@ -390,9 +360,6 @@ export default class Anomaly {
         return this._lastLOSResult || false;
     }
 
-    // How fast the trail goes cold. Standing still in the dark burns its
-    // attention down in about seven seconds; sprinting around in the open makes
-    // it stay for the best part of a minute.
     _boredomRate() {
         const vx = this.player.velocity ? this.player.velocity.x : 0;
         const vz = this.player.velocity ? this.player.velocity.z : 0;
@@ -403,10 +370,6 @@ export default class Anomaly {
         if (!this.player.flashlightActive) rate += 0.3;
         if ((this.player.darknessPressure || 0.0) > 0.5) rate += 0.5;
         if (this.player.isRunning && playerSpeedSq > 4.0) rate -= 0.5;
-        // Geometry it cannot solve counts as a dead end, not as a reason to keep
-        // grinding against a wall next to the player. The threshold sits past
-        // the 5s breadcrumb backtrack so a snag it can route out of does not
-        // cost it the trail.
         if (this.stuckFor > 6.0) rate += 1.2;
         return Math.max(0.25, rate);
     }
@@ -501,10 +464,6 @@ export default class Anomaly {
         return this._applyStamina(speed, delta);
     }
 
-    // Same shape as the player's metabolism: burn while sprinting, seize up at
-    // zero, and stay winded until half the bar is back. It cannot chase past the
-    // end of its own stamina any more than the player can run past the end of
-    // theirs.
     _applyStamina(speed, delta) {
         const burn = speed > 4.0 ? SPRINT_BURN : (speed > 2.5 ? JOG_BURN : 0.0);
         if (burn > 0 && !this.isWinded) {
@@ -536,12 +495,9 @@ export default class Anomaly {
             this.group.position.z + away.z * 25.0
         );
         this.target.set(exit.x, this.group.position.y, exit.z);
-        // A retreat it cannot walk out of still ends the engagement.
         if (this.stuckFor > 6.0) this._goDormant(playerPos);
     }
 
-    // Wandering, drawn by dropped UV tags but not by the player. It has to see
-    // or hear them to take an interest.
     _prowl(playerPos) {
         if (this.env && this.env.tagPool) {
             for (let i = 0; i < this.env.tagPool.length; i++) {
@@ -633,8 +589,6 @@ export default class Anomaly {
         if (!hitX) pos.x += moveX;
         if (!hitZ) pos.z += moveZ;
         if (hitX && hitZ && (moveX !== 0 || moveZ !== 0)) {
-            // Both axes walled off. It retraces its own trail rather than
-            // sliding through the geometry that stopped it.
             if (this.backtrackTimer <= 0 && this.mood !== 'RETREAT') this.backtrackTimer = 5.0;
         }
         if (step.groundY === -100) {

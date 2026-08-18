@@ -57,9 +57,6 @@ export default class SpatialHashGrid {
         }
     }
 
-    // Pulls a single box out of the grid. A wall that shrinks or disappears
-    // during chunk assembly has to take its collision with it, or the player
-    // walks into geometry that is no longer on screen.
     remove(box) {
         if (!box) return;
         this._unindex(box);
@@ -76,10 +73,6 @@ export default class SpatialHashGrid {
         this.chunkMap.delete(chunkHash);
     }
 
-    // Walks only the cells a segment actually crosses in XZ and hands each box
-    // in them to `visit` once; returning true from `visit` stops the walk early.
-    // A radius query wide enough to cover a 20m sight line would sweep well over
-    // a hundred cells, where the line itself crosses about six.
     forEachAlongSegment(x0, z0, x1, z1, visit) {
         const cs = this.cellSize;
         let cx = Math.floor(x0 / cs);

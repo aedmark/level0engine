@@ -1,16 +1,6 @@
 import {makeDuctInterior} from '../core/DuctLighting.js';
 
 export default class MaterialLibrary {
-    /**
-     * Asset-bundle keys injectMaterials is *meant* to replace.
-     *
-     * ProceduralTextureFactory's output is Object.assign'd onto env in
-     * Environment.setup(), which runs before generate() reaches injectMaterials().
-     * Anything assigned here therefore wins over the generated asset. That is
-     * deliberate for these keys and a bug for any other: an unguarded write
-     * silently discards a generated material, which is what swallowed the paisley
-     * ductWallMat. Guard new writes with `if (!env.x)` or list the key here.
-     */
     static ASSET_OVERRIDES = new Set(['rustMat']);
 
     static injectMaterials(env) {
@@ -34,7 +24,6 @@ export default class MaterialLibrary {
             bumpMap: env.wallBumpTexture || env.wallTexture,
             bumpScale: 0.012
         });
-        // Kept only as a fallback: the texture pipeline supplies its own ductWallMat.
         if (!env.ductWallMat) env.ductWallMat = makeDuctInterior(env.sharedWallMat.clone());
         if (env.sharedAssets) env.sharedAssets.add(env.ductWallMat.uuid);
         env.sharedPanelGeo = new THREE.BoxGeometry(0.98, 0.05, 1.98);

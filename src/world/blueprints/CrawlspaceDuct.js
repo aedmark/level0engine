@@ -5,22 +5,6 @@ import {makeDuctDoorMat} from '../../core/DuctLighting.js';
 export const CrawlspaceDuctProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, hash} = ctx;
 
-    /**
-     * Every piece of duct lining, built at its exact nominal size.
-     *
-     * Two problems with routing these through buildWall. It inflates every box by 0.02 on
-     * all three axes to hide seams between maze walls, but the lining is not a maze wall:
-     * its pieces are laid out to abut exactly — a hub's 1.2m footprint meets a 1.4m branch
-     * at holeW/2 — so that inflation turns every junction into a 2cm band of two coplanar
-     * surfaces, which is exactly where the z-fighting shows. And it scales a slab's top and
-     * bottom V by h/3, so a 0.04m panel samples a 1/75th-of-the-texture sliver stretched
-     * across the whole face.
-     *
-     * So: exact sizing, and horizontal pieces get world-proportional UVs on +/-Y against
-     * the same 4m reference the vertical faces use. bleedY re-adds vertical overlap only
-     * where it is wanted — panels bedding down into the structural slab behind them, whose
-     * faces are parallel and buried rather than coplanar and visible.
-     */
     const buildDuctLining = (w, d, mat, h, opts = {}) => {
         const q = (v) => Math.round(v * 1000) / 1000;
         w = q(w); d = q(d); h = q(h);
@@ -38,10 +22,6 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                     uv.setY(i, uv.getY(i) * (d / env.cellSize));
                 }
             } else {
-                // mirrors buildWall, so lining and maze wall share a texture scale.
-                // uvFitV instead maps the texture exactly once over the piece's height,
-                // which is what lets the torn strip pin its tear line to the floor rather
-                // than repeating it every 0.8m up the wall.
                 const vScale = uvFitV ? 1 : (h / 3.0);
                 for (let i = 0; i < 8; i++) {
                     uv.setX(i, uv.getX(i) * (d / env.cellSize));
@@ -86,22 +66,10 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
 
             const cellKey = (cx, cz) => `${cx}_${cz}`;
 
-            /** A neighbouring cell a duct may legally open a door into. */
             const openable = (nx, nz) => !!(ctx.isWall && !ctx.isWall(nx, nz)
                 && !(ctx.isAirlockApron && ctx.isAirlockApron(nx, nz))
                 && !(ctx.isLowClearance && ctx.isLowClearance(nx, nz)));
 
-            /**
-             * One entrance, not one per open side.
-             *
-             * Every open side of the starting cell used to become a door *and* increment
-             * numExits, so a duct punched into a wall between two corridors began with the
-             * whole maxExits budget already spent. `numExits < maxExits` then refused every
-             * exit growth tried to place, and the run could wander its full 15 tiles with
-             * both doors side by side at the mouth — crawl the length of it and the only way
-             * out is where you came in. Claiming a single opening leaves the rest of the
-             * budget for growth to spend along the run, where it buys something.
-             */
             const initialExits = {N: false, S: false, E: false, W: false};
             const startOpenings = [];
             if (openable(x, z - 1)) startOpenings.push('N');
@@ -225,21 +193,6 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                     }
                 }
 
-                /**
-                 * The exit budget is usually spent before growth even begins.
-                 *
-                 * initialExits counts every open neighbour of the starting cell and
-                 * increments numExits for each, so a duct punched into a wall between two
-                 * corridors starts with the whole maxExits budget (2 or 3) already gone.
-                 * Every later opportunity is then refused by `numExits < maxExits`, and the
-                 * run can wander its full 15 tiles with both doors side by side back at the
-                 * entrance — crawl the length of it and the only way out is where you came
-                 * in. The >= 2 exit check below passes happily, because it counts exits
-                 * without caring where they are.
-                 *
-                 * Rather than re-budget growth and change every duct's shape, guarantee the
-                 * property that actually matters: one way out that is not beside the way in.
-                 */
                 const MIN_EXIT_SPREAD = 3;
                 const cellDist = (c) => Math.abs(c.x - x) + Math.abs(c.z - z);
                 let farthestExit = 0;
@@ -290,15 +243,6 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                 const sideOffset = (env.cellSize / 2) - (sideW / 2);
                 const liningT = 0.04;
 
-                /**
-                 * Torn wallpaper edge along the foot of each wall panel.
-                 *
-                 * The strip stands TEAR_PROUD in front of the panel's inner face so nothing
-                 * is coplanar with it, and is given uvFitV so its texture maps once over
-                 * TEAR_H — every wall lining piece is exactly holeH tall, so the tear lands
-                 * at the same height on all of them. Skipped on the 4cm corner posts, where
-                 * it would be invisible and only cost geometry.
-                 */
                 const TEAR_H = 0.12;
                 const TEAR_T = 0.004;
                 const TEAR_PROUD = 0.002;
@@ -435,19 +379,6 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                             block.position.set(branch.x, 1.5, branch.z);
                             addWall(block);
 
-                            /**
-                             * The cap seals the hub face where a branch would have gone. It has to
-                             * live in the hub's own lining plane, not the dead branch cell's.
-                             *
-                             * `block` is a buildWall, so it grows 0.01 past nominal and its face
-                             * lands at holeW/2 - 0.01. Positioning the cap off the branch cell put
-                             * it at holeW/2 + 0.02, i.e. behind that face — so the block occluded
-                             * it and the opening rendered as bare yellow maze wall. Placing it at
-                             * holeW/2 - liningT/2, level with the corner posts, puts it 0.03 clear
-                             * in front of the block. Width is the span *between* the posts so it
-                             * abuts them instead of overlapping, which is what kept the previous
-                             * inflated cap in a permanent fight with the block face.
-                             */
                             const capSpan = holeW - liningT * 2;
                             const capOff = holeW / 2 - liningT / 2;
                             const capLining = buildDuctLining(branch.isZ ? liningT : capSpan, branch.isZ ? capSpan : liningT, env.ductWallMat, holeH);
@@ -473,9 +404,6 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                     const snap = (v) => Math.round(v * 10000) / 10000;
                     const doorW = holeW - GRATE_GAP;
                     const doorH = holeH - GRATE_GAP;
-                    // Deliberately NOT makeDuctInterior: this casing is seen from the lit
-                    // corridor as well as from inside the duct, and a black AO map would
-                    // black out the exterior side to kill the glare on the interior one.
                     const frameMat = env.woodMat || env.sharedWallMat;
                     const frameD = 0.12;
                     const frameT = 0.10;
@@ -506,14 +434,6 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                         const jambZ = isX ? 0 : frameDepthOffset;
                         const sideTrimOffset = holeW / 2 - frameT / 2;
 
-                        // The side casings were sized off the door while the head and sill
-                        // are sized off the opening, so they overran the head by 0.06 and the
-                        // sill by only 0.02. That mismatch is the corner that looks a few
-                        // centimetres short, and the overlap left the wood front face doubled
-                        // over itself at all four corners. Sizing them off the opening instead
-                        // runs them exactly between the rails. buildWall grows every box by
-                        // 0.01 a side, so the extra 0.02 inset is what lets the grown edges
-                        // meet flush rather than overlap.
                         const railInset = frameT + 0.02;
                         const jambY = ductY + railInset;
                         const jambH = holeH - railInset * 2;

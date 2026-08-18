@@ -10,9 +10,6 @@ export const DuctOrVentProfile = (env, ctx) => {
             let isFloorLevel = random() > 0.50;
             const addGeometry = ctx.addGeometry;
             if (!env.ductLiningMat) {
-                /** [WHY] The lining is the only thing the player sees from inside the duct, so
-                 * the ambient-occlusion treatment goes here and the structural blocks behind it
-                 * keep lighting normally on their corridor-facing side. */
                 env.ductLiningMat = makeDuctInterior(env.ductMat.clone());
                 env.ductLiningMat.userData.noShadow = true;
                 env.sharedAssets.add(env.ductLiningMat.uuid);
@@ -88,8 +85,6 @@ export const DuctOrVentProfile = (env, ctx) => {
                         if (ctx.isAirlockApron && ctx.isAirlockApron(cell.x, cell.z)) {
                             continue;
                         }
-                        /** See CrawlspaceDuct -- the BFS opens most exits here, not from the seed
-                         * cell, so the crawl-height refusal has to be repeated on this path. */
                         if (ctx.isLowClearance && ctx.isLowClearance(cell.x, cell.z)) {
                             continue;
                         }
@@ -233,7 +228,6 @@ export const DuctOrVentProfile = (env, ctx) => {
                     hubRoofLining.position.set(cx, ductY + holeH - liningT / 2, cz);
                     addGeometry(hubRoofLining);
 
-                    // Add corner linings to prevent snagging
                     const cLining1 = buildWall(liningT, liningT, env.ductLiningMat, holeH, 0);
                     cLining1.position.set(cx - holeW / 2 + liningT / 2, ductY + holeH / 2, cz - holeW / 2 + liningT / 2);
                     addGeometry(cLining1);

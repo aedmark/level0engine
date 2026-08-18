@@ -14,66 +14,17 @@ import * as SectorPlacement from './SectorPlacement.js';
 const CELL_KEY_SPAN = 4194304;
 const cellKey = (x, z) => x * (CELL_KEY_SPAN * 2) + z;
 
-/**
- * Phases a single chunk build is broken into for profiling. `yielded` is wall-clock
- * spent parked in a `setTimeout(0)` between slices rather than doing work, which is the
- * one number that distinguishes "this chunk is expensive" from "this chunk yielded a
- * lot and the scheduler was slow to come back".
- */
 const CHUNK_PROFILE_PHASES = ['worker', 'cells', 'breach', 'instances', 'shadow', 'warm', 'yielded'];
 
-/**
- * How many blocking program links to absorb in one drain when the browser cannot poll
- * link status, playing (`BLOCKING`) versus behind a load overlay (`MASKED`).
- *
- * `KHR_parallel_shader_compile` is what makes the millisecond budget in
- * `_drainProgramLinks` mean anything: with it, a program that is still linking is
- * skipped for free and only finished work is drained. Without it — Firefox, which has
- * never shipped the extension — the only way to learn a program's state is to block on
- * it, and the budget is read *after* that block rather than before. A budget therefore
- * cannot prevent a hitch there, it can only stop the next one, so the count is capped
- * instead: a small fixed number while the player has control, and a bulk catch-up while
- * a load overlay is already covering the screen.
- *
- * The playing cap is measured rather than guessed. Profiling a real cold boot in Firefox
- * 153 with `?linkprofile` put a blocking link at ~0.36ms against this engine's own
- * materials — far cheaper than the ~4.7ms a depth-program *compile* costs, because
- * Firefox links eagerly and the status query only reads back a finished result. Four
- * links is therefore ~1.4ms, landing just under the 1.5ms budget the frame loop passes
- * in, so the two limits agree instead of fighting each other. Chromium polls and stays
- * uncapped: it drains ~12 links per call at ~0.12ms each.
- */
 const BLOCKING_LINKS_PER_FRAME = 4;
 const MASKED_LINKS_PER_FRAME = 16;
 
-/**
- * `?noparallel` makes a Chromium build take the Firefox shader path — the
- * `KHR_parallel_shader_compile` probe is forced to miss, so link status can only be
- * learned by blocking on it. `?linkprofile` adds the running cost report on its own.
- *
- * Note when reading the numbers: this reproduces the *code path*, not Firefox's timing.
- * Chromium defers compilation to worker threads, so blocking on it there is far more
- * expensive than in Firefox, which links eagerly. Measured on simple shaders: 2.60ms
- * per blocking link in Chromium against 0.365ms in Firefox. Treat a `?noparallel`
- * figure as an upper bound and confirm anything load-bearing in Firefox itself.
- */
 const _urlFlags = new URLSearchParams(location.search);
 const FORCE_NO_PARALLEL = _urlFlags.has('noparallel');
 const LINK_PROFILE = FORCE_NO_PARALLEL || _urlFlags.has('linkprofile');
 
-/**
- * One material per probe render.
- *
- * Batching 8 materials into a single `renderer.render()` was tried and reverted: it
- * moved total shadow-prewarm time only 3735ms -> 3547ms, inside run-to-run noise, which
- * establishes that the cost here is the driver compiling each depth program (~4.7ms per
- * program, ~750 programs) and not the per-render overhead being amortised. It also made
- * the per-frame drain in `animate()` strictly worse, since a batch cannot be interrupted
- * and its 2ms budget would only be checked after eight materials rather than one.
- */
 const SHADOW_PROBE_BATCH = 1;
 
-/** The three mesh forms that are distinct entries in the visible and depth program caches. */
 const ALL_PROBE_FORMS = new Set(['plain', 'instanced', 'coloured']);
 
 export default class ChunkManager {
@@ -81,7 +32,6 @@ export default class ChunkManager {
         this.env = env;
     }
 
-    /** Starts a profile record for one chunk. Cheap enough to leave on permanently. */
     _profBegin(hash) {
         const p = {hash, t0: performance.now()};
         for (const k of CHUNK_PROFILE_PHASES) p[k] = 0;
@@ -93,11 +43,6 @@ export default class ChunkManager {
         if (this._prof) this._prof[phase] += ms;
     }
 
-    /**
-     * Folds the finished record into env.genStats, keeping both a running total per
-     * phase and a full copy of the single worst chunk — which is the one that matters
-     * here, since the initial build is dominated by one chunk rather than spread evenly.
-     */
     _profEnd() {
         const p = this._prof;
         if (!p) return;
@@ -257,8 +202,6 @@ export default class ChunkManager {
         if (env.isSpawning) {
             env.isSpawning = false;
 
-            // One-shot: only the run that first carves the car moves the player into it.
-            // A restored session keeps the position that came out of the save.
             const elevator = env._spawnElevator;
             if (elevator && elevator.placePlayer && elevator.placement) {
                 elevator.placePlayer = false;
@@ -836,9 +779,6 @@ export default class ChunkManager {
         const { x, z, env, ctx, random, hash, chunkGroup, localX, localZ, isWallCell, isSolidWallCell, breakerPositions } = args;
         let hasTallObstacle = false;
 
-        // Runs before any of the clutter below and returns early so the car stays bare.
-        // Once anchored it only ever rebuilds on its own cell, so the room is still there
-        // every time the player walks back into the chunk.
         const elevator = env._spawnElevator;
         if (elevator && elevator.chunkHash === hash) {
             const anchored = elevator.cellX !== null && elevator.cellX !== undefined;
@@ -1124,45 +1064,11 @@ export default class ChunkManager {
         }
     }
 
-    /**
-     * Called at every yield point inside a chunk build, so it must never block.
-     *
-     * It used to drain program links synchronously (the old `drainNow` default), which
-     * meant every 5ms slice of chunk generation ended by calling getUniforms() on every
-     * pending program *without* checking KHR_parallel_shader_compile's completion
-     * status — forcing the main thread to sit and wait for the driver to finish linking.
-     * That is what produced the hitching on first traversal into fresh geometry, and it
-     * only showed up on the first visit because `_warmedMaterials` suppresses the warm
-     * on every later one.
-     *
-     * Now it only kicks off the compile. The per-frame `drainProgramLinks(1.5)` in the
-     * main loop picks the results up under a budget, using the polling path that skips
-     * programs the driver has not finished yet.
-     */
     warmChunkMaterials(chunkGroup) {
         const unwarmed = this._unwarmedMaterials(chunkGroup);
         if (unwarmed !== null) this.warmMaterialVariants(unwarmed, false);
     }
 
-    /**
-     * Queues shadow-depth prewarm entries. Accepts the same `Set<Material>` (all forms)
-     * or `Map<Material, Set<form>>` (only these forms) as warmMaterialVariants.
-     *
-     * Entries are `{material, form}` pairs and dedupe on both, so warming a material as
-     * `plain` never suppresses a later, genuinely-needed `coloured` warm for it.
-     */
-    /**
-     * Can this material be warmed on a mesh probe?
-     *
-     * The rig's probes are `Mesh`/`InstancedMesh`, and `three` branches on material type
-     * during render: `SpriteMaterial` takes a path that reads `object.center`, which only
-     * exists on `THREE.Sprite`. Warming one throws "Cannot read properties of undefined
-     * (reading 'x')" out of the uniform upload — and since that throw escapes the whole
-     * batch loop, it silently took every other material in the same render down with it,
-     * so a single steam or flare sprite cost a full batch of real warms. Points and line
-     * materials do not throw, but are equally meaningless here: they would compile a
-     * program keyed to geometry the probe does not have.
-     */
     static _warmableOnMeshProbe(material) {
         return !!material && material.isMaterial === true
             && !material.isSpriteMaterial
@@ -1187,20 +1093,6 @@ export default class ChunkManager {
         }
     }
 
-    /**
-     * Probe rig for shadow-depth prewarming, built once.
-     *
-     * Holds SHADOW_PROBE_BATCH independent slots rather than a single one. Each slot is
-     * the same plain / instanced / instanced-with-colour triple as before — those three
-     * differ in the depth program's cache key, so all three are still required per
-     * material — but having several lets one `renderer.render()` compile a whole batch
-     * of materials instead of exactly one.
-     *
-     * That distinction turned out to be the entire cost of chunk streaming: profiling a
-     * boot showed 3735ms of 3902ms total chunk-build time inside this drain, because the
-     * per-render overhead (two shadow-map passes, render-target bind, scene-graph swap)
-     * was being paid once per material across 200+ materials.
-     */
     _shadowProbeRig() {
         const env = this.env;
         if (this._shadowRig) return this._shadowRig;
@@ -1263,19 +1155,11 @@ export default class ChunkManager {
             renderer.shadowMap.autoUpdate = true;
             renderer.setRenderTarget(rig.target);
             do {
-                // Fill as many slots as the queue and the batch size allow, then compile
-                // the whole batch in one render. The budget is still only checked between
-                // batches — a single render cannot be interrupted — but each check now
-                // covers up to SHADOW_PROBE_BATCH materials' worth of progress instead of
-                // one, so the same budget buys far more of the queue.
                 let filled = 0;
                 const active = [];
                 while (filled < rig.slots.length && queue.length > 0) {
                     const entry = queue.pop();
                     if (!entry || !entry.material) break;
-                    // Only the probe matching this entry's form is lit up — the other two
-                    // in the slot stay hidden, so we compile exactly the variant that was
-                    // asked for instead of all three.
                     const probe = rig.slots[filled][entry.form] || rig.slots[filled].plain;
                     probe.material = entry.material;
                     probe.visible = true;
@@ -1309,25 +1193,6 @@ export default class ChunkManager {
         return warmed;
     }
 
-    /**
-     * Warms the visible and shadow programs for a set of materials.
-     *
-     * `materials` may be a `Set<Material>` — meaning "every form, I don't know how these
-     * will be used", which is what the boot ShaderWarmup passes since no chunk exists yet
-     * to inspect — or a `Map<Material, Set<form>>` naming exactly the forms required.
-     *
-     * The distinction is worth a lot. `plain`, `instanced` and `instanced + instanceColor`
-     * are three separate entries in both the visible and the depth program cache keys, so
-     * warming blind costs 3 programs per material per pass. Surveying a live scene showed
-     * 328 distinct materials producing 984 compiled shadow variants of which only 352 were
-     * ever used — **64% waste** — and, decisively, *no* material was used in all three
-     * forms while 304 of 328 were used in exactly one. Chunk builds know the answer,
-     * because `_compileInstances` has already decided each group's form by the time
-     * `warmChunkMaterials` inspects it.
-     *
-     * Defaults to NOT draining: a blocking drain is a deliberate, boot-only choice, never
-     * something a caller gets by omission.
-     */
     warmMaterialVariants(materials, drainNow = false) {
         const env = this.env;
         if (!materials || materials.size === 0) return;
@@ -1360,7 +1225,6 @@ export default class ChunkManager {
         this._scopedCompile(batch, drainNow);
     }
 
-    /** Warm-state key. Includes the form, so warming one form never masks another. */
     static _warmKey(material, form) {
         return `${material.uuid}${material.version}|${form}`;
     }
@@ -1370,16 +1234,6 @@ export default class ChunkManager {
         return ChunkManager.__probeColor;
     }
 
-    /**
-     * Returns a `Map<Material, Set<form>>` of the material/form combinations present in
-     * this group that have not been warmed yet, or null if there are none.
-     *
-     * The form is read off the object itself rather than assumed, so a chunk asks for
-     * exactly the variants it just built. Because the warm key includes the form, a
-     * material already warmed as `plain` is still reported here if this group uses it as
-     * `coloured` — warming one form must never mask another, which is the failure mode
-     * that would reintroduce a cold compile on first sight.
-     */
     _unwarmedMaterials(group) {
         const env = this.env;
         if (!env._warmedMaterials) env._warmedMaterials = new Set();
@@ -1429,21 +1283,6 @@ export default class ChunkManager {
         }
         if (drainNow) this._drainProgramLinks();
     }
-    /**
-     * Drain freshly-linked programs so the first draw that uses one does not pay for it.
-     *
-     * `three` defers a program's link-status and uniform-location queries to the first
-     * `getUniforms()` call — see `onFirstUse` in `r160.js`, and its own note that
-     * without `KHR_parallel_shader_compile` a program is flagged ready immediately and
-     * "may cause a stall when it's first used". Those queries block until the driver
-     * has finished linking, which is exactly the stall this method exists to move off
-     * the frame that first renders the material.
-     *
-     * With the extension we ask whether a program is done before touching it, so the
-     * budget below is sized for cheap, non-blocking work. Without it every drain blocks
-     * and the budget is powerless, so `stallMasked` picks a count cap instead — see
-     * BLOCKING_LINKS_PER_FRAME. Chromium's polling path is unchanged either way.
-     */
     _drainProgramLinks(budgetMs = Infinity, stallMasked = false) {
         const renderer = this.env.engine.renderer;
         const programs = renderer.info.programs;
@@ -1462,8 +1301,6 @@ export default class ChunkManager {
         const ext = this._parallelExt;
         const gl = this._gl;
         const polling = ext !== null && budgetMs !== Infinity;
-        // Only the case that actually blocks is capped. Boot drains with an infinite
-        // budget and every Chromium path polls, and both are left exactly as they were.
         const limit = (ext === null && budgetMs !== Infinity)
             ? (stallMasked ? MASKED_LINKS_PER_FRAME : BLOCKING_LINKS_PER_FRAME)
             : Infinity;
@@ -1483,9 +1320,6 @@ export default class ChunkManager {
             if (performance.now() - start > budgetMs) break;
         }
         if (LINK_PROFILE && drained > 0) {
-            // Per-link timing is useless on a 1ms clock, so the whole-call durations are
-            // accumulated and divided instead; the quantisation averages out over a few
-            // hundred links even in Firefox.
             const prof = this._linkProf || (this._linkProf = {links: 0, ms: 0, calls: 0});
             prof.links += drained;
             prof.ms += performance.now() - start;
@@ -1501,8 +1335,6 @@ export default class ChunkManager {
 
     _forgetMaterialPrograms(material) {
         const warmed = this.env._warmedMaterials;
-        // Every form key for this material, since the warm state is now per-form and a
-        // bare uuid+version key no longer matches anything.
         if (!warmed) return;
         for (const form of ALL_PROBE_FORMS) {
             warmed.delete(ChunkManager._warmKey(material, form));

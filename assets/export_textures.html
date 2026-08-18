@@ -58,9 +58,6 @@
                 const matMetaOf = (item) => {
                     const meta = {
                         type: materialKind(item),
-                        // Blending and polygon offset were NOT captured by the original
-                        // exporter, so every additive glow in the static set silently came
-                        // back as normal alpha blending with its depth offset lost.
                         blending: item.blending,
                         polygonOffset: item.polygonOffset,
                         polygonOffsetFactor: item.polygonOffsetFactor,
@@ -86,8 +83,6 @@
                         repeatX: item.map ? item.map.repeat.x : 1,
                         repeatY: item.map ? item.map.repeat.y : 1
                     };
-                    // Only plain-data userData survives; anything referencing another
-                    // asset is handled by the exportability check, not here.
                     const ud = item.userData;
                     if (ud && Object.keys(ud).length > 0) {
                         const plain = {};
@@ -99,17 +94,6 @@
                     return meta;
                 };
 
-                /**
-                 * Decides whether an asset can survive a static round trip at all.
-                 *
-                 * The static pipeline can carry a canvas-backed texture, and a
-                 * Standard/Basic material whose four supported map slots are all
-                 * canvas-backed. Everything else — BufferGeometry, materials that point
-                 * at other assets through userData (ArchiveTextures' baseboard links),
-                 * nested/aliased material sets (bookMatSets), map slots the metadata
-                 * schema has no field for — has to keep coming from the generator, and
-                 * gets reported as a residual so the loader knows to skip the sector.
-                 */
                 const unexportableReason = (item) => {
                     if (item === null || item === undefined) return 'null';
                     if (Array.isArray(item)) {
@@ -149,7 +133,6 @@
                     return `unrecognised asset (${typeof item})`;
                 };
 
-                /** Queues canvases and returns the metadata node for one asset. */
                 const describe = (item, fileBase) => {
                     if (item.isTexture) {
                         exportQueue.push({name: fileBase, canvas: canvasOf(item)});
@@ -180,14 +163,12 @@
                     return describe(item, key);
                 };
 
-                // --- Core set -------------------------------------------------------
                 for (const [key, item] of Object.entries(assets)) {
                     if (unexportableReason(item)) continue;
                     metadata[key] = describeEntry(key, item);
                 }
                 log(`Core: ${Object.keys(metadata).length - 1} entries queued.`, 'ok');
 
-                // --- Per-sector bundles ---------------------------------------------
                 const masterNoise = ProceduralTextureFactory._masterNoise;
                 metadata[SECTOR_METADATA_KEY] = {};
 
@@ -214,16 +195,11 @@
                 }
 
                 log("Sending metadata...");
-                // Origin-relative: the exporter is served by the same engine_server.js
-                // it posts back to, so this follows whatever port that server is on.
                 await fetch('/export-meta', {
                     method: 'POST',
                     body: JSON.stringify(metadata)
                 });
 
-                // WebP straight from the canvas. The server derives the file extension
-                // from the data URL's MIME type, so this is the only place the output
-                // format is chosen — no separate PNG->WebP conversion pass afterwards.
                 let sent = 0;
                 for (const {name, canvas} of exportQueue) {
                     if (!canvas) {

@@ -4,8 +4,6 @@ export const CrawlspaceHallProfile = (env, ctx) => {
         name: "CRAWLSPACE_HALL",
         prob: 0,
         build: (x, z, isWallCell) => {
-            // The ceiling drop owns the upper two thirds of this cell. Nothing
-            // else may grow through it, whichever of us is built first.
             if (ctx.claimCell) ctx.claimCell(x, z);
             const dropHeight = 1.8;
             const yCenter = 3.0 - (dropHeight / 2);

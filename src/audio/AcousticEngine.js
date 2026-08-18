@@ -52,10 +52,7 @@ export default class AcousticEngine {
         
         const outWet = this.convolvers[outgoing].wet;
         outWet.gain.setTargetAtTime(0.0, t, 0.5);
-        
-        // Wait for the 0.5s exponential fade (approx 3s for ~99% decay) then disconnect 
-        // the wet path entirely. Firefox continues to spend heavy CPU on convolvers 
-        // with 0 gain unless they are fully unhooked from the destination.
+
         setTimeout(() => {
             if (this._reverbSlot !== outgoing) {
                 outWet.disconnect();

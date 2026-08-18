@@ -1,16 +1,5 @@
-// Only 6 of the 32 pooled lights cast shadows; the other 26 are bare point
-// lights that would otherwise light straight through a wall, throwing a
-// specular highlight from a fixture around the corner onto the floor at the
-// player's feet. Each candidate fixture gets a cheap sight-line test to the
-// camera, and one that fails is dimmed to a spill floor and pushed to the back
-// of the slot queue so the slots go to fixtures that are actually in the room.
 const OCCLUDED_LIGHT_FLOOR = 0.20;
-// A wall blocks light; a header over a doorway or a desk does not. Only boxes
-// tall enough to be architecture qualify, which leaves doorways open for light
-// to spill through the way they should.
 const OCCLUDER_MIN_HEIGHT = 2.0;
-// Both ends of the sight line are pulled in, so a fixture mounted flush against
-// the wall it lives on does not occlude itself.
 const SIGHTLINE_END_INSET = 0.45;
 const OCCLUSION_TEST_INTERVAL = 0.25;
 const MAX_OCCLUSION_TESTS_PER_FRAME = 8;
@@ -120,10 +109,7 @@ export default class LumenGrid {
                         }
                     }
                 }
-                
-                // noGlare fixtures still light the room but are invisible to glare and
-                // pupil adaptation — a prop glow at your feet is not what the eye is
-                // adjusting to, and it was not a fixture at all before it was pooled.
+
                 if (!fixture.noGlare && fixture.distSq < minLightDistSq) {
                     minLightDistSq = fixture.distSq;
                     nearestFixture = fixture;
@@ -155,8 +141,6 @@ export default class LumenGrid {
         return {darknessPressure, nearestFixture, minLightDistSq};
     }
 
-    // Segment/AABB slab test over the sight line, parameterised on [0,1] so the
-    // wall behind the camera or beyond the light never counts as a blocker.
     _segmentHitsBox(ox, oy, oz, dx, dy, dz, box) {
         let tmin = 0.0;
         let tmax = 1.0;
@@ -221,8 +205,6 @@ export default class LumenGrid {
         if (fixture._visibility === undefined) {
             fixture._visibility = 1.0;
             fixture._occluded = false;
-            // Staggered off the fixture's existing flicker offset so a room full
-            // of lights does not retest on the same frame.
             fixture._visTestAt = -(fixture.flickerOffset || 0) * 0.05;
         }
         if (time - fixture._visTestAt >= OCCLUSION_TEST_INTERVAL &&
@@ -275,9 +257,6 @@ export default class LumenGrid {
                     fixture._biasedDistSq = fixture.hasShadow ? distSq - 120.0 : distSq;
                     if (this._prevActive.has(fixture)) fixture._biasedDistSq -= 30.0;
                     if (fixture.slotBias) fixture._biasedDistSq += fixture.slotBias;
-                    // Yields its slot to anything the player can actually see,
-                    // but only once it has already faded down, so losing the
-                    // slot is a small step rather than a snap to black.
                     if (fixture._visibility < 0.3) fixture._biasedDistSq += OCCLUSION_SLOT_PENALTY;
                     this._insertFixture(fixture);
                 }
@@ -366,15 +345,8 @@ export default class LumenGrid {
             fixture._currentScalar += (targetScalar - fixture._currentScalar) * 0.05;
             intensityScalar = fixture._currentScalar;
         }
-        // Applied to the light only, never to fadeEnvelope: the fixture's own
-        // emissive panel has to keep glowing at full strength, since a light you
-        // can see through a doorway at a grazing angle can still fail the
-        // sight-line test to the camera.
         if (fixture._visibility !== undefined) intensityScalar *= fixture._visibility;
 
-        // Pool lights are recycled between fixtures, so colour has to be reasserted every
-        // frame. Most fixtures take it from the emissive material they are lighting;
-        // fixtures with no mesh of their own (prop glows) carry their own colour.
         if (fixture.color) {
             light.color.copy(fixture.color);
         } else if (fixture.material && fixture.material.emissive) {

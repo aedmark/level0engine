@@ -270,10 +270,7 @@ export const AtriumSector = (env, ctx) => {
             targetIntensity: VENDING_INTENSITY,
             currentIntensity: VENDING_INTENSITY
         });
-        
-        // Omnidirectional fill in front of the machine, sitting alongside the spot fixture
-        // above. Pooled rather than parented so an atrium chunk loading or unloading does
-        // not change the scene's light count — see PropGlow.js.
+
         attachPropGlow(env, body, hash, {
             color: 0xccffff,
             intensity: VENDING_INTENSITY,

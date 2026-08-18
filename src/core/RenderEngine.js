@@ -46,10 +46,6 @@ export default class RenderEngine {
             this.renderer.outputEncoding = THREE.sRGBEncoding;
         }
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
-        // Matches the new DEFAULT_AMBIENT (Sectors.js) — AtmosphereManager lerps this
-        // toward the active sector's own target within the first second anyway, but
-        // starting at the old 0.45 meant the very first frames were brighter than
-        // almost every sector's steady-state value.
         this.ambientLight = new THREE.HemisphereLight(0xfff5c2, 0x3d3520, 0.30);
         this.scene.add(this.ambientLight);
         const aaSamples = RenderEngine.getSavedAA();
@@ -320,11 +316,6 @@ export default class RenderEngine {
     }
 
     static getSavedFXAA() {
-        // Defaults to off, not on. FXAA is a second full-screen fragment pass on top of
-        // the CRT/vignette pass, both running at whatever the internal resolution is
-        // set to — on fill-rate-bound hardware it's real cost for a blur most players
-        // won't miss under the VHS/CRT post stack. A saved, explicit `true` is honored,
-        // so anyone who already opted in keeps it.
         try {
             const raw = localStorage.getItem('level0_state');
             if (!raw) return false;
@@ -388,14 +379,6 @@ export default class RenderEngine {
         this.fxaaMaterial.uniforms.resolution.value.set(1 / renderW, 1 / renderH);
     }
 
-    /**
-     * Smallest observable step of `performance.now()`, in milliseconds.
-     *
-     * Firefox clamps this to 1ms by default (Spectre mitigation); Chromium resolves
-     * ~0.1ms, and cross-origin isolation restores sub-microsecond resolution on both.
-     * Measured once at construction — an 8ms busy-wait is enough to see the step size,
-     * and knowing it lets `delta` smooth only on the browsers that actually need it.
-     */
     static detectTimerQuantum() {
         let prev = performance.now();
         let min = Infinity;
@@ -411,12 +394,6 @@ export default class RenderEngine {
         return min === Infinity ? 0 : min;
     }
 
-    /**
-     * On a coarse clock a true 16.67ms frame is reported as 16 or 17, so every
-     * delta-driven system — velocity, stamina, paranoia, fade envelopes — integrates on
-     * a value that jitters ~3% every frame. A short EMA removes that without perceptible
-     * lag. Browsers with a fine clock get the raw value, unchanged.
-     */
     get delta() {
         const now = performance.now();
         if (!this._lastTime) this._lastTime = now;

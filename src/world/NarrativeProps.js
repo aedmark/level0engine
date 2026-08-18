@@ -2,8 +2,6 @@ import {attachPropGlow} from './PropGlow.js';
 
 const LORE_CHANCE = 0.019;
 
-// Kept in one place so every prop's glow reads the same as it did when each one owned a
-// dedicated PointLight. `offset` is where that light used to hang in the prop's local space.
 export const PROP_GLOW = {
     tape: {color: 0xff0000, intensity: 1.0, distance: 1.5, offset: [0.06, 0.05, -0.04]},
     laptop: {color: 0xa8ffd0, intensity: 0.8, distance: 2.5, offset: [0, 0.2, 0.1]},

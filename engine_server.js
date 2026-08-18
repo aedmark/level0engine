@@ -8,16 +8,6 @@ const __dirname = path.dirname(__filename);
 
 const PORT = Number(process.env.PORT) || 8080;
 
-/**
- * Cross-origin isolation, so `performance.now()` keeps its full resolution.
- *
- * Firefox clamps the clock to 1ms by default as a Spectre mitigation, which quantises
- * RenderEngine's per-frame delta into 16ms/17ms steps at 60fps and makes every
- * sub-millisecond frame budget unenforceable. Serving these two headers opts the page
- * into cross-origin isolation, which restores high-resolution timers from Firefox 79
- * and Chrome 79 onward. Safe here only because the engine is entirely self-hosted: COEP
- * `require-corp` would block any cross-origin subresource, and there are none.
- */
 const ISOLATION_HEADERS = {
     'Cross-Origin-Opener-Policy': 'same-origin',
     'Cross-Origin-Embedder-Policy': 'require-corp',
@@ -41,21 +31,11 @@ const MIME_TYPES = {
     '.ttf': 'font/ttf'
 };
 
-// Two caching lanes. Content that is versioned by its own filename and never edited
-// in place — the three.js build, the self-hosted font subsets — is safe to pin for a
-// year, so a warm boot never touches the network for it. Everything else (source
-// modules, HTML, and the texture WebPs, which DO get rewritten whenever
-// assets/export_textures.html is re-run) gets `no-cache`: the browser still stores
-// the body, but revalidates first and gets a bodiless 304 when nothing changed. That
-// keeps the multi-megabyte re-download off every boot without ever risking a stale
-// asset mid-export-iteration, which plain `immutable` would.
 const IMMUTABLE_ROUTES = /^\/(r160\.js|assets\/fonts\/)/;
 
 const cacheControlFor = (route) =>
     IMMUTABLE_ROUTES.test(route) ? 'public, max-age=31536000, immutable' : 'no-cache';
 
-// Weak validator built from the two things a local file edit always changes. Cheap
-// to compute (one stat, no hashing) and enough for revalidation to be correct here.
 const etagFor = (stats) => `W/"${stats.size.toString(16)}-${stats.mtimeMs.toString(16)}"`;
 
 const server = http.createServer((req, res) => {
@@ -85,10 +65,6 @@ const server = http.createServer((req, res) => {
         req.on('end', () => {
             try {
                 const data = JSON.parse(body);
-                // The exporter now hands us `canvas.toDataURL('image/webp')` directly, so
-                // the extension follows whatever the data URL actually declares rather than
-                // being hardcoded to .png. That closes the manual PNG->WebP conversion gap
-                // between what the exporter wrote and what StaticTextureLoader fetches.
                 const mimeMatch = /^data:image\/(\w+);base64,/.exec(data.image);
                 const ext = mimeMatch ? mimeMatch[1] : 'png';
                 const base64Data = data.image.replace(/^data:image\/\w+;base64,/, "");

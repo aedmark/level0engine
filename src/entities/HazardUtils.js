@@ -1,9 +1,5 @@
 import AABB from '../math/AABB.js';
 
-// `includeAllSolids` widens the occlusion test from the isEntityBlocker set to
-// everything the player would physically collide with, so an entity held to the
-// player's collision rules cannot see through the same crate it has to walk
-// around.
 export function isRayPathBlocked(env, searchCenterX, searchCenterZ, searchDist, rayOrigin, rayDir, distSqLimit, rayTargetScratch, includeAllSolids = false) {
     if (!env || !env.spatialGrid) return false;
     const localBoxes = env.spatialGrid.getNearby(searchCenterX, searchCenterZ, searchDist);
@@ -23,12 +19,6 @@ export function isRayPathBlocked(env, searchCenterX, searchCenterZ, searchDist, 
     return false;
 }
 
-// Runs an entity through the exact collision rules PlayerController.update
-// applies to the player, against the same grid: every solid box counts, not
-// just the ones flagged isEntityBlocker; a box whose top sits within the step
-// height reads as floor to stand on rather than wall to bump into; a footprint
-// hanging over a void has nothing underneath it. Anything moving through this
-// obeys the level the way the player does, gravity included.
 export function stepGroundedBody(grid, body, moveX, moveZ, scratch) {
     const {x, z, feetY, radius, height, stepOffset} = body;
     const snagShrink = Math.min(0.15, radius * 0.25);

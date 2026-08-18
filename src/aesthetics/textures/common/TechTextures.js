@@ -140,14 +140,6 @@ export default class TechTextures {
             color: 0xffffe0,
             emissive: 0xffffe0,
             emissiveIntensity: 0.4,
-            // Matte, not glossy: this panel sits directly in front of the point light
-            // that represents its own fixture, so any specular response it has is a
-            // reflection of its own bulb back at the camera. At the old roughness:0.3,
-            // metalness:0.1 that read as a small, hard, blown-out hotspot on every
-            // light in the level — the single most obnoxious case of the specular/
-            // point-light mismatch this material system has. A diffuser panel doesn't
-            // mirror its own lamp in real fixtures either, so matte is correct, not
-            // just quieter.
             roughness: 0.9,
             metalness: 0
         });
@@ -158,7 +150,6 @@ export default class TechTextures {
             emissive: 0x1a1f24,
             emissiveIntensity: 1.0,
             roughness: 0.8,
-            // Was implicitly THREE's default (0.5) — cracked plastic isn't metal either.
             metalness: 0
         });
         const baseHousingMat = new THREE.MeshStandardMaterial({color: 0x1a1a1a, roughness: 0.9});

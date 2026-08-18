@@ -401,8 +401,6 @@ export default class SomaticInput {
                 }
                 return;
             }
-            // #virtual-cursor is pointer-events:none, so it is never the hit result and
-            // does not need to be hidden for the probe.
             const element = document.elementFromPoint(this.cursorX, this.cursorY);
             if (element === this.hoveredElement) return;
             if (this.hoveredElement) this.hoveredElement.classList.remove('virtual-hover');
@@ -425,12 +423,6 @@ export default class SomaticInput {
             if (vCursor) {
                 vCursor.style.left = this.cursorX + 'px';
                 vCursor.style.top = this.cursorY + 'px';
-                // Hit-testing is deferred to the next frame rather than run inline.
-                // elementFromPoint forces a synchronous style+layout flush, and under
-                // pointer lock a high-polling mouse delivers mousemove far faster than
-                // the frame rate — so doing it inline meant hundreds of forced layouts
-                // per second while a document is open. One probe per frame is all the
-                // hover state can actually be used at.
                 this._queueHoverProbe();
             }
             return;

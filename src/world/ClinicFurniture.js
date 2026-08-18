@@ -300,11 +300,6 @@ export function buildWheelchair(env) {
     return group;
 }
 
-/**
- * opts lets a caller outside the clinic borrow this bench in its own palette.
- * Materials and scale only — the geometry is cached under fixed keys, so anything
- * that would change a dimension has to stay fixed.
- */
 export function buildWaitingBench(env, opts = {}) {
     ensureClinicFurnitureMats(env);
     const group = new THREE.Group();

@@ -41,18 +41,6 @@ export default class TextureCache {
         }
     }
 
-    /**
-     * One transaction for the whole texture set, instead of one per texture.
-     *
-     * StaticTextureLoader asks for ~95 blobs during phase 2. Going through getBlob()
-     * for each meant 95 separate readonly transactions, each with its own open/commit
-     * cycle, all contending during the busiest stretch of boot. getAllKeys + getAll on
-     * a single transaction returns the same data in one round trip through the store.
-     *
-     * Returns a Map of id -> Blob. An empty Map means a cold cache (or an IDB failure),
-     * which callers should treat as "fetch everything from the network" — never as an
-     * error, since the network path is always available as a fallback.
-     */
     static async getAllBlobs() {
         try {
             await this.init();
@@ -78,10 +66,6 @@ export default class TextureCache {
         }
     }
 
-    /**
-     * Companion to getAllBlobs: writes a whole batch of freshly-fetched blobs back in
-     * one readwrite transaction rather than one per texture.
-     */
     static async saveBlobs(entries) {
         if (!entries || entries.length === 0) return;
         try {

@@ -1,31 +1,5 @@
 import RenderEngine from '../core/RenderEngine.js';
 
-/**
- * Boot phase table — the single source of truth for both ordering and the progress
- * bar's weighting.
- *
- * `from`/`to` are percentage bands, and they are sized by *measured* cost rather than by
- * how important a step feels. A representative warm boot (4607ms of engine time) breaks
- * down as:
- *
- *     DATA      195ms  ( 4.2%)   narrative JSON + engine object construction
- *     ASSETS    180ms  ( 3.9%)   core WebP texture load
- *     GRID        2ms  ( 0.0%)   world grid generation
- *     BLUEPRNT  282ms  ( 6.1%)   sector textures + material warmup
- *     CHUNKS   2000ms  (43.4%)   initial chunk build
- *     SHADERS  1947ms  (42.3%)   program link + first frame
- *     STABLE      1ms  ( 0.0%)
- *
- * The old hardcoded milestones (15/40/65/70/85/98, scattered across three files) gave
- * the two cheapest steps 40% of the bar, and gave the chunk build no representation at
- * all: it ran inside a single unreported `await`, so the bar sat motionless for seconds
- * in the middle of its sweep.
- *
- * These bands were re-measured after form-aware shader warming cut the chunk phase from
- * 3678ms to 2000ms, which moved it from three fifths of boot to roughly level with the
- * program link. Re-measure with the console table this controller prints and adjust
- * `from`/`to` here — no other file hardcodes a boot percentage any more.
- */
 export const BOOT_PHASES = [
     {key: 'DATA',     title: 'RETICULATING NARRATIVE THREADS & CASE FILES...', from: 0,  to: 4},
     {key: 'ASSETS',   title: 'CALIBRATING CARPET MOISTURE & CEILING GRAIN...', from: 4,  to: 8},
@@ -66,8 +40,6 @@ export default class BootController {
         this._crawl = null;
         this.isSubLoad = false;
 
-        // Timing marks captured before this controller exists (module fetch/parse, and
-        // the user-gated Continue prompt). See init().
         this._preInitMs = 0;
         this._promptMs = 0;
 
@@ -128,15 +100,6 @@ export default class BootController {
         this._onFrame = this._onFrame.bind(this);
     }
 
-    /**
-     * @param {object} [marks]
-     * @param {number} [marks.preInitMs] performance.now() at the top of main.js — i.e.
-     *   everything the browser did before any engine code ran: HTML parse, r160.js,
-     *   and the 121-module graph.
-     * @param {number} [marks.promptMs] time spent blocked on the Continue / New Game
-     *   prompt. User-gated, so it is reported separately and never folded into engine
-     *   boot time.
-     */
     init(marks = {}) {
         this.targetProgress = 0;
         this.displayedProgress = 0;
@@ -179,19 +142,12 @@ export default class BootController {
         this.rafId = requestAnimationFrame(this._onFrame);
     }
 
-    /** Cached element lookups — updateDOM runs every frame and used to re-query all five. */
     _el(id) {
         if (!this._els) this._els = {};
         if (this._els[id] === undefined) this._els[id] = document.getElementById(id);
         return this._els[id];
     }
 
-    /**
-     * Dumps everything relevant to "why is this person's boot/framerate different
-     * from mine" — GPU/driver strings, CPU/memory hints, tab visibility, and the
-     * exact graphics settings this session is booting with. Call once the RenderEngine
-     * exists (BootController.init() runs before it's constructed, so this can't live there).
-     */
     logDeviceInfo(engine) {
         const info = {
             userAgent: navigator.userAgent,
@@ -226,7 +182,6 @@ export default class BootController {
         this.fullLog.push(`[DEVICE] ${JSON.stringify(info)}`);
     }
 
-    /** Advance to a phase by key. Bands come from BOOT_PHASES; callers never pass percentages. */
     setPhase(key, title) {
         const phase = PHASE_BY_KEY.get(key);
         if (!phase) {
@@ -251,12 +206,6 @@ export default class BootController {
         this.updateDOM();
     }
 
-    /**
-     * Report progress as a 0..1 fraction *within the current phase's band*. This is the
-     * primary API — it means a step reports how far along it is without needing to know
-     * where it sits in the overall boot, so reweighting is a one-line change to
-     * BOOT_PHASES rather than an edit to every call site.
-     */
     setPhaseProgress(fraction, logMsg) {
         const phase = this.phase;
         if (!phase) return;
@@ -266,17 +215,6 @@ export default class BootController {
         this.setProgress(pct, logMsg);
     }
 
-    /**
-     * Synthetic crawl for steps that cannot report real progress — principally
-     * `renderer.compileAsync`, which is opaque until it resolves.
-     *
-     * It eases asymptotically toward the phase's ceiling and never actually arrives, so
-     * the bar always looks alive but can never claim a step finished before it did. A
-     * real setPhaseProgress/setPhase call cancels it.
-     *
-     * @param {number} estimatedMs roughly how long the step usually takes; the curve is
-     *   shaped so ~63% of the remaining band is covered by that point.
-     */
     beginCrawl(estimatedMs, ceilingFraction = 1.0) {
         const phase = this.phase;
         if (!phase) return;
@@ -341,7 +279,6 @@ export default class BootController {
 
         if (this._crawl) {
             const c = this._crawl;
-            // 1 - e^-t: fast at first, asymptotic toward the ceiling, never reaching it.
             const eased = 1 - Math.exp(-(now - c.startedAt) / c.estMs);
             this.targetProgress = Math.max(this.targetProgress, c.from + (c.to - c.from) * eased);
         }
@@ -379,12 +316,6 @@ export default class BootController {
         }
     }
 
-    /**
-     * Runs every frame, so everything here is guarded by a change check. The previous
-     * version rewrote the log box's innerHTML and then read scrollHeight on every single
-     * frame of boot — an HTML parse plus a forced synchronous layout, ~60 times a
-     * second, competing with the very work it was reporting on.
-     */
     updateDOM() {
         const pctInt = Math.floor(this.displayedProgress);
 
@@ -438,12 +369,6 @@ export default class BootController {
         const prompt = Math.round(this._promptMs);
         const total = preInit + prompt + engineMs;
 
-        // Reported as a breakdown rather than one number, because `startTime` is set when
-        // this controller is constructed — after the browser has already parsed the HTML,
-        // fetched r160.js and evaluated 121 ES modules, and after the Continue prompt has
-        // been answered. Quoting only the engine phases understated true boot; quoting
-        // only the total would blame the engine for however long a player sat looking at
-        // the Continue screen. Both are shown, separately.
         console.log('%c[BOOT] Complete. Wall-clock breakdown:', 'color:#7fd; font-weight:bold;');
         console.table([
             {stage: 'Document + modules (pre-engine)', ms: preInit},
@@ -475,17 +400,6 @@ export default class BootController {
         });
     }
 
-    /**
-     * In-game sector loads reuse this same overlay, and previously just called
-     * setPhase(3, ...) on the finished controller. That could not work: targetProgress
-     * only ever moves via Math.max, so it was still pinned at 100, and the rAF loop had
-     * already exited — leaving the player looking at a frozen "PHASE 03/06 [ 100% ]"
-     * bar on every single sector transition.
-     *
-     * beginSubLoad tears that state down and restarts the animation loop in a distinct
-     * mode: no six-phase framing, no minimum duration, and a synthetic crawl, because
-     * the chunk builder cannot report meaningful progress mid-transition.
-     */
     beginSubLoad(title = 'LOADING ANOMALOUS SECTOR...', estimatedMs = 1200) {
         this.isSubLoad = true;
         this.isComplete = false;
@@ -514,7 +428,6 @@ export default class BootController {
         this.rafId = requestAnimationFrame(this._onFrame);
     }
 
-    /** Completes a sub-load: snaps the bar to 100, stops the loop, hides the indicator. */
     endSubLoad() {
         if (!this.isSubLoad) return;
         this._crawl = null;

@@ -228,8 +228,6 @@ export default class PropTextures {
         ctx.fillStyle = grime;
         ctx.fillRect(0, H - 120, W, 120);
 
-        // Removed baked-in door handle texture to allow for 3D doorknobs
-
         ctx.globalAlpha = 0.05;
         ctx.drawImage(masterNoise, 0, 0, W, H);
         ctx.globalAlpha = 1.0;

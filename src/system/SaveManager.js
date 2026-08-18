@@ -11,11 +11,6 @@ export default class SaveManager {
         this._refusalLogged = null;
     }
 
-    /**
-     * Autosave stays disarmed until main.js has finished applying the restore block.
-     * Until then the camera is wherever generate() parked it, and a write would
-     * replace a real position with the fresh-spawn point.
-     */
     markBootComplete() {
         this.bootComplete = true;
     }
@@ -41,9 +36,6 @@ export default class SaveManager {
         if (!data) return null;
         try {
             const state = JSON.parse(data);
-            // One snapshot per boot of what the previous session left behind, taken before
-            // this session's autosave can touch it. A boot that fails to restore and then
-            // overwrites with a spawn position is recoverable from here via recoverBackup().
             try {
                 localStorage.setItem('level0_state_backup', data);
             } catch (e) {}
@@ -98,14 +90,6 @@ export default class SaveManager {
         }
     }
 
-    /**
-     * Why a write must be refused, or null when it is safe.
-     *
-     * Autosave fires every 2500ms starting at boot, and a single bad write destroys the
-     * stored position with no recovery — so the spawn window is a real hazard, not a
-     * theoretical one. isSpawning is cleared by ChunkManager just *before* it relocates
-     * the player, so needsSafeSpawn has to be checked alongside it to cover that gap.
-     */
     _refuseSaveReason(state) {
         if (this.player && this.player.isDead) return 'player is dead';
         if (!this.bootComplete) return 'boot has not finished restoring';
@@ -118,7 +102,6 @@ export default class SaveManager {
         return null;
     }
 
-    /** Promotes the per-boot backup slot back to the live save. */
     recoverBackup() {
         const backup = localStorage.getItem('level0_state_backup');
         if (!backup) return false;
@@ -181,22 +164,12 @@ export default class SaveManager {
 
     idleSaveState() {
         if (window.requestIdleCallback) {
-            // The render loop can starve requestIdleCallback indefinitely — a saturated
-            // frame budget means the browser never reports an idle period, and an
-            // unqualified callback then simply never runs. The timeout is what actually
-            // guarantees the save happens; without it autosave silently stops.
             requestIdleCallback(() => this.saveState(), {timeout: 1000});
         } else {
             this.saveState();
         }
     }
 
-    /**
-     * Wipes every trace of a prior run — save blob, cached textures, service workers,
-     * the Cache API — so the next asset request has nothing to hit but the network.
-     * Static and instance-free: the pre-boot "New Game" prompt needs to run this before
-     * a SaveManager (or even an Environment) exists, so nothing here may depend on `this`.
-     */
     static async purgeAllStorage() {
         localStorage.clear();
         sessionStorage.clear();

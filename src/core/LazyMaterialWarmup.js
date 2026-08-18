@@ -1,23 +1,5 @@
 import {makeDuctInterior} from './DuctLighting.js';
 
-/**
- * Every block below is copied verbatim from the `if (!env.xMat) {...}` singleton it
- * pre-empts — AnnexSector, ServerSector, SetPieces, and the rest each still carry their
- * own copy, gating on the same field, so nothing here changes what gets built or when a
- * sector first uses it. The only thing that changes is *who* pays for the first compile.
- *
- * These are the materials `ShaderWarmup._materialiseLazySectorAssets` cannot reach: it
- * calls each sector's top-level blueprint factory (`AnnexSector(env, ctx)` and siblings)
- * to force their *unconditional* materials into existence, but never calls the `build()`
- * function that factory returns — that only runs later, per real chunk, during play. Any
- * material created inside `build()` itself — gated behind a spawn roll, a keypad branch,
- * an RNG-selected furniture piece — is invisible to that pass and compiles cold the first
- * time a player's camera actually reaches it.
- *
- * Called once from ShaderWarmup, after `lazyLoadSectorAssets` has populated the per-sector
- * texture bundles (env.rustMat, env.emberGrateMat, env.pegboardTex, ...) these blocks clone
- * or fall back to.
- */
 export function warmLazySectorMaterials(env) {
     if (!env.laptopScreenMat) {
         env.laptopScreenMat = new THREE.MeshBasicMaterial({color: 0xa8ffd0});

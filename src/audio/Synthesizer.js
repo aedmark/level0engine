@@ -152,7 +152,6 @@ export default class Synthesizer {
             wet.gain.value = 0.0;
             engine.reverbSend.connect(conv);
             conv.connect(wet);
-            // Only connect the initial active slot. AcousticEngine will manage connections during crossfades.
             if (i === 0) wet.connect(ctx.destination);
             engine.convolvers.push({conv, wet});
         }

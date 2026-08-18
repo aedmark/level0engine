@@ -13,9 +13,6 @@ export const EmptyDoorFrameProfile = (env, ctx) => {
                 grp.position.set(px, 0, pz);
                 grp.rotation.y = rot;
                 grp.updateMatrixWorld(true);
-                // Math.cos(PI/2) is 6.1e-17, not 0. Left unsnapped, the rotated
-                // frame reports a growth direction with a sliver on both axes
-                // and every downstream axis test picks the wrong one.
                 const snap = (v) => (Math.abs(v) < 1e-9 ? 0 : v);
                 const cos = snap(Math.cos(rot));
                 const sin = snap(Math.sin(rot));
@@ -27,10 +24,6 @@ export const EmptyDoorFrameProfile = (env, ctx) => {
                         grp.remove(child);
                         child.applyMatrix4(grp.matrixWorld);
 
-                        // The partitions are declared in the frame's own local
-                        // space. Now that the group transform is baked in, lift
-                        // the anchor and growth axis into world space so later
-                        // passes can shorten them without knowing about doors.
                         const span = child.userData.wallSpan;
                         if (span) {
                             span.dirX = span.localDir * cos;
@@ -50,9 +43,6 @@ export const EmptyDoorFrameProfile = (env, ctx) => {
             const inChunk = (cx, cz) => cx >= startX && cx < startX + env.chunkSize && cz >= startZ && cz < startZ + env.chunkSize;
 
             const blockers = ["empty_door_frame", "CREVICE_HALL", "HINGED DOORWAY", "DUCT OR VENT", "CRAWLSPACE_DUCT", "HATCH", "CRATES OR STAIRWAY", "THE OASIS"];
-            // A pillar holds a wall cell without filling it. Threading one is
-            // the look we want, so the scan counts past it and keeps going
-            // until it meets a cell that is genuinely solid.
             const blocks = (cx, cz) => {
                 const forced = ctx.getForcedStructure ? ctx.getForcedStructure(cx, cz) : null;
                 if (blockers.includes(forced)) return true;
@@ -80,11 +70,7 @@ export const EmptyDoorFrameProfile = (env, ctx) => {
 
             const g = new THREE.Group();
             const baseStubW = (env.cellSize - 1.4) / 2;
-            
-            // The scan above only sees structures that are already forced. A duct
-            // or hatch rolled later in the same chunk can still land in a cell a
-            // partition has grown into. When that happens the partition retracts
-            // to its anchor at the jamb; it never deletes itself.
+
             const spanOf = (localAnchor, localDir, length) => ({
                 localAnchor, localDir, length,
                 thickness: 0.2, height: 3.0, yOffset: 0, mat: env.sharedWallMat
@@ -111,10 +97,6 @@ export const EmptyDoorFrameProfile = (env, ctx) => {
             g.add(head1);
             
             const frameMat = env.woodMat || env.sharedWallMat;
-            // The casing was 0.24 deep, which buildWall inflates to 0.26 — exactly the
-            // depth of the baseboard band running into it. Wood and baseboard ended up
-            // coplanar and fighting across the bottom of both jambs. Standing the casing
-            // proud of the baseboard settles it and matches how trim actually stacks.
             const CASING_DEPTH = 0.28;
             const jamb1 = buildWall(0.1, CASING_DEPTH, frameMat, 2.67, 0);
             jamb1.position.set(-headW / 2 + 0.05, 1.335, 0);

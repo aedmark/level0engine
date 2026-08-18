@@ -1,26 +1,10 @@
 import {buildWaitingBench} from '../ClinicFurniture.js';
 
-/**
- * A place to wait beside a curved archway.
- *
- * Somebody put seating at a threshold in a building where nothing arrives. The bench
- * always sits against a wall running perpendicular to the passage, facing across it,
- * so you are seated looking at the arch rather than beside it. A small enamel bay
- * placard hangs above.
- *
- * Placement is deliberately conservative. If the flanking cell has no wall to put a
- * back against, no bench is built — a bench marooned in open floor reads as a bug,
- * and the engine has plenty of cells that will qualify.
- */
-
 const BAY_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
-// buildWall inflates the backing wall to cellSize/2 + 0.01, so the seat's back has to
-// stop short of that or addFurniture reads it as a collision and drops the whole thing.
 const WALL_GAP = 0.06;
 const PLACARD_Y = 1.72;
 
-/** A long wooden bench, worn smooth. The oldest thing in the room. */
 function buildHallPew(env) {
     const group = new THREE.Group();
     const w = 2.2, seatH = 0.45, d = 0.42;
@@ -50,10 +34,6 @@ function buildHallPew(env) {
     return group;
 }
 
-/**
- * Small enamel placard. Cached per label on env, so eight labels means eight textures
- * for the whole run rather than one per archway.
- */
 function placardMaterial(env, label) {
     if (!env._bayPlacardMats) env._bayPlacardMats = new Map();
     if (env._bayPlacardMats.has(label)) return env._bayPlacardMats.get(label);
@@ -76,7 +56,6 @@ function placardMaterial(env, label) {
     c.font = 'bold 30px monospace';
     c.fillText(label, 64, 53);
 
-    // A little grime so it does not read as freshly printed.
     c.fillStyle = 'rgba(60,50,25,0.10)';
     for (let i = 0; i < 40; i++) {
         const sx = Math.random() * 128;
@@ -95,16 +74,12 @@ function placardMaterial(env, label) {
     return mat;
 }
 
-/**
- * @param dirX,dirZ  unit vector from the cell centre toward the wall the seat backs onto
- */
 export function placeArchWaitingArea(env, ctx, cellX, cellZ, dirX, dirZ) {
     const {random, addFurniture, addGeometry} = ctx;
     if (!addFurniture) return false;
 
     const cx = cellX * env.cellSize;
     const cz = cellZ * env.cellSize;
-    // Seat faces away from the wall it backs onto, so it looks across the passage.
     const rotY = Math.atan2(-dirX, -dirZ);
 
     const roll = random();
@@ -117,16 +92,11 @@ export function placeArchWaitingArea(env, ctx, cellX, cellZ, dirX, dirZ) {
         });
     } else if (roll > 0.33 && ctx.buildCouch) {
         seat = ctx.buildCouch(0, 0, 0, 0);
-        // buildCouch positions and registers itself; reposition below.
     } else {
         seat = buildHallPew(env);
     }
     if (!seat) return false;
 
-    // Every seat in this engine is built facing local +Z with its back toward -Z, so
-    // measuring the group tells us how far the back sticks out. Deriving the offset
-    // from the actual bounds means the three variants all sit against the wall by the
-    // same margin without three hand-tuned numbers going stale.
     seat.position.set(0, 0, 0);
     seat.rotation.y = 0;
     seat.updateMatrixWorld(true);
@@ -137,16 +107,10 @@ export function placeArchWaitingArea(env, ctx, cellX, cellZ, dirX, dirZ) {
     seat.position.set(cx + dirX * offset, 0, cz + dirZ * offset);
     seat.rotation.y = rotY;
 
-    // Sittable, like the chairs and couches elsewhere. Waiting is the point. The bench
-    // and pew variants are built locally and carry no type of their own, so mark all
-    // three the same way and let addFurniture decide whether the mark ever counts.
     if (!seat.userData) seat.userData = {};
     seat.userData.type = 'seat';
     seat.userData.active = true;
 
-    // addFurniture probes the spatial grid and bails if anything is already there, so a
-    // blocked cell silently gets no bench rather than a bench inside a pillar. It only
-    // registers the seat on success, so a refusal leaves nothing to unwind.
     if (!addFurniture(seat)) return false;
 
     const label = BAY_LABELS[Math.floor(random() * BAY_LABELS.length)];

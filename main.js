@@ -19,19 +19,10 @@ import RemapController from './src/ui/RemapController.js';
 import BootController from './src/ui/BootController.js';
 import ContinuePrompt from './src/ui/ContinuePrompt.js';
 
-// Everything the browser did before this line — HTML parse, r160.js, the 121-module
-// graph — is already spent by the time any engine code runs, and BootController's own
-// clock cannot see it. Captured here so the final report can attribute it honestly
-// instead of quoting an engine-only number as if it were total boot time.
 const T_MODULES_READY = performance.now();
 
-// Blocks here, before anything else runs, if a prior save exists — the player picks
-// Continue or New Game. New Game purges localStorage/IndexedDB/caches first, so
-// everything below (including the boot sequence itself) starts from a clean slate.
 await ContinuePrompt.resolve();
 
-// Reported separately from engine time: a player deliberating at the Continue screen
-// is not the engine being slow, and folding it in made boot look arbitrarily bad.
 const T_PROMPT_DONE = performance.now();
 
 const bootCtrl = BootController.getInstance();
@@ -102,11 +93,7 @@ const savedState = saveManager.loadState();
 if (!document.getElementById('seedInput').value) {
     document.getElementById('seedInput').value = saveManager.generateCardSeed();
 }
-// Read by Environment.generate() during setup(). One-shot: it clears itself, so a later
-// reseed drops the player into the maze the way it always has.
 environment.wantsElevatorSpawn = !savedState;
-// Restored before setup() because generate() re-arms the car from this during setup,
-// and the first chunk build needs to know which of its props are already spent.
 environment.elevatorAnchor = (savedState && savedState.elevator) || null;
 if (savedState && Array.isArray(savedState.consumed)) {
     environment.consumedProps = new Set(savedState.consumed);
@@ -132,17 +119,12 @@ if (savedState) {
     environment.baseFogDensity = (Number(savedState.fog) || 5) / 100;
     environment.needsSafeSpawn = false;
 }
-// No setPhase here: environment.setup() has already advanced the boot sequence to
-// phase 4, and re-announcing phase 3 drove the badge backwards and logged a duplicate,
-// bogus phase-3 duration into the console table.
 environment.updateChunks(engine.camera.position);
 somatic.bindEvents();
 docViewer.bindEvents();
 keypad.bindEvents();
 inquest.bindEvents();
 DebugHUD.bindEvents();
-// Arms autosave. Everything above has finished applying savedState, so the camera is
-// no longer sitting on the position generate() parked it at.
 saveManager.markBootComplete();
 saveManager.startAutoSave();
 UIManager.startVHSTimer();
@@ -234,9 +216,6 @@ function animate() {
             player.input.isFrozen = true;
             player.wasFrozenByLoad = true;
             if (!environment.isSpawning) {
-                // A real reset, not a setPhase on the already-finished boot sequence:
-                // that left the bar pinned at 100% with a stale "PHASE 03/06" badge,
-                // because targetProgress only climbs and the rAF loop had already exited.
                 bootCtrl.beginSubLoad('LOADING ANOMALOUS SECTOR...');
                 bootCtrl.addLog('MATERIALIZING SECTOR BOUNDARY CHUNKS...');
             }
@@ -254,8 +233,6 @@ function animate() {
         player.input.isFrozen = false;
         player.wasFrozenByLoad = false;
         environment.isSectorTransitioning = false;
-        // Closes out whatever beginSubLoad opened above, so the overlay's own rAF loop
-        // stops rather than spinning for the rest of the session.
         bootCtrl.endSubLoad();
         const flash = document.getElementById('flash-overlay');
         if (flash) {
@@ -327,47 +304,12 @@ function animate() {
     DebugHUD.update(time, delta, telemetry, engine, player, environment);
     engine.render();
     environment.drainShadowPrewarm(2.0);
-    // A load overlay freezes the player, so a shader-link stall is invisible there and a
-    // visible hitch during play. Firefox cannot poll link status without blocking on it
-    // (no KHR_parallel_shader_compile — see README, Browser Support), so the drain is
-    // starved to one link per frame while the player has control and allowed to catch up
-    // in bulk behind the overlay. Chromium polls either way and is unaffected.
     const linkStallMasked = player.wasFrozenByLoad;
     environment.drainProgramLinks(linkStallMasked ? 60.0 : 1.5, linkStallMasked);
 }
 
-/**
- * How many slices the boot shader compile is split into.
- *
- * Measured on the reference machine:
- *
- *     1 slice   -> 1075ms, no real checkpoints (crawl only)
- *     3 slices  ->  938ms, two real checkpoints
- *     27 slices -> 4853ms  <- naive one-slice-per-group; badly superlinear
- *
- * A few coarse slices cost nothing (they measured slightly faster than the single call,
- * within noise) while giving the bar real checkpoints to land on. Slicing finely is
- * where it falls apart — the cost grows far faster than the call count, so treat 27 as
- * a hard lesson rather than a tunable. Raising this much above single digits should be
- * re-measured, not assumed.
- */
 const COMPILE_SLICES = 3;
 
-/**
- * Compiles the scene a few top-level groups at a time instead of in one opaque call.
- *
- * `renderer.compileAsync(scene, camera)` over the whole scene took ~1075ms on the
- * reference machine and reports nothing while it runs, so the bar parked at its ceiling
- * for over a second — the single worst "is it frozen?" moment in the whole sequence.
- * Slicing it yields real progress between groups, and a synthetic crawl covers each
- * individual slice (which is still opaque internally).
- *
- * Lights and cameras stay resident in every slice because materials compile against the
- * lighting they will actually be rendered with; dropping them would compile the wrong
- * shader permutations and defeat the entire warmup. Swapping `scene.children` rather
- * than reparenting keeps every world matrix and the scene's own fog/environment intact
- * — the same technique ChunkManager._scopedCompile already relies on.
- */
 async function compileSceneInGroups(engine, bootCtrl, targetSlices = COMPILE_SLICES) {
     const scene = engine.scene;
     const allChildren = scene.children;
@@ -388,7 +330,6 @@ async function compileSceneInGroups(engine, bootCtrl, targetSlices = COMPILE_SLI
         for (let i = 0; i < sliceCount; i++) {
             const slice = rest.slice(i * groupsPerSlice, (i + 1) * groupsPerSlice);
             scene.children = resident.concat(slice);
-            // Each slice is still opaque, so crawl within the width it owns while it runs.
             bootCtrl.beginCrawl(600, (i + 1) / sliceCount);
             const t0 = performance.now();
             await engine.renderer.compileAsync(scene, engine.camera);
@@ -401,10 +342,6 @@ async function compileSceneInGroups(engine, bootCtrl, targetSlices = COMPILE_SLI
 }
 
 (async function() {
-    // The initial chunk build is the single largest stretch of boot — around 4.5s of a
-    // ~7s cold start — and it used to run inside this bare await with no reporting at
-    // all, freezing the bar mid-sweep for most of the load. It now owns its own phase
-    // and reports against the chunk count the streamer is actually targeting.
     bootCtrl.setPhase('CHUNKS');
     const chunkStart = performance.now();
     const expectedChunks = Math.max(1, environment.chunksToKeep ? environment.chunksToKeep.size : 9);
@@ -413,8 +350,6 @@ async function compileSceneInGroups(engine, bootCtrl, targetSlices = COMPILE_SLI
     while (environment.isBuildingChunk || environment.chunkQueue.length > 0 || environment.isBuildingMacroInterior) {
         const built = environment.genStats ? environment.genStats.count : 0;
         bootCtrl.setPhaseProgress(Math.min(0.97, built / expectedChunks));
-        // The flavor lines are the only thing telling a player this phase is alive
-        // during long stalls on slower hardware.
         if (performance.now() - lastFlavor > 1800) {
             bootCtrl.triggerWhimsicalFlavor('CHUNKS');
             lastFlavor = performance.now();

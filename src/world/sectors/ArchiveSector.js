@@ -6,14 +6,6 @@ const BOOK_JITTER = 0.08;
 const STACK_RADIUS = Math.hypot(BOOK_W, BOOK_D) / 2 + Math.hypot(BOOK_JITTER, BOOK_JITTER) / 2;
 const STACK_CLEARANCE = STACK_RADIUS * 2;
 
-/**
- * How far above its support surface a pile starts testing for obstructions.
- *
- * A stack necessarily touches whatever it rests on, and Box3.intersectsBox counts
- * touching as intersecting, so the probe has to begin just clear of the surface or
- * every pile reports itself blocked by the thing holding it up. Small enough that a
- * desk pedestal (solid from the floor to 1.08) is still caught.
- */
 const CLUTTER_SURFACE_SKIN = 0.02;
 
 const pileRing = (cx, cz, spread, count) => {
@@ -40,15 +32,8 @@ export const ArchiveSector = (env, ctx) => {
         hash
     } = ctx;
 
-    // Reused by the clutter probe. addGeometry inserts a collision box for everything it
-    // emits but never queries one, so clutter has to do its own looking before it lands.
     const _pileProbe = new THREE.Box3();
 
-    /**
-     * True when a stack of `stackH` books centred here would intrude on something solid.
-     * Tested per pile rather than per book, or the second book in a stack would collide
-     * with the first.
-     */
     const pileBlocked = (px, py, pz, stackH) => {
         const skin = py + CLUTTER_SURFACE_SKIN;
         _pileProbe.min.set(px - STACK_RADIUS, skin, pz - STACK_RADIUS);
@@ -56,9 +41,6 @@ export const ArchiveSector = (env, ctx) => {
         const nearby = env.spatialGrid.getNearby(px, pz, STACK_RADIUS + 0.5);
         for (let i = 0; i < nearby.length; i++) {
             const box = nearby[i];
-            // Anything that stops below the resting plane is holding the pile up, not
-            // standing in its way. Without this a floor slab with a collision box reads
-            // as an obstruction and no clutter ever spawns on it.
             if (box.max.y <= skin) continue;
             if (box.intersectsBox(_pileProbe)) return true;
         }
@@ -71,12 +53,6 @@ export const ArchiveSector = (env, ctx) => {
         ceilingMat: null,
         build: (x, z, localX, localZ, maze) => {
             if (ctx.buildPerimeter(x, z, localX, localZ, env.archiveWallMat || env.structMat, "ARCHIVE", 6.0)) {
-                // The perimeter shell's interior face is only ever the plain corridor
-                // baseboard the exterior side needs — there is no themed variant of it to
-                // fall back to, by design, since the wall texture already paints its own
-                // baseboard band into the bitmap. A thin liner in the sector's own
-                // material, run along the inside of the shell, covers that whole face —
-                // baseboard included — the same way IncineratorSector's liner does.
                 const edge = env.chunkSize - 1;
                 const isDoorwayNS = localX === 7 && (localZ === 0 || localZ === edge);
                 const isDoorwayEW = localZ === 7 && (localX === 0 || localX === edge);
@@ -140,12 +116,6 @@ export const ArchiveSector = (env, ctx) => {
                 g.rotation.y = rotY;
                 return g;
             };
-            /**
-             * Scatters books, paper or a coffee stain across a support surface.
-             *
-             * `cy` is the surface things rest on, not the centre of the slab under them.
-             * Callers that pass a slab's centre bury the bottom of the stack in it.
-             */
             const spawnClutter = (cx, cy, cz, radius = 1.0) => {
                 const r = random();
                 if (r > 0.6) {
@@ -289,9 +259,6 @@ export const ArchiveSector = (env, ctx) => {
                     addFurniture(buildBookCart(acx + (random() - 0.5), acz + (random() - 0.5), random() * Math.PI));
                 } else if (random() > 0.85) {
                     const desk = buildDesk(acx, 0, acz, random() * Math.PI);
-                    // No clutter unless the desk actually landed, or the stack hangs in
-                    // mid-air. The desk reports its own work surface; passing the slab's
-                    // centre sank the bottom book of every stack halfway into the wood.
                     if (addFurniture(desk) && random() > 0.5) {
                         spawnClutter(acx, desk.position.y + desk.userData.surfaceY, acz, 0.8);
                     }

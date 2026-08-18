@@ -1,10 +1,5 @@
 import TextureCache from './textures/TextureCache.js';
 
-/**
- * Reserved key inside assets/textures/metadata.json holding the per-sector bundles
- * exported by assets/export_textures.html. Kept in the same file (and therefore under
- * the same version stamp) as the core set so one cache-version check covers both.
- */
 export const SECTOR_METADATA_KEY = '__sectors';
 
 export default class StaticTextureLoader {
@@ -12,11 +7,6 @@ export default class StaticTextureLoader {
     static _pendingSaves = [];
     static _metadata = undefined;
 
-    /**
-     * Reads every cached texture blob in a single IndexedDB transaction and holds it
-     * for the rest of boot. Everything downstream resolves against this map instead of
-     * opening its own transaction per texture.
-     */
     static async _primeBlobCache() {
         if (this._blobCache) return this._blobCache;
         this._blobCache = await TextureCache.getAllBlobs();
@@ -30,8 +20,6 @@ export default class StaticTextureLoader {
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const metadata = await resp.json();
             await TextureCache.checkVersion(metadata.version || "1.0.0");
-            // checkVersion may have just cleared the store, so the blob cache has to be
-            // primed after it — not before — or we'd hold blobs it decided were stale.
             this._blobCache = null;
             await this._primeBlobCache();
             this._metadata = metadata;
@@ -42,21 +30,6 @@ export default class StaticTextureLoader {
         return this._metadata;
     }
 
-    /**
-     * Decode path. Two things changed here versus the old THREE.TextureLoader route:
-     *
-     *  - Decoding goes through createImageBitmap, which happens off the main thread.
-     *    Ninety-odd <img> decodes used to land on the main thread during the busiest
-     *    stretch of boot, competing with texture upload and shader warmup.
-     *  - No object URL is minted at all, so there is nothing left to revoke. The old
-     *    path created one per texture and never released any of them.
-     *
-     * `imageOrientation: 'flipY'` reproduces the orientation THREE.TextureLoader gave
-     * us via <img> + UNPACK_FLIP_Y_WEBGL; the matching `texture.flipY = false` stops
-     * three from flipping a second time. Any environment without createImageBitmap (or
-     * without that orientation option) falls through to the original loader so the
-     * pipeline degrades rather than breaking.
-     */
     static async _decodeToTexture(blob) {
         if (typeof createImageBitmap === 'function') {
             try {
@@ -66,7 +39,6 @@ export default class StaticTextureLoader {
                 tex.needsUpdate = true;
                 return tex;
             } catch (err) {
-                // Fall through to the loader path below.
             }
         }
         const url = URL.createObjectURL(blob);
@@ -87,7 +59,6 @@ export default class StaticTextureLoader {
         return blob;
     }
 
-    /** One readwrite transaction for every blob fetched this session. */
     static async flushPendingSaves() {
         if (this._pendingSaves.length === 0) return;
         const batch = this._pendingSaves;
@@ -134,15 +105,10 @@ export default class StaticTextureLoader {
         if (meta.transparent !== undefined) matParams.transparent = meta.transparent;
         if (meta.opacity !== undefined) matParams.opacity = meta.opacity;
         if (meta.shadowSide !== null && meta.shadowSide !== undefined) matParams.shadowSide = meta.shadowSide;
-        // Carried so sector materials survive the static round trip intact — several of
-        // them set depthWrite/side/vertexColors, none of which the original core-only
-        // exporter recorded.
         if (meta.side !== undefined) matParams.side = meta.side;
         if (meta.depthWrite !== undefined) matParams.depthWrite = meta.depthWrite;
         if (meta.alphaTest !== undefined) matParams.alphaTest = meta.alphaTest;
         if (meta.vertexColors !== undefined) matParams.vertexColors = meta.vertexColors;
-        // Without these, additive glows came back as ordinary alpha blending and lost
-        // their depth offset — a silent visual regression in the original static set.
         if (meta.blending !== undefined) matParams.blending = meta.blending;
         if (meta.polygonOffset !== undefined) matParams.polygonOffset = meta.polygonOffset;
         if (meta.polygonOffsetFactor !== undefined) matParams.polygonOffsetFactor = meta.polygonOffsetFactor;
@@ -152,9 +118,6 @@ export default class StaticTextureLoader {
         const ws = meta.wrapS || THREE.RepeatWrapping;
         const wt = meta.wrapT || THREE.RepeatWrapping;
 
-        // Sprites take only a map, and must be rebuilt as SpriteMaterial — THREE.Sprite
-        // does not render with a mesh material. The original exporter had no notion of
-        // material kind, so flareMat came back as a MeshStandardMaterial.
         if (meta.type === 'SpriteMaterial') {
             const spriteMap = meta.hasMap ? await this._loadTexRaw(`${name}_map`) : null;
             if (meta.hasMap && !spriteMap) return null;
@@ -174,9 +137,6 @@ export default class StaticTextureLoader {
             meta.hasRoughnessMap ? this._loadTexRaw(`${name}_roughness`, rx, ry, ws, wt) : null
         ]);
 
-        // A declared-but-missing map means the exported set is incomplete for this
-        // asset. Signalling that upward lets the sector path fall back to the generator
-        // rather than quietly handing back an untextured material.
         if ((meta.hasMap && !map) || (meta.hasBumpMap && !bumpMap) ||
             (meta.hasEmissiveMap && !emissiveMap) || (meta.hasRoughnessMap && !roughnessMap)) {
             return null;
@@ -226,7 +186,6 @@ export default class StaticTextureLoader {
         const assetPromises = entries.map(async ([key, meta]) => {
             const item = await this._loadItem(key, meta);
             count++;
-            // 0..1 fraction of this step; BootController maps it onto the phase band.
             if (onProgress) onProgress(count / entries.length, key);
             return [key, item];
         });
@@ -240,16 +199,6 @@ export default class StaticTextureLoader {
         return loadedAssets;
     }
 
-    /**
-     * Loads one sector's texture bundle from the static set.
-     *
-     * Returns null — meaning "run the generator for this sector" — when the bundle is
-     * absent, when the exporter flagged it as carrying assets it cannot represent
-     * statically (geometry, nested/aliased material sets), or when any individual asset
-     * inside it fails to resolve. Partial bundles are never returned: a sector either
-     * comes back whole or not at all, because half-static/half-generated would leave
-     * cross-referenced assets like ArchiveTextures' baseboard userData links dangling.
-     */
     static async loadSectorAssets(sectorName) {
         const metadata = await this._loadMetadata();
         if (!metadata) return null;

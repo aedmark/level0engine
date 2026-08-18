@@ -1,22 +1,3 @@
-/**
- * ARCH_HALL — a vaulted arcade stamped onto an entire carved path.
- *
- * Where CURVED ARCHWAY punches a single arch through one wall cell, this profile
- * runs along a whole artery. Each cell reads its neighbours and decides what kind
- * of vault piece it is:
- *
- *   straight  two opposite arch neighbours. A full-cell-deep arch slab. Because the
- *             extruded profile is constant along its depth, consecutive straight
- *             cells tile into one continuous barrel vault with no visible seam.
- *   ribs      a turn, a junction, or a dead end. Thin arch ribs sit flush against
- *             each connected face, leaving the middle open as a landing so the
- *             vault has somewhere to change direction.
- *
- * The seam between two cells is owned by exactly one of them, so ribs never double
- * up, and a rib is never emitted against a straight neighbour whose full-depth slab
- * already reaches the shared face.
- */
-
 import {ARCH_WALK_CLEARANCE} from '../StructureKit.js';
 
 const DIRS = [
@@ -47,13 +28,6 @@ export const ArchHallProfile = (env, ctx) => {
 
     const opposed = (a, b) => a.dx === -b.dx && a.dz === -b.dz;
 
-    /**
-     * A cell is "straight" when the vault passes through it without turning.
-     * Chunk-edge cells lose sight of their neighbour across the border (the wall
-     * grid only covers this chunk), so a single link whose opposite side is open
-     * still counts as straight. That keeps the vault continuous across chunk seams
-     * instead of capping it every sixteen cells.
-     */
     const axisOf = (bx, bz) => {
         const link = links(bx, bz);
         if (link.length === 2 && opposed(link[0], link[1])) {
@@ -97,13 +71,7 @@ export const ArchHallProfile = (env, ctx) => {
         return slab;
     };
 
-    /**
-     * Replaces the continuous apex seam with segmented, realistic fluorescent ballasts.
-     * Straight cells get two spaced-out fixtures, each with a housing, emissive panel,
-     * and a protective louver grille.
-     */
     const addApexSeam = (cx, cz, alongZ) => {
-        // Place two ballasts per cell for a realistic cadence
         const offsets = [-env.cellSize / 4, env.cellSize / 4];
 
         for (let i = 0; i < offsets.length; i++) {
@@ -113,7 +81,6 @@ export const ArchHallProfile = (env, ctx) => {
 
             const isBroken = random() > 0.72;
 
-            // Housing (attached to ceiling)
             const housingGeo = env._cacheGeo(
                 `arch_ballast_housing_${alongZ ? 'z' : 'x'}`,
                 () => new THREE.BoxGeometry(
@@ -127,7 +94,6 @@ export const ArchHallProfile = (env, ctx) => {
             housing.userData.noCollision = true;
             addGeometry(housing);
 
-            // Rotate through a small pool of material instances for independent flicker
             env._archSeamIndex = ((env._archSeamIndex || 0) + 1) % 8;
             const mat = ctx.getLightMaterial(
                 0xfff0cc,
@@ -137,7 +103,6 @@ export const ArchHallProfile = (env, ctx) => {
                 `archSeam${env._archSeamIndex}`
             );
 
-            // Light panel (slightly inset width, slightly recessed to let housing form a border)
             const panelGeo = env._cacheGeo(
                 `arch_ballast_panel_${alongZ ? 'z' : 'x'}`,
                 () => new THREE.BoxGeometry(
@@ -151,7 +116,6 @@ export const ArchHallProfile = (env, ctx) => {
             panel.userData.noCollision = true;
             addGeometry(panel);
 
-            // Louver grille
             const numSlats = 14;
             const slatSpacing = 1.34 / numSlats;
             const startSlat = -(1.34 / 2) + (slatSpacing / 2);
@@ -193,11 +157,6 @@ export const ArchHallProfile = (env, ctx) => {
         }
     };
 
-    /**
-     * Turns and junctions keep an open ceiling, so they carry an ordinary panel.
-     * The chunk builder skips its own panel over arcade cells, so the profile has
-     * to place this one itself.
-     */
     const addLandingPanel = (cx, cz) => {
         if (random() > 0.82) return;
         const isBroken = random() > 0.62;

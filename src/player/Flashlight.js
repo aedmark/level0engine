@@ -321,7 +321,6 @@ export default class Flashlight {
             localTarget.applyMatrix4(this.rig.matrix);
 
             if (this._tuck > 0) {
-                // Offset slightly down and right instead of perfectly centered to improve grazing angles in vents
                 localHead.lerp(new THREE.Vector3(0.15, -0.2, -0.1), this._tuck);
                 localTarget.lerp(new THREE.Vector3(0.15, -0.2, -10.0), this._tuck);
             }

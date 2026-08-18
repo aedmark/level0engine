@@ -48,12 +48,6 @@ export default class ArchiveTextures {
             bumpScale: 0.015
         });
 
-        // The baseboard is a real mesh standing 3cm proud of the wall, cut to the exact
-        // height of the bands this texture paints at its bottom. Left on the engine's
-        // shared material it came out flat olive at roughness 0.65 against a wall at
-        // 0.95, so it caught the flashlight differently and read as a gap under the
-        // wainscot. These carry the wainscot's own wood rather than the darker band
-        // beneath it, so the panelling runs to the floor with the trim as its cap.
         const archiveBaseboardMat = new THREE.MeshStandardMaterial({
             color: 0x6a4a34,
             roughness: 0.95,
@@ -355,10 +349,6 @@ export default class ArchiveTextures {
             bookRowSpineMat,
             bookRowSpineMat
         ];
-        // The baseboard materials are returned alongside the wall they trim, not left to
-        // live only inside its userData. sharedAssets is built from a single sweep of
-        // env's own values, so an asset reachable only through another asset gets a
-        // different disposal lifecycle than its sibling. Same shelf, same rules.
         return {
             archiveWallMat, archiveFloorMat, paperMat, paperGeo, coffeeStainMat, coffeeStainGeo, bookMatSets,
             bookRowMat, archiveBaseboardMat, archiveBaseboardTrimMat

@@ -1,13 +1,5 @@
 import SaveManager from '../system/SaveManager.js';
 
-/**
- * The very first thing main.js does, before any asset loading starts. If a prior
- * session's save blob exists, blocks on a Continue / New Game choice; New Game
- * purges everything (localStorage, IndexedDB texture cache, service workers, Cache
- * API) before letting boot proceed, so the loaders that run afterward find nothing
- * cached and re-fetch/regenerate everything from scratch. Continue — and the common
- * case of no prior save at all — resolve immediately and boot proceeds untouched.
- */
 export default class ContinuePrompt {
     static async resolve() {
         let hasSave = false;

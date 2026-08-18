@@ -3,7 +3,6 @@ export const RoundPillarProfile = (env, ctx) => {
     return {
         name: "ROUND PILLAR",
         prob: 0.0215, build: (x, z) => {
-            // Occupies a wall cell, does not fill it. Partitions may thread it.
             if (ctx.markPermeable) ctx.markPermeable(x, z);
             let maxRadius = 1.25;
             if (ctx.isWall && (!ctx.isWall(x-1, z) || !ctx.isWall(x+1, z) || !ctx.isWall(x, z-1) || !ctx.isWall(x, z+1))) {

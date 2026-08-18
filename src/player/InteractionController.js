@@ -34,8 +34,6 @@ export default class InteractionController {
         const entityOpen = ud.entityOpen === true;
         ud.entityOpen = false;
         if (pDistSq > 900.0 && ud.progress === 0 && !entityOpen) return;
-        // Tight rooms (the arrival car) need a shorter trigger than a corridor door, or
-        // the player is already inside the radius the moment they spawn.
         const openRadiusSq = ud.openRadiusSq !== undefined ? ud.openRadiusSq : 20.0;
         const shouldOpen = entityOpen || pDistSq < openRadiusSq;
         const target = shouldOpen ? 1.0 : 0.0;
@@ -698,9 +696,6 @@ export default class InteractionController {
             let closestDistSq = 9.0;
             const checkObj = (obj) => {
                 if (obj.userData.isSlider && !obj.userData.isAirlockDoor) return;
-                // Spent props (read documents, taken pickups) are hidden but stay in the
-                // list. Without this they keep winning the nearest-in-cone test and
-                // swallow interacts meant for whatever is sitting next to them.
                 if (obj.visible === false) return;
                 const worldPos = obj.matrixWorld ? this._objWorldPos.setFromMatrixPosition(obj.matrixWorld) : obj.position;
                 const distSq = worldPos.distanceToSquared(e.detail.position);
@@ -714,10 +709,7 @@ export default class InteractionController {
             };
             if (env.interactables) env.interactables.forEach(checkObj);
             if (env.interactiveDoors) env.interactiveDoors.forEach(checkObj);
-            
-            // Records a prop as spent so its blueprint can skip rebuilding it. Only
-            // props that opt in with a consumeKey are tracked; everything else keeps the
-            // old respawn-on-chunk-rebuild behaviour.
+
             const markConsumed = (obj) => {
                 if (obj.userData.consumeKey && env.consumedProps) {
                     env.consumedProps.add(obj.userData.consumeKey);

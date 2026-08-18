@@ -79,25 +79,6 @@ export default class ProceduralTextureFactory {
         return assets;
     }
 
-    /**
-     * The eight per-sector texture bundles.
-     *
-     * Each entry is tried against the exported static set first and only synthesised on
-     * the CPU if that misses. `StaticTextureLoader.loadSectorAssets` returns null for a
-     * sector whose bundle is absent, incomplete, or flagged by the exporter as carrying
-     * assets it cannot represent (BufferGeometry, nested/aliased material sets) — so
-     * ARCHIVE and MAINTENANCE, which both hand back geometry alongside their materials,
-     * stay on the generator lane by design rather than by accident.
-     *
-     * The generator is never removed from the build: it remains the fallback for a
-     * missing export, a failed decode, and for regenerating the static set in the first
-     * place via assets/export_textures.html.
-     */
-    /**
-     * Single source of truth for the per-sector generators, shared by the boot loader
-     * below and by assets/export_textures.html. Adding a sector here is enough for both
-     * the runtime fallback and the static export to pick it up.
-     */
     static sectorGenerators() {
         return [
             ['ANNEX', (noise) => AnnexTextures._buildAnnexAssets(noise)],

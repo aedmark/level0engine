@@ -267,11 +267,6 @@ export const CheckpointSector = (env, ctx) => {
                     const s = clearSide(random() > 0.5 ? 1 : -1);
                     if (s) crateStack(s);
                     if (random() > 0.6) {
-                        // Both dressings sit at the same lateral offset (1.45 and
-                        // 1.5), so the drums have to take the far side of the
-                        // corridor or they spawn inside the crates. clearSide
-                        // falls back to the near side when the far one is a
-                        // doorway, which is the one answer we cannot use here.
                         const s2 = s ? clearSide(-s) : clearSide(random() > 0.5 ? 1 : -1);
                         if (s2 && s2 !== s) drumCluster(s2);
                     }

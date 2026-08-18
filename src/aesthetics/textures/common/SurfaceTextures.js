@@ -41,11 +41,6 @@ export default class SurfaceTextures {
         const tileMat = new THREE.MeshStandardMaterial({
             map: tileTexture,
             roughness: 0.4,
-            // Was 0.6 — waxed-tile levels of metallic, on the single most common floor
-            // in the level, with nothing but a handful of unshadowed point lights to
-            // catch. Low enough now that its shine comes mostly from the baked ambient
-            // env map (see AmbientEnvMap.js) rather than from punching a hot circle
-            // under every fixture it passes under.
             metalness: 0.15,
             shadowSide: THREE.DoubleSide
         });
@@ -86,28 +81,11 @@ export default class SurfaceTextures {
         };
     }
 
-    /**
-     * The duct interior set: wallpapered sides, a faded water-stained variant overhead,
-     * and a worn board floor. Three materials rather than one for two reasons.
-     *
-     * Mechanically, the lining's vertical and horizontal faces do not share a UV scale.
-     * buildWall gives side faces world-proportional UVs against a 4m x 3m reference but
-     * leaves a slab's top and bottom at 0..1 scaled by h/3 — on a 0.04m panel that is a
-     * 1/75th-of-the-texture sliver stretched over the whole surface. CrawlspaceDuct now
-     * builds those faces with its own buildDuctPanel, which needs a different repeat to
-     * land on the same world scale, and a repeat lives on a texture, so it needs its own
-     * material. Aesthetically, it also lets the floor stop pretending to be clean paper.
-     */
     static _buildDuctInteriorSet(masterNoise) {
         const wallMat = SurfaceTextures._buildPaisleyWallpaper(masterNoise, {seed: 8831942});
-        // Ceiling and floor are the same boards: in a crawlspace the ceiling *is* the
-        // underside of the floor above, so papering it was the odd choice. One material
-        // rather than two clones, so the two also share a merge group.
         const floorMat = SurfaceTextures._buildDuctFloor(masterNoise);
         const tornMat = SurfaceTextures._buildDuctTornEdge(masterNoise);
 
-        // 0.8m of world per tile on every face. One UV unit is 4m on every axis except
-        // wall V, which buildWall maps to 3m, so only that repeat differs.
         const setRepeat = (mat, rx, ry) => {
             for (const slot of ['map', 'bumpMap']) {
                 if (mat[slot]) mat[slot].repeat.set(rx, ry);
@@ -115,9 +93,6 @@ export default class SurfaceTextures {
         };
         setRepeat(wallMat, 5, 3.75);
         setRepeat(floorMat, 5, 5);
-        // One texture height over the strip, so the tear sits at the floor and nowhere else.
-        // 2.5 across = a 1.6m period, double the wallpaper's, so the tear outlasts the
-        // panel it sits on instead of repeating two or three times along it.
         setRepeat(tornMat, 2.5, 1);
 
         const boards = makeDuctInterior(floorMat);
@@ -129,22 +104,6 @@ export default class SurfaceTextures {
         };
     }
 
-    /**
-     * The torn lower edge of the wallpaper. Damage, not decoration.
-     *
-     * The paper is intact almost everywhere and meets the floor; only a thin skirt of
-     * plaster shows along the bottom, lifting into a few small blisters. The first attempt
-     * ran a single large sine the width of the tile, which produced a continuous rolling
-     * silhouette outlined in pale cream — a mountain range, and one that repeated visibly.
-     * So the profile is now a low flat baseline plus a handful of narrow gaussian lifts,
-     * with only fine high-frequency jitter carrying the ragged fibre.
-     *
-     * Two things keep the repeat quiet. The lifts are gaussians evaluated across the wrap
-     * (k = -1, 0, 1), so they cross the seam intact rather than being cut off, and the
-     * jitter harmonics are integer so they meet themselves exactly. And the strip is tiled
-     * at 1.6m against the wallpaper's 0.8m, so its period is longer than the panels it sits
-     * on and no wall shows the same tear twice.
-     */
     static _buildDuctTornEdge(masterNoise) {
         const W = 1024, H = 128;
         const rand = TextureMechanics._seededRandom(60418);
@@ -155,7 +114,6 @@ export default class SurfaceTextures {
         bctx.fillRect(0, 0, W, H);
 
         const tau = Math.PI * 2;
-        // fraction of the strip height showing plaster, as a function of x
         const lifts = [
             {c: 0.14, w: 0.055, h: 0.30},
             {c: 0.37, w: 0.030, h: 0.16},
@@ -177,7 +135,6 @@ export default class SurfaceTextures {
                + 0.005 * Math.sin(t * tau * 43 + 5.2);
             return Math.max(0.02, Math.min(0.86, e));
         };
-        // canvas y grows downward and v=0 samples the canvas bottom, so the floor is y = H
         const tearAt = (px) => H * (1 - exposure(px));
 
         const tracePlaster = (c) => {
@@ -205,7 +162,6 @@ export default class SurfaceTextures {
             ctx.arc(gx, gy, gr, 0, Math.PI * 2);
             ctx.fill();
         }
-        // the lifted paper shades the plaster it hangs over
         const shade = ctx.createLinearGradient(0, 0, 0, H);
         shade.addColorStop(0, 'rgba(0,0,0,0.55)');
         shade.addColorStop(0.5, 'rgba(0,0,0,0.22)');
@@ -214,8 +170,6 @@ export default class SurfaceTextures {
         ctx.fillRect(0, 0, W, H);
         ctx.restore();
 
-        // A hairline along the cut, not a band. The previous version filled a 3-7px ribbon
-        // of pale cream that traced the whole silhouette, which is what read as fungus.
         ctx.beginPath();
         ctx.moveTo(0, tearAt(0));
         for (let px = 1; px <= W; px++) ctx.lineTo(px, tearAt(px));
@@ -245,20 +199,6 @@ export default class SurfaceTextures {
         });
     }
 
-    /**
-     * Seamless half-drop paisley.
-     *
-     * Every mark is emitted through tile(), which repeats it at the nine neighbouring
-     * canvas origins, so anything crossing an edge arrives on the opposite side and the
-     * result wraps in both axes with no seam to disguise.
-     *
-     * The boteh is generated rather than hand-authored. A spine walks forward while its
-     * heading accelerates from straight into a curl (angle = bend * t^1.5), carrying a
-     * half-width profile that peaks close to the base (sin(PI * t^0.6) — the fractional
-     * exponent is what pulls the maximum down to t≈0.31). That combination is what gives
-     * the motif a round belly and a long hooked tip instead of the symmetrical blob the
-     * previous hand-tuned bezier chain produced.
-     */
     static _buildPaisleyWallpaper(masterNoise, opts = {}) {
         const S = 512;
         const faded = !!opts.faded;
@@ -328,8 +268,6 @@ export default class SurfaceTextures {
                     c.lineJoin = 'round';
                     c.lineCap = 'round';
 
-                    // Two-tone body: the darker band between the outlines is what stops
-                    // the motif reading as a flat sticker under a flashlight.
                     trace(c, outer);
                     c.fillStyle = isBump ? '#9a9a9a' : shade(fill, 0.62);
                     c.fill();
@@ -344,8 +282,6 @@ export default class SurfaceTextures {
                     c.lineWidth = 1.4 / size;
                     c.stroke();
 
-                    // beaded border riding the inner outline — the detail that reads as
-                    // paisley rather than as a leaf at flashlight distance
                     c.fillStyle = isBump ? '#c6c6c6' : pal.accent;
                     for (let i = 0; i < inner.length; i += 8) {
                         c.beginPath();
@@ -385,13 +321,6 @@ export default class SurfaceTextures {
             });
         };
 
-        /**
-         * Layout: two serpentine stems, one per column, the second phase-shifted by half
-         * a period to give the half-drop. Each stem is a single sine over the full canvas
-         * height, so its endpoints share an x and it rejoins itself across the vertical
-         * seam. Motifs hang off the stem's extremes rather than sitting on a grid, which
-         * is what makes it scan as wallpaper instead of as tiled stamps.
-         */
         const COLS = 2;
         const cellW = S / COLS;
         const stemAmp = 34;
@@ -422,7 +351,6 @@ export default class SurfaceTextures {
                 }
             });
 
-            // leaves along the stem, angled to its tangent
             for (let k = 0; k < 7; k++) {
                 const t = (k + 0.5) / 7;
                 const [sx, sy] = stemAt(cx, phase, t);
@@ -434,7 +362,6 @@ export default class SurfaceTextures {
                          40, tangent + side * 1.35, shade(pal.vine, 1.35));
             }
 
-            // main motifs at the stem's extremes, alternating colourway and facing
             for (const [t, faceRight] of [[0.25, true], [0.75, false]]) {
                 const [sx, sy] = stemAt(cx, phase, t);
                 const useA = (col + (t > 0.5 ? 1 : 0)) % 2 === 0;
@@ -446,8 +373,6 @@ export default class SurfaceTextures {
                           useA ? pal.motifB : pal.motifA);
             }
 
-            // A third, smaller motif on each stem's midpoint, where the sine crosses its
-            // axis and the previous pass left an empty band.
             for (const t of [0.0, 0.5]) {
                 const [sx, sy] = stemAt(cx, phase, t);
                 drawBoteh(sx, sy, 46, t === 0 ? 0.9 : 0.9 + Math.PI,
@@ -455,8 +380,6 @@ export default class SurfaceTextures {
             }
         }
 
-        // Fillers in the gutter between stems. Low contrast on purpose: they carry
-        // density so the ground does not read as empty, without competing with the botehs.
         for (let i = 0; i < 8; i++) {
             const fx = (i % 2) * cellW;
             const fy = (i / 8) * S + 22;
@@ -464,7 +387,6 @@ export default class SurfaceTextures {
             drawLeaf(fx + 15, fy + 20, 21, (i * 2.7 + 1.2) % (Math.PI * 2), shade(pal.vine, 0.9));
         }
 
-        // Paper before age: faint vertical striae from the roll, never a hard grid.
         ctx.save();
         for (let i = 0; i < 90; i++) {
             const x = rand() * S;
@@ -474,7 +396,6 @@ export default class SurfaceTextures {
         }
         ctx.restore();
 
-        // Foxing: the small rust-coloured blooms old paper grows in damp.
         for (let i = 0; i < 34; i++) {
             const fx = rand() * S, fy = rand() * S, fr = 3 + rand() * 11;
             tile((ox, oy) => {
@@ -489,13 +410,8 @@ export default class SurfaceTextures {
         }
 
         if (opts.stained) {
-            // Overhead paper takes water from above: broad blooms with a darker tide rim,
-            // and a matching dent in the bump so they read as sagging rather than painted.
             for (let i = 0; i < 5; i++) {
                 const bx = rand() * S, by = rand() * S, br = 34 + rand() * 46;
-                // Each stain is a handful of overlapping offset lobes rather than one
-                // disc. A single radial gradient with a rim stop draws a perfect ring,
-                // which reads as a painted circle instead of as damp spreading.
                 const lobes = [];
                 for (let k = 0; k < 6; k++) {
                     lobes.push([bx + (rand() - 0.5) * br * 1.1,
@@ -541,12 +457,6 @@ export default class SurfaceTextures {
         });
     }
 
-    /**
-     * Duct floor: short butt-jointed boards under a lot of dust. Board rows divide the
-     * canvas evenly and every joint and grain line is drawn wrapped, so the surface tiles
-     * in both axes. Deliberately low-contrast — it is meant to sit under the eye while
-     * the walls carry the pattern.
-     */
     static _buildDuctFloor(masterNoise) {
         const S = 512;
         const rand = TextureMechanics._seededRandom(41772);
@@ -567,7 +477,6 @@ export default class SurfaceTextures {
             ctx.fillStyle = `rgb(${base + 6},${Math.round(base * 0.88)},${Math.round(base * 0.72)})`;
             ctx.fillRect(0, y, S, rowH);
 
-            // grain
             for (let g = 0; g < 26; g++) {
                 const gy = y + rand() * rowH;
                 ctx.strokeStyle = `rgba(0,0,0,${0.05 + rand() * 0.10})`;
@@ -579,7 +488,6 @@ export default class SurfaceTextures {
                 ctx.stroke();
             }
 
-            // butt joints, wrapped
             const joints = 1 + Math.floor(rand() * 2);
             for (let j = 0; j < joints; j++) {
                 const jx = rand() * S;
@@ -593,7 +501,6 @@ export default class SurfaceTextures {
                 }
             }
 
-            // row seam, top edge only so the bottom of the last row meets the first
             for (const c of [ctx, bctx]) {
                 c.strokeStyle = c === bctx ? 'rgba(38,38,38,0.9)' : 'rgba(0,0,0,0.6)';
                 c.lineWidth = 2.5;
@@ -604,7 +511,6 @@ export default class SurfaceTextures {
             }
         }
 
-        // dust and scuffing, wrapped
         for (let i = 0; i < 220; i++) {
             const dx = rand() * S, dy = rand() * S, dr = 4 + rand() * 26;
             const ox = dx < dr ? S : (dx > S - dr ? -S : 0);

@@ -1,14 +1,3 @@
-/*
- * Self-hosted VT323 (SIL Open Font License 1.1), replacing the render-blocking
- * fonts.googleapis.com stylesheet. That link cost a DNS lookup, a TLS handshake, and a
- * stylesheet round trip to a third party before the page could paint — which, on the
- * engine's boot path, meant the loading screen itself could not appear until an
- * external host answered. These subsets are served from the same origin and pinned
- * `immutable` by engine_server.js, so a warm boot never refetches them.
- *
- * Subsets and unicode-ranges are copied verbatim from what the Google Fonts CSS API
- * serves, so glyph coverage and per-range loading behave identically.
- */
 @font-face {
     font-family: 'VT323';
     font-style: normal;
