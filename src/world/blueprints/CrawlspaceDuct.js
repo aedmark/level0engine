@@ -4,6 +4,59 @@ import {makeDuctDoorMat} from '../../core/DuctLighting.js';
 
 export const CrawlspaceDuctProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, hash} = ctx;
+
+    /**
+     * Every piece of duct lining, built at its exact nominal size.
+     *
+     * Two problems with routing these through buildWall. It inflates every box by 0.02 on
+     * all three axes to hide seams between maze walls, but the lining is not a maze wall:
+     * its pieces are laid out to abut exactly — a hub's 1.2m footprint meets a 1.4m branch
+     * at holeW/2 — so that inflation turns every junction into a 2cm band of two coplanar
+     * surfaces, which is exactly where the z-fighting shows. And it scales a slab's top and
+     * bottom V by h/3, so a 0.04m panel samples a 1/75th-of-the-texture sliver stretched
+     * across the whole face.
+     *
+     * So: exact sizing, and horizontal pieces get world-proportional UVs on +/-Y against
+     * the same 4m reference the vertical faces use. bleedY re-adds vertical overlap only
+     * where it is wanted — panels bedding down into the structural slab behind them, whose
+     * faces are parallel and buried rather than coplanar and visible.
+     */
+    const buildDuctLining = (w, d, mat, h, opts = {}) => {
+        const q = (v) => Math.round(v * 1000) / 1000;
+        w = q(w); d = q(d); h = q(h);
+        const bleedY = opts.bleedY || 0;
+        const horizontal = !!opts.horizontal;
+        const key = `ductlin_${w}_${h}_${d}_${bleedY}_${horizontal ? 1 : 0}`;
+        let geo = env.geoCache && env.geoCache.get(key);
+        if (!geo) {
+            geo = new THREE.BoxGeometry(w, h + bleedY, d);
+            const uv = geo.attributes.uv;
+            if (horizontal) {
+                for (let i = 8; i < 16; i++) {
+                    uv.setX(i, uv.getX(i) * (w / env.cellSize));
+                    uv.setY(i, uv.getY(i) * (d / env.cellSize));
+                }
+            } else {
+                // mirrors buildWall, so lining and maze wall share a texture scale
+                for (let i = 0; i < 8; i++) {
+                    uv.setX(i, uv.getX(i) * (d / env.cellSize));
+                    uv.setY(i, uv.getY(i) * (h / 3.0));
+                }
+                for (let i = 16; i < 24; i++) {
+                    uv.setX(i, uv.getX(i) * (w / env.cellSize));
+                    uv.setY(i, uv.getY(i) * (h / 3.0));
+                }
+            }
+            if (env.geoCache) {
+                env.geoCache.set(key, geo);
+                env.geoCache.set(geo.uuid, true);
+            }
+        }
+        return new THREE.Mesh(geo, mat);
+    };
+
+    const ductFloorMat = () => env.ductFloorMat || env.ductWallMat;
+    const ductCeilingMat = () => env.ductCeilingMat || env.ductWallMat;
     return {
         name: "CRAWLSPACE_DUCT",
         prob: 0.0862, build: (x, z) => {
@@ -215,27 +268,27 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                     hubRoofStruct.position.set(cx, ductY + holeH + topH / 2, cz);
                     addGeometry(hubRoofStruct);
 
-                    const hubFloorLining = buildWall(holeW, holeW, env.ductWallMat, liningT, 0);
+                    const hubFloorLining = buildDuctLining(holeW, holeW, ductFloorMat(), liningT, {horizontal: true, bleedY: 0.02});
                     hubFloorLining.position.set(cx, ductY + liningT / 2, cz);
                     addGeometry(hubFloorLining);
 
-                    const hubRoofLining = buildWall(holeW, holeW, env.ductWallMat, liningT, 0);
+                    const hubRoofLining = buildDuctLining(holeW, holeW, ductCeilingMat(), liningT, {horizontal: true, bleedY: 0.02});
                     hubRoofLining.position.set(cx, ductY + holeH - liningT / 2, cz);
                     addGeometry(hubRoofLining);
 
-                    const cLining1 = buildWall(liningT, liningT, env.ductWallMat, holeH, 0);
+                    const cLining1 = buildDuctLining(liningT, liningT, env.ductWallMat, holeH);
                     cLining1.position.set(cx - holeW / 2 + liningT / 2, ductY + holeH / 2, cz - holeW / 2 + liningT / 2);
                     addGeometry(cLining1);
 
-                    const cLining2 = buildWall(liningT, liningT, env.ductWallMat, holeH, 0);
+                    const cLining2 = buildDuctLining(liningT, liningT, env.ductWallMat, holeH);
                     cLining2.position.set(cx + holeW / 2 - liningT / 2, ductY + holeH / 2, cz - holeW / 2 + liningT / 2);
                     addGeometry(cLining2);
 
-                    const cLining3 = buildWall(liningT, liningT, env.ductWallMat, holeH, 0);
+                    const cLining3 = buildDuctLining(liningT, liningT, env.ductWallMat, holeH);
                     cLining3.position.set(cx - holeW / 2 + liningT / 2, ductY + holeH / 2, cz + holeW / 2 - liningT / 2);
                     addGeometry(cLining3);
 
-                    const cLining4 = buildWall(liningT, liningT, env.ductWallMat, holeH, 0);
+                    const cLining4 = buildDuctLining(liningT, liningT, env.ductWallMat, holeH);
                     cLining4.position.set(cx + holeW / 2 - liningT / 2, ductY + holeH / 2, cz + holeW / 2 - liningT / 2);
                     addGeometry(cLining4);
 
@@ -258,27 +311,27 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                             bRoof.position.set(branch.x, ductY + holeH + topH / 2, branch.z);
                             addGeometry(bRoof);
 
-                            const adjW = 1.08;
-                            const adjH = holeH - 0.04;
+                            const adjW = 1.2;
+                            const adjH = holeH;
                             const adjT = 0.04;
 
-                            const lDepth = branch.d - 0.02;
-                            const lWidth = branch.w - 0.02;
-                            const lFloor = buildWall(branch.isZ ? lWidth : adjW, branch.isZ ? adjW : lDepth, env.ductWallMat, adjT, 0);
-                            const lRoof = buildWall(branch.isZ ? lWidth : adjW, branch.isZ ? adjW : lDepth, env.ductWallMat, adjT, 0);
-                            const lSide1 = buildWall(branch.isZ ? lWidth : adjT, branch.isZ ? adjT : lDepth, env.ductWallMat, adjH, 0);
-                            const lSide2 = buildWall(branch.isZ ? lWidth : adjT, branch.isZ ? adjT : lDepth, env.ductWallMat, adjH, 0);
+                            const lDepth = branch.d;
+                            const lWidth = branch.w;
+                            const lFloor = buildDuctLining(branch.isZ ? lWidth : adjW, branch.isZ ? adjW : lDepth, ductFloorMat(), adjT, {horizontal: true, bleedY: 0.02});
+                            const lRoof = buildDuctLining(branch.isZ ? lWidth : adjW, branch.isZ ? adjW : lDepth, ductCeilingMat(), adjT, {horizontal: true, bleedY: 0.02});
+                            const lSide1 = buildDuctLining(branch.isZ ? lWidth : adjT, branch.isZ ? adjT : lDepth, env.ductWallMat, adjH);
+                            const lSide2 = buildDuctLining(branch.isZ ? lWidth : adjT, branch.isZ ? adjT : lDepth, env.ductWallMat, adjH);
 
                             if (!branch.isZ) {
-                                lFloor.position.set(branch.x, ductY + 0.03, branch.z);
-                                lRoof.position.set(branch.x, ductY + holeH - 0.03, branch.z);
-                                lSide1.position.set(branch.x - 0.57, ductY + holeH / 2, branch.z);
-                                lSide2.position.set(branch.x + 0.57, ductY + holeH / 2, branch.z);
+                                lFloor.position.set(branch.x, ductY + 0.02, branch.z);
+                                lRoof.position.set(branch.x, ductY + holeH - 0.02, branch.z);
+                                lSide1.position.set(branch.x - 0.58, ductY + holeH / 2, branch.z);
+                                lSide2.position.set(branch.x + 0.58, ductY + holeH / 2, branch.z);
                             } else {
-                                lFloor.position.set(branch.x, ductY + 0.03, branch.z);
-                                lRoof.position.set(branch.x, ductY + holeH - 0.03, branch.z);
-                                lSide1.position.set(branch.x, ductY + holeH / 2, branch.z - 0.57);
-                                lSide2.position.set(branch.x, ductY + holeH / 2, branch.z + 0.57);
+                                lFloor.position.set(branch.x, ductY + 0.02, branch.z);
+                                lRoof.position.set(branch.x, ductY + holeH - 0.02, branch.z);
+                                lSide1.position.set(branch.x, ductY + holeH / 2, branch.z - 0.58);
+                                lSide2.position.set(branch.x, ductY + holeH / 2, branch.z + 0.58);
                             }
                             addGeometry(lFloor);
                             addGeometry(lRoof);
@@ -289,11 +342,26 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                             block.position.set(branch.x, 1.5, branch.z);
                             addWall(block);
 
-                            const capLining = buildWall(branch.isZ ? liningT : holeW, branch.isZ ? holeW : liningT, env.ductWallMat, holeH, 0);
+                            /**
+                             * The cap seals the hub face where a branch would have gone. It has to
+                             * live in the hub's own lining plane, not the dead branch cell's.
+                             *
+                             * `block` is a buildWall, so it grows 0.01 past nominal and its face
+                             * lands at holeW/2 - 0.01. Positioning the cap off the branch cell put
+                             * it at holeW/2 + 0.02, i.e. behind that face — so the block occluded
+                             * it and the opening rendered as bare yellow maze wall. Placing it at
+                             * holeW/2 - liningT/2, level with the corner posts, puts it 0.03 clear
+                             * in front of the block. Width is the span *between* the posts so it
+                             * abuts them instead of overlapping, which is what kept the previous
+                             * inflated cap in a permanent fight with the block face.
+                             */
+                            const capSpan = holeW - liningT * 2;
+                            const capOff = holeW / 2 - liningT / 2;
+                            const capLining = buildDuctLining(branch.isZ ? liningT : capSpan, branch.isZ ? capSpan : liningT, env.ductWallMat, holeH);
                             capLining.position.set(
-                                branch.x - (branch.isZ ? Math.sign(branch.x - cx) * (branch.w / 2 - liningT / 2) : 0),
+                                branch.isZ ? cx + Math.sign(branch.x - cx) * capOff : cx,
                                 ductY + holeH / 2,
-                                branch.z - (branch.isZ ? 0 : Math.sign(branch.z - cz) * (branch.d / 2 - liningT / 2))
+                                branch.isZ ? cz : cz + Math.sign(branch.z - cz) * capOff
                             );
                             addGeometry(capLining);
                         }
@@ -304,9 +372,12 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                     const snap = (v) => Math.round(v * 10000) / 10000;
                     const doorW = holeW - GRATE_GAP;
                     const doorH = holeH - GRATE_GAP;
+                    // Deliberately NOT makeDuctInterior: this casing is seen from the lit
+                    // corridor as well as from inside the duct, and a black AO map would
+                    // black out the exterior side to kill the glare on the interior one.
                     const frameMat = env.woodMat || env.sharedWallMat;
                     const frameD = 0.12;
-                    const frameT = 0.08;
+                    const frameT = 0.10;
 
                     const addDoor = (isX, sign) => {
                         const px = cx + (isX ? sign * faceOffset : 0);

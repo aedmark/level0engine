@@ -132,6 +132,9 @@ docViewer.bindEvents();
 keypad.bindEvents();
 inquest.bindEvents();
 DebugHUD.bindEvents();
+// Arms autosave. Everything above has finished applying savedState, so the camera is
+// no longer sitting on the position generate() parked it at.
+saveManager.markBootComplete();
 saveManager.startAutoSave();
 UIManager.startVHSTimer();
 

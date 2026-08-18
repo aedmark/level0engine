@@ -7,6 +7,17 @@ export default class SaveManager {
         this.environment = environment;
         this.acoustics = acoustics;
         this.saveInterval = null;
+        this.bootComplete = false;
+        this._refusalLogged = null;
+    }
+
+    /**
+     * Autosave stays disarmed until main.js has finished applying the restore block.
+     * Until then the camera is wherever generate() parked it, and a write would
+     * replace a real position with the fresh-spawn point.
+     */
+    markBootComplete() {
+        this.bootComplete = true;
     }
 
     generateCardSeed() {
@@ -30,6 +41,12 @@ export default class SaveManager {
         if (!data) return null;
         try {
             const state = JSON.parse(data);
+            // One snapshot per boot of what the previous session left behind, taken before
+            // this session's autosave can touch it. A boot that fails to restore and then
+            // overwrites with a spawn position is recoverable from here via recoverBackup().
+            try {
+                localStorage.setItem('level0_state_backup', data);
+            } catch (e) {}
             document.getElementById('seedInput').value = state.seed || this.generateCardSeed();
             document.getElementById('aspectSelect').value = state.aspect || "1.3333333333";
             document.getElementById('fogSlider').value = state.fog || "5";
@@ -72,8 +89,47 @@ export default class SaveManager {
         }
     }
 
+    _readStored() {
+        try {
+            const raw = localStorage.getItem('level0_state');
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
+     * Why a write must be refused, or null when it is safe.
+     *
+     * Autosave fires every 2500ms starting at boot, and a single bad write destroys the
+     * stored position with no recovery — so the spawn window is a real hazard, not a
+     * theoretical one. isSpawning is cleared by ChunkManager just *before* it relocates
+     * the player, so needsSafeSpawn has to be checked alongside it to cover that gap.
+     */
+    _refuseSaveReason(state) {
+        if (this.player && this.player.isDead) return 'player is dead';
+        if (!this.bootComplete) return 'boot has not finished restoring';
+        const env = this.environment;
+        if (env && (env.isSpawning || env.needsSafeSpawn)) return 'spawn placement in progress';
+        const prior = this._readStored();
+        if (prior && Number(state.bestDepth) < Number(prior.bestDepth)) {
+            return `bestDepth would regress ${prior.bestDepth} -> ${state.bestDepth}`;
+        }
+        return null;
+    }
+
+    /** Promotes the per-boot backup slot back to the live save. */
+    recoverBackup() {
+        const backup = localStorage.getItem('level0_state_backup');
+        if (!backup) return false;
+        localStorage.setItem('level0_state', backup);
+        try {
+            TextureCache.saveWorldState('level0_state', JSON.parse(backup)).catch(() => {});
+        } catch (e) {}
+        return true;
+    }
+
     saveState() {
-        if (this.player && this.player.isDead) return;
         const state = {
             px: this.engine.camera.position.x,
             py: this.engine.camera.position.y,
@@ -108,13 +164,26 @@ export default class SaveManager {
             discoveredSectors: Array.from(this.environment.discoveredSectors.entries()),
             story: this.environment.getStory ? this.environment.getStory().exportState() : null
         };
+        const refusal = this._refuseSaveReason(state);
+        if (refusal) {
+            if (this._refusalLogged !== refusal) {
+                this._refusalLogged = refusal;
+                console.warn(`[SAVE] Skipped autosave: ${refusal}.`);
+            }
+            return;
+        }
+        this._refusalLogged = null;
         localStorage.setItem('level0_state', JSON.stringify(state));
         TextureCache.saveWorldState('level0_state', state).catch(() => {});
     }
 
     idleSaveState() {
         if (window.requestIdleCallback) {
-            requestIdleCallback(() => this.saveState());
+            // The render loop can starve requestIdleCallback indefinitely — a saturated
+            // frame budget means the browser never reports an idle period, and an
+            // unqualified callback then simply never runs. The timeout is what actually
+            // guarantees the save happens; without it autosave silently stops.
+            requestIdleCallback(() => this.saveState(), {timeout: 1000});
         } else {
             this.saveState();
         }

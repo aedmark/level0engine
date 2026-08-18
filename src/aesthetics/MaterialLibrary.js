@@ -1,8 +1,30 @@
 import {makeDuctInterior} from '../core/DuctLighting.js';
 
 export default class MaterialLibrary {
+    /**
+     * Asset-bundle keys injectMaterials is *meant* to replace.
+     *
+     * ProceduralTextureFactory's output is Object.assign'd onto env in
+     * Environment.setup(), which runs before generate() reaches injectMaterials().
+     * Anything assigned here therefore wins over the generated asset. That is
+     * deliberate for these keys and a bug for any other: an unguarded write
+     * silently discards a generated material, which is what swallowed the paisley
+     * ductWallMat. Guard new writes with `if (!env.x)` or list the key here.
+     */
+    static ASSET_OVERRIDES = new Set(['rustMat']);
+
     static injectMaterials(env) {
         if (env.sharedWallGeo) return;
+
+        const assetSnapshot = MaterialLibrary._snapshotAssets(env);
+        
+        if (THREE.ShaderChunk.lights_fragment_end && !THREE.ShaderChunk.lights_fragment_end.includes('directSpecular = vec3(0.0)')) {
+            THREE.ShaderChunk.lights_fragment_end = THREE.ShaderChunk.lights_fragment_end.replace(
+                '#if defined( RE_IndirectDiffuse )',
+                'reflectedLight.directSpecular = vec3(0.0);\n#if defined( RE_IndirectDiffuse )'
+            );
+        }
+
         env.sharedWallGeo = new THREE.BoxGeometry(env.cellSize + 0.02, 3.02, env.cellSize + 0.02);
         env.sharedWallMat = new THREE.MeshStandardMaterial({
             map: env.wallTexture,
@@ -12,7 +34,8 @@ export default class MaterialLibrary {
             bumpMap: env.wallBumpTexture || env.wallTexture,
             bumpScale: 0.012
         });
-        env.ductWallMat = makeDuctInterior(env.sharedWallMat.clone());
+        // Kept only as a fallback: the texture pipeline supplies its own ductWallMat.
+        if (!env.ductWallMat) env.ductWallMat = makeDuctInterior(env.sharedWallMat.clone());
         if (env.sharedAssets) env.sharedAssets.add(env.ductWallMat.uuid);
         env.sharedPanelGeo = new THREE.BoxGeometry(0.98, 0.05, 1.98);
         env.pipeGeo = new THREE.CylinderGeometry(0.08, 0.08, env.cellSize, 8);
@@ -147,5 +170,32 @@ export default class MaterialLibrary {
             if (v && v.isGeometry) env.sharedAssets.add(v.uuid);
             if (v && v.isMaterial) env.sharedAssets.add(v.uuid);
         });
+
+        MaterialLibrary._reportClobberedAssets(env, assetSnapshot);
+    }
+
+    static _isAsset(v) {
+        if (!v) return false;
+        if (v.isMaterial || v.isTexture) return true;
+        return Array.isArray(v) && v.some(e => e && (e.isMaterial || e.isTexture));
+    }
+
+    static _snapshotAssets(env) {
+        const snapshot = new Map();
+        for (const [key, value] of Object.entries(env)) {
+            if (MaterialLibrary._isAsset(value)) snapshot.set(key, value);
+        }
+        return snapshot;
+    }
+
+    static _reportClobberedAssets(env, snapshot) {
+        const clobbered = [];
+        for (const [key, before] of snapshot) {
+            if (env[key] !== before && !MaterialLibrary.ASSET_OVERRIDES.has(key)) clobbered.push(key);
+        }
+        if (clobbered.length) {
+            console.warn(`[MATERIALS] injectMaterials() discarded generated asset(s): ${clobbered.join(', ')}. `
+                + `Guard the write with "if (!env.KEY)" or add the key to MaterialLibrary.ASSET_OVERRIDES.`);
+        }
     }
 }
