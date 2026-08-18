@@ -327,7 +327,13 @@ function animate() {
     DebugHUD.update(time, delta, telemetry, engine, player, environment);
     engine.render();
     environment.drainShadowPrewarm(2.0);
-    environment.drainProgramLinks(1.5);
+    // A load overlay freezes the player, so a shader-link stall is invisible there and a
+    // visible hitch during play. Firefox cannot poll link status without blocking on it
+    // (no KHR_parallel_shader_compile — see README, Browser Support), so the drain is
+    // starved to one link per frame while the player has control and allowed to catch up
+    // in bulk behind the overlay. Chromium polls either way and is unaffected.
+    const linkStallMasked = player.wasFrozenByLoad;
+    environment.drainProgramLinks(linkStallMasked ? 60.0 : 1.5, linkStallMasked);
 }
 
 /**

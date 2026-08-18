@@ -8,6 +8,22 @@ const __dirname = path.dirname(__filename);
 
 const PORT = Number(process.env.PORT) || 8080;
 
+/**
+ * Cross-origin isolation, so `performance.now()` keeps its full resolution.
+ *
+ * Firefox clamps the clock to 1ms by default as a Spectre mitigation, which quantises
+ * RenderEngine's per-frame delta into 16ms/17ms steps at 60fps and makes every
+ * sub-millisecond frame budget unenforceable. Serving these two headers opts the page
+ * into cross-origin isolation, which restores high-resolution timers from Firefox 79
+ * and Chrome 79 onward. Safe here only because the engine is entirely self-hosted: COEP
+ * `require-corp` would block any cross-origin subresource, and there are none.
+ */
+const ISOLATION_HEADERS = {
+    'Cross-Origin-Opener-Policy': 'same-origin',
+    'Cross-Origin-Embedder-Policy': 'require-corp',
+    'Cross-Origin-Resource-Policy': 'same-origin'
+};
+
 const MIME_TYPES = {
     '.html': 'text/html',
     '.js': 'text/javascript',
@@ -114,7 +130,7 @@ const server = http.createServer((req, res) => {
         const cacheControl = cacheControlFor(route);
 
         if (req.headers['if-none-match'] === etag) {
-            res.writeHead(304, {'ETag': etag, 'Cache-Control': cacheControl});
+            res.writeHead(304, {...ISOLATION_HEADERS, 'ETag': etag, 'Cache-Control': cacheControl});
             return res.end();
         }
 
@@ -125,6 +141,7 @@ const server = http.createServer((req, res) => {
                 return;
             }
             res.writeHead(200, {
+                ...ISOLATION_HEADERS,
                 'Content-Type': contentType,
                 'Cache-Control': cacheControl,
                 'ETag': etag,

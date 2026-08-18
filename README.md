@@ -62,6 +62,16 @@ The engine ships with a built-in, zero-dependency Lore Editor to visually manage
 
 _Level 0 is a desktop-only experience. Mobile/touch support was removed in v0.4.7 to focus the engine on a single input surface._
 
+## Browser Support
+
+Chromium-based browsers (Chrome, Edge, Brave, Opera) are the reference target. The engine runs correctly in Firefox, but measurably slower and with rougher frame pacing. All three causes are properties of the browser rather than the engine, and the first one is worth checking before you conclude anything about the other two:
+
+- **The discrete GPU is never requested.** `RenderEngine.js` asks for `powerPreference: "high-performance"`, which Firefox implements on macOS only ([bug 1349799](https://bugzilla.mozilla.org/show_bug.cgi?id=1349799)). On Windows and Linux the hint is a no-op, and since Firefox 74 the browser biases toward the integrated adapter on dual-GPU machines. On a laptop with switchable graphics this single issue can cost more than everything else in this list combined. Open `about:support`, find **Graphics → active adapter**, and if it names an integrated chip, either set `webgl.default-low-power` to `false` in `about:config` and restart, or pin Firefox to the discrete GPU in the Windows Graphics settings or your NVIDIA/AMD control panel.
+- **Shader linking blocks the main thread.** `KHR_parallel_shader_compile` lets the engine poll a program's link status without stalling, draining only finished work inside a per-frame budget. Firefox has never shipped it ([bug 1736076](https://bugzilla.mozilla.org/show_bug.cgi?id=1736076)), so the same drain has to block on each link instead. Against the 300+ distinct materials a live scene carries, this surfaces as intermittent hitching when new geometry comes into view — not as a lower steady framerate.
+- **The frame clock is coarse.** Firefox rounds `performance.now()` to 1ms by default as a Spectre mitigation, where Chromium resolves to 5–100µs. Every delta-driven system — velocity, stamina burn, paranoia accumulation, the Lumen Grid's fade envelopes — then integrates on a step that alternates between 16ms and 17ms at 60fps instead of a smooth 16.67ms. The engine feels less predictable rather than simply slower.
+
+Firefox is not unsupported and the engine is playable there. Expect a lower ceiling and less consistent pacing, and check the adapter first.
+
 ## The Environment
 
 - **Sector Stabilization & Diegetic Radar:** Players must explore the labyrinth to locate and engage three Dimensional Switches to restore power and reveal the exit. The radar serves as a triangulation tool for these objectives, displaying distance to the nearest target, but scrambles (`ERR!_m`) under intense Anomaly electromagnetic pressure. The signal usually routes through anomalous points of interest first — a hole in the ceiling, a dinette bolted upside-down overhead, a working light panel sunk into the floor, a ring of chairs facing inward at nothing, a sealed door standing in the middle of a room attached to no wall with light bleeding out underneath — before resolving to a breaker.
@@ -96,7 +106,7 @@ The settings panel (`Tab`) provides a full structural and performance control su
 
 ## Dependencies
 
-- `Three.js (r160)` - Loaded locally (`r160.js`) with no bundler or package manager involved, to preserve the zero-build-tool philosophy. Rendering, meshes, materials, and geometry still run on it, taking advantage of modern features like `KHR_parallel_shader_compile` for non-blocking shader pre-warming; physics and collision math in `PlayerController.js`, `SomaticInput.js`, and the collision/pursuit paths of `Anomaly.js` and its five sector-locked counterparts do not — see `Vec3.js`/`AABB.js` below.
+- `Three.js (r160)` - Loaded locally (`r160.js`) with no bundler or package manager involved, to preserve the zero-build-tool philosophy. Rendering, meshes, materials, and geometry still run on it, taking advantage of modern features like `KHR_parallel_shader_compile` for non-blocking shader pre-warming, an extension Chromium exposes and Firefox has never shipped (see **Browser Support**); physics and collision math in `PlayerController.js`, `SomaticInput.js`, and the collision/pursuit paths of `Anomaly.js` and its five sector-locked counterparts do not — see `Vec3.js`/`AABB.js` below.
 
 ## Architecture
 

@@ -5,6 +5,11 @@ export default class RenderEngine {
         this.resolutionScale = RenderEngine.getSavedResolutionScale();
         this.enablePostProcessing = RenderEngine.getSavedPostProcess();
         this.enableFXAA = RenderEngine.getSavedFXAA();
+        this.timerQuantumMs = RenderEngine.detectTimerQuantum();
+        this.smoothsDelta = this.timerQuantumMs >= 0.5;
+        console.log(`[BOOT] Timer quantum ${this.timerQuantumMs.toFixed(4)}ms ` +
+            `(crossOriginIsolated=${self.crossOriginIsolated === true}) — ` +
+            `delta smoothing ${this.smoothsDelta ? 'ON' : 'off'}.`);
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0xa89f68);
         this.scene.fog = new THREE.FogExp2(0xa89f68, 0.05);
@@ -383,12 +388,44 @@ export default class RenderEngine {
         this.fxaaMaterial.uniforms.resolution.value.set(1 / renderW, 1 / renderH);
     }
 
+    /**
+     * Smallest observable step of `performance.now()`, in milliseconds.
+     *
+     * Firefox clamps this to 1ms by default (Spectre mitigation); Chromium resolves
+     * ~0.1ms, and cross-origin isolation restores sub-microsecond resolution on both.
+     * Measured once at construction — an 8ms busy-wait is enough to see the step size,
+     * and knowing it lets `delta` smooth only on the browsers that actually need it.
+     */
+    static detectTimerQuantum() {
+        let prev = performance.now();
+        let min = Infinity;
+        const end = prev + 8;
+        while (performance.now() < end) {
+            const now = performance.now();
+            if (now !== prev) {
+                const step = now - prev;
+                if (step < min) min = step;
+                prev = now;
+            }
+        }
+        return min === Infinity ? 0 : min;
+    }
+
+    /**
+     * On a coarse clock a true 16.67ms frame is reported as 16 or 17, so every
+     * delta-driven system — velocity, stamina, paranoia, fade envelopes — integrates on
+     * a value that jitters ~3% every frame. A short EMA removes that without perceptible
+     * lag. Browsers with a fine clock get the raw value, unchanged.
+     */
     get delta() {
         const now = performance.now();
         if (!this._lastTime) this._lastTime = now;
-        const diff = Math.min((now - this._lastTime) / 1000, 0.1);
+        const raw = Math.min((now - this._lastTime) / 1000, 0.1);
         this._lastTime = now;
-        return diff;
+        if (!this.smoothsDelta) return raw;
+        if (this._emaDelta === undefined) this._emaDelta = raw;
+        this._emaDelta += (raw - this._emaDelta) * 0.25;
+        return this._emaDelta;
     }
 
     get time() {
