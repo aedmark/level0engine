@@ -1,6 +1,7 @@
 import TheArchitect from "../core/TheArchitect.js";
 import StructureKit from "./StructureKit.js";
 import {spawnBreakerPodium} from './blueprints/BreakerPodiumSpawn.js';
+import {spawnElevatorCar} from './blueprints/ElevatorSpawn.js';
 import {EmptyDoorFrameProfile} from './blueprints/EmptyDoorFrame.js';
 import {CrawlspaceDuctProfile} from './blueprints/CrawlspaceDuct.js';
 import {CrawlspaceHallProfile} from './blueprints/CrawlspaceHall.js';
@@ -216,6 +217,17 @@ export default class ChunkManager {
         }
         if (env.isSpawning) {
             env.isSpawning = false;
+
+            const elevator = env._spawnElevator;
+            if (elevator && elevator.placement) {
+                env.needsSafeSpawn = false;
+                env.camera.position.set(elevator.placement.x, 1.6, elevator.placement.z);
+                env.camera.rotation.set(0, elevator.placement.rotationY, 0, 'YXZ');
+                if (env.player) {
+                    env.player.velocity.set(0, 0, 0);
+                    if (env.player._lastRotY !== undefined) env.player._lastRotY = elevator.placement.rotationY;
+                }
+            }
 
             if (env.needsSafeSpawn) {
                 env.needsSafeSpawn = false;
@@ -781,6 +793,15 @@ export default class ChunkManager {
     _buildEmptyCell(args, state) {
         const { x, z, env, ctx, random, hash, chunkGroup, localX, localZ, isWallCell, isSolidWallCell, breakerPositions } = args;
         let hasTallObstacle = false;
+
+        // Claims the first empty cell of the spawn chunk, before any of the clutter
+        // below gets a chance to run, and returns early so the car stays bare.
+        const elevator = env._spawnElevator;
+        if (elevator && !elevator.spawned && elevator.chunkHash === hash) {
+            elevator.spawned = true;
+            elevator.placement = spawnElevatorCar(env, ctx, x, z);
+            return;
+        }
 
         if (!state.spawnedVirtualBreaker && env._virtualBreaker && env._virtualBreaker.chunkHash === hash && !env._virtualBreaker.spawned) {
             spawnBreakerPodium(env, ctx, x, z);

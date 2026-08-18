@@ -460,6 +460,7 @@ export default class Environment {
         this._breakerHuntHops = this.interactionController.rollHuntHops();
         this._runSalt32 = (Math.random() * 4294967296) >>> 0;
         this._macroChunkHashes = new Set();
+        this._spawnElevator = null;
         this._placementCfg = null;
         this._pendingMacroContent.clear();
         if (this.tagPool) {
@@ -486,6 +487,12 @@ export default class Environment {
             const cZ = Math.floor(this.camera.position.z / chunkW);
             this.camera.position.set(cX * chunkW + 6, 1.6, cZ * chunkW + 6);
             this.needsSafeSpawn = true;
+            // Brand-new save only: the arrival car claims the first empty cell of this
+            // chunk and ChunkManager parks the player inside it once the chunk lands.
+            if (this.wantsElevatorSpawn) {
+                this.wantsElevatorSpawn = false;
+                this._spawnElevator = {chunkHash: `${cX},${cZ}`, spawned: false, placement: null};
+            }
         }
         const seedString = document.getElementById('seedInput').value || "ASYNC RESEARCH INSTITUTE";
         this.baseSeed = 0;

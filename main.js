@@ -102,6 +102,9 @@ const savedState = saveManager.loadState();
 if (!document.getElementById('seedInput').value) {
     document.getElementById('seedInput').value = saveManager.generateCardSeed();
 }
+// Read by Environment.generate() during setup(). One-shot: it clears itself, so a later
+// reseed drops the player into the maze the way it always has.
+environment.wantsElevatorSpawn = !savedState;
 await Promise.all([environment.setup(), storyPromise]);
 if (savedState) {
     if (savedState.story && environment.getStory) {
@@ -137,18 +140,6 @@ DebugHUD.bindEvents();
 saveManager.markBootComplete();
 saveManager.startAutoSave();
 UIManager.startVHSTimer();
-
-let isFirstBoot = !savedState;
-document.addEventListener('pointerlockchange', () => {
-    if (document.pointerLockElement === document.body && isFirstBoot) {
-        isFirstBoot = false;
-        setTimeout(() => {
-            document.dispatchEvent(new CustomEvent('somatic-read', {
-                detail: { docId: 'NOTE_TUTORIAL' }
-            }));
-        }, 1500);
-    }
-});
 
 document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e) => {
     const targetSector = e.target.value;

@@ -404,8 +404,8 @@ export default class PlayerController {
                 this.linguisticDarkMatter = Math.max(this.narrativeTension, this.linguisticDarkMatter - (delta * 1.5));
             }
             const maxBatteryCeiling = 100.0 - this.linguisticDarkMatter;
-            const clampedAngular = Math.min(5.0, angularSpeed);
-            const kineticCharge = (currentActualSpeed * 0.15) + (clampedAngular * 8.0);
+            const angularRate = Math.min(6.0, angularSpeed / Math.max(delta, 1e-5));
+            const kineticCharge = (currentActualSpeed * 0.30) + (angularRate * 1.0);
             this.flashlightBattery = Math.min(maxBatteryCeiling, this.flashlightBattery + (kineticCharge * delta));
         }
         const fatigueRatio = this.stamina / this.maxStamina;

@@ -545,6 +545,91 @@ export default class SetPieces {
         }
     }
 
+    buildBlastDoor(chunkGroup, hash, cx, cz, spansX, opts = {}) {
+        const env = this.env;
+        const sectorId = opts.sectorId !== undefined ? opts.sectorId : null;
+        const outSign = opts.outSign !== undefined ? opts.outSign : 1;
+        const isAirlockDoor = opts.isAirlockDoor !== false;
+        if (!env.airlockSealMat) {
+            env.airlockSealMat = new THREE.MeshStandardMaterial({color: 0x111111, roughness: 0.9, metalness: 0.1});
+        }
+        const doorMat = env.stainlessDoorMat || env.titaniumMat || env.stainlessMat || env.metalMat;
+        const doorGroup = new THREE.Group();
+        doorGroup.position.set(cx, 0, cz);
+        const getDoorGeo = (name, w, h, d) => {
+            const key = `${name}_${spansX}_${w}_${h}_${d}`;
+            let geo = env.geoCache.get(key);
+            if (!geo) {
+                geo = new THREE.BoxGeometry(w, h, d);
+                env.geoCache.set(key, geo);
+                env.geoCache.set(geo.uuid, true);
+            }
+            return geo;
+        };
+        const panelGeo = spansX
+            ? getDoorGeo('doorPanel', 1.98, 2.6, 0.24)
+            : getDoorGeo('doorPanel', 0.24, 2.6, 1.98);
+        const stripeGeo = spansX
+            ? getDoorGeo('doorStripe', 0.12, 2.6, 0.26)
+            : getDoorGeo('doorStripe', 0.26, 2.6, 0.12);
+        const mkPanel = (side) => {
+            const mats = [doorMat, doorMat, doorMat, doorMat, doorMat, doorMat];
+            if (spansX) mats[side === -1 ? 0 : 1] = env.airlockSealMat;
+            else mats[side === -1 ? 4 : 5] = env.airlockSealMat;
+            const p = new THREE.Mesh(panelGeo, mats);
+            if (spansX) p.position.set(side * 0.96, 1.3, 0);
+            else p.position.set(0, 1.3, side * 0.96);
+            const stripe = new THREE.Mesh(stripeGeo, env.hazardMat);
+            if (spansX) stripe.position.set(-side * 0.92, 0, 0);
+            else stripe.position.set(0, 0, -side * 0.92);
+            p.add(stripe);
+            p.castShadow = false;
+            p.receiveShadow = true;
+            p.userData.chunkHash = hash;
+            doorGroup.add(p);
+            return p;
+        };
+        const panelL = mkPanel(-1);
+        const panelR = mkPanel(1);
+        chunkGroup.add(doorGroup);
+        doorGroup.updateMatrixWorld(true);
+        env.walls.push(panelL, panelR);
+        const doorBox = new THREE.Box3();
+        if (spansX) {
+            doorBox.min.set(cx - 1.55, 0.0, cz - 0.25);
+            doorBox.max.set(cx + 1.55, 2.6, cz + 0.25);
+        } else {
+            doorBox.min.set(cx - 0.25, 0.0, cz - 1.55);
+            doorBox.max.set(cx + 0.25, 2.6, cz + 1.55);
+        }
+        doorBox.chunkHash = hash;
+        doorBox.isEntityBlocker = true;
+        env.spatialGrid.insert(doorBox);
+        const slideAxis = spansX ? 'x' : 'z';
+        doorGroup.userData = {
+            chunkHash: hash,
+            isSlider: true,
+            isAirlockDoor: isAirlockDoor,
+            spansX: spansX,
+            panels: [panelL, panelR],
+            baseOffsets: [panelL.position[slideAxis], panelR.position[slideAxis]],
+            signs: [-1, 1],
+            slideDist: 1.55,
+            progress: 0,
+            target: 0,
+            lastTarget: 0,
+            box: doorBox,
+            closedBox: doorBox.clone(),
+            sectorId: sectorId,
+            outSign: outSign,
+            openRadiusSq: opts.openRadiusSq
+        };
+        env.interactiveDoors.push({
+            position: new THREE.Vector3(cx, 1.5, cz),
+            userData: doorGroup.userData
+        });
+        return {group: doorGroup, data: doorGroup.userData, position: new THREE.Vector3(cx, 0, cz)};
+    }
     buildAirlock(chunkGroup, hash, dcx, dcz, spansX, sectorId, outSign) {
         const env = this.env;
         if (!env.airlockRedMat) {
@@ -555,7 +640,6 @@ export default class SetPieces {
             env.airlockSealMat = new THREE.MeshStandardMaterial({color: 0x111111, roughness: 0.9, metalness: 0.1});
         }
         const shellMat = env.stainlessMat || env.titaniumMat || env.metalMat;
-        const doorMat = env.stainlessDoorMat || env.titaniumMat || shellMat;
         const inSign = outSign * -1;
         const chamberDepth = 2.8;
         const halfDepth = chamberDepth * 0.5;
@@ -585,82 +669,10 @@ export default class SetPieces {
             }
             return new THREE.Mesh(geo, mat);
         };
-        const buildDoor = (cx, cz) => {
-            const doorGroup = new THREE.Group();
-            doorGroup.position.set(cx, 0, cz);
-            const getDoorGeo = (name, w, h, d) => {
-                const key = `${name}_${spansX}_${w}_${h}_${d}`;
-                let geo = env.geoCache.get(key);
-                if (!geo) {
-                    geo = new THREE.BoxGeometry(w, h, d);
-                    env.geoCache.set(key, geo);
-                    env.geoCache.set(geo.uuid, true);
-                }
-                return geo;
-            };
-            const panelGeo = spansX
-                ? getDoorGeo('doorPanel', 1.98, 2.6, 0.24)
-                : getDoorGeo('doorPanel', 0.24, 2.6, 1.98);
-            const stripeGeo = spansX
-                ? getDoorGeo('doorStripe', 0.12, 2.6, 0.26)
-                : getDoorGeo('doorStripe', 0.26, 2.6, 0.12);
-            const mkPanel = (side) => {
-                const mats = [doorMat, doorMat, doorMat, doorMat, doorMat, doorMat];
-                if (spansX) mats[side === -1 ? 0 : 1] = env.airlockSealMat;
-                else mats[side === -1 ? 4 : 5] = env.airlockSealMat;
-                const p = new THREE.Mesh(panelGeo, mats);
-                if (spansX) p.position.set(side * 0.96, 1.3, 0);
-                else p.position.set(0, 1.3, side * 0.96);
-                const stripe = new THREE.Mesh(stripeGeo, env.hazardMat);
-                if (spansX) stripe.position.set(-side * 0.92, 0, 0);
-                else stripe.position.set(0, 0, -side * 0.92);
-                p.add(stripe);
-                p.castShadow = false;
-                p.receiveShadow = true;
-                p.userData.chunkHash = hash;
-                doorGroup.add(p);
-                return p;
-            };
-            const panelL = mkPanel(-1);
-            const panelR = mkPanel(1);
-            chunkGroup.add(doorGroup);
-            doorGroup.updateMatrixWorld(true);
-            env.walls.push(panelL, panelR);
-            const doorBox = new THREE.Box3();
-            if (spansX) {
-                doorBox.min.set(cx - 1.55, 0.0, cz - 0.25);
-                doorBox.max.set(cx + 1.55, 2.6, cz + 0.25);
-            } else {
-                doorBox.min.set(cx - 0.25, 0.0, cz - 1.55);
-                doorBox.max.set(cx + 0.25, 2.6, cz + 1.55);
-            }
-            doorBox.chunkHash = hash;
-            doorBox.isEntityBlocker = true;
-            env.spatialGrid.insert(doorBox);
-            const slideAxis = spansX ? 'x' : 'z';
-            doorGroup.userData = {
-                chunkHash: hash,
-                isSlider: true,
-                isAirlockDoor: true,
-                spansX: spansX,
-                panels: [panelL, panelR],
-                baseOffsets: [panelL.position[slideAxis], panelR.position[slideAxis]],
-                signs: [-1, 1],
-                slideDist: 1.55,
-                progress: 0,
-                target: 0,
-                lastTarget: 0,
-                box: doorBox,
-                closedBox: doorBox.clone(),
-                sectorId: sectorId,
-                outSign: outSign
-            };
-            env.interactiveDoors.push({
-                position: new THREE.Vector3(cx, 1.5, cz),
-                userData: doorGroup.userData
-            });
-            return {group: doorGroup, data: doorGroup.userData, position: new THREE.Vector3(cx, 0, cz)};
-        };
+        const buildDoor = (cx, cz) => this.buildBlastDoor(
+            chunkGroup, hash, cx, cz, spansX,
+            {sectorId: sectorId, outSign: outSign, isAirlockDoor: true}
+        );
         const outerDoor = buildDoor(outerX, outerZ);
         const innerDoor = buildDoor(innerX, innerZ);
         const SHELL_HALF = 1.875;
