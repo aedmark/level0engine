@@ -1,4 +1,4 @@
-# Level 0 Engine: Procedural Liminal Space Simulator v1.1.9
+# Level 0 Engine: Procedural Liminal Space Simulator v1.2.0
 
 <img src="./header.png">
 
