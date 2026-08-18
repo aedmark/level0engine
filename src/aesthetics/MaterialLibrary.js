@@ -124,9 +124,9 @@ export default class MaterialLibrary {
         const bBody = new THREE.Mesh(bBodyGeo, env.hazardMat);
         bBody.position.y = 0.08;
         const bTopRim = new THREE.Mesh(bRimGeo, env.metalMat);
-        bTopRim.position.y = 0.16 - 0.0075;
+        bTopRim.position.y = 0.16 - 0.0075 + 0.001;
         const bBotRim = new THREE.Mesh(bRimGeo, env.metalMat);
-        bBotRim.position.y = 0.0075;
+        bBotRim.position.y = 0.0075 - 0.001;
         const bTerm = new THREE.Mesh(bTermGeo, env.metalMat);
         bTerm.position.y = 0.16 + 0.01;
         env.batteryPrefab.add(bBody, bTopRim, bBotRim, bTerm);
