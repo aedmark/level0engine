@@ -105,6 +105,12 @@ if (!document.getElementById('seedInput').value) {
 // Read by Environment.generate() during setup(). One-shot: it clears itself, so a later
 // reseed drops the player into the maze the way it always has.
 environment.wantsElevatorSpawn = !savedState;
+// Restored before setup() because generate() re-arms the car from this during setup,
+// and the first chunk build needs to know which of its props are already spent.
+environment.elevatorAnchor = (savedState && savedState.elevator) || null;
+if (savedState && Array.isArray(savedState.consumed)) {
+    environment.consumedProps = new Set(savedState.consumed);
+}
 await Promise.all([environment.setup(), storyPromise]);
 if (savedState) {
     if (savedState.story && environment.getStory) {

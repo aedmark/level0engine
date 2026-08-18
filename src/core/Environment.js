@@ -9,6 +9,7 @@ import SECTORS, {DEFAULT_DUST, DEFAULT_EXHAUST, DEFAULT_AMBIENT, MIN_AMBIENT} fr
 import MaterialLibrary from '../aesthetics/MaterialLibrary.js';
 import StructureKit from '../world/StructureKit.js';
 import SetPieces from '../world/SetPieces.js';
+import * as SectorPlacement from '../world/SectorPlacement.js';
 import InteractionController from '../player/InteractionController.js';
 import {setPodiumScan, setPodiumSpent, SCAN_DURATION} from '../world/BreakerPodium.js';
 import RenderEngine from './RenderEngine.js';
@@ -37,6 +38,19 @@ export default class Environment {
         this.currentChunkCoords = {x: null, z: null, qx: null, qz: null};
         this.interactiveDoors = [];
         this.airlocks = [];
+        // Props that must not come back when their chunk rebuilds. Deliberately NOT
+        // cleared by generate() — chunk churn, warps and reloads all have to preserve it.
+        // Only a death (via somatic-run-reset) or a storage purge empties it.
+        this.consumedProps = new Set();
+        // A death runs triggerBlackout() first, which appends " NULL" to the seed and so
+        // builds a different maze entirely. The old anchor points into a world that no
+        // longer exists, and the run starts over — so the next generate() carves a fresh
+        // arrival car with its supplies restocked, exactly like a first boot.
+        document.addEventListener('somatic-run-reset', () => {
+            this.consumedProps.clear();
+            this.elevatorAnchor = null;
+            this.wantsElevatorSpawn = true;
+        });
         this.localFixtures = [];
         this.lastAudioOcclusionTime = 0;
         this.currentOcclusionState = false;
@@ -413,6 +427,29 @@ export default class Environment {
     }
 
 
+    /**
+     * The chunk the player spawns into must be ordinary maze. A sector chunk builds
+     * through `activeSector.build` and never reaches `_buildEmptyCell`, which means no
+     * arrival car and a spawn dropped into whatever the sector put there. Walks outward
+     * in rings from the requested chunk and returns the first non-macro one, leaving
+     * macro placement itself — which depends only on the seed — completely untouched.
+     */
+    _pickSpawnChunk(cX, cZ) {
+        const cfg = SectorPlacement.placementConfig(this);
+        if (!SectorPlacement.isMacroChunk(cfg, cX, cZ)) return {x: cX, z: cZ};
+        for (let r = 1; r <= 8; r++) {
+            for (let dx = -r; dx <= r; dx++) {
+                for (let dz = -r; dz <= r; dz++) {
+                    if (Math.abs(dx) !== r && Math.abs(dz) !== r) continue;
+                    if (!SectorPlacement.isMacroChunk(cfg, cX + dx, cZ + dz)) {
+                        return {x: cX + dx, z: cZ + dz};
+                    }
+                }
+            }
+        }
+        return {x: cX, z: cZ};
+    }
+
     generate(isWarp = false) {
         const flash = document.getElementById('flash-overlay');
         if (flash) {
@@ -470,6 +507,12 @@ export default class Environment {
         this.chunkQueue = [];
         this.isBuildingChunk = false;
         this.player.velocity.set(0, 0, 0);
+        const seedString = document.getElementById('seedInput').value || "ASYNC RESEARCH INSTITUTE";
+        this.baseSeed = 0;
+        for (let i = 0; i < seedString.length; i++) {
+            this.baseSeed = ((this.baseSeed << 5) - this.baseSeed) + seedString.charCodeAt(i);
+            this.baseSeed |= 0;
+        }
         if (isWarp) {
             const signX = Math.random() > 0.5 ? 1 : -1;
             const signZ = Math.random() > 0.5 ? 1 : -1;
@@ -483,22 +526,44 @@ export default class Environment {
             this.player.coherence = 1.0;
             if (this.anomaly) this.anomaly.reset(32, 1.5, 32);
             const chunkW = 64;
-            const cX = Math.floor(this.camera.position.x / chunkW);
-            const cZ = Math.floor(this.camera.position.z / chunkW);
+            const spawn = this._pickSpawnChunk(
+                Math.floor(this.camera.position.x / chunkW),
+                Math.floor(this.camera.position.z / chunkW)
+            );
+            const cX = spawn.x;
+            const cZ = spawn.z;
             this.camera.position.set(cX * chunkW + 6, 1.6, cZ * chunkW + 6);
             this.needsSafeSpawn = true;
             // Brand-new save only: the arrival car claims the first empty cell of this
             // chunk and ChunkManager parks the player inside it once the chunk lands.
             if (this.wantsElevatorSpawn) {
                 this.wantsElevatorSpawn = false;
-                this._spawnElevator = {chunkHash: `${cX},${cZ}`, spawned: false, placement: null};
+                this._spawnElevator = {
+                    chunkHash: `${cX},${cZ}`,
+                    cellX: null,
+                    cellZ: null,
+                    exitIndex: null,
+                    placePlayer: true,
+                    placement: null
+                };
             }
         }
-        const seedString = document.getElementById('seedInput').value || "ASYNC RESEARCH INSTITUTE";
-        this.baseSeed = 0;
-        for (let i = 0; i < seedString.length; i++) {
-            this.baseSeed = ((this.baseSeed << 5) - this.baseSeed) + seedString.charCodeAt(i);
-            this.baseSeed |= 0;
+        // Anchored car: re-armed every generate, warps included, so the room is rebuilt
+        // whenever its chunk comes back into range. A reseed builds a different maze, in
+        // which the stored cell means nothing, so the anchor is dropped instead.
+        if (this.elevatorAnchor && this.elevatorAnchor.seed !== this.baseSeed) {
+            this.elevatorAnchor = null;
+        }
+        if (!this._spawnElevator && this.elevatorAnchor) {
+            const a = this.elevatorAnchor;
+            this._spawnElevator = {
+                chunkHash: `${Math.floor(a.cellX / this.chunkSize)},${Math.floor(a.cellZ / this.chunkSize)}`,
+                cellX: a.cellX,
+                cellZ: a.cellZ,
+                exitIndex: a.exitIndex,
+                placePlayer: false,
+                placement: null
+            };
         }
         this.cellSize = 4;
         MaterialLibrary.injectMaterials(this);

@@ -218,8 +218,11 @@ export default class ChunkManager {
         if (env.isSpawning) {
             env.isSpawning = false;
 
+            // One-shot: only the run that first carves the car moves the player into it.
+            // A restored session keeps the position that came out of the save.
             const elevator = env._spawnElevator;
-            if (elevator && elevator.placement) {
+            if (elevator && elevator.placePlayer && elevator.placement) {
+                elevator.placePlayer = false;
                 env.needsSafeSpawn = false;
                 env.camera.position.set(elevator.placement.x, 1.6, elevator.placement.z);
                 env.camera.rotation.set(0, elevator.placement.rotationY, 0, 'YXZ');
@@ -794,13 +797,26 @@ export default class ChunkManager {
         const { x, z, env, ctx, random, hash, chunkGroup, localX, localZ, isWallCell, isSolidWallCell, breakerPositions } = args;
         let hasTallObstacle = false;
 
-        // Claims the first empty cell of the spawn chunk, before any of the clutter
-        // below gets a chance to run, and returns early so the car stays bare.
+        // Runs before any of the clutter below and returns early so the car stays bare.
+        // Once anchored it only ever rebuilds on its own cell, so the room is still there
+        // every time the player walks back into the chunk.
         const elevator = env._spawnElevator;
-        if (elevator && !elevator.spawned && elevator.chunkHash === hash) {
-            elevator.spawned = true;
-            elevator.placement = spawnElevatorCar(env, ctx, x, z);
-            return;
+        if (elevator && elevator.chunkHash === hash) {
+            const anchored = elevator.cellX !== null && elevator.cellX !== undefined;
+            if (!anchored || (x === elevator.cellX && z === elevator.cellZ)) {
+                const placement = spawnElevatorCar(env, ctx, x, z, elevator.exitIndex);
+                elevator.cellX = placement.cellX;
+                elevator.cellZ = placement.cellZ;
+                elevator.exitIndex = placement.exitIndex;
+                elevator.placement = placement;
+                env.elevatorAnchor = {
+                    cellX: placement.cellX,
+                    cellZ: placement.cellZ,
+                    exitIndex: placement.exitIndex,
+                    seed: env.baseSeed
+                };
+                return;
+            }
         }
 
         if (!state.spawnedVirtualBreaker && env._virtualBreaker && env._virtualBreaker.chunkHash === hash && !env._virtualBreaker.spawned) {

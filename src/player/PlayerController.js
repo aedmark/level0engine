@@ -112,6 +112,9 @@ export default class PlayerController {
     }
 
     resetMetabolism() {
+        // Fires on death and on a rejected inquest — the two paths that wipe run
+        // progress. Anything holding per-run state (consumed one-shot props) resets here.
+        document.dispatchEvent(new Event('somatic-run-reset'));
         this.stamina = this.maxStamina;
         this.exhaustion = 0.0;
         this.isWinded = false;

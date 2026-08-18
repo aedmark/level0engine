@@ -19,7 +19,7 @@ const ROOM_H = 3.0;
 // sealed on three sides, with one reused airlock door pair as the way out. Laid out like
 // THE OASIS: a table facing the player carrying the field manual, a battery and an
 // almond water.
-export const spawnElevatorCar = (env, ctx, x, z) => {
+export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
     const {random, chunkGroup, hash, stagingMeshes, buildWall, addGeometry, buildTable, getLightMaterial} = ctx;
     const cell = env.cellSize;
     const half = cell / 2;
@@ -28,11 +28,16 @@ export const spawnElevatorCar = (env, ctx, x, z) => {
 
     if (ctx.markOccupied) ctx.markOccupied(x, z);
 
-    let exit = EXIT_DIRS[0];
-    if (ctx.isWall) {
-        const open = EXIT_DIRS.find(d => !ctx.isWall(x + d.dx, z + d.dz));
-        if (open) exit = open;
+    // A rebuild of an already-anchored car reuses the stored side verbatim, so the way
+    // out never moves between visits.
+    let exitIndex = 0;
+    if (forcedExitIndex !== undefined && forcedExitIndex !== null && EXIT_DIRS[forcedExitIndex]) {
+        exitIndex = forcedExitIndex;
+    } else if (ctx.isWall) {
+        const found = EXIT_DIRS.findIndex(d => !ctx.isWall(x + d.dx, z + d.dz));
+        if (found !== -1) exitIndex = found;
     }
+    const exit = EXIT_DIRS[exitIndex];
     // Guarantees the landing outside the door is walkable even when the maze wanted a
     // wall there. setWall also retires any wall mesh already staged for that cell.
     if (ctx.setWall) ctx.setWall(x + exit.dx, z + exit.dz, false);
@@ -133,11 +138,17 @@ export const spawnElevatorCar = (env, ctx, x, z) => {
     const spanZ = exit.spansX ? 0 : 1;
     const tx = cx - exit.dx * 1.1;
     const tz = cz - exit.dz * 1.1;
+    // buildTable puts its top's upper face at legH + 0.025 + 0.025 = exactly 0.93, so a
+    // flat plane laid at SURFACE_Y is coplanar with it. Solids sit on it fine; the note
+    // needs the lift or it z-fights the tabletop across its whole face.
     const SURFACE_Y = 0.93;
+    const PAPER_Y = SURFACE_Y + 0.005;
 
     if (!env.interactables) env.interactables = [];
+    const taken = env.consumedProps || new Set();
 
     const placePickup = (type, prefab, glowScale, offset) => {
+        if (taken.has(`elevator:${type}`)) return;
         const group = new THREE.Group();
         group.add(prefab.clone());
         const glow = new THREE.Mesh(env.glowGeo, env.glowMat);
@@ -146,27 +157,34 @@ export const spawnElevatorCar = (env, ctx, x, z) => {
         group.add(glow);
         group.position.set(tx + spanX * offset, SURFACE_Y, tz + spanZ * offset);
         group.rotation.y = (random() - 0.5) * 0.8;
-        group.userData = {type: type, chunkHash: hash, active: true};
+        group.userData = {type: type, chunkHash: hash, active: true, consumeKey: `elevator:${type}`};
         chunkGroup.add(group);
         env.interactables.push(group);
     };
     placePickup('almond', env.almondPrefab, 0.15, -0.38);
     placePickup('battery', env.batteryPrefab, 0.20, 0.38);
 
-    const note = new THREE.Mesh(env.documentGeo, env.documentMat);
-    note.position.set(tx + exit.dx * 0.22, SURFACE_Y, tz + exit.dz * 0.22);
-    note.rotation.y = Math.atan2(exit.dx, exit.dz);
-    note.userData = {
-        type: 'document',
-        chunkHash: hash,
-        active: true,
-        zone: null,
-        docId: 'NOTE_TUTORIAL'
-    };
-    chunkGroup.add(note);
-    note.updateMatrixWorld(true);
-    attachPropGlow(env, note, hash, {...PROP_GLOW.paper, flickerOffset: 0});
-    env._registerInteractable(note, hash);
+    {
+        // No consumeKey on purpose. The battery and the water are farmable value and are
+        // gone for good once taken; the manual is the game's only controls reference and
+        // is `ephemera`, so StoryEngine never files it in the journal. Making it one-shot
+        // would delete it permanently on a single read. It stays an ordinary document:
+        // spent for this chunk's lifetime, back if the room is rebuilt.
+        const note = new THREE.Mesh(env.documentGeo, env.documentMat);
+        note.position.set(tx + exit.dx * 0.22, PAPER_Y, tz + exit.dz * 0.22);
+        note.rotation.y = Math.atan2(exit.dx, exit.dz);
+        note.userData = {
+            type: 'document',
+            chunkHash: hash,
+            active: true,
+            zone: null,
+            docId: 'NOTE_TUTORIAL'
+        };
+        chunkGroup.add(note);
+        note.updateMatrixWorld(true);
+        attachPropGlow(env, note, hash, {...PROP_GLOW.paper, flickerOffset: 0});
+        env._registerInteractable(note, hash);
+    }
 
     const activeMat = getLightMaterial(0xffeedd, 0xffaa55, false);
     const panel = new THREE.Mesh(env.sharedPanelGeo, [
@@ -189,10 +207,14 @@ export const spawnElevatorCar = (env, ctx, x, z) => {
     });
 
     // Stands the player at the door end looking back at the table, so the note, the
-    // battery and the water are all in frame on the first frame.
+    // battery and the water are all in frame on the first frame. cellX/cellZ/exitIndex
+    // are what get persisted, so the car comes back in the same place every load.
     return {
         x: cx + exit.dx * 0.3,
         z: cz + exit.dz * 0.3,
-        rotationY: Math.atan2(exit.dx, exit.dz)
+        rotationY: Math.atan2(exit.dx, exit.dz),
+        cellX: x,
+        cellZ: z,
+        exitIndex: exitIndex
     };
 };

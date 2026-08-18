@@ -160,6 +160,8 @@ export default class SaveManager {
             fxaa: document.getElementById('fxaaToggle').checked,
             post: document.getElementById('postToggle').checked,
             headBob: document.getElementById('headBobToggle').checked,
+            elevator: this.environment.elevatorAnchor || null,
+            consumed: Array.from(this.environment.consumedProps || []),
             macroChunks: Array.from(this.environment._macroChunkHashes),
             discoveredSectors: Array.from(this.environment.discoveredSectors.entries()),
             story: this.environment.getStory ? this.environment.getStory().exportState() : null

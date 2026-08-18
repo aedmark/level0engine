@@ -715,6 +715,15 @@ export default class InteractionController {
             if (env.interactables) env.interactables.forEach(checkObj);
             if (env.interactiveDoors) env.interactiveDoors.forEach(checkObj);
             
+            // Records a prop as spent so its blueprint can skip rebuilding it. Only
+            // props that opt in with a consumeKey are tracked; everything else keeps the
+            // old respawn-on-chunk-rebuild behaviour.
+            const markConsumed = (obj) => {
+                if (obj.userData.consumeKey && env.consumedProps) {
+                    env.consumedProps.add(obj.userData.consumeKey);
+                }
+            };
+
             if (hit && hit.userData.type === 'seat') {
                 if (env.player) env.player.sit(hit);
                 return;
@@ -797,6 +806,7 @@ export default class InteractionController {
             } else if (hit && hit.userData.type === 'battery' && hit.userData.active) {
                 if (env.player.inventory.batteries < env.player.MAX_BATTERIES) {
                     hit.userData.active = false;
+                    markConsumed(hit);
                     releasePropLighting(env, hit);
                     hit.visible = false;
                     document.dispatchEvent(new Event('somatic-pickup-battery'));
@@ -804,12 +814,14 @@ export default class InteractionController {
             } else if (hit && hit.userData.type === 'almond' && hit.userData.active) {
                 if (env.player.inventory.almondWater < env.player.MAX_ALMOND_WATER) {
                     hit.userData.active = false;
+                    markConsumed(hit);
                     releasePropLighting(env, hit);
                     hit.visible = false;
                     document.dispatchEvent(new Event('somatic-pickup-almond'));
                 }
             } else if (hit && hit.userData.type === 'document' && hit.userData.active) {
                 hit.userData.active = false;
+                markConsumed(hit);
                 releasePropLighting(env, hit);
                 hit.visible = false;
                 document.dispatchEvent(new CustomEvent('somatic-read', {
