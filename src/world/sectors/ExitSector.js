@@ -44,19 +44,116 @@ export const ExitSector = (env, ctx) => {
                         addGeometry(wall);
                     }
                 } else if (localX === 7 && localZ === 7) {
-                    const elevator = new THREE.Mesh(env._boxGeo(env.cellSize * 0.8, 3.0, env.cellSize * 0.8), env.rustMat);
-                    elevator.position.set(x * env.cellSize, 1.5, z * env.cellSize);
+                    const elevator = new THREE.Group();
+                    elevator.position.set(x * env.cellSize, 0, z * env.cellSize);
                     elevator.userData = {type: 'exit', chunkHash: hash, active: true};
                     chunkGroup.add(elevator);
                     if (!env.interactables) env.interactables = [];
                     env.interactables.push(elevator);
-                    const pad = new THREE.Mesh(env._boxGeo(env.cellSize * 0.85, 0.8, env.cellSize * 0.85), env.metalMat);
-                    pad.position.set(0, -0.2, 0);
-                    elevator.add(pad);
-                    const light = new THREE.Mesh(env._boxGeo(env.cellSize * 0.9, 0.4, env.cellSize * 0.9), env.hazardMat);
-                    light.material = new THREE.MeshBasicMaterial({color: 0x55ff55});
-                    pad.add(light);
-                    const eBox = new THREE.Box3().setFromObject(elevator);
+
+                    // Materials
+                    const glassMat = new THREE.MeshStandardMaterial({color: 0x88ccff, transparent: true, opacity: 0.3, metalness: 0.8, roughness: 0.1});
+                    const glowingSignMat = new THREE.MeshBasicMaterial({color: 0x55ff55}); // Green glowing "EXIT" representation
+                    
+                    // 1. Base / Dock Pad
+                    const basePad = new THREE.Mesh(env._cylinderGeo(env.cellSize * 0.45, env.cellSize * 0.45, 0.4, 16), env.diamondPlateMat || env.metalMat);
+                    basePad.position.set(0, 0.2, 0);
+                    elevator.add(basePad);
+                    
+                    const ringLight = new THREE.Mesh(env._cylinderGeo(env.cellSize * 0.4, env.cellSize * 0.4, 0.45, 16), glowingSignMat);
+                    ringLight.position.set(0, 0.2, 0);
+                    elevator.add(ringLight);
+
+                    // 2. Main Capsule Hull (Cylinder)
+                    const hullRadius = env.cellSize * 0.38; // ~1.9
+                    const hullHeight = 2.8;
+                    const hullY = 0.4 + hullHeight / 2;
+                    const hullMat = env.incinWallMat || env.rustMat;
+                    const hull = new THREE.Mesh(env._cylinderGeo(hullRadius, hullRadius, hullHeight, 16), hullMat);
+                    hull.position.set(0, hullY, 0);
+                    elevator.add(hull);
+
+                    // 3. Phone Booth Door (Front)
+                    const doorGroup = new THREE.Group();
+                    doorGroup.position.set(0, hullY, hullRadius - 0.2);
+                    elevator.add(doorGroup);
+
+                    const doorFrame = new THREE.Mesh(env._boxGeo(1.6, 2.4, 0.6), env.blackIronMat || env.metalMat);
+                    doorGroup.add(doorFrame);
+                    
+                    // Folding glass panes
+                    const glass1 = new THREE.Mesh(env._boxGeo(0.6, 2.2, 0.7), glassMat);
+                    glass1.position.set(-0.35, 0, 0);
+                    doorGroup.add(glass1);
+                    const glass2 = new THREE.Mesh(env._boxGeo(0.6, 2.2, 0.7), glassMat);
+                    glass2.position.set(0.35, 0, 0);
+                    doorGroup.add(glass2);
+
+                    // 4. Side Portholes (Bathysphere detail)
+                    const portLeft = new THREE.Mesh(env._cylinderGeo(0.5, 0.5, hullRadius * 2.1, 12), hullMat);
+                    portLeft.rotation.z = Math.PI / 2;
+                    portLeft.position.set(0, hullY + 0.2, 0);
+                    elevator.add(portLeft);
+                    const portLeftGlass = new THREE.Mesh(env._cylinderGeo(0.4, 0.4, hullRadius * 2.2, 12), glassMat);
+                    portLeftGlass.rotation.z = Math.PI / 2;
+                    portLeftGlass.position.set(0, hullY + 0.2, 0);
+                    elevator.add(portLeftGlass);
+
+                    // 5. Dome Top (Bathysphere detail)
+                    const domeY = hullY + hullHeight / 2;
+                    const dome = new THREE.Mesh(new THREE.SphereGeometry(hullRadius, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2), hullMat);
+                    dome.position.set(0, domeY, 0);
+                    elevator.add(dome);
+
+                    // Top Apron / Collar
+                    const topPad = new THREE.Mesh(env._cylinderGeo(env.cellSize * 0.45, env.cellSize * 0.45, 0.4, 16), env.diamondPlateMat || env.metalMat);
+                    topPad.position.set(0, domeY, 0);
+                    elevator.add(topPad);
+                    
+                    const topRingLight = new THREE.Mesh(env._cylinderGeo(env.cellSize * 0.4, env.cellSize * 0.4, 0.45, 16), glowingSignMat);
+                    topRingLight.position.set(0, domeY, 0);
+                    elevator.add(topRingLight);
+
+                    // 6. Phone Booth Tiered Roof
+                    const roof1 = new THREE.Mesh(env._boxGeo(1.8, 0.2, 1.8), env.diamondPlateMat || env.metalMat);
+                    roof1.position.set(0, domeY + 0.1, 0);
+                    elevator.add(roof1);
+                    
+                    const roof2 = new THREE.Mesh(env._boxGeo(1.4, 0.4, 1.4), env.blackIronMat || env.metalMat);
+                    roof2.position.set(0, domeY + 0.4, 0);
+                    elevator.add(roof2);
+
+                    const signBox = new THREE.Mesh(env._boxGeo(1.5, 0.2, 1.5), glowingSignMat);
+                    signBox.position.set(0, domeY + 0.3, 0);
+                    elevator.add(signBox);
+                    
+                    const roof3 = new THREE.Mesh(env._boxGeo(1.0, 0.1, 1.0), env.diamondPlateMat || env.metalMat);
+                    roof3.position.set(0, domeY + 0.65, 0);
+                    elevator.add(roof3);
+
+                    // 7. Antenna
+                    const antennaBase = new THREE.Mesh(env._cylinderGeo(0.1, 0.2, 0.3, 8), env.blackIronMat || env.metalMat);
+                    antennaBase.position.set(0, domeY + 0.85, 0);
+                    elevator.add(antennaBase);
+                    
+                    const antennaPole = new THREE.Mesh(env._cylinderGeo(0.02, 0.02, 1.5, 4), env.diamondPlateMat || env.metalMat);
+                    antennaPole.position.set(0, domeY + 1.75, 0);
+                    elevator.add(antennaPole);
+
+                    const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), glowingSignMat);
+                    antennaTip.position.set(0, domeY + 2.5, 0);
+                    elevator.add(antennaTip);
+                    
+                    // Interior Light
+                    const intLight = new THREE.PointLight(0x55ff55, 1.5, 10);
+                    intLight.position.set(0, hullY, 0);
+                    elevator.add(intLight);
+
+                    // 8. Bounding Box for collision
+                    const eBox = new THREE.Box3();
+                    const halfCell = env.cellSize / 2;
+                    eBox.min.set(x * env.cellSize - halfCell, 0, z * env.cellSize - halfCell);
+                    eBox.max.set(x * env.cellSize + halfCell, 5, z * env.cellSize + halfCell);
                     eBox.chunkHash = hash;
                     eBox.isEntityBlocker = true;
                     env.spatialGrid.insert(eBox);

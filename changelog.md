@@ -1,5 +1,24 @@
 # Level 0 Engine Changelog
 
+## [v1.2.5] - 2026-08-18
+
+_The Bathysphere Booth_
+
+### Added
+
+- **[WORLD] Bathysphere Phone Booth Elevator (`ExitSector.js`):** Completely replaced the basic placeholder box for the exit elevator. It is now a detailed, procedurally generated capsule utilizing a hybrid Bathysphere/Telephone Booth design. It features a heavy welded steel hull, an intricate tiered metal roof with an antenna, folding glass doors, side portholes, and glowing green exit beacons. The collision boundary has been expanded to encompass the entire structural footprint.
+
+### Changed
+
+- **[GRAPHICS] Exit Sector Lighting (`Sectors.js`, `ExitSector.js`):** Completely overhauled the atmosphere in the Exit sector. Ambient lighting was drastically reduced to `0.02` and the fog was heavily tinted to a deep red (`0x330505`). The heavy ceiling trusses were removed, and the warning point-lights are now mounted completely flush against the ceiling tiles with boosted intensity and range to compensate for the darkness.
+- **[GRAPHICS] Epoxy Concrete & Route Decals (`ExitTextures.js`, `ExitSector.js`):** The exit floor texture has been overhauled into a seamlessly tiling sparkled epoxy concrete. The large directional hazard arrows have been extracted into an independent `exitArrowMat` and are now instantiated as dedicated decal meshes along the pathways, ensuring perfect rotation and scaling rather than being stretched and baked into the global chunk geometry.
+
+### Fixed
+
+- **[GRAPHICS] Texture Tiling Clamp Bug (`ExitTextures.js`):** The `clampT` property on the `_createWrappedTexture` utility was mistakenly left as `true` for both the floor and the ceiling materials in the Exit sector. This caused a severe stretching artifact where the top row of pixels was dragged endlessly across the Y-axis. The flag has been disabled, allowing the epoxy speckles and the acoustic ceiling tiles to repeat naturally in both dimensions.
+- **[GRAPHICS] "Glazed Glass" Ceiling (`ExitTextures.js`):** The exit ceiling material previously had an extremely dark base color paired with high metalness, turning it into a pitch-black void that absorbed all flashlight beams. It has been brightened to an acoustic off-white (`#666666`), `metalness` dropped to `0.0`, and `roughness` pushed to `1.0` (fully matte), ensuring it catches and reflects illumination properly.
+- **[SYSTEM] Missing Environment Primitive (`Environment.js`):** The engine crashed during procedural chunk generation because `env._cylinderGeo` was being called but had not been bound to the `StructureKit` cache. The wrapper has now been successfully mapped.
+
 ## [v1.2.4] - 2026-08-18
 
 _Stepping Over Ropes And Out Of The Dead Ends_

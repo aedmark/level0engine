@@ -692,6 +692,10 @@ export default class Environment {
         return this.structureKit.planeGeo(w, h);
     }
 
+    _cylinderGeo(rt, rb, h, rs) {
+        return this.structureKit.cylinderGeo(rt, rb, h, rs);
+    }
+
     _isArchitectural(mat) {
         if (!mat || Array.isArray(mat)) return false;
         if (!this._architecturalMats) {
