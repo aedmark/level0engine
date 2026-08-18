@@ -60,6 +60,13 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
     floor.position.set(cx, 0.01, cz);
     addGeometry(floor);
 
+    // Lightbreaking shroud to prevent light leaking and hide ceiling z-fighting.
+    // Built outside the main walls so it's invisible from inside.
+    const shroudMat = env.checkpointWallMat || env.woodMat;
+    const sThick = 0.4;
+    const sHeight = ROOM_H;
+    const sHalf = half + sThick / 2;
+
     for (const d of EXIT_DIRS) {
         const isExit = d === exit;
         const wx = cx + d.dx * (half - WALL_THICK / 2);
@@ -71,6 +78,16 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
             wall.position.set(wx, ROOM_H / 2, wz);
             wall.userData.isEntityBlocker = true;
             addGeometry(wall);
+            
+            // Shroud wall
+            const sw = d.dz !== 0 ? cell + sThick * 2 : sThick;
+            const sdep = d.dz !== 0 ? sThick : cell + sThick * 2;
+            const sWallGeo = new THREE.BoxGeometry(sw, sHeight, sdep);
+            const sWall = new THREE.Mesh(sWallGeo, shroudMat);
+            sWall.position.set(cx + d.dx * sHalf, sHeight / 2, cz + d.dz * sHalf);
+            sWall.userData.noCollision = true;
+            addGeometry(sWall);
+            
             continue;
         }
         // Door side: jambs either side of the panels plus a header over them, so the
@@ -102,9 +119,24 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
         header.position.set(wx, DOOR_TOP + headerH / 2, wz);
         header.userData.noCollision = true;
         addGeometry(header);
+
+        // Shroud jambs for the exit side
+        for (const side of [-1, 1]) {
+            const sjW = d.spansX ? jambW + 0.2 : sThick;
+            const sjD = d.spansX ? sThick : jambW + 0.2;
+            const sJambGeo = new THREE.BoxGeometry(sjW, sHeight, sjD);
+            const sJamb = new THREE.Mesh(sJambGeo, shroudMat);
+            sJamb.position.set(
+                cx + d.dx * sHalf + (d.spansX ? side * jambCentre : 0),
+                sHeight / 2,
+                cz + d.dz * sHalf + (d.spansX ? 0 : side * jambCentre)
+            );
+            sJamb.userData.noCollision = true;
+            addGeometry(sJamb);
+        }
     }
 
-    env.setPieces.buildBlastDoor(
+    const doorRet = env.setPieces.buildBlastDoor(
         chunkGroup, hash,
         cx + exit.dx * half, cz + exit.dz * half,
         exit.spansX,
@@ -117,6 +149,11 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
             openRadiusSq: 1.44
         }
     );
+    // The blast door has castShadow = false by default to save performance, but the spawn elevator
+    // contains a bright point light that leaks straight through it into the adjacent dark maze.
+    doorRet.group.traverse((child) => {
+        if (child.isMesh) child.castShadow = true;
+    });
 
     const table = buildTable(cx - exit.dx * 1.1, 0, cz - exit.dz * 1.1);
     table.userData.chunkHash = hash;

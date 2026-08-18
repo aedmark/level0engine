@@ -27,6 +27,8 @@ export default class SomaticInput {
         this.gamepadIndex = null;
         this._buttonStates = {};
         this._gamepadMoved = false;
+        this._pendingMouseMovementX = 0;
+        this._pendingMouseMovementY = 0;
         this._bindEvents();
     }
 
@@ -36,6 +38,21 @@ export default class SomaticInput {
             this.state.isCrouching = false;
             this._cKeyHandled = true;
         }
+
+        if (this._pendingMouseMovementX !== 0 || this._pendingMouseMovementY !== 0) {
+            if (this.state.isPeeking) {
+                this.state.targetLean -= this._pendingMouseMovementX * 0.002;
+                this.state.targetLean = Math.max(-0.5, Math.min(0.5, this.state.targetLean));
+            } else {
+                this.camera.rotation.y -= this._pendingMouseMovementX * 0.002;
+                this.camera.rotation.x -= this._pendingMouseMovementY * 0.002;
+                this.camera.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this.camera.rotation.x));
+                this.camera.rotation.order = "YXZ";
+            }
+            this._pendingMouseMovementX = 0;
+            this._pendingMouseMovementY = 0;
+        }
+
         this._updateGamepad(delta);
     }
 
@@ -244,6 +261,8 @@ export default class SomaticInput {
         window.addEventListener('blur', () => {
             this.state.moveForward = this.state.moveBackward = this.state.moveLeft = this.state.moveRight = this.state.isRunning = this.state.isPeeking = this.state.flyUp = false;
             this.state.targetLean = 0.0;
+            this._pendingMouseMovementX = 0;
+            this._pendingMouseMovementY = 0;
         });
     }
 
@@ -417,14 +436,7 @@ export default class SomaticInput {
             return;
         }
 
-        if (this.state.isPeeking) {
-            this.state.targetLean -= e.movementX * 0.002;
-            this.state.targetLean = Math.max(-0.5, Math.min(0.5, this.state.targetLean));
-        } else {
-            this.camera.rotation.y -= e.movementX * 0.002;
-            this.camera.rotation.x -= e.movementY * 0.002;
-            this.camera.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this.camera.rotation.x));
-            this.camera.rotation.order = "YXZ";
-        }
+        this._pendingMouseMovementX += e.movementX;
+        this._pendingMouseMovementY += e.movementY;
     }
 }
