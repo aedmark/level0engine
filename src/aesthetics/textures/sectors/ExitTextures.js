@@ -134,7 +134,65 @@ export default class ExitTextures {
             }),
             ...ExitTextures._buildExitFloor(masterNoise),
             ...ExitTextures._buildExitArrow(),
-            ...ExitTextures._buildExitCeiling(masterNoise)
+            ...ExitTextures._buildExitCeiling(masterNoise),
+            ...ExitTextures._buildExitDoorFrame(masterNoise)
+        };
+    }
+
+    static _buildExitDoorFrame(masterNoise) {
+        const W = 512, H = 512;
+        const {canvas, ctx} = TextureMechanics._createContext(W, H);
+        const {canvas: bumpCanvas, ctx: bCtx} = TextureMechanics._createContext(W, H);
+        const rand = TextureMechanics._seededRandom(445566);
+
+        ctx.fillStyle = '#2a2a2a'; // Dark grey metallic
+        ctx.fillRect(0, 0, W, H);
+        bCtx.fillStyle = '#888888';
+        bCtx.fillRect(0, 0, W, H);
+
+        // Add some brushed metal lines
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 2;
+        bCtx.strokeStyle = '#666666';
+        bCtx.lineWidth = 2;
+        for (let i = 0; i < 100; i++) {
+            const y = rand() * H;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(W, y);
+            ctx.stroke();
+            bCtx.beginPath();
+            bCtx.moveTo(0, y);
+            bCtx.lineTo(W, y);
+            bCtx.stroke();
+        }
+
+        // Add rivets along the edges
+        ctx.fillStyle = '#111111';
+        bCtx.fillStyle = '#ffffff';
+        const drawRivet = (x, y) => {
+            ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill();
+            bCtx.beginPath(); bCtx.arc(x, y, 6, 0, Math.PI * 2); bCtx.fill();
+        };
+        for (let i = 0; i <= 8; i++) {
+            drawRivet(16, i * (H / 8));
+            drawRivet(W - 16, i * (H / 8));
+        }
+
+        ctx.globalAlpha = 0.2;
+        ctx.drawImage(masterNoise, 0, 0, W, H);
+        ctx.globalAlpha = 1.0;
+
+        TextureMechanics._ditherCanvas(ctx, W, H, rand, 8);
+
+        return {
+            exitDoorFrameMat: new THREE.MeshStandardMaterial({
+                map: TextureMechanics._createWrappedTexture(canvas, 1, 1, false),
+                bumpMap: TextureMechanics._createWrappedTexture(bumpCanvas, 1, 1, false),
+                bumpScale: 0.05,
+                roughness: 0.6,
+                metalness: 0.8
+            })
         };
     }
 

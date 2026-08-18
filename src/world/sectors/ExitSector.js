@@ -46,12 +46,10 @@ export const ExitSector = (env, ctx) => {
                 } else if (localX === 7 && localZ === 7) {
                     const elevator = new THREE.Group();
                     elevator.position.set(x * env.cellSize, 0, z * env.cellSize);
-                    elevator.userData = {type: 'exit', chunkHash: hash, active: true};
                     chunkGroup.add(elevator);
-                    if (!env.interactables) env.interactables = [];
-                    env.interactables.push(elevator);
-
+                    
                     // Materials
+
                     const glassMat = new THREE.MeshStandardMaterial({color: 0x88ccff, transparent: true, opacity: 0.3, metalness: 0.8, roughness: 0.1});
                     const glowingSignMat = new THREE.MeshBasicMaterial({color: 0x55ff55}); // Green glowing "EXIT" representation
                     
@@ -67,37 +65,100 @@ export const ExitSector = (env, ctx) => {
                     // 2. Main Capsule Hull (Cylinder)
                     const hullRadius = env.cellSize * 0.38; // ~1.9
                     const hullHeight = 2.8;
-                    const hullY = 0.4 + hullHeight / 2;
+                    const hullY = 0.4 + hullHeight / 2; // 1.8
                     const hullMat = env.incinWallMat || env.rustMat;
-                    const hull = new THREE.Mesh(env._cylinderGeo(hullRadius, hullRadius, hullHeight, 16), hullMat);
-                    hull.position.set(0, hullY, 0);
-                    elevator.add(hull);
+                    
+                    const doubleHullMat = hullMat.clone();
+                    doubleHullMat.side = THREE.DoubleSide;
+
+                    // Bottom full hull (0.2 height)
+                    const hullBot = new THREE.Mesh(env._cylinderGeo(hullRadius, hullRadius, 0.2, 16), hullMat);
+                    hullBot.position.set(0, 0.4 + 0.1, 0);
+                    elevator.add(hullBot);
+
+                    // Middle open hull (2.4 height)
+                    const thetaStart = Math.PI / 8; // Start drawing just past the +Z gap
+                    const thetaLength = 14 * Math.PI / 8; // Draw 14 segments, leaving a 2-segment gap at +Z
+                    const hullMidGeo = new THREE.CylinderGeometry(hullRadius, hullRadius, 2.4, 14, 1, true, thetaStart, thetaLength);
+                    const hullMid = new THREE.Mesh(hullMidGeo, doubleHullMat);
+                    hullMid.position.set(0, 0.6 + 1.2, 0); // 1.8
+                    elevator.add(hullMid);
+
+                    // Top full hull (0.2 height)
+                    const hullTop = new THREE.Mesh(env._cylinderGeo(hullRadius, hullRadius, 0.2, 16), hullMat);
+                    hullTop.position.set(0, 3.0 + 0.1, 0);
+                    elevator.add(hullTop);
 
                     // 3. Phone Booth Door (Front)
                     const doorGroup = new THREE.Group();
                     doorGroup.position.set(0, hullY, hullRadius - 0.2);
+                    doorGroup.userData = {type: 'exit', chunkHash: hash, active: true};
                     elevator.add(doorGroup);
-
-                    const doorFrame = new THREE.Mesh(env._boxGeo(1.6, 2.4, 0.6), env.blackIronMat || env.metalMat);
-                    doorGroup.add(doorFrame);
                     
-                    // Folding glass panes
-                    const glass1 = new THREE.Mesh(env._boxGeo(0.6, 2.2, 0.7), glassMat);
-                    glass1.position.set(-0.35, 0, 0);
+                    if (!env.interactables) env.interactables = [];
+                    env.interactables.push(doorGroup);
+
+                    const frameMat = env.exitDoorFrameMat || env.blackIronMat || env.metalMat;
+
+                    const fWidth = 1.6;
+                    const fHeight = 2.4;
+                    const fDepth = 0.6;
+                    const fThick = 0.2;
+
+                    const frameTop = new THREE.Mesh(env._boxGeo(fWidth, fThick, fDepth), frameMat);
+                    frameTop.position.set(0, fHeight / 2 - fThick / 2, 0);
+                    doorGroup.add(frameTop);
+
+                    const frameBottom = new THREE.Mesh(env._boxGeo(fWidth, fThick, fDepth), frameMat);
+                    frameBottom.position.set(0, -fHeight / 2 + fThick / 2, 0);
+                    doorGroup.add(frameBottom);
+
+                    const frameLeft = new THREE.Mesh(env._boxGeo(fThick, fHeight - fThick * 2, fDepth), frameMat);
+                    frameLeft.position.set(-fWidth / 2 + fThick / 2, 0, 0);
+                    doorGroup.add(frameLeft);
+
+                    const frameRight = new THREE.Mesh(env._boxGeo(fThick, fHeight - fThick * 2, fDepth), frameMat);
+                    frameRight.position.set(fWidth / 2 - fThick / 2, 0, 0);
+                    doorGroup.add(frameRight);
+
+                    const frameMid = new THREE.Mesh(env._boxGeo(fThick / 2, fHeight - fThick * 2, fDepth), frameMat);
+                    frameMid.position.set(0, 0, 0);
+                    doorGroup.add(frameMid);
+
+                    const glassW = (fWidth - fThick * 2 - fThick / 2) / 2;
+                    const glassH = fHeight - fThick * 2;
+                    const glassThickness = 0.1;
+
+                    const glass1 = new THREE.Mesh(env._boxGeo(glassW, glassH, glassThickness), glassMat);
+                    // Left space bounds: -0.6 to -0.05. Center = -0.325
+                    glass1.position.set(-0.325, 0, 0);
                     doorGroup.add(glass1);
-                    const glass2 = new THREE.Mesh(env._boxGeo(0.6, 2.2, 0.7), glassMat);
-                    glass2.position.set(0.35, 0, 0);
+
+                    const glass2 = new THREE.Mesh(env._boxGeo(glassW, glassH, glassThickness), glassMat);
+                    // Right space bounds: 0.05 to 0.6. Center = 0.325
+                    glass2.position.set(0.325, 0, 0);
                     doorGroup.add(glass2);
 
                     // 4. Side Portholes (Bathysphere detail)
-                    const portLeft = new THREE.Mesh(env._cylinderGeo(0.5, 0.5, hullRadius * 2.1, 12), hullMat);
+                    const portLeft = new THREE.Mesh(env._cylinderGeo(0.5, 0.5, 0.4, 12), hullMat);
                     portLeft.rotation.z = Math.PI / 2;
-                    portLeft.position.set(0, hullY + 0.2, 0);
+                    portLeft.position.set(-hullRadius, hullY + 0.2, 0);
                     elevator.add(portLeft);
-                    const portLeftGlass = new THREE.Mesh(env._cylinderGeo(0.4, 0.4, hullRadius * 2.2, 12), glassMat);
+                    
+                    const portLeftGlass = new THREE.Mesh(env._cylinderGeo(0.4, 0.4, 0.1, 12), glassMat);
                     portLeftGlass.rotation.z = Math.PI / 2;
-                    portLeftGlass.position.set(0, hullY + 0.2, 0);
+                    portLeftGlass.position.set(-hullRadius, hullY + 0.2, 0);
                     elevator.add(portLeftGlass);
+
+                    const portRight = new THREE.Mesh(env._cylinderGeo(0.5, 0.5, 0.4, 12), hullMat);
+                    portRight.rotation.z = Math.PI / 2;
+                    portRight.position.set(hullRadius, hullY + 0.2, 0);
+                    elevator.add(portRight);
+                    
+                    const portRightGlass = new THREE.Mesh(env._cylinderGeo(0.4, 0.4, 0.1, 12), glassMat);
+                    portRightGlass.rotation.z = Math.PI / 2;
+                    portRightGlass.position.set(hullRadius, hullY + 0.2, 0);
+                    elevator.add(portRightGlass);
 
                     // 5. Dome Top (Bathysphere detail)
                     const domeY = hullY + hullHeight / 2;
