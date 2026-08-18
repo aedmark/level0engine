@@ -137,6 +137,10 @@ export function isExitChunk(cfg, cx, cz) {
     return exitRegion(cfg) === `${cx},${cz}`;
 }
 
+export function getExitChunk(cfg) {
+    return exitRegion(cfg);
+}
+
 export function placementConfig(env) {
     if (!env._placementCfg || env._placementCfg.baseSeed !== env.baseSeed) {
         env._placementCfg = {

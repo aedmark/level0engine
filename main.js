@@ -1,4 +1,5 @@
 import RenderEngine from './src/core/RenderEngine.js';
+import * as SectorPlacement from './src/world/SectorPlacement.js';
 import PlayerController from './src/player/PlayerController.js';
 import Compass from './src/player/Compass.js';
 import Flashlight from './src/player/Flashlight.js';
@@ -129,6 +130,15 @@ saveManager.markBootComplete();
 saveManager.startAutoSave();
 UIManager.startVHSTimer();
 
+document.getElementById('forceWinBtn')?.addEventListener('click', () => {
+    if (environment && environment.player) {
+        environment.player.objectives.fixed = environment.player.objectives.total;
+        environment.player.inventory.hasExitKey = true;
+        environment.player.updateObjectives("WIN STATE FORCED");
+        console.log("Forced win state: Exit Sector is now accessible.");
+    }
+});
+
 document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e) => {
     const targetSector = e.target.value;
     if (!targetSector) return;
@@ -151,28 +161,55 @@ document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e
     let foundZone = null;
     let stalled = false;
     sectorHuntActive = true;
-    while (step < maxSteps) {
-        environment.updateChunks(new THREE.Vector3(step * chunkWorldSize, 1.6, 0));
-        let waited = 0;
-        while (environment.isBuildingChunk || environment.chunkQueue.length > 0) {
-            await new Promise(r => setTimeout(r, 5));
-            waited += 5;
-            if (waited >= CHUNK_DRAIN_TIMEOUT_MS) {
-                stalled = true;
-                break;
+    
+    if (targetSector === "EXIT") {
+        const exitStr = SectorPlacement.getExitChunk(SectorPlacement.placementConfig(environment));
+        if (exitStr) {
+            const parts = exitStr.split(',');
+            const cx = parseInt(parts[0], 10);
+            const cz = parseInt(parts[1], 10);
+            const targetX = cx * chunkWorldSize + chunkWorldSize / 2;
+            const targetZ = cz * chunkWorldSize + chunkWorldSize / 2;
+            
+            engine.camera.position.set(targetX, 1.6, targetZ);
+            environment.updateChunks(engine.camera.position);
+            while (environment.isBuildingChunk || environment.chunkQueue.length > 0) {
+                await new Promise(r => setTimeout(r, 5));
+            }
+            for (const [hash, zone] of environment.macroZones.entries()) {
+                if (zone.id === "EXIT") {
+                    foundHash = hash;
+                    foundZone = zone;
+                    break;
+                }
             }
         }
-        if (stalled) break;
-        for (const [hash, zone] of environment.macroZones.entries()) {
-            if (zone.id === targetSector) {
-                foundHash = hash;
-                foundZone = zone;
-                break;
+    }
+
+    if (!foundZone) {
+        while (step < maxSteps) {
+            environment.updateChunks(new THREE.Vector3(step * chunkWorldSize, 1.6, 0));
+            let waited = 0;
+            while (environment.isBuildingChunk || environment.chunkQueue.length > 0) {
+                await new Promise(r => setTimeout(r, 5));
+                waited += 5;
+                if (waited >= CHUNK_DRAIN_TIMEOUT_MS) {
+                    stalled = true;
+                    break;
+                }
             }
+            if (stalled) break;
+            for (const [hash, zone] of environment.macroZones.entries()) {
+                if (zone.id === targetSector) {
+                    foundHash = hash;
+                    foundZone = zone;
+                    break;
+                }
+            }
+            if (foundZone) break;
+            step++;
+            if (step % 5 === 0) await new Promise(r => setTimeout(r, 0));
         }
-        if (foundZone) break;
-        step++;
-        if (step % 5 === 0) await new Promise(r => setTimeout(r, 0));
     }
     if (!foundZone) {
         sectorHuntActive = false;

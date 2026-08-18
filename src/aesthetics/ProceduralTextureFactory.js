@@ -15,6 +15,7 @@ import ArchiveTextures from './textures/sectors/ArchiveTextures.js';
 import CheckpointTextures from './textures/sectors/CheckpointTextures.js';
 import IncineratorTextures from './textures/sectors/IncineratorTextures.js';
 import ServerTextures from './textures/sectors/ServerTextures.js';
+import ExitTextures from './textures/sectors/ExitTextures.js';
 import StaticTextureLoader from './StaticTextureLoader.js';
 
 export default class ProceduralTextureFactory {
@@ -88,7 +89,8 @@ export default class ProceduralTextureFactory {
             ['MAINTENANCE', (noise) => MaintenanceTextures._buildMaintenanceAssets(noise)],
             ['ARCHIVE', (noise) => ArchiveTextures._buildArchiveAssets(noise)],
             ['CHECKPOINT', (noise) => CheckpointTextures._buildCheckpointAssets(noise)],
-            ['INCINERATOR', (noise) => IncineratorTextures._buildIncineratorAssets(noise)]
+            ['INCINERATOR', (noise) => IncineratorTextures._buildIncineratorAssets(noise)],
+            ['EXIT', (noise) => ExitTextures._buildExitAssets(noise)]
         ];
     }
 

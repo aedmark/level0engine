@@ -1341,6 +1341,7 @@
         <label>Level Seed</label>
         <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
             <input type="text" id="seedInput" autocomplete="off" style="margin-bottom: 0;">
+            <button id="forceWinBtn" class="btn" style="display: none; margin-bottom: 0; padding: 0.5rem; background: #225522; color: #fff; border: 1px solid #447744;">Force Win</button>
             <select id="sectorHuntSelect" class="btn" style="display: none; margin-bottom: 0; padding: 0.5rem;">
                 <option value="">Find Sector...</option>
                 <option value="ARCHIVE">Archive</option>
@@ -1354,6 +1355,7 @@
                 <option value="MAINTENANCE">Maintenance</option>
                 <option value="CHASM">Chasm</option>
                 <option value="CHECKPOINT">Checkpoint</option>
+                <option value="EXIT">Exit</option>
             </select>
         </div>
         <div id="debug-teleport-ui" style="display: none;">
@@ -1460,8 +1462,10 @@
     document.addEventListener('debug-mode-toggled', () => {
         const display = window.EDMARK_DEBUG_MODE ? '' : 'none';
         const huntSelect = document.getElementById('sectorHuntSelect');
+        const forceWinBtn = document.getElementById('forceWinBtn');
         const teleportUi = document.getElementById('debug-teleport-ui');
         if (huntSelect) huntSelect.style.display = display;
+        if (forceWinBtn) forceWinBtn.style.display = display;
         if (teleportUi) teleportUi.style.display = display;
     });
 </script>

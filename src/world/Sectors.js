@@ -260,7 +260,7 @@ const SECTORS = {
         reverb: {rt60: 0.35, predelay: 0.005, wet: 0.08}
     },
     EXIT: {
-        fog: 0.05, ambient: 0.56,
+        fog: 0.03, fogColor: 0x332525, ambient: 0.15,
         foley: {oscFreq: 700, filterType: 'bandpass', filterFreq: 2700, gain: 0.14, attack: 0.008, decay: 0.075},
         reverb: {rt60: 0.9, predelay: 0.012, wet: 0.14}
     },
