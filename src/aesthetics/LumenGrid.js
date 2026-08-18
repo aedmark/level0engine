@@ -20,9 +20,9 @@ export default class LumenGrid {
     constructor(env, shadowQuality = 'high') {
         this.env = env;
         this.scene = env.scene;
-        this.maxActiveLights = 32;
-        this.maxShadowLights = 6;
-        this.longReachSlots = 8;
+        this.maxActiveLights = 16;
+        this.maxShadowLights = 4;
+        this.longReachSlots = 6;
         this.lightPool = [];
         this._activeFixtures = new Array(this.maxActiveLights).fill(null);
         this._shadowSlotFixtures = new Array(this.maxShadowLights).fill(null);

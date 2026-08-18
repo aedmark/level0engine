@@ -23,7 +23,14 @@ export default class RenderEngine {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         const shadowQuality = RenderEngine.getSavedShadowQuality();
         this.renderer.shadowMap.enabled = shadowQuality !== 'off';
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        
+        if (shadowQuality === 'low') {
+            this.renderer.shadowMap.type = THREE.BasicShadowMap;
+        } else if (shadowQuality === 'ultra') {
+            this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        } else {
+            this.renderer.shadowMap.type = THREE.PCFShadowMap;
+        }
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         const gammaSlider = document.getElementById('gammaSlider');
         this.baseExposure = gammaSlider ? Number(gammaSlider.value) / 100 : 0.70;
