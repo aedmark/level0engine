@@ -3,229 +3,230 @@
 <head>
     <title>Export Textures</title>
     <style>
-        body { background:#111; color:#ccc; font-family:monospace; padding:20px; }
-        .ok { color:#7fd; }
-        .warn { color:#fd7; }
-        .err { color:#f77; }
+        body {
+            background: #111;
+            color: #ccc;
+            font-family: monospace;
+            padding: 20px;
+        }
+
+        .ok {
+            color: #7fd;
+        }
+
+        .warn {
+            color: #fd7;
+        }
+
+        .err {
+            color: #f77;
+        }
     </style>
 </head>
 <body>
-    <h1>Exporting Textures...</h1>
-    <div id="log"></div>
-    <script src="../r160.js"></script>
-    <script type="module">
-        import ProceduralTextureFactory from '../src/aesthetics/ProceduralTextureFactory.js';
-        import {SECTOR_METADATA_KEY} from '../src/aesthetics/StaticTextureLoader.js';
+<h1>Exporting Textures...</h1>
+<div id="log"></div>
+<script src="../r160.js"></script>
+<script type="module">
+    import ProceduralTextureFactory from '../src/aesthetics/ProceduralTextureFactory.js';
+    import {SECTOR_METADATA_KEY} from '../src/aesthetics/StaticTextureLoader.js';
 
-        const VERSION = "1.2.5";
-        const logEl = document.getElementById('log');
-        const log = (msg, cls = '') => {
-            console.log(msg);
-            logEl.innerHTML += `<div class="${cls}">${msg}</div>`;
-        };
+    const VERSION = "1.2.5";
+    const logEl = document.getElementById('log');
+    const log = (msg, cls = '') => {
+        console.log(msg);
+        logEl.innerHTML += `<div class="${cls}">${msg}</div>`;
+    };
 
-        async function run() {
-            try {
-                log("Generating core assets...");
-                ProceduralTextureFactory.USE_STATIC_TEXTURES = false;
-                const assets = await ProceduralTextureFactory.generateAssets();
-                log("Core assets generated.", 'ok');
-
-                const exportQueue = [];
-                const metadata = { version: VERSION };
-
-                const canvasOf = (tex) => {
-                    if (!tex || !tex.isTexture) return null;
-                    if (tex.source && tex.source.data instanceof HTMLCanvasElement) return tex.source.data;
-                    if (tex.image instanceof HTMLCanvasElement) return tex.image;
+    async function run() {
+        try {
+            log("Generating core assets...");
+            ProceduralTextureFactory.USE_STATIC_TEXTURES = false;
+            const assets = await ProceduralTextureFactory.generateAssets();
+            log("Core assets generated.", 'ok');
+            const exportQueue = [];
+            const metadata = {version: VERSION};
+            const canvasOf = (tex) => {
+                if (!tex || !tex.isTexture) return null;
+                if (tex.source && tex.source.data instanceof HTMLCanvasElement) return tex.source.data;
+                if (tex.image instanceof HTMLCanvasElement) return tex.image;
+                return null;
+            };
+            const texMetaOf = (item) => ({
+                type: 'Texture',
+                wrapS: item.wrapS,
+                wrapT: item.wrapT,
+                repeatX: item.repeat ? item.repeat.x : 1,
+                repeatY: item.repeat ? item.repeat.y : 1
+            });
+            const materialKind = (item) => {
+                if (item.isSpriteMaterial) return 'SpriteMaterial';
+                if (item.isMeshBasicMaterial) return 'BasicMaterial';
+                return 'Material';
+            };
+            const matMetaOf = (item) => {
+                const meta = {
+                    type: materialKind(item),
+                    blending: item.blending,
+                    polygonOffset: item.polygonOffset,
+                    polygonOffsetFactor: item.polygonOffsetFactor,
+                    color: item.color ? item.color.getHex() : undefined,
+                    emissive: item.emissive ? item.emissive.getHex() : undefined,
+                    emissiveIntensity: item.emissiveIntensity,
+                    roughness: item.roughness,
+                    metalness: item.metalness,
+                    bumpScale: item.bumpScale,
+                    transparent: item.transparent,
+                    opacity: item.opacity,
+                    shadowSide: item.shadowSide,
+                    side: item.side,
+                    depthWrite: item.depthWrite,
+                    alphaTest: item.alphaTest,
+                    vertexColors: item.vertexColors,
+                    hasMap: !!item.map,
+                    hasBumpMap: !!item.bumpMap,
+                    hasEmissiveMap: !!item.emissiveMap,
+                    hasRoughnessMap: !!item.roughnessMap,
+                    wrapS: item.map ? item.map.wrapS : undefined,
+                    wrapT: item.map ? item.map.wrapT : undefined,
+                    repeatX: item.map ? item.map.repeat.x : 1,
+                    repeatY: item.map ? item.map.repeat.y : 1
+                };
+                const ud = item.userData;
+                if (ud && Object.keys(ud).length > 0) {
+                    const plain = {};
+                    for (const [k, v] of Object.entries(ud)) {
+                        if (v === null || typeof v !== 'object') plain[k] = v;
+                    }
+                    if (Object.keys(plain).length > 0) meta.userData = plain;
+                }
+                return meta;
+            };
+            const unexportableReason = (item) => {
+                if (item === null || item === undefined) return 'null';
+                if (Array.isArray(item)) {
+                    for (const sub of item) {
+                        if (Array.isArray(sub)) return 'nested array (aliased material set)';
+                        const r = unexportableReason(sub);
+                        if (r) return r;
+                    }
                     return null;
-                };
-
-                const texMetaOf = (item) => ({
-                    type: 'Texture',
-                    wrapS: item.wrapS,
-                    wrapT: item.wrapT,
-                    repeatX: item.repeat ? item.repeat.x : 1,
-                    repeatY: item.repeat ? item.repeat.y : 1
-                });
-
-                const materialKind = (item) => {
-                    if (item.isSpriteMaterial) return 'SpriteMaterial';
-                    if (item.isMeshBasicMaterial) return 'BasicMaterial';
-                    return 'Material';
-                };
-
-                const matMetaOf = (item) => {
-                    const meta = {
-                        type: materialKind(item),
-                        blending: item.blending,
-                        polygonOffset: item.polygonOffset,
-                        polygonOffsetFactor: item.polygonOffsetFactor,
-                        color: item.color ? item.color.getHex() : undefined,
-                        emissive: item.emissive ? item.emissive.getHex() : undefined,
-                        emissiveIntensity: item.emissiveIntensity,
-                        roughness: item.roughness,
-                        metalness: item.metalness,
-                        bumpScale: item.bumpScale,
-                        transparent: item.transparent,
-                        opacity: item.opacity,
-                        shadowSide: item.shadowSide,
-                        side: item.side,
-                        depthWrite: item.depthWrite,
-                        alphaTest: item.alphaTest,
-                        vertexColors: item.vertexColors,
-                        hasMap: !!item.map,
-                        hasBumpMap: !!item.bumpMap,
-                        hasEmissiveMap: !!item.emissiveMap,
-                        hasRoughnessMap: !!item.roughnessMap,
-                        wrapS: item.map ? item.map.wrapS : undefined,
-                        wrapT: item.map ? item.map.wrapT : undefined,
-                        repeatX: item.map ? item.map.repeat.x : 1,
-                        repeatY: item.map ? item.map.repeat.y : 1
-                    };
+                }
+                if (item.isBufferGeometry) return 'BufferGeometry';
+                if (item.isTexture) return canvasOf(item) ? null : 'non-canvas texture';
+                if (item.isMaterial) {
+                    if (!item.isMeshStandardMaterial && !item.isMeshBasicMaterial && !item.isSpriteMaterial) {
+                        return `unsupported material type ${item.type}`;
+                    }
+                    if (item.onBeforeCompile && item.onBeforeCompile.length > 0) {
+                        return 'has onBeforeCompile hook';
+                    }
+                    for (const slot of ['alphaMap', 'normalMap', 'aoMap', 'metalnessMap',
+                        'displacementMap', 'lightMap', 'envMap']) {
+                        if (item[slot]) return `unsupported map slot: ${slot}`;
+                    }
+                    for (const slot of ['map', 'bumpMap', 'emissiveMap', 'roughnessMap']) {
+                        if (item[slot] && !canvasOf(item[slot])) return `non-canvas ${slot}`;
+                    }
                     const ud = item.userData;
-                    if (ud && Object.keys(ud).length > 0) {
-                        const plain = {};
-                        for (const [k, v] of Object.entries(ud)) {
-                            if (v === null || typeof v !== 'object') plain[k] = v;
-                        }
-                        if (Object.keys(plain).length > 0) meta.userData = plain;
-                    }
-                    return meta;
-                };
-
-                const unexportableReason = (item) => {
-                    if (item === null || item === undefined) return 'null';
-                    if (Array.isArray(item)) {
-                        for (const sub of item) {
-                            if (Array.isArray(sub)) return 'nested array (aliased material set)';
-                            const r = unexportableReason(sub);
-                            if (r) return r;
-                        }
-                        return null;
-                    }
-                    if (item.isBufferGeometry) return 'BufferGeometry';
-                    if (item.isTexture) return canvasOf(item) ? null : 'non-canvas texture';
-                    if (item.isMaterial) {
-                        if (!item.isMeshStandardMaterial && !item.isMeshBasicMaterial && !item.isSpriteMaterial) {
-                            return `unsupported material type ${item.type}`;
-                        }
-                        if (item.onBeforeCompile && item.onBeforeCompile.length > 0) {
-                            return 'has onBeforeCompile hook';
-                        }
-                        for (const slot of ['alphaMap', 'normalMap', 'aoMap', 'metalnessMap',
-                                            'displacementMap', 'lightMap', 'envMap']) {
-                            if (item[slot]) return `unsupported map slot: ${slot}`;
-                        }
-                        for (const slot of ['map', 'bumpMap', 'emissiveMap', 'roughnessMap']) {
-                            if (item[slot] && !canvasOf(item[slot])) return `non-canvas ${slot}`;
-                        }
-                        const ud = item.userData;
-                        if (ud) {
-                            for (const v of Object.values(ud)) {
-                                if (v && typeof v === 'object' && (v.isMaterial || v.isTexture || v.isBufferGeometry)) {
-                                    return 'userData references another asset';
-                                }
+                    if (ud) {
+                        for (const v of Object.values(ud)) {
+                            if (v && typeof v === 'object' && (v.isMaterial || v.isTexture || v.isBufferGeometry)) {
+                                return 'userData references another asset';
                             }
                         }
-                        return null;
                     }
-                    return `unrecognised asset (${typeof item})`;
-                };
-
-                const describe = (item, fileBase) => {
-                    if (item.isTexture) {
-                        exportQueue.push({name: fileBase, canvas: canvasOf(item)});
-                        return texMetaOf(item);
-                    }
-                    if (item.isMaterial) {
-                        if (item.isSpriteMaterial) {
-                            if (item.map) exportQueue.push({name: fileBase + '_map', canvas: canvasOf(item.map)});
-                            return matMetaOf(item);
-                        }
-                        for (const [slot, suffix] of [['map', '_map'], ['bumpMap', '_bump'],
-                                                      ['emissiveMap', '_emissive'], ['roughnessMap', '_roughness']]) {
-                            if (item[slot]) {
-                                exportQueue.push({name: fileBase + suffix, canvas: canvasOf(item[slot])});
-                            }
-                        }
+                    return null;
+                }
+                return `unrecognised asset (${typeof item})`;
+            };
+            const describe = (item, fileBase) => {
+                if (item.isTexture) {
+                    exportQueue.push({name: fileBase, canvas: canvasOf(item)});
+                    return texMetaOf(item);
+                }
+                if (item.isMaterial) {
+                    if (item.isSpriteMaterial) {
+                        if (item.map) exportQueue.push({name: fileBase + '_map', canvas: canvasOf(item.map)});
                         return matMetaOf(item);
                     }
-                    return null;
-                };
-
-                const describeEntry = (key, item) => {
-                    if (Array.isArray(item)) {
-                        const node = {};
-                        item.forEach((sub, i) => { node[i] = describe(sub, `${key}_${i}`); });
-                        return node;
-                    }
-                    return describe(item, key);
-                };
-
-                for (const [key, item] of Object.entries(assets)) {
-                    if (unexportableReason(item)) continue;
-                    metadata[key] = describeEntry(key, item);
-                }
-                log(`Core: ${Object.keys(metadata).length - 1} entries queued.`, 'ok');
-
-                const masterNoise = ProceduralTextureFactory._masterNoise;
-                metadata[SECTOR_METADATA_KEY] = {};
-
-                for (const [name, buildFn] of ProceduralTextureFactory.sectorGenerators()) {
-                    const bundle = buildFn(masterNoise);
-                    const keys = {};
-                    const residual = [];
-
-                    for (const [key, item] of Object.entries(bundle)) {
-                        const reason = unexportableReason(item);
-                        if (reason) {
-                            residual.push(key);
-                            log(`  ${name}.${key} -> generator only (${reason})`, 'warn');
-                            continue;
+                    for (const [slot, suffix] of [['map', '_map'], ['bumpMap', '_bump'],
+                        ['emissiveMap', '_emissive'], ['roughnessMap', '_roughness']]) {
+                        if (item[slot]) {
+                            exportQueue.push({name: fileBase + suffix, canvas: canvasOf(item[slot])});
                         }
-                        keys[key] = describeEntry(key, item);
                     }
-
-                    metadata[SECTOR_METADATA_KEY][name] = {keys, residual};
-                    const verdict = residual.length > 0
-                        ? `stays on generator (${residual.length} residual)`
-                        : `static (${Object.keys(keys).length} assets)`;
-                    log(`${name}: ${verdict}`, residual.length > 0 ? 'warn' : 'ok');
+                    return matMetaOf(item);
                 }
-
-                log("Sending metadata...");
-                await fetch('/export-meta', {
-                    method: 'POST',
-                    body: JSON.stringify(metadata)
-                });
-
-                let sent = 0;
-                for (const {name, canvas} of exportQueue) {
-                    if (!canvas) {
-                        log(`Skipped ${name}: no canvas`, 'err');
+                return null;
+            };
+            const describeEntry = (key, item) => {
+                if (Array.isArray(item)) {
+                    const node = {};
+                    item.forEach((sub, i) => {
+                        node[i] = describe(sub, `${key}_${i}`);
+                    });
+                    return node;
+                }
+                return describe(item, key);
+            };
+            for (const [key, item] of Object.entries(assets)) {
+                if (unexportableReason(item)) continue;
+                metadata[key] = describeEntry(key, item);
+            }
+            log(`Core: ${Object.keys(metadata).length - 1} entries queued.`, 'ok');
+            const masterNoise = ProceduralTextureFactory._masterNoise;
+            metadata[SECTOR_METADATA_KEY] = {};
+            for (const [name, buildFn] of ProceduralTextureFactory.sectorGenerators()) {
+                const bundle = buildFn(masterNoise);
+                const keys = {};
+                const residual = [];
+                for (const [key, item] of Object.entries(bundle)) {
+                    const reason = unexportableReason(item);
+                    if (reason) {
+                        residual.push(key);
+                        log(`  ${name}.${key} -> generator only (${reason})`, 'warn');
                         continue;
                     }
-                    const dataUrl = canvas.toDataURL('image/webp', 0.92);
-                    if (!dataUrl.startsWith('data:image/webp')) {
-                        log(`Browser refused WebP encoding for ${name} — aborting.`, 'err');
-                        throw new Error('WebP encoding unsupported in this browser');
-                    }
-                    await fetch('/export', {
-                        method: 'POST',
-                        body: JSON.stringify({ name, image: dataUrl })
-                    });
-                    sent++;
-                    if (sent % 10 === 0) log(`  ...${sent}/${exportQueue.length}`);
+                    keys[key] = describeEntry(key, item);
                 }
-
-                log(`Done — ${sent} WebP files written, version ${VERSION}.`, 'ok');
-            } catch (err) {
-                console.error(err);
-                log('Error: ' + err.message, 'err');
+                metadata[SECTOR_METADATA_KEY][name] = {keys, residual};
+                const verdict = residual.length > 0
+                    ? `stays on generator (${residual.length} residual)`
+                    : `static (${Object.keys(keys).length} assets)`;
+                log(`${name}: ${verdict}`, residual.length > 0 ? 'warn' : 'ok');
             }
+            log("Sending metadata...");
+            await fetch('/export-meta', {
+                method: 'POST',
+                body: JSON.stringify(metadata)
+            });
+            let sent = 0;
+            for (const {name, canvas} of exportQueue) {
+                if (!canvas) {
+                    log(`Skipped ${name}: no canvas`, 'err');
+                    continue;
+                }
+                const dataUrl = canvas.toDataURL('image/webp', 0.92);
+                if (!dataUrl.startsWith('data:image/webp')) {
+                    log(`Browser refused WebP encoding for ${name} — aborting.`, 'err');
+                    throw new Error('WebP encoding unsupported in this browser');
+                }
+                await fetch('/export', {
+                    method: 'POST',
+                    body: JSON.stringify({name, image: dataUrl})
+                });
+                sent++;
+                if (sent % 10 === 0) log(`  ...${sent}/${exportQueue.length}`);
+            }
+            log(`Done — ${sent} WebP files written, version ${VERSION}.`, 'ok');
+        } catch (err) {
+            console.error(err);
+            log('Error: ' + err.message, 'err');
         }
-        run();
-    </script>
+    }
+
+    run();
+</script>
 </body>
 </html>
