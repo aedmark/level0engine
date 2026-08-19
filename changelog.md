@@ -1,5 +1,25 @@
 # Level 0 Engine Changelog
 
+## [v1.2.8] - 2026-08-19
+
+_Research Pods, Retro Terminals & Security Keypads_
+
+### Added
+
+- **[WORLD] Research Pods & Narrow Hallway Layout (`AnnexSector.js`):** Revamped the Research Annex layout from open computer bay clusters into discrete, enclosed research pods connected by narrow branch corridors, while preserving open arterial cross-hallways (`X=7`, `Z=7`) to guarantee unobstructed access to all four sector airlock doorways.
+- **[GRAPHICS] Procedural Wood & Beveled Glass Pod Doors (`AnnexTextures.js`, `AnnexSector.js`):** Replaced the generic steel doors with procedural mahogany and dark walnut wood-grain doors featuring upper 6-pane beveled glass windows with brass mullions, lower recessed raised panels with gold diamond medallions, and bottom brass kick plates matching the 1920s Art Deco aesthetic.
+- **[WORLD] Mid-Century Writer's Desks & 60's Retro CRT Terminals (`AnnexSector.js`):** Outfitted research pods with bespoke mid-century writer's desks with tapered brass-ferruled legs and 1960s-style bulky CRT computer terminals complete with rounded bakelite housings, angled mechanical typewriter decks, control dials, toggle switches, and green/amber cathode phosphor screen glow. Terminals act as multi-format lore hubs (`PC_`, `NOTE_`, `LAPTOP_`, `TAPE_`, `LOG_`).
+- **[WORLD] Physical Wall-Mounted Security Keypad (`AnnexSector.js`, `InteractionController.js`):** Created a detailed physical electronic security keypad mounted on the outer hallway wall jamb beside the code-locked pod door, featuring a brushed gunmetal housing, glowing red status LED bar, cyan backlit LCD screen readout, 3x4 numerical button matrix, and subtle red ambient glow. Interacting with either the keypad or door activates the code entry interface.
+
+### Changed
+
+- **[INTERACTION] Persistent Mesh & Screen Dimming on Lore Consumption (`InteractionController.js`, `AnnexSector.js`, `NarrativeProps.js`):** Interacting with CRT computer terminals and laptops no longer causes them to vanish into thin air. Instead, the prop remains physically in the scene, the dynamic prop light is extinguished, the screen dims to a powered-down dark state (`annexCrtDimMat`), and the interactable state is deactivated.
+
+### Fixed
+
+- **[SYSTEM] Duplicate `drawDiamond` Identifier Syntax Error (`AnnexTextures.js`):** Consolidated multiple conflicting `drawDiamond` declarations in `_buildAnnexAssets` into a single parameterized helper accepting the target 2D canvas context.
+- **[WORLD] Keypad Wall Occlusion & Placement (`AnnexSector.js`):** Corrected security keypad coordinates to mount flush on the exposed hallway wall face on the approach side in front of the locked door rather than being occluded within solid 4-meter wall geometry or behind the locked door.
+
 ## [v1.2.7] - 2026-08-19
 
 _Surface-Bounded Prop Radiance & Annex Cleanup_

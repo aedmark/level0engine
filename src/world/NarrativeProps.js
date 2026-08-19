@@ -95,6 +95,7 @@ function buildLaptop(env, x, z, rotation, y) {
     lap.add(lapScreen);
     lap.position.set(x, (y !== undefined ? y : 0.0125), z);
     lap.rotation.y = rotation;
+    lap.userData.glowMesh = glow;
     return lap;
 }
 
@@ -198,6 +199,12 @@ export function placeSectorPaper(env, ctx, sectorId, cx0, cz0, y, spread, chance
             zone: sectorId,
             docId: prefix + Math.floor(random() * 9999)
         };
+        if (meshType === 'laptop') {
+            mesh.userData.dimOnRead = true;
+            mesh.userData.onDim = () => {
+                if (mesh.userData.glowMesh) mesh.userData.glowMesh.material = env.baseHousingMat;
+            };
+        }
         chunkGroup.add(mesh);
         if (mesh.updateMatrixWorld) mesh.updateMatrixWorld(true);
         attachPropGlow(env, mesh, hash, {...glow, flickerOffset: random() * 500});

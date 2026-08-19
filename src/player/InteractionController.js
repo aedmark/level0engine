@@ -730,7 +730,7 @@ export default class InteractionController {
                 return;
             }
             if (hit && hit.userData.codeLocked) {
-                env._keypadDoor = hit;
+                env._keypadDoor = hit.userData.doorMesh || hit;
                 document.dispatchEvent(new CustomEvent('somatic-keypad', {detail: {}}));
                 return;
             }
@@ -815,7 +815,13 @@ export default class InteractionController {
                 hit.userData.active = false;
                 markConsumed(hit);
                 releasePropLighting(env, hit);
-                hit.visible = false;
+                if (hit.userData.dimOnRead) {
+                    if (typeof hit.userData.onDim === 'function') {
+                        hit.userData.onDim();
+                    }
+                } else {
+                    hit.visible = false;
+                }
                 document.dispatchEvent(new CustomEvent('somatic-read', {
                     detail: {docId: hit.userData.docId, zone: hit.userData.zone || null}
                 }));
