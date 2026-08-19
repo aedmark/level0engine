@@ -125,7 +125,7 @@ export default class AtmosphereManager {
             env._glareDir.subVectors(nearestFixture.position, cameraPos).normalize();
             const dot = env._camDir.dot(env._glareDir);
             env._glareDot = dot;
-            if (dot > 0.95) {
+            if (dot > 0.99) {
                 let beamAlign = 1.0;
                 let distFactor = 1.0 / (1.0 + minLightDist * 0.2);
                 if (nearestFixture.targetPos) {
@@ -143,7 +143,7 @@ export default class AtmosphereManager {
                 }
                 if (beamAlign > 0.3) {
                     const intensity = nearestFixture.currentIntensity || nearestFixture.baseIntensity || 1.0;
-                    const angleFactor = (dot - 0.95) * 20.0;
+                    const angleFactor = (dot - 0.99) * 100.0;
                     const directionalFactor = (nearestFixture.targetPos || nearestFixture.isArchiveLight)
                         ? Math.max(0, (beamAlign - 0.3) * 1.42) : 1.0;
                     let targetVal = intensity * distFactor * angleFactor * directionalFactor * 0.2;
@@ -153,7 +153,7 @@ export default class AtmosphereManager {
                         env._glareRaycaster.set(cameraPos, env._glareDir);
                         const localBoxes = env.spatialGrid.getNearby(cameraPos.x, cameraPos.z, minLightDist);
                         const ray = env._glareRaycaster.ray;
-                        const distSqLimit = minLightDistSq;
+                        const distSqLimit = cameraPos.distanceToSquared(nearestFixture.position);
                         let isHit = false;
                         if (!env._glareHitTarget) env._glareHitTarget = new THREE.Vector3();
                         for (let i = 0; i < localBoxes.length; i++) {

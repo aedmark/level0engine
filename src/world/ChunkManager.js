@@ -795,11 +795,37 @@ export default class ChunkManager {
 
     _isAirlockApron(x, z) {
         const airlocks = this.env.airlocks;
-        if (!airlocks) return false;
-        for (let i = 0; i < airlocks.length; i++) {
-            const {clearX, clearZ} = this._airlockApron(airlocks[i]);
-            if (clearX.indexOf(x) !== -1 && clearZ.indexOf(z) !== -1) return true;
+        if (airlocks) {
+            for (let i = 0; i < airlocks.length; i++) {
+                const {clearX, clearZ} = this._airlockApron(airlocks[i]);
+                if (clearX.indexOf(x) !== -1 && clearZ.indexOf(z) !== -1) return true;
+            }
         }
+        
+        // Fallback: procedurally detect airlock aprons from adjacent macro chunks
+        // This is needed for standard chunks generating before the macro chunk is built.
+        
+        const placement = SectorPlacement.placementConfig(this.env);
+        const cx = Math.floor(x / this.env.chunkSize);
+        const cz = Math.floor(z / this.env.chunkSize);
+        const lx = ((x % this.env.chunkSize) + this.env.chunkSize) % this.env.chunkSize;
+        const lz = ((z % this.env.chunkSize) + this.env.chunkSize) % this.env.chunkSize;
+        
+        const isMacro = (mcx, mcz) => {
+            if (!SectorPlacement.isMacroChunk(placement, mcx, mcz)) return false;
+            const sectorId = SectorPlacement.sectorIdFor(placement, placement.ids, mcx, mcz);
+            return sectorId !== "ATRIUM";
+        };
+
+        if (lx >= 6 && lx <= 8) {
+            if (lz <= 2 && isMacro(cx, cz - 1)) return true;
+            if (lz >= this.env.chunkSize - 3 && isMacro(cx, cz + 1)) return true;
+        }
+        if (lz >= 6 && lz <= 8) {
+            if (lx <= 2 && isMacro(cx - 1, cz)) return true;
+            if (lx >= this.env.chunkSize - 3 && isMacro(cx + 1, cz)) return true;
+        }
+
         return false;
     }
 
