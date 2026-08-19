@@ -1,5 +1,23 @@
 # Level 0 Engine Changelog
 
+## [v1.2.9] - 2026-08-19
+
+_Procedural Winding Hallways, Enclosed Pods & Wall-Aligned Clutter_
+
+### Added
+
+- **[WORLD] Procedural Seed-Based Layout Generation (`AnnexSector.js`):** Completely replaced the static, hardcoded layout in the Annex sector with a seed-driven procedural generator mapping a 7x7 node grid across the 13x13 playable sector area. Hallways are carved via randomized Depth-First Search with a heavy directional turning bias and loop connections, generating authentic winding serpentine corridors connecting all four sector airlock doorways (`(7,1)`, `(7,13)`, `(1,7)`, `(13,7)`).
+- **[WORLD] Narrow Corridors via Wall Liners (`AnnexSector.js`):** Placed mahogany wall liners (`0.55m` depth) on solid wall faces along corridors, narrowing the physical walking space from 4.0m down to a cozy ~2.9m width for a more atmospheric Backrooms experience.
+- **[WORLD] Water Cooler Prop Rotation (`AnnexSector.js`):** Added water coolers (`OfficeFurniture.buildWaterCooler`) to the Annex prop pool, placing them flush against corridor walls and scattered sparingly.
+
+### Changed
+
+- **[WORLD] Wall-Flush Prop Alignment & Fern Pairing (`AnnexSector.js`):** Filing cabinets now only spawn flush against solid corridor walls with correct outward orientation. Fern pots no longer spawn isolated in hallways; they now exclusively spawn beside filing cabinets along the wall as rare decorative accents (~28% chance when a cabinet spawns).
+
+### Fixed
+
+- **[WORLD] Pod Open Wall Leaks (`AnnexSector.js`):** Fixed an issue where research pod interior cells had missing wall boundaries facing open corridor tiles. Every research pod is now strictly bounded by solid walls on all sides except for its single custom wooden doorway cell.
+
 ## [v1.2.8] - 2026-08-19
 
 _Research Pods, Retro Terminals & Security Keypads_
