@@ -32,7 +32,14 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
     const exit = EXIT_DIRS[exitIndex];
     if (ctx.setWall) ctx.setWall(x + exit.dx, z + exit.dz, false);
 
+    let isFirstTime = false;
+    try { isFirstTime = !localStorage.getItem('level0_tutorial'); } catch(e) {}
+
     const shellMat = env.stainlessMat || env.titaniumMat || env.metalMat || env.sharedWallMat;
+    const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(cell, cell), shellMat);
+    ceiling.rotation.x = Math.PI / 2;
+    ceiling.position.set(cx, 2.99, cz);
+    addGeometry(ceiling);
 
     let floor;
     if (env.checkpointFloorMat) {
@@ -133,8 +140,11 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
         if (child.isMesh) child.castShadow = true;
     });
 
-    const table = buildTable(cx - exit.dx * 1.1, 0, cz - exit.dz * 1.1);
-    table.userData.chunkHash = hash;
+    const tx = cx - exit.dx * 1.1;
+    const tz = cz - exit.dz * 1.1;
+
+    const table = buildTable(false);
+    table.position.set(tx, 0, tz);
     table.updateMatrixWorld(true);
     const tBox = new THREE.Box3().setFromObject(table);
     tBox.chunkHash = hash;
@@ -150,8 +160,8 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
 
     const spanX = exit.spansX ? 1 : 0;
     const spanZ = exit.spansX ? 0 : 1;
-    const tx = cx - exit.dx * 1.1;
-    const tz = cz - exit.dz * 1.1;
+    const tx2 = cx - exit.dx * 1.1;
+    const tz2 = cz - exit.dz * 1.1;
     const SURFACE_Y = 0.93;
     const PAPER_Y = SURFACE_Y + 0.005;
 
@@ -162,11 +172,13 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
         if (taken.has(`elevator:${type}`)) return;
         const group = new THREE.Group();
         group.add(prefab.clone());
-        const glow = new THREE.Mesh(env.glowGeo, env.glowMat);
-        glow.scale.set(glowScale, glowScale, glowScale);
-        glow.position.y = 0.01;
-        group.add(glow);
-        group.position.set(tx + spanX * offset, SURFACE_Y, tz + spanZ * offset);
+        if (!isFirstTime) {
+            const glow = new THREE.Mesh(env.glowGeo, env.glowMat);
+            glow.scale.set(glowScale, glowScale, glowScale);
+            glow.position.y = 0.01;
+            group.add(glow);
+        }
+        group.position.set(tx2 + spanX * offset, SURFACE_Y, tz2 + spanZ * offset);
         group.rotation.y = (random() - 0.5) * 0.8;
         group.userData = {type: type, chunkHash: hash, active: true, consumeKey: `elevator:${type}`};
         chunkGroup.add(group);
@@ -177,7 +189,7 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
 
     {
         const note = new THREE.Mesh(env.documentGeo, env.documentMat);
-        note.position.set(tx + exit.dx * 0.22, PAPER_Y, tz + exit.dz * 0.22);
+        note.position.set(tx2 + exit.dx * 0.22, PAPER_Y, tz2 + exit.dz * 0.22);
         note.rotation.y = Math.atan2(exit.dx, exit.dz);
         note.userData = {
             type: 'document',
@@ -188,11 +200,16 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
         };
         chunkGroup.add(note);
         note.updateMatrixWorld(true);
-        attachPropGlow(env, note, hash, {...PROP_GLOW.paper, flickerOffset: 0});
+        if (!isFirstTime) attachPropGlow(env, note, hash, {...PROP_GLOW.paper, flickerOffset: 0});
         env._registerInteractable(note, hash);
     }
+    
+    if (isFirstTime && doorRet && doorRet.data) {
+        doorRet.data.tutorialLocked = true;
+    }
 
-    const activeMat = getLightMaterial(0xffeedd, 0xffaa55, false);
+    let activeMat = env.baseBrokenLightMat.clone();
+    activeMat.emissiveIntensity = 0;
     const panel = new THREE.Mesh(env.sharedPanelGeo, [
         env.baseHousingMat, env.baseHousingMat, env.baseHousingMat,
         activeMat, env.baseHousingMat, env.baseHousingMat
@@ -206,9 +223,10 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
         flickerOffset: 0,
         material: activeMat,
         isFaulty: false,
-        baseIntensity: 0.8,
-        targetIntensity: 0.8,
-        currentIntensity: 0.8,
+        isDead: true,
+        baseIntensity: 0.0,
+        targetIntensity: 0.0,
+        currentIntensity: 0.0,
         isFake: false
     });
 

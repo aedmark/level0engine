@@ -813,6 +813,10 @@ export default class ChunkManager {
         
         const isMacro = (mcx, mcz) => {
             if (!SectorPlacement.isMacroChunk(placement, mcx, mcz)) return false;
+            if (!placement.ids) {
+                const sectorMatrix = TheArchitect.getSectorMatrix.call(this.env, {random: Math.random});
+                placement.ids = sectorMatrix.filter(s => s.id !== "EXIT").map(s => s.id);
+            }
             const sectorId = SectorPlacement.sectorIdFor(placement, placement.ids, mcx, mcz);
             return sectorId !== "ATRIUM";
         };

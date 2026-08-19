@@ -12,7 +12,9 @@ export default class PlayerController {
         this.isSqueezing = false;
         this._envForcedDown = false;
         this._groundFeetY = camera.position.y - 1.6;
-        this.flashlightBattery = 100.0;
+        let isFirstTime = false;
+        try { isFirstTime = !localStorage.getItem('level0_tutorial'); } catch(e) {}
+        this.flashlightBattery = isFirstTime ? 15.0 : 100.0;
         this.baseRadius = 0.4;
         this.squeezeRadius = 0.12;
         this.playerRadius = 0.4;

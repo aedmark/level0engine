@@ -458,9 +458,12 @@ export default class AtmosphereManager {
         }
 
         if (env.engine.ambientLight) {
+            if (env.tutorialActive === undefined) {
+                try { env.tutorialActive = !localStorage.getItem('level0_tutorial'); } catch(e) { env.tutorialActive = false; }
+            }
             const row = SECTORS[activeSector];
             const sectorAmbient = row && row.ambient !== undefined ? row.ambient : DEFAULT_AMBIENT;
-            const targetAmbient = Math.max(MIN_AMBIENT, sectorAmbient * (1.0 - darknessPressure * 0.5));
+            const targetAmbient = env.tutorialActive ? 0.0 : Math.max(MIN_AMBIENT, sectorAmbient * (1.0 - darknessPressure * 0.5));
 
             env.engine.ambientLight.intensity += (targetAmbient - env.engine.ambientLight.intensity) * 0.05;
 

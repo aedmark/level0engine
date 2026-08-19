@@ -35,7 +35,16 @@ export default class InteractionController {
         ud.entityOpen = false;
         if (pDistSq > 900.0 && ud.progress === 0 && !entityOpen) return;
         const openRadiusSq = ud.openRadiusSq !== undefined ? ud.openRadiusSq : 20.0;
-        const shouldOpen = entityOpen || pDistSq < openRadiusSq;
+        let shouldOpen = entityOpen || pDistSq < openRadiusSq;
+        if (ud.tutorialLocked) {
+            if (env.player.flashlightBattery > 50.0) {
+                ud.tutorialLocked = false;
+                env.tutorialActive = false;
+                try { localStorage.setItem('level0_tutorial', '1'); } catch(e) {}
+            } else {
+                shouldOpen = false;
+            }
+        }
         const target = shouldOpen ? 1.0 : 0.0;
         const travelAxis = ud.spansX ? 'z' : 'x';
         const playerOutside = ((playerPos[travelAxis] - worldPos[travelAxis]) * ud.outSign) > 0;

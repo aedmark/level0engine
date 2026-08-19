@@ -260,7 +260,7 @@ export default class StoryEngine {
         const idStr = String(docId || 'X');
         if (idStr === 'NOTE_TUTORIAL') {
             return {
-                text: `[ FIELD AGENT MANUAL ]\n\nWelcome to the Level 0 Engine.\n\nPRIMARY OBJECTIVES:\n1. Restore Power to the Exit Sector by resetting three Breakers\n2. Assemble keypad combination in Records for Exit Key.\n3. Locate the Exit Threshold and submit the TRUTH you find.\n\nTOOLS & CONTROLS:\n- W, A, S, D to move, Shift to sprint\n- 'E' to interact or close documents\n- 'C' to crouch under hazards, hold 'C' to crawl\n- 'F' for Flashlight (consumes battery)\n- 'M' to toggle your Compass\n\nNAVIGATION:\n- The Compass tracks the nearest AIRLOCK DOOR.\n- The POI DISTANCE signal in your HUD tracks the nearest POINT OF INTEREST, including breakers.\n\n[ Press 'E' to close ]`,
+                text: `[ MAINTENANCE LOG ]\n\nMAIN POWER: OFFLINE.\n\nThe door's hydraulic relay needs at least 50% voltage to cycle. The wall chargers are dead. You will have to use the flashlight's internal kinetic dynamo to jump it.\n\nMove fast. Sprint against the walls in the dark (it only charges when switched OFF). Crank the voltage up. Once the battery has enough charge, the blast door sensors will pick it up and trip the lock.\n\nRemember:\n- Shift to Sprint\n- F to toggle Light\n- J for PDA / Objectives\n- M for Threshold Compass`,
                 progress: this.progress(),
                 ephemera: true
             };
