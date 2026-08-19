@@ -637,7 +637,6 @@ export default class ChunkManager {
                                     if (!ctx.isWall(cx + 1, cz)) open++;
                                     if (!ctx.isWall(cx, cz - 1)) open++;
                                     if (!ctx.isWall(cx - 1, cz)) open++;
-                                    // A cell with exactly 1 open neighbor is a dead end.
                                     if (open === 1) {
                                         bestX = cx; bestZ = cz;
                                         break;

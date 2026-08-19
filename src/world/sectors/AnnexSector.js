@@ -89,7 +89,7 @@ const generateAnnexChunk = (env, hash, random) => {
                     }
                 }
             }
-            grid[bx][bz] = 2; // Mark center
+            grid[bx][bz] = 2;
         }
     }
 
@@ -199,8 +199,7 @@ export const AnnexSector = (env, ctx) => {
             }
 
             if (cellType === 3) {
-                // Keypad Doorway
-                const spansX = (lockedRoom.nz !== lockedRoom.z); // If it moves along Z, the doorway spans X.
+                const spansX = (lockedRoom.nz !== lockedRoom.z);
                 const gapW = 1.4;
                 const sideW = (env.cellSize - gapW) / 2;
 
@@ -300,7 +299,6 @@ export const AnnexSector = (env, ctx) => {
             }
 
             if (cellType === 4) {
-                // Locked room interior (Exit Key)
                 const table = buildTable(ox, 0, oz);
                 addFurniture(table);
                 
@@ -339,13 +337,11 @@ export const AnnexSector = (env, ctx) => {
                 return;
             }
 
-            // Cell types 0 and 2 are open floor (hallway or bay)
             if ((localX + localZ) % 3 === 0 && random() > 0.6) {
                 env._buildCeilingPanelLight(chunkGroup, hash, ox, oz, random, ctx.getLightMaterial, 0xd6cc98, 0xffeebb, 0.32, 0.8);
             }
 
             if (cellType === 2) {
-                // Middle of a bay -> big work table
                 spawnDesk(ox - 0.8, oz - 0.8, 0, random() > 0.3);
                 spawnDesk(ox + 0.8, oz - 0.8, 0, random() > 0.3);
                 spawnDesk(ox - 0.8, oz + 0.8, 0, random() > 0.3);
@@ -357,7 +353,6 @@ export const AnnexSector = (env, ctx) => {
             }
 
             if (cellType === 0) {
-                // Check if this is a corner of a bay
                 const myBay = bays.find(b => Math.abs(b.x - localX) === 1 && Math.abs(b.z - localZ) === 1);
                 if (myBay) {
                     const dx = myBay.x - localX;
@@ -367,7 +362,6 @@ export const AnnexSector = (env, ctx) => {
                     return;
                 }
 
-                // Scatter occasionally in the hallways
                 if (random() < 0.03) {
                     const cooler = OfficeFurniture.buildWaterCooler(env, ox, 0, oz, random() * Math.PI);
                     addFurniture(cooler);

@@ -145,12 +145,11 @@ export default class ExitTextures {
         const {canvas: bumpCanvas, ctx: bCtx} = TextureMechanics._createContext(W, H);
         const rand = TextureMechanics._seededRandom(445566);
 
-        ctx.fillStyle = '#2a2a2a'; // Dark grey metallic
+        ctx.fillStyle = '#2a2a2a';
         ctx.fillRect(0, 0, W, H);
         bCtx.fillStyle = '#888888';
         bCtx.fillRect(0, 0, W, H);
 
-        // Add some brushed metal lines
         ctx.strokeStyle = '#333333';
         ctx.lineWidth = 2;
         bCtx.strokeStyle = '#666666';
@@ -167,7 +166,6 @@ export default class ExitTextures {
             bCtx.stroke();
         }
 
-        // Add rivets along the edges
         ctx.fillStyle = '#111111';
         bCtx.fillStyle = '#ffffff';
         const drawRivet = (x, y) => {
@@ -204,31 +202,26 @@ export default class ExitTextures {
 
         const rand = TextureMechanics._seededRandom(77221144);
 
-        // Epoxy concrete base
         ctx.fillStyle = '#8a9096';
         ctx.fillRect(0, 0, W, H);
         bCtx.fillStyle = '#888888';
         bCtx.fillRect(0, 0, W, H);
-        rCtx.fillStyle = '#111111'; // Epoxy is very shiny/smooth
+        rCtx.fillStyle = '#111111';
         rCtx.fillRect(0, 0, W, H);
 
-        // Epoxy sparkles / flakes
         for (let i = 0; i < 20000; i++) {
-            const x = rand() * W, y = rand() * H, r = 0.3 + rand() * 0.7; // Smaller size
-            // Flake colors: subtle glitter and freckles, less contrast
+            const x = rand() * W, y = rand() * H, r = 0.3 + rand() * 0.7;
             const colors = ['#959b9f', '#7a8086', '#b5babf', '#eef0f2'];
             ctx.fillStyle = colors[Math.floor(rand() * colors.length)];
             ctx.beginPath();
             ctx.arc(x, y, r, 0, Math.PI * 2);
             ctx.fill();
-            
-            // Flakes add a tiny bit of bump
+
             bCtx.fillStyle = '#999999';
             bCtx.beginPath();
             bCtx.arc(x, y, r, 0, Math.PI * 2);
             bCtx.fill();
-            
-            // Flakes can be slightly rougher than the pure epoxy
+
             rCtx.fillStyle = '#333333';
             rCtx.beginPath();
             rCtx.arc(x, y, r, 0, Math.PI * 2);
@@ -247,7 +240,7 @@ export default class ExitTextures {
                 bumpMap: TextureMechanics._createWrappedTexture(bumpCanvas, 16, 16, false),
                 bumpScale: 0.01,
                 roughnessMap: TextureMechanics._createWrappedTexture(roughCanvas, 16, 16, false),
-                roughness: 0.4, // shiny base
+                roughness: 0.4,
                 metalness: 0.0
             })
         };
@@ -258,7 +251,6 @@ export default class ExitTextures {
         const {canvas, ctx} = TextureMechanics._createContext(W, H, false);
         const {canvas: roughCanvas, ctx: rCtx} = TextureMechanics._createContext(W, H, false);
 
-        // transparent bg
         ctx.clearRect(0, 0, W, H);
         rCtx.clearRect(0, 0, W, H);
 
@@ -276,13 +268,12 @@ export default class ExitTextures {
         path.closePath();
 
         ctx.lineWidth = 16;
-        ctx.strokeStyle = '#111111'; // Dark border
-        ctx.fillStyle = '#eebb00'; // Yellow interior
+        ctx.strokeStyle = '#111111';
+        ctx.fillStyle = '#eebb00';
         ctx.stroke(path);
         ctx.fill(path);
 
-        // Arrow paint is matte/rough
-        rCtx.fillStyle = '#aa0000'; // Red channel is roughness for standard material when using roughnessMap? Wait, roughnessMap uses green channel. Actually, THREE.MeshStandardMaterial roughnessMap uses the green channel in older versions, but just full gray is safe.
+        rCtx.fillStyle = '#aa0000';
         rCtx.fillStyle = '#aaaaaa'; 
         rCtx.fill(path);
         
@@ -309,12 +300,11 @@ export default class ExitTextures {
         const {canvas: bumpCanvas, ctx: bCtx} = TextureMechanics._createContext(W, H);
         const rand = TextureMechanics._seededRandom(883344);
 
-        ctx.fillStyle = '#666666'; // Much brighter base
+        ctx.fillStyle = '#666666';
         ctx.fillRect(0, 0, W, H);
         bCtx.fillStyle = '#888888';
         bCtx.fillRect(0, 0, W, H);
 
-        // Draw basic acoustic/metal panel lines
         ctx.strokeStyle = '#333333';
         ctx.lineWidth = 4;
         bCtx.strokeStyle = '#222222';
@@ -337,8 +327,8 @@ export default class ExitTextures {
                 map: TextureMechanics._createWrappedTexture(canvas, 16, 16, false),
                 bumpMap: TextureMechanics._createWrappedTexture(bumpCanvas, 16, 16, false),
                 bumpScale: 0.02,
-                roughness: 1.0, // Fully matte
-                metalness: 0.0  // No metallic shine
+                roughness: 1.0,
+                metalness: 0.0
             })
         };
     }

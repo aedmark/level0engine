@@ -66,8 +66,6 @@ export const RideQueueHallProfile = (env, ctx) => {
             const sGeo = env._cacheGeo('stanchion', () => {
                 const geo = new THREE.CylinderGeometry(0.04, 0.04, 1.0, 8);
                 geo.computeBoundingBox();
-                // Stanchions are placed at y=0.5. We drop max local Y so world Y stops at 0.3
-                // (0.3 - 0.5 = -0.2)
                 geo.boundingBox.max.y = -0.2;
                 return geo;
             });
@@ -88,8 +86,6 @@ export const RideQueueHallProfile = (env, ctx) => {
                 );
                 const geo = new THREE.TubeGeometry(curve, 6, 0.015, 5, false);
                 geo.computeBoundingBox();
-                // Ropes are placed at y=0.9. Drop max local Y so world Y stops at 0.3.
-                // (0.3 - 0.9 = -0.6). Also lower min.y just to be safe.
                 geo.boundingBox.max.y = -0.6;
                 geo.boundingBox.min.y = -0.9;
                 return geo;

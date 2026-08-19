@@ -103,19 +103,14 @@ export default class AnnexTextures {
         const annexDoorMatZ = [annexDoorMatFront, annexDoorMatBack, annexEdgeMat, annexEdgeMat, annexEdgeMat, annexEdgeMat];
         const annexFrameMat = new THREE.MeshStandardMaterial({color: 0x53585c, roughness: 0.7, metalness: 0.2});
 
-        // ==========================================
-        // 1920s UNION ARCADE WALL (Wood paneling & brass)
-        // ==========================================
         const {canvas: annexWallCanvas, ctx: annexWallCtx} = TextureMechanics._createContext(512, 512);
-        
-        // Base dark wood
+
         const woodGrad = annexWallCtx.createLinearGradient(0, 0, 0, 512);
         woodGrad.addColorStop(0, '#422416');
         woodGrad.addColorStop(1, '#2b150a');
         annexWallCtx.fillStyle = woodGrad;
         annexWallCtx.fillRect(0, 0, 512, 512);
-        
-        // Faux wood grain
+
         annexWallCtx.globalAlpha = 0.05;
         for (let i=0; i<100; i++) {
             annexWallCtx.fillStyle = '#110000';
@@ -124,45 +119,37 @@ export default class AnnexTextures {
         annexWallCtx.globalAlpha = 1.0;
 
         const drawPanel = (x, y, w, h) => {
-            // Bevel out
             annexWallCtx.fillStyle = 'rgba(0,0,0,0.6)';
             annexWallCtx.fillRect(x, y, w, h);
             annexWallCtx.fillStyle = 'rgba(255,255,255,0.15)';
             annexWallCtx.fillRect(x, y, w-2, h-2);
-            
-            // Inner panel
+
             const innerGrad = annexWallCtx.createLinearGradient(0, y, 0, y+h);
             innerGrad.addColorStop(0, '#3a1e11');
             innerGrad.addColorStop(1, '#4a2817');
             annexWallCtx.fillStyle = innerGrad;
             annexWallCtx.fillRect(x+6, y+6, w-12, h-12);
-            
-            // Highlight
+
             annexWallCtx.strokeStyle = 'rgba(255,255,255,0.08)';
             annexWallCtx.lineWidth = 2;
             annexWallCtx.strokeRect(x+8, y+8, w-16, h-16);
         };
 
-        // Wainscoting layout
         drawPanel(32, 32, 448, 200);
         drawPanel(32, 264, 448, 200);
 
-        // Brass Art Deco Accents
-        annexWallCtx.fillStyle = '#b89947'; // Brass base
-        annexWallCtx.fillRect(0, 246, 512, 6); // Divider rail
-        
-        // Highlight/Shadow for brass rail
+        annexWallCtx.fillStyle = '#b89947';
+        annexWallCtx.fillRect(0, 246, 512, 6);
+
         annexWallCtx.fillStyle = '#ffdf80';
         annexWallCtx.fillRect(0, 246, 512, 1);
         annexWallCtx.fillStyle = '#594411';
         annexWallCtx.fillRect(0, 251, 512, 1);
 
-        // Brass vertical strips
         annexWallCtx.fillStyle = '#b89947';
         annexWallCtx.fillRect(16, 0, 8, 512);
         annexWallCtx.fillRect(488, 0, 8, 512);
 
-        // Deco Diamonds
         annexWallCtx.fillStyle = '#b89947';
         const drawDiamond = (cx, cy, r) => {
             annexWallCtx.beginPath();
@@ -184,8 +171,7 @@ export default class AnnexTextures {
         annexWallTexture.wrapS = THREE.RepeatWrapping;
         annexWallTexture.wrapT = THREE.ClampToEdgeWrapping;
         annexWallTexture.repeat.set(4, 1);
-        
-        // No bump map for wood, keeping it relatively smooth but shiny
+
         const annexWallMat = new THREE.MeshStandardMaterial({
             map: annexWallTexture,
             color: 0xffffff,
@@ -193,26 +179,19 @@ export default class AnnexTextures {
             metalness: 0.1
         });
 
-        // ==========================================
-        // 1920s UNION ARCADE FLOOR (Checkered Terrazzo / Marble)
-        // ==========================================
         const {canvas: annexFloorCanvas, ctx: annexFloorCtx} = TextureMechanics._createContext(512, 512);
-        
-        // Background cream marble
+
         annexFloorCtx.fillStyle = '#e8e4d8';
         annexFloorCtx.fillRect(0, 0, 512, 512);
 
-        // Add some noise to cream
         annexFloorCtx.globalAlpha = 0.1;
         annexFloorCtx.drawImage(masterNoise, 0, 0, 512, 512);
         annexFloorCtx.globalAlpha = 1.0;
 
-        // Dark green / black marble tiles
         annexFloorCtx.fillStyle = '#172e21';
         annexFloorCtx.fillRect(0, 0, 256, 256);
         annexFloorCtx.fillRect(256, 256, 256, 256);
 
-        // Add noise to dark tiles
         annexFloorCtx.globalAlpha = 0.15;
         annexFloorCtx.fillStyle = '#000000';
         for(let i=0; i<400; i++) {
@@ -223,12 +202,10 @@ export default class AnnexTextures {
         }
         annexFloorCtx.globalAlpha = 1.0;
 
-        // Brass/Gold grout lines
         annexFloorCtx.fillStyle = '#b89947';
         annexFloorCtx.fillRect(0, 254, 512, 4);
         annexFloorCtx.fillRect(254, 0, 4, 512);
 
-        // Small brass diamonds at intersections
         drawDiamond(256, 256, 16);
         drawDiamond(0, 0, 16);
         drawDiamond(512, 0, 16);
@@ -239,24 +216,18 @@ export default class AnnexTextures {
         annexFloorCtx.drawImage(masterNoise, 0, 0, 512, 512);
         annexFloorCtx.globalAlpha = 1.0;
 
-        // Note: keeping repeat around 14 so it looks like nice large tiles
         const annexFloorTexture = TextureMechanics._createWrappedTexture(annexFloorCanvas, 14, 14);
         const annexFloorMat = new THREE.MeshStandardMaterial({
             map: annexFloorTexture,
-            roughness: 0.2, // very shiny marble
+            roughness: 0.2,
             metalness: 0.1
         });
 
-        // ==========================================
-        // 1920s UNION ARCADE CEILING (Bronze Plaster/Deco)
-        // ==========================================
         const {canvas: annexCeilingCanvas, ctx: annexCeilingCtx} = TextureMechanics._createContext(512, 512);
-        
-        // Base dark bronze/copper
+
         annexCeilingCtx.fillStyle = '#422c1b';
         annexCeilingCtx.fillRect(0, 0, 512, 512);
 
-        // Outer ornate square
         annexCeilingCtx.strokeStyle = '#6e4c32';
         annexCeilingCtx.lineWidth = 16;
         annexCeilingCtx.strokeRect(32, 32, 448, 448);
@@ -266,7 +237,6 @@ export default class AnnexTextures {
         annexCeilingCtx.strokeRect(24, 24, 464, 464);
         annexCeilingCtx.strokeRect(48, 48, 416, 416);
 
-        // Deco radiating lines
         annexCeilingCtx.strokeStyle = '#6e4c32';
         annexCeilingCtx.lineWidth = 8;
         annexCeilingCtx.beginPath();
@@ -280,7 +250,6 @@ export default class AnnexTextures {
         annexCeilingCtx.lineTo(256, 256);
         annexCeilingCtx.stroke();
 
-        // Center medallion
         annexCeilingCtx.fillStyle = '#573922';
         annexCeilingCtx.beginPath();
         annexCeilingCtx.arc(256, 256, 128, 0, Math.PI*2);
@@ -298,7 +267,6 @@ export default class AnnexTextures {
         annexCeilingCtx.arc(256, 256, 100, 0, Math.PI*2);
         annexCeilingCtx.stroke();
 
-        // Inner decorative squares
         annexCeilingCtx.save();
         annexCeilingCtx.translate(256, 256);
         for(let i=0; i<4; i++) {
