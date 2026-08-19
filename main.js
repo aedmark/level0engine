@@ -286,27 +286,25 @@ function animate() {
         engine.camera.position.y = 3.0;
         player.velocity.set(0, 0, 0);
     }
-    if (engine.camera.position.y < -15.0 && !player.isDead) {
+    function handlePlayerDeath(timeoutMs) {
         player.isDead = true;
         setTimeout(() => {
             triggerBlackout();
             player.resetMetabolism();
             environment.generate();
             player.isDead = false;
-        }, 400);
+        }, timeoutMs);
+    }
+
+    if (engine.camera.position.y < -15.0 && !player.isDead) {
+        handlePlayerDeath(400);
         return;
     }
     const entityState = environment.updateEntity(engine.camera.position, delta, time);
     if (entityState && entityState.consumed) {
-        player.isDead = true;
         engine.camera.position.y = 0.2;
         engine.camera.rotation.z = Math.PI / 2.5;
-        setTimeout(() => {
-            triggerBlackout();
-            player.resetMetabolism();
-            environment.generate();
-            player.isDead = false;
-        }, 1500);
+        handlePlayerDeath(1500);
         return;
     }
     player.update(delta, environment.spatialGrid);

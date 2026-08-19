@@ -279,73 +279,48 @@ export default class RenderEngine {
         setTimeout(() => this.resize(), 0);
     }
 
-    static getSavedResolutionScale() {
+    static getSavedState() {
+        if (RenderEngine._savedState) return RenderEngine._savedState;
         try {
             const raw = localStorage.getItem('level0_state');
-            if (!raw) return 1.0;
-            const state = JSON.parse(raw);
-            const parsed = parseFloat(state.res);
-            return Number.isFinite(parsed) ? parsed : 1.0;
+            RenderEngine._savedState = raw ? JSON.parse(raw) : {};
         } catch (e) {
-            return 1.0;
+            RenderEngine._savedState = {};
         }
+        return RenderEngine._savedState;
+    }
+
+    static getSavedResolutionScale() {
+        const state = RenderEngine.getSavedState();
+        const parsed = parseFloat(state.res);
+        return Number.isFinite(parsed) ? parsed : 1.0;
     }
 
     static getSavedAA() {
-        try {
-            const raw = localStorage.getItem('level0_state');
-            if (!raw) return 0;
-            const state = JSON.parse(raw);
-            if (state.aa === true) return 4;
-            if (state.aa === false) return 0;
-            return parseInt(state.aa) || 0;
-        } catch (e) {
-            return 0;
-        }
+        const state = RenderEngine.getSavedState();
+        if (state.aa === true) return 4;
+        if (state.aa === false) return 0;
+        return parseInt(state.aa) || 0;
     }
 
     static getSavedPostProcess() {
-        try {
-            const raw = localStorage.getItem('level0_state');
-            if (!raw) return true;
-            const state = JSON.parse(raw);
-            return state.post !== false;
-        } catch (e) {
-            return true;
-        }
+        const state = RenderEngine.getSavedState();
+        return state.post !== false;
     }
 
     static getSavedFXAA() {
-        try {
-            const raw = localStorage.getItem('level0_state');
-            if (!raw) return false;
-            const state = JSON.parse(raw);
-            return state.fxaa === true;
-        } catch (e) {
-            return false;
-        }
+        const state = RenderEngine.getSavedState();
+        return state.fxaa === true;
     }
 
     static getSavedShadowQuality() {
-        try {
-            const raw = localStorage.getItem('level0_state');
-            if (!raw) return 'high';
-            const state = JSON.parse(raw);
-            return state.shadows || 'high';
-        } catch (e) {
-            return 'high';
-        }
+        const state = RenderEngine.getSavedState();
+        return state.shadows || 'high';
     }
 
     static getSavedRenderDistance() {
-        try {
-            const raw = localStorage.getItem('level0_state');
-            if (!raw) return 1;
-            const state = JSON.parse(raw);
-            return state.renderDist !== undefined ? parseInt(state.renderDist) : 1;
-        } catch (e) {
-            return 1;
-        }
+        const state = RenderEngine.getSavedState();
+        return state.renderDist !== undefined ? parseInt(state.renderDist) : 1;
     }
 
     resize() {

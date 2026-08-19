@@ -69,8 +69,7 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
 
             const sw = d.dz !== 0 ? cell + sThick * 2 : sThick;
             const sdep = d.dz !== 0 ? sThick : cell + sThick * 2;
-            const sWallGeo = new THREE.BoxGeometry(sw, sHeight, sdep);
-            const sWall = new THREE.Mesh(sWallGeo, shroudMat);
+            const sWall = buildWall(sw, sdep, shroudMat, sHeight);
             sWall.position.set(cx + d.dx * sHalf, sHeight / 2, cz + d.dz * sHalf);
             sWall.userData.noCollision = true;
             addGeometry(sWall);
@@ -108,8 +107,7 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
         for (const side of [-1, 1]) {
             const sjW = d.spansX ? jambW + 0.2 : sThick;
             const sjD = d.spansX ? sThick : jambW + 0.2;
-            const sJambGeo = new THREE.BoxGeometry(sjW, sHeight, sjD);
-            const sJamb = new THREE.Mesh(sJambGeo, shroudMat);
+            const sJamb = buildWall(sjW, sjD, shroudMat, sHeight);
             sJamb.position.set(
                 cx + d.dx * sHalf + (d.spansX ? side * jambCentre : 0),
                 sHeight / 2,

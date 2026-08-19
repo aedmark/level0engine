@@ -32,18 +32,8 @@ export default class EntityManager {
     }
 
     update(delta, time, activeSector) {
-        let targetType = 'DEFAULT';
-        if (activeSector === 'ARCHIVE') {
-            targetType = 'ARCHIVE';
-        } else if (activeSector === 'IMPOUND') {
-            targetType = 'IMPOUND';
-        } else if (activeSector === 'INCINERATOR') {
-            targetType = 'INCINERATOR';
-        } else if (activeSector === 'SERVER') {
-            targetType = 'SERVER';
-        } else if (activeSector === 'ATRIUM') {
-            targetType = 'ATRIUM';
-        }
+        const targetType = this.entities[activeSector] ? activeSector : 'DEFAULT';
+        
         if (this.activeType !== targetType) {
             if (this.activeEntity) {
                 if (typeof this.activeEntity.deactivate === 'function') {

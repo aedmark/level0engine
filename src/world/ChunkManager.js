@@ -628,8 +628,8 @@ export default class ChunkManager {
                     if (elevator && elevator.chunkHash === hash && (elevator.cellX === null || elevator.cellX === undefined)) {
                         let bestX = null, bestZ = null;
                         let fallbackX = null, fallbackZ = null;
-                        for (let cx = startX; cx < startX + env.chunkSize; cx++) {
-                            for (let cz = startZ; cz < startZ + env.chunkSize; cz++) {
+                        for (let cx = startX + 1; cx < startX + env.chunkSize - 1; cx++) {
+                            for (let cz = startZ + 1; cz < startZ + env.chunkSize - 1; cz++) {
                                 if (!ctx.isWall(cx, cz) && !ctx.isOccupied(cx, cz) && !ctx.isAirlockApron(cx, cz)) {
                                     if (fallbackX === null) { fallbackX = cx; fallbackZ = cz; }
                                     let open = 0;
