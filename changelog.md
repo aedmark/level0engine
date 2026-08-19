@@ -1,5 +1,22 @@
 # Level 0 Engine Changelog
 
+## [v1.2.6] - 2026-08-19
+
+_The Arcade Annex_
+
+### Added
+
+- **[WORLD] Winding Hallways & Computer Bays (`AnnexSector.js`):** Completely replaced the previous grid-like corridor and office generation in the Annex with a perfect recursive backtracker maze. The maze organically branches into 3x3 open computer bays equipped with clusters of desks, filing cabinets, and scattered lore.
+- **[WORLD] The Locked Closet (`AnnexSector.js`):** Instead of randomly assigning keypads to multiple office doors, the generator now identifies a structural dead-end in the maze within the first sector chunk and converts it into a dedicated 1x1 locked closet. The Exit Key and essential supplies are securely stashed inside behind a single keypad door.
+
+### Changed
+
+- **[GRAPHICS] 1920s Union Arcade Textures (`AnnexTextures.js`):** Completely replaced the padded cell aesthetic with procedurally generated 1920s Art Deco textures. The walls now feature dark wood wainscoting and brass diamond accents. The floors are an intricate dark green and cream terrazzo, and the ceiling utilizes ornate geometric bronze plaster tiles.
+
+### Fixed
+
+- **[GRAPHICS] Z-Fighting Documents (`NarrativeProps.js`, `AnnexSector.js`):** Addressed an issue where 2D document meshes would perfectly overlap with table geometry, causing severe z-fighting. All documents spawned via `placeEphemera` and `placeSectorPaper` (as well as explicit manual placements) now possess a `+0.001` unit Y-clearance from the surface.
+
 ## [v1.2.5] - 2026-08-18
 
 _The Bathysphere Booth_

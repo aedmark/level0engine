@@ -102,154 +102,222 @@ export default class AnnexTextures {
         const annexDoorMat = [annexEdgeMat, annexEdgeMat, annexEdgeMat, annexEdgeMat, annexDoorMatFront, annexDoorMatBack];
         const annexDoorMatZ = [annexDoorMatFront, annexDoorMatBack, annexEdgeMat, annexEdgeMat, annexEdgeMat, annexEdgeMat];
         const annexFrameMat = new THREE.MeshStandardMaterial({color: 0x53585c, roughness: 0.7, metalness: 0.2});
+
+        // ==========================================
+        // 1920s UNION ARCADE WALL (Wood paneling & brass)
+        // ==========================================
         const {canvas: annexWallCanvas, ctx: annexWallCtx} = TextureMechanics._createContext(512, 512);
-        annexWallCtx.fillStyle = '#cccccc';
+        
+        // Base dark wood
+        const woodGrad = annexWallCtx.createLinearGradient(0, 0, 0, 512);
+        woodGrad.addColorStop(0, '#422416');
+        woodGrad.addColorStop(1, '#2b150a');
+        annexWallCtx.fillStyle = woodGrad;
         annexWallCtx.fillRect(0, 0, 512, 512);
-        const padCols = 4, padRows = 9, padMargin = 2;
-        const trimY = 480;
-        const padW = 512 / padCols, padH = trimY / padRows;
-        for (let r = 0; r < padRows; r++) {
-            for (let c = 0; c < padCols; c++) {
-                const x0 = c * padW + padMargin, y0 = r * padH + padMargin;
-                const x1 = (c + 1) * padW - padMargin, y1 = (r + 1) * padH - padMargin;
-                const pcx = (x0 + x1) / 2, pcy = (y0 + y1) / 2;
-                const maxRx = (x1 - x0) / 2, maxRy = (y1 - y0) / 2;
-                const steps = 16;
-                for (let i = steps; i >= 0; i--) {
-                    const t = i / steps;
-                    const shade = -40 * t;
-                    annexWallCtx.fillStyle = `rgb(${240 + shade}, ${240 + shade}, ${240 + shade})`;
-                    annexWallCtx.beginPath();
-                    annexWallCtx.ellipse(pcx, pcy, maxRx * t, maxRy * t, 0, 0, Math.PI * 2);
-                    annexWallCtx.fill();
-                }
-                annexWallCtx.strokeStyle = 'rgba(150, 150, 150, 0.55)';
-                annexWallCtx.lineWidth = 1;
-                [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([dx, dy]) => {
-                    annexWallCtx.beginPath();
-                    annexWallCtx.moveTo(pcx, pcy);
-                    annexWallCtx.lineTo(pcx + dx * maxRx * 0.92, pcy + dy * maxRy * 0.92);
-                    annexWallCtx.stroke();
-                });
-                annexWallCtx.strokeStyle = 'rgba(120, 120, 120, 0.6)';
-                annexWallCtx.lineWidth = 2;
-                annexWallCtx.strokeRect(x0, y0, x1 - x0, y1 - y0);
-            }
+        
+        // Faux wood grain
+        annexWallCtx.globalAlpha = 0.05;
+        for (let i=0; i<100; i++) {
+            annexWallCtx.fillStyle = '#110000';
+            annexWallCtx.fillRect(Math.random() * 512, 0, 2 + Math.random() * 5, 512);
         }
-        for (let r = 0; r <= padRows; r++) {
-            for (let c = 0; c <= padCols; c++) {
-                const x = c * padW, y = r * padH;
-                annexWallCtx.fillStyle = '#666666';
-                annexWallCtx.beginPath();
-                annexWallCtx.arc(x, y, 5, 0, Math.PI * 2);
-                annexWallCtx.fill();
-                annexWallCtx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                annexWallCtx.beginPath();
-                annexWallCtx.arc(x - 1.5, y - 2, 2.2, 0, Math.PI * 2);
-                annexWallCtx.fill();
-            }
-        }
-        annexWallCtx.globalAlpha = 0.1;
+        annexWallCtx.globalAlpha = 1.0;
+
+        const drawPanel = (x, y, w, h) => {
+            // Bevel out
+            annexWallCtx.fillStyle = 'rgba(0,0,0,0.6)';
+            annexWallCtx.fillRect(x, y, w, h);
+            annexWallCtx.fillStyle = 'rgba(255,255,255,0.15)';
+            annexWallCtx.fillRect(x, y, w-2, h-2);
+            
+            // Inner panel
+            const innerGrad = annexWallCtx.createLinearGradient(0, y, 0, y+h);
+            innerGrad.addColorStop(0, '#3a1e11');
+            innerGrad.addColorStop(1, '#4a2817');
+            annexWallCtx.fillStyle = innerGrad;
+            annexWallCtx.fillRect(x+6, y+6, w-12, h-12);
+            
+            // Highlight
+            annexWallCtx.strokeStyle = 'rgba(255,255,255,0.08)';
+            annexWallCtx.lineWidth = 2;
+            annexWallCtx.strokeRect(x+8, y+8, w-16, h-16);
+        };
+
+        // Wainscoting layout
+        drawPanel(32, 32, 448, 200);
+        drawPanel(32, 264, 448, 200);
+
+        // Brass Art Deco Accents
+        annexWallCtx.fillStyle = '#b89947'; // Brass base
+        annexWallCtx.fillRect(0, 246, 512, 6); // Divider rail
+        
+        // Highlight/Shadow for brass rail
+        annexWallCtx.fillStyle = '#ffdf80';
+        annexWallCtx.fillRect(0, 246, 512, 1);
+        annexWallCtx.fillStyle = '#594411';
+        annexWallCtx.fillRect(0, 251, 512, 1);
+
+        // Brass vertical strips
+        annexWallCtx.fillStyle = '#b89947';
+        annexWallCtx.fillRect(16, 0, 8, 512);
+        annexWallCtx.fillRect(488, 0, 8, 512);
+
+        // Deco Diamonds
+        annexWallCtx.fillStyle = '#b89947';
+        const drawDiamond = (cx, cy, r) => {
+            annexWallCtx.beginPath();
+            annexWallCtx.moveTo(cx, cy - r);
+            annexWallCtx.lineTo(cx + r, cy);
+            annexWallCtx.lineTo(cx, cy + r);
+            annexWallCtx.lineTo(cx - r, cy);
+            annexWallCtx.fill();
+        };
+        drawDiamond(256, 249, 12);
+        drawDiamond(20, 249, 12);
+        drawDiamond(492, 249, 12);
+
+        annexWallCtx.globalAlpha = 0.15;
         annexWallCtx.drawImage(masterNoise, 0, 0);
         annexWallCtx.globalAlpha = 1.0;
-        annexWallCtx.fillStyle = '#222222';
-        annexWallCtx.fillRect(0, trimY, 512, 512 - trimY);
-        annexWallCtx.fillStyle = '#111111';
-        annexWallCtx.fillRect(0, trimY - 4, 512, 4);
+
         const annexWallTexture = new THREE.CanvasTexture(annexWallCanvas);
         annexWallTexture.wrapS = THREE.RepeatWrapping;
         annexWallTexture.wrapT = THREE.ClampToEdgeWrapping;
         annexWallTexture.repeat.set(4, 1);
+        
+        // No bump map for wood, keeping it relatively smooth but shiny
         const annexWallMat = new THREE.MeshStandardMaterial({
             map: annexWallTexture,
             color: 0xffffff,
-            roughness: 0.7,
-            metalness: 0.02,
-            bumpMap: annexWallTexture,
-            bumpScale: 0.04
+            roughness: 0.3,
+            metalness: 0.1
         });
+
+        // ==========================================
+        // 1920s UNION ARCADE FLOOR (Checkered Terrazzo / Marble)
+        // ==========================================
         const {canvas: annexFloorCanvas, ctx: annexFloorCtx} = TextureMechanics._createContext(512, 512);
-        annexFloorCtx.fillStyle = '#cccccc';
+        
+        // Background cream marble
+        annexFloorCtx.fillStyle = '#e8e4d8';
         annexFloorCtx.fillRect(0, 0, 512, 512);
-        const fPadCols = 4, fPadRows = 4, fPadMargin = 2;
-        const fPadW = 512 / fPadCols, fPadH = 512 / fPadRows;
-        for (let r = 0; r < fPadRows; r++) {
-            for (let c = 0; c < fPadCols; c++) {
-                const x0 = c * fPadW + fPadMargin, y0 = r * fPadH + fPadMargin;
-                const x1 = (c + 1) * fPadW - fPadMargin, y1 = (r + 1) * fPadH - fPadMargin;
-                const pcx = (x0 + x1) / 2, pcy = (y0 + y1) / 2;
-                const maxRx = (x1 - x0) / 2, maxRy = (y1 - y0) / 2;
-                const steps = 16;
-                for (let i = steps; i >= 0; i--) {
-                    const t = i / steps;
-                    const shade = -40 * t;
-                    annexFloorCtx.fillStyle = `rgb(${240 + shade}, ${240 + shade}, ${240 + shade})`;
-                    annexFloorCtx.beginPath();
-                    annexFloorCtx.ellipse(pcx, pcy, maxRx * t, maxRy * t, 0, 0, Math.PI * 2);
-                    annexFloorCtx.fill();
-                }
-                annexFloorCtx.strokeStyle = 'rgba(150, 150, 150, 0.55)';
-                annexFloorCtx.lineWidth = 1;
-                [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([dx, dy]) => {
-                    annexFloorCtx.beginPath();
-                    annexFloorCtx.moveTo(pcx, pcy);
-                    annexFloorCtx.lineTo(pcx + dx * maxRx * 0.92, pcy + dy * maxRy * 0.92);
-                    annexFloorCtx.stroke();
-                });
-                annexFloorCtx.strokeStyle = 'rgba(120, 120, 120, 0.6)';
-                annexFloorCtx.lineWidth = 2;
-                annexFloorCtx.strokeRect(x0, y0, x1 - x0, y1 - y0);
-            }
-        }
-        for (let r = 0; r <= fPadRows; r++) {
-            for (let c = 0; c <= fPadCols; c++) {
-                const x = c * fPadW, y = r * fPadH;
-                annexFloorCtx.fillStyle = '#666666';
-                annexFloorCtx.beginPath();
-                annexFloorCtx.arc(x, y, 5, 0, Math.PI * 2);
-                annexFloorCtx.fill();
-                annexFloorCtx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                annexFloorCtx.beginPath();
-                annexFloorCtx.arc(x - 1.5, y - 2, 2.2, 0, Math.PI * 2);
-                annexFloorCtx.fill();
-            }
-        }
+
+        // Add some noise to cream
         annexFloorCtx.globalAlpha = 0.1;
         annexFloorCtx.drawImage(masterNoise, 0, 0, 512, 512);
         annexFloorCtx.globalAlpha = 1.0;
-        const annexFloorTexture = TextureMechanics._createWrappedTexture(annexFloorCanvas, 56, 56);
+
+        // Dark green / black marble tiles
+        annexFloorCtx.fillStyle = '#172e21';
+        annexFloorCtx.fillRect(0, 0, 256, 256);
+        annexFloorCtx.fillRect(256, 256, 256, 256);
+
+        // Add noise to dark tiles
+        annexFloorCtx.globalAlpha = 0.15;
+        annexFloorCtx.fillStyle = '#000000';
+        for(let i=0; i<400; i++) {
+            annexFloorCtx.beginPath();
+            annexFloorCtx.arc(Math.random()*256, Math.random()*256, Math.random()*3, 0, Math.PI*2);
+            annexFloorCtx.arc(256+Math.random()*256, 256+Math.random()*256, Math.random()*3, 0, Math.PI*2);
+            annexFloorCtx.fill();
+        }
+        annexFloorCtx.globalAlpha = 1.0;
+
+        // Brass/Gold grout lines
+        annexFloorCtx.fillStyle = '#b89947';
+        annexFloorCtx.fillRect(0, 254, 512, 4);
+        annexFloorCtx.fillRect(254, 0, 4, 512);
+
+        // Small brass diamonds at intersections
+        drawDiamond(256, 256, 16);
+        drawDiamond(0, 0, 16);
+        drawDiamond(512, 0, 16);
+        drawDiamond(0, 512, 16);
+        drawDiamond(512, 512, 16);
+
+        annexFloorCtx.globalAlpha = 0.1;
+        annexFloorCtx.drawImage(masterNoise, 0, 0, 512, 512);
+        annexFloorCtx.globalAlpha = 1.0;
+
+        // Note: keeping repeat around 14 so it looks like nice large tiles
+        const annexFloorTexture = TextureMechanics._createWrappedTexture(annexFloorCanvas, 14, 14);
         const annexFloorMat = new THREE.MeshStandardMaterial({
             map: annexFloorTexture,
-            roughness: 0.7,
-            metalness: 0.02,
-            bumpMap: annexFloorTexture,
-            bumpScale: 0.03
+            roughness: 0.2, // very shiny marble
+            metalness: 0.1
         });
-        const drawSpiral = (ctx, startTheta, maxTheta, coilPx, width, style) => {
-            ctx.strokeStyle = style;
-            ctx.lineWidth = width;
-            ctx.beginPath();
-            let theta = startTheta;
-            let first = true;
-            while (theta < maxTheta) {
-                const r = coilPx * theta;
-                const px = 128 + Math.cos(theta) * r;
-                const py = 128 + Math.sin(theta) * r;
-                if (first) {
-                    ctx.moveTo(px, py);
-                    first = false;
-                } else ctx.lineTo(px, py);
-                theta += 0.05;
-            }
-            ctx.stroke();
-        };
+
+        // ==========================================
+        // 1920s UNION ARCADE CEILING (Bronze Plaster/Deco)
+        // ==========================================
+        const {canvas: annexCeilingCanvas, ctx: annexCeilingCtx} = TextureMechanics._createContext(512, 512);
+        
+        // Base dark bronze/copper
+        annexCeilingCtx.fillStyle = '#422c1b';
+        annexCeilingCtx.fillRect(0, 0, 512, 512);
+
+        // Outer ornate square
+        annexCeilingCtx.strokeStyle = '#6e4c32';
+        annexCeilingCtx.lineWidth = 16;
+        annexCeilingCtx.strokeRect(32, 32, 448, 448);
+        
+        annexCeilingCtx.strokeStyle = '#8f6746';
+        annexCeilingCtx.lineWidth = 4;
+        annexCeilingCtx.strokeRect(24, 24, 464, 464);
+        annexCeilingCtx.strokeRect(48, 48, 416, 416);
+
+        // Deco radiating lines
+        annexCeilingCtx.strokeStyle = '#6e4c32';
+        annexCeilingCtx.lineWidth = 8;
+        annexCeilingCtx.beginPath();
+        annexCeilingCtx.moveTo(48, 48);
+        annexCeilingCtx.lineTo(256, 256);
+        annexCeilingCtx.moveTo(464, 48);
+        annexCeilingCtx.lineTo(256, 256);
+        annexCeilingCtx.moveTo(48, 464);
+        annexCeilingCtx.lineTo(256, 256);
+        annexCeilingCtx.moveTo(464, 464);
+        annexCeilingCtx.lineTo(256, 256);
+        annexCeilingCtx.stroke();
+
+        // Center medallion
+        annexCeilingCtx.fillStyle = '#573922';
+        annexCeilingCtx.beginPath();
+        annexCeilingCtx.arc(256, 256, 128, 0, Math.PI*2);
+        annexCeilingCtx.fill();
+        
+        annexCeilingCtx.strokeStyle = '#8f6746';
+        annexCeilingCtx.lineWidth = 8;
+        annexCeilingCtx.beginPath();
+        annexCeilingCtx.arc(256, 256, 128, 0, Math.PI*2);
+        annexCeilingCtx.stroke();
+        
+        annexCeilingCtx.strokeStyle = '#a87a53';
+        annexCeilingCtx.lineWidth = 4;
+        annexCeilingCtx.beginPath();
+        annexCeilingCtx.arc(256, 256, 100, 0, Math.PI*2);
+        annexCeilingCtx.stroke();
+
+        // Inner decorative squares
+        annexCeilingCtx.save();
+        annexCeilingCtx.translate(256, 256);
+        for(let i=0; i<4; i++) {
+            annexCeilingCtx.rotate(Math.PI/2);
+            annexCeilingCtx.strokeRect(-40, -40, 80, 80);
+        }
+        annexCeilingCtx.restore();
+
+        annexCeilingCtx.globalAlpha = 0.2;
+        annexCeilingCtx.drawImage(masterNoise, 0, 0, 512, 512);
+        annexCeilingCtx.globalAlpha = 1.0;
+
+        const annexCeilingTexture = TextureMechanics._createWrappedTexture(annexCeilingCanvas, 14, 14);
         const annexCeilingMat = new THREE.MeshStandardMaterial({
-            map: annexFloorTexture,
-            roughness: 1.0,
-            metalness: 0.0,
-            bumpMap: annexFloorTexture,
-            bumpScale: 0.03
+            map: annexCeilingTexture,
+            roughness: 0.6,
+            metalness: 0.5
         });
+
         return {annexDoorMat, annexDoorMatZ, annexFrameMat, annexWallMat, annexFloorMat, annexCeilingMat};
     }
 }
