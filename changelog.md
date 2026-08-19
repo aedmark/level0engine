@@ -1,5 +1,18 @@
 # Level 0 Engine Changelog
 
+## [v1.2.7] - 2026-08-19
+
+_Surface-Bounded Prop Radiance & Annex Cleanup_
+
+### Removed
+
+- **[WORLD] Watercooler & Breaker Podium Spawns (`AnnexSector.js`):** Removed random drop rolls for watercoolers and broken breaker podiums from open floor tiles in the Annex sector.
+
+### Fixed
+
+- **[GRAPHICS] Desk & Table Light Bleed Prevention (`PropGlow.js`, `NarrativeProps.js`, `LumenGrid.js`):** Converted prop luminescence (laptops, notes, documents, and clipboards) from unoccluded omnidirectional point lights into directional spotlights with hemispherical and forward target vectors. Lights emitted by props resting on desks or tables now radiate upward into the room and forward from screens rather than bleeding through solid tabletop geometry onto the floor beneath.
+- **[WORLD] Annex Document Prop Glow (`AnnexSector.js`):** Registered interactive desk document spawns with the narrative prop glow system so desk notes emit appropriate localized surface radiance.
+
 ## [v1.2.6] - 2026-08-19
 
 _The Arcade Annex_

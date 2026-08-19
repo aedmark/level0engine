@@ -308,6 +308,7 @@ export default class LumenGrid {
         
         if (fixture.isSpot && fixture.targetPos && light.target) {
             light.target.position.copy(fixture.targetPos);
+            light.target.updateMatrixWorld();
             light.angle = fixture.spotAngle !== undefined ? fixture.spotAngle : Math.PI / 8;
             light.penumbra = fixture.spotPenumbra !== undefined ? fixture.spotPenumbra : 0.4;
         }

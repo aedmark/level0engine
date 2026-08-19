@@ -2,7 +2,6 @@ import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 import * as OfficeFurniture from '../OfficeFurniture.js';
 import * as ClinicFurniture from '../ClinicFurniture.js';
-import { buildBreakerPodium, setPodiumBroken } from '../BreakerPodium.js';
 import { attachPropGlow } from '../PropGlow.js';
 import { PROP_GLOW } from '../NarrativeProps.js';
 
@@ -176,6 +175,8 @@ export const AnnexSector = (env, ctx) => {
                     docId: 'LOG_' + Math.floor(random() * 9999)
                 };
                 chunkGroup.add(doc);
+                doc.updateMatrixWorld(true);
+                attachPropGlow(env, doc, hash, {...PROP_GLOW.paper, flickerOffset: random() * 500});
                 env._registerInteractable(doc, hash);
             };
 
@@ -360,17 +361,6 @@ export const AnnexSector = (env, ctx) => {
                     const yaw = Math.atan2(dx, dz);
                     spawnDesk(ox, oz, yaw, true);
                     return;
-                }
-
-                if (random() < 0.03) {
-                    const cooler = OfficeFurniture.buildWaterCooler(env, ox, 0, oz, random() * Math.PI);
-                    addFurniture(cooler);
-                } else if (random() < 0.03) {
-                    const obj = buildBreakerPodium(env, hash, random);
-                    obj.position.set(ox, 0, oz);
-                    obj.rotation.y = random() * Math.PI;
-                    setPodiumBroken(obj);
-                    addFurniture(obj);
                 }
             }
         }

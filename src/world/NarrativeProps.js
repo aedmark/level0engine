@@ -3,10 +3,46 @@ import {attachPropGlow} from './PropGlow.js';
 const LORE_CHANCE = 0.019;
 
 export const PROP_GLOW = {
-    tape: {color: 0xff0000, intensity: 1.0, distance: 1.5, offset: [0.06, 0.05, -0.04]},
-    laptop: {color: 0xa8ffd0, intensity: 0.8, distance: 2.5, offset: [0, 0.2, 0.1]},
-    clipboard: {color: 0xffffff, intensity: 1.2, distance: 3.0, offset: [0, 0.15, 0]},
-    paper: {color: 0xffffff, intensity: 1.2, distance: 3.0, offset: [0, 0.15, 0]}
+    tape: {
+        color: 0xff0000,
+        intensity: 1.0,
+        distance: 1.5,
+        offset: [0.06, 0.05, -0.04],
+        isSpot: true,
+        targetOffset: [0.06, 0.6, -0.04],
+        spotAngle: Math.PI / 2.3,
+        spotPenumbra: 0.6
+    },
+    laptop: {
+        color: 0xa8ffd0,
+        intensity: 0.8,
+        distance: 2.5,
+        offset: [0, 0.2, 0.1],
+        isSpot: true,
+        targetOffset: [0, 0.5, 1.2],
+        spotAngle: Math.PI / 2.4,
+        spotPenumbra: 0.5
+    },
+    clipboard: {
+        color: 0xffffff,
+        intensity: 1.2,
+        distance: 3.0,
+        offset: [0, 0.12, 0],
+        isSpot: true,
+        targetOffset: [0, 1.0, 0],
+        spotAngle: Math.PI / 2.3,
+        spotPenumbra: 0.6
+    },
+    paper: {
+        color: 0xffffff,
+        intensity: 1.2,
+        distance: 3.0,
+        offset: [0, 0.12, 0],
+        isSpot: true,
+        targetOffset: [0, 1.0, 0],
+        spotAngle: Math.PI / 2.3,
+        spotPenumbra: 0.6
+    }
 };
 const MAX_LORE_PER_CHUNK = 4;
 
