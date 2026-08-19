@@ -238,8 +238,8 @@ const SECTORS = {
         reverb: {rt60: 3.0, predelay: 0.045, wet: 0.30}
     },
     ANNEX: {
-        fog: 0.03,
-        ambient: 0.25, groundColor: 0x666255,
+        fog: 0.01, fogColor: 0x222222,
+        ambient: 0.65, groundColor: 0xB3A289,
         ambience: {
             noise: 0.03,
             peace: 0.0,
@@ -252,9 +252,9 @@ const SECTORS = {
         },
         foley: {oscFreq: 420, filterType: 'highpass', filterFreq: 2200, gain: 0.1, attack: 0.01, decay: 0.07},
         dust: {
-            drift: 'vertical', driftY: 0.01,
-            baseOpacity: 0.45, crawlOpacity: 0.55,
-            baseSize: 0.45, crawlSize: 0.50,
+            drift: 'vertical', driftY: 0.02, turbulence: 0.30,
+            baseOpacity: 0.25, crawlOpacity: 0.42,
+            baseSize: 0.25, crawlSize: 0.40,
             color: 0xe8ddc5
         },
         reverb: {rt60: 0.35, predelay: 0.005, wet: 0.08}
