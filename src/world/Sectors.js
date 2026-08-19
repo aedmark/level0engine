@@ -239,7 +239,7 @@ const SECTORS = {
     },
     ANNEX: {
         fog: 0.01, fogColor: 0x222222,
-        ambient: 0.65, groundColor: 0xB3A289,
+        ambient: 0.75,
         ambience: {
             noise: 0.03,
             peace: 0.0,

@@ -3,14 +3,14 @@ import AABB from '../../math/AABB.js';
 import * as OfficeFurniture from '../OfficeFurniture.js';
 import * as ClinicFurniture from '../ClinicFurniture.js';
 import { attachPropGlow } from '../PropGlow.js';
-import { PROP_GLOW } from '../NarrativeProps.js';
+import { PROP_GLOW, placeSectorPaper } from '../NarrativeProps.js';
 
 /**
  * Grid cell types for Annex:
  * 0 = Open corridor / hallway
  * 1 = Solid wall
- * 2 = Research Pod interior (tiny writers desk + 60's terminal)
- * 3 = Code-Locked Pod Doorway (leads to locked room with keypad)
+ * 2 = Research Pod interior (writers desk + 60s retro terminal)
+ * 3 = Code-Locked Pod Doorway (leads to locked supervisor room with keypad)
  * 4 = Locked Room interior (exit key + battery)
  * 5 = Unlocked Pod Doorway (custom wooden door with glass panel)
  */
@@ -21,78 +21,155 @@ const generateAnnexChunk = (env, hash, random) => {
     const size = env.chunkSize; // 15
     const grid = Array.from({length: size}, () => new Array(size).fill(1));
 
-    // 1. OPEN ARTERIAL CORRIDORS FOR AIRLOCK ACCESS
-    // North-South corridor (connects (7,0) and (7,14) airlocks)
-    for (let z = 1; z <= 13; z++) {
-        grid[7][z] = 0;
-    }
-    // East-West corridor (connects (0,7) and (14,7) airlocks)
-    for (let x = 1; x <= 13; x++) {
-        grid[x][7] = 0;
-    }
-    // Central junction hub (6..8, 6..8)
-    for (let x = 6; x <= 8; x++) {
-        for (let z = 6; z <= 8; z++) {
-            grid[x][z] = 0;
-        }
-    }
+    // The interior playable area is 13x13 (cells 1..13).
+    // We map a 7x7 node grid where node (gx, gz) corresponds to cell (2*gx + 1, 2*gz + 1).
+    // Airlocks:
+    // North: (3, 0) -> cell (7, 1)
+    // South: (3, 6) -> cell (7, 13)
+    // West:  (0, 3) -> cell (1, 7)
+    // East:  (6, 3) -> cell (13, 7)
+    const isAirlockNode = (gx, gz) =>
+        (gx === 3 && gz === 0) ||
+        (gx === 3 && gz === 6) ||
+        (gx === 0 && gz === 3) ||
+        (gx === 6 && gz === 3);
 
-    // 2. DEFINE COZY RESEARCH PODS IN QUADRANTS
-    // Each pod has: room cells (interior), a doorway cell, and connecting corridor cells
-    const podConfigs = [
-        // NW Quadrant Pod
-        {
-            interior: [{x: 3, z: 3}, {x: 3, z: 4}],
-            door: {x: 5, z: 3, spansX: false, approachX: true},
-            corridors: [{x: 4, z: 3}, {x: 6, z: 3}],
-            deskPos: {x: 3, z: 3},
-            deskYaw: Math.PI / 2
-        },
-        // NE Quadrant Pod
-        {
-            interior: [{x: 11, z: 3}, {x: 11, z: 4}],
-            door: {x: 9, z: 3, spansX: false, approachX: true},
-            corridors: [{x: 10, z: 3}, {x: 8, z: 3}],
-            deskPos: {x: 11, z: 3},
-            deskYaw: -Math.PI / 2
-        },
-        // SW Quadrant Pod
-        {
-            interior: [{x: 3, z: 11}, {x: 3, z: 10}],
-            door: {x: 5, z: 11, spansX: false, approachX: true},
-            corridors: [{x: 4, z: 11}, {x: 6, z: 11}],
-            deskPos: {x: 3, z: 11},
-            deskYaw: Math.PI / 2
-        },
-        // SE Quadrant Pod
-        {
-            interior: [{x: 11, z: 11}, {x: 11, z: 10}],
-            door: {x: 9, z: 11, spansX: false, approachX: true},
-            corridors: [{x: 10, z: 11}, {x: 8, z: 11}],
-            deskPos: {x: 11, z: 11},
-            deskYaw: -Math.PI / 2
-        },
-        // North Pod
-        {
-            interior: [{x: 3, z: 1}],
-            door: {x: 3, z: 2, spansX: true, approachX: false},
-            corridors: [{x: 4, z: 2}, {x: 5, z: 2}, {x: 6, z: 2}, {x: 7, z: 2}],
-            deskPos: {x: 3, z: 1},
-            deskYaw: 0
-        },
-        // South Pod
-        {
-            interior: [{x: 11, z: 13}],
-            door: {x: 11, z: 12, spansX: true, approachX: false},
-            corridors: [{x: 10, z: 12}, {x: 9, z: 12}, {x: 8, z: 12}, {x: 7, z: 12}],
-            deskPos: {x: 11, z: 13},
-            deskYaw: Math.PI
-        }
+    // 1. SELECT COZY RESEARCH POD NODES ACROSS SECTOR QUADRANTS
+    const quadrantPools = [
+        [{gx: 0, gz: 0}, {gx: 1, gz: 0}, {gx: 0, gz: 1}, {gx: 1, gz: 1}], // NW
+        [{gx: 5, gz: 0}, {gx: 6, gz: 0}, {gx: 5, gz: 1}, {gx: 6, gz: 1}], // NE
+        [{gx: 0, gz: 5}, {gx: 1, gz: 5}, {gx: 0, gz: 6}, {gx: 1, gz: 6}], // SW
+        [{gx: 5, gz: 5}, {gx: 6, gz: 5}, {gx: 5, gz: 6}, {gx: 6, gz: 6}], // SE
+        [{gx: 3, gz: 2}, {gx: 2, gz: 3}, {gx: 4, gz: 3}, {gx: 3, gz: 4}]  // Mid-Alcove
     ];
 
-    // Determine if this chunk spawns the locked supervisor room
+    const podNodes = [];
+    quadrantPools.forEach(pool => {
+        const shuffled = [...pool].sort(() => random() - 0.5);
+        for (const cand of shuffled) {
+            if (!isAirlockNode(cand.gx, cand.gz) && !podNodes.some(p => p.gx === cand.gx && p.gz === cand.gz)) {
+                podNodes.push(cand);
+                break;
+            }
+        }
+    });
+
+    const isPodNode = (gx, gz) => podNodes.some(p => p.gx === gx && p.gz === gz);
+
+    // 2. CONFIGURE POD ROOMS AND THEIR DOORWAYS
+    const podConfigs = [];
+    podNodes.forEach(p => {
+        const neighbors = [
+            {gx: p.gx + 1, gz: p.gz, dx: 1, dz: 0},
+            {gx: p.gx - 1, gz: p.gz, dx: -1, dz: 0},
+            {gx: p.gx, gz: p.gz + 1, dx: 0, dz: 1},
+            {gx: p.gx, gz: p.gz - 1, dx: 0, dz: -1}
+        ].filter(n => n.gx >= 0 && n.gx < 7 && n.gz >= 0 && n.gz < 7 && !isPodNode(n.gx, n.gz));
+
+        if (neighbors.length > 0) {
+            const doorChoice = neighbors[Math.floor(random() * neighbors.length)];
+            const cellX = 2 * p.gx + 1;
+            const cellZ = 2 * p.gz + 1;
+            const doorCellX = cellX + doorChoice.dx;
+            const doorCellZ = cellZ + doorChoice.dz;
+            const hallwayCellX = cellX + 2 * doorChoice.dx;
+            const hallwayCellZ = cellZ + 2 * doorChoice.dz;
+
+            const spansX = doorChoice.dz !== 0;
+            let approachSign = 1;
+            let deskYaw = 0;
+            if (spansX) {
+                approachSign = doorChoice.dz > 0 ? 1 : -1;
+                // Face the doorway so player sees CRT screen when entering
+                deskYaw = doorChoice.dz > 0 ? 0 : Math.PI;
+            } else {
+                approachSign = doorChoice.dx > 0 ? 1 : -1;
+                deskYaw = doorChoice.dx > 0 ? Math.PI / 2 : -Math.PI / 2;
+            }
+
+            podConfigs.push({
+                cellX, cellZ,
+                doorCellX, doorCellZ,
+                hallwayCellX, hallwayCellZ,
+                spansX, approachSign, deskYaw
+            });
+        }
+    });
+
+    // 3. CARVE LONG, WINDING HALLWAYS CONNECTING AIRLOCKS AND POD ENTRANCES
+    const visited = Array.from({length: 7}, () => new Array(7).fill(false));
+    podNodes.forEach(p => visited[p.gx][p.gz] = true);
+
+    const openCorridorConnections = new Set();
+    const connectNodes = (g1, g2) => {
+        const k1 = `${g1.gx},${g1.gz}-${g2.gx},${g2.gz}`;
+        const k2 = `${g2.gx},${g2.gz}-${g1.gx},${g1.gz}`;
+        openCorridorConnections.add(k1);
+        openCorridorConnections.add(k2);
+        grid[g1.gx + g2.gx + 1][g1.gz + g2.gz + 1] = 0;
+    };
+
+    // Winding Depth-First Search with high directional turning bias
+    const startNode = {gx: 3, gz: 0}; // North airlock node
+    const stack = [startNode];
+    visited[startNode.gx][startNode.gz] = true;
+    grid[2 * startNode.gx + 1][2 * startNode.gz + 1] = 0;
+
+    let lastDir = {dx: 0, dz: 1};
+
+    while (stack.length > 0) {
+        const cur = stack[stack.length - 1];
+        grid[2 * cur.gx + 1][2 * cur.gz + 1] = 0;
+
+        const unvisitedNeighbors = [
+            {gx: cur.gx + 1, gz: cur.gz, dx: 1, dz: 0},
+            {gx: cur.gx - 1, gz: cur.gz, dx: -1, dz: 0},
+            {gx: cur.gx, gz: cur.gz + 1, dx: 0, dz: 1},
+            {gx: cur.gx, gz: cur.gz - 1, dx: 0, dz: -1}
+        ].filter(n => n.gx >= 0 && n.gx < 7 && n.gz >= 0 && n.gz < 7 && !visited[n.gx][n.gz]);
+
+        if (unvisitedNeighbors.length === 0) {
+            stack.pop();
+        } else {
+            // Favor turns to create winding serpentine corridors
+            unvisitedNeighbors.sort((a, b) => {
+                const sameA = (a.dx === lastDir.dx && a.dz === lastDir.dz) ? 1 : 0;
+                const sameB = (b.dx === lastDir.dx && b.dz === lastDir.dz) ? 1 : 0;
+                return (sameA - sameB) + (random() - 0.5) * 2;
+            });
+            const next = unvisitedNeighbors[0];
+            visited[next.gx][next.gz] = true;
+            connectNodes(cur, next);
+            lastDir = {dx: next.dx, dz: next.dz};
+            stack.push({gx: next.gx, gz: next.gz});
+        }
+    }
+
+    // Add extra loop connections (25% chance) for varied navigation
+    for (let gx = 0; gx < 7; gx++) {
+        for (let gz = 0; gz < 7; gz++) {
+            if (isPodNode(gx, gz)) continue;
+            for (const [dx, dz] of [[1, 0], [0, 1]]) {
+                const nx = gx + dx, nz = gz + dz;
+                if (nx < 7 && nz < 7 && !isPodNode(nx, nz)) {
+                    const k = `${gx},${gz}-${nx},${nz}`;
+                    if (!openCorridorConnections.has(k) && random() < 0.25) {
+                        connectNodes({gx, gz}, {gx: nx, gz: nz});
+                    }
+                }
+            }
+        }
+    }
+
+    // Connect all 4 airlocks directly to chunk perimeter portals
+    grid[7][1] = 0;
+    grid[7][13] = 0;
+    grid[1][7] = 0;
+    grid[13][7] = 0;
+
+    // 4. ASSIGN LOCKED SUPERVISOR POD AND UNLOCKED RESEARCH PODS
     let lockedRoomIndex = -1;
-    if (!env.lockedRoomSpawned) {
+    if (!env.lockedRoomSpawned && podConfigs.length > 0) {
         env.lockedRoomSpawned = true;
         lockedRoomIndex = Math.floor(random() * podConfigs.length);
     }
@@ -104,46 +181,28 @@ const generateAnnexChunk = (env, hash, random) => {
     podConfigs.forEach((cfg, idx) => {
         const isLocked = (idx === lockedRoomIndex);
 
-        // Carve corridors connecting the pod door to main hallways
-        cfg.corridors.forEach(c => {
-            if (grid[c.x][c.z] === 1) grid[c.x][c.z] = 0;
-        });
-
-        // Set doorway cell
         if (isLocked) {
-            grid[cfg.door.x][cfg.door.z] = 3;
-            let approachSign = 1;
-            if (cfg.door.spansX) {
-                approachSign = (cfg.interior[0].z < cfg.door.z) ? 1 : -1;
-            } else {
-                approachSign = (cfg.interior[0].x < cfg.door.x) ? 1 : -1;
-            }
+            grid[cfg.doorCellX][cfg.doorCellZ] = 3;
+            grid[cfg.cellX][cfg.cellZ] = 4;
             lockedRoom = {
-                doorX: cfg.door.x,
-                doorZ: cfg.door.z,
-                spansX: cfg.door.spansX,
-                approachSign: approachSign,
-                deskPos: cfg.deskPos,
+                doorX: cfg.doorCellX,
+                doorZ: cfg.doorCellZ,
+                spansX: cfg.spansX,
+                approachSign: cfg.approachSign,
+                deskPos: {x: cfg.cellX, z: cfg.cellZ},
                 deskYaw: cfg.deskYaw
             };
         } else {
-            grid[cfg.door.x][cfg.door.z] = 5;
+            grid[cfg.doorCellX][cfg.doorCellZ] = 5;
+            grid[cfg.cellX][cfg.cellZ] = 2;
             doors.push({
-                x: cfg.door.x,
-                z: cfg.door.z,
-                spansX: cfg.door.spansX,
-                approachX: cfg.door.approachX
+                x: cfg.doorCellX,
+                z: cfg.doorCellZ,
+                spansX: cfg.spansX,
+                approachSign: cfg.approachSign
             });
-        }
-
-        // Set pod interior cells
-        cfg.interior.forEach(cell => {
-            grid[cell.x][cell.z] = isLocked ? 4 : 2;
-        });
-
-        if (!isLocked) {
             pods.push({
-                deskPos: cfg.deskPos,
+                deskPos: {x: cfg.cellX, z: cfg.cellZ},
                 deskYaw: cfg.deskYaw
             });
         }
@@ -159,7 +218,6 @@ export const AnnexSector = (env, ctx) => {
         random,
         buildWall,
         addGeometry,
-        buildTable,
         addFurniture,
         chunkGroup,
         hash
@@ -246,13 +304,13 @@ export const AnnexSector = (env, ctx) => {
 
                 // 1. Main bulky CRT housing (beige / olive / dark bakelite)
                 const caseGeo = env._cacheGeo('annexCrtCase', () => new THREE.BoxGeometry(0.46, 0.38, 0.42));
-                const caseMesh = new THREE.Mesh(caseGeo, env.baseHousingMat);
+                const caseMesh = new THREE.Mesh(caseGeo, env.baseHousingMat || env.structMat);
                 caseMesh.position.set(0, 0.19, -0.04);
                 termGroup.add(caseMesh);
 
                 // 2. Beveled CRT screen frame / bezel
                 const bezelGeo = env._cacheGeo('annexCrtBezel', () => new THREE.BoxGeometry(0.42, 0.32, 0.05));
-                const bezelMesh = new THREE.Mesh(bezelGeo, env.baseHousingMat);
+                const bezelMesh = new THREE.Mesh(bezelGeo, env.baseHousingMat || env.structMat);
                 bezelMesh.position.set(0, 0.19, 0.18);
                 termGroup.add(bezelMesh);
 
@@ -275,7 +333,7 @@ export const AnnexSector = (env, ctx) => {
                     g.rotateX(0.18);
                     return g;
                 });
-                const kbDeck = new THREE.Mesh(kbDeckGeo, env.baseHousingMat);
+                const kbDeck = new THREE.Mesh(kbDeckGeo, env.baseHousingMat || env.structMat);
                 kbDeck.position.set(0, 0.035, 0.28);
                 termGroup.add(kbDeck);
 
@@ -586,7 +644,7 @@ export const AnnexSector = (env, ctx) => {
 
             // --- CELL TYPE HANDLING ---
 
-            // Solid Wall
+            // Solid Wall (cellType 1)
             if (cellType === 1) {
                 const wall = buildWall(env.cellSize, env.cellSize, env.annexWallMat || env.sharedWallMat);
                 wall.position.set(ox, 1.5, oz);
@@ -595,7 +653,7 @@ export const AnnexSector = (env, ctx) => {
                 return;
             }
 
-            // Unlocked Custom Wooden Doorway to Pod
+            // Unlocked Custom Wooden Doorway to Pod (cellType 5)
             if (cellType === 5) {
                 const doorInfo = doors.find(d => d.x === localX && d.z === localZ);
                 const spansX = doorInfo ? doorInfo.spansX : false;
@@ -603,7 +661,7 @@ export const AnnexSector = (env, ctx) => {
                 return;
             }
 
-            // Code-Locked Doorway to Locked Pod Room
+            // Code-Locked Doorway to Locked Pod Room (cellType 3)
             if (cellType === 3) {
                 const spansX = lockedRoom ? lockedRoom.spansX : false;
                 const approachSign = lockedRoom ? lockedRoom.approachSign : 1;
@@ -611,7 +669,7 @@ export const AnnexSector = (env, ctx) => {
                 return;
             }
 
-            // Locked Room Interior (Writer's desk + 60's terminal + Exit Key + Battery)
+            // Locked Room Interior (cellType 4: Writer's desk + 60's terminal + Exit Key + Battery)
             if (cellType === 4) {
                 if (lockedRoom && lockedRoom.deskPos.x === localX && lockedRoom.deskPos.z === localZ) {
                     spawnWritersDeskAndTerminal(ox, oz, lockedRoom.deskYaw, true);
@@ -656,7 +714,7 @@ export const AnnexSector = (env, ctx) => {
                 return;
             }
 
-            // Research Pod Interior (Writer's Desk + 60's Retro Terminal)
+            // Research Pod Interior (cellType 2: Writer's Desk + 60's Retro Terminal)
             if (cellType === 2) {
                 const myPod = pods.find(p => p.deskPos.x === localX && p.deskPos.z === localZ);
                 if (myPod) {
@@ -669,19 +727,64 @@ export const AnnexSector = (env, ctx) => {
 
             // Open Corridor (cellType 0)
             if (cellType === 0) {
-                // Ceiling lighting along corridors & junctions
-                if ((localX + localZ) % 4 === 0 && random() > 0.4) {
+                placeSectorPaper(env, ctx, "ANNEX", ox, oz);
+
+                // Hallway Narrowing: place mahogany wall liners along adjacent solid walls
+                // to narrow the 4.0m corridor to a cozy ~2.9m width.
+                const isSolid = (lx, lz) => {
+                    if (lx < 0 || lx >= env.chunkSize || lz < 0 || lz >= env.chunkSize) return true;
+                    return grid[lx][lz] === 1;
+                };
+
+                const wN = isSolid(localX, localZ - 1);
+                const wS = isSolid(localX, localZ + 1);
+                const wW = isSolid(localX - 1, localZ);
+                const wE = isSolid(localX + 1, localZ);
+
+                const linerDepth = 0.55;
+                const linerOffset = (env.cellSize / 2) - (linerDepth / 2); // 2.0 - 0.275 = 1.725
+
+                if (wN) {
+                    const linerN = buildWall(env.cellSize, linerDepth, env.annexWallMat || env.sharedWallMat, 3.0);
+                    linerN.position.set(ox, 1.5, oz - linerOffset);
+                    linerN.userData.isEntityBlocker = true;
+                    addGeometry(linerN);
+                }
+                if (wS) {
+                    const linerS = buildWall(env.cellSize, linerDepth, env.annexWallMat || env.sharedWallMat, 3.0);
+                    linerS.position.set(ox, 1.5, oz + linerOffset);
+                    linerS.userData.isEntityBlocker = true;
+                    addGeometry(linerS);
+                }
+                if (wW) {
+                    const linerW = buildWall(linerDepth, env.cellSize, env.annexWallMat || env.sharedWallMat, 3.0);
+                    linerW.position.set(ox - linerOffset, 1.5, oz);
+                    linerW.userData.isEntityBlocker = true;
+                    addGeometry(linerW);
+                }
+                if (wE) {
+                    const linerE = buildWall(linerDepth, env.cellSize, env.annexWallMat || env.sharedWallMat, 3.0);
+                    linerE.position.set(ox + linerOffset, 1.5, oz);
+                    linerE.userData.isEntityBlocker = true;
+                    addGeometry(linerE);
+                }
+
+                // Warm ceiling lighting along corridors & winding turns
+                const isGateApproach = (localX === 7 && (localZ <= 2 || localZ >= 12)) || (localZ === 7 && (localX <= 2 || localX >= 12));
+                if (!isGateApproach && (localX + localZ) % 3 === 0 && random() > 0.35) {
                     env._buildCeilingPanelLight(chunkGroup, hash, ox, oz, random, ctx.getLightMaterial, 0xd6cc98, 0xffeebb, 0.32, 0.8);
                 }
 
-                // Aesthetic touches in corridor alcoves
-                if (localX === 7 && localZ === 7) {
-                    // Central junction potted plant
-                    const plant = OfficeFurniture.buildPottedPlant(env, ox, 0, oz);
-                    addFurniture(plant);
-                } else if ((localX === 6 || localX === 8) && (localZ === 6 || localZ === 8) && random() > 0.7) {
-                    const filing = OfficeFurniture.buildFilingCabinet(env, random, ox, 0, oz, random() * Math.PI);
-                    addFurniture(filing);
+                // Aesthetic touches in corridor alcoves and corners (where walls exist on 2+ sides)
+                const wallCount = (wN ? 1 : 0) + (wS ? 1 : 0) + (wW ? 1 : 0) + (wE ? 1 : 0);
+                if (!isGateApproach && wallCount >= 2 && random() > 0.8) {
+                    if (random() > 0.5) {
+                        const plant = OfficeFurniture.buildPottedPlant(env, ox + (random() - 0.5) * 0.8, 0, oz + (random() - 0.5) * 0.8);
+                        addFurniture(plant);
+                    } else {
+                        const filing = OfficeFurniture.buildFilingCabinet(env, random, ox, 0, oz, random() * Math.PI);
+                        addFurniture(filing);
+                    }
                 }
             }
         }
