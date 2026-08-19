@@ -770,13 +770,28 @@ export const AnnexSector = (env, ctx) => {
                 }
 
                 // Warm ceiling lighting along corridors & winding turns
-                const isGateApproach = (localX === 7 && (localZ <= 2 || localZ >= 12)) || (localZ === 7 && (localX <= 2 || localX >= 12));
-                if (!isGateApproach && (localX + localZ) % 3 === 0 && random() > 0.35) {
+                const isGateApproach = (localX === 7 && (localZ <= 1 || localZ >= 13)) || (localZ === 7 && (localX <= 1 || localX >= 13));
+                if (!isGateApproach && (localX + localZ) % 3 === 0 && random() > 0.30) {
                     env._buildCeilingPanelLight(chunkGroup, hash, ox, oz, random, ctx.getLightMaterial, 0xd6cc98, 0xffeebb, 0.32, 0.8);
                 }
 
-                // Aesthetic touches along corridor walls:
-                // Filing cabinets along walls, rare fern pots beside filing cabinets, and sparingly scattered water coolers
+                // Helper to reliably register and spawn corridor furniture
+                const spawnAnnexProp = (group) => {
+                    group.userData.chunkHash = hash;
+                    chunkGroup.add(group);
+                    group.updateMatrixWorld(true);
+                    group.traverse((ch) => {
+                        ch.userData.chunkHash = hash;
+                        ch.castShadow = ch.receiveShadow = true;
+                    });
+                    const box = new THREE.Box3().setFromObject(group);
+                    box.chunkHash = hash;
+                    env.spatialGrid.insert(box);
+                    env.walls.push(group);
+                };
+
+                // Aesthetic touches along corridor walls and dead ends:
+                // Filing cabinets along walls, fern pots beside filing cabinets, and water coolers
                 const wallDirs = [];
                 if (wN) wallDirs.push({dx: 0, dz: -1});
                 if (wS) wallDirs.push({dx: 0, dz: 1});
@@ -784,38 +799,74 @@ export const AnnexSector = (env, ctx) => {
                 if (wE) wallDirs.push({dx: 1, dz: 0});
 
                 if (!isGateApproach && wallDirs.length > 0) {
-                    const propRoll = random();
-                    if (propRoll > 0.76) {
-                        // Filing cabinet flush against the wall liner
-                        const d = wallDirs[Math.floor(random() * wallDirs.length)];
-                        const rotY = Math.atan2(-d.dx, -d.dz);
-                        const cabDist = (env.cellSize / 2) - linerDepth - 0.375;
-                        const cabX = ox + d.dx * cabDist;
-                        const cabZ = oz + d.dz * cabDist;
-                        const cab = OfficeFurniture.buildFilingCabinet(env, random, cabX, 0, cabZ, rotY);
-                        addFurniture(cab);
+                    const isDeadEnd = wallDirs.length >= 3;
+                    
+                    if (isDeadEnd) {
+                        // At a dead end: find the back wall facing the open hallway exit
+                        const allDirs = [{dx: 0, dz: -1}, {dx: 0, dz: 1}, {dx: -1, dz: 0}, {dx: 1, dz: 0}];
+                        const openExit = allDirs.find(d => !wallDirs.some(wd => wd.dx === d.dx && wd.dz === d.dz));
+                        const backWall = openExit ? {dx: -openExit.dx, dz: -openExit.dz} : wallDirs[0];
+                        const rotY = Math.atan2(-backWall.dx, -backWall.dz);
 
-                        // Fern pots: always spawn next to a filing cabinet, but rare
-                        if (random() > 0.72) {
-                            const sideSign = random() > 0.5 ? 1 : -1;
-                            const sideDx = -d.dz * sideSign;
-                            const sideDz = d.dx * sideSign;
-                            const sideDist = 0.75;
-                            const plantDist = (env.cellSize / 2) - linerDepth - 0.28;
-                            const plantX = ox + d.dx * plantDist + sideDx * sideDist;
-                            const plantZ = oz + d.dz * plantDist + sideDz * sideDist;
-                            const plant = OfficeFurniture.buildPottedPlant(env, plantX, 0, plantZ);
-                            addFurniture(plant);
+                        const deadEndRoll = random();
+                        if (deadEndRoll > 0.30) {
+                            // Filing cabinet facing the hallway exit (depth 0.75m, center is 0.375m from back)
+                            // Liner face is at 1.45m from center. So cabDist = 1.45 - 0.375 = 1.075.
+                            const cabDist = 1.075;
+                            const cabX = ox + backWall.dx * cabDist;
+                            const cabZ = oz + backWall.dz * cabDist;
+                            const cab = OfficeFurniture.buildFilingCabinet(env, random, cabX, 0, cabZ, rotY);
+                            spawnAnnexProp(cab);
+
+                            // High chance of fern pot beside the cabinet in dead end nook
+                            if (random() > 0.35) {
+                                // Double cabinets expand to local +X. Place fern safely at local -X.
+                                // Local -X vector: {dx: backWall.dz, dz: -backWall.dx}
+                                const plantDist = 1.17; // Pot radius is 0.28m. 1.45 - 0.28 = 1.17.
+                                const plantX = ox + backWall.dx * plantDist + backWall.dz * 0.75;
+                                const plantZ = oz + backWall.dz * plantDist - backWall.dx * 0.75;
+                                const plant = OfficeFurniture.buildPottedPlant(env, plantX, 0, plantZ);
+                                spawnAnnexProp(plant);
+                            }
+                        } else {
+                            // Water cooler against back wall
+                            const coolerDist = 1.225; // Cooler depth 0.45m. 1.45 - 0.225 = 1.225.
+                            const coolerX = ox + backWall.dx * coolerDist;
+                            const coolerZ = oz + backWall.dz * coolerDist;
+                            const cooler = OfficeFurniture.buildWaterCooler(env, coolerX, 0, coolerZ, rotY);
+                            spawnAnnexProp(cooler);
                         }
-                    } else if (propRoll > 0.69) {
-                        // Water coolers: flush against the wall liner, scattered sparingly
-                        const d = wallDirs[Math.floor(random() * wallDirs.length)];
-                        const rotY = Math.atan2(-d.dx, -d.dz);
-                        const coolerDist = (env.cellSize / 2) - linerDepth - 0.225;
-                        const coolerX = ox + d.dx * coolerDist;
-                        const coolerZ = oz + d.dz * coolerDist;
-                        const cooler = OfficeFurniture.buildWaterCooler(env, coolerX, 0, coolerZ, rotY);
-                        addFurniture(cooler);
+                    } else {
+                        // Regular corridor wall: balanced spawn rolls
+                        const propRoll = random();
+                        if (propRoll < 0.40) {
+                            // Filing cabinet flush against the wall
+                            const d = wallDirs[Math.floor(random() * wallDirs.length)];
+                            const rotY = Math.atan2(-d.dx, -d.dz);
+                            const cabDist = 1.075;
+                            const cabX = ox + d.dx * cabDist;
+                            const cabZ = oz + d.dz * cabDist;
+                            const cab = OfficeFurniture.buildFilingCabinet(env, random, cabX, 0, cabZ, rotY);
+                            spawnAnnexProp(cab);
+
+                            // Fern pots: spawn next to filing cabinet at local -X
+                            if (random() < 0.45) {
+                                const plantDist = 1.17;
+                                const plantX = ox + d.dx * plantDist + d.dz * 0.75;
+                                const plantZ = oz + d.dz * plantDist - d.dx * 0.75;
+                                const plant = OfficeFurniture.buildPottedPlant(env, plantX, 0, plantZ);
+                                spawnAnnexProp(plant);
+                            }
+                        } else if (propRoll < 0.58) {
+                            // Water coolers: flush against the wall, scattered sparingly
+                            const d = wallDirs[Math.floor(random() * wallDirs.length)];
+                            const rotY = Math.atan2(-d.dx, -d.dz);
+                            const coolerDist = 1.225;
+                            const coolerX = ox + d.dx * coolerDist;
+                            const coolerZ = oz + d.dz * coolerDist;
+                            const cooler = OfficeFurniture.buildWaterCooler(env, coolerX, 0, coolerZ, rotY);
+                            spawnAnnexProp(cooler);
+                        }
                     }
                 }
             }

@@ -12,10 +12,12 @@ _Procedural Winding Hallways, Enclosed Pods & Wall-Aligned Clutter_
 
 ### Changed
 
-- **[WORLD] Wall-Flush Prop Alignment & Fern Pairing (`AnnexSector.js`):** Filing cabinets now only spawn flush against solid corridor walls with correct outward orientation. Fern pots no longer spawn isolated in hallways; they now exclusively spawn beside filing cabinets along the wall as rare decorative accents (~28% chance when a cabinet spawns).
+- **[WORLD] Wall-Flush Prop Alignment & Fern Pairing (`AnnexSector.js`):** Filing cabinets now only spawn flush against solid corridor walls with correct outward orientation. Fern pots no longer spawn isolated in hallways; they now exclusively spawn beside filing cabinets along the wall as rare decorative accents (~45% chance when a cabinet spawns). Dead-end corridor branches reliably spawn facing filing cabinets (with paired fern pots) or water coolers.
 
 ### Fixed
 
+- **[WORLD] Corridor Prop Spatial Grid Occlusion Drop (`AnnexSector.js`):** Fixed an issue where corridor furniture instances were being silently rejected by generic furniture bounding box intersection checks against wall liners. Created `spawnAnnexProp` to reliably attach corridor props directly to the chunk hierarchy and spatial grid.
+- **[WORLD] Prop Wall Liner Clipping (`AnnexSector.js`):** Fixed a coordinate calculation error where props were pushed `0.5m` past the `0.55m` mahogany wall liners, causing them to visibly clip halfway through the walls. Distances are now precisely mapped (`1.075m`, `1.17m`, `1.225m`) so prop bounds rest exactly flush against the `1.45m` liner faces. Additionally, fern pots are now strictly instantiated on the local `-X` side of filing cabinets, preventing them from clipping into the double-cabinet tower expansion.
 - **[WORLD] Pod Open Wall Leaks (`AnnexSector.js`):** Fixed an issue where research pod interior cells had missing wall boundaries facing open corridor tiles. Every research pod is now strictly bounded by solid walls on all sides except for its single custom wooden doorway cell.
 
 ## [v1.2.8] - 2026-08-19
