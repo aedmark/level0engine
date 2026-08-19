@@ -67,12 +67,12 @@ function buildClipboard(env, x, z, rotation, y) {
     const board = new THREE.Mesh(env._boxGeo(0.24, 0.01, 0.34), env.cardboardMat || env.baseHousingMat);
     board.position.set(0, 0.005, 0);
     group.add(board);
-    
+
     const doc = new THREE.Mesh(env.documentGeo, env.documentMat);
     doc.position.set(0, 0.011, 0);
     doc.rotation.y = 0;
     group.add(doc);
-    
+
     const clip = new THREE.Mesh(env._boxGeo(0.12, 0.02, 0.04), env.metalMat);
     clip.position.set(0, 0.015, -0.14);
     group.add(clip);
@@ -111,12 +111,12 @@ export function placeSectorPaper(env, ctx, sectorId, cx0, cz0, y, spread, chance
     const surfaceY = (y !== undefined ? y : 0.035) + 0.001;
     const b = budget(env, hash);
     const roll = random();
-    
+
     const chance = chanceOverride !== undefined ? chanceOverride : LORE_CHANCE;
     if (roll < chance && b.lore < MAX_LORE_PER_CHUNK) {
         b.lore++;
         const meshType = env.getStory ? env.getStory().getNextMeshType(sectorId) : 'document';
-        
+
         let mesh;
         let prefix = 'LOG_';
         let glow = PROP_GLOW.paper;

@@ -58,9 +58,9 @@ const generateAnnexChunk = (env, hash, random) => {
         else if (grid[x+1][z] === 0) nx = x+1;
         else if (grid[x][z-1] === 0) nz = z-1;
         else if (grid[x][z+1] === 0) nz = z+1;
-        
+
         lockedRoom = {x, z, nx, nz};
-        grid[nx][nz] = 3; 
+        grid[nx][nz] = 3;
         grid[x][z] = 4;
     }
 
@@ -70,9 +70,9 @@ const generateAnnexChunk = (env, hash, random) => {
         attempts++;
         const bx = 3 + Math.floor(random() * 4) * 2;
         const bz = 3 + Math.floor(random() * 4) * 2;
-        
+
         if (lockedRoom && Math.abs(lockedRoom.x - bx) <= 2 && Math.abs(lockedRoom.z - bz) <= 2) continue;
-        
+
         let overlap = false;
         for (const b of bays) {
             if (Math.abs(b.x - bx) <= 4 && Math.abs(b.z - bz) <= 4) {
@@ -213,7 +213,7 @@ export const AnnexSector = (env, ctx) => {
                     const header = buildWall(gapW, env.cellSize, env.annexWallMat || env.sharedWallMat, 0.35);
                     header.position.set(ox, 2.825, oz);
                     addGeometry(header);
-                    
+
                     const doorW = 1.4, doorT = 0.1;
                     const doorGeo = env._cacheGeo('hingedDoor:X', () => {
                         const g = new THREE.BoxGeometry(doorW, 2.65, doorT);
@@ -258,7 +258,7 @@ export const AnnexSector = (env, ctx) => {
                     const header = buildWall(env.cellSize, gapW, env.annexWallMat || env.sharedWallMat, 0.35);
                     header.position.set(ox, 2.825, oz);
                     addGeometry(header);
-                    
+
                     const doorW = 1.4, doorT = 0.1;
                     const doorGeo = env._cacheGeo('hingedDoor:Z', () => {
                         const g = new THREE.BoxGeometry(doorT, 2.65, doorW);
@@ -301,7 +301,7 @@ export const AnnexSector = (env, ctx) => {
             if (cellType === 4) {
                 const table = buildTable(ox, 0, oz);
                 addFurniture(table);
-                
+
                 const keyGroup = new THREE.Group();
                 const bow = new THREE.Mesh(env._boxGeo(0.11, 0.012, 0.07), env.exitKeyMat);
                 bow.position.set(-0.05, 0, 0);
@@ -346,7 +346,7 @@ export const AnnexSector = (env, ctx) => {
                 spawnDesk(ox + 0.8, oz - 0.8, 0, random() > 0.3);
                 spawnDesk(ox - 0.8, oz + 0.8, 0, random() > 0.3);
                 spawnDesk(ox + 0.8, oz + 0.8, 0, random() > 0.3);
-                
+
                 const cab = OfficeFurniture.buildFilingCabinet(env, random, ox, 0, oz, random() * Math.PI);
                 addFurniture(cab);
                 return;

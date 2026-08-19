@@ -92,7 +92,7 @@ export default class AnnexTextures {
             doorCtx.stroke();
         }
         const doorTexture = new THREE.CanvasTexture(doorCanvas);
-        
+
         const annexDoorMatFront = new THREE.MeshStandardMaterial({map: doorTexture, roughness: 0.7, metalness: 0.1});
         const annexDoorMatBack = new THREE.MeshStandardMaterial({
             map: doorTexture,
@@ -231,7 +231,7 @@ export default class AnnexTextures {
         annexCeilingCtx.strokeStyle = '#6e4c32';
         annexCeilingCtx.lineWidth = 16;
         annexCeilingCtx.strokeRect(32, 32, 448, 448);
-        
+
         annexCeilingCtx.strokeStyle = '#8f6746';
         annexCeilingCtx.lineWidth = 4;
         annexCeilingCtx.strokeRect(24, 24, 464, 464);
@@ -254,13 +254,13 @@ export default class AnnexTextures {
         annexCeilingCtx.beginPath();
         annexCeilingCtx.arc(256, 256, 128, 0, Math.PI*2);
         annexCeilingCtx.fill();
-        
+
         annexCeilingCtx.strokeStyle = '#8f6746';
         annexCeilingCtx.lineWidth = 8;
         annexCeilingCtx.beginPath();
         annexCeilingCtx.arc(256, 256, 128, 0, Math.PI*2);
         annexCeilingCtx.stroke();
-        
+
         annexCeilingCtx.strokeStyle = '#a87a53';
         annexCeilingCtx.lineWidth = 4;
         annexCeilingCtx.beginPath();
