@@ -87,7 +87,7 @@ export function placeEphemera(env, ctx, sectorId, cx0, cz0, y) {
     const note = new THREE.Mesh(env.documentGeo, env.documentMat);
     note.position.set(
         cx0 + (random() - 0.5) * 1.4,
-        y !== undefined ? y : 0.035,
+        (y !== undefined ? y : 0.035) + 0.001,
         cz0 + (random() - 0.5) * 1.4
     );
     note.rotation.y = random() * Math.PI;
@@ -108,7 +108,7 @@ export function placeSectorPaper(env, ctx, sectorId, cx0, cz0, y, spread, chance
     const {random, chunkGroup, hash} = ctx;
     if (!env.documentGeo || !chunkGroup) return false;
     const sp = spread !== undefined ? spread : 1.6;
-    const surfaceY = y !== undefined ? y : 0.035;
+    const surfaceY = (y !== undefined ? y : 0.035) + 0.001;
     const b = budget(env, hash);
     const roll = random();
     
@@ -142,14 +142,14 @@ export function placeSectorPaper(env, ctx, sectorId, cx0, cz0, y, spread, chance
                 break;
             case 'note':
                 mesh = new THREE.Mesh(env.documentGeo, env.documentMat);
-                mesh.position.set(mx, surfaceY, mz);
+                mesh.position.set(mx, surfaceY + 0.001, mz);
                 mesh.rotation.y = rot;
                 prefix = 'NOTE_';
                 break;
             case 'document':
             default:
                 mesh = new THREE.Mesh(env.documentGeo, env.documentMat);
-                mesh.position.set(mx, surfaceY, mz);
+                mesh.position.set(mx, surfaceY + 0.001, mz);
                 mesh.rotation.y = rot;
                 prefix = 'LOG_';
                 break;
