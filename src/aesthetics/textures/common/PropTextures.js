@@ -601,11 +601,12 @@ export default class PropTextures {
         }
 
         const apexY = 125, baseY = 183, halfW = 36;
+        const triX = 154;
         ctx.fillStyle = 'rgba(24, 28, 34, 0.42)';
         ctx.beginPath();
-        ctx.moveTo(W / 2, apexY);
-        ctx.lineTo(W / 2 + halfW, baseY);
-        ctx.lineTo(W / 2 - halfW, baseY);
+        ctx.moveTo(triX, apexY);
+        ctx.lineTo(triX + halfW, baseY);
+        ctx.lineTo(triX - halfW, baseY);
         ctx.closePath();
         ctx.fill();
         ctx.strokeStyle = 'rgba(18, 22, 28, 0.55)';
@@ -613,15 +614,15 @@ export default class PropTextures {
         ctx.stroke();
         bCtx.fillStyle = 'rgba(190, 190, 190, 0.5)';
         bCtx.beginPath();
-        bCtx.moveTo(W / 2, apexY);
-        bCtx.lineTo(W / 2 + halfW, baseY);
-        bCtx.lineTo(W / 2 - halfW, baseY);
+        bCtx.moveTo(triX, apexY);
+        bCtx.lineTo(triX + halfW, baseY);
+        bCtx.lineTo(triX - halfW, baseY);
         bCtx.closePath();
         bCtx.fill();
         ctx.fillStyle = 'rgba(20, 24, 30, 0.5)';
-        ctx.fillRect(W / 2 - 4, apexY + 22, 8, 22);
+        ctx.fillRect(triX - 4, apexY + 22, 8, 22);
         ctx.beginPath();
-        ctx.arc(W / 2, apexY + 51, 4, 0, Math.PI * 2);
+        ctx.arc(triX, apexY + 51, 4, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = 'rgba(28, 32, 38, 0.22)';
         ctx.fillRect(0, 250, W, 14);

@@ -182,13 +182,13 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
     const doorX = cx + exit.dx * half;
     const doorZ = cz + exit.dz * half;
     if (exit.spansX) {
-        const px = -exit.dz * (half - 0.18);
+        const px = -exit.dz * (half - 0.35);
         const pz = exit.dz * (half - 1.2);
         padGroup.position.set(cx + px, 1.4, cz + pz);
         padGroup.rotation.y = exit.dz > 0 ? Math.PI / 2 : -Math.PI / 2;
     } else {
         const px = exit.dx * (half - 1.2);
-        const pz = exit.dx * (half - 0.18);
+        const pz = exit.dx * (half - 0.35);
         padGroup.position.set(cx + px, 1.4, cz + pz);
         padGroup.rotation.y = exit.dx > 0 ? Math.PI : 0;
     }

@@ -564,6 +564,30 @@ export default class SetPieces {
         const panelGeo = spansX
             ? getDoorGeo('doorPanel', 1.98, 2.6, 0.24)
             : getDoorGeo('doorPanel', 0.24, 2.6, 1.98);
+        const getDoorGeoR = (name, w, h, d) => {
+            const key = `${name}_${spansX}_${w}_${h}_${d}_R`;
+            let geo = env.geoCache.get(key);
+            if (!geo) {
+                geo = new THREE.BoxGeometry(w, h, d);
+                const uv = geo.attributes.uv;
+                for (let i = 0; i < uv.count; i++) {
+                    if (spansX) {
+                        uv.setX(i, 1 - uv.getX(i));
+                    } else {
+                        // For spansZ, the primary texture face is mapped along Z. 
+                        // Actually, BoxGeometry maps X to U and Y to V for the +Z/-Z faces.
+                        // We can just invert U (X) always to mirror the texture horizontally.
+                        uv.setX(i, 1 - uv.getX(i));
+                    }
+                }
+                env.geoCache.set(key, geo);
+                env.geoCache.set(geo.uuid, true);
+            }
+            return geo;
+        };
+        const panelGeoR = spansX
+            ? getDoorGeoR('doorPanel', 1.98, 2.6, 0.24)
+            : getDoorGeoR('doorPanel', 0.24, 2.6, 1.98);
         const stripeGeo = spansX
             ? getDoorGeo('doorStripe', 0.12, 2.6, 0.26)
             : getDoorGeo('doorStripe', 0.26, 2.6, 0.12);
@@ -571,7 +595,8 @@ export default class SetPieces {
             const mats = [doorMat, doorMat, doorMat, doorMat, doorMat, doorMat];
             if (spansX) mats[side === -1 ? 0 : 1] = env.airlockSealMat;
             else mats[side === -1 ? 4 : 5] = env.airlockSealMat;
-            const p = new THREE.Mesh(panelGeo, mats);
+            const geo = side === -1 ? panelGeo : panelGeoR;
+            const p = new THREE.Mesh(geo, mats);
             if (spansX) p.position.set(side * 0.96, 1.3, 0);
             else p.position.set(0, 1.3, side * 0.96);
             const stripe = new THREE.Mesh(stripeGeo, env.hazardMat);

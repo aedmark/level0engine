@@ -1,5 +1,27 @@
 # Level 0 Engine Changelog
 
+## [v1.3.0] - 2026-08-19
+
+_Tutorial Progression & Asset Pipeline Fixes_
+
+### Added
+
+- **[GAMEPLAY] Kinetic Flashlight Charging (`PlayerController.js`):** The flashlight can now be recharged by kinetically shaking the camera wildly, but only when the flashlight is unequipped. 
+
+### Changed
+
+- **[GAMEPLAY] Stowed Default Equipment (`Compass.js`, `ElevatorSpawn.js`):** The player now spawns with both the compass and flashlight stowed by default.
+- **[GAMEPLAY] Tutorial Power Progression (`InteractionController.js`):** The tutorial airlock blast door and the room's main power grid will no longer activate until the flashlight battery reaches a full 100% charge. 
+
+### Fixed
+
+- **[WORLD] Keypad Wall Mounting (`ElevatorSpawn.js`):** Migrated the tutorial keypad completely off the blast door's structural housing bezel. It is now mounted perfectly flush on the adjacent solid perpendicular wall. 
+- **[GRAPHICS] Asymmetrical Blast Door Decals (`SetPieces.js`, `PropTextures.js`):** Fixed an issue where the warning decals on the blast doors were visually skewed towards the outer frames because half the door texture is hidden inside the wall pocket. The right-hand door panel now dynamically flips its UV mapping on creation, and the procedural decal was shifted to perfectly bisect the exposed visible area of the door panels.
+- **[GRAPHICS] Scaled Warning Decals (`PropTextures.js`):** Scaled down the procedural hazard warning decals on the blast doors by exactly 50%.
+- **[SYSTEM] Tutorial State Save Persistence (`Environment.js`, `ElevatorSpawn.js`):** Fixed a progression reset bug where reloading a save inside the starting room would erroneously rebuild the chunk with a dead light fixture and a reset code-locked blast door. The `level0_tutorial_unlocked` state is now permanently written to `localStorage` and correctly initializes the spawn chunk as fully powered and fully unlocked with a green, inert keypad on reload.
+- **[GRAPHICS] Zero-Battery Ghost Lighting (`AtmosphereManager.js`):** Prevented the flashlight from casting a residual ambient illumination when at 0% battery.
+- **[SYSTEM] Texture Cache Invalidation (`export_textures.html`):** Bumped the master procedural texture export version to `1.3.0` to force the IndexedDB cache to purge stale assets and apply the new scaled door decal textures.
+
 ## [v1.2.9] - 2026-08-19
 
 _Procedural Winding Hallways, Enclosed Pods & Wall-Aligned Clutter_
