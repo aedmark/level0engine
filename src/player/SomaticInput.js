@@ -121,7 +121,10 @@ export default class SomaticInput {
         const isActionPressed = (action) => pressedButtons.some(b => InputBindings.isActionGamepad(action, b));
         const isActionReleased = (action) => releasedButtons.some(b => InputBindings.isActionGamepad(action, b));
 
-        if (isActionPressed('jump')) this.state.flyUp = true;
+        if (isActionPressed('jump')) {
+            this.state.flyUp = true;
+            this.state.jump = true;
+        }
         if (isActionReleased('jump')) this.state.flyUp = false;
 
         if (isActionPressed('closeDoc')) {
@@ -338,7 +341,10 @@ export default class SomaticInput {
             }
         }
 
-        if (is('jump')) this.state.flyUp = true;
+        if (is('jump') && !event.repeat) {
+            this.state.flyUp = true;
+            this.state.jump = true;
+        }
 
         if (this.state.isReading && (event.code.startsWith('Arrow') || is('moveLeft') || is('moveRight'))) {
             let dir = 1;

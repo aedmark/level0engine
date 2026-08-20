@@ -73,6 +73,129 @@ export const AnomalousPointOfInterestProfile = (env, ctx) => {
                 const hole = buildWall(2.2, 2.2, env.ceilingHoleMat, 0.02);
                 hole.position.set(cx, 2.975, cz);
                 addGeometry(hole);
+
+                if (!env.creepyEyeGeo) {
+                    env.creepyEyeGeo = new THREE.SphereGeometry(0.04, 12, 12);
+                    env.geoCache.set(env.creepyEyeGeo.uuid, true);
+                }
+                if (!env.creepyEyeMat) {
+                    env.creepyEyeMat = new THREE.MeshStandardMaterial({
+                        color: 0xffd700,
+                        emissive: 0xffaa00,
+                        emissiveIntensity: 0.15,
+                        roughness: 0.2,
+                        metalness: 0.8
+                    });
+                    env.sharedAssets.add(env.creepyEyeMat.uuid);
+                }
+                if (!env.creepyPupilMat) {
+                    env.creepyPupilMat = new THREE.MeshBasicMaterial({
+                        color: 0x000000
+                    });
+                    env.sharedAssets.add(env.creepyPupilMat.uuid);
+                }
+
+                const eyeSpacing = 0.12 + poiRandom() * 0.06;
+                const eyeOffsetX = (poiRandom() - 0.5) * 1.2;
+                const eyeOffsetZ = (poiRandom() - 0.5) * 1.2;
+                
+                const angle = poiRandom() * Math.PI * 2;
+                const dx = Math.cos(angle) * eyeSpacing / 2;
+                const dz = Math.sin(angle) * eyeSpacing / 2;
+                
+                const blinkOffset = poiRandom() * 1000.0;
+                
+                const fleeDirX = (poiRandom() - 0.5) * 2.0;
+                const fleeDirZ = (poiRandom() - 0.5) * 2.0;
+                const fleeLen = Math.sqrt(fleeDirX*fleeDirX + fleeDirZ*fleeDirZ) || 1;
+                const fdx = (fleeDirX / fleeLen) * 1.2;
+                const fdz = (fleeDirZ / fleeLen) * 1.2;
+
+                const sharedState = {
+                    stareTime: 0,
+                    fleeing: false,
+                    fleeStartTime: 0,
+                    lastFrame: -1,
+                    lastTime: performance.now()
+                };
+
+                const vecToPlayer = new THREE.Vector3();
+                const camDir = new THREE.Vector3();
+                const eyeCenter = new THREE.Vector3(cx + eyeOffsetX, 2.965, cz + eyeOffsetZ);
+
+                const makeEye = (lx, lz) => {
+                    const eye = new THREE.Mesh(env.creepyEyeGeo, env.creepyEyeMat);
+                    eye.position.set(cx + eyeOffsetX + lx, 2.965, cz + eyeOffsetZ + lz);
+                    
+                    const pupil = new THREE.Mesh(env.creepyEyeGeo, env.creepyPupilMat);
+                    pupil.scale.set(0.15, 1.0, 1.05);
+                    eye.add(pupil);
+
+                    eye.onBeforeRender = function(renderer, scene, camera) {
+                        if (!this.visible) return;
+                        
+                        const t = performance.now();
+                        const frame = renderer.info.render.frame;
+                        
+                        if (sharedState.lastFrame !== frame) {
+                            const dt = (t - sharedState.lastTime) * 0.001;
+                            sharedState.lastTime = t;
+                            sharedState.lastFrame = frame;
+
+                            if (!sharedState.fleeing) {
+                                camera.getWorldDirection(camDir);
+                                vecToPlayer.copy(eyeCenter).sub(camera.position).normalize();
+                                const dist = camera.position.distanceTo(eyeCenter);
+                                
+                                if (dist < 30.0 && camDir.dot(vecToPlayer) > 0.95) {
+                                    sharedState.stareTime += dt;
+                                    if (sharedState.stareTime > 2.0) {
+                                        sharedState.fleeing = true;
+                                        sharedState.fleeStartTime = t;
+                                    }
+                                } else {
+                                    sharedState.stareTime = Math.max(0, sharedState.stareTime - dt * 2.0);
+                                }
+                            }
+                        }
+
+                        this.lookAt(camera.position);
+
+                        let scaleX = 0.9;
+                        let scaleY = 0.3;
+                        let scaleZ = 0.3;
+
+                        if (sharedState.fleeing) {
+                            const fleeTime = (t - sharedState.fleeStartTime) * 0.001;
+                            this.position.x = cx + eyeOffsetX + lx + fdx * fleeTime;
+                            this.position.z = cz + eyeOffsetZ + lz + fdz * fleeTime;
+                            
+                            scaleY = 0.15; 
+                            
+                            if (fleeTime > 0.4) {
+                                const shrink = 1.0 - (fleeTime - 0.4) * 2.5;
+                                if (shrink <= 0) {
+                                    this.visible = false;
+                                    return;
+                                }
+                                scaleX *= shrink;
+                                scaleY *= shrink;
+                                scaleZ *= shrink;
+                            }
+                        } else {
+                            const tSec = t * 0.001 + blinkOffset;
+                            const isBlinking = Math.sin(tSec * 3.5) > 0.98 || Math.sin(tSec * 1.2) > 0.99;
+                            if (isBlinking) scaleY = 0.02;
+                        }
+                        
+                        this.scale.set(scaleX, scaleY, scaleZ);
+                        this.updateMatrixWorld();
+                    };
+                    chunkGroup.add(eye);
+                };
+
+                makeEye(-dx, -dz);
+                makeEye(dx, dz);
             } else if (flavor === 1) {
                 const pieces = 2 + Math.floor(poiRandom() * 2);
                 for (let i = 0; i < pieces; i++) {

@@ -656,15 +656,49 @@ export default class PlayerController {
         this.camera.position.z += this._leanOffset.z;
         if (!inVoid && targetFeetY === -100) targetFeetY = 0;
         const maxCamY = this.onWarpZone ? 5.0 : 2.8;
-        let targetCamY = Math.min(targetFeetY + visualHeight, maxCamY) + bobOffset - leanDrop;
+        
+        const groundCamY = Math.min(targetFeetY + visualHeight, maxCamY) + bobOffset - leanDrop;
+
         if (targetFeetY === -100) {
             this.fallVelocity = (this.fallVelocity || 0) + 30.0 * delta;
-            targetCamY = this.camera.position.y - (this.fallVelocity * delta);
+            this.camera.position.y -= (this.fallVelocity * delta);
         } else {
-            this.fallVelocity = 0;
+            // Airtime & Jumping logic
+            if (this.camera.position.y > groundCamY + 0.05 || (this.fallVelocity && this.fallVelocity < 0)) {
+                // We are in the air
+                this.fallVelocity = (this.fallVelocity || 0) + 30.0 * delta; // Gravity
+                this.camera.position.y -= (this.fallVelocity * delta);
+                
+                // Head bonk
+                if (this.camera.position.y > maxCamY) {
+                    this.camera.position.y = maxCamY;
+                    if (this.fallVelocity < 0) this.fallVelocity = 0;
+                }
+                
+                // Landed this frame
+                if (this.camera.position.y <= groundCamY && this.fallVelocity > 0) {
+                    this.camera.position.y = groundCamY;
+                    this.fallVelocity = 0;
+                    document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.5}}));
+                }
+            } else {
+                // Grounded
+                this.fallVelocity = 0;
+                const lerpFactor = 1.0 - Math.exp(-12.0 * delta);
+                this.camera.position.y += (groundCamY - this.camera.position.y) * lerpFactor;
+                
+                // Jump!
+                if (state.jump && !state.isCrawling && !state.isCrouching && !this.isSqueezing && this.exhaustion < 0.9) {
+                    state.jump = false; 
+                    const jumpVelocity = state.isRunning ? 9.5 : 7.0; // Running jump is higher
+                    this.fallVelocity = -jumpVelocity;
+                    this.camera.position.y += 0.06; // Nudge into the air to trigger airborne block next frame
+                    this.exhaustion = Math.min(1.0, this.exhaustion + (state.isRunning ? 0.3 : 0.15));
+                    document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.0}}));
+                }
+            }
         }
-        const lerpFactor = targetFeetY === -100 ? 1.0 : 1.0 - Math.exp(-12.0 * delta);
-        this.camera.position.y += (targetCamY - this.camera.position.y) * lerpFactor;
+        
         if (targetFeetY !== -100) this._groundFeetY = targetFeetY;
     }
 }
