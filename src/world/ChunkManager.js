@@ -663,7 +663,7 @@ export default class ChunkManager {
                         ? structuralMatrix.find(s => s.name === forcedName)
                         : TheArchitect.selectStructure(structuralMatrix, structRoll);
                     let built = false;
-                    if (structure && !(this._isAirlockApron(x, z) && structure.name === "CRATES OR STAIRWAY")) {
+                    if (structure && !(this._isAirlockApron(x, z) && structure.name === "CRATES OR ELEVATOR")) {
                         built = structure.build(x, z) !== false;
                     }
                     if (!built) {

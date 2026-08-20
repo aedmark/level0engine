@@ -17,14 +17,14 @@ export const CurvedArchwayProfile = (env, ctx) => {
                 nz: ctx.isWall(x, z - 1)
             };
             
-            let isAlignedZ;
-            if (!neighbors.pz || !neighbors.nz) {
-                isAlignedZ = true;
-            } else if (!neighbors.px || !neighbors.nx) {
-                isAlignedZ = false;
-            } else {
-                isAlignedZ = random() > 0.5;
+            const spansX = neighbors.nx && neighbors.px && !neighbors.nz && !neighbors.pz;
+            const spansZ = neighbors.nz && neighbors.pz && !neighbors.nx && !neighbors.px;
+            
+            if (!spansX && !spansZ) {
+                return false;
             }
+            
+            const isAlignedZ = spansZ;
             const pillarThickness = 0.8;
             
             const outerX = env.cellSize / 2;
@@ -60,20 +60,23 @@ export const CurvedArchwayProfile = (env, ctx) => {
                     const across = isAlignedZ ? {dx: 1, dz: 0} : {dx: 0, dz: 1};
                     const sides = random() > 0.5 ? [1, -1] : [-1, 1];
                     for (const side of sides) {
-                        const fx = x + along.dx * side;
-                        const fz = z + along.dz * side;
+                        const fx = x + across.dx * side;
+                        const fz = z + across.dz * side;
                         if (ctx.isWall(fx, fz)) continue;
 
                         const backs = [];
-                        if (ctx.isWall(fx + along.dx * side, fz + along.dz * side)) {
-                            backs.push({dx: along.dx * side, dz: along.dz * side});
+                        // The archway itself acts as a wall behind the bench
+                        backs.push({dx: -across.dx * side, dz: -across.dz * side});
+                        
+                        // Check other adjacent walls for variety
+                        if (ctx.isWall(fx + across.dx * side, fz + across.dz * side)) {
+                            backs.push({dx: across.dx * side, dz: across.dz * side});
                         }
                         for (const s of [1, -1]) {
-                            if (ctx.isWall(fx + across.dx * s, fz + across.dz * s)) {
-                                backs.push({dx: across.dx * s, dz: across.dz * s});
+                            if (ctx.isWall(fx + along.dx * s, fz + along.dz * s)) {
+                                backs.push({dx: along.dx * s, dz: along.dz * s});
                             }
                         }
-                        if (!backs.length) continue;
 
                         const back = backs.length > 1 && random() > 0.62
                             ? backs[1 + Math.floor(random() * (backs.length - 1))]

@@ -1,9 +1,18 @@
 export const PartitionHeaderProfile = (env, ctx) => {
-    const {random, buildWall, addGeometry} = ctx;
+    const {random, buildWall, addGeometry, isWall} = ctx;
     return {
         name: "PARTITION HEADER",
         prob: 0.0215, build: (x, z) => {
-            const isZ = random() > 0.5;
+            if (!isWall) return false;
+            const spansX = isWall(x - 1, z) && isWall(x + 1, z) && !isWall(x, z - 1) && !isWall(x, z + 1);
+            const spansZ = isWall(x, z - 1) && isWall(x, z + 1) && !isWall(x - 1, z) && !isWall(x + 1, z);
+            if (!spansX && !spansZ) {
+                // If it's part of a chain (neighbor is already an arch)? 
+                // We can't check what structure was built, only if it's a wall.
+                // Let's just allow it on straight walls to prevent islands.
+                return false;
+            }
+            const isZ = spansX;
             const pW = 0.6;
             const offset = (env.cellSize / 2) - (pW / 2);
             const p1 = buildWall(isZ ? pW : env.cellSize, isZ ? env.cellSize : pW, env.sharedWallMat);

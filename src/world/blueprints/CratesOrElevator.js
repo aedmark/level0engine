@@ -1,7 +1,7 @@
-export const CratesOrStairwayProfile = (env, ctx) => {
+export const CratesOrElevatorProfile = (env, ctx) => {
     const {random, buildWall, addGeometry} = ctx;
     return {
-        name: "CRATES OR STAIRWAY",
+        name: "CRATES OR ELEVATOR",
         prob: 0.0754, build: (x, z) => {
             const structureType = random();
             if (structureType > 0.40) {
@@ -40,7 +40,7 @@ export const CratesOrStairwayProfile = (env, ctx) => {
                     }
                 }
             } else {
-                const isMagic = random() > 0.75;
+                const isMagic = random() > 0.60;
                 
                 const nC = ctx.isWall && !ctx.isWall(x, z - 1);
                 const sC = ctx.isWall && !ctx.isWall(x, z + 1);
@@ -74,34 +74,31 @@ export const CratesOrStairwayProfile = (env, ctx) => {
                 }
 
                 const isZ = dir % 2 === 0;
-                const w1 = buildWall(isZ ? 0.5 : env.cellSize, isZ ? env.cellSize : 0.5, env.sharedWallMat);
-                w1.position.set(x * env.cellSize + (isZ ? -(env.cellSize / 2) + 0.25 : 0), 1.5, z * env.cellSize + (isZ ? 0 : -(env.cellSize / 2) + 0.25));
+                const wallH = 4.5;
+                const wallY = 2.25;
+                const w1 = buildWall(isZ ? 0.5 : env.cellSize, isZ ? env.cellSize : 0.5, env.sharedWallMat, wallH);
+                w1.position.set(x * env.cellSize + (isZ ? -(env.cellSize / 2) + 0.25 : 0), wallY, z * env.cellSize + (isZ ? 0 : -(env.cellSize / 2) + 0.25));
                 addGeometry(w1);
-                const w2 = buildWall(isZ ? 0.5 : env.cellSize, isZ ? env.cellSize : 0.5, env.sharedWallMat);
-                w2.position.set(x * env.cellSize + (isZ ? (env.cellSize / 2) - 0.25 : 0), 1.5, z * env.cellSize + (isZ ? 0 : (env.cellSize / 2) - 0.25));
+                
+                const w2 = buildWall(isZ ? 0.5 : env.cellSize, isZ ? env.cellSize : 0.5, env.sharedWallMat, wallH);
+                w2.position.set(x * env.cellSize + (isZ ? (env.cellSize / 2) - 0.25 : 0), wallY, z * env.cellSize + (isZ ? 0 : (env.cellSize / 2) - 0.25));
                 addGeometry(w2);
-                const w3 = buildWall(isZ ? env.cellSize : 0.5, isZ ? 0.5 : env.cellSize, env.sharedWallMat);
+                
+                const w3 = buildWall(isZ ? env.cellSize : 0.5, isZ ? 0.5 : env.cellSize, env.sharedWallMat, wallH);
                 const backOffset = (env.cellSize / 2) - 0.25;
                 const sign = (dir === 2 || dir === 3) ? 1 : -1;
-                w3.position.set(x * env.cellSize + (isZ ? 0 : sign * backOffset), 1.5, z * env.cellSize + (isZ ? sign * backOffset : 0));
+                w3.position.set(x * env.cellSize + (isZ ? 0 : sign * backOffset), wallY, z * env.cellSize + (isZ ? sign * backOffset : 0));
                 addGeometry(w3);
-                const stepCount = 10;
-                const stepDepth = (env.cellSize - 0.5) / stepCount;
-                const stepHeight = 3.0 / stepCount;
-                const innerW = env.cellSize - 1.0;
-                for (let s = 0; s < stepCount; s++) {
-                    const h = (s + 1) * stepHeight;
-                    const wX = isZ ? innerW : stepDepth;
-                    const wZ = isZ ? stepDepth : innerW;
-                    const step = new THREE.Mesh(env._boxGeo(wX, h, wZ), env.structMat);
-                    let offset = (env.cellSize / 2) - (stepDepth / 2) - (s * stepDepth);
-                    if (dir === 2 || dir === 3) offset = -offset;
-                    const posX = x * env.cellSize + (isZ ? 0 : offset);
-                    const posZ = z * env.cellSize + (isZ ? offset : 0);
-                    step.position.set(posX, h / 2, posZ);
-                    const isTopStep = (s === stepCount - 1);
-                    addGeometry(step, isMagic && isTopStep);
-                }
+                
+                // Elevator ceiling
+                const ceil = buildWall(env.cellSize, env.cellSize, env.sharedWallMat, 0.5);
+                ceil.position.set(x * env.cellSize, wallH - 0.25, z * env.cellSize);
+                addGeometry(ceil);
+
+                // Elevator floor
+                const floor = new THREE.Mesh(env._boxGeo(env.cellSize - 1.0, 0.2, env.cellSize - 1.0), env.structMat);
+                floor.position.set(x * env.cellSize, 0.1, z * env.cellSize);
+                addGeometry(floor, isMagic);
             }
         }
     };
