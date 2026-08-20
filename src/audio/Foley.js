@@ -38,6 +38,7 @@ const VOICES = {
     'paint_splat': ['square', 120, 40, 0.1, 0.15, 0.01, 0.15, {type: 'lowpass', start: 1200, end: 200, ramp: 0.15}],
     'flashlight_on': ['square', 1000, 300, 0.02, 0.1, 0.01, 0.03, null],
     'flashlight_off': ['square', 600, 200, 0.02, 0.1, 0.01, 0.03, null],
+    'elevator_ding': ['sine', 880, 880, 0.1, 0.5, 0.02, 1.2, null],
     'inventory_woosh': ['sine', 1, 1, 1.0, 0.15, 0.05, 0.25, {type: 'bandpass', start: 1500, end: 300, ramp: 0.2}],
     'document_rustle': ['sine', 1, 1, 1.0, 0.3, 0.03, 0.35, {type: 'bandpass', start: 3000, end: 1200, ramp: 0.3}],
     'electric_spark': ['sawtooth', 120, 120, 0, 0.4, 0.01, 0.15, {type: 'bandpass', start: 1500, end: 3000, ramp: 0.1}],

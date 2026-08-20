@@ -498,9 +498,7 @@ export default class Environment {
             const warpX = this.camera.position.x + (signX * (1500 + Math.random() * 2000));
             const warpZ = this.camera.position.z + (signZ * (1500 + Math.random() * 2000));
             this.camera.position.set(warpX, 1.6, warpZ);
-            if (warpHappened) {
-                if (this.anomaly) this.anomaly.reset(warpX + 32, 1.5, warpZ + 32);
-            }
+            if (this.anomaly) this.anomaly.reset(warpX + 32, 1.5, warpZ + 32);
         } else {
             this.player.coherence = 1.0;
             if (this.anomaly) this.anomaly.reset(32, 1.5, 32);

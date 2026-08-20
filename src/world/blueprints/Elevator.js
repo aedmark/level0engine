@@ -38,22 +38,19 @@ export const ElevatorProfile = (env, ctx) => {
             }
 
             if (!env._elevatorPanelMat) {
-                env._elevatorPanelMat = env.structuralSteelMat || env.metalMat || env.sharedWallMat;
-            }
-            if (!env._elevatorBtnOnMat) {
-                env._elevatorBtnOnMat = env.matteLightMat ? env.matteLightMat : (env.baseLightMat || env.sharedWallMat);
-            }
-            if (!env._elevatorBtnOffMat) {
-                env._elevatorBtnOffMat = env.baseHousingMat || env.sharedWallMat;
+                env._elevatorPanelMat = env.elevatorPanelMat || env.structuralSteelMat || env.metalMat || env.sharedWallMat;
             }
 
-            const interiorMat = env.metalMat || env.structuralSteelMat || env.sharedWallMat;
-            const doorMat = env.rustMat || env.sharedWallMat;
+            const btnGreenMat = ctx.getLightMaterial ? ctx.getLightMaterial(0x33ff33, 0x33ff33, false, true) : (env.matteLightMat || env.baseLightMat);
+            const btnRedMat = ctx.getLightMaterial ? ctx.getLightMaterial(0xff3333, 0xff3333, false, true) : (env.baseHousingMat || env.sharedWallMat);
+
+            const interiorMat = env.elevatorSteelMat || env.metalMat || env.structuralSteelMat || env.sharedWallMat;
+            const doorMat = env.elevatorDoorMat || env.rustMat || env.sharedWallMat;
             const floorMat = env.serverFloorMat || env.metalMat || env.structMat;
 
             const isZ = dir % 2 === 0;
-            const wallH = 4.5;
-            const wallY = 2.25;
+            const wallH = 3.0;
+            const wallY = 1.5;
             
             // Side walls
             const w1 = buildWall(isZ ? 0.5 : env.cellSize, isZ ? env.cellSize : 0.5, interiorMat, wallH);
@@ -72,17 +69,34 @@ export const ElevatorProfile = (env, ctx) => {
             addGeometry(w3);
             
             // Elevator ceiling
-            const ceil = buildWall(env.cellSize, env.cellSize, interiorMat, 0.5);
-            ceil.position.set(x * env.cellSize, wallH - 0.25, z * env.cellSize);
+            const ceil = buildWall(env.cellSize, env.cellSize, interiorMat, 0.1);
+            ceil.position.set(x * env.cellSize, wallH - 0.05, z * env.cellSize);
             addGeometry(ceil);
+
+            if (env.fixtureData) {
+                env.fixtureData.push({
+                    chunkHash: ctx.hash,
+                    position: new THREE.Vector3(x * env.cellSize, wallH - 0.1, z * env.cellSize),
+                    flickerOffset: Math.random() * 500,
+                    material: env.baseLightMat,
+                    isFaulty: Math.random() > 0.95,
+                    baseIntensity: 1.2,
+                    targetIntensity: 1.2,
+                    currentIntensity: 1.2
+                });
+            }
+
+            const lightMesh = buildWall(1.5, 1.5, env.baseLightMat, 0.05);
+            lightMesh.position.set(x * env.cellSize, wallH - 0.125, z * env.cellSize);
+            addGeometry(lightMesh);
 
             // Elevator floor
             const floor = buildWall(env.cellSize - 1.0, env.cellSize - 1.0, floorMat, 0.2, 0.0);
             floor.position.set(x * env.cellSize, 0.1, z * env.cellSize);
-            addGeometry(floor, isMagic);
+            addGeometry(floor);
 
             // Elevator doors (partially open)
-            const gap = 1.0;
+            const gap = 2.0;
             const innerSpace = env.cellSize - 1.0; 
             const doorW = (innerSpace - gap) / 2.0; 
             const d1 = buildWall(isZ ? doorW : 0.2, isZ ? 0.2 : doorW, doorMat, wallH);
@@ -129,8 +143,18 @@ export const ElevatorProfile = (env, ctx) => {
 
             let btnW = pW === 0.1 ? 0.12 : 0.1;
             let btnD = pD === 0.1 ? 0.12 : 0.1;
-            const btn = buildWall(btnW, btnD, isMagic ? env._elevatorBtnOnMat : env._elevatorBtnOffMat, 0.08);
+            const btn = buildWall(btnW, btnD, isMagic ? btnGreenMat : btnRedMat, 0.08);
             btn.position.set(pX, pY + 0.05, pZ);
+            btn.userData = {
+                type: 'elevator_button',
+                isMagic: isMagic,
+                active: true,
+                chunkHash: ctx.hash
+            };
+            if (!env.interactables) env.interactables = [];
+            env.interactables.push(btn);
+            if (env._registerInteractable) env._registerInteractable(btn, ctx.hash);
+            
             addGeometry(btn);
         }
     };

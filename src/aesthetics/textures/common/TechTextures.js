@@ -1,6 +1,49 @@
 import TextureMechanics from '../TextureMechanics.js';
 
 export default class TechTextures {
+    
+    static _buildBrushedSteel(masterNoise, colorHex, stretchX = true) {
+        const {canvas, ctx} = TextureMechanics._createContext(512, 512);
+        const {canvas: bumpCanvas, ctx: bCtx} = TextureMechanics._createContext(512, 512);
+
+        ctx.fillStyle = colorHex;
+        ctx.fillRect(0, 0, 512, 512);
+        bCtx.fillStyle = '#808080';
+        bCtx.fillRect(0, 0, 512, 512);
+
+        // Create brushed streaks
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+        bCtx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+        bCtx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+
+        for (let i = 0; i < 2000; i++) {
+            const isLight = Math.random() > 0.5;
+            ctx.fillStyle = isLight ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)';
+            bCtx.fillStyle = isLight ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.3)';
+            
+            if (stretchX) {
+                const y = Math.random() * 512;
+                const h = Math.random() * 2 + 1;
+                ctx.fillRect(0, y, 512, h);
+                bCtx.fillRect(0, y, 512, h);
+            } else {
+                const x = Math.random() * 512;
+                const w = Math.random() * 2 + 1;
+                ctx.fillRect(x, 0, w, 512);
+                bCtx.fillRect(x, 0, w, 512);
+            }
+        }
+
+        ctx.globalAlpha = 0.2;
+        ctx.drawImage(masterNoise, 0, 0, 512, 512);
+        ctx.globalAlpha = 1.0;
+
+        const map = TextureMechanics._createWrappedTexture(canvas, 2, 2);
+        const bumpMap = TextureMechanics._createWrappedTexture(bumpCanvas, 2, 2);
+        return {map, bumpMap};
+    }
+
     static _buildFlangeAsset(masterNoise) {
         const {canvas: flangeCanvas, ctx: flangeCtx} = TextureMechanics._createContext(256, 256);
         flangeCtx.fillStyle = '#8a9296';
@@ -160,7 +203,35 @@ export default class TechTextures {
         matteBrokenLightMat.metalness = 0;
         matteBrokenLightMat.roughness = 0.95;
 
-        const flangeMat = TechTextures._buildFlangeAsset(masterNoise);
+        
+        const baseSteel = TechTextures._buildBrushedSteel(masterNoise, '#606466', false);
+        const elevatorSteelMat = new THREE.MeshStandardMaterial({
+            map: baseSteel.map,
+            bumpMap: baseSteel.bumpMap,
+            bumpScale: 0.015,
+            roughness: 0.45,
+            metalness: 0.7
+        });
+
+        const doorSteel = TechTextures._buildBrushedSteel(masterNoise, '#505456', false);
+        const elevatorDoorMat = new THREE.MeshStandardMaterial({
+            map: doorSteel.map,
+            bumpMap: doorSteel.bumpMap,
+            bumpScale: 0.02,
+            roughness: 0.5,
+            metalness: 0.65
+        });
+
+        const panelSteel = TechTextures._buildBrushedSteel(masterNoise, '#3b3f42', false);
+        const elevatorPanelMat = new THREE.MeshStandardMaterial({
+            map: panelSteel.map,
+            bumpMap: panelSteel.bumpMap,
+            bumpScale: 0.03,
+            roughness: 0.6,
+            metalness: 0.8
+        });
+
+const flangeMat = TechTextures._buildFlangeAsset(masterNoise);
 
         return {
             ventMat,
@@ -171,7 +242,10 @@ export default class TechTextures {
             baseHousingMat,
             matteLightMat,
             matteBrokenLightMat,
-            flangeMat
+            flangeMat,
+            elevatorSteelMat,
+            elevatorDoorMat,
+            elevatorPanelMat
         };
     }
 }

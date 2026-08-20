@@ -769,6 +769,17 @@ export default class InteractionController {
                 if (env.player) env.player.sit(hit);
                 return;
             }
+
+            if (hit && hit.userData.type === 'elevator_button') {
+                if (hit.userData.isMagic && env.generate) {
+                    document.dispatchEvent(new CustomEvent('somatic-flashlight', {detail: {on: true}}));
+                    document.dispatchEvent(new CustomEvent('somatic-elevator-ding', {detail: {distSq: 0.0, intensity: 2.0}}));
+                    env.generate(true);
+                } else {
+                    document.dispatchEvent(new CustomEvent('somatic-flashlight', {detail: {on: true}}));
+                }
+                return;
+            }
             
             if (hit && hit.userData.isAirlockDoor) {
                 hit.userData.playerOpen = true;
