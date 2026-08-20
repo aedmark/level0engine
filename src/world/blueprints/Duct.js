@@ -2,12 +2,12 @@ import Vec3 from '../../math/Vec3.js';
 import AABB from '../../math/AABB.js';
 import {makeDuctInterior} from '../../core/DuctLighting.js';
 
-export const DuctOrVentProfile = (env, ctx) => {
+export const DuctProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, hash} = ctx;
     return {
-        name: "DUCT OR VENT",
-        prob: 0.0862, build: (x, z) => {
-            let isFloorLevel = random() > 0.50;
+        name: "DUCT",
+        prob: 0.0431, build: (x, z) => {
+            
             const addGeometry = ctx.addGeometry;
             if (!env.ductLiningMat) {
                 env.ductLiningMat = makeDuctInterior(env.ductMat.clone());
@@ -40,10 +40,10 @@ export const DuctOrVentProfile = (env, ctx) => {
             if (ctx.isWall && !ctx.isWall(x - 1, z) && !(ctx.isAirlockApron && ctx.isAirlockApron(x - 1, z)) && !(ctx.isLowClearance && ctx.isLowClearance(x - 1, z))) { initialExits.W = true; numExits++; }
 
             if (numExits === 0) {
-                isFloorLevel = false;
+                return false;
             }
 
-            if (isFloorLevel) {
+            if (true) {
                 network.set(cellKey(x, z), {
                     x, z,
                     connections: {N: false, S: false, E: false, W: false},
@@ -167,11 +167,11 @@ export const DuctOrVentProfile = (env, ctx) => {
                 }
 
                 if (network.size <= 1 || totalRemainingExits < 2) {
-                    isFloorLevel = false;
+                    return false;
                 }
             }
 
-            if (isFloorLevel) {
+            if (true) {
                 const holeW = 1.2;
                 const holeH = 0.7;
                 const ductY = 0.0;
@@ -327,16 +327,7 @@ export const DuctOrVentProfile = (env, ctx) => {
                             ctx.addGrate(cx - grateOffset, 0.37, cz, true, {width: 1.28, height: 0.74, fallDir: -1});
                         }
                     }
-
-
                 }
-            } else {
-                const wall = buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
-                wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);
-                wall.userData.isDefaultWall = true;
-                wall.userData.cellX = x;
-                wall.userData.cellZ = z;
-                addGeometry(wall);
             }
         }
     };

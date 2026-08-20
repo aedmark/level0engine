@@ -42,7 +42,7 @@ export const EmptyDoorFrameProfile = (env, ctx) => {
             const startZ = Math.floor(z / env.chunkSize) * env.chunkSize;
             const inChunk = (cx, cz) => cx >= startX && cx < startX + env.chunkSize && cz >= startZ && cz < startZ + env.chunkSize;
 
-            const blockers = ["empty_door_frame", "CREVICE_HALL", "HINGED DOORWAY", "DUCT OR VENT", "CRAWLSPACE_DUCT", "HATCH", "CRATES OR ELEVATOR", "THE OASIS"];
+            const blockers = ["empty_door_frame", "CREVICE_HALL", "HINGED DOORWAY", "DUCT", "VENT", "CRAWLSPACE_DUCT", "HATCH", "CRATES", "ELEVATOR", "THE OASIS"];
             const blocks = (cx, cz) => {
                 const forced = ctx.getForcedStructure ? ctx.getForcedStructure(cx, cz) : null;
                 if (blockers.includes(forced)) return true;

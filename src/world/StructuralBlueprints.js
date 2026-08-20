@@ -6,8 +6,10 @@ import {HingedDoorwayProfile} from './blueprints/HingedDoorway.js';
 import {NarrowHeaderGapProfile} from './blueprints/NarrowHeaderGap.js';
 import {LCornerNookProfile} from './blueprints/LCornerNook.js';
 import {AlcoveCornerProfile} from './blueprints/AlcoveCorner.js';
-import {CratesOrElevatorProfile} from './blueprints/CratesOrElevator.js';
-import {DuctOrVentProfile} from './blueprints/DuctOrVent.js';
+import {CratesProfile} from './blueprints/Crates.js';
+import {ElevatorProfile} from './blueprints/Elevator.js';
+import {DuctProfile} from './blueprints/Duct.js';
+import {VentProfile} from './blueprints/Vent.js';
 import {CrawlspaceDuctProfile} from './blueprints/CrawlspaceDuct.js';
 import {BlockyObstructionProfile} from './blueprints/BlockyObstruction.js';
 import {TunnelBurstProfile} from './blueprints/TunnelBurst.js';
@@ -33,8 +35,10 @@ export default class StructuralBlueprints {
             NarrowHeaderGapProfile(this, ctx),
             LCornerNookProfile(this, ctx),
             AlcoveCornerProfile(this, ctx),
-            CratesOrElevatorProfile(this, ctx),
-            DuctOrVentProfile(this, ctx),
+            CratesProfile(this, ctx),
+            ElevatorProfile(this, ctx),
+            DuctProfile(this, ctx),
+            VentProfile(this, ctx),
             CrawlspaceDuctProfile(this, ctx),
             BlockyObstructionProfile(this, ctx),
             TunnelBurstProfile(this, ctx),
