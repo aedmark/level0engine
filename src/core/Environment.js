@@ -350,6 +350,7 @@ export default class Environment {
                 this._keypadDoor.userData.codeLocked = false;
                 this._keypadDoor.userData.playerOpen = true;
                 this._keypadDoor = null;
+                try { localStorage.setItem('level0_tutorial_unlocked', '1'); } catch(e) {}
                 document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 1.0, intensity: 0.8}}));
             }
         });

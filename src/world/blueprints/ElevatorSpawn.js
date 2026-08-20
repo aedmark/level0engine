@@ -33,7 +33,11 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
     if (ctx.setWall) ctx.setWall(x + exit.dx, z + exit.dz, false);
 
     let isFirstTime = false;
-    try { isFirstTime = !localStorage.getItem('level0_tutorial'); } catch(e) {}
+    let isUnlocked = false;
+    try { 
+        isFirstTime = !localStorage.getItem('level0_tutorial'); 
+        isUnlocked = !!localStorage.getItem('level0_tutorial_unlocked');
+    } catch(e) {}
 
     const shellMat = env.stainlessMat || env.titaniumMat || env.metalMat || env.sharedWallMat;
     const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(cell, cell), shellMat);
@@ -159,7 +163,8 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
     bodyMesh.position.z = 0.02;
     padGroup.add(bodyMesh);
     const ledGeo = env._cacheGeo('secKeypadLed', () => new THREE.BoxGeometry(0.15, 0.015, 0.015));
-    const ledMesh = new THREE.Mesh(ledGeo, env.keypadLedMat);
+    const actualLedMat = isUnlocked ? new THREE.MeshBasicMaterial({color: 0x33ff33}) : env.keypadLedMat;
+    const ledMesh = new THREE.Mesh(ledGeo, actualLedMat);
     ledMesh.position.set(0, 0.135, 0.042);
     padGroup.add(ledMesh);
     const screenGeo = env._cacheGeo('secKeypadScreen', () => new THREE.PlaneGeometry(0.14, 0.055));
@@ -177,25 +182,26 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
     const doorX = cx + exit.dx * half;
     const doorZ = cz + exit.dz * half;
     if (exit.spansX) {
-        const px = -exit.dz * (half - 0.35);
+        const px = -exit.dz * (half - 0.18);
         const pz = exit.dz * (half - 1.2);
         padGroup.position.set(cx + px, 1.4, cz + pz);
         padGroup.rotation.y = exit.dz > 0 ? Math.PI / 2 : -Math.PI / 2;
     } else {
         const px = exit.dx * (half - 1.2);
-        const pz = exit.dx * (half - 0.35);
+        const pz = exit.dx * (half - 0.18);
         padGroup.position.set(cx + px, 1.4, cz + pz);
         padGroup.rotation.y = exit.dx > 0 ? Math.PI : 0;
     }
     padGroup.userData = {
-        type: 'keypad', chunkHash: hash, active: true,
-        codeLocked: true, doorMesh: doorRet.group
+        type: 'keypad', chunkHash: hash, active: !isUnlocked,
+        codeLocked: true, doorMesh: doorRet ? doorRet.group : null
     };
     padGroup.traverse((ch) => { if (ch.isMesh) ch.userData.chunkHash = hash; });
     chunkGroup.add(padGroup);
     padGroup.updateMatrixWorld(true);
     env._registerInteractable(padGroup, hash);
-    attachPropGlow(env, padGroup, hash, { color: 0xff3333, intensity: 1.0, distance: 0.8, flickerOffset: 0 });
+    const glowColor = isUnlocked ? 0x33ff33 : 0xff3333;
+    attachPropGlow(env, padGroup, hash, { color: glowColor, intensity: 1.0, distance: 0.8, flickerOffset: 0 });
 
     const tx = cx - exit.dx * 1.1;
     const tz = cz - exit.dz * 1.1;
@@ -261,12 +267,10 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
         env._registerInteractable(note, hash);
     }
     
-    if (isFirstTime && doorRet && doorRet.data) {
-        doorRet.data.tutorialLocked = true;
-    }
-
+    const isDead = isFirstTime;
+    const initialIntensity = isFirstTime ? 0.0 : 0.8;
     let activeMat = env.baseBrokenLightMat.clone();
-    activeMat.emissiveIntensity = 0;
+    activeMat.emissiveIntensity = initialIntensity;
     const panel = new THREE.Mesh(env.sharedPanelGeo, [
         env.baseHousingMat, env.baseHousingMat, env.baseHousingMat,
         activeMat, env.baseHousingMat, env.baseHousingMat
@@ -280,17 +284,21 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
         flickerOffset: 0,
         material: activeMat,
         isFaulty: false,
-        isDead: true,
-        baseIntensity: 0.0,
-        targetIntensity: 0.0,
-        currentIntensity: 0.0,
+        isDead: isDead,
+        baseIntensity: initialIntensity,
+        targetIntensity: initialIntensity,
+        currentIntensity: initialIntensity,
         isFake: false
     };
     env.fixtureData.push(tutorialFixture);
 
-    if (isFirstTime && doorRet && doorRet.data) {
-        doorRet.data.tutorialLocked = true;
-        doorRet.data.tutorialFixture = tutorialFixture;
+    if (doorRet && doorRet.data) {
+        if (isFirstTime) {
+            doorRet.data.tutorialLocked = true;
+            doorRet.data.tutorialFixture = tutorialFixture;
+        } else if (!isUnlocked) {
+            doorRet.data.codeLocked = true;
+        }
     }
 
     return {
