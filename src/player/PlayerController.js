@@ -497,15 +497,32 @@ export default class PlayerController {
         this._vecMin.set(px - this.playerRadius, -10.0, pz - this.playerRadius);
         this._vecMax.set(px + this.playerRadius, feetY + stepOffset, pz + this.playerRadius);
         this._floorBox.set(this._vecMin, this._vecMax);
+        
+        if (!this._ceilingBox) this._ceilingBox = new THREE.Box3();
+        this._vecMin.set(px - this.playerRadius, feetY + stepOffset, pz - this.playerRadius);
+        this._vecMax.set(px + this.playerRadius, 10.0, pz + this.playerRadius);
+        this._ceilingBox.set(this._vecMin, this._vecMax);
+
         let hitX = false;
         let hitZ = false;
         let targetFeetY = -100;
         let inVoid = false;
+        let dynamicMaxCamY = 5.0; // Dynamic ceiling cap
         this.onWarpZone = false;
+        
         for (let i = 0, len = localBoxes.length; i < len; i++) {
             const box = localBoxes[i];
             if (box.isInvisibleBlocker) continue;
             if (box.isGrate && !box.meshRef.userData.active) continue;
+            
+            // Ceiling check: find the lowest AABB directly above us
+            if (!box.isVoid && box.min.y > feetY + 0.5 && this._ceilingBox.intersectsBox(box)) {
+                const maxCam = box.min.y - (physicalTop - visualHeight) - 0.05;
+                if (maxCam < dynamicMaxCamY) {
+                    dynamicMaxCamY = maxCam;
+                }
+            }
+
             const isVerticallyRelevant = (box.min.y <= feetY + physicalTop && box.max.y >= feetY - 10.0);
             if (!isVerticallyRelevant && !box.isVoid) continue;
             if (box.isVoid && this._floorBox.intersectsBox(box)) {
@@ -572,10 +589,10 @@ export default class PlayerController {
             this.gait = 0;
             return;
         }
-        this._applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes);
+        this._applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes, dynamicMaxCamY);
     }
 
-    _applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes) {
+    _applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes, dynamicMaxCamY) {
         const state = this.input.state;
         const baseBobFreq = state.isRunning ? 3.5 : 2.0;
         const breathFreq = Math.max(1.0, baseBobFreq - (this.exhaustion * 0.8));
@@ -655,9 +672,15 @@ export default class PlayerController {
         this.camera.position.x += this._leanOffset.x;
         this.camera.position.z += this._leanOffset.z;
         if (!inVoid && targetFeetY === -100) targetFeetY = 0;
-        const maxCamY = this.onWarpZone ? 5.0 : 2.8;
         
-        const groundCamY = Math.min(targetFeetY + visualHeight, maxCamY) + bobOffset - leanDrop;
+        // If we are in a warp zone or there is no ceiling, dynamicMaxCamY was initialized to 5.0
+        // but let's make sure it still respects the warp zone override if it was lower.
+        // Actually dynamicMaxCamY starts at 5.0. If there are no ceilings, it stays 5.0.
+        // But normal max is 2.8.
+        const defaultMax = this.onWarpZone ? 5.0 : 2.8;
+        dynamicMaxCamY = Math.min(dynamicMaxCamY, defaultMax);
+        
+        const groundCamY = Math.min(targetFeetY + visualHeight, dynamicMaxCamY) + bobOffset - leanDrop;
 
         if (targetFeetY === -100) {
             this.fallVelocity = (this.fallVelocity || 0) + 30.0 * delta;
@@ -670,8 +693,8 @@ export default class PlayerController {
                 this.camera.position.y -= (this.fallVelocity * delta);
                 
                 // Head bonk
-                if (this.camera.position.y > maxCamY) {
-                    this.camera.position.y = maxCamY;
+                if (this.camera.position.y > dynamicMaxCamY) {
+                    this.camera.position.y = dynamicMaxCamY;
                     if (this.fallVelocity < 0) this.fallVelocity = 0;
                 }
                 

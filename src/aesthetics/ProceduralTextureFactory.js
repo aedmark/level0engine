@@ -31,6 +31,7 @@ export default class ProceduralTextureFactory {
             
             const structAssets = StructuralTextures._buildStructuralAssets(masterNoise);
             staticAssets.doorMat = structAssets.doorMat;
+            staticAssets.subwayTileMats = structAssets.subwayTileMats;
             
             Object.assign(staticAssets, SurfaceTextures._buildDuctInteriorSet(masterNoise));
             

@@ -735,10 +735,11 @@ export default class SetPieces {
         shellPiece(SHELL_SPAN, 0.06, SHELL_SPAN, midX, 0.03, midZ, shellMat, false);
         shellPiece(SHELL_SPAN, 0.10, SHELL_SPAN, midX, ROOF_BOTTOM + 0.05, midZ, shellMat, false);
 
+        const HEADER_SPAN = 3.47; // Fits exactly between the inner faces of the side frames
         for (const end of [-1, 1]) {
             const [ox, oz] = along(end * halfDepth);
             shellPiece(
-                spansX ? SHELL_SPAN : 0.5, ROOF_BOTTOM - DOOR_TOP, spansX ? 0.5 : SHELL_SPAN,
+                spansX ? HEADER_SPAN : 0.5, ROOF_BOTTOM - DOOR_TOP, spansX ? 0.5 : HEADER_SPAN,
                 midX + ox, (DOOR_TOP + ROOF_BOTTOM) / 2, midZ + oz, shellMat, false
             );
         }

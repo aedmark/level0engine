@@ -95,6 +95,72 @@ export default class StructuralTextures {
             map: woodTexture, bumpMap: woodBumpTexture, bumpScale: 0.015, roughness: 0.74
         });
         const doorMat = [doorMatEdge, doorMatEdge, doorMatEdge, doorMatEdge, doorMatFront, doorMatBack];
-        return {headerMat, wallTexture, wallBumpTexture, structMat, woodMat, doorMat, baseboardMat, baseboardTrimMat};
+        
+        const subwayTileMats = StructuralTextures._buildSubwayTiles(masterNoise);
+
+        return {headerMat, wallTexture, wallBumpTexture, structMat, woodMat, doorMat, baseboardMat, baseboardTrimMat, subwayTileMats};
+    }
+
+    static _buildSubwayTiles(masterNoise) {
+        const mats = [];
+        for (let v = 0; v < 4; v++) {
+            const rand = TextureMechanics._seededRandom(81230 + v * 99);
+            const {canvas, ctx} = TextureMechanics._createContext(512, 512);
+            const {canvas: bumpCanvas, ctx: bctx} = TextureMechanics._createContext(512, 512);
+
+            ctx.fillStyle = '#b0b0b0'; 
+            ctx.fillRect(0, 0, 512, 512);
+            bctx.fillStyle = '#404040'; 
+            bctx.fillRect(0, 0, 512, 512);
+
+            const cols = 4;
+            const rows = 8;
+            const tw = 512 / cols;
+            const th = 512 / rows;
+            const gap = 4;
+
+            for (let r = 0; r < rows; r++) {
+                const offset = (r % 2 === 0) ? 0 : tw / 2;
+                for (let c = -1; c <= cols; c++) {
+                    const x = c * tw + offset;
+                    const y = r * th;
+                    
+                    const shade = 240 - rand() * 20;
+                    ctx.fillStyle = `rgb(${shade}, ${shade}, ${shade})`;
+                    ctx.fillRect(x + gap/2, y + gap/2, tw - gap, th - gap);
+
+                    bctx.fillStyle = '#e0e0e0';
+                    bctx.fillRect(x + gap/2, y + gap/2, tw - gap, th - gap);
+                    
+                    ctx.fillStyle = `rgba(150, 140, 120, ${rand() * 0.15})`;
+                    ctx.fillRect(x + gap/2, y + gap/2, tw - gap, th - gap);
+                }
+            }
+
+            ctx.globalAlpha = 0.1;
+            ctx.drawImage(masterNoise, 0, 0, 512, 512);
+            ctx.globalAlpha = 1.0;
+            
+            const gx = rand() * 512, gy = rand() * 512, gr = 100 + rand() * 200;
+            const grad = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
+            grad.addColorStop(0, `rgba(80, 70, 50, ${0.1 + rand() * 0.1})`);
+            grad.addColorStop(1, 'rgba(80, 70, 50, 0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 512, 512);
+            
+            TextureMechanics._ditherCanvas(ctx, 512, 512, rand, 4);
+
+            const tex = TextureMechanics._createWrappedTexture(canvas, 4, 4);
+            const bumpTex = TextureMechanics._createWrappedTexture(bumpCanvas, 4, 4);
+
+            mats.push(new THREE.MeshStandardMaterial({
+                map: tex,
+                bumpMap: bumpTex,
+                bumpScale: 0.02,
+                roughness: 0.2 + rand() * 0.1,
+                metalness: 0.05
+            }));
+        }
+        return mats;
     }
 }

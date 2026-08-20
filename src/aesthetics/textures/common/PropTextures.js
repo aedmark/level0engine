@@ -601,7 +601,7 @@ export default class PropTextures {
         }
 
         const apexY = 125, baseY = 183, halfW = 36;
-        const triX = 154;
+        const triX = 128;
         ctx.fillStyle = 'rgba(24, 28, 34, 0.42)';
         ctx.beginPath();
         ctx.moveTo(triX, apexY);

@@ -1,5 +1,20 @@
 # Level 0 Engine Changelog
 
+## [v1.4.0] - 2026-08-19
+
+_Player Traversal & Dynamic Entities_
+
+### Added
+
+- **[GAMEPLAY] Player Jumping (`PlayerController.js`, `SomaticInput.js`):** Implemented true ballistic jumping mechanics with gravity. The player can now jump over obstacles.
+  - A standard walking jump costs minimal stamina and clears smaller debris (chairs, cones).
+  - A running jump provides higher velocity to vault over large obstacles like tables, but costs double the stamina.
+- **[WORLD] Dynamic Ceiling Eyes (`AnomalousPointOfInterest.js`):** The previously static "ping pong ball" eyes in the ceiling hole POI are now fully dynamic. They constantly track the player, feature vertical slit pupils, and will squint and scurry away into the darkness if directly stared at for 2 seconds.
+
+### Fixed
+
+- **[PHYSICS] Dynamic Head Collision (`PlayerController.js`):** Fixed an issue where the player could jump and clip their head through lower architectural features like Archways. The physics controller now casts a vertical bounding column upward from the player's footprint to dynamically scan for the lowest ceiling AABB and enforce true vertical head collision.
+
 ## [v1.3.0] - 2026-08-19
 
 _Tutorial Progression & Asset Pipeline Fixes_

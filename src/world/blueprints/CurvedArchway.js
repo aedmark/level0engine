@@ -34,7 +34,8 @@ export const CurvedArchwayProfile = (env, ctx) => {
             const springHeight = 3.0 - archHeight;
 
             if (buildArchCutout) {
-                const arch = buildArchCutout(radius, pillarThickness, archHeight, env.cellSize, springHeight, env.sharedWallMat);
+                const mat = env.subwayTileMats ? env.subwayTileMats[Math.floor(random() * env.subwayTileMats.length)] : env.structMat;
+                const arch = buildArchCutout(radius, pillarThickness, archHeight, env.cellSize, springHeight, mat);
                 arch.position.set(cx, 0, cz);
                 if (!isAlignedZ) {
                     arch.rotation.y = Math.PI / 2;

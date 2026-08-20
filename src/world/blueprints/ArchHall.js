@@ -24,7 +24,7 @@ export const ArchHallProfile = (env, ctx) => {
     const isArch = (bx, bz) =>
         !!ctx.getForcedStructure && ctx.getForcedStructure(bx, bz) === 'ARCH_HALL';
 
-    const links = (bx, bz) => DIRS.filter(d => isArch(bx + d.dx, bz + d.dz));
+    const links = (bx, bz) => DIRS.filter(d => !isWall(bx + d.dx, bz + d.dz));
 
     const opposed = (a, b) => a.dx === -b.dx && a.dz === -b.dz;
 
@@ -34,9 +34,7 @@ export const ArchHallProfile = (env, ctx) => {
             return link[0].dz !== 0;
         }
         if (link.length === 1) {
-            const back = {dx: -link[0].dx, dz: -link[0].dz};
-            if (!isWall(bx + back.dx, bz + back.dz)) return link[0].dz !== 0;
-            return null;
+            return link[0].dz !== 0;
         }
         if (link.length === 0) {
             const openZ = !isWall(bx, bz + 1) || !isWall(bx, bz - 1);
@@ -49,7 +47,8 @@ export const ArchHallProfile = (env, ctx) => {
     };
 
     const buildSlab = (cx, cz, depth, dir, alongZ) => {
-        const slab = ctx.buildArchCutout(radius, JAMB, archHeight, depth, springHeight, env.sharedWallMat);
+        const mat = env.subwayTileMats ? env.subwayTileMats[Math.floor(random() * env.subwayTileMats.length)] : env.structMat;
+        const slab = ctx.buildArchCutout(radius, JAMB, archHeight, depth, springHeight, mat);
         const push = (env.cellSize - depth) / 2;
         slab.position.set(cx + (dir ? dir.dx * push : 0), 0, cz + (dir ? dir.dz * push : 0));
         if (!alongZ) slab.rotation.y = Math.PI / 2;
@@ -96,8 +95,8 @@ export const ArchHallProfile = (env, ctx) => {
 
             env._archSeamIndex = ((env._archSeamIndex || 0) + 1) % 8;
             const mat = ctx.getLightMaterial(
-                0xfff0cc,
-                isBroken ? 0x1a1712 : 0xffe9b0,
+                0xffb732,
+                isBroken ? 0x1a1100 : 0xffa522,
                 isBroken,
                 true,
                 `archSeam${env._archSeamIndex}`
@@ -107,38 +106,14 @@ export const ArchHallProfile = (env, ctx) => {
                 `arch_ballast_panel_${alongZ ? 'z' : 'x'}`,
                 () => new THREE.BoxGeometry(
                     alongZ ? 0.26 : 1.34,
-                    0.02,
+                    0.08, // Thicker to look like a diffuser box
                     alongZ ? 1.34 : 0.26
                 )
             );
             const panel = new THREE.Mesh(panelGeo, mat);
-            panel.position.set(bx, apexY - 0.08, bz);
+            panel.position.set(bx, apexY - 0.10, bz);
             panel.userData.noCollision = true;
             addGeometry(panel);
-
-            const numSlats = 14;
-            const slatSpacing = 1.34 / numSlats;
-            const startSlat = -(1.34 / 2) + (slatSpacing / 2);
-
-            const slatGeo = env._cacheGeo(
-                `arch_ballast_slat_${alongZ ? 'z' : 'x'}`,
-                () => new THREE.BoxGeometry(
-                    alongZ ? 0.34 : 0.02,
-                    0.04,
-                    alongZ ? 0.02 : 0.34
-                )
-            );
-
-            for (let s = 0; s < numSlats; s++) {
-                const slatOffset = startSlat + s * slatSpacing;
-                const slatX = bx + (alongZ ? 0 : slatOffset);
-                const slatZ = bz + (alongZ ? slatOffset : 0);
-
-                const slat = new THREE.Mesh(slatGeo, env.baseHousingMat);
-                slat.position.set(slatX, apexY - 0.09, slatZ);
-                slat.userData.noCollision = true;
-                addGeometry(slat);
-            }
 
             if (isBroken) continue;
 
