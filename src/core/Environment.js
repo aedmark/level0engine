@@ -674,10 +674,21 @@ export default class Environment {
     _registerInteractable(mesh, hash) {
         if (!this.interactables) this.interactables = [];
         this.interactables.push(mesh);
+        
+        if (mesh.userData.noCollision) return null;
+        
         const box = new THREE.Box3().setFromObject(mesh);
         box.chunkHash = hash;
         mesh.userData.box = box;
-        this.spatialGrid.insert(box);
+        
+        // Prevent tiny wall-mounted props (keypads, switches) from blocking the player
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const volume = size.x * size.y * size.z;
+        if (volume > 0.05) {
+            this.spatialGrid.insert(box);
+        }
+        
         return box;
     }
 
