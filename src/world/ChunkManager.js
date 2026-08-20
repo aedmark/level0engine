@@ -624,33 +624,6 @@ export default class ChunkManager {
                         mathData.forcedStructuresGrid.get(cellKey(wx, wz)) === 'CRAWLSPACE_HALL';
                     ctx.getDoorwayPlan = (px, pz) => mathData.doorwayPlans.get(cellKey(px, pz)) || null;
 
-                    const elevator = env._spawnElevator;
-                    if (elevator && elevator.chunkHash === hash && (elevator.cellX === null || elevator.cellX === undefined)) {
-                        let bestX = null, bestZ = null;
-                        let fallbackX = null, fallbackZ = null;
-                        for (let cx = startX + 1; cx < startX + env.chunkSize - 1; cx++) {
-                            for (let cz = startZ + 1; cz < startZ + env.chunkSize - 1; cz++) {
-                                if (!ctx.isWall(cx, cz) && !ctx.isOccupied(cx, cz) && !ctx.isAirlockApron(cx, cz)) {
-                                    if (fallbackX === null) { fallbackX = cx; fallbackZ = cz; }
-                                    let open = 0;
-                                    if (!ctx.isWall(cx, cz + 1)) open++;
-                                    if (!ctx.isWall(cx + 1, cz)) open++;
-                                    if (!ctx.isWall(cx, cz - 1)) open++;
-                                    if (!ctx.isWall(cx - 1, cz)) open++;
-                                    if (open === 1) {
-                                        bestX = cx; bestZ = cz;
-                                        break;
-                                    }
-                                }
-                            }
-                            if (bestX !== null) break;
-                        }
-                        if (bestX !== null) {
-                            elevator.cellX = bestX; elevator.cellZ = bestZ;
-                        } else if (fallbackX !== null) {
-                            elevator.cellX = fallbackX; elevator.cellZ = fallbackZ;
-                        }
-                    }
                 }
 
                 let isWall = ctx.isWall(x, z);
@@ -678,6 +651,62 @@ export default class ChunkManager {
                 }
             }
         }
+        
+        const elevator = env._spawnElevator;
+        if (elevator && elevator.chunkHash === hash) {
+            let placedX = elevator.cellX, placedZ = elevator.cellZ;
+            let anchored = placedX !== null && placedX !== undefined;
+            
+            if (!anchored) {
+                let bestX = null, bestZ = null;
+                let fallbackX = null, fallbackZ = null;
+                for (let cx = startX + 1; cx < startX + env.chunkSize - 1; cx++) {
+                    for (let cz = startZ + 1; cz < startZ + env.chunkSize - 1; cz++) {
+                        if (!ctx.isWall(cx, cz) && !ctx.isOccupied(cx, cz) && !ctx.isAirlockApron(cx, cz)) {
+                            if (fallbackX === null) { fallbackX = cx; fallbackZ = cz; }
+                            let openCount = 0;
+                            let openNx = null, openNz = null;
+                            const neighbors = [
+                                {nx: cx, nz: cz + 1}, {nx: cx + 1, nz: cz},
+                                {nx: cx, nz: cz - 1}, {nx: cx - 1, nz: cz}
+                            ];
+                            for (const {nx, nz} of neighbors) {
+                                if (!ctx.isWall(nx, nz)) {
+                                    openCount++;
+                                    openNx = nx; openNz = nz;
+                                }
+                            }
+                            if (openCount === 1) {
+                                if (!ctx.isOccupied(openNx, openNz) && (!ctx.getForcedStructure || !ctx.getForcedStructure(openNx, openNz))) {
+                                    bestX = cx; bestZ = cz;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (bestX !== null) break;
+                }
+                if (bestX !== null) {
+                    placedX = bestX; placedZ = bestZ;
+                } else if (fallbackX !== null) {
+                    placedX = fallbackX; placedZ = fallbackZ;
+                }
+            }
+            if (placedX !== null && placedX !== undefined) {
+                const placement = spawnElevatorCar(env, ctx, placedX, placedZ, elevator.exitIndex);
+                elevator.cellX = placement.cellX;
+                elevator.cellZ = placement.cellZ;
+                elevator.exitIndex = placement.exitIndex;
+                elevator.placement = placement;
+                env.elevatorAnchor = {
+                    cellX: placement.cellX,
+                    cellZ: placement.cellZ,
+                    exitIndex: placement.exitIndex,
+                    seed: env.baseSeed
+                };
+            }
+        }
+
         this._profAdd('cells', cellsAccum + (performance.now() - chunkStartTime));
         if (performance.now() - chunkStartTime > 5.0) {
             this.warmChunkMaterials(chunkGroup);
@@ -837,24 +866,6 @@ export default class ChunkManager {
         const { x, z, env, ctx, random, hash, chunkGroup, localX, localZ, isWallCell, isSolidWallCell, breakerPositions } = args;
         let hasTallObstacle = false;
 
-        const elevator = env._spawnElevator;
-        if (elevator && elevator.chunkHash === hash) {
-            const anchored = elevator.cellX !== null && elevator.cellX !== undefined;
-            if (!anchored || (x === elevator.cellX && z === elevator.cellZ)) {
-                const placement = spawnElevatorCar(env, ctx, x, z, elevator.exitIndex);
-                elevator.cellX = placement.cellX;
-                elevator.cellZ = placement.cellZ;
-                elevator.exitIndex = placement.exitIndex;
-                elevator.placement = placement;
-                env.elevatorAnchor = {
-                    cellX: placement.cellX,
-                    cellZ: placement.cellZ,
-                    exitIndex: placement.exitIndex,
-                    seed: env.baseSeed
-                };
-                return;
-            }
-        }
 
         if (!state.spawnedVirtualBreaker && env._virtualBreaker && env._virtualBreaker.chunkHash === hash && !env._virtualBreaker.spawned) {
             spawnBreakerPodium(env, ctx, x, z);

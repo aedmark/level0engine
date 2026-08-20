@@ -6,11 +6,11 @@ const MAX_OCCLUSION_TESTS_PER_FRAME = 8;
 const OCCLUSION_SLOT_PENALTY = 900.0;
 
 export default class LumenGrid {
-    constructor(env, shadowQuality = 'high') {
+    constructor(env, shadowQuality = 'high', maxShadowLights = 6) {
         this.env = env;
         this.scene = env.scene;
         this.maxActiveLights = 16;
-        this.maxShadowLights = 6;
+        this.maxShadowLights = maxShadowLights;
         this.longReachSlots = 6;
         this.lightPool = [];
         this._activeFixtures = new Array(this.maxActiveLights).fill(null);
@@ -214,7 +214,8 @@ export default class LumenGrid {
             fixture._occluded = this._isSightLineBlocked(fixture.position, cameraPos);
         }
         const target = fixture._occluded ? OCCLUDED_LIGHT_FLOOR : 1.0;
-        fixture._visibility += (target - fixture._visibility) * 0.06;
+        const fadeSpeed = target > fixture._visibility ? 0.3 : 0.05;
+        fixture._visibility += (target - fixture._visibility) * fadeSpeed;
     }
 
     _cullAndSortFixtures(cameraPos, fixtureData, currentChunkHash, time) {
@@ -346,7 +347,7 @@ export default class LumenGrid {
             fixture._currentScalar += (targetScalar - fixture._currentScalar) * 0.05;
             intensityScalar = fixture._currentScalar;
         }
-        if (fixture._visibility !== undefined) intensityScalar *= fixture._visibility;
+        if (fixture._visibility !== undefined && !isShadowCaster) intensityScalar *= fixture._visibility;
 
         if (fixture.color) {
             light.color.copy(fixture.color);

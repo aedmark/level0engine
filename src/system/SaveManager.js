@@ -46,6 +46,7 @@ export default class SaveManager {
             document.getElementById('speedSlider').value = state.speed || "100";
             document.getElementById('resolutionSelect').value = state.res || "1.0";
             document.getElementById('shadowSelect').value = state.shadows || "high";
+            document.getElementById('shadowLightSlider').value = state.shadowLights || "6";
             document.getElementById('renderDistSelect').value = state.renderDist !== undefined ? state.renderDist : "1";
             document.getElementById('volumeSlider').value = state.vol !== undefined ? state.vol : "100";
             document.getElementById('gammaSlider').value = state.gamma || "70";
@@ -136,6 +137,7 @@ export default class SaveManager {
             speed: document.getElementById('speedSlider').value,
             res: document.getElementById('resolutionSelect').value,
             shadows: document.getElementById('shadowSelect').value,
+            shadowLights: document.getElementById('shadowLightSlider').value,
             renderDist: document.getElementById('renderDistSelect').value,
             vol: document.getElementById('volumeSlider').value,
             gamma: document.getElementById('gammaSlider').value,

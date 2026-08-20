@@ -141,7 +141,7 @@ const SECTORS = {
     },
     CLINIC: {
         fog: 0.03,
-        ambient: 0.15,
+        ambient: 0.25,
         ambience: {
             noise: 0.05,
             peace: 0.0,

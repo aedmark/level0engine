@@ -1093,7 +1093,7 @@ export default class SetPieces {
         });
     }
 
-    buildCeilingPanelLight(chunkGroup, hash, px, pz, random, getLightMaterial, colorHex, emissiveHex, intensity, faultyThreshold) {
+    buildCeilingPanelLight(chunkGroup, hash, px, pz, random, getLightMaterial, colorHex, emissiveHex, intensity, faultyThreshold, noShadow = false) {
         const env = this.env;
         const activeMat = getLightMaterial(colorHex, emissiveHex, false);
         const panel = new THREE.Mesh(env.sharedPanelGeo, [env.baseHousingMat, env.baseHousingMat, env.baseHousingMat, activeMat, env.baseHousingMat, env.baseHousingMat]);
@@ -1108,7 +1108,8 @@ export default class SetPieces {
             isFaulty: random() > faultyThreshold,
             baseIntensity: intensity,
             targetIntensity: intensity,
-            currentIntensity: intensity
+            currentIntensity: intensity,
+            noShadow: noShadow
         });
     }
 

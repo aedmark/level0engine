@@ -1,11 +1,22 @@
 # Level 0 Engine Changelog
 
+## [v1.3.3] - 2026-08-19
+
+_Spawn Safety & Shadow Lighting Optimization_
+
+### Changed
+
+- **[ARCHITECTURE] Spawn Elevator Clearance:** The `ChunkManager` now defers placing the spawn elevator until the very end of chunk generation and guarantees the space in front of the door is free of dynamic obstructions and forced structures (like crawlspace ducts), preventing them from being partially deleted during initialization.
+- **[GRAPHICS] Shadow Slot Optimization:** Randomized the lights in the Clinic sector patient rooms to have a 50% chance of being non-shadow-casting (`noShadow`), freeing up valuable shadow light slots in dense areas.
+- **[GRAPHICS] Shadow Caster Occlusion Fade:** Refined `LumenGrid.js` occlusion-fade mechanics. Shadow-casting lights now bypass occlusion fading completely (since shadow maps handle proper wall occlusion without bleeding) preventing them from looking "motion activated" when un-occluded. Non-shadow-casting lights still fade in to hide light bleed, but the fade speed was increased 5x for a subtler, tighter transition.
+
 ## [v1.3.2] - 2026-08-19
 
 _Architectural Decoupling & The Elevator Update_
 
 ### Changed
 
+- **[GRAPHICS] Adjustable Max Shadow Lights:** The `maxShadowLights` pool size (previously hardcoded to 6) is now an adjustable slider in the settings menu, ranging from 2 to 12. Adjustments require a refresh to trigger reallocation within `LumenGrid.js`.
 - **[ARCHITECTURE] Blueprint De-Coupling (`StructuralBlueprints.js`):** The legacy pattern of compounding mutually exclusive geometries into single blueprint files ("CRATES OR STAIRWAY", "DUCT OR VENT") has been dismantled. The probabilistic branching that once occurred during the spawn event has been baked directly into the global weighting matrix, mapping exact fractional probabilities to dedicated files.
 - **[ARCHITECTURE] The Staircase Extraction (`Crates.js`, `Elevator.js`):** The cosmetic staircase logic was excised from the engine and replaced with an elevator cabin. The geometry seamlessly inherits the old staircase's warp mechanics by shifting the `isWarpZone` collision boundary from the top step to the elevator floor. Spawn frequency of functional teleportation elevators increased from 25% to 40%.
 - **[ARCHITECTURE] Duct and Vent Segregation (`Duct.js`, `Vent.js`):** The complex floor-level crawlspace routing and the generic fallback wall were split into dedicated logic streams. The `Duct.js` fail-state (when no viable adjacent exits exist) was modified to return `false`, relying on the `ChunkManager` to fall back to a standard wall cleanly rather than polluting the blueprint with `isDefaultWall` logic.

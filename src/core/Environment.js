@@ -175,7 +175,7 @@ export default class Environment {
         });
         this.exhaustCloud = new THREE.Points(exhaustGeo, this.exhaustMat);
         this.scene.add(this.exhaustCloud);
-        this.lumenGrid = new LumenGrid(this, RenderEngine.getSavedShadowQuality());
+        this.lumenGrid = new LumenGrid(this, RenderEngine.getSavedShadowQuality(), RenderEngine.getSavedMaxShadowLights());
         this.entityManager = new EntityManager(this.scene, this.camera, this.player, this);
         this.tagPool = [];
         this.tagIndex = 0;
@@ -667,8 +667,8 @@ export default class Environment {
         return this.setPieces.buildAtriumLight(chunkGroup, hash, cx, cz, random, getLightMaterial);
     }
 
-    _buildCeilingPanelLight(chunkGroup, hash, px, pz, random, getLightMaterial, colorHex, emissiveHex, intensity, faultyThreshold) {
-        return this.setPieces.buildCeilingPanelLight(chunkGroup, hash, px, pz, random, getLightMaterial, colorHex, emissiveHex, intensity, faultyThreshold);
+    _buildCeilingPanelLight(chunkGroup, hash, px, pz, random, getLightMaterial, colorHex, emissiveHex, intensity, faultyThreshold, noShadow = false) {
+        return this.setPieces.buildCeilingPanelLight(chunkGroup, hash, px, pz, random, getLightMaterial, colorHex, emissiveHex, intensity, faultyThreshold, noShadow);
     }
 
     _registerInteractable(mesh, hash) {

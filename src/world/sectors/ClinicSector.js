@@ -175,7 +175,7 @@ export const ClinicSector = (env, ctx) => {
                     addFurniture(bp);
                 }
                 if (random() < 0.85) {
-                    env._buildCeilingPanelLight(chunkGroup, hash, cx0, cz0, random, ctx.getLightMaterial, 0xe6f0ee, 0xd6e4dc, 0.9, 0.6);
+                    env._buildCeilingPanelLight(chunkGroup, hash, cx0, cz0, random, ctx.getLightMaterial, 0xe6f0ee, 0xd6e4dc, 0.9, 0.6, random() > 0.5);
                 }
             };
             if (maze && maze[localX][localZ]) {

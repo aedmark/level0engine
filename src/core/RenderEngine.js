@@ -313,6 +313,11 @@ export default class RenderEngine {
         return state.fxaa === true;
     }
 
+    static getSavedMaxShadowLights() {
+        const state = RenderEngine.getSavedState();
+        return state.shadowLights !== undefined ? parseInt(state.shadowLights) : 6;
+    }
+
     static getSavedShadowQuality() {
         const state = RenderEngine.getSavedState();
         return state.shadows || 'high';
