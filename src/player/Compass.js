@@ -20,7 +20,7 @@ export default class Compass {
         this._probeDir = new THREE.Vector3();
         this._probeHit = new THREE.Vector3();
         this._fallbackBearing = Math.random() * Math.PI * 2;
-        this.raised = true;
+        this.raised = false;
         this.stow = 0;
         this._build();
         document.addEventListener('somatic-toggle-compass', () => {

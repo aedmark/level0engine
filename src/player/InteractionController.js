@@ -36,10 +36,20 @@ export default class InteractionController {
         if (pDistSq > 900.0 && ud.progress === 0 && !entityOpen) return;
         const openRadiusSq = ud.openRadiusSq !== undefined ? ud.openRadiusSq : 20.0;
         let shouldOpen = entityOpen || pDistSq < openRadiusSq;
+        if (ud.codeLocked && !ud.playerOpen) {
+            shouldOpen = false;
+        }
         if (ud.tutorialLocked) {
-            if (env.player.flashlightBattery > 50.0) {
+            if (env.player.flashlightBattery >= 100.0) {
                 ud.tutorialLocked = false;
                 env.tutorialActive = false;
+                ud.codeLocked = true; // Keypad is now active and required
+                if (ud.tutorialFixture) {
+                    ud.tutorialFixture.isDead = false;
+                    ud.tutorialFixture.baseIntensity = 0.8;
+                    ud.tutorialFixture.targetIntensity = 0.8;
+                    ud.tutorialFixture.currentIntensity = 0.8;
+                }
                 try { localStorage.setItem('level0_tutorial', '1'); } catch(e) {}
             } else {
                 shouldOpen = false;
@@ -739,6 +749,12 @@ export default class InteractionController {
                 return;
             }
             if (hit && hit.userData.codeLocked) {
+                if (env.tutorialActive) {
+                    document.dispatchEvent(new CustomEvent('somatic-door', {
+                        detail: {distSq: 2.0, intensity: 0.1, variant: 'wood'}
+                    }));
+                    return;
+                }
                 env._keypadDoor = hit.userData.doorMesh || hit;
                 document.dispatchEvent(new CustomEvent('somatic-keypad', {detail: {}}));
                 return;

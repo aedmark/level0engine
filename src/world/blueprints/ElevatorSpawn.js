@@ -140,6 +140,63 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
         if (child.isMesh) child.castShadow = true;
     });
 
+    if (!env.keypadBodyMat) {
+        env.keypadBodyMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8, metalness: 0.1 });
+        env.sharedAssets.add(env.keypadBodyMat.uuid);
+        env.keypadLedMat = new THREE.MeshBasicMaterial({color: 0xff3333});
+        env.sharedAssets.add(env.keypadLedMat.uuid);
+        env.keypadScreenMat = new THREE.MeshBasicMaterial({color: 0x22eeaa});
+        env.sharedAssets.add(env.keypadScreenMat.uuid);
+        env.keypadBtnMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.6, metalness: 0.4 });
+        env.sharedAssets.add(env.keypadBtnMat.uuid);
+    }
+    const padGroup = new THREE.Group();
+    const mountGeo = env._cacheGeo('secKeypadMount', () => new THREE.BoxGeometry(0.24, 0.38, 0.02));
+    const mountMesh = new THREE.Mesh(mountGeo, env.baseHousingMat || env.structMat);
+    padGroup.add(mountMesh);
+    const bodyGeo = env._cacheGeo('secKeypadBody', () => new THREE.BoxGeometry(0.20, 0.34, 0.04));
+    const bodyMesh = new THREE.Mesh(bodyGeo, env.keypadBodyMat);
+    bodyMesh.position.z = 0.02;
+    padGroup.add(bodyMesh);
+    const ledGeo = env._cacheGeo('secKeypadLed', () => new THREE.BoxGeometry(0.15, 0.015, 0.015));
+    const ledMesh = new THREE.Mesh(ledGeo, env.keypadLedMat);
+    ledMesh.position.set(0, 0.135, 0.042);
+    padGroup.add(ledMesh);
+    const screenGeo = env._cacheGeo('secKeypadScreen', () => new THREE.PlaneGeometry(0.14, 0.055));
+    const screenMesh = new THREE.Mesh(screenGeo, env.keypadScreenMat);
+    screenMesh.position.set(0, 0.08, 0.043);
+    padGroup.add(screenMesh);
+    const btnGeo = env._cacheGeo('secKeypadBtn', () => new THREE.BoxGeometry(0.034, 0.026, 0.012));
+    for (let r = 0; r < 4; r++) {
+        for (let c = 0; c < 3; c++) {
+            const btn = new THREE.Mesh(btnGeo, env.keypadBtnMat);
+            btn.position.set(-0.048 + c * 0.048, 0.022 - r * 0.038, 0.044);
+            padGroup.add(btn);
+        }
+    }
+    const doorX = cx + exit.dx * half;
+    const doorZ = cz + exit.dz * half;
+    if (exit.spansX) {
+        const px = -exit.dz * (half - 0.35);
+        const pz = exit.dz * (half - 1.2);
+        padGroup.position.set(cx + px, 1.4, cz + pz);
+        padGroup.rotation.y = exit.dz > 0 ? Math.PI / 2 : -Math.PI / 2;
+    } else {
+        const px = exit.dx * (half - 1.2);
+        const pz = exit.dx * (half - 0.35);
+        padGroup.position.set(cx + px, 1.4, cz + pz);
+        padGroup.rotation.y = exit.dx > 0 ? Math.PI : 0;
+    }
+    padGroup.userData = {
+        type: 'keypad', chunkHash: hash, active: true,
+        codeLocked: true, doorMesh: doorRet.group
+    };
+    padGroup.traverse((ch) => { if (ch.isMesh) ch.userData.chunkHash = hash; });
+    chunkGroup.add(padGroup);
+    padGroup.updateMatrixWorld(true);
+    env._registerInteractable(padGroup, hash);
+    attachPropGlow(env, padGroup, hash, { color: 0xff3333, intensity: 1.0, distance: 0.8, flickerOffset: 0 });
+
     const tx = cx - exit.dx * 1.1;
     const tz = cz - exit.dz * 1.1;
 
@@ -217,7 +274,7 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
     panel.position.set(cx, 2.98, cz);
     chunkGroup.add(panel);
     env.walls.push(panel);
-    env.fixtureData.push({
+    const tutorialFixture = {
         chunkHash: hash,
         position: new THREE.Vector3(cx, 2.8, cz),
         flickerOffset: 0,
@@ -228,7 +285,13 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
         targetIntensity: 0.0,
         currentIntensity: 0.0,
         isFake: false
-    });
+    };
+    env.fixtureData.push(tutorialFixture);
+
+    if (isFirstTime && doorRet && doorRet.data) {
+        doorRet.data.tutorialLocked = true;
+        doorRet.data.tutorialFixture = tutorialFixture;
+    }
 
     return {
         x: cx + exit.dx * 0.3,

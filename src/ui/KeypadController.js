@@ -16,7 +16,7 @@ export default class KeypadController {
             display.style.color = "#55ff55";
         } else if (char === 'E') {
             const targetCode = this.getStory().accessCode;
-            if (this.currentKeypadInput === targetCode) {
+            if (this.currentKeypadInput === targetCode || this.currentKeypadInput === "0451") {
                 display.innerText = "ACCEPTED";
                 display.style.color = "#55ff55";
                 setTimeout(() => {

@@ -14,7 +14,7 @@ export default class PlayerController {
         this._groundFeetY = camera.position.y - 1.6;
         let isFirstTime = false;
         try { isFirstTime = !localStorage.getItem('level0_tutorial'); } catch(e) {}
-        this.flashlightBattery = isFirstTime ? 15.0 : 100.0;
+        this.flashlightBattery = isFirstTime ? 0.0 : 100.0;
         this.baseRadius = 0.4;
         this.squeezeRadius = 0.12;
         this.playerRadius = 0.4;
@@ -387,29 +387,29 @@ export default class PlayerController {
             }
         }
         const currentActualSpeed = Math.sqrt((this.velocity.x * this.velocity.x) + (this.velocity.z * this.velocity.z));
+        const angularSpeed = Math.abs(this.camera.rotation.y - (this._lastRotY || this.camera.rotation.y)) +
+            Math.abs(this.camera.rotation.x - (this._lastRotX || this.camera.rotation.x));
+        this._lastRotY = this.camera.rotation.y;
+        this._lastRotX = this.camera.rotation.x;
+
+        const currentParanoia = 1.0 - this.coherence;
+        if (currentParanoia > 0.2 && currentParanoia < 0.5) {
+            this.linguisticDarkMatter = Math.min(50.0, this.linguisticDarkMatter + (delta * 0.8));
+        } else if (this.isBlindFolded || (this.perceivedDarkness < 0.1 && currentParanoia === 0.0)) {
+            this.linguisticDarkMatter = Math.max(this.narrativeTension, this.linguisticDarkMatter - (delta * 1.5));
+        }
+        const maxBatteryCeiling = 100.0 - this.linguisticDarkMatter;
+
         if (state.flashlightActive) {
             const panicDrain = (this.stamina <= 0.1 && (this.darknessPressure || 0.0) > 0.4) ? 2.0 : 1.0;
             this.flashlightBattery = Math.max(0, this.flashlightBattery - panicDrain * delta);
             if (this.flashlightBattery === 0) {
                 state.flashlightActive = false;
             }
-            this._lastRotY = this.camera.rotation.y;
-            this._lastRotX = this.camera.rotation.x;
         } else {
-            const angularSpeed = Math.abs(this.camera.rotation.y - (this._lastRotY || this.camera.rotation.y)) +
-                Math.abs(this.camera.rotation.x - (this._lastRotX || this.camera.rotation.x));
-            this._lastRotY = this.camera.rotation.y;
-            this._lastRotX = this.camera.rotation.x;
-            const currentParanoia = 1.0 - this.coherence;
-            if (currentParanoia > 0.2 && currentParanoia < 0.5) {
-                this.linguisticDarkMatter = Math.min(50.0, this.linguisticDarkMatter + (delta * 0.8));
-            } else if (this.isBlindFolded || (this.perceivedDarkness < 0.1 && currentParanoia === 0.0)) {
-                this.linguisticDarkMatter = Math.max(this.narrativeTension, this.linguisticDarkMatter - (delta * 1.5));
-            }
-            const maxBatteryCeiling = 100.0 - this.linguisticDarkMatter;
             const angularRate = Math.min(6.0, angularSpeed / Math.max(delta, 1e-5));
-            const kineticCharge = (currentActualSpeed * 0.30) + (angularRate * 1.0);
-            this.flashlightBattery = Math.min(maxBatteryCeiling, this.flashlightBattery + (kineticCharge * delta));
+            const kineticCharge = (currentActualSpeed * 0.30) + (angularRate * 3.5);
+            this.flashlightBattery = Math.max(0, Math.min(maxBatteryCeiling, this.flashlightBattery + kineticCharge * delta));
         }
         const fatigueRatio = this.stamina / this.maxStamina;
         this.exhaustion = fatigueRatio < 0.3 ? Math.pow(1.0 - (fatigueRatio / 0.3), 2.0) : 0.0;

@@ -260,7 +260,7 @@ export default class StoryEngine {
         const idStr = String(docId || 'X');
         if (idStr === 'NOTE_TUTORIAL') {
             return {
-                text: `[ MAINTENANCE LOG ]\n\nMAIN POWER: OFFLINE.\n\nThe door's hydraulic relay needs at least 50% voltage to cycle. The wall chargers are dead. You will have to use the flashlight's internal kinetic dynamo to jump it.\n\nMove fast. Sprint against the walls in the dark (it only charges when switched OFF). Crank the voltage up. Once the battery has enough charge, the blast door sensors will pick it up and trip the lock.\n\nRemember:\n- Shift to Sprint\n- F to toggle Light\n- J for PDA / Objectives\n- M for Threshold Compass`,
+                text: `[ MAINTENANCE LOG ]\n\nThe entry airlock is on emergency lockdown. This is for your safety. You will have to use the flashlight's internal kinetic dynamo to restore power and find a battery backup.\n\nShake the flashlight wildly in the dark to build up a kinetic charge. \n\nThe power grid will transfer your flashlight charge to the airlock wirelessly once it is fully charged.\n\nUse the override code to bypass the lock:\n\n0451\n\nCOMPLETE YOUR OBJECTIVES BY FOLLOWING THE POINT OF INTEREST (POI) RADAR!\n\nAnd remember:\n- F to toggle Light\n- J for PDA / Objectives\n- M for Threshold Compass`,
                 progress: this.progress(),
                 ephemera: true
             };

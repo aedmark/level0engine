@@ -439,10 +439,14 @@ export default class AtmosphereManager {
         if (env.flashlight) {
             let targetIntensity = env.player.flashlightActive ? 2.2 : 0.0;
             if (env.player.flashlightActive) {
-                const batteryFactor = Math.min(1.0, env.player.flashlightBattery / 30.0);
-                targetIntensity *= (0.1 + 0.9 * batteryFactor);
-                if (env.player.flashlightBattery < 15.0 && Math.random() > 0.8) {
-                    targetIntensity *= 0.1;
+                if (env.player.flashlightBattery <= 0) {
+                    targetIntensity = 0.0;
+                } else {
+                    const batteryFactor = Math.min(1.0, env.player.flashlightBattery / 30.0);
+                    targetIntensity *= (0.1 + 0.9 * batteryFactor);
+                    if (env.player.flashlightBattery < 15.0 && Math.random() > 0.8) {
+                        targetIntensity *= 0.1;
+                    }
                 }
             }
             env.flashlight.intensity += (targetIntensity - env.flashlight.intensity) * 0.4;

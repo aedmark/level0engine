@@ -600,7 +600,7 @@ export default class PropTextures {
             ctx.stroke();
         }
 
-        const apexY = 96, baseY = 212, halfW = 72;
+        const apexY = 125, baseY = 183, halfW = 36;
         ctx.fillStyle = 'rgba(24, 28, 34, 0.42)';
         ctx.beginPath();
         ctx.moveTo(W / 2, apexY);
@@ -609,7 +609,7 @@ export default class PropTextures {
         ctx.closePath();
         ctx.fill();
         ctx.strokeStyle = 'rgba(18, 22, 28, 0.55)';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2;
         ctx.stroke();
         bCtx.fillStyle = 'rgba(190, 190, 190, 0.5)';
         bCtx.beginPath();
@@ -619,9 +619,9 @@ export default class PropTextures {
         bCtx.closePath();
         bCtx.fill();
         ctx.fillStyle = 'rgba(20, 24, 30, 0.5)';
-        ctx.fillRect(W / 2 - 7, apexY + 44, 14, 44);
+        ctx.fillRect(W / 2 - 4, apexY + 22, 8, 22);
         ctx.beginPath();
-        ctx.arc(W / 2, apexY + 102, 8, 0, Math.PI * 2);
+        ctx.arc(W / 2, apexY + 51, 4, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = 'rgba(28, 32, 38, 0.22)';
         ctx.fillRect(0, 250, W, 14);
