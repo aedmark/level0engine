@@ -1,6 +1,6 @@
 # Level 0 Engine Changelog
 
-## [v1.4.0] - 2026-08-19
+## [v1.3.1] - 2026-08-19
 
 _Player Traversal & Dynamic Entities_
 

@@ -292,6 +292,12 @@ export default class SomaticInput {
         if (event.code === 'KeyU' && event.ctrlKey && event.shiftKey) {
             window.EDMARK_DEBUG_MODE = !window.EDMARK_DEBUG_MODE;
             console.log("EDMARK_DEBUG_MODE:", window.EDMARK_DEBUG_MODE);
+            if (window.EDMARK_DEBUG_MODE) {
+                try {
+                    localStorage.setItem('level0_tutorial', '1');
+                    localStorage.setItem('level0_tutorial_unlocked', '1');
+                } catch(e) {}
+            }
             document.dispatchEvent(new Event('debug-mode-toggled'));
             return;
         }

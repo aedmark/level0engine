@@ -488,19 +488,22 @@ export default class PlayerController {
         const feetY = this.camera.position.y - visualHeight;
         const snagShrink = this.isSqueezing ? 0.02 : 0.15;
         const stepOffset = this.isCrawling ? 0.2 : 0.5;
-        this._vecMin.set(px + moveX - this.playerRadius, feetY + stepOffset, pz - this.playerRadius + snagShrink);
+        const topOfFloorCheck = Math.max(feetY + stepOffset, currentFeetY + stepOffset);
+        
+        this._vecMin.set(px + moveX - this.playerRadius, topOfFloorCheck, pz - this.playerRadius + snagShrink);
         this._vecMax.set(px + moveX + this.playerRadius, feetY + physicalTop, pz + this.playerRadius - snagShrink);
         this._boxX.set(this._vecMin, this._vecMax);
-        this._vecMin.set(px - this.playerRadius + snagShrink, feetY + stepOffset, pz + moveZ - this.playerRadius);
+        
+        this._vecMin.set(px - this.playerRadius + snagShrink, topOfFloorCheck, pz + moveZ - this.playerRadius);
         this._vecMax.set(px + this.playerRadius - snagShrink, feetY + physicalTop, pz + moveZ + this.playerRadius);
         this._boxZ.set(this._vecMin, this._vecMax);
-        const topOfFloorCheck = Math.max(feetY + stepOffset, currentFeetY + stepOffset);
+        
         this._vecMin.set(px - this.playerRadius, -10.0, pz - this.playerRadius);
         this._vecMax.set(px + this.playerRadius, topOfFloorCheck, pz + this.playerRadius);
         this._floorBox.set(this._vecMin, this._vecMax);
         
         if (!this._ceilingBox) this._ceilingBox = new THREE.Box3();
-        this._vecMin.set(px - this.playerRadius, feetY + stepOffset, pz - this.playerRadius);
+        this._vecMin.set(px - this.playerRadius, topOfFloorCheck, pz - this.playerRadius);
         this._vecMax.set(px + this.playerRadius, 10.0, pz + this.playerRadius);
         this._ceilingBox.set(this._vecMin, this._vecMax);
 
@@ -517,7 +520,7 @@ export default class PlayerController {
             if (box.isGrate && !box.meshRef.userData.active) continue;
             
             // Ceiling check: find the lowest AABB directly above us
-            if (!box.isVoid && box.min.y > feetY + 0.5 && this._ceilingBox.intersectsBox(box)) {
+            if (!box.isVoid && box.min.y > topOfFloorCheck && this._ceilingBox.intersectsBox(box)) {
                 const maxCam = box.min.y - (physicalTop - visualHeight) - 0.05;
                 if (maxCam < dynamicMaxCamY) {
                     dynamicMaxCamY = maxCam;

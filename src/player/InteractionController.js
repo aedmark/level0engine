@@ -710,6 +710,36 @@ export default class InteractionController {
         const env = this.env;
         env._interactDir = new THREE.Vector3();
         
+        document.addEventListener('debug-mode-toggled', () => {
+            if (window.EDMARK_DEBUG_MODE) {
+                env.tutorialActive = false;
+                if (env.interactiveDoors) {
+                    env.interactiveDoors.forEach(obj => {
+                        const ud = obj.userData;
+                        if (ud && ud.tutorialLocked) {
+                            ud.tutorialLocked = false;
+                            ud.codeLocked = false;
+                            if (ud.tutorialFixture) {
+                                ud.tutorialFixture.isDead = false;
+                                ud.tutorialFixture.baseIntensity = 0.8;
+                                ud.tutorialFixture.targetIntensity = 0.8;
+                                ud.tutorialFixture.currentIntensity = 0.8;
+                            }
+                        }
+                    });
+                }
+                if (env.interactables) {
+                    env.interactables.forEach(obj => {
+                        const ud = obj.userData;
+                        if (ud && ud.type === 'keypad') {
+                            ud.codeLocked = false;
+                            if (ud.doorMesh) ud.doorMesh.userData.codeLocked = false;
+                        }
+                    });
+                }
+            }
+        });
+        
         document.addEventListener('somatic-interact', (e) => {
             let hit = null;
             let closestDistSq = 9.0;

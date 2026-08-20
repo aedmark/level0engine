@@ -21,7 +21,6 @@ import {OfficeAmenitiesProfile} from './blueprints/OfficeAmenities.js';
 import {RoundPillarProfile} from './blueprints/RoundPillar.js';
 import {CurvedArchwayProfile} from './blueprints/CurvedArchway.js';
 import {RoundAlcoveProfile} from './blueprints/RoundAlcove.js';
-import {CompressionArchwayProfile} from './blueprints/CompressionArchway.js';
 
 export default class StructuralBlueprints {
     static getStructuralMatrix(ctx) {
@@ -48,8 +47,7 @@ export default class StructuralBlueprints {
             OfficeAmenitiesProfile(this, ctx),
             RoundPillarProfile(this, ctx),
             CurvedArchwayProfile(this, ctx),
-            RoundAlcoveProfile(this, ctx),
-            CompressionArchwayProfile(this, ctx)
+            RoundAlcoveProfile(this, ctx)
         ];
         if (!StructuralBlueprints._validated) {
             StructuralBlueprints._validated = true;
