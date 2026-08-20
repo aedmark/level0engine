@@ -259,29 +259,29 @@ export default class PlayerController {
         const pz = this.camera.position.z;
         const localBoxes = spatialGrid.getNearby(px, pz, 2.0);
         const currentFeetY = this._groundFeetY;
-        let maxAvailableHeight = 3.0;
-        this._vecMin.set(px - this.baseRadius, currentFeetY + 0.1, pz - this.baseRadius);
-        this._vecMax.set(px + this.baseRadius, currentFeetY + 2.6, pz + this.baseRadius);
+        let maxCenterHeight = 3.0;
+        // Use a tiny radius (0.05) to check the ceiling *directly* above the player's center
+        // This prevents "auto-crouching" when simply walking up to a wall or low overhang.
+        this._vecMin.set(px - 0.05, currentFeetY + 0.1, pz - 0.05);
+        this._vecMax.set(px + 0.05, currentFeetY + 2.6, pz + 0.05);
         this._floorBox.set(this._vecMin, this._vecMax);
         for (let i = 0; i < localBoxes.length; i++) {
             const box = localBoxes[i];
             if (box.isInvisibleBlocker) continue;
             if (!box.isVoid && box.min.y > currentFeetY + 0.4 && this._floorBox.intersectsBox(box)) {
                 const available = box.min.y - currentFeetY;
-                if (available < maxAvailableHeight) maxAvailableHeight = available;
+                if (available < maxCenterHeight) maxCenterHeight = available;
             }
         }
-        if (maxAvailableHeight < 1.3 && !this.isGodMode) {
-            if (!state.isCrawling && !state.isCrouching) this._envForcedDown = true;
-            state.isCrawling = true;
-            state.isCrouching = false;
-        } else if (maxAvailableHeight < 2.5 && !this.isGodMode) {
-            if (!state.isCrawling && !state.isCrouching) this._envForcedDown = true;
-            if (!state.isCrawling) state.isCrouching = true;
-        } else if (this._envForcedDown) {
-            state.isCrouching = false;
-            state.isCrawling = false;
-            this._envForcedDown = false;
+        
+        // Prevent standing up if there isn't enough headroom directly above us
+        if (!this.isGodMode) {
+            if (maxCenterHeight < 1.3) {
+                state.isCrawling = true;
+                state.isCrouching = false;
+            } else if (maxCenterHeight < 2.5) {
+                if (!state.isCrawling) state.isCrouching = true;
+            }
         }
         this.isSqueezing = state.squeezeIntent;
         let targetRadius = this.isSqueezing ? this.squeezeRadius : this.baseRadius;
@@ -494,8 +494,9 @@ export default class PlayerController {
         this._vecMin.set(px - this.playerRadius + snagShrink, feetY + stepOffset, pz + moveZ - this.playerRadius);
         this._vecMax.set(px + this.playerRadius - snagShrink, feetY + physicalTop, pz + moveZ + this.playerRadius);
         this._boxZ.set(this._vecMin, this._vecMax);
+        const topOfFloorCheck = Math.max(feetY + stepOffset, currentFeetY + stepOffset);
         this._vecMin.set(px - this.playerRadius, -10.0, pz - this.playerRadius);
-        this._vecMax.set(px + this.playerRadius, feetY + stepOffset, pz + this.playerRadius);
+        this._vecMax.set(px + this.playerRadius, topOfFloorCheck, pz + this.playerRadius);
         this._floorBox.set(this._vecMin, this._vecMax);
         
         if (!this._ceilingBox) this._ceilingBox = new THREE.Box3();
@@ -528,7 +529,7 @@ export default class PlayerController {
             if (box.isVoid && this._floorBox.intersectsBox(box)) {
                 inVoid = true;
             }
-            if (box.max.y > targetFeetY && box.max.y <= feetY + stepOffset) {
+            if (box.max.y > targetFeetY && box.max.y <= topOfFloorCheck) {
                 if (!box.isVoid && this._floorBox.intersectsBox(box)) {
                     targetFeetY = box.max.y;
                     if (box.isWarpZone) this.onWarpZone = true;
