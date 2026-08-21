@@ -114,7 +114,7 @@ let inspectorData = null;
                 const mockCtx = inspectorMockCtx[p.id] || buildMockCtx(params, puzzles);
                 let accessCodeResult = null, accessCodeError = null;
                 try {
-                    accessCodeResult = new Function('ctx', `return ${p.ACCESS_CODE};`)(mockCtx.coreVars);
+                    accessCodeResult = window.safeEval(p.ACCESS_CODE, mockCtx.coreVars);
                 } catch (e) {
                     accessCodeError = e.message;
                 }

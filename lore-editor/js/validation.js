@@ -15,7 +15,7 @@ function buildMockCtx(params, puzzles, coreVarsOverride) {
             let cipher = null;
             const puzzleWithCode = (puzzles || []).find(p => p && p.ACCESS_CODE);
             if (puzzleWithCode) {
-                try { cipher = new Function('ctx', `return ${puzzleWithCode.ACCESS_CODE};`)(coreVars); } catch (e) { cipher = null; }
+                try { cipher = window.safeEval(puzzleWithCode.ACCESS_CODE, coreVars); } catch (e) { cipher = null; }
             }
             return {
                 cast,
@@ -69,7 +69,7 @@ function resolveTemplateForValidation(str, ctx) {
             for (const varName in customVars) {
                 const expr = customVars[varName];
                 try {
-                    const val = new Function('ctx', `return ${expr};`)(ctx);
+                    const val = window.safeEval(expr, ctx);
                     if (val === undefined) {
                         issues.push(`Custom VAR <b>${varName}</b> ("${expr}") evaluates to <b>undefined</b> — it will render as the literal word "undefined".`);
                     } else if (typeof val === 'number' && Number.isNaN(val)) {
@@ -83,7 +83,7 @@ function resolveTemplateForValidation(str, ctx) {
 
             s = s.replace(/\$\{([^}]+)}/g, (match, expr) => {
                 try {
-                    const val = new Function('ctx', `return ${expr};`)(ctx);
+                    const val = window.safeEval(expr, ctx);
                     if (val === undefined) {
                         issues.push(`Inline expression <b>${match}</b> evaluates to <b>undefined</b>.`);
                         return match;

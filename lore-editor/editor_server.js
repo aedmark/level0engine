@@ -28,11 +28,11 @@ function isSafeJsPath(filePath) {
 const NO_CACHE_HEADERS = { 'Cache-Control': 'no-store, no-cache, must-revalidate', 'Pragma': 'no-cache' };
 
 const server = http.createServer((req, res) => {
-    if (req.method === 'GET' && (req.url === '/' || req.url === '/index.html' || req.url === '/editor.html')) {
-        fs.readFile(path.join(__dirname, 'editor.html'), (err, data) => {
+    if (req.method === 'GET' && (req.url === '/' || req.url === '/index.html' || req.url === '/index.html')) {
+        fs.readFile(path.join(__dirname, 'index.html'), (err, data) => {
             if (err) {
                 res.writeHead(500);
-                return res.end('Error loading editor.html');
+                return res.end('Error loading index.html');
             }
             res.writeHead(200, { 'Content-Type': 'text/html', ...NO_CACHE_HEADERS });
             res.end(data);

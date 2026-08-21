@@ -103,7 +103,7 @@ function wizardBackDispatch() {
                 if (!wizardState.accessCode.trim()) { alert('Enter an access code expression.'); return false; }
                 try {
                     const mockCtx = buildMockCtx(wizardParamsWithStaged(), puzzlesData || []);
-                    new Function('ctx', `return ${wizardState.accessCode};`)(mockCtx.coreVars);
+                    window.safeEval(wizardState.accessCode, mockCtx.coreVars);
                 } catch (e) {
                     alert('That access code expression does not evaluate: ' + e.message);
                     return false;
@@ -267,7 +267,7 @@ function wizardInsertVarToken(token) {
             if (!el) return;
             try {
                 const mockCtx = buildMockCtx(wizardParamsWithStaged(), puzzlesData || []);
-                const result = new Function('ctx', `return ${wizardState.accessCode};`)(mockCtx.coreVars);
+                const result = window.safeEval(wizardState.accessCode, mockCtx.coreVars);
                 el.innerHTML = `<span class="badge badge-ok">Example result: ${result}</span>`;
             } catch (e) {
                 el.innerHTML = `<span class="badge badge-danger">Does not evaluate: ${e.message}</span>`;
@@ -418,7 +418,7 @@ function wizardInsertVarToken(token) {
             const body = document.getElementById('wizard-body');
             const mockCtx = buildMockCtx(wizardParamsWithStaged(), puzzlesData || []);
             let codeResult = null, codeError = null;
-            try { codeResult = new Function('ctx', `return ${wizardState.accessCode};`)(mockCtx.coreVars); } catch (e) { codeError = e.message; }
+            try { codeResult = window.safeEval(wizardState.accessCode, mockCtx.coreVars); } catch (e) { codeError = e.message; }
 
             const threadKeys = Object.keys(wizardState.lockThreads);
             let threadRows = '';
