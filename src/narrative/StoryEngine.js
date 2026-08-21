@@ -260,7 +260,7 @@ export default class StoryEngine {
         const idStr = String(docId || 'X');
         if (idStr === 'NOTE_TUTORIAL') {
             return {
-                text: `[ MAINTENANCE LOG ]\n\nThe entry airlock is on emergency lockdown when you first enter Level 0.\n\nThis is for your safety.\n\nShake the flashlight wildly in the dark to build up a kinetic charge. \n\nOnce at 100%, the power grid will transfer your flashlight charge to the airlock wirelessly.\n\nTo get out, you must enter the override code to bypass the door lock:\n\n0451\n\nFollow your compass, compare notes, verify claims, avoid the entities, and keep track of the Points of Interest (POI)\n\nAnd remember:\n-Stay Calm. Stay Quiet. Stay Sane.`,
+                text: `[ MAINTENANCE LOG ]\n\nThe entry airlock is on emergency lockdown upon entry.\n\nThis is for your safety.\n\nShake the flashlight wildly in the dark to build up a kinetic charge. \n\nOnce at 100%, the power grid will transfer your flashlight charge to the airlock wirelessly.\n\nTo get out, you must enter the override code to bypass the door lock:\n\n0451\n\nFollow your compass, compare notes, verify claims, avoid the entities, and keep track of the Points of Interest (POI)\n\nAnd remember:\n-Stay Calm. Stay Quiet. Stay Sane.`,
                 progress: this.progress(),
                 ephemera: true
             };
