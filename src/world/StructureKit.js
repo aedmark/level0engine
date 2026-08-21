@@ -264,13 +264,15 @@ export default class StructureKit {
                         const fnZ = (nA.z + nB.z + nC.z) / 3;
                         const cX = (vA.x + vB.x + vC.x) / 3;
 
+                        const cY = (vA.y + vB.y + vC.y) / 3;
+
                         let isInner = false;
                         if (Math.abs(fnZ) < 0.5) {
-                            if (fnY < 0.5) {
-                                if (!(fnX < -0.5 && cX < 0) && !(fnX > 0.5 && cX > 0)) {
-                                    isInner = true;
-                                }
+                            if (Math.abs(cX) < radius + 0.1 && cY < totalY - 0.1) {
+                                isInner = true;
                             }
+                        } else if (depth < 2.0) {
+                            isInner = true;
                         }
 
                         const target = isInner ? g1 : g0;

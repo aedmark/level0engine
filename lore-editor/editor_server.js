@@ -116,13 +116,20 @@ const server = http.createServer((req, res) => {
                     const data = JSON.parse(body);
                     const targetFile = data.file;
                     const content = data.content;
-                    
+
                     if (!targetFile || !content) {
                         res.writeHead(400, { 'Content-Type': 'application/json' });
                         return res.end(JSON.stringify({ error: 'Missing file or content' }));
                     }
-                    
-                    const filePath = path.join(DATA_DIR, targetFile);
+
+                    const baseResolved = path.resolve(DATA_DIR);
+                    const targetResolved = path.resolve(baseResolved, targetFile);
+                    const relativePath = path.relative(baseResolved, targetResolved);
+                    if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
+                        return res.end(JSON.stringify({ error: 'Invalid file path' }));
+                    }
+                    const filePath = targetResolved;
                     if (!isSafeDataPath(filePath) || !targetFile.endsWith('.json')) {
                         res.writeHead(400, { 'Content-Type': 'application/json' });
                         return res.end(JSON.stringify({ error: 'Invalid file path' }));

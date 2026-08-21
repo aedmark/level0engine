@@ -11,6 +11,10 @@ const getFiles = (dir) => {
     const dirents = fs.readdirSync(dir, { withFileTypes: true });
     const files = dirents.map((dirent) => {
         const res = path.resolve(dir, dirent.name);
+        const relative = path.relative(dir, res);
+        if (relative.startsWith('..') || path.isAbsolute(relative)) {
+            throw new Error('Invalid file path');
+        }
         return dirent.isDirectory() ? getFiles(res) : res;
     });
     return Array.prototype.concat(...files);

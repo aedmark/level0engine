@@ -69,7 +69,12 @@ const server = http.createServer((req, res) => {
                 const ext = mimeMatch ? mimeMatch[1] : 'png';
                 const base64Data = data.image.replace(/^data:image\/\w+;base64,/, "");
                 const buf = Buffer.from(base64Data, 'base64');
-                const filePath = path.join(__dirname, 'assets', 'textures', `${data.name}.${ext}`);
+                const base = path.resolve(__dirname, 'assets', 'textures');
+                const filePath = path.resolve(base, `${data.name}.${ext}`);
+                const relative = path.relative(base, filePath);
+                if (relative.startsWith('..') || path.isAbsolute(relative)) {
+                    throw new Error('Invalid file path');
+                }
                 fs.mkdirSync(path.dirname(filePath), { recursive: true });
                 fs.writeFileSync(filePath, buf);
                 res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -110,13 +115,13 @@ const server = http.createServer((req, res) => {
             return res.end();
         }
 
-        fs.readFile(filePath, (error, content) => {
+        fs.readFile(stats.ino, (error, content) => {
             if (error) {
                 res.writeHead(500);
                 res.end(`Sorry, check with the site admin for error: ${error.code} ..\n`);
                 return;
             }
-            
+
             let output = content;
             if (route === '/engine.html' && contentType === 'text/html') {
                 try {
@@ -131,7 +136,7 @@ const server = http.createServer((req, res) => {
                     };
                     const jsFiles = getFiles(srcDir).filter(f => f.endsWith('.js'));
                     const links = jsFiles.map(f => `<link rel="modulepreload" href="src${f.replace(srcDir, '').replace(/\\/g, '/')}">`).join('\n    ');
-                    
+
                     let html = output.toString('utf-8');
                     html = html.replace('<!-- DYNAMIC_PRELOADS -->', links);
                     output = Buffer.from(html, 'utf-8');
