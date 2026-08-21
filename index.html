@@ -194,8 +194,9 @@
         }
 
         .somatic-status {
-            font-size: 10px;
-            color: var(--liminal-800);
+            font-size: 12px;
+            color: #ffff00;
+            text-shadow: 0 0 5px rgba(255, 255, 0, 0.5);
             font-family: var(--font-mono);
             letter-spacing: 0.1em;
             display: flex;
@@ -276,8 +277,8 @@
             .terminal-title { font-size: 2.25rem; }
             .terminal-subtitle { font-size: 0.75rem; }
             .sys-info { font-size: 0.75rem; }
-            .somatic-status { font-size: 0.75rem; }
-            .btn-reboot { font-size: 0.75rem; }
+            .somatic-status { font-size: 1.05rem; }
+            .btn-reboot { font-size: 1.00rem; }
             .btn-glitch { font-size: 0.75rem; padding-left: 2rem; padding-right: 2rem; }
         }
 
@@ -299,10 +300,7 @@
                 <h1 class="terminal-title terminal-glow">LEVEL 0 ENGINE</h1>
                 <p class="terminal-subtitle">PROCESS: lvl_0_eng.exe // HI-MEM ENABLED // SECURE BOOT v1.4</p>
             </div>
-            <div class="sys-info">
-                <span class="active-instance animate-pulse">SIMULATION RUNNING...</span>
-                <a href="index.html" class="abort-link">[ ABORT ]</a>
-            </div>
+            <button id="parentMenuBtn" class="btn-glitch" style="margin-left: 1rem;">MENU</button>
         </header>
 
         <div class="iframe-wrapper">
@@ -316,15 +314,15 @@
 
         <footer class="terminal-footer">
             <div class="somatic-status">
-                <span class="somatic-arrows animate-pulse">>></span> LINK ESTABLISHED
+                <span class="somatic-arrows animate-pulse">>></span> LINK ESTABLISHED <span id="coords" style="margin-left: 1rem;">X: 0.0 | Z: 0.0</span>
             </div>
 
             <div class="footer-actions">
-                <button onclick="document.getElementById('engine-frame').contentWindow.location.reload();" class="btn-reboot">
-                    [ REBOOT ]
+                <button onclick="document.getElementById('engine-frame').contentWindow.location.reload();" class="btn-glitch">
+                    REBOOT
                 </button>
                 <button onclick="requestEngineFullscreen()" class="btn-glitch">
-                    Fullscreen
+                    FULLSCREEN
                 </button>
             </div>
         </footer>

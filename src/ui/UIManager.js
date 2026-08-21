@@ -2,17 +2,15 @@ export default class UIManager {
     static update(time, engine, player, environment) {
         if (time - (this._lastUpdate || 0) < 0.1) return;
         this._lastUpdate = time;
-        if (!this.coordsEl) this.coordsEl = document.getElementById('coords');
+        if (!this.coordsEl) {
+            this.coordsEl = document.getElementById('coords') || (window.parent && window.parent.document.getElementById('coords'));
+        }
         if (!this.batLevel) this.batLevel = document.getElementById('battery-level');
         if (!this.stamLevel) this.stamLevel = document.getElementById('stamina-level');
         if (this.coordsEl) {
-            const cohInt = Math.round((player.coherence !== undefined ? player.coherence : 1.0) * 100);
-            const newCoords = `X: ${engine.camera.position.x.toFixed(1)} | Z: ${engine.camera.position.z.toFixed(1)} | COH: ${cohInt.toString().padStart(2, '0')}%`;
+            const newCoords = `X: ${engine.camera.position.x.toFixed(1)} | Z: ${engine.camera.position.z.toFixed(1)}`;
             if (this.coordsEl._last !== newCoords) {
                 this.coordsEl.innerText = newCoords;
-                if (cohInt < 20) this.coordsEl.style.color = '#ff5555';
-                else if (cohInt < 50) this.coordsEl.style.color = '#ffaa55';
-                else this.coordsEl.style.color = '';
                 this.coordsEl._last = newCoords;
             }
         }

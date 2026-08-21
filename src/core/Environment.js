@@ -223,7 +223,7 @@ export default class Environment {
         });
         bootCtrl.addLog(`SHADER MATERIAL WARMUP DONE (${Math.round(performance.now() - warmupStart)}ms)`);
 
-        const toggleBtn = document.getElementById('menuToggleBtn');
+        const toggleBtn = window.parent && window.parent.document.getElementById('parentMenuBtn');
         const toggleMenu = (e) => {
             if (e && e.preventDefault) e.preventDefault();
             const panel = document.querySelector('.control-panel');
@@ -244,7 +244,7 @@ export default class Environment {
                 }
             }
         };
-        toggleBtn.addEventListener('pointerdown', toggleMenu);
+        if (toggleBtn) toggleBtn.addEventListener('pointerdown', toggleMenu);
         document.addEventListener('keydown', (e) => {
             const t = e.target;
             if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;

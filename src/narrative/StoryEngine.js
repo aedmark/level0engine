@@ -260,7 +260,7 @@ export default class StoryEngine {
         const idStr = String(docId || 'X');
         if (idStr === 'NOTE_TUTORIAL') {
             return {
-                text: `[ MAINTENANCE LOG ]\n\nThe entry airlock is on emergency lockdown when you first enter Level 0.\n\nThis is for your safety.\n\nShake the flashlight wildly in the dark to build up a kinetic charge. \n\nOnce at 100%, the power grid will transfer your flashlight charge to the airlock wirelessly.\n\n Then, you must enter the override code to bypass the door lock:\n\n0451\n\nCOMPLETE YOUR OBJECTIVES BY FOLLOWING THE POINT OF INTEREST (POI) RADAR!\n\nAnd remember:\n- F to toggle Light\n- J for PDA / Objectives\n- M for Threshold Compass`,
+                text: `[ MAINTENANCE LOG ]\n\nThe entry airlock is on emergency lockdown when you first enter Level 0.\n\nThis is for your safety.\n\nShake the flashlight wildly in the dark to build up a kinetic charge. \n\nOnce at 100%, the power grid will transfer your flashlight charge to the airlock wirelessly.\n\nTo get out, you must enter the override code to bypass the door lock:\n\n0451\n\nCOMPLETE YOUR OBJECTIVES BY FOLLOWING THE POINT OF INTEREST (POI) RADAR!\n\nAnd remember:\n- F to toggle Light\n- J for PDA / Objectives\n- M for Threshold Compass`,
                 progress: this.progress(),
                 ephemera: true
             };
