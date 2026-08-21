@@ -35,7 +35,10 @@
     const logEl = document.getElementById('log');
     const log = (msg, cls = '') => {
         console.log(msg);
-        logEl.innerHTML += `<div class="${cls}">${msg}</div>`;
+        const div = document.createElement('div');
+        if (cls) div.className = cls;
+        div.textContent = msg;
+        logEl.appendChild(div);
     };
 
     async function run() {
