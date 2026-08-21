@@ -65,6 +65,7 @@ export const AcmeSector = (env, ctx) => {
         foundationMat: null,
         ceilingMat: null,
         build: (x, z, localX, localZ, maze) => {
+            if (ctx.buildPerimeter(x, z, localX, localZ, env.canyonMat, "ACME")) return;
             
             const isVoid = !maze || maze[localX][localZ];
             const gx = x * env.cellSize, gz = z * env.cellSize;

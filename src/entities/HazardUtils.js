@@ -79,13 +79,15 @@ export function sweepGroundedCollision(grid, body, moveX, moveZ, scratch) {
         }
         
         if (hitX && hitZ) continue;
-        if (!hitX && boxX.intersectsBox(box)) {
-            const cx = (box.min.x + box.max.x) * 0.5;
-            if ((moveX > 0 && x < cx) || (moveX < 0 && x > cx)) hitX = true;
-        }
-        if (!hitZ && boxZ.intersectsBox(box)) {
-            const cz = (box.min.z + box.max.z) * 0.5;
-            if ((moveZ > 0 && z < cz) || (moveZ < 0 && z > cz)) hitZ = true;
+        if (!box.isVoid) {
+            if (!hitX && boxX.intersectsBox(box)) {
+                const cx = (box.min.x + box.max.x) * 0.5;
+                if ((moveX > 0 && x < cx) || (moveX < 0 && x > cx)) hitX = true;
+            }
+            if (!hitZ && boxZ.intersectsBox(box)) {
+                const cz = (box.min.z + box.max.z) * 0.5;
+                if ((moveZ > 0 && z < cz) || (moveZ < 0 && z > cz)) hitZ = true;
+            }
         }
     }
     

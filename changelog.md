@@ -1,3 +1,22 @@
+## [v1.4.3] - 2026-08-21
+
+_ACME Sector Fall Physics & Environmental Integration_
+
+### Added
+
+- **[WORLD] The Fall Teleport Safety Net (`main.js`):** The core engine was hardcoded to trigger a blackout death sequence anytime the camera dipped below `Y = -15.0`. This has been intercepted. The engine now scans the `macroZones` to resolve the current sector and instantly teleports the player back to that sector's entrance airlock (`startX + 7.5`, `startZ + 1.5`) when falling out of bounds.
+
+### Changed
+
+- **[WORLD] ACME Sector Environment Registration (`Sectors.js`):** Registered the ACME sector in the core environment matrix. It now properly applies a desert orange fog (`0xd96c40`), high ambient lighting to simulate an open sky, and a large canyon-style audio reverb profile (`rt60: 3.5`).
+- **[GRAPHICS] ACME Open Sky (`AcmeSector.js`):** Stripped the `ceilingMat` from the sector definition to visually open the sky above the canyon.
+
+### Fixed
+
+- **[PHYSICS] Horizontal Void Collision ("Invisible Walls") (`HazardUtils.js`):** Fixed a severe structural bug where the engine's `voidBox`—the trigger meant to initiate falling—was being evaluated by the collision sweeper as a solid object on the horizontal axis. The engine now strictly excludes `isVoid` boxes from horizontal intersection checks (`hitX`/`hitZ`), allowing the player to actually step off the edge of walkable paths and fall into the abyss.
+- **[PHYSICS] ACME Jump Ceiling Block (`PlayerController.js`):** Fixed an issue where jumping from crates in the ACME sector was physically capped by the default camera height ceiling. The `activeSector` evaluation was lifted up the stack to dynamically set the ceiling height to `40.0` for open-sky sectors like ACME and CHASM.
+- **[BUGFIX] ACME Easter Egg Reference Error (`PlayerController.js`):** Addressed a lingering `manifold is not defined` crash in the `_applyCinematics` jump handler when interacting with ACME crates by ensuring the active collision manifold is passed down from the physics update loop.
+
 ## [v1.4.2] - 2026-08-21
 
 _Security Hardening & Intersection Geometry Fixes_
