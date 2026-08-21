@@ -81,21 +81,7 @@ export const TheOutpostProfile = (env, ctx) => {
             bagMat.color.setHex(0x3a4b60);
             addCotPart(env._boxGeo(0.7, 0.12, 0.35), bagMat, 0, 0.47, -0.7);
 
-            const almondGroup = new THREE.Group();
-            const almondMesh = env.almondPrefab.clone();
-            almondGroup.add(almondMesh);
-            const aGlow = new THREE.Mesh(env.glowGeo, env.glowMat);
-            aGlow.scale.set(0.15, 0.15, 0.15);
-            aGlow.position.y = 0.01;
-            almondGroup.add(aGlow);
-            const as = Math.sin(cotRot), ac = Math.cos(cotRot);
-            const adx = 0.2, adz = 0.2;
-            almondGroup.position.set(cx + cotX + (adx * ac + adz * as), 0.41, cz + cotZ + (-adx * as + adz * ac));
-            almondGroup.rotation.y = random() * Math.PI;
-            almondGroup.userData = {type: 'almond', chunkHash: hash, active: true};
-            chunkGroup.add(almondGroup);
-            if (!env.interactables) env.interactables = [];
-            env.interactables.push(almondGroup);
+
             const activeMat = ctx.getLightMaterial(0xe8f4f8, 0xb0d8e8, false);
             const panel = new THREE.Mesh(env.sharedPanelGeo, [env.baseHousingMat, env.baseHousingMat, env.baseHousingMat, activeMat, env.baseHousingMat, env.baseHousingMat]);
             panel.position.set(cx, 2.75, cz);

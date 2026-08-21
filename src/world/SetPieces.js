@@ -133,25 +133,7 @@ export default class SetPieces {
                 const leg = new THREE.Mesh(env._boxGeo(0.05, 0.78, 0.05), env.metalMat);
                 place(leg, tx0 + lxs * (flankV ? 0.28 : 0.6), 0.39, tz0 + lzs * (flankV ? 0.6 : 0.28));
             }
-            if (!env.interactables) env.interactables = [];
-            const drop = (prefab, type, fwd, lat) => {
-                const [px, pz] = at(fwd, lat);
-                const grp = new THREE.Group();
-                grp.add(prefab.clone());
-                const glow = new THREE.Mesh(env.glowGeo, env.glowMat);
-                glow.scale.set(0.15, 0.15, 0.15);
-                glow.position.y = 0.01;
-                grp.add(glow);
-                grp.position.set(px, 0.85, pz);
-                grp.userData = {type, chunkHash: hash, active: true};
-                grp.traverse(ch => {
-                    ch.userData.chunkHash = hash;
-                });
-                chunkGroup.add(grp);
-                env.interactables.push(grp);
-            };
-            drop(env.batteryPrefab, 'battery', 1.4, -0.3);
-            if (ckHash(localX, localZ, 2) > 0.4) drop(env.almondPrefab, 'almond', 1.4, 0.3);
+
         } else {
             lit = false;
             const [sx, sz] = at(1.3, (ckHash(localX, localZ, 6) - 0.5) * 1.2);

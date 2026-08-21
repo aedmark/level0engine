@@ -5,8 +5,6 @@ export default class UIManager {
         if (!this.coordsEl) this.coordsEl = document.getElementById('coords');
         if (!this.batLevel) this.batLevel = document.getElementById('battery-level');
         if (!this.stamLevel) this.stamLevel = document.getElementById('stamina-level');
-        if (!this.invBat) this.invBat = document.getElementById('inv-bat');
-        if (!this.invH2o) this.invH2o = document.getElementById('inv-h2o');
         if (this.coordsEl) {
             const cohInt = Math.round((player.coherence !== undefined ? player.coherence : 1.0) * 100);
             const newCoords = `X: ${engine.camera.position.x.toFixed(1)} | Z: ${engine.camera.position.z.toFixed(1)} | COH: ${cohInt.toString().padStart(2, '0')}%`;
@@ -66,18 +64,7 @@ export default class UIManager {
                 this.stamLevel._last = stamInt;
             }
         }
-        if (this.invBat && this.invH2o) {
-            if (this.invBat._last !== player.inventory.batteries) {
-                this.invBat.innerText = player.inventory.batteries;
-                this.invBat.style.color = player.inventory.batteries === 0 ? '#ff5555' : '';
-                this.invBat._last = player.inventory.batteries;
-            }
-            if (this.invH2o._last !== player.inventory.almondWater) {
-                this.invH2o.innerText = player.inventory.almondWater;
-                this.invH2o.style.color = player.inventory.almondWater === 0 ? '#ff5555' : '';
-                this.invH2o._last = player.inventory.almondWater;
-            }
-        }
+
     }
 
     static updateVHSTime() {

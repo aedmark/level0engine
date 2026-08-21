@@ -152,21 +152,7 @@ export default class HazardTextures {
             roughness: 0.55,
             metalness: 0.75
         });
-        const {canvas: almondCanvas, ctx: aCtx} = TextureMechanics._createContext(256, 256);
-        aCtx.fillStyle = '#e8ddcb';
-        aCtx.fillRect(0, 0, 256, 256);
-        aCtx.fillStyle = '#3a5a68';
-        aCtx.fillRect(0, 70, 256, 116);
-        aCtx.fillStyle = '#e8ddcb';
-        aCtx.font = 'bold 36px monospace';
-        aCtx.textAlign = 'center';
-        aCtx.fillText('ALMOND', 128, 115);
-        aCtx.fillText('WATER', 128, 155);
-        aCtx.globalAlpha = 0.2;
-        aCtx.drawImage(masterNoise, 0, 0, 256, 256);
-        aCtx.globalAlpha = 1.0;
-        const almondTexture = new THREE.CanvasTexture(almondCanvas);
-        const almondMat = new THREE.MeshStandardMaterial({map: almondTexture, roughness: 0.8});
+
         const {canvas: tiCanvas, ctx: tiCtx} = TextureMechanics._createContext(256, 512);
         const tiGrad = tiCtx.createLinearGradient(0, 0, 0, 512);
         tiGrad.addColorStop(0, '#c0c8d0');
@@ -221,7 +207,6 @@ export default class HazardTextures {
             metalMat,
             paintedSteelMat,
             pittedMetalMat,
-            almondMat,
             titaniumMat,
             pipeMat: PropTextures._buildPipeMaterial(masterNoise),
             breakerPanelMat: PropTextures._buildBreakerPanelMaterial(masterNoise),

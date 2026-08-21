@@ -37,19 +37,7 @@ export const WreckedFurniturePileProfile = (env, ctx) => {
             }
             pile.position.set(cx, 0, cz);
             addFurniture(pile);
-            const batGroup = new THREE.Group();
-            const batMesh = env.batteryPrefab.clone();
-            batGroup.add(batMesh);
-            const bGlow = new THREE.Mesh(env.glowGeo, env.glowMat);
-            bGlow.scale.set(0.20, 0.20, 0.20);
-            bGlow.position.y = 0.01;
-            batGroup.add(bGlow);
-            batGroup.position.set(cx, 0.1, cz);
-            batGroup.rotation.y = random() * Math.PI;
-            batGroup.userData = {type: 'battery', chunkHash: hash, active: true};
-            chunkGroup.add(batGroup);
-            if (!env.interactables) env.interactables = [];
-            env.interactables.push(batGroup);
+
         }
     };
 };

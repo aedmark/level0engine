@@ -7,7 +7,6 @@ import {NarrowHeaderGapProfile} from './blueprints/NarrowHeaderGap.js';
 import {LCornerNookProfile} from './blueprints/LCornerNook.js';
 import {AlcoveCornerProfile} from './blueprints/AlcoveCorner.js';
 import {CratesProfile} from './blueprints/Crates.js';
-import {ElevatorProfile} from './blueprints/Elevator.js';
 import {DuctProfile} from './blueprints/Duct.js';
 import {VentProfile} from './blueprints/Vent.js';
 import {CrawlspaceDuctProfile} from './blueprints/CrawlspaceDuct.js';
@@ -36,7 +35,6 @@ export default class StructuralBlueprints {
             LCornerNookProfile(this, ctx),
             AlcoveCornerProfile(this, ctx),
             CratesProfile(this, ctx),
-            ElevatorProfile(this, ctx),
             DuctProfile(this, ctx),
             VentProfile(this, ctx),
             CrawlspaceDuctProfile(this, ctx),

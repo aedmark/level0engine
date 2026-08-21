@@ -53,31 +53,7 @@ export const TheOasisProfile = (env, ctx) => {
                         stagingMeshes.push(child);
                     }
                 });
-                const almondGroup = new THREE.Group();
-                const almondMesh = env.almondPrefab.clone();
-                almondGroup.add(almondMesh);
-                const aGlow = new THREE.Mesh(env.glowGeo, env.glowMat);
-                aGlow.scale.set(0.15, 0.15, 0.15);
-                aGlow.position.y = 0.01;
-                almondGroup.add(aGlow);
-                almondGroup.position.set(cx - 0.3, 0.93, cz);
-                almondGroup.rotation.y = (random() - 0.5) * 0.8;
-                almondGroup.userData = {type: 'almond', chunkHash: hash, active: true};
-                chunkGroup.add(almondGroup);
-                if (!env.interactables) env.interactables = [];
-                env.interactables.push(almondGroup);
-                const batGroup = new THREE.Group();
-                const batMesh = env.batteryPrefab.clone();
-                batGroup.add(batMesh);
-                const bGlow = new THREE.Mesh(env.glowGeo, env.glowMat);
-                bGlow.scale.set(0.20, 0.20, 0.20);
-                bGlow.position.y = 0.01;
-                batGroup.add(bGlow);
-                batGroup.position.set(cx + 0.3, 0.93, cz);
-                batGroup.rotation.y = (random() - 0.5) * 0.8;
-                batGroup.userData = {type: 'battery', chunkHash: hash, active: true};
-                chunkGroup.add(batGroup);
-                env.interactables.push(batGroup);
+
                 const activeMat = ctx.getLightMaterial(0xffeedd, 0xffaa55, false);
                 const panel = new THREE.Mesh(env.sharedPanelGeo, [env.baseHousingMat, env.baseHousingMat, env.baseHousingMat, activeMat, env.baseHousingMat, env.baseHousingMat]);
                 panel.position.set(cx, 2.98, cz);

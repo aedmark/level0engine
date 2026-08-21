@@ -231,24 +231,6 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
     if (!env.interactables) env.interactables = [];
     const taken = env.consumedProps || new Set();
 
-    const placePickup = (type, prefab, glowScale, offset) => {
-        if (taken.has(`elevator:${type}`)) return;
-        const group = new THREE.Group();
-        group.add(prefab.clone());
-        if (!isFirstTime) {
-            const glow = new THREE.Mesh(env.glowGeo, env.glowMat);
-            glow.scale.set(glowScale, glowScale, glowScale);
-            glow.position.y = 0.01;
-            group.add(glow);
-        }
-        group.position.set(tx2 + spanX * offset, SURFACE_Y, tz2 + spanZ * offset);
-        group.rotation.y = (random() - 0.5) * 0.8;
-        group.userData = {type: type, chunkHash: hash, active: true, consumeKey: `elevator:${type}`};
-        chunkGroup.add(group);
-        env.interactables.push(group);
-    };
-    placePickup('almond', env.almondPrefab, 0.15, -0.38);
-    placePickup('battery', env.batteryPrefab, 0.20, 0.38);
 
     {
         const note = new THREE.Mesh(env.documentGeo, env.documentMat);

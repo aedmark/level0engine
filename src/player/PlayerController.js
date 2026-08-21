@@ -25,7 +25,7 @@ export default class PlayerController {
         this.speedMultiplier = 1.0;
         this.maxStamina = 100.0;
         this.stamina = 100.0;
-        this.inventory = {batteries: 0, almondWater: 0, hasExitKey: false};
+        this.inventory = {hasExitKey: false};
         this.objectives = {fixed: 0, total: 3, escaped: false};
         this.depth = 1;
         this.bestDepth = 1;
@@ -63,8 +63,6 @@ export default class PlayerController {
             }
         };
         this.updateObjectives();
-        this.MAX_BATTERIES = 3;
-        this.MAX_ALMOND_WATER = 2;
         this.exhaustion = 0.0;
         this.isWinded = false;
         this.isChased = false;
@@ -153,35 +151,7 @@ export default class PlayerController {
             this.coherence = Math.min(1.0, this.coherence + 0.12);
             this.maxStamina = Math.min(100.0, this.maxStamina + 6.0);
         });
-        document.addEventListener('somatic-pickup-battery', () => {
-            if (this.inventory.batteries < this.MAX_BATTERIES) {
-                this.inventory.batteries++;
-                document.dispatchEvent(new CustomEvent('somatic-item', {detail: {distSq: 1.0, intensity: 0.5}}));
-            }
-        });
-        document.addEventListener('somatic-pickup-almond', () => {
-            if (this.inventory.almondWater < this.MAX_ALMOND_WATER) {
-                this.inventory.almondWater++;
-                document.dispatchEvent(new CustomEvent('somatic-item', {detail: {distSq: 1.0, intensity: 0.6}}));
-            }
-        });
-        document.addEventListener('somatic-use-battery', () => {
-            if (this.inventory.batteries > 0 && this.flashlightBattery < 100.0) {
-                this.inventory.batteries--;
-                this.flashlightBattery = Math.min(100.0, this.flashlightBattery + 40.0);
-            }
-        });
-        document.addEventListener('somatic-use-almond', () => {
-            if (this.inventory.almondWater > 0) {
-                this.inventory.almondWater--;
-                if ((this.stamina / this.maxStamina) >= 0.7) {
-                    this.isWaterlogged = true;
-                }
-                this.staminaBoostTimer = 15.0;
-                this.stamina = this.maxStamina;
-                this.isWinded = false;
-            }
-        });
+
         document.addEventListener('somatic-toggle-godmode', () => {
             this.isGodMode = !this.isGodMode;
             this.input.suppressCrouchToggle = this.isGodMode;
@@ -512,7 +482,6 @@ export default class PlayerController {
         let targetFeetY = -100;
         let inVoid = false;
         let dynamicMaxCamY = 5.0; // Dynamic ceiling cap
-        this.onWarpZone = false;
         
         for (let i = 0, len = localBoxes.length; i < len; i++) {
             const box = localBoxes[i];
@@ -535,7 +504,6 @@ export default class PlayerController {
             if (box.max.y > targetFeetY && box.max.y <= topOfFloorCheck) {
                 if (!box.isVoid && this._floorBox.intersectsBox(box)) {
                     targetFeetY = box.max.y;
-                    if (box.isWarpZone) this.onWarpZone = true;
                 }
             }
             if (hitX && hitZ) continue;
@@ -677,11 +645,8 @@ export default class PlayerController {
         this.camera.position.z += this._leanOffset.z;
         if (!inVoid && targetFeetY === -100) targetFeetY = 0;
         
-        // If we are in a warp zone or there is no ceiling, dynamicMaxCamY was initialized to 5.0
-        // but let's make sure it still respects the warp zone override if it was lower.
-        // Actually dynamicMaxCamY starts at 5.0. If there are no ceilings, it stays 5.0.
-        // But normal max is 2.8.
-        const defaultMax = this.onWarpZone ? 5.0 : 2.8;
+        // If there are no ceilings, it stays 5.0. But normal max is 2.8.
+        const defaultMax = 2.8;
         dynamicMaxCamY = Math.min(dynamicMaxCamY, defaultMax);
         
         const groundCamY = Math.min(targetFeetY + visualHeight, dynamicMaxCamY) + bobOffset - leanDrop;

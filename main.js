@@ -111,8 +111,7 @@ if (savedState) {
     if (savedState.flashlightActive !== undefined) player.input.state.flashlightActive = savedState.flashlightActive;
     if (savedState.isCrouching !== undefined) player.input.state.isCrouching = savedState.isCrouching;
     if (savedState.isCrawling !== undefined) player.input.state.isCrawling = savedState.isCrawling;
-    if (savedState.invBat !== undefined) player.inventory.batteries = savedState.invBat;
-    if (savedState.invH2o !== undefined) player.inventory.almondWater = savedState.invH2o;
+
     if (savedState.hasExitKey !== undefined) player.inventory.hasExitKey = savedState.hasExitKey;
     if (savedState.depth !== undefined) player.depth = savedState.depth;
     if (savedState.bestDepth !== undefined) player.bestDepth = savedState.bestDepth;
@@ -312,10 +311,7 @@ function animate() {
     flashlight.update(delta);
     paintballGun.update(delta);
     paintballSystem.update(delta);
-    if (engine.camera.position.y > 2.8 && player.onWarpZone && !environment.isSpawning) {
-        environment.generate(true);
-        return;
-    }
+    
     engine.exhaustion = player.exhaustion;
     const squeezeFactor = (player.baseRadius - player.playerRadius) / (player.baseRadius - player.squeezeRadius);
     engine.squeeze = Math.max(0.0, Math.min(1.0, squeezeFactor));

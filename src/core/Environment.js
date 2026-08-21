@@ -429,7 +429,7 @@ export default class Environment {
         return {x: cX, z: cZ};
     }
 
-    generate(isWarp = false) {
+    generate() {
         const flash = document.getElementById('flash-overlay');
         if (flash) {
             flash.style.transition = 'none';
@@ -492,18 +492,11 @@ export default class Environment {
             this.baseSeed = ((this.baseSeed << 5) - this.baseSeed) + seedString.charCodeAt(i);
             this.baseSeed |= 0;
         }
-        if (isWarp) {
-            const signX = Math.random() > 0.5 ? 1 : -1;
-            const signZ = Math.random() > 0.5 ? 1 : -1;
-            const warpX = this.camera.position.x + (signX * (1500 + Math.random() * 2000));
-            const warpZ = this.camera.position.z + (signZ * (1500 + Math.random() * 2000));
-            this.camera.position.set(warpX, 1.6, warpZ);
-            if (this.anomaly) this.anomaly.reset(warpX + 32, 1.5, warpZ + 32);
-        } else {
-            this.player.coherence = 1.0;
-            if (this.anomaly) this.anomaly.reset(32, 1.5, 32);
-            const chunkW = 64;
-            const spawn = this._pickSpawnChunk(
+        
+        this.player.coherence = 1.0;
+        if (this.anomaly) this.anomaly.reset(32, 1.5, 32);
+        const chunkW = 64;
+        const spawn = this._pickSpawnChunk(
                 Math.floor(this.camera.position.x / chunkW),
                 Math.floor(this.camera.position.z / chunkW)
             );
@@ -522,7 +515,6 @@ export default class Environment {
                     placement: null
                 };
             }
-        }
         if (this.elevatorAnchor && this.elevatorAnchor.seed !== this.baseSeed) {
             this.elevatorAnchor = null;
         }

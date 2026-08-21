@@ -195,8 +195,7 @@ export default class SomaticInput {
             }
         }
 
-        if (isActionPressed('battery') && !this.state.isReading) document.dispatchEvent(new Event('somatic-use-battery'));
-        if (isActionPressed('almondWater') && !this.state.isReading) document.dispatchEvent(new Event('somatic-use-almond'));
+
         if (isActionPressed('paintball') && !this.state.isReading) document.dispatchEvent(new Event('somatic-toggle-gun'));
         if (isActionPressed('journal')) document.dispatchEvent(new Event('somatic-journal-toggle'));
     }
@@ -321,8 +320,7 @@ export default class SomaticInput {
             }
         }
 
-        if (is('battery') && !this.state.isReading) document.dispatchEvent(new Event('somatic-use-battery'));
-        if (is('almondWater') && !this.state.isReading) document.dispatchEvent(new Event('somatic-use-almond'));
+
         if (is('tag')) document.dispatchEvent(new Event('somatic-tag'));
         
         if (is('compass') && !this.state.isReading) {

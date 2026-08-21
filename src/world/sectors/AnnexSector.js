@@ -696,17 +696,7 @@ export const AnnexSector = (env, ctx) => {
                     keyGroup.updateMatrixWorld(true);
                     env._registerInteractable(keyGroup, hash);
 
-                    // Battery next to the desk
-                    const batGroup = new THREE.Group();
-                    batGroup.add(env.batteryPrefab.clone());
-                    const bGlow = new THREE.Mesh(env.glowGeo, env.glowMat);
-                    bGlow.scale.set(0.15, 0.15, 0.15);
-                    bGlow.position.y = 0.01;
-                    batGroup.add(bGlow);
-                    batGroup.position.set(ox - 0.45, 0.77, oz);
-                    batGroup.userData = {type: 'battery', chunkHash: hash, active: true};
-                    chunkGroup.add(batGroup);
-                    env.interactables.push(batGroup);
+
                 }
 
                 // Dedicated warm overhead lighting in the locked pod

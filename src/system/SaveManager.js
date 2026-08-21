@@ -125,8 +125,6 @@ export default class SaveManager {
             flashlightActive: this.player.input.state.flashlightActive,
             isCrouching: this.player.input.state.isCrouching,
             isCrawling: this.player.input.state.isCrawling,
-            invBat: this.player.inventory.batteries,
-            invH2o: this.player.inventory.almondWater,
             hasExitKey: this.player.inventory.hasExitKey,
             depth: this.player.depth,
             bestDepth: this.player.bestDepth,

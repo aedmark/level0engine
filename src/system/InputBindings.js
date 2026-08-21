@@ -9,8 +9,6 @@ const DEFAULT_BINDINGS = {
         squeeze: ['KeyQ'],
         closeEyes: ['KeyV'],
         flashlight: ['KeyF'],
-        battery: ['Digit1'],
-        almondWater: ['Digit2'],
         paintball: ['KeyP'],
         tag: ['KeyT'],
         compass: ['KeyM'],
@@ -30,8 +28,6 @@ const DEFAULT_BINDINGS = {
         tag: [8],
         sprint: [10],
         crouch: [11],
-        battery: [12],
-        almondWater: [13],
         paintball: [14],
         journal: [15]
     }
@@ -47,8 +43,6 @@ export const ACTION_NAMES = {
     squeeze: "Squeeze",
     closeEyes: "Close Eyes",
     flashlight: "Toggle Flashlight",
-    battery: "Use Battery",
-    almondWater: "Use Almond Water",
     paintball: "Toggle Paintball Gun",
     tag: "UV Marker",
     compass: "Toggle Compass",

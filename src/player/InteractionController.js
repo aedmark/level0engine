@@ -353,19 +353,6 @@ export default class InteractionController {
                         document.dispatchEvent(new CustomEvent('somatic-lost', {
                             detail: {distSq: distSq, isLaugh: isLaugh, intensity: isLaugh ? 2.0 : 0.6}
                         }));
-                        if (Math.random() > 0.8 && env.interactables) {
-                            const almondGroup = new THREE.Group();
-                            almondGroup.add(env.almondPrefab.clone());
-                            const aGlow = new THREE.Mesh(env.glowGeo, env.glowMat);
-                            aGlow.scale.set(0.15, 0.15, 0.15);
-                            aGlow.position.y = 0.01;
-                            almondGroup.add(aGlow);
-                            almondGroup.position.copy(obs.position);
-                            almondGroup.position.y = 0.1;
-                            almondGroup.userData = {type: 'almond', chunkHash: obs.userData.chunkHash, active: true};
-                            obs.parent.add(almondGroup);
-                            env.interactables.push(almondGroup);
-                        }
                     } else {
                         obs.material.opacity = obs.userData.fade;
                         obs.position.x += (Math.random() - 0.5) * delta * 0.5;
@@ -770,17 +757,6 @@ export default class InteractionController {
                 return;
             }
 
-            if (hit && hit.userData.type === 'elevator_button') {
-                if (hit.userData.isMagic && env.generate) {
-                    document.dispatchEvent(new CustomEvent('somatic-flashlight', {detail: {on: true}}));
-                    document.dispatchEvent(new CustomEvent('somatic-elevator-ding', {detail: {distSq: 0.0, intensity: 2.0}}));
-                    env.generate(true);
-                } else {
-                    document.dispatchEvent(new CustomEvent('somatic-flashlight', {detail: {on: true}}));
-                }
-                return;
-            }
-            
             if (hit && hit.userData.isAirlockDoor) {
                 hit.userData.playerOpen = true;
                 return;
@@ -861,22 +837,7 @@ export default class InteractionController {
                 env.player.inventory.hasExitKey = true;
                 env.player.updateObjectives();
                 document.dispatchEvent(new CustomEvent('somatic-item', {detail: {distSq: 1.0, intensity: 0.8}}));
-            } else if (hit && hit.userData.type === 'battery' && hit.userData.active) {
-                if (env.player.inventory.batteries < env.player.MAX_BATTERIES) {
-                    hit.userData.active = false;
-                    markConsumed(hit);
-                    releasePropLighting(env, hit);
-                    hit.visible = false;
-                    document.dispatchEvent(new Event('somatic-pickup-battery'));
-                }
-            } else if (hit && hit.userData.type === 'almond' && hit.userData.active) {
-                if (env.player.inventory.almondWater < env.player.MAX_ALMOND_WATER) {
-                    hit.userData.active = false;
-                    markConsumed(hit);
-                    releasePropLighting(env, hit);
-                    hit.visible = false;
-                    document.dispatchEvent(new Event('somatic-pickup-almond'));
-                }
+
             } else if (hit && hit.userData.type === 'document' && hit.userData.active) {
                 hit.userData.active = false;
                 markConsumed(hit);

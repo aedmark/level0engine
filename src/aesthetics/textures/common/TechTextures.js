@@ -203,33 +203,6 @@ export default class TechTextures {
         matteBrokenLightMat.metalness = 0;
         matteBrokenLightMat.roughness = 0.95;
 
-        
-        const baseSteel = TechTextures._buildBrushedSteel(masterNoise, '#606466', false);
-        const elevatorSteelMat = new THREE.MeshStandardMaterial({
-            map: baseSteel.map,
-            bumpMap: baseSteel.bumpMap,
-            bumpScale: 0.015,
-            roughness: 0.45,
-            metalness: 0.7
-        });
-
-        const doorSteel = TechTextures._buildBrushedSteel(masterNoise, '#505456', false);
-        const elevatorDoorMat = new THREE.MeshStandardMaterial({
-            map: doorSteel.map,
-            bumpMap: doorSteel.bumpMap,
-            bumpScale: 0.02,
-            roughness: 0.5,
-            metalness: 0.65
-        });
-
-        const panelSteel = TechTextures._buildBrushedSteel(masterNoise, '#3b3f42', false);
-        const elevatorPanelMat = new THREE.MeshStandardMaterial({
-            map: panelSteel.map,
-            bumpMap: panelSteel.bumpMap,
-            bumpScale: 0.03,
-            roughness: 0.6,
-            metalness: 0.8
-        });
 
 const flangeMat = TechTextures._buildFlangeAsset(masterNoise);
 
@@ -242,10 +215,7 @@ const flangeMat = TechTextures._buildFlangeAsset(masterNoise);
             baseHousingMat,
             matteLightMat,
             matteBrokenLightMat,
-            flangeMat,
-            elevatorSteelMat,
-            elevatorDoorMat,
-            elevatorPanelMat
+            flangeMat
         };
     }
 }
