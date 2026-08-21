@@ -115,7 +115,7 @@ const server = http.createServer((req, res) => {
             return res.end();
         }
 
-        fs.readFile(stats.ino, (error, content) => {
+        fs.readFile(filePath, (error, content) => {
             if (error) {
                 res.writeHead(500);
                 res.end(`Sorry, check with the site admin for error: ${error.code} ..\n`);

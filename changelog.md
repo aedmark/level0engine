@@ -1,3 +1,15 @@
+## [v1.4.2] - 2026-08-21
+
+_Security Hardening & Intersection Geometry Fixes_
+
+### Changed
+
+- **[SECURITY] AST Evaluation for Procedural Logic (`SafeEval.js`, `jsep.min.js`):** Addressed a critical SAST vulnerability by completely excising all usage of `new Function('ctx', ...)` from both the Lore Editor (`validation.js`, `inspector.js`, `puzzle-wizard.js`) and the core engine (`CaseFiles.js`, `StoryEngine.js`). Procedural expressions found in JSON config files are now parsed into an Abstract Syntax Tree via the local `jsep` parser, then safely processed by our custom `safeEval` module using a strict whitelist of mathematical operators and `ctx` boundaries. 
+- **[SECURITY] HTML XSS Sanitization (`DOMPurify`, `PlayerController.js`):** To safely accommodate the heavy use of HTML template literal generation in the `lore-editor` UI loop, we downloaded and deployed `DOMPurify` locally. Over 30 instances of direct `.innerHTML` assignments in the editor, as well as the dynamic objective injection in `PlayerController.js`, were successfully wrapped in `DOMPurify.sanitize()`.
+- **[SECURITY] Exporter DOM Operations (`export_textures.html`):** Stripped out `.innerHTML` string concatenation from the local texture exporter logging UI, rewriting it to utilize native `document.createElement()` and `div.textContent`, naturally eliminating any risk of XSS payload execution without needing an external library.
+- **[BUGFIX] Intersection Z-Fighting and Tile Bleed (`ArchHall.js`, `StructureKit.js`):** Fixed a visual error where the subway tile on Arch Hall intersection ribs was "bleeding" outward, Z-fighting with the yellow wallpaper of adjacent rooms. Standardized the instantiation loop to strictly align all ribs' local `+z` axes towards the exterior so that the geometry generator can consistently apply the tile material exclusively to the inner-facing depth normals (`fnZ < -0.5`). 
+- **[BUGFIX] Server Inode Crash (`engine_server.js`):** Fixed a severe latent server crash where the local development server was mistakenly passing a file's inode number (`stats.ino`) to `fs.readFile()` instead of its file path, throwing a `500 Internal Server Error` (Bad file descriptor) on any un-cached `GET` request.
+
 # Level 0 Engine Changelog
 
 ## [v1.3.5] - 2026-08-21

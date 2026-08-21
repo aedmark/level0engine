@@ -272,7 +272,7 @@ export default class StructureKit {
                                 isInner = true;
                             }
                         } else if (depth < 2.0) {
-                            isInner = true;
+                            if (fnZ < -0.5) isInner = true;
                         }
 
                         const target = isInner ? g1 : g0;

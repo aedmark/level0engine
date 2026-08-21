@@ -51,7 +51,16 @@ export const ArchHallProfile = (env, ctx) => {
         const slab = ctx.buildArchCutout(radius, JAMB, archHeight, depth, springHeight, mat);
         const push = (env.cellSize - depth) / 2;
         slab.position.set(cx + (dir ? dir.dx * push : 0), 0, cz + (dir ? dir.dz * push : 0));
-        if (!alongZ) slab.rotation.y = Math.PI / 2;
+        
+        if (dir) {
+            if (dir.dx === 1) slab.rotation.y = Math.PI / 2;
+            else if (dir.dx === -1) slab.rotation.y = -Math.PI / 2;
+            else if (dir.dz === 1) slab.rotation.y = 0;
+            else if (dir.dz === -1) slab.rotation.y = Math.PI;
+        } else {
+            if (!alongZ) slab.rotation.y = Math.PI / 2;
+        }
+        
         slab.userData.isEntityBlocker = true;
         slab.userData.noCollision = true;
         addGeometry(slab);
