@@ -346,6 +346,7 @@ export default class ChunkManager {
             env.discoveredSectors.set(hash, activeSectorId);
             activeSector = sectorMatrix.find(s => s.id === activeSectorId);
             if (activeSector && activeSector.id === "IMPOUND") cHeight = 20.0;
+            if (activeSector && activeSector.id === "ACME") cHeight = 40.0;
             env.macroZones.set(hash, {
                 id: activeSector.id,
                 fog: env.atmosphereManager._sectorFog(activeSector.id),
@@ -356,7 +357,7 @@ export default class ChunkManager {
                 startX: startX,
                 startZ: startZ
             });
-            if (["ARCHIVE", "SERVER", "MAINTENANCE", "IMPOUND", "ATRIUM", "CHASM", "CLINIC", "INCINERATOR"].includes(activeSector.id)) {
+            if (["ARCHIVE", "SERVER", "MAINTENANCE", "IMPOUND", "ATRIUM", "CHASM", "CLINIC", "INCINERATOR", "ACME"].includes(activeSector.id)) {
                 sectorMaze = env._generateSectorMaze(random);
             }
             if (activeSector.foundationMat) {
@@ -381,8 +382,8 @@ export default class ChunkManager {
                 chunkGroup.add(cPlane);
             }
         }
-        const isChasm = activeSector && activeSector.id === "CHASM";
-        const usesVoidCeiling = activeSector && (activeSector.id === "CHASM" || activeSector.id === "ATRIUM" || activeSector.id === "ARCHIVE");
+        const isChasm = activeSector && (activeSector.id === "CHASM" || activeSector.id === "ACME");
+        const usesVoidCeiling = activeSector && (activeSector.id === "CHASM" || activeSector.id === "ATRIUM" || activeSector.id === "ARCHIVE" || activeSector.id === "ACME");
         const centerOffset = (env.chunkSize * env.cellSize) / 2 - (env.cellSize / 2);
         const floorGeo = env._planeGeo(env.chunkSize * env.cellSize, env.chunkSize * env.cellSize);
         const ceilGeo = floorGeo;
@@ -471,8 +472,8 @@ export default class ChunkManager {
         ctx.markOccupied = (ox, oz) => occupied.add(cellKey(ox, oz));
         ctx.isOccupied = (ox, oz) => occupied.has(cellKey(ox, oz));
         if (isMacroStructure && activeSector) {
-            const hallwayNeedsFloor = activeSector.id === "CHASM";
-            const hallwayNeedsCeiling = activeSector.id !== "ARCHIVE" && activeSector.id !== "IMPOUND" && activeSector.id !== "ATRIUM" && activeSector.id !== "CHASM";
+            const hallwayNeedsFloor = activeSector.id === "CHASM" || activeSector.id === "ACME";
+            const hallwayNeedsCeiling = activeSector.id !== "ARCHIVE" && activeSector.id !== "IMPOUND" && activeSector.id !== "ATRIUM" && activeSector.id !== "CHASM" && activeSector.id !== "ACME";
             env._buildEntranceHallways(chunkGroup, hash, startX, startZ, activeSector.id, ctx, hallwayNeedsFloor, hallwayNeedsCeiling, sectorMaze);
             const edge = env.chunkSize - 1;
             let shellStartTime = performance.now();

@@ -203,6 +203,16 @@ export default class PlayerController {
         this.camera.position.copy(this._preSitPos);
     }
 
+
+    applyExternalImpulse(worldDirectionX, worldDirectionZ, strength) {
+        const cosY = Math.cos(this.camera.rotation.y);
+        const sinY = Math.sin(this.camera.rotation.y);
+        const localVx = worldDirectionX * cosY - worldDirectionZ * sinY;
+        const localVz = worldDirectionX * sinY + worldDirectionZ * cosY;
+        this.velocity.x -= localVx * strength;
+        this.velocity.z += localVz * strength;
+    }
+
     update(delta, spatialGrid) {
         delta = Math.min(delta, 0.05);
         if (this.isGodMode) {
@@ -553,10 +563,10 @@ export default class PlayerController {
             this.gait = 0;
             return;
         }
-        this._applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes, dynamicMaxCamY);
+        this._applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes, dynamicMaxCamY, manifold);
     }
 
-    _applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes, dynamicMaxCamY) {
+    _applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes, dynamicMaxCamY, manifold) {
         const state = this.input.state;
         const baseBobFreq = state.isRunning ? 3.5 : 2.0;
         const breathFreq = Math.max(1.0, baseBobFreq - (this.exhaustion * 0.8));
@@ -638,10 +648,37 @@ export default class PlayerController {
         this.camera.position.z += this._leanOffset.z;
         if (!inVoid && targetFeetY === -100) targetFeetY = 0;
 
-        const defaultMax = 2.8;
+        let activeSector = "NORMAL";
+        if (this.env && this.env._sectorFrame) {
+            activeSector = this.env._sectorFrame.activeSector;
+        } else if (this.env && this.env._resolveActiveSector) {
+            activeSector = this.env._resolveActiveSector(this.camera.position).activeSector;
+        }
+
+        let defaultMax = 2.8;
+        if (activeSector === 'CHASM' || activeSector === 'ATRIUM' || activeSector === 'ARCHIVE' || activeSector === 'ACME') {
+            defaultMax = 40.0;
+        } else if (activeSector === 'IMPOUND') {
+            defaultMax = 20.0;
+        }
         dynamicMaxCamY = Math.min(dynamicMaxCamY, defaultMax);
         
         const groundCamY = Math.min(targetFeetY + visualHeight, dynamicMaxCamY) + bobOffset - leanDrop;
+
+        if (activeSector === 'ACME' && inVoid && targetFeetY === -100) {
+            if (this.camera.rotation.x > -0.2 && this.direction.lengthSq() > 0.1) {
+                targetFeetY = this._groundFeetY;
+                inVoid = false;
+                this._acmeSuspended = true;
+            } else {
+                if (this._acmeSuspended) {
+                    this._acmeSuspended = false;
+                    document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.5, variant: 'slide_whistle'}}));
+                }
+            }
+        } else {
+            this._acmeSuspended = false;
+        }
 
         if (targetFeetY === -100) {
             this.fallVelocity = (this.fallVelocity || 0) + 30.0 * delta;
@@ -669,10 +706,15 @@ export default class PlayerController {
                 if (state.jump && !state.isCrawling && !state.isCrouching && !this.isSqueezing && this.exhaustion < 0.9) {
                     state.jump = false; 
                     const jumpVelocity = state.isRunning ? 9.5 : 7.0;
-                    this.fallVelocity = -jumpVelocity;
+                    if (manifold && manifold.onAcme) {
+                        this.fallVelocity = -jumpVelocity * 3.5; // ACME BOUNCE (not 6, don't want to break through ceiling)
+                        document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 2.0, variant: 'acme_boing'}}));
+                    } else {
+                        this.fallVelocity = -jumpVelocity;
+                        document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.0}}));
+                    }
                     this.camera.position.y += 0.06;
                     this.exhaustion = Math.min(1.0, this.exhaustion + (state.isRunning ? 0.3 : 0.15));
-                    document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.0}}));
                 }
             }
         }

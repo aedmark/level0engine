@@ -10,6 +10,7 @@ import {IncineratorSector} from './sectors/IncineratorSector.js';
 import {AnnexSector} from './sectors/AnnexSector.js';
 import {AtriumSector} from './sectors/AtriumSector.js';
 import {CheckpointSector} from './sectors/CheckpointSector.js';
+import {AcmeSector} from './sectors/AcmeSector.js';
 
 export default class SectorBlueprints {
     static getSectorMatrix(ctx) {
@@ -25,7 +26,8 @@ export default class SectorBlueprints {
             IncineratorSector(this, ctx),
             AnnexSector(this, ctx),
             AtriumSector(this, ctx),
-            CheckpointSector(this, ctx)
+            CheckpointSector(this, ctx),
+            AcmeSector(this, ctx)
         ];
     }
 }

@@ -297,8 +297,25 @@ export default class InteractionController {
                 }
             }
         };
-        if (env.interactables) env.interactables.forEach(checkObj);
-        if (env.interactiveDoors) env.interactiveDoors.forEach(checkObj);
+        const indexObj = (obj) => {
+            if (obj.userData.box && !obj.userData.box.interactableEntity) {
+                obj.userData.box.interactableEntity = obj;
+            } else if (!obj.userData.box) {
+                const box = new THREE.Box3().setFromObject(obj);
+                obj.userData.box = box;
+                box.interactableEntity = obj;
+                box.chunkHash = obj.userData.chunkHash;
+                if (box.chunkHash) env.spatialGrid.insert(box);
+            }
+        };
+        if (env.interactables) env.interactables.forEach(indexObj);
+        if (env.interactiveDoors) env.interactiveDoors.forEach(indexObj);
+        
+        const localBoxes = env.spatialGrid.getNearby(playerPos.x, playerPos.z, 5.0);
+        for (let i = 0; i < localBoxes.length; i++) {
+            const obj = localBoxes[i].interactableEntity;
+            if (obj) checkObj(obj);
+        }
         env.isLookingAtInteractable = lookingAtHit;
         this.updateBreakerScan(playerPos, delta);
         if (env.airlocks) {
@@ -356,14 +373,9 @@ export default class InteractionController {
                 if (pDistSq < 2.5) {
                     const pushDist = Math.sqrt(pDistSq) || 0.1;
                     const pushStrength = (2.5 - pDistSq) * 15.0;
-                    const pushX = ((playerPos.x - door.position.x) / pushDist) * pushStrength;
-                    const pushZ = ((playerPos.z - door.position.z) / pushDist) * pushStrength;
-                    const cosY = Math.cos(env.camera.rotation.y);
-                    const sinY = Math.sin(env.camera.rotation.y);
-                    const localVx = pushX * cosY - pushZ * sinY;
-                    const localVz = pushX * sinY + pushZ * cosY;
-                    env.player.velocity.x -= localVx;
-                    env.player.velocity.z += localVz;
+                    const pushX = (playerPos.x - door.position.x) / pushDist;
+                    const pushZ = (playerPos.z - door.position.z) / pushDist;
+                    env.player.applyExternalImpulse(pushX, pushZ, pushStrength);
                 }
             } else if (door.userData.currentRot !== targetRot) {
                 door.userData.currentRot = targetRot;

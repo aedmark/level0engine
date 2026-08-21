@@ -298,6 +298,23 @@ function animate() {
     }
 
     if (engine.camera.position.y < -15.0 && !player.isDead) {
+        let currentZone = null;
+        for (const zone of environment.macroZones.values()) {
+            if (engine.camera.position.x > zone.minX - 40 && engine.camera.position.x < zone.maxX + 40 &&
+                engine.camera.position.z > zone.minZ - 40 && engine.camera.position.z < zone.maxZ + 40) {
+                currentZone = zone;
+                break;
+            }
+        }
+        if (currentZone) {
+            const tx = (currentZone.startX + 7.5) * environment.cellSize;
+            const tz = (currentZone.startZ + 1.5) * environment.cellSize;
+            engine.camera.position.set(tx, 3.0, tz);
+            player.velocity.set(0, 0, 0);
+            player.fallVelocity = 0;
+            document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 2.0}}));
+            return;
+        }
         handlePlayerDeath(400);
         return;
     }
