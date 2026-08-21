@@ -126,14 +126,15 @@ export default class StructureKit {
                     const uv = geo.attributes.uv;
                     for (let i = 0; i < 8; i++) uv.setX(i, uv.getX(i) * (d / env.cellSize));
                     for (let i = 16; i < 24; i++) uv.setX(i, uv.getX(i) * (w / env.cellSize));
+                    for (let i = 8; i < 16; i++) {
+                        uv.setX(i, uv.getX(i) * (w / env.cellSize));
+                        uv.setY(i, uv.getY(i) * (d / env.cellSize));
+                    }
                     if (h !== 3.0 || yOffset > 0) {
                         const vStart = yOffset / 3.0;
                         const vRange = h / 3.0;
                         for (let i = 0; i < 8; i++) uv.setY(i, vStart + uv.getY(i) * vRange);
                         for (let i = 16; i < 24; i++) uv.setY(i, vStart + uv.getY(i) * vRange);
-                    }
-                    if (h !== 3.0 && yOffset === 0) {
-                        for (let i = 8; i < 16; i++) uv.setY(i, uv.getY(i) * (h / 3.0));
                     }
                     env.geoCache.set(key, geo);
                     env.geoCache.set(geo.uuid, true);

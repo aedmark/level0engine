@@ -46,7 +46,8 @@ export const ElevatorProfile = (env, ctx) => {
 
             const interiorMat = env.elevatorSteelMat || env.metalMat || env.structuralSteelMat || env.sharedWallMat;
             const doorMat = env.elevatorDoorMat || env.rustMat || env.sharedWallMat;
-            const floorMat = env.serverFloorMat || env.metalMat || env.structMat;
+            const floorMat = env.diamondPlateMat || env.serverFloorMat || env.metalMat || env.structMat;
+            const ceilMat = env.baseHousingMat || interiorMat;
 
             const isZ = dir % 2 === 0;
             const wallH = 3.0;
@@ -69,7 +70,7 @@ export const ElevatorProfile = (env, ctx) => {
             addGeometry(w3);
             
             // Elevator ceiling
-            const ceil = buildWall(env.cellSize, env.cellSize, interiorMat, 0.1);
+            const ceil = buildWall(env.cellSize, env.cellSize, ceilMat, 0.1);
             ceil.position.set(x * env.cellSize, wallH - 0.05, z * env.cellSize);
             addGeometry(ceil);
 
