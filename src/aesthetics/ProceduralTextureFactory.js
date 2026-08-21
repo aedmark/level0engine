@@ -35,6 +35,11 @@ export default class ProceduralTextureFactory {
             
             Object.assign(staticAssets, SurfaceTextures._buildDuctInteriorSet(masterNoise));
             
+            const hazardAssets = HazardTextures._buildHazardAndMiscAssets(masterNoise);
+            staticAssets.tagGeo = hazardAssets.tagGeo;
+            staticAssets.glowGeo = hazardAssets.glowGeo;
+            if (!staticAssets.tagMat) staticAssets.tagMat = hazardAssets.tagMat;
+            
             ProceduralTextureFactory._applyOpts(staticAssets);
             return staticAssets;
         }

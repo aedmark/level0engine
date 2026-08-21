@@ -1108,6 +1108,7 @@ export default class ChunkManager {
                     mesh.visible = false;
                 });
                 iMesh.instanceMatrix.needsUpdate = true;
+                iMesh.computeBoundingSphere();
                 if (needsColor && iMesh.instanceColor) iMesh.instanceColor.needsUpdate = true;
                 tempGroup.add(iMesh);
                 if (!isDecal) env.walls.push(iMesh);
