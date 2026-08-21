@@ -556,9 +556,6 @@ export default class SetPieces {
                     if (spansX) {
                         uv.setX(i, 1 - uv.getX(i));
                     } else {
-                        // For spansZ, the primary texture face is mapped along Z. 
-                        // Actually, BoxGeometry maps X to U and Y to V for the +Z/-Z faces.
-                        // We can just invert U (X) always to mirror the texture horizontally.
                         uv.setX(i, 1 - uv.getX(i));
                     }
                 }
@@ -717,7 +714,7 @@ export default class SetPieces {
         shellPiece(SHELL_SPAN, 0.06, SHELL_SPAN, midX, 0.03, midZ, shellMat, false);
         shellPiece(SHELL_SPAN, 0.10, SHELL_SPAN, midX, ROOF_BOTTOM + 0.05, midZ, shellMat, false);
 
-        const HEADER_SPAN = 3.47; // Fits exactly between the inner faces of the side frames
+        const HEADER_SPAN = 3.47;
         for (const end of [-1, 1]) {
             const [ox, oz] = along(end * halfDepth);
             shellPiece(

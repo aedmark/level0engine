@@ -5,42 +5,25 @@ import * as ClinicFurniture from '../ClinicFurniture.js';
 import { attachPropGlow } from '../PropGlow.js';
 import { PROP_GLOW, placeSectorPaper } from '../NarrativeProps.js';
 
-/**
- * Grid cell types for Annex:
- * 0 = Open corridor / hallway
- * 1 = Solid wall
- * 2 = Research Pod interior (writers desk + 60s retro terminal)
- * 3 = Code-Locked Pod Doorway (leads to locked supervisor room with keypad)
- * 4 = Locked Room interior (exit key + battery)
- * 5 = Unlocked Pod Doorway (custom wooden door with glass panel)
- */
 const generateAnnexChunk = (env, hash, random) => {
     if (!env._annexChunkGrids) env._annexChunkGrids = new Map();
     if (env._annexChunkGrids.has(hash)) return env._annexChunkGrids.get(hash);
 
-    const size = env.chunkSize; // 15
+    const size = env.chunkSize;
     const grid = Array.from({length: size}, () => new Array(size).fill(1));
 
-    // The interior playable area is 13x13 (cells 1..13).
-    // We map a 7x7 node grid where node (gx, gz) corresponds to cell (2*gx + 1, 2*gz + 1).
-    // Airlocks:
-    // North: (3, 0) -> cell (7, 1)
-    // South: (3, 6) -> cell (7, 13)
-    // West:  (0, 3) -> cell (1, 7)
-    // East:  (6, 3) -> cell (13, 7)
     const isAirlockNode = (gx, gz) =>
         (gx === 3 && gz === 0) ||
         (gx === 3 && gz === 6) ||
         (gx === 0 && gz === 3) ||
         (gx === 6 && gz === 3);
 
-    // 1. SELECT COZY RESEARCH POD NODES ACROSS SECTOR QUADRANTS
     const quadrantPools = [
-        [{gx: 0, gz: 0}, {gx: 1, gz: 0}, {gx: 0, gz: 1}, {gx: 1, gz: 1}], // NW
-        [{gx: 5, gz: 0}, {gx: 6, gz: 0}, {gx: 5, gz: 1}, {gx: 6, gz: 1}], // NE
-        [{gx: 0, gz: 5}, {gx: 1, gz: 5}, {gx: 0, gz: 6}, {gx: 1, gz: 6}], // SW
-        [{gx: 5, gz: 5}, {gx: 6, gz: 5}, {gx: 5, gz: 6}, {gx: 6, gz: 6}], // SE
-        [{gx: 3, gz: 2}, {gx: 2, gz: 3}, {gx: 4, gz: 3}, {gx: 3, gz: 4}]  // Mid-Alcove
+        [{gx: 0, gz: 0}, {gx: 1, gz: 0}, {gx: 0, gz: 1}, {gx: 1, gz: 1}],
+        [{gx: 5, gz: 0}, {gx: 6, gz: 0}, {gx: 5, gz: 1}, {gx: 6, gz: 1}],
+        [{gx: 0, gz: 5}, {gx: 1, gz: 5}, {gx: 0, gz: 6}, {gx: 1, gz: 6}],
+        [{gx: 5, gz: 5}, {gx: 6, gz: 5}, {gx: 5, gz: 6}, {gx: 6, gz: 6}],
+        [{gx: 3, gz: 2}, {gx: 2, gz: 3}, {gx: 4, gz: 3}, {gx: 3, gz: 4}]
     ];
 
     const podNodes = [];
@@ -56,7 +39,6 @@ const generateAnnexChunk = (env, hash, random) => {
 
     const isPodNode = (gx, gz) => podNodes.some(p => p.gx === gx && p.gz === gz);
 
-    // 2. CONFIGURE POD ROOMS AND THEIR DOORWAYS
     const podConfigs = [];
     podNodes.forEach(p => {
         const neighbors = [
@@ -80,7 +62,6 @@ const generateAnnexChunk = (env, hash, random) => {
             let deskYaw = 0;
             if (spansX) {
                 approachSign = doorChoice.dz > 0 ? 1 : -1;
-                // Face the doorway so player sees CRT screen when entering
                 deskYaw = doorChoice.dz > 0 ? 0 : Math.PI;
             } else {
                 approachSign = doorChoice.dx > 0 ? 1 : -1;
@@ -96,7 +77,6 @@ const generateAnnexChunk = (env, hash, random) => {
         }
     });
 
-    // 3. CARVE LONG, WINDING HALLWAYS CONNECTING AIRLOCKS AND POD ENTRANCES
     const visited = Array.from({length: 7}, () => new Array(7).fill(false));
     podNodes.forEach(p => visited[p.gx][p.gz] = true);
 
@@ -109,8 +89,7 @@ const generateAnnexChunk = (env, hash, random) => {
         grid[g1.gx + g2.gx + 1][g1.gz + g2.gz + 1] = 0;
     };
 
-    // Winding Depth-First Search with high directional turning bias
-    const startNode = {gx: 3, gz: 0}; // North airlock node
+    const startNode = {gx: 3, gz: 0};
     const stack = [startNode];
     visited[startNode.gx][startNode.gz] = true;
     grid[2 * startNode.gx + 1][2 * startNode.gz + 1] = 0;
@@ -131,7 +110,6 @@ const generateAnnexChunk = (env, hash, random) => {
         if (unvisitedNeighbors.length === 0) {
             stack.pop();
         } else {
-            // Favor turns to create winding serpentine corridors
             unvisitedNeighbors.sort((a, b) => {
                 const sameA = (a.dx === lastDir.dx && a.dz === lastDir.dz) ? 1 : 0;
                 const sameB = (b.dx === lastDir.dx && b.dz === lastDir.dz) ? 1 : 0;
@@ -145,7 +123,6 @@ const generateAnnexChunk = (env, hash, random) => {
         }
     }
 
-    // Add extra loop connections (25% chance) for varied navigation
     for (let gx = 0; gx < 7; gx++) {
         for (let gz = 0; gz < 7; gz++) {
             if (isPodNode(gx, gz)) continue;
@@ -161,13 +138,11 @@ const generateAnnexChunk = (env, hash, random) => {
         }
     }
 
-    // Connect all 4 airlocks directly to chunk perimeter portals
     grid[7][1] = 0;
     grid[7][13] = 0;
     grid[1][7] = 0;
     grid[13][7] = 0;
 
-    // 4. ASSIGN LOCKED SUPERVISOR POD AND UNLOCKED RESEARCH PODS
     let lockedRoomIndex = -1;
     if (!env.lockedRoomSpawned && podConfigs.length > 0) {
         env.lockedRoomSpawned = true;
@@ -236,7 +211,6 @@ export const AnnexSector = (env, ctx) => {
             const ox = x * env.cellSize, oz = z * env.cellSize;
             const cellType = grid[localX][localZ];
 
-            // Materials initialization
             if (!env.annexCrtGreenMat) {
                 env.annexCrtGreenMat = new THREE.MeshBasicMaterial({color: 0x38ff77});
                 env.sharedAssets.add(env.annexCrtGreenMat.uuid);
@@ -293,41 +267,33 @@ export const AnnexSector = (env, ctx) => {
                 env.sharedAssets.add(env.keypadBtnMat.uuid);
             }
 
-            /**
-             * Builds an authentic 1960s-style CRT computer terminal
-             */
             const buildRetroTerminal = (px, py, pz, yaw, docPrefix) => {
                 const termGroup = new THREE.Group();
                 const isAmber = random() > 0.65;
                 const screenMat = isAmber ? env.annexCrtAmberMat : env.annexCrtGreenMat;
                 const glowColor = isAmber ? 0xffaa2b : 0x38ff77;
 
-                // 1. Main bulky CRT housing (beige / olive / dark bakelite)
                 const caseGeo = env._cacheGeo('annexCrtCase', () => new THREE.BoxGeometry(0.46, 0.38, 0.42));
                 const caseMesh = new THREE.Mesh(caseGeo, env.baseHousingMat || env.structMat);
                 caseMesh.position.set(0, 0.19, -0.04);
                 termGroup.add(caseMesh);
 
-                // 2. Beveled CRT screen frame / bezel
                 const bezelGeo = env._cacheGeo('annexCrtBezel', () => new THREE.BoxGeometry(0.42, 0.32, 0.05));
                 const bezelMesh = new THREE.Mesh(bezelGeo, env.baseHousingMat || env.structMat);
                 bezelMesh.position.set(0, 0.19, 0.18);
                 termGroup.add(bezelMesh);
 
-                // 3. Curved glowing phosphor screen
                 const screenGeo = env._cacheGeo('annexCrtScreen', () => new THREE.PlaneGeometry(0.34, 0.25));
                 const screenMesh = new THREE.Mesh(screenGeo, screenMat);
                 screenMesh.position.set(0, 0.19, 0.208);
                 termGroup.add(screenMesh);
 
-                // 4. Rear cooling vents
                 for (let v = -0.12; v <= 0.12; v += 0.06) {
                     const ventMesh = new THREE.Mesh(env._boxGeo(0.32, 0.015, 0.01), env.annexBrassMat);
                     ventMesh.position.set(0, 0.34, v - 0.04);
                     termGroup.add(ventMesh);
                 }
 
-                // 5. Angled typewriter keyboard deck
                 const kbDeckGeo = env._cacheGeo('annexKbDeck', () => {
                     const g = new THREE.BoxGeometry(0.44, 0.04, 0.24);
                     g.rotateX(0.18);
@@ -337,7 +303,6 @@ export const AnnexSector = (env, ctx) => {
                 kbDeck.position.set(0, 0.035, 0.28);
                 termGroup.add(kbDeck);
 
-                // 6. Stepped mechanical key block
                 const keyBlockGeo = env._cacheGeo('annexKeyBlock', () => {
                     const g = new THREE.BoxGeometry(0.36, 0.02, 0.16);
                     g.rotateX(0.18);
@@ -347,7 +312,6 @@ export const AnnexSector = (env, ctx) => {
                 keyBlock.position.set(0, 0.06, 0.27);
                 termGroup.add(keyBlock);
 
-                // 7. Status dials & toggle switches
                 const switchMesh = new THREE.Mesh(env._boxGeo(0.02, 0.03, 0.02), env.hazardMat);
                 switchMesh.position.set(0.16, 0.07, 0.20);
                 termGroup.add(switchMesh);
@@ -359,7 +323,6 @@ export const AnnexSector = (env, ctx) => {
                 termGroup.position.set(px, py, pz);
                 termGroup.rotation.y = yaw;
 
-                // Lore Dump registration
                 const docId = docPrefix + Math.floor(random() * 9999);
                 termGroup.userData = {
                     type: 'document',
@@ -376,7 +339,6 @@ export const AnnexSector = (env, ctx) => {
                 chunkGroup.add(termGroup);
                 termGroup.updateMatrixWorld(true);
 
-                // Attach dynamic phosphor prop glow
                 attachPropGlow(env, termGroup, hash, {
                     color: glowColor,
                     intensity: 0.95,
@@ -393,26 +355,20 @@ export const AnnexSector = (env, ctx) => {
                 return termGroup;
             };
 
-            /**
-             * Builds a tiny vintage writer's desk with tapered legs, brass feet, and drawer
-             */
             const spawnWritersDeskAndTerminal = (px, pz, yaw, isLockedRoom = false) => {
                 const deskGroup = new THREE.Group();
                 const deskW = 1.35, deskD = 0.75, deskH = 0.74;
 
-                // 1. Solid Mahogany desktop
                 const topGeo = env._cacheGeo('annexDeskTop', () => new THREE.BoxGeometry(deskW, 0.045, deskD));
                 const topMesh = new THREE.Mesh(topGeo, env.annexDeskWoodMat);
                 topMesh.position.set(0, deskH, 0);
                 deskGroup.add(topMesh);
 
-                // 2. Brass rim accent
                 const rimGeo = env._cacheGeo('annexDeskRim', () => new THREE.BoxGeometry(deskW + 0.02, 0.015, deskD + 0.02));
                 const rimMesh = new THREE.Mesh(rimGeo, env.annexBrassMat);
                 rimMesh.position.set(0, deskH - 0.015, 0);
                 deskGroup.add(rimMesh);
 
-                // 3. Tapered legs with brass ferrules
                 const legW = 0.045;
                 const legOffsets = [
                     [-deskW / 2 + 0.08, -deskD / 2 + 0.08],
@@ -431,7 +387,6 @@ export const AnnexSector = (env, ctx) => {
                     deskGroup.add(ferruleMesh);
                 });
 
-                // 4. Central drawer box and brass pull knob
                 const drawerMesh = new THREE.Mesh(env._boxGeo(0.55, 0.12, deskD - 0.1), env.annexDeskWoodMat);
                 drawerMesh.position.set(0, deskH - 0.08, 0);
                 deskGroup.add(drawerMesh);
@@ -440,7 +395,6 @@ export const AnnexSector = (env, ctx) => {
                 knobMesh.position.set(0, deskH - 0.08, deskD / 2 + 0.01);
                 deskGroup.add(knobMesh);
 
-                // 5. Matching Mid-Century Chair
                 const chairSeatH = 0.44;
                 const chairGroup = new THREE.Group();
                 const seatMesh = new THREE.Mesh(env._boxGeo(0.48, 0.04, 0.46), env.annexDeskWoodMat);
@@ -465,14 +419,11 @@ export const AnnexSector = (env, ctx) => {
                 deskGroup.rotation.y = yaw;
                 addFurniture(deskGroup);
 
-                // Multi-format Lore Dump selection for the pod terminal
                 const loreFormats = ['PC_', 'NOTE_', 'LAPTOP_', 'TAPE_', 'LOG_'];
                 const chosenPrefix = loreFormats[Math.floor(random() * loreFormats.length)];
 
-                // Spawn the 60's style retro terminal sitting directly on the desk
                 buildRetroTerminal(px, deskH + 0.0225, pz, yaw, chosenPrefix);
 
-                // Small decorative desk accessory (paper sheets)
                 if (random() > 0.4) {
                     const doc = new THREE.Mesh(env.documentGeo, env.documentMat);
                     const docOffset = (random() > 0.5 ? 0.38 : -0.38);
@@ -486,9 +437,6 @@ export const AnnexSector = (env, ctx) => {
                 }
             };
 
-            /**
-             * Helper to build a custom wooden door with glass panel (cellType 3 or 5)
-             */
             const spawnPodDoorway = (spansX, isCodeLocked = false, approachSign = 1) => {
                 const gapW = 1.4;
                 const sideW = (env.cellSize - gapW) / 2;
@@ -496,30 +444,25 @@ export const AnnexSector = (env, ctx) => {
                 const buildSecurityKeypad = (doorMesh, px, py, pz, rotY) => {
                     const padGroup = new THREE.Group();
 
-                    // 1. Wall mounting plate
                     const mountGeo = env._cacheGeo('secKeypadMount', () => new THREE.BoxGeometry(0.24, 0.38, 0.02));
                     const mountMesh = new THREE.Mesh(mountGeo, env.baseHousingMat || env.structMat);
                     padGroup.add(mountMesh);
 
-                    // 2. Beveled Keypad Housing
                     const bodyGeo = env._cacheGeo('secKeypadBody', () => new THREE.BoxGeometry(0.20, 0.34, 0.04));
                     const bodyMesh = new THREE.Mesh(bodyGeo, env.keypadBodyMat);
                     bodyMesh.position.z = 0.02;
                     padGroup.add(bodyMesh);
 
-                    // 3. Status LED Bar (Red locked indicator)
                     const ledGeo = env._cacheGeo('secKeypadLed', () => new THREE.BoxGeometry(0.15, 0.015, 0.015));
                     const ledMesh = new THREE.Mesh(ledGeo, env.keypadLedMat);
                     ledMesh.position.set(0, 0.135, 0.042);
                     padGroup.add(ledMesh);
 
-                    // 4. Backlit LCD Screen
                     const screenGeo = env._cacheGeo('secKeypadScreen', () => new THREE.PlaneGeometry(0.14, 0.055));
                     const screenMesh = new THREE.Mesh(screenGeo, env.keypadScreenMat);
                     screenMesh.position.set(0, 0.08, 0.043);
                     padGroup.add(screenMesh);
 
-                    // 5. 3x4 Number Keypad Buttons
                     const btnGeo = env._cacheGeo('secKeypadBtn', () => new THREE.BoxGeometry(0.034, 0.026, 0.012));
                     const btnRows = 4, btnCols = 3;
                     const startX = -0.048, startY = 0.022, spX = 0.048, spY = 0.038;
@@ -545,7 +488,6 @@ export const AnnexSector = (env, ctx) => {
                     chunkGroup.add(padGroup);
                     padGroup.updateMatrixWorld(true);
 
-                    // Subtle red status glow around the keypad
                     attachPropGlow(env, padGroup, hash, {
                         color: 0xff3333,
                         intensity: 0.6,
@@ -595,7 +537,6 @@ export const AnnexSector = (env, ctx) => {
                     env.spatialGrid.insert(dBox);
 
                     if (isCodeLocked) {
-                        // Mounted on the side wall of the doorway opening on the corridor approach side
                         buildSecurityKeypad(doorMesh, ox + 0.68, 1.35, oz + approachSign * 0.28, -Math.PI / 2);
                     }
                 } else {
@@ -636,15 +577,11 @@ export const AnnexSector = (env, ctx) => {
                     env.spatialGrid.insert(dBox);
 
                     if (isCodeLocked) {
-                        // Mounted on the side wall of the doorway opening on the corridor approach side
                         buildSecurityKeypad(doorMesh, ox + approachSign * 0.28, 1.35, oz + 0.68, Math.PI);
                     }
                 }
             };
 
-            // --- CELL TYPE HANDLING ---
-
-            // Solid Wall (cellType 1)
             if (cellType === 1) {
                 const wall = buildWall(env.cellSize, env.cellSize, env.annexWallMat || env.sharedWallMat);
                 wall.position.set(ox, 1.5, oz);
@@ -653,7 +590,6 @@ export const AnnexSector = (env, ctx) => {
                 return;
             }
 
-            // Unlocked Custom Wooden Doorway to Pod (cellType 5)
             if (cellType === 5) {
                 const doorInfo = doors.find(d => d.x === localX && d.z === localZ);
                 const spansX = doorInfo ? doorInfo.spansX : false;
@@ -661,7 +597,6 @@ export const AnnexSector = (env, ctx) => {
                 return;
             }
 
-            // Code-Locked Doorway to Locked Pod Room (cellType 3)
             if (cellType === 3) {
                 const spansX = lockedRoom ? lockedRoom.spansX : false;
                 const approachSign = lockedRoom ? lockedRoom.approachSign : 1;
@@ -669,12 +604,10 @@ export const AnnexSector = (env, ctx) => {
                 return;
             }
 
-            // Locked Room Interior (cellType 4: Writer's desk + 60's terminal + Exit Key + Battery)
             if (cellType === 4) {
                 if (lockedRoom && lockedRoom.deskPos.x === localX && lockedRoom.deskPos.z === localZ) {
                     spawnWritersDeskAndTerminal(ox, oz, lockedRoom.deskYaw, true);
 
-                    // Exit Key on the writer's desk
                     const keyGroup = new THREE.Group();
                     const bow = new THREE.Mesh(env._boxGeo(0.11, 0.012, 0.07), env.exitKeyMat);
                     bow.position.set(-0.05, 0, 0);
@@ -699,28 +632,22 @@ export const AnnexSector = (env, ctx) => {
 
                 }
 
-                // Dedicated warm overhead lighting in the locked pod
                 env._buildCeilingPanelLight(chunkGroup, hash, ox, oz, random, ctx.getLightMaterial, 0xd8c898, 0xffe8aa, 0.4, 0.9);
                 return;
             }
 
-            // Research Pod Interior (cellType 2: Writer's Desk + 60's Retro Terminal)
             if (cellType === 2) {
                 const myPod = pods.find(p => p.deskPos.x === localX && p.deskPos.z === localZ);
                 if (myPod) {
                     spawnWritersDeskAndTerminal(ox, oz, myPod.deskYaw, false);
                 }
-                // Dedicated warm ceiling light inside each pod
                 env._buildCeilingPanelLight(chunkGroup, hash, ox, oz, random, ctx.getLightMaterial, 0xd8c898, 0xffe8aa, 0.38, 0.85);
                 return;
             }
 
-            // Open Corridor (cellType 0)
             if (cellType === 0) {
                 placeSectorPaper(env, ctx, "ANNEX", ox, oz);
 
-                // Hallway Narrowing: place mahogany wall liners along adjacent solid walls
-                // to narrow the 4.0m corridor to a cozy ~2.9m width.
                 const isSolid = (lx, lz) => {
                     if (lx < 0 || lx >= env.chunkSize || lz < 0 || lz >= env.chunkSize) return true;
                     return grid[lx][lz] === 1;
@@ -732,7 +659,7 @@ export const AnnexSector = (env, ctx) => {
                 const wE = isSolid(localX + 1, localZ);
 
                 const linerDepth = 0.55;
-                const linerOffset = (env.cellSize / 2) - (linerDepth / 2); // 2.0 - 0.275 = 1.725
+                const linerOffset = (env.cellSize / 2) - (linerDepth / 2);
 
                 if (wN) {
                     const linerN = buildWall(env.cellSize, linerDepth, env.annexWallMat || env.sharedWallMat, 3.0);
@@ -759,13 +686,11 @@ export const AnnexSector = (env, ctx) => {
                     addGeometry(linerE);
                 }
 
-                // Warm ceiling lighting along corridors & winding turns
                 const isGateApproach = (localX === 7 && (localZ <= 1 || localZ >= 13)) || (localZ === 7 && (localX <= 1 || localX >= 13));
                 if (!isGateApproach && (localX + localZ) % 3 === 0 && random() > 0.30) {
                     env._buildCeilingPanelLight(chunkGroup, hash, ox, oz, random, ctx.getLightMaterial, 0xd6cc98, 0xffeebb, 0.32, 0.8);
                 }
 
-                // Helper to reliably register and spawn corridor furniture
                 const spawnAnnexProp = (group) => {
                     group.userData.chunkHash = hash;
                     chunkGroup.add(group);
@@ -780,8 +705,6 @@ export const AnnexSector = (env, ctx) => {
                     env.walls.push(group);
                 };
 
-                // Aesthetic touches along corridor walls and dead ends:
-                // Filing cabinets along walls, fern pots beside filing cabinets, and water coolers
                 const wallDirs = [];
                 if (wN) wallDirs.push({dx: 0, dz: -1});
                 if (wS) wallDirs.push({dx: 0, dz: 1});
@@ -792,7 +715,6 @@ export const AnnexSector = (env, ctx) => {
                     const isDeadEnd = wallDirs.length >= 3;
                     
                     if (isDeadEnd) {
-                        // At a dead end: find the back wall facing the open hallway exit
                         const allDirs = [{dx: 0, dz: -1}, {dx: 0, dz: 1}, {dx: -1, dz: 0}, {dx: 1, dz: 0}];
                         const openExit = allDirs.find(d => !wallDirs.some(wd => wd.dx === d.dx && wd.dz === d.dz));
                         const backWall = openExit ? {dx: -openExit.dx, dz: -openExit.dz} : wallDirs[0];
@@ -800,37 +722,29 @@ export const AnnexSector = (env, ctx) => {
 
                         const deadEndRoll = random();
                         if (deadEndRoll > 0.30) {
-                            // Filing cabinet facing the hallway exit (depth 0.75m, center is 0.375m from back)
-                            // Liner face is at 1.45m from center. So cabDist = 1.45 - 0.375 = 1.075.
                             const cabDist = 1.075;
                             const cabX = ox + backWall.dx * cabDist;
                             const cabZ = oz + backWall.dz * cabDist;
                             const cab = OfficeFurniture.buildFilingCabinet(env, random, cabX, 0, cabZ, rotY);
                             spawnAnnexProp(cab);
 
-                            // High chance of fern pot beside the cabinet in dead end nook
                             if (random() > 0.35) {
-                                // Double cabinets expand to local +X. Place fern safely at local -X.
-                                // Local -X vector: {dx: backWall.dz, dz: -backWall.dx}
-                                const plantDist = 1.17; // Pot radius is 0.28m. 1.45 - 0.28 = 1.17.
+                                const plantDist = 1.17;
                                 const plantX = ox + backWall.dx * plantDist + backWall.dz * 0.75;
                                 const plantZ = oz + backWall.dz * plantDist - backWall.dx * 0.75;
                                 const plant = OfficeFurniture.buildPottedPlant(env, plantX, 0, plantZ);
                                 spawnAnnexProp(plant);
                             }
                         } else {
-                            // Water cooler against back wall
-                            const coolerDist = 1.225; // Cooler depth 0.45m. 1.45 - 0.225 = 1.225.
+                            const coolerDist = 1.225;
                             const coolerX = ox + backWall.dx * coolerDist;
                             const coolerZ = oz + backWall.dz * coolerDist;
                             const cooler = OfficeFurniture.buildWaterCooler(env, coolerX, 0, coolerZ, rotY);
                             spawnAnnexProp(cooler);
                         }
                     } else {
-                        // Regular corridor wall: balanced spawn rolls
                         const propRoll = random();
                         if (propRoll < 0.40) {
-                            // Filing cabinet flush against the wall
                             const d = wallDirs[Math.floor(random() * wallDirs.length)];
                             const rotY = Math.atan2(-d.dx, -d.dz);
                             const cabDist = 1.075;
@@ -839,7 +753,6 @@ export const AnnexSector = (env, ctx) => {
                             const cab = OfficeFurniture.buildFilingCabinet(env, random, cabX, 0, cabZ, rotY);
                             spawnAnnexProp(cab);
 
-                            // Fern pots: spawn next to filing cabinet at local -X
                             if (random() < 0.45) {
                                 const plantDist = 1.17;
                                 const plantX = ox + d.dx * plantDist + d.dz * 0.75;
@@ -848,7 +761,6 @@ export const AnnexSector = (env, ctx) => {
                                 spawnAnnexProp(plant);
                             }
                         } else if (propRoll < 0.58) {
-                            // Water coolers: flush against the wall, scattered sparingly
                             const d = wallDirs[Math.floor(random() * wallDirs.length)];
                             const rotY = Math.atan2(-d.dx, -d.dz);
                             const coolerDist = 1.225;

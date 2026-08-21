@@ -19,9 +19,7 @@ export default class SomaticInput {
         this.hoveredElement = null;
         this.suppressCrouchToggle = false;
         this.isLocked = false;
-        this.lockFallback = false;
-        this._dragLook = false;
-        this._cKeyDown = false;
+                this._cKeyDown = false;
         this._cKeyPressTime = 0;
         this._cKeyHandled = false;
         this.gamepadIndex = null;
@@ -72,6 +70,17 @@ export default class SomaticInput {
             this.state.moveLeft = lsX < -DEADZONE;
             this.state.moveRight = lsX > DEADZONE;
             this._gamepadMoved = true;
+            
+            if (this.state.isReading) {
+                const doc = document.getElementById('document-overlay');
+                if (doc && doc.style.display !== 'none') doc.scrollTop += lsY * delta * 500;
+                
+                const jPane = document.getElementById('journal-content-pane');
+                if (jPane && jPane.offsetParent !== null) jPane.scrollTop += lsY * delta * 500;
+                
+                const jList = document.getElementById('journal-list');
+                if (jList && jList.offsetParent !== null && Math.abs(lsX) > DEADZONE) jList.scrollTop += lsY * delta * 500; // rough heuristic
+            }
         } else if (this._gamepadMoved) {
             this.state.moveForward = this.state.moveBackward = this.state.moveLeft = this.state.moveRight = false;
             this._gamepadMoved = false;
@@ -92,7 +101,7 @@ export default class SomaticInput {
                     vCursor.style.top = this.cursorY + 'px';
                     this._queueHoverProbe();
                 }
-            } else if (!this.isFrozen && (this.isLocked || this.lockFallback)) {
+            } else if (!this.isFrozen && this.isLocked) {
                 if (this.state.isPeeking) {
                     this.state.targetLean -= rsX * delta * 2.0;
                     this.state.targetLean = Math.max(-0.5, Math.min(0.5, this.state.targetLean));
@@ -122,8 +131,12 @@ export default class SomaticInput {
         const isActionReleased = (action) => releasedButtons.some(b => InputBindings.isActionGamepad(action, b));
 
         if (isActionPressed('jump')) {
-            this.state.flyUp = true;
-            this.state.jump = true;
+            if (this.state.isReading) {
+                if (this.hoveredElement) this.hoveredElement.click();
+            } else {
+                this.state.flyUp = true;
+                this.state.jump = true;
+            }
         }
         if (isActionReleased('jump')) this.state.flyUp = false;
 
@@ -146,7 +159,13 @@ export default class SomaticInput {
             document.dispatchEvent(new Event('somatic-stow-gun'));
         }
 
-        if (isActionPressed('closeEyes')) {
+        if (this.state.isReading && isActionPressed('closeEyes')) {
+            document.dispatchEvent(new CustomEvent('somatic-doc-nav', {detail: {dir: -1}}));
+        } else if (this.state.isReading && isActionPressed('squeeze')) {
+            document.dispatchEvent(new CustomEvent('somatic-doc-nav', {detail: {dir: 1}}));
+        }
+        
+        if (!this.state.isReading && isActionPressed('closeEyes')) {
             this.state.isClosingEyes = true;
             document.dispatchEvent(new CustomEvent('somatic-eyes', {detail: {closed: true}}));
         } else if (isActionReleased('closeEyes')) {
@@ -156,7 +175,7 @@ export default class SomaticInput {
              }
         }
 
-        this.state.squeezeIntent = isActionActive('squeeze');
+        this.state.squeezeIntent = !this.state.isReading && isActionActive('squeeze');
 
         if (isActionPressed('peek')) this.state.isPeeking = true;
         else if (isActionReleased('peek')) {
@@ -181,7 +200,13 @@ export default class SomaticInput {
         }
 
         if (isActionPressed('tag')) document.dispatchEvent(new Event('somatic-tag'));
-        if (pressedButtons.includes(9) && window.EDMARK_DEBUG_MODE) document.dispatchEvent(new Event('somatic-toggle-godmode'));
+        if (pressedButtons.includes(9)) {
+            if (window.EDMARK_DEBUG_MODE && isActionActive('sprint')) {
+                document.dispatchEvent(new Event('somatic-toggle-godmode'));
+            } else {
+                document.dispatchEvent(new Event('somatic-toggle-menu'));
+            }
+        }
 
         this.state.isRunning = isActionActive('sprint');
 
@@ -217,21 +242,15 @@ export default class SomaticInput {
         const lockSurface = document.getElementById('canvas-container');
         if (lockSurface) {
             lockSurface.addEventListener('click', () => {
-                if (this.state.isReading || this.isLocked || this.lockFallback) return;
+                if (this.state.isReading || this.isLocked) return;
                 document.body.requestPointerLock()?.catch(() => {
                 });
-                setTimeout(() => {
-                    if (!this.isLocked) this.lockFallback = true;
-                }, 400);
+                
             });
         }
-        document.addEventListener('pointerlockerror', () => {
-            this.lockFallback = true;
-        });
-        document.addEventListener('pointerlockchange', () => {
+                document.addEventListener('pointerlockchange', () => {
             this.isLocked = (document.pointerLockElement === document.body);
-            if (this.isLocked) this.lockFallback = false;
-            if (!this.isLocked) {
+                        if (!this.isLocked) {
                 this.state.isPeeking = false;
                 this.state.targetLean = 0.0;
             }
@@ -245,15 +264,13 @@ export default class SomaticInput {
                 }
                 return;
             }
-            if (this.lockFallback && e.button === 0 && !this.state.isReading) this._dragLook = true;
-            if ((this.isLocked || this.lockFallback) && e.button === 0 && !this.state.isReading) {
+                        if (this.isLocked && e.button === 0 && !this.state.isReading) {
                 document.dispatchEvent(new Event('somatic-shoot'));
             }
-            if ((this.isLocked || this.lockFallback) && e.button === 2) this.state.isPeeking = true;
+            if (this.isLocked && e.button === 2) this.state.isPeeking = true;
         });
         document.addEventListener('mouseup', (e) => {
-            if (e.button === 0) this._dragLook = false;
-            if (e.button === 2) {
+                        if (e.button === 2) {
                 this.state.isPeeking = false;
                 this.state.targetLean = 0.0;
             }
@@ -421,7 +438,7 @@ export default class SomaticInput {
 
     _onMouseMove(e) {
         if (this.isFrozen) return;
-        if (!this.isLocked && !(this.lockFallback && this._dragLook)) return;
+        if (!this.isLocked) return;
         
         if (this.state.isReading) {
             this.cursorX += e.movementX;

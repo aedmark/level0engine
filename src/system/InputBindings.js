@@ -48,7 +48,7 @@ export const ACTION_NAMES = {
     compass: "Toggle Compass",
     journal: "Open Journal",
     interact: "Interact / Read",
-    jump: "Ascend (God Mode)",
+    jump: "Jump / Ascend (God Mode)",
     closeDoc: "Close Document (Gamepad)",
     peek: "Peek (Gamepad)"
 };

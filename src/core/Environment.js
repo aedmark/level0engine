@@ -245,6 +245,7 @@ export default class Environment {
             }
         };
         if (toggleBtn) toggleBtn.addEventListener('pointerdown', toggleMenu);
+        document.addEventListener('somatic-toggle-menu', toggleMenu);
         document.addEventListener('keydown', (e) => {
             const t = e.target;
             if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
@@ -670,8 +671,7 @@ export default class Environment {
         const box = new THREE.Box3().setFromObject(mesh);
         box.chunkHash = hash;
         mesh.userData.box = box;
-        
-        // Prevent tiny wall-mounted props (keypads, switches) from blocking the player
+
         const size = new THREE.Vector3();
         box.getSize(size);
         const volume = size.x * size.y * size.z;

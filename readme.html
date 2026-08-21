@@ -359,8 +359,7 @@
                 <p class="terminal-subtitle">Level 0 Engine: Procedural Liminal Space Simulator</p>
             </div>
             <div class="sys-info">
-                <span>SYS.VER 1.3.7</span>
-                <a href="index.html" class="return-link">[ RETURN ]</a>
+                <span>SYS.VER 1.4.0</span>
             </div>
         </header>
 
@@ -374,7 +373,7 @@
                     There is an exit, but the building will not surrender it easily. You must navigate the labyrinth, restore power by finding localized surge breakers, and piece together the final truth of the facility's incident from scattered case files. 
                 </p>
                 <p class="mb-4" style="color: var(--liminal-500)">
-                    Trust your compass. Manage your battery. Don't look back.
+                    Trust your compass. Manage your charge. Don't look back.
                 </p>
             </section>
 
@@ -387,7 +386,7 @@
                     <li><strong class="highlight-text">Shift:</strong> Sprint (Burns Adrenaline if chased)</li>
                     <li><strong class="highlight-text">C:</strong> Crouch (Lowers detection radius)</li>
                     <li><strong class="highlight-text">Q:</strong> Squeeze (Compress your collision radius to slide through narrow cracks)</li>
-                    <li><strong class="highlight-text">F:</strong> Toggle Flashlight (Consumes battery, expands detection radius)</li>
+                    <li><strong class="highlight-text">F:</strong> Toggle Flashlight (Consumes charge, expands detection radius)</li>
                     <li><strong class="highlight-text">E:</strong> Interact (Doors, keypads, documents, Surge Breakers)</li>
                     <li><strong class="highlight-text">Arrow Keys:</strong> Browse the recovered archive while a terminal is open (<code>◄</code>/<code>▲</code> previous, <code>►</code>/<code>▼</code> next)</li>
                     <li><strong class="highlight-text">T:</strong> Spray UV Decoy Breadcrumb (Mark your path and distract anomalies)</li>
@@ -396,8 +395,6 @@
                     <li><strong class="highlight-text">J:</strong> Open Personal Journal (Amber PDA)</li>
                     <li><strong class="highlight-text">P:</strong> Raise/lower the Paintball Gun</li>
                     <li><strong class="highlight-text">M:</strong> Raise/lower the Threshold Compass</li>
-                    <li><strong class="highlight-text">1:</strong> Use Battery (Restores Flashlight Voltage)</li>
-                    <li><strong class="highlight-text">2:</strong> Use Almond Water (Infinite Stamina for 15s)</li>
                     <li><strong class="highlight-text">ESC:</strong> Release Pointer Lock / Rest</li>
                 </ul>
             </section>
@@ -410,8 +407,6 @@
                     <p><strong class="highlight-text">The Anomaly:</strong> It hunts via line-of-sight and sound. It feeds on panic. The more exhausted you are, the faster it pursues. Catching it in your flashlight beam will freeze it in place, but it will anger it. If it catches you, reality will mutate and rebuild around a new cold case.</p>
 
                     <p><strong class="highlight-text">Sector Hazards:</strong> Different zones harbor unique threats. In the Incinerator, don't look away from the Ember. In the Archive, the Archivist drifts at a distance. Don't sprint at it. In the Impound, avoid the Warden's red searchlight. In the Servers, don't touch the live cables lit by the Backup Daemon. In the Atrium, keep moving through the aisles — linger too long without a shelf overhead and a mechanical claw drops from the ceiling to snatch you.</p>
-
-                    <p><strong class="highlight-text">Scavenging:</strong> You can carry up to 3 batteries and 2 canisters of Almond Water. Batteries instantly restore 40% voltage. Almond Water prevents stamina drain for a short burst, but your body will reject it if you drink it while above 70% stamina capacity.</p>
                 </div>
             </section>
 
@@ -419,7 +414,7 @@
                 <h2 class="section-title">> Navigation & Objectives</h2>
                 <div class="info-block">
                     <p><strong class="highlight-text">Surge Breakers:</strong> To power the exit elevator, you must locate and engage three highly rare Dimensional Switches hidden in the labyrinth. Pulling a breaker plunges the sector into a pitch-black reboot sequence before stabilizing the grid.</p>
-                    <p><strong class="highlight-text">The Radar vs Compass:</strong> The UI radar tracks objectives (like Surge Breakers) but refuses to tell you which way to go, merely reporting distance. Under intense Anomaly pressure, it will scramble. Press <code>M</code> to raise your Threshold Compass. It points strictly to the nearest sector transition door, helping you reorient when lost.</p>
+                    <p><strong class="highlight-text">The Radar vs Compass:</strong> The UI radar tracks objectives (like Surge Breakers) but refuses to tell you which way to go, merely reporting distance. Under intense Anomaly pressure, it will scramble. Press <code>M</code> to raise your Threshold Compass. It points strictly to the nearest sector transition door, helping you reorient when lost. However, once you have fulfilled all objectives and enter the Exit Phase, the compass overrides its basic function and points directly to the nearest undiscovered sector where the exit will manifest.</p>
                     <p><strong class="highlight-text">The Paintball Gun:</strong> A chunky, retro-FPS styled pistol raised into view with <code>P</code>. Stripped down to a minimalist, floating aesthetic where only the barrel, slide, and hammer are visible, keeping the central screen free of distracting hand or grip geometry.</p>
                     <p><strong class="highlight-text">The Paper Trail:</strong> The facility generated a unique cold case just for you. Find notes, laptops, and tapes to unravel it (key items now emit a localized glow to help you spot them in the dark). Unverified documents burden your mind. You must corroborate claims by finding matching evidence in entirely different sectors. Press <code>J</code> at any time to review your PDA journal.</p>
                 </div>
@@ -436,7 +431,7 @@
             <section>
                 <h2 class="section-title">> The Endgame</h2>
                 <div class="info-block">
-                    <p><strong class="highlight-text">The Exit Threshold:</strong> The extraction bunker only manifests once all three sector breakers are thrown <em>and</em> you are carrying the elevator release key, which is locked in a records room (requires keypad code deciphered via your clues).</p>
+                    <p><strong class="highlight-text">The Exit Threshold:</strong> The extraction bunker only manifests once all three sector breakers are thrown <em>and</em> you are carrying the elevator release key, which is locked in a records room (requires keypad code deciphered via your clues). Once you have these, the exit will dynamically construct itself in the next unvisited sector you approach.</p>
                     <p><strong class="highlight-text">The Inquest:</strong> The elevator does not descend freely. The terminal demands the Finding of Fact. You must submit the correct verdict (1, 2, or 3) based on the evidence you've verified across the sectors. File the truth to escape; file wrong, and the void takes you.</p>
                 </div>
             </section>
@@ -444,16 +439,16 @@
         </article>
 
         <footer class="terminal-footer">
-            <a href="index.html" class="btn-glitch">
+            <button onclick="window.close()" class="btn-glitch">
                 Acknowledge & Return
-            </a>
+            </button>
         </footer>
 
     </div>
 </main>
 
 <footer class="page-footer">
-    &copy; 1987 EDMARK RESEARCH LABS | ALL RIGHTS RESERVED | <a href="https://github.com/aedmark/level0engine" class="career-link">CAREER OPPORTUNITIES</a>
+    &copy; 1987 EDMARK LABORATORIES | ALL RIGHTS RESERVED | <a href="https://github.com/aedmark/level0engine" class="career-link">CAREER OPPORTUNITIES</a>
 </footer>
 
 </body>

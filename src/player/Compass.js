@@ -1,4 +1,5 @@
 import AABB from '../math/AABB.js';
+import * as SectorPlacement from '../world/SectorPlacement.js';
 
 export default class Compass {
     constructor(engine, environment, player) {
@@ -307,6 +308,8 @@ export default class Compass {
     _nearestThreshold() {
         const env = this.environment;
         const p = this.engine.camera.position;
+        const isExitPhase = env.player && env.player.objectives && env.player.objectives.fixed >= env.player.objectives.total &&
+            env.player.inventory && env.player.inventory.hasExitKey && !env.player.objectives.escaped;
         let best = null, bestSq = Infinity;
         const consider = (minX, maxX, minZ, maxZ) => {
             const nx = Math.max(minX, Math.min(p.x, maxX));
@@ -318,6 +321,45 @@ export default class Compass {
                 best = {x: nx, z: nz};
             }
         };
+
+        if (isExitPhase) {
+            if (env.dynamicExitHash) {
+                const comma = env.dynamicExitHash.indexOf(',');
+                if (comma > 0) {
+                    const cx = parseInt(env.dynamicExitHash.slice(0, comma), 10);
+                    const cz = parseInt(env.dynamicExitHash.slice(comma + 1), 10);
+                    const ox = cx * env.chunkSize * env.cellSize;
+                    const oz = cz * env.chunkSize * env.cellSize;
+                    consider(ox + 2, ox + 58, oz + 2, oz + 58);
+                    if (best) return best;
+                }
+            } else {
+                const chunkW = env.chunkSize * env.cellSize;
+                const centerCx = Math.floor(p.x / chunkW);
+                const centerCz = Math.floor(p.z / chunkW);
+                const placement = SectorPlacement.placementConfig(env);
+                for (let r = 0; r <= 8; r++) {
+                    for (let dx = -r; dx <= r; dx++) {
+                        for (let dz = -r; dz <= r; dz++) {
+                            if (Math.abs(dx) !== r && Math.abs(dz) !== r) continue;
+                            const cx = centerCx + dx;
+                            const cz = centerCz + dz;
+                            if (SectorPlacement.isMacroChunk(placement, cx, cz)) {
+                                const hash = `${cx},${cz}`;
+                                if (!env.discoveredSectors.has(hash) || env.discoveredSectors.get(hash) === "EXIT") {
+                                    const ox = cx * env.chunkSize * env.cellSize;
+                                    const oz = cz * env.chunkSize * env.cellSize;
+                                    consider(ox + 2, ox + 58, oz + 2, oz + 58);
+                                }
+                            }
+                        }
+                    }
+                    if (best) break;
+                }
+                if (best) return best;
+            }
+        }
+
         if (env.macroZones) {
             for (const zone of env.macroZones.values()) {
                 consider(zone.minX, zone.maxX, zone.minZ, zone.maxZ);

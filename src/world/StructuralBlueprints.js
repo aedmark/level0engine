@@ -16,7 +16,7 @@ import {TheObserverProfile} from './blueprints/TheObserver.js';
 import {SettlingFieldProfile} from './blueprints/SettlingField.js';
 import {AnomalousPointOfInterestProfile} from './blueprints/AnomalousPointOfInterest.js';
 import {WreckedFurniturePileProfile} from './blueprints/WreckedFurniturePile.js';
-import {TheOutpostProfile} from './blueprints/TheOutpost.js';
+import {TheFaradayCageProfile} from './blueprints/TheFaradayCage.js';
 import {TheOasisProfile} from './blueprints/TheOasis.js';
 import {OfficeAmenitiesProfile} from './blueprints/OfficeAmenities.js';
 import {RoundPillarProfile} from './blueprints/RoundPillar.js';
@@ -44,7 +44,7 @@ export default class StructuralBlueprints {
             SettlingFieldProfile(this, ctx),
             AnomalousPointOfInterestProfile(this, ctx),
             WreckedFurniturePileProfile(this, ctx),
-            TheOutpostProfile(this, ctx),
+            TheFaradayCageProfile(this, ctx),
             TheOasisProfile(this, ctx),
             OfficeAmenitiesProfile(this, ctx),
             RoundPillarProfile(this, ctx),

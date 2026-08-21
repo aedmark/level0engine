@@ -106,7 +106,7 @@ export const ArchHallProfile = (env, ctx) => {
                 `arch_ballast_panel_${alongZ ? 'z' : 'x'}`,
                 () => new THREE.BoxGeometry(
                     alongZ ? 0.26 : 1.34,
-                    0.08, // Thicker to look like a diffuser box
+                    0.08,
                     alongZ ? 1.34 : 0.26
                 )
             );

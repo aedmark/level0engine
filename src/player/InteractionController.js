@@ -43,7 +43,7 @@ export default class InteractionController {
             if (env.player.flashlightBattery >= 100.0) {
                 ud.tutorialLocked = false;
                 env.tutorialActive = false;
-                ud.codeLocked = true; // Keypad is now active and required
+                ud.codeLocked = true;
                 if (ud.tutorialFixture) {
                     ud.tutorialFixture.isDead = false;
                     ud.tutorialFixture.baseIntensity = 0.8;

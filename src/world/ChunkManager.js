@@ -333,10 +333,15 @@ export default class ChunkManager {
                 env.player.inventory.hasExitKey && !env.player.objectives.escaped;
 
             const pool = sectorMatrix.filter(s => s.id !== "EXIT").map(s => s.id);
-            let activeSectorId = SectorPlacement.sectorIdFor(placement, pool, chunkX, chunkZ);
+            let activeSectorId = env.discoveredSectors.get(hash) || SectorPlacement.sectorIdFor(placement, pool, chunkX, chunkZ);
 
-            if (isExitPhase && SectorPlacement.isExitChunk(placement, chunkX, chunkZ)) {
-                activeSectorId = "EXIT";
+            if (isExitPhase) {
+                if (!env.dynamicExitHash && !env.discoveredSectors.has(hash)) {
+                    env.dynamicExitHash = hash;
+                }
+                if (env.dynamicExitHash === hash || SectorPlacement.isExitChunk(placement, chunkX, chunkZ)) {
+                    activeSectorId = "EXIT";
+                }
             }
             env.discoveredSectors.set(hash, activeSectorId);
             activeSector = sectorMatrix.find(s => s.id === activeSectorId);
@@ -830,10 +835,7 @@ export default class ChunkManager {
                 if (clearX.indexOf(x) !== -1 && clearZ.indexOf(z) !== -1) return true;
             }
         }
-        
-        // Fallback: procedurally detect airlock aprons from adjacent macro chunks
-        // This is needed for standard chunks generating before the macro chunk is built.
-        
+
         const placement = SectorPlacement.placementConfig(this.env);
         const cx = Math.floor(x / this.env.chunkSize);
         const cz = Math.floor(z / this.env.chunkSize);

@@ -189,21 +189,23 @@ export default class StructureKit {
                 const key = `archCutout_${radius}_${thickness}_${outerY}_${depth}_${springY}`;
                 let geo = env.geoCache.get(key);
                 if (!geo) {
+                    const EPS = 0.002;
                     const shape = new THREE.Shape();
                     const outerX = radius + thickness;
                     const totalY = springY + outerY;
 
-                    shape.moveTo(-outerX, 0);
-                    shape.lineTo(-outerX, totalY);
-                    shape.lineTo(outerX, totalY);
-                    shape.lineTo(outerX, 0);
-                    shape.lineTo(radius, 0);
+                    shape.moveTo(-outerX + EPS, EPS);
+                    shape.lineTo(-outerX + EPS, totalY - EPS);
+                    shape.lineTo(outerX - EPS, totalY - EPS);
+                    shape.lineTo(outerX - EPS, EPS);
+                    shape.lineTo(radius, EPS);
                     shape.lineTo(radius, springY);
                     shape.absarc(0, springY, radius, 0, Math.PI, false);
-                    shape.lineTo(-radius, 0);
+                    shape.lineTo(-radius, EPS);
 
-                    geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false, curveSegments: 32 });
-                    geo.translate(0, 0, -depth / 2);
+                    geo = new THREE.ExtrudeGeometry(shape, { depth: depth - EPS*2, bevelEnabled: false, curveSegments: 32 });
+                    geo = geo.toNonIndexed();
+                    geo.translate(0, 0, -(depth - EPS*2) / 2);
 
                     const pos = geo.attributes.position;
                     const uv = geo.attributes.uv;
@@ -222,7 +224,7 @@ export default class StructureKit {
                             continue;
                         }
 
-                        if (Math.abs(x) >= outerX - 0.01 || y >= totalY - 0.01) {
+                        if (Math.abs(x) >= outerX - 0.05 || y >= totalY - 0.05) {
                             uv.setXY(i, z / env.cellSize, y / 3.0);
                             continue;
                         }
@@ -247,13 +249,55 @@ export default class StructureKit {
                         }
                         uv.setXY(i, z / env.cellSize, walked / 3.0);
                     }
-                    uv.needsUpdate = true;
-                    norm.needsUpdate = true;
 
+                    const g0 = { p: [], u: [], n: [] };
+                    const g1 = { p: [], u: [], n: [] };
+
+                    const vA = new THREE.Vector3(), vB = new THREE.Vector3(), vC = new THREE.Vector3();
+                    const nA = new THREE.Vector3(), nB = new THREE.Vector3(), nC = new THREE.Vector3();
+
+                    for (let i = 0; i < pos.count; i += 3) {
+                        vA.fromBufferAttribute(pos, i);
+                        vB.fromBufferAttribute(pos, i+1);
+                        vC.fromBufferAttribute(pos, i+2);
+                        nA.fromBufferAttribute(norm, i);
+                        nB.fromBufferAttribute(norm, i+1);
+                        nC.fromBufferAttribute(norm, i+2);
+
+                        const fnX = (nA.x + nB.x + nC.x) / 3;
+                        const fnY = (nA.y + nB.y + nC.y) / 3;
+                        const fnZ = (nA.z + nB.z + nC.z) / 3;
+                        const cX = (vA.x + vB.x + vC.x) / 3;
+
+                        let isInner = false;
+                        if (Math.abs(fnZ) < 0.5) {
+                            if (fnY < 0.5) {
+                                if (!(fnX < -0.5 && cX < 0) && !(fnX > 0.5 && cX > 0)) {
+                                    isInner = true;
+                                }
+                            }
+                        }
+
+                        const target = isInner ? g1 : g0;
+                        for(let j=0; j<3; j++) {
+                            target.p.push(pos.getX(i+j), pos.getY(i+j), pos.getZ(i+j));
+                            target.u.push(uv.getX(i+j), uv.getY(i+j));
+                            target.n.push(norm.getX(i+j), norm.getY(i+j), norm.getZ(i+j));
+                        }
+                    }
+
+                    const newGeo = new THREE.BufferGeometry();
+                    newGeo.setAttribute('position', new THREE.Float32BufferAttribute([...g0.p, ...g1.p], 3));
+                    newGeo.setAttribute('uv', new THREE.Float32BufferAttribute([...g0.u, ...g1.u], 2));
+                    newGeo.setAttribute('normal', new THREE.Float32BufferAttribute([...g0.n, ...g1.n], 3));
+                    newGeo.addGroup(0, g0.p.length / 3, 0);
+                    newGeo.addGroup(g0.p.length / 3, g1.p.length / 3, 1);
+                    
+                    geo = newGeo;
                     env.geoCache.set(key, geo);
                     env.geoCache.set(geo.uuid, true);
                 }
-                return new THREE.Mesh(geo, mat);
+                return new THREE.Mesh(geo, [env.sharedWallMat, mat]);
             },
             buildCurvedCornerBlock: (size, mat) => {
                 const t = 0.0;

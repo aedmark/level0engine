@@ -10,18 +10,47 @@ export const CompressionArchwayProfile = (env, ctx) => {
             const pillarThickness = 0.8;
             const overheadHeight = 1.0;
             const verticalClearance = 3.0 - overheadHeight;
-            const matL = env.subwayTileMats ? env.subwayTileMats[Math.floor(random() * env.subwayTileMats.length)] : env.structMat;
-            const supportLeft = buildWall(isAlignedZ ? pillarThickness : env.cellSize, isAlignedZ ? env.cellSize : pillarThickness, matL, verticalClearance, 0);
+            const tileMat = env.subwayTileMats ? env.subwayTileMats[Math.floor(random() * env.subwayTileMats.length)] : env.structMat;
+            const wallMat = env.sharedWallMat;
+
+            const leftSupportMat = [
+                isAlignedZ ? tileMat : wallMat,
+                wallMat,
+                wallMat,
+                wallMat,
+                isAlignedZ ? wallMat : tileMat,
+                wallMat
+            ];
+            
+            const rightSupportMat = [
+                wallMat,
+                isAlignedZ ? tileMat : wallMat,
+                wallMat,
+                wallMat,
+                wallMat,
+                isAlignedZ ? wallMat : tileMat
+            ];
+            
+            const topBeamMat = [
+                wallMat,
+                wallMat,
+                wallMat,
+                tileMat,
+                wallMat,
+                wallMat
+            ];
+
+            const supportLeft = buildWall(isAlignedZ ? pillarThickness : env.cellSize, isAlignedZ ? env.cellSize : pillarThickness, leftSupportMat, verticalClearance, 0);
             supportLeft.position.set(cx + (isAlignedZ ? -1.6 : 0), verticalClearance / 2, cz + (isAlignedZ ? 0 : -1.6));
             supportLeft.userData.isEntityBlocker = true;
             addGeometry(supportLeft);
-            const matR = env.subwayTileMats ? env.subwayTileMats[Math.floor(random() * env.subwayTileMats.length)] : env.structMat;
-            const supportRight = buildWall(isAlignedZ ? pillarThickness : env.cellSize, isAlignedZ ? env.cellSize : pillarThickness, matR, verticalClearance, 0);
+            
+            const supportRight = buildWall(isAlignedZ ? pillarThickness : env.cellSize, isAlignedZ ? env.cellSize : pillarThickness, rightSupportMat, verticalClearance, 0);
             supportRight.position.set(cx + (isAlignedZ ? 1.6 : 0), verticalClearance / 2, cz + (isAlignedZ ? 0 : 1.6));
             supportRight.userData.isEntityBlocker = true;
             addGeometry(supportRight);
-            const matT = env.subwayTileMats ? env.subwayTileMats[Math.floor(random() * env.subwayTileMats.length)] : env.structMat;
-            const overheadBeam = buildWall(env.cellSize, env.cellSize, matT, overheadHeight, verticalClearance);
+            
+            const overheadBeam = buildWall(env.cellSize, env.cellSize, topBeamMat, overheadHeight, verticalClearance);
             overheadBeam.position.set(cx, verticalClearance + (overheadHeight / 2), cz);
             overheadBeam.userData.isEntityBlocker = true;
             addGeometry(overheadBeam);

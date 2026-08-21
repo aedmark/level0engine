@@ -7,9 +7,6 @@ export const PartitionHeaderProfile = (env, ctx) => {
             const spansX = isWall(x - 1, z) && isWall(x + 1, z) && !isWall(x, z - 1) && !isWall(x, z + 1);
             const spansZ = isWall(x, z - 1) && isWall(x, z + 1) && !isWall(x - 1, z) && !isWall(x + 1, z);
             if (!spansX && !spansZ) {
-                // If it's part of a chain (neighbor is already an arch)? 
-                // We can't check what structure was built, only if it's a wall.
-                // Let's just allow it on straight walls to prevent islands.
                 return false;
             }
             const isZ = spansX;

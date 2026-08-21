@@ -231,8 +231,6 @@ export default class PlayerController {
         const localBoxes = spatialGrid.getNearby(px, pz, 2.0);
         const currentFeetY = this._groundFeetY;
         let maxCenterHeight = 3.0;
-        // Use a tiny radius (0.05) to check the ceiling *directly* above the player's center
-        // This prevents "auto-crouching" when simply walking up to a wall or low overhang.
         this._vecMin.set(px - 0.05, currentFeetY + 0.1, pz - 0.05);
         this._vecMax.set(px + 0.05, currentFeetY + 2.6, pz + 0.05);
         this._floorBox.set(this._vecMin, this._vecMax);
@@ -244,8 +242,7 @@ export default class PlayerController {
                 if (available < maxCenterHeight) maxCenterHeight = available;
             }
         }
-        
-        // Prevent standing up if there isn't enough headroom directly above us
+
         if (!this.isGodMode) {
             if (maxCenterHeight < 1.3) {
                 state.isCrawling = true;
@@ -358,11 +355,20 @@ export default class PlayerController {
             }
         }
         const currentActualSpeed = Math.sqrt((this.velocity.x * this.velocity.x) + (this.velocity.z * this.velocity.z));
-        const angularSpeed = Math.abs(this.camera.rotation.y - (this._lastRotY || this.camera.rotation.y)) +
-            Math.abs(this.camera.rotation.x - (this._lastRotX || this.camera.rotation.x));
-        this._lastRotY = this.camera.rotation.y;
-        this._lastRotX = this.camera.rotation.x;
-
+                
+        
+        const rotY = this.camera.rotation.y;
+        const rotX = this.camera.rotation.x;
+        const deltaY = rotY - (this._lastRotY || rotY);
+        const deltaX = rotX - (this._lastRotX || rotX);
+        const accelY = Math.abs(deltaY - (this._lastDeltaY || 0));
+        const accelX = Math.abs(deltaX - (this._lastDeltaX || 0));
+        this._lastRotY = rotY;
+        this._lastRotX = rotX;
+        this._lastDeltaY = deltaY;
+        this._lastDeltaX = deltaX;
+        const shakeRate = Math.min(12.0, (accelY + accelX) / Math.max(delta, 1e-5));
+        
         const currentParanoia = 1.0 - this.coherence;
         if (currentParanoia > 0.2 && currentParanoia < 0.5) {
             this.linguisticDarkMatter = Math.min(50.0, this.linguisticDarkMatter + (delta * 0.8));
@@ -372,14 +378,14 @@ export default class PlayerController {
         const maxBatteryCeiling = 100.0 - this.linguisticDarkMatter;
 
         if (state.flashlightActive) {
-            const panicDrain = (this.stamina <= 0.1 && (this.darknessPressure || 0.0) > 0.4) ? 2.0 : 1.0;
+            const panicDrain = (this.stamina <= 0.1 && (this.darknessPressure || 0.0) > 0.4) ? 2.2 : 1.6;
             this.flashlightBattery = Math.max(0, this.flashlightBattery - panicDrain * delta);
             if (this.flashlightBattery === 0) {
                 state.flashlightActive = false;
             }
         } else {
-            const angularRate = Math.min(6.0, angularSpeed / Math.max(delta, 1e-5));
-            const kineticCharge = (currentActualSpeed * 0.30) + (angularRate * 3.5);
+                        const verticalSpeed = Math.abs(this.fallVelocity || 0);
+        const kineticCharge = (currentActualSpeed * 0.30) + (verticalSpeed * 0.40) + (shakeRate * 2.0);
             this.flashlightBattery = Math.max(0, Math.min(maxBatteryCeiling, this.flashlightBattery + kineticCharge * delta));
         }
         const fatigueRatio = this.stamina / this.maxStamina;
@@ -482,14 +488,13 @@ export default class PlayerController {
         let hitZ = false;
         let targetFeetY = -100;
         let inVoid = false;
-        let dynamicMaxCamY = 5.0; // Dynamic ceiling cap
-        
+        let dynamicMaxCamY = 5.0;
+
         for (let i = 0, len = localBoxes.length; i < len; i++) {
             const box = localBoxes[i];
             if (box.isInvisibleBlocker) continue;
             if (box.isGrate && !box.meshRef.userData.active) continue;
-            
-            // Ceiling check: find the lowest AABB directly above us
+
             if (!box.isVoid && box.min.y > topOfFloorCheck && this._ceilingBox.intersectsBox(box)) {
                 const maxCam = box.min.y - (physicalTop - visualHeight) - 0.05;
                 if (maxCam < dynamicMaxCamY) {
@@ -645,8 +650,7 @@ export default class PlayerController {
         this.camera.position.x += this._leanOffset.x;
         this.camera.position.z += this._leanOffset.z;
         if (!inVoid && targetFeetY === -100) targetFeetY = 0;
-        
-        // If there are no ceilings, it stays 5.0. But normal max is 2.8.
+
         const defaultMax = 2.8;
         dynamicMaxCamY = Math.min(dynamicMaxCamY, defaultMax);
         
@@ -656,36 +660,30 @@ export default class PlayerController {
             this.fallVelocity = (this.fallVelocity || 0) + 30.0 * delta;
             this.camera.position.y -= (this.fallVelocity * delta);
         } else {
-            // Airtime & Jumping logic
             if (this.camera.position.y > groundCamY + 0.05 || (this.fallVelocity && this.fallVelocity < 0)) {
-                // We are in the air
-                this.fallVelocity = (this.fallVelocity || 0) + 30.0 * delta; // Gravity
+                this.fallVelocity = (this.fallVelocity || 0) + 30.0 * delta;
                 this.camera.position.y -= (this.fallVelocity * delta);
-                
-                // Head bonk
+
                 if (this.camera.position.y > dynamicMaxCamY) {
                     this.camera.position.y = dynamicMaxCamY;
                     if (this.fallVelocity < 0) this.fallVelocity = 0;
                 }
-                
-                // Landed this frame
+
                 if (this.camera.position.y <= groundCamY && this.fallVelocity > 0) {
                     this.camera.position.y = groundCamY;
                     this.fallVelocity = 0;
                     document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.5}}));
                 }
             } else {
-                // Grounded
                 this.fallVelocity = 0;
                 const lerpFactor = 1.0 - Math.exp(-12.0 * delta);
                 this.camera.position.y += (groundCamY - this.camera.position.y) * lerpFactor;
-                
-                // Jump!
+
                 if (state.jump && !state.isCrawling && !state.isCrouching && !this.isSqueezing && this.exhaustion < 0.9) {
                     state.jump = false; 
-                    const jumpVelocity = state.isRunning ? 9.5 : 7.0; // Running jump is higher
+                    const jumpVelocity = state.isRunning ? 9.5 : 7.0;
                     this.fallVelocity = -jumpVelocity;
-                    this.camera.position.y += 0.06; // Nudge into the air to trigger airborne block next frame
+                    this.camera.position.y += 0.06;
                     this.exhaustion = Math.min(1.0, this.exhaustion + (state.isRunning ? 0.3 : 0.15));
                     document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.0}}));
                 }

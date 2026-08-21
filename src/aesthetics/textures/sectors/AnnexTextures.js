@@ -2,7 +2,6 @@ import TextureMechanics from '../TextureMechanics.js';
 
 export default class AnnexTextures {
     static _buildAnnexAssets(masterNoise) {
-        // Procedural Custom Wood Texture for Door Edges & Base
         const {canvas: woodCanvas, ctx: woodCtx} = TextureMechanics._createContext(256, 512);
         const woodBaseGrad = woodCtx.createLinearGradient(0, 0, 0, 512);
         woodBaseGrad.addColorStop(0, '#3f2113');
@@ -11,7 +10,6 @@ export default class AnnexTextures {
         woodCtx.fillStyle = woodBaseGrad;
         woodCtx.fillRect(0, 0, 256, 512);
 
-        // Fine vertical wood grain fibers
         for (let x = 0; x < 256; x += 1 + Math.floor(Math.random() * 3)) {
             woodCtx.fillStyle = Math.random() > 0.5 ? 'rgba(20, 8, 4, 0.35)' : 'rgba(95, 52, 28, 0.2)';
             woodCtx.fillRect(x, 0, 1, 512);
@@ -23,11 +21,9 @@ export default class AnnexTextures {
         const woodTexture = new THREE.CanvasTexture(woodCanvas);
         const annexEdgeMat = new THREE.MeshStandardMaterial({map: woodTexture, roughness: 0.6, metalness: 0.1});
 
-        // Procedural Custom Wooden Door with Glass Panels
         const {canvas: doorCanvas, ctx: doorCtx} = TextureMechanics._createContext(256, 512);
         doorCtx.drawImage(woodCanvas, 0, 0);
 
-        // Outer Stile & Rail Door Border
         doorCtx.strokeStyle = 'rgba(0, 0, 0, 0.65)';
         doorCtx.lineWidth = 6;
         doorCtx.strokeRect(10, 10, 236, 492);
@@ -35,10 +31,8 @@ export default class AnnexTextures {
         doorCtx.lineWidth = 2;
         doorCtx.strokeRect(13, 13, 230, 486);
 
-        // --- UPPER SECTION: GLASS PANEL WINDOW ---
         const winX = 32, winY = 40, winW = 192, winH = 190;
 
-        // Beveled Wooden Window Frame
         doorCtx.fillStyle = 'rgba(15, 6, 2, 0.7)';
         doorCtx.fillRect(winX - 6, winY - 6, winW + 12, winH + 12);
         doorCtx.fillStyle = 'rgba(255, 220, 140, 0.25)';
@@ -46,12 +40,10 @@ export default class AnnexTextures {
         doorCtx.fillStyle = '#2b1307';
         doorCtx.fillRect(winX - 3, winY - 3, winW + 6, winH + 6);
 
-        // Gold Trim Inlay around Window
         doorCtx.strokeStyle = '#b89947';
         doorCtx.lineWidth = 2;
         doorCtx.strokeRect(winX - 2, winY - 2, winW + 4, winH + 4);
 
-        // Glass Pane Surface (Frosted / Smoked Glass with depth)
         const glassGrad = doorCtx.createLinearGradient(winX, winY, winX + winW, winY + winH);
         glassGrad.addColorStop(0, '#152528');
         glassGrad.addColorStop(0.35, '#243b3e');
@@ -60,7 +52,6 @@ export default class AnnexTextures {
         doorCtx.fillStyle = glassGrad;
         doorCtx.fillRect(winX, winY, winW, winH);
 
-        // Glass Ambient Highlights & Reflection Sheen
         const sheenGrad = doorCtx.createLinearGradient(winX, winY, winX + winW, winY + winH * 0.7);
         sheenGrad.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
         sheenGrad.addColorStop(0.3, 'rgba(180, 235, 245, 0.12)');
@@ -69,18 +60,15 @@ export default class AnnexTextures {
         doorCtx.fillStyle = sheenGrad;
         doorCtx.fillRect(winX, winY, winW, winH);
 
-        // Glass Mullions (Wooden / Brass Grid dividing into 6 panes: 2 cols x 3 rows)
         const midWinX = winX + winW / 2;
         const row1WinY = winY + winH / 3;
         const row2WinY = winY + (winH * 2) / 3;
 
-        // Vertical Mullion
         doorCtx.fillStyle = '#2b1307';
         doorCtx.fillRect(midWinX - 3, winY, 6, winH);
         doorCtx.fillStyle = '#b89947';
         doorCtx.fillRect(midWinX - 1, winY, 2, winH);
 
-        // Horizontal Mullions
         doorCtx.fillStyle = '#2b1307';
         doorCtx.fillRect(winX, row1WinY - 3, winW, 6);
         doorCtx.fillRect(winX, row2WinY - 3, winW, 6);
@@ -88,12 +76,10 @@ export default class AnnexTextures {
         doorCtx.fillRect(winX, row1WinY - 1, winW, 2);
         doorCtx.fillRect(winX, row2WinY - 1, winW, 2);
 
-        // Glass Panel Rim Glow / Reflection Bevel
         doorCtx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
         doorCtx.lineWidth = 1;
         doorCtx.strokeRect(winX + 1, winY + 1, winW - 2, winH - 2);
 
-        // --- MID-RAIL DIVIDER WITH GOLD EMBLEM ---
         doorCtx.fillStyle = '#b89947';
         doorCtx.fillRect(16, 244, 224, 4);
         doorCtx.fillStyle = '#ffdf80';
@@ -115,16 +101,13 @@ export default class AnnexTextures {
         doorCtx.fillStyle = '#ffdf80';
         drawDiamond(doorCtx, 128, 246, 6);
 
-        // --- LOWER SECTION: RECESSED RAISED WOOD PANEL ---
         const panX = 32, panY = 262, panW = 192, panH = 186;
 
-        // Recessed Panel Shadow & Highlight
         doorCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
         doorCtx.fillRect(panX - 4, panY - 4, panW + 8, panH + 8);
         doorCtx.fillStyle = 'rgba(255, 230, 160, 0.15)';
         doorCtx.fillRect(panX - 2, panY - 2, panW + 4, panH + 4);
 
-        // Raised Panel Core
         const panGrad = doorCtx.createLinearGradient(0, panY, 0, panY + panH);
         panGrad.addColorStop(0, '#361b0f');
         panGrad.addColorStop(0.5, '#442314');
@@ -132,12 +115,10 @@ export default class AnnexTextures {
         doorCtx.fillStyle = panGrad;
         doorCtx.fillRect(panX, panY, panW, panH);
 
-        // Gold Inlay Line on Lower Panel
         doorCtx.strokeStyle = '#b89947';
         doorCtx.lineWidth = 1.5;
         doorCtx.strokeRect(panX + 8, panY + 8, panW - 16, panH - 16);
 
-        // Centered Diamond Accent on Lower Panel
         doorCtx.fillStyle = '#b89947';
         drawDiamond(doorCtx, 128, panY + panH / 2, 14);
         doorCtx.fillStyle = '#ffdf80';
@@ -145,7 +126,6 @@ export default class AnnexTextures {
         doorCtx.fillStyle = '#361b0f';
         drawDiamond(doorCtx, 128, panY + panH / 2, 4);
 
-        // --- BOTTOM BRASS KICK ACCENT ---
         const kickGrad = doorCtx.createLinearGradient(0, 466, 0, 496);
         kickGrad.addColorStop(0, '#9e7e33');
         kickGrad.addColorStop(0.5, '#bfa04e');
@@ -157,7 +137,6 @@ export default class AnnexTextures {
         doorCtx.lineWidth = 1;
         doorCtx.strokeRect(20, 466, 216, 26);
 
-        // Kick Plate Screws
         doorCtx.fillStyle = '#4a3810';
         [[28, 479], [228, 479], [128, 479]].forEach(([sx, sy]) => {
             doorCtx.beginPath();
@@ -165,7 +144,6 @@ export default class AnnexTextures {
             doorCtx.fill();
         });
 
-        // Fine Noise Finish
         doorCtx.globalAlpha = 0.12;
         doorCtx.drawImage(masterNoise, 0, 0, 256, 512);
         doorCtx.globalAlpha = 1.0;

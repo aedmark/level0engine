@@ -11,7 +11,6 @@ export default class TechTextures {
         bCtx.fillStyle = '#808080';
         bCtx.fillRect(0, 0, 512, 512);
 
-        // Create brushed streaks
         ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
         bCtx.fillStyle = 'rgba(255, 255, 255, 0.2)';
         ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';

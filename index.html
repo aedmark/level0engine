@@ -314,10 +314,13 @@
 
         <footer class="terminal-footer">
             <div class="somatic-status">
-                <span class="somatic-arrows animate-pulse">>></span> LINK ESTABLISHED <span id="coords" style="margin-left: 1rem;">X: 0.0 | Z: 0.0</span>
+                <span class="somatic-arrows animate-pulse">>></span> COORDINATES: <span id="coords" style="margin-left: 1rem;">X: 0.0 | Z: 0.0</span>
             </div>
 
             <div class="footer-actions">
+                <button onclick="window.open('readme.html', '_blank')" class="btn-glitch">
+                    HANDBOOK
+                </button>
                 <button onclick="document.getElementById('engine-frame').contentWindow.location.reload();" class="btn-glitch">
                     REBOOT
                 </button>

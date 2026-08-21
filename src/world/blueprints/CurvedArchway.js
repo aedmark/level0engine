@@ -65,10 +65,8 @@ export const CurvedArchwayProfile = (env, ctx) => {
                         if (ctx.isWall(fx, fz)) continue;
 
                         const backs = [];
-                        // The archway itself acts as a wall behind the bench
                         backs.push({dx: -across.dx * side, dz: -across.dz * side});
-                        
-                        // Check other adjacent walls for variety
+
                         if (ctx.isWall(fx + across.dx * side, fz + across.dz * side)) {
                             backs.push({dx: across.dx * side, dz: across.dz * side});
                         }
