@@ -1,5 +1,3 @@
-import Vec3 from '../../math/Vec3.js';
-import AABB from '../../math/AABB.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
 
 export const ChasmSector = (env, ctx) => {
@@ -157,7 +155,7 @@ export const ChasmSector = (env, ctx) => {
                 if (!vW && !vS && checkVoid(localX - 1, localZ + 1)) addCornerPost(gx - 1.8, gz + 1.8);
                 if (!vE && !vS && checkVoid(localX + 1, localZ + 1)) addCornerPost(gx + 1.8, gz + 1.8);
             } else {
-                const voidBox = new AABB();
+                const voidBox = new THREE.Box3();
                 voidBox.min.set(gx - 2, -100, gz - 2);
                 voidBox.max.set(gx + 2, 3, gz + 2);
                 voidBox.isVoid = true;

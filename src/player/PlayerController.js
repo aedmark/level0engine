@@ -1,14 +1,13 @@
 import SomaticInput from './SomaticInput.js';
-import Vec3 from '../math/Vec3.js';
-import AABB from '../math/AABB.js';
+import { sweepGroundedCollision } from '../entities/HazardUtils.js';
 
 export default class PlayerController {
     constructor(camera, domElement) {
         this.camera = camera;
         this.domElement = domElement;
         this.input = new SomaticInput(camera);
-        this.velocity = new Vec3();
-        this.direction = new Vec3();
+        this.velocity = new THREE.Vector3();
+        this.direction = new THREE.Vector3();
         this.isSqueezing = false;
         this._envForcedDown = false;
         this._groundFeetY = camera.position.y - 1.6;
@@ -81,12 +80,17 @@ export default class PlayerController {
         this.narrativeTension = 0.0;
         this.MAX_NARRATIVE_TENSION = 40.0;
         this.currentFov = camera.fov;
-        this._leanOffset = new Vec3();
-        this._boxX = new AABB();
-        this._boxZ = new AABB();
-        this._floorBox = new AABB();
-        this._vecMin = new Vec3();
-        this._vecMax = new Vec3();
+        this._leanOffset = new THREE.Vector3();
+        this._boxX = new THREE.Box3();
+        this._ceilingBox = new THREE.Box3();
+        this._camTarget = new THREE.Vector3();
+        this._scratchRay = new THREE.Ray();
+        this._physicsBody = { x: 0, z: 0, feetY: 0, radius: 0, height: 0, stepOffset: 0, currentFeetY: 0 };
+        this._physicsScratch = { boxX: null, boxZ: null, floorBox: null, ceilingBox: null, ceilingClearance: 0 };
+        this._boxZ = new THREE.Box3();
+        this._floorBox = new THREE.Box3();
+        this._vecMin = new THREE.Vector3();
+        this._vecMax = new THREE.Vector3();
         this._bindMetabolicListeners();
     }
 
@@ -481,63 +485,29 @@ export default class PlayerController {
         const feetY = this.camera.position.y - visualHeight;
         const snagShrink = this.isSqueezing ? 0.02 : 0.15;
         const stepOffset = this.isCrawling ? 0.2 : 0.5;
-        const topOfFloorCheck = Math.max(feetY + stepOffset, currentFeetY + stepOffset);
         
-        this._vecMin.set(px + moveX - this.playerRadius, topOfFloorCheck, pz - this.playerRadius + snagShrink);
-        this._vecMax.set(px + moveX + this.playerRadius, feetY + physicalTop, pz + this.playerRadius - snagShrink);
-        this._boxX.set(this._vecMin, this._vecMax);
+        this._physicsBody.x = px;
+        this._physicsBody.z = pz;
+        this._physicsBody.feetY = feetY;
+        this._physicsBody.radius = this.playerRadius;
+        this._physicsBody.height = physicalTop;
+        this._physicsBody.stepOffset = stepOffset;
+        this._physicsBody.currentFeetY = currentFeetY;
         
-        this._vecMin.set(px - this.playerRadius + snagShrink, topOfFloorCheck, pz + moveZ - this.playerRadius);
-        this._vecMax.set(px + this.playerRadius - snagShrink, feetY + physicalTop, pz + moveZ + this.playerRadius);
-        this._boxZ.set(this._vecMin, this._vecMax);
+        this._physicsScratch.boxX = this._boxX;
+        this._physicsScratch.boxZ = this._boxZ;
+        this._physicsScratch.floorBox = this._floorBox;
+        this._physicsScratch.ceilingBox = this._ceilingBox;
+        this._physicsScratch.ceilingClearance = (physicalTop - visualHeight) - 0.05;
+
+        const manifold = sweepGroundedCollision(spatialGrid, this._physicsBody, moveX, moveZ, this._physicsScratch);
         
-        this._vecMin.set(px - this.playerRadius, -10.0, pz - this.playerRadius);
-        this._vecMax.set(px + this.playerRadius, topOfFloorCheck, pz + this.playerRadius);
-        this._floorBox.set(this._vecMin, this._vecMax);
+        let hitX = manifold.hitX;
+        let hitZ = manifold.hitZ;
+        let inVoid = manifold.inVoid;
+        let targetFeetY = manifold.groundY;
+        let dynamicMaxCamY = manifold.dynamicMaxCamY;
         
-        if (!this._ceilingBox) this._ceilingBox = new THREE.Box3();
-        this._vecMin.set(px - this.playerRadius, topOfFloorCheck, pz - this.playerRadius);
-        this._vecMax.set(px + this.playerRadius, 10.0, pz + this.playerRadius);
-        this._ceilingBox.set(this._vecMin, this._vecMax);
-
-        let hitX = false;
-        let hitZ = false;
-        let targetFeetY = -100;
-        let inVoid = false;
-        let dynamicMaxCamY = 5.0;
-
-        for (let i = 0, len = localBoxes.length; i < len; i++) {
-            const box = localBoxes[i];
-            if (box.isInvisibleBlocker) continue;
-            if (box.isGrate && !box.meshRef.userData.active) continue;
-
-            if (!box.isVoid && box.min.y > topOfFloorCheck && this._ceilingBox.intersectsBox(box)) {
-                const maxCam = box.min.y - (physicalTop - visualHeight) - 0.05;
-                if (maxCam < dynamicMaxCamY) {
-                    dynamicMaxCamY = maxCam;
-                }
-            }
-
-            const isVerticallyRelevant = (box.min.y <= feetY + physicalTop && box.max.y >= feetY - 10.0);
-            if (!isVerticallyRelevant && !box.isVoid) continue;
-            if (box.isVoid && this._floorBox.intersectsBox(box)) {
-                inVoid = true;
-            }
-            if (box.max.y > targetFeetY && box.max.y <= topOfFloorCheck) {
-                if (!box.isVoid && this._floorBox.intersectsBox(box)) {
-                    targetFeetY = box.max.y;
-                }
-            }
-            if (hitX && hitZ) continue;
-            if (!hitX && this._boxX.intersectsBox(box)) {
-                const cx = (box.min.x + box.max.x) * 0.5;
-                if ((moveX > 0 && px < cx) || (moveX < 0 && px > cx)) hitX = true;
-            }
-            if (!hitZ && this._boxZ.intersectsBox(box)) {
-                const cz = (box.min.z + box.max.z) * 0.5;
-                if ((moveZ > 0 && pz < cz) || (moveZ < 0 && pz > cz)) hitZ = true;
-            }
-        }
         if (this.isGodMode) {
             hitX = false;
             hitZ = false;
@@ -646,13 +616,14 @@ export default class PlayerController {
             const origin = this.camera.position;
             const dir = {x: leanDirX, y: 0, z: leanDirZ};
             let maxLean = leanMag;
-            const camTarget = new Vec3();
+            
             for (let i = 0; i < localBoxes.length; i++) {
                 const box = localBoxes[i];
                 if (box.max.y > origin.y - 0.2 && box.min.y < origin.y + 0.2 && !box.isInvisibleBlocker) {
-                    if (AABB.rayIntersectsBox(origin, dir, box, camTarget)) {
-                        const dx = camTarget.x - origin.x;
-                        const dz = camTarget.z - origin.z;
+                    this._scratchRay.set(origin, dir);
+                    if (this._scratchRay.intersectBox(box, this._camTarget)) {
+                        const dx = this._camTarget.x - origin.x;
+                        const dz = this._camTarget.z - origin.z;
                         const dist = Math.sqrt(dx * dx + dz * dz);
                         if (dist < maxLean + 0.15) {
                             maxLean = Math.max(0, dist - 0.15);

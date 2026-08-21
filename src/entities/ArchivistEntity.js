@@ -1,4 +1,3 @@
-import Vec3 from '../math/Vec3.js';
 
 export default class ArchivistEntity {
     constructor(scene, camera, player, environment) {
@@ -8,12 +7,12 @@ export default class ArchivistEntity {
         this.env = environment;
         this.isActive = false;
         this.group = new THREE.Group();
-        this.target = new Vec3();
+        this.target = new THREE.Vector3();
         this.graceTimer = 0;
         this.droppedDoc = false;
-        this._away = new Vec3();
-        this._toEntity = new Vec3();
-        this._lookDir = new Vec3();
+        this._away = new THREE.Vector3();
+        this._toEntity = new THREE.Vector3();
+        this._lookDir = new THREE.Vector3();
         this._buildMesh();
     }
 

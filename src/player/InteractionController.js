@@ -730,27 +730,38 @@ export default class InteractionController {
         document.addEventListener('somatic-interact', (e) => {
             let hit = null;
             let closestDistSq = 9.0;
-            const checkObj = (obj) => {
-                if (obj.userData.isSlider && !obj.userData.isAirlockDoor) return;
-                if (obj.visible === false) return;
-                const worldPos = obj.matrixWorld ? this._objWorldPos.setFromMatrixPosition(obj.matrixWorld) : obj.position;
-                const distSq = worldPos.distanceToSquared(e.detail.position);
-                if (distSq < closestDistSq) {
-                    env._interactDir.subVectors(worldPos, e.detail.position).normalize();
-                    if (e.detail.direction.dot(env._interactDir) > 0.75) {
-                        closestDistSq = distSq;
-                        hit = obj;
+            if (env.interactables) {
+                for (let i = 0, len = env.interactables.length; i < len; i++) {
+                    const obj = env.interactables[i];
+                    if (obj.userData.isSlider && !obj.userData.isAirlockDoor) continue;
+                    if (obj.visible === false) continue;
+                    const worldPos = obj.matrixWorld ? this._objWorldPos.setFromMatrixPosition(obj.matrixWorld) : obj.position;
+                    const distSq = worldPos.distanceToSquared(e.detail.position);
+                    if (distSq < closestDistSq) {
+                        env._interactDir.subVectors(worldPos, e.detail.position).normalize();
+                        if (e.detail.direction.dot(env._interactDir) > 0.75) {
+                            closestDistSq = distSq;
+                            hit = obj;
+                        }
                     }
                 }
-            };
-            if (env.interactables) env.interactables.forEach(checkObj);
-            if (env.interactiveDoors) env.interactiveDoors.forEach(checkObj);
-
-            const markConsumed = (obj) => {
-                if (obj.userData.consumeKey && env.consumedProps) {
-                    env.consumedProps.add(obj.userData.consumeKey);
+            }
+            if (env.interactiveDoors) {
+                for (let i = 0, len = env.interactiveDoors.length; i < len; i++) {
+                    const obj = env.interactiveDoors[i];
+                    if (obj.userData.isSlider && !obj.userData.isAirlockDoor) continue;
+                    if (obj.visible === false) continue;
+                    const worldPos = obj.matrixWorld ? this._objWorldPos.setFromMatrixPosition(obj.matrixWorld) : obj.position;
+                    const distSq = worldPos.distanceToSquared(e.detail.position);
+                    if (distSq < closestDistSq) {
+                        env._interactDir.subVectors(worldPos, e.detail.position).normalize();
+                        if (e.detail.direction.dot(env._interactDir) > 0.75) {
+                            closestDistSq = distSq;
+                            hit = obj;
+                        }
+                    }
                 }
-            };
+            }
 
             if (hit && hit.userData.type === 'seat') {
                 if (env.player) env.player.sit(hit);
@@ -840,7 +851,7 @@ export default class InteractionController {
 
             } else if (hit && hit.userData.type === 'document' && hit.userData.active) {
                 hit.userData.active = false;
-                markConsumed(hit);
+                if (hit.userData.consumeKey && env.consumedProps) { env.consumedProps.add(hit.userData.consumeKey); }
                 releasePropLighting(env, hit);
                 if (hit.userData.dimOnRead) {
                     if (typeof hit.userData.onDim === 'function') {

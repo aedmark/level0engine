@@ -727,7 +727,9 @@ export default class ChunkManager {
                 if (wall.userData.chunkHash !== hash) continue;
                 wall.updateMatrixWorld(true);
                 if (!wall.geometry.boundingBox) wall.geometry.computeBoundingBox();
-                const box = wall.geometry.boundingBox.clone().applyMatrix4(wall.matrixWorld);
+                if (!env._scratchBox) env._scratchBox = new THREE.Box3();
+                env._scratchBox.copy(wall.geometry.boundingBox).applyMatrix4(wall.matrixWorld);
+                const box = env._scratchBox;
                 const span = wall.userData.wallSpan;
                 let clearance = span ? span.length : Infinity;
 
@@ -751,7 +753,9 @@ export default class ChunkManager {
                     if (isFixture) {
                         child.updateMatrixWorld(true);
                         if (!child.geometry.boundingBox) child.geometry.computeBoundingBox();
-                        const childBox = child.geometry.boundingBox.clone().applyMatrix4(child.matrixWorld);
+                        if (!env._scratchChildBox) env._scratchChildBox = new THREE.Box3();
+                        env._scratchChildBox.copy(child.geometry.boundingBox).applyMatrix4(child.matrixWorld);
+                        const childBox = env._scratchChildBox;
                         if (box.intersectsBox(childBox)) {
                             if (span) {
                                 clearance = Math.min(clearance, ctx.spanClearanceToBox(wall, childBox));
@@ -784,8 +788,9 @@ export default class ChunkManager {
                 env.fixtureData = env.fixtureData.filter(f => {
                     for (const wall of env._breachWalls) {
                         if (wall.userData.retired) continue;
-                        const box = wall.geometry.boundingBox.clone().applyMatrix4(wall.matrixWorld);
-                        if (box.containsPoint(f.position)) return false;
+                        if (!env._scratchBox) env._scratchBox = new THREE.Box3();
+                        env._scratchBox.copy(wall.geometry.boundingBox).applyMatrix4(wall.matrixWorld);
+                        if (env._scratchBox.containsPoint(f.position)) return false;
                     }
                     return true;
                 });

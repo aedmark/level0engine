@@ -1,5 +1,3 @@
-import Vec3 from '../../math/Vec3.js';
-import AABB from '../../math/AABB.js';
 import {makeDuctInterior} from '../../core/DuctLighting.js';
 
 export const TunnelBurstProfile = (env, ctx) => {
@@ -82,9 +80,9 @@ export const TunnelBurstProfile = (env, ctx) => {
                     const liningRight = buildWall(dirZ ? adjT : len, dirZ ? len : adjT, env.ductLiningMat, adjH);
                     liningRight.position.set(segX * env.cellSize + (dirZ ? 0.57 : 0), 0.345, segZ * env.cellSize + (dirZ ? 0 : 0.57));
                     addGeometry(liningRight);
-                    const blockBox = new AABB(
-                        new Vec3(segX * env.cellSize - (dirZ ? tunnelW / 2 : env.cellSize / 2), 0, segZ * env.cellSize - (dirZ ? env.cellSize / 2 : tunnelW / 2)),
-                        new Vec3(segX * env.cellSize + (dirZ ? tunnelW / 2 : env.cellSize / 2), 3.0, segZ * env.cellSize + (dirZ ? env.cellSize / 2 : tunnelW / 2))
+                    const blockBox = new THREE.Box3(
+                        new THREE.Vector3(segX * env.cellSize - (dirZ ? tunnelW / 2 : env.cellSize / 2), 0, segZ * env.cellSize - (dirZ ? env.cellSize / 2 : tunnelW / 2)),
+                        new THREE.Vector3(segX * env.cellSize + (dirZ ? tunnelW / 2 : env.cellSize / 2), 3.0, segZ * env.cellSize + (dirZ ? env.cellSize / 2 : tunnelW / 2))
                     );
                     blockBox.isEntityBlocker = true;
                     blockBox.isInvisibleBlocker = true;
@@ -145,9 +143,9 @@ export const TunnelBurstProfile = (env, ctx) => {
                     const roof = buildWall(dirZ ? roofW : env.cellSize, dirZ ? env.cellSize : roofW, env.sharedWallMat, roofH, 1.2);
                     roof.position.set(segX * env.cellSize, 1.2 + (roofH / 2), segZ * env.cellSize);
                     addGeometry(roof);
-                    const blockBox = new AABB(
-                        new Vec3(segX * env.cellSize - (dirZ ? roofW / 2 : env.cellSize / 2), 0, segZ * env.cellSize - (dirZ ? env.cellSize / 2 : roofW / 2)),
-                        new Vec3(segX * env.cellSize + (dirZ ? roofW / 2 : env.cellSize / 2), 3.0, segZ * env.cellSize + (dirZ ? env.cellSize / 2 : roofW / 2))
+                    const blockBox = new THREE.Box3(
+                        new THREE.Vector3(segX * env.cellSize - (dirZ ? roofW / 2 : env.cellSize / 2), 0, segZ * env.cellSize - (dirZ ? env.cellSize / 2 : roofW / 2)),
+                        new THREE.Vector3(segX * env.cellSize + (dirZ ? roofW / 2 : env.cellSize / 2), 3.0, segZ * env.cellSize + (dirZ ? env.cellSize / 2 : roofW / 2))
                     );
                     blockBox.isEntityBlocker = true;
                     blockBox.isInvisibleBlocker = true;

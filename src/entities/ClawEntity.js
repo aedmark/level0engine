@@ -1,5 +1,4 @@
-import Vec3 from '../math/Vec3.js';
-import {isRayPathBlocked} from './HazardUtils.js';
+import {} from './HazardUtils.js';
 
 export default class ClawEntity {
     constructor(scene, camera, player, environment) {
@@ -20,8 +19,8 @@ export default class ClawEntity {
         this.prongs = [];
         this._buildMesh();
         
-        this.lastPlayerPos = new Vec3();
-        this._rayTarget = new Vec3();
+        this.lastPlayerPos = new THREE.Vector3();
+        this._rayTarget = new THREE.Vector3();
     }
 
     _buildMesh() {
@@ -131,8 +130,8 @@ export default class ClawEntity {
                     const cz = Math.floor(playerPos.z / this.env.cellSize);
                     if (this.env.aisleCells.has(`${cx},${cz}`)) {
 
-                        const upDir = new Vec3(0, 1, 0);
-                        const playerHead = new Vec3(playerPos.x, 1.5, playerPos.z);
+                        const upDir = new THREE.Vector3(0, 1, 0);
+                        const playerHead = new THREE.Vector3(playerPos.x, 1.5, playerPos.z);
                         const isCovered = isRayPathBlocked(
                             this.env, playerHead.x, playerHead.z, 2.0,
                             playerHead, upDir, 9.0, this._rayTarget

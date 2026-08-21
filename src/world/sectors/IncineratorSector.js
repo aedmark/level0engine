@@ -1,5 +1,3 @@
-import Vec3 from '../../math/Vec3.js';
-import AABB from '../../math/AABB.js';
 import {placeSectorPaper} from '../NarrativeProps.js';
 
 export const IncineratorSector = (env, ctx) => {

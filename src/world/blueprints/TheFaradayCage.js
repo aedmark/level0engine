@@ -1,5 +1,3 @@
-import Vec3 from '../../math/Vec3.js';
-import AABB from '../../math/AABB.js';
 
 export const TheFaradayCageProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, chunkGroup, hash} = ctx;
@@ -45,9 +43,9 @@ export const TheFaradayCageProfile = (env, ctx) => {
                     addGeometry(w);
                 }
             }
-            const blockBox = new AABB(
-                new Vec3(cx - env.cellSize / 2, 0, cz - env.cellSize / 2),
-                new Vec3(cx + env.cellSize / 2, 3.0, cz + env.cellSize / 2)
+            const blockBox = new THREE.Box3(
+                new THREE.Vector3(cx - env.cellSize / 2, 0, cz - env.cellSize / 2),
+                new THREE.Vector3(cx + env.cellSize / 2, 3.0, cz + env.cellSize / 2)
             );
             blockBox.isEntityBlocker = true;
             blockBox.isInvisibleBlocker = true;

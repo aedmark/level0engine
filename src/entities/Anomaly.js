@@ -1,6 +1,4 @@
-import Vec3 from '../math/Vec3.js';
-import AABB from '../math/AABB.js';
-import {isRayPathBlocked, stepGroundedBody} from './HazardUtils.js';
+import {sweepGroundedCollision} from './HazardUtils.js';
 
 const SPRINT_SPEED = 5.3;
 const PURSUE_SPEED = 3.4;
@@ -35,8 +33,8 @@ export default class Anomaly {
         this.env = environment;
         this.isActive = false;
         this.group = new THREE.Group();
-        this.target = new Vec3();
-        this.lastKnown = new Vec3();
+        this.target = new THREE.Vector3();
+        this.lastKnown = new THREE.Vector3();
         this.hasLastKnown = false;
         this.breadcrumbs = [];
         this.backtrackTimer = 0;
@@ -52,14 +50,14 @@ export default class Anomaly {
         this.feetY = 0;
         this.fallVelocity = 0;
         this._stuckSampleTimer = 0;
-        this._progressMark = new Vec3();
-        this._dormantAnchor = new Vec3();
-        this._dir = new Vec3();
-        this._toPlayer = new Vec3();
-        this._lookDir = new Vec3();
-        this._eye = new Vec3();
-        this._rayTarget = new Vec3();
-        this._scratch = {boxX: new AABB(), boxZ: new AABB(), floorBox: new AABB()};
+        this._progressMark = new THREE.Vector3();
+        this._dormantAnchor = new THREE.Vector3();
+        this._dir = new THREE.Vector3();
+        this._toPlayer = new THREE.Vector3();
+        this._lookDir = new THREE.Vector3();
+        this._eye = new THREE.Vector3();
+        this._rayTarget = new THREE.Vector3();
+        this._scratch = {boxX: new THREE.Box3(), boxZ: new THREE.Box3(), floorBox: new THREE.Box3()};
         this._buildMesh();
         document.addEventListener('somatic-step', (e) => this._handleNoise(e, 9.0));
         document.addEventListener('somatic-door', (e) => this._handleNoise(e, 30.0));
@@ -583,7 +581,7 @@ export default class Anomaly {
             height: BODY_HEIGHT,
             stepOffset: STEP_HEIGHT
         };
-        const step = stepGroundedBody(this.env.spatialGrid, body, moveX, moveZ, this._scratch);
+        const step = sweepGroundedCollision(this.env.spatialGrid, body, moveX, moveZ, this._scratch);
         const hitX = step.hitX || !!this._findForbiddenBounds(pos.x + moveX, pos.z, BODY_RADIUS);
         const hitZ = step.hitZ || !!this._findForbiddenBounds(pos.x, pos.z + moveZ, BODY_RADIUS);
         if (!hitX) pos.x += moveX;

@@ -1,5 +1,3 @@
-import Vec3 from '../../math/Vec3.js';
-import AABB from '../../math/AABB.js';
 import {placeEphemera} from '../NarrativeProps.js';
 
 export const ExitSector = (env, ctx) => {

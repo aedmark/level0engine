@@ -1,5 +1,17 @@
 # Level 0 Engine Changelog
 
+## [v1.3.5] - 2026-08-21
+
+_Core Engine Stabilization & Frame-Pacing Optimization_
+
+### Changed
+
+- **[ARCHITECTURE] Unified Math Primitives (`HazardUtils.js`, `AABB.js`, `Vec3.js`):** Purged the custom `AABB` and `Vec3` dual-math paradigm in favor of native `THREE.Box3` and `THREE.Vector3` primitives. Extracted redundant swept-collision logic into a centralized `sweepGroundedCollision()` helper to ensure entities and the somatic camera share the exact same physical constraints.
+- **[PERFORMANCE] Zero-Allocation Frame Pacing (`PlayerController.js`, `HazardUtils.js`, `IncineratorEntity.js`, `WardenEntity.js`):** Eliminated Garbage Collection (GC) micro-stutters during high-frequency update loops. By extracting entity pathfinding into `resolveEntityLocomotion()` and pre-allocating scratch vectors in object constructors, the engine no longer allocates memory during physics and collision detection, stabilizing the 1% low frame rates.
+- **[PERFORMANCE] Zero-Allocation Chunk Carving (`ChunkManager.js`):** Eliminated thousands of transient `THREE.Box3` allocations that occurred during procedural chunk generation when testing for wall and fixture intersections. Replaced the `.clone()` methodology with static `_scratchBox` references, preventing memory spikes and latency hitches when crossing sector boundaries.
+- **[PERFORMANCE] Zero-Allocation Interaction Loops (`InteractionController.js`):** Surgically inlined array iteration loops for the `somatic-interact` click event and the continuous `updateInteractives` render loop. This purges anonymous closure creation on every frame, further mitigating GC pressure.
+
+
 ## [v1.3.4] - 2026-08-20
 
 _Mechanic Tensegrity & Optics Refinement_

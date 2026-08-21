@@ -1,4 +1,3 @@
-import AABB from '../math/AABB.js';
 import * as SectorPlacement from '../world/SectorPlacement.js';
 
 export default class Compass {

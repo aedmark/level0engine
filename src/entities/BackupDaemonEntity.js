@@ -1,5 +1,3 @@
-import Vec3 from '../math/Vec3.js';
-import AABB from '../math/AABB.js';
 
 export default class BackupDaemonEntity {
     constructor(scene, camera, player, environment) {
@@ -11,17 +9,17 @@ export default class BackupDaemonEntity {
         this.group = new THREE.Group();
         this.graceTimer = 0;
         this._hasLastPlayerPos = false;
-        this._lastPlayerPos = new Vec3();
-        this._heading = new Vec3(0, 0, 1);
-        this._predicted = new Vec3();
+        this._lastPlayerPos = new THREE.Vector3();
+        this._heading = new THREE.Vector3(0, 0, 1);
+        this._predicted = new THREE.Vector3();
         this._relightTimer = 0;
         this._zapCooldown = 0;
         this.MAX_LIT = 2;
         this._litCables = [];
         this._litSlots = [];
-        this._teleMin = new Vec3();
-        this._teleMax = new Vec3();
-        this._teleBox = new AABB();
+        this._teleMin = new THREE.Vector3();
+        this._teleMax = new THREE.Vector3();
+        this._teleBox = new THREE.Box3();
         this._buildMesh();
         this._slotPool = [];
         for (let i = 0; i < this.MAX_LIT; i++) this._slotPool.push(this._buildSparkSlot());

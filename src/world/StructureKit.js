@@ -1,5 +1,3 @@
-import Vec3 from '../math/Vec3.js';
-import AABB from '../math/AABB.js';
 
 export const ARCH_WALK_CLEARANCE = 2.55;
 
@@ -165,10 +163,7 @@ export default class StructureKit {
                     b3.min.set(x0, y0, -halfDepth);
                     b3.max.set(x1, y1, halfDepth);
                     b3.applyMatrix4(mesh.matrixWorld);
-                    const box = new AABB(
-                        new Vec3(b3.min.x, b3.min.y, b3.min.z),
-                        new Vec3(b3.max.x, b3.max.y, b3.max.z)
-                    );
+                    const box = b3.clone();
                     box.isEntityBlocker = true;
                     box.chunkHash = hash;
                     env.spatialGrid.insert(box);
@@ -357,10 +352,7 @@ export default class StructureKit {
                     b3.min.set(sx0 - half, sy0 - half, -halfDepth);
                     b3.max.set(sx1 - half, size - half, halfDepth);
                     b3.applyMatrix4(mesh.matrixWorld);
-                    const box = new AABB(
-                        new Vec3(b3.min.x, b3.min.y, b3.min.z),
-                        new Vec3(b3.max.x, b3.max.y, b3.max.z)
-                    );
+                    const box = b3.clone();
                     box.isEntityBlocker = true;
                     box.chunkHash = hash;
                     env.spatialGrid.insert(box);

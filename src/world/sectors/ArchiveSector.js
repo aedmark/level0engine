@@ -1,5 +1,3 @@
-import Vec3 from '../../math/Vec3.js';
-import AABB from '../../math/AABB.js';
 
 const BOOK_W = 0.35, BOOK_H = 0.08, BOOK_D = 0.45;
 const BOOK_JITTER = 0.08;

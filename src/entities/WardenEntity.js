@@ -1,6 +1,4 @@
-import Vec3 from '../math/Vec3.js';
-import AABB from '../math/AABB.js';
-import {isRayPathBlocked, computeAxisBlocking} from './HazardUtils.js';
+import {computeAxisBlocking} from './HazardUtils.js';
 
 export default class WardenEntity {
     constructor(scene, camera, player, environment) {
@@ -10,18 +8,33 @@ export default class WardenEntity {
         this.env = environment;
         this.isActive = false;
         this.group = new THREE.Group();
-        this.target = new Vec3();
+        this.target = new THREE.Vector3();
         this.graceTimer = 0;
         this.stepTimer = 0;
-        this._dir = new Vec3();
-        this._toPlayer = new Vec3();
-        this._nextPos = new Vec3();
-        this._box = new AABB();
-        this._boxX = new AABB();
-        this._boxZ = new AABB();
-        this._min = new Vec3();
-        this._max = new Vec3();
-        this._rayTarget = new Vec3();
+        this._dir = new THREE.Vector3();
+        this._toPlayer = new THREE.Vector3();
+        this._nextPos = new THREE.Vector3();
+        this._box = new THREE.Box3();
+        this._locomotionScratch = {
+            dir: new THREE.Vector3(),
+            moveVec: new THREE.Vector3(),
+            nextPos: new THREE.Vector3(),
+            box: this._box,
+            boxX: this._boxX,
+            boxZ: this._boxZ
+        };
+        this._locomotionOptions = {
+            doorRadiusSq: 16.0,
+            boxRadius: 0.8,
+            stuckStrategy: 'jitter',
+            stuckTimeLimit: 0.0,
+            teleportDist: 0.0
+        };
+        this._boxX = new THREE.Box3();
+        this._boxZ = new THREE.Box3();
+        this._min = new THREE.Vector3();
+        this._max = new THREE.Vector3();
+        this._rayTarget = new THREE.Vector3();
         this._buildMesh();
     }
 
@@ -270,53 +283,7 @@ export default class WardenEntity {
     }
 
     _resolveLocomotion(speed, delta) {
-        if (this.env && this.env.interactiveDoors) {
-            for (let i = 0; i < this.env.interactiveDoors.length; i++) {
-                const door = this.env.interactiveDoors[i];
-                if (door.userData.isAirlockDoor) continue;
-                if (this.group.position.distanceToSquared(door.position) < 16.0) {
-                    door.userData.entityOpen = true;
-                    door.userData.entityZ = this.group.position.z;
-                }
-            }
-        }
-        const dir = this._dir.subVectors(this.target, this.group.position);
-        dir.y = 0;
-        const distToTarget = dir.length();
-        if (distToTarget > 0.1) {
-            dir.normalize();
-            const moveVec = dir.multiplyScalar(speed * delta);
-            this._nextPos.copy(this.group.position).add(moveVec);
-            this._min.set(this._nextPos.x - 0.8, 0.0, this._nextPos.z - 0.8);
-            this._max.set(this._nextPos.x + 0.8, 4.0, this._nextPos.z + 0.8);
-            this._box.set(this._min, this._max);
-            let blocked = false;
-            const localBoxes = this.env.spatialGrid.getNearby(this._nextPos.x, this._nextPos.z, 2.0);
-            for (let i = 0; i < localBoxes.length; i++) {
-                if (localBoxes[i].isEntityBlocker && this._box.intersectsBox(localBoxes[i])) {
-                    blocked = true;
-                    break;
-                }
-            }
-            if (!blocked) {
-                this.group.position.add(moveVec);
-            } else {
-                const {blockedX, blockedZ} = computeAxisBlocking(
-                    this._boxX, this._boxZ, this._box, this.group.position.x, this.group.position.z, localBoxes
-                );
-                if (!blockedX && !blockedZ) {
-                    if (Math.abs(moveVec.x) > Math.abs(moveVec.z)) this.group.position.x += moveVec.x;
-                    else this.group.position.z += moveVec.z;
-                } else if (!blockedX) {
-                    this.group.position.x += moveVec.x;
-                } else if (!blockedZ) {
-                    this.group.position.z += moveVec.z;
-                } else {
-                    this.group.position.x += (Math.random() - 0.5) * speed * delta;
-                    this.group.position.z += (Math.random() - 0.5) * speed * delta;
-                }
-            }
-        }
+        resolveEntityLocomotion(this, speed, delta, this._locomotionOptions, this._locomotionScratch);
         const clamped = this._clampToBounds(this.group.position.x, this.group.position.z);
         this.group.position.x = clamped.x;
         this.group.position.z = clamped.z;

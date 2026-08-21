@@ -1,5 +1,3 @@
-import Vec3 from '../../math/Vec3.js';
-import AABB from '../../math/AABB.js';
 
 export const TheOasisProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, buildTable, chunkGroup, hash, stagingMeshes} = ctx;
