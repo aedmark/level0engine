@@ -37,9 +37,7 @@ export default class ContinuePrompt {
                 } catch (e) {
                     console.error('New Game purge failed:', e);
                 }
-                cleanup();
-                overlay.style.display = 'none';
-                resolve();
+                window.location.href = window.location.href.split('?')[0];
             };
             continueBtn.addEventListener('click', onContinue);
             newGameBtn.addEventListener('click', onNewGame);
