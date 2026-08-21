@@ -85,7 +85,8 @@ export default class HazardTextures {
             transparent: true,
             depthWrite: false,
             polygonOffset: true,
-            polygonOffsetFactor: -4
+            polygonOffsetFactor: -4,
+            side: THREE.DoubleSide
         });
         const tagGeo = new THREE.PlaneGeometry(0.5, 0.5);
         const voidTexture = TextureMechanics._createWrappedTexture(masterNoise);

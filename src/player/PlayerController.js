@@ -15,6 +15,7 @@ export default class PlayerController {
         let isFirstTime = false;
         try { isFirstTime = !localStorage.getItem('level0_tutorial'); } catch(e) {}
         this.flashlightBattery = isFirstTime ? 0.0 : 100.0;
+        this.flashlightCooldownTimer = 0.0;
         this.baseRadius = 0.4;
         this.squeezeRadius = 0.12;
         this.playerRadius = 0.4;
@@ -25,6 +26,7 @@ export default class PlayerController {
         this.speedMultiplier = 1.0;
         this.maxStamina = 100.0;
         this.stamina = 100.0;
+        this.staminaCooldownTimer = 0.0;
         this.inventory = {hasExitKey: false};
         this.objectives = {fixed: 0, total: 3, escaped: false};
         this.depth = 1;
@@ -301,7 +303,7 @@ export default class PlayerController {
         let currentSpeed = baseSpeed * this.speedMultiplier * adrenalineMultiplier;
         if (this.isGodMode) currentSpeed = (state.isRunning ? 200.0 : 110.0) * this.speedMultiplier;
         const isMoving = this.direction.lengthSq() > 0;
-        if (this.isWinded && this.stamina > 50.0) {
+        if (this.isWinded && this.stamina >= this.maxStamina * 0.5) {
             this.isWinded = false;
         }
         if (this.adrenalineTimer > 0) {
@@ -312,6 +314,7 @@ export default class PlayerController {
                 this.isWinded = true;
                 state.isRunning = false;
                 this.stamina = 0;
+                this.staminaCooldownTimer = 7.0;
             }
         } else if (this.staminaBoostTimer > 0) {
             this.staminaBoostTimer -= delta;
@@ -335,6 +338,7 @@ export default class PlayerController {
                     this.isWaterlogged = false;
                     currentSpeed = dynamicWalkSpeed * this.speedMultiplier;
                     document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.5}}));
+                    this.staminaCooldownTimer = 7.0;
                 }
             }
         } else {
@@ -348,7 +352,12 @@ export default class PlayerController {
             }
             let recoveryRate = this.isChased ? 1.0 : (this.isWinded ? 2.5 : (isResting ? 15.0 * crouchBonus : 6.0 * coherencePenalty * crouchBonus));
             if (this.isWaterlogged) recoveryRate = 0.0;
-            this.stamina = Math.max(0.0, Math.min(this.maxStamina, this.stamina + recoveryRate * delta));
+            
+            if (this.staminaCooldownTimer > 0) {
+                this.staminaCooldownTimer -= delta;
+            } else {
+                this.stamina = Math.max(0.0, Math.min(this.maxStamina, this.stamina + recoveryRate * delta));
+            }
             if (isResting && this.maxStamina < 100.0) {
                 const healingFactor = this.perceivedDarkness === 0.0 ? 3.0 : 1.5;
                 this.maxStamina = Math.min(100.0, this.maxStamina + (healingFactor * delta));
@@ -382,12 +391,19 @@ export default class PlayerController {
             this.flashlightBattery = Math.max(0, this.flashlightBattery - panicDrain * delta);
             if (this.flashlightBattery === 0) {
                 state.flashlightActive = false;
+                this.flashlightCooldownTimer = 10.0;
+                document.dispatchEvent(new CustomEvent('somatic-flashlight', {detail: {on: false}}));
             }
         } else {
-                        const verticalSpeed = Math.abs(this.fallVelocity || 0);
-        const kineticCharge = (currentActualSpeed * 0.30) + (verticalSpeed * 0.40) + (shakeRate * 2.0);
-            this.flashlightBattery = Math.max(0, Math.min(maxBatteryCeiling, this.flashlightBattery + kineticCharge * delta));
+            if (this.flashlightCooldownTimer > 0) {
+                this.flashlightCooldownTimer -= delta;
+            } else {
+                const verticalSpeed = Math.abs(this.fallVelocity || 0);
+                const kineticCharge = (currentActualSpeed * 0.30) + (verticalSpeed * 0.40) + (shakeRate * 2.0);
+                this.flashlightBattery = Math.max(0, Math.min(maxBatteryCeiling, this.flashlightBattery + kineticCharge * delta));
+            }
         }
+        this.input.flashlightLocked = (this.flashlightBattery < maxBatteryCeiling * 0.25) || (this.flashlightBattery <= 0);
         const fatigueRatio = this.stamina / this.maxStamina;
         this.exhaustion = fatigueRatio < 0.3 ? Math.pow(1.0 - (fatigueRatio / 0.3), 2.0) : 0.0;
         let intentX = this.direction.x;

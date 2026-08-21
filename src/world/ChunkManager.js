@@ -1063,6 +1063,8 @@ export default class ChunkManager {
             if (Array.isArray(matKey)) {
                 matKey = 'A';
                 for (let m = 0; m < mesh.material.length; m++) matKey += mesh.material[m].uuid;
+            } else if (mesh.userData.noShadow) {
+                matKey = matKey.uuid + '_NS';
             }
             let group = byMaterial.get(matKey);
             if (group === undefined) {
@@ -1090,7 +1092,7 @@ export default class ChunkManager {
             if (group.meshes.length > 1 && !Array.isArray(group.material)) {
                 const iMesh = new THREE.InstancedMesh(group.geometry, group.material, group.meshes.length);
                 if (!isDecal) {
-                    iMesh.castShadow = (group.material !== env.fenceMat && !group.material.userData.noShadow);
+                    iMesh.castShadow = (group.material !== env.fenceMat && !group.material.userData.noShadow && group.meshes.every(m => !m.userData.noShadow));
                     iMesh.receiveShadow = true;
                 }
                 iMesh.userData.chunkHash = hash;
@@ -1114,7 +1116,7 @@ export default class ChunkManager {
                     const mesh = group.meshes[j];
                     mesh.matrixWorld.decompose(mesh.position, mesh.quaternion, mesh.scale);
                     if (!isDecal) {
-                        mesh.castShadow = (!Array.isArray(group.material) && group.material !== env.fenceMat && !group.material.userData.noShadow);
+                        mesh.castShadow = (!Array.isArray(group.material) && group.material !== env.fenceMat && !group.material.userData.noShadow && !mesh.userData.noShadow);
                         mesh.receiveShadow = true;
                         env.walls.push(mesh);
                     }

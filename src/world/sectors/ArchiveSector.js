@@ -139,10 +139,11 @@ export const ArchiveSector = (env, ctx) => {
                     }
                 } else if (r > 0.2) {
                     const numP = 8 + Math.floor(random() * 12);
+                    const baseY = cy + 0.01 + random() * 0.03;
                     for (let i = 0; i < numP; i++) {
                         if (!env.paperGeo || !env.paperMat) break;
                         const p = new THREE.Mesh(env.paperGeo, env.paperMat);
-                        p.position.set(cx + (random() - 0.5) * radius, cy + 0.01 + i * 0.002, cz + (random() - 0.5) * radius);
+                        p.position.set(cx + (random() - 0.5) * radius, baseY + i * 0.002, cz + (random() - 0.5) * radius);
                         p.rotation.x = -Math.PI / 2;
                         p.rotation.z = random() * Math.PI * 2;
                         addGeometry(p);

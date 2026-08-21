@@ -205,37 +205,20 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
 
     const tx = cx - exit.dx * 1.1;
     const tz = cz - exit.dz * 1.1;
-
-    const table = buildTable(false);
-    table.position.set(tx, 0, tz);
-    table.updateMatrixWorld(true);
-    const tBox = new THREE.Box3().setFromObject(table);
-    tBox.chunkHash = hash;
-    tBox.isEntityBlocker = true;
-    env.spatialGrid.insert(tBox);
-    table.traverse((child) => {
-        if (child.isMesh) {
-            child.userData.chunkHash = hash;
-            child.updateMatrixWorld(true);
-            stagingMeshes.push(child);
-        }
-    });
-
-    const spanX = exit.spansX ? 1 : 0;
-    const spanZ = exit.spansX ? 0 : 1;
-    const tx2 = cx - exit.dx * 1.1;
-    const tz2 = cz - exit.dz * 1.1;
-    const SURFACE_Y = 0.93;
-    const PAPER_Y = SURFACE_Y + 0.005;
-
     if (!env.interactables) env.interactables = [];
     const taken = env.consumedProps || new Set();
 
-
     {
         const note = new THREE.Mesh(env.documentGeo, env.documentMat);
-        note.position.set(tx2 + exit.dx * 0.22, PAPER_Y, tz2 + exit.dz * 0.22);
+
+        const wallX = cx - exit.dx * 1.60;
+        const wallZ = cz - exit.dz * 1.60;
+        
+        note.position.set(wallX, 1.5, wallZ);
+
+        note.rotation.order = 'YXZ';
         note.rotation.y = Math.atan2(exit.dx, exit.dz);
+        note.rotation.x = Math.PI / 2;
         note.userData = {
             type: 'document',
             chunkHash: hash,

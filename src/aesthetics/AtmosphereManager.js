@@ -437,7 +437,7 @@ export default class AtmosphereManager {
     _updateFlashlightAndAmbient(darknessPressure, activeSector) {
         const env = this.env;
         if (env.flashlight) {
-            let targetIntensity = env.player.flashlightActive ? 2.2 : 0.0;
+            let targetIntensity = env.player.flashlightActive ? 1.4 : 0.0;
             if (env.player.flashlightActive) {
                 if (env.player.flashlightBattery <= 0) {
                     targetIntensity = 0.0;
@@ -452,9 +452,9 @@ export default class AtmosphereManager {
             env.flashlight.intensity += (targetIntensity - env.flashlight.intensity) * 0.4;
             
             const isVent = env.player && env.player.isCrawling;
-            const targetAngle = isVent ? Math.PI / 5 : Math.PI / 7;
-            const targetPenumbra = isVent ? 0.3 : 0.5;
-            const targetDistance = isVent ? 15.0 : 45.0;
+            const targetAngle = isVent ? Math.PI / 3 : Math.PI / 4;
+            const targetPenumbra = isVent ? 0.4 : 0.6;
+            const targetDistance = isVent ? 20.0 : 55.0;
             
             env.flashlight.angle += (targetAngle - env.flashlight.angle) * 0.1;
             env.flashlight.penumbra += (targetPenumbra - env.flashlight.penumbra) * 0.1;

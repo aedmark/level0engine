@@ -7,128 +7,7 @@
     <meta name="theme-color" content="#000000">
     <link rel="preload" href="assets/fonts/vt323-latin.woff2" as="font" type="font/woff2" crossorigin>
     <script src="r160.js" defer></script>
-    <link rel="modulepreload" href="src/core/RenderEngine.js">
-    <link rel="modulepreload" href="src/player/PlayerController.js">
-    <link rel="modulepreload" href="src/player/Compass.js">
-    <link rel="modulepreload" href="src/player/Flashlight.js">
-    <link rel="modulepreload" href="src/player/PaintballGun.js">
-    <link rel="modulepreload" href="src/entities/PaintballSystem.js">
-    <link rel="modulepreload" href="src/core/Environment.js">
-    <link rel="modulepreload" href="src/audio/AcousticEngine.js">
-    <link rel="modulepreload" href="src/narrative/StoryEngine.js">
-    <link rel="modulepreload" href="src/system/SaveManager.js">
-    <link rel="modulepreload" href="src/system/SomaticController.js">
-    <link rel="modulepreload" href="src/ui/DocumentViewer.js">
-    <link rel="modulepreload" href="src/ui/JournalViewer.js">
-    <link rel="modulepreload" href="src/ui/KeypadController.js">
-    <link rel="modulepreload" href="src/ui/InquestController.js">
-    <link rel="modulepreload" href="src/ui/UIManager.js">
-    <link rel="modulepreload" href="src/ui/DebugHUD.js">
-    <link rel="modulepreload" href="src/ui/RemapController.js">
-    <link rel="modulepreload" href="src/ui/BootController.js">
-    <link rel="modulepreload" href="src/ui/ContinuePrompt.js">
-    <link rel="modulepreload" href="src/player/SomaticInput.js">
-    <link rel="modulepreload" href="src/math/Vec3.js">
-    <link rel="modulepreload" href="src/math/AABB.js">
-    <link rel="modulepreload" href="src/world/ChunkManager.js">
-    <link rel="modulepreload" href="src/aesthetics/AtmosphereManager.js">
-    <link rel="modulepreload" href="src/aesthetics/ProceduralTextureFactory.js">
-    <link rel="modulepreload" href="src/entities/EntityManager.js">
-    <link rel="modulepreload" href="src/math/SpatialHashGrid.js">
-    <link rel="modulepreload" href="src/core/TheArchitect.js">
-    <link rel="modulepreload" href="src/aesthetics/LumenGrid.js">
-    <link rel="modulepreload" href="src/world/Sectors.js">
-    <link rel="modulepreload" href="src/aesthetics/MaterialLibrary.js">
-    <link rel="modulepreload" href="src/world/StructureKit.js">
-    <link rel="modulepreload" href="src/world/SetPieces.js">
-    <link rel="modulepreload" href="src/player/InteractionController.js">
-    <link rel="modulepreload" href="src/world/BreakerPodium.js">
-    <link rel="modulepreload" href="src/core/ShaderWarmup.js">
-    <link rel="modulepreload" href="src/audio/Synthesizer.js">
-    <link rel="modulepreload" href="src/audio/Mixer.js">
-    <link rel="modulepreload" href="src/audio/Foley.js">
-    <link rel="modulepreload" href="src/narrative/CaseFiles.js">
-    <link rel="modulepreload" href="src/aesthetics/textures/TextureCache.js">
-    <link rel="modulepreload" href="src/system/InputBindings.js">
-    <link rel="modulepreload" href="src/world/blueprints/BreakerPodiumSpawn.js">
-    <link rel="modulepreload" href="src/world/blueprints/EmptyDoorFrame.js">
-    <link rel="modulepreload" href="src/world/blueprints/CrawlspaceDuct.js">
-    <link rel="modulepreload" href="src/world/blueprints/CrawlspaceHall.js">
-    <link rel="modulepreload" href="src/world/blueprints/CreviceHall.js">
-    <link rel="modulepreload" href="src/world/blueprints/RideQueueHall.js">
-    <link rel="modulepreload" href="src/world/blueprints/ArchHall.js">
-    <link rel="modulepreload" href="src/world/SectorPlacement.js">
-    <link rel="modulepreload" href="src/aesthetics/textures/TextureMechanics.js">
-    <link rel="modulepreload" href="src/aesthetics/textures/common/StructuralTextures.js">
-    <link rel="modulepreload" href="src/aesthetics/textures/common/SurfaceTextures.js">
-    <link rel="modulepreload" href="src/aesthetics/textures/sectors/ClinicTextures.js">
-    <link rel="modulepreload" href="src/aesthetics/textures/sectors/AtriumTextures.js">
-    <link rel="modulepreload" href="src/aesthetics/textures/common/OrganicTextures.js">
-    <link rel="modulepreload" href="src/aesthetics/textures/common/TechTextures.js">
-    <link rel="modulepreload" href="src/aesthetics/textures/common/HazardTextures.js">
-    <link rel="modulepreload" href="src/aesthetics/textures/common/PropTextures.js">
-    <link rel="modulepreload" href="src/aesthetics/textures/sectors/AnnexTextures.js">
-    <link rel="modulepreload" href="src/aesthetics/textures/sectors/ImpoundTextures.js">
-    <link rel="modulepreload" href="src/aesthetics/textures/sectors/BoardroomTextures.js">
-    <link rel="modulepreload" href="src/aesthetics/textures/sectors/MaintenanceTextures.js">
-    <link rel="modulepreload" href="src/aesthetics/textures/sectors/ArchiveTextures.js">
-    <link rel="modulepreload" href="src/aesthetics/textures/sectors/CheckpointTextures.js">
-    <link rel="modulepreload" href="src/aesthetics/textures/sectors/IncineratorTextures.js">
-    <link rel="modulepreload" href="src/aesthetics/textures/sectors/ServerTextures.js">
-    <link rel="modulepreload" href="src/aesthetics/StaticTextureLoader.js">
-    <link rel="modulepreload" href="src/entities/Anomaly.js">
-    <link rel="modulepreload" href="src/entities/ArchivistEntity.js">
-    <link rel="modulepreload" href="src/entities/WardenEntity.js">
-    <link rel="modulepreload" href="src/entities/IncineratorEntity.js">
-    <link rel="modulepreload" href="src/entities/BackupDaemonEntity.js">
-    <link rel="modulepreload" href="src/entities/ClawEntity.js">
-    <link rel="modulepreload" href="src/world/StructuralBlueprints.js">
-    <link rel="modulepreload" href="src/world/SectorBlueprints.js">
-    <link rel="modulepreload" href="src/core/DuctLighting.js">
-    <link rel="modulepreload" href="src/world/PropGlow.js">
-    <link rel="modulepreload" href="src/core/LazyMaterialWarmup.js">
-    <link rel="modulepreload" href="src/aesthetics/AmbientEnvMap.js">
-    <link rel="modulepreload" href="src/entities/HazardUtils.js">
-    <link rel="modulepreload" href="src/world/blueprints/RandomPillar.js">
-    <link rel="modulepreload" href="src/world/blueprints/PipeCluster.js">
-    <link rel="modulepreload" href="src/world/blueprints/WideHeaderGap.js">
-    <link rel="modulepreload" href="src/world/blueprints/PartitionHeader.js">
-    <link rel="modulepreload" href="src/world/blueprints/HingedDoorway.js">
-    <link rel="modulepreload" href="src/world/blueprints/NarrowHeaderGap.js">
-    <link rel="modulepreload" href="src/world/blueprints/LCornerNook.js">
-    <link rel="modulepreload" href="src/world/blueprints/AlcoveCorner.js">
-    <link rel="modulepreload" href="src/world/blueprints/Crates.js">
-    <link rel="modulepreload" href="src/world/blueprints/Duct.js">
-    <link rel="modulepreload" href="src/world/blueprints/Vent.js">
-    <link rel="modulepreload" href="src/world/blueprints/BlockyObstruction.js">
-    <link rel="modulepreload" href="src/world/blueprints/TunnelBurst.js">
-    <link rel="modulepreload" href="src/world/blueprints/TheObserver.js">
-    <link rel="modulepreload" href="src/world/blueprints/SettlingField.js">
-    <link rel="modulepreload" href="src/world/blueprints/AnomalousPointOfInterest.js">
-    <link rel="modulepreload" href="src/world/blueprints/WreckedFurniturePile.js">
-    <link rel="modulepreload" href="src/world/blueprints/TheOutpost.js">
-    <link rel="modulepreload" href="src/world/blueprints/TheOasis.js">
-    <link rel="modulepreload" href="src/world/blueprints/OfficeAmenities.js">
-    <link rel="modulepreload" href="src/world/blueprints/RoundPillar.js">
-    <link rel="modulepreload" href="src/world/blueprints/CurvedArchway.js">
-    <link rel="modulepreload" href="src/world/blueprints/RoundAlcove.js">
-    <link rel="modulepreload" href="src/world/blueprints/CompressionArchway.js">
-    <link rel="modulepreload" href="src/world/sectors/ExitSector.js">
-    <link rel="modulepreload" href="src/world/sectors/ImpoundSector.js">
-    <link rel="modulepreload" href="src/world/sectors/ClinicSector.js">
-    <link rel="modulepreload" href="src/world/sectors/BoardroomSector.js">
-    <link rel="modulepreload" href="src/world/sectors/ArchiveSector.js">
-    <link rel="modulepreload" href="src/world/sectors/ServerSector.js">
-    <link rel="modulepreload" href="src/world/sectors/MaintenanceSector.js">
-    <link rel="modulepreload" href="src/world/sectors/ChasmSector.js">
-    <link rel="modulepreload" href="src/world/sectors/IncineratorSector.js">
-    <link rel="modulepreload" href="src/world/sectors/AnnexSector.js">
-    <link rel="modulepreload" href="src/world/sectors/AtriumSector.js">
-    <link rel="modulepreload" href="src/world/sectors/CheckpointSector.js">
-    <link rel="modulepreload" href="src/world/OfficeFurniture.js">
-    <link rel="modulepreload" href="src/world/blueprints/ArchWaitingArea.js">
-    <link rel="modulepreload" href="src/world/NarrativeProps.js">
-    <link rel="modulepreload" href="src/world/ClinicFurniture.js">
+    <!-- DYNAMIC_PRELOADS -->
     <style>
         @font-face {
             font-family: 'VT323';
@@ -475,7 +354,7 @@
             position: absolute;
             color: #ffffff;
             font-family: 'VT323', monospace;
-            font-size: clamp(0.9rem, 2.5vmin, 1.4rem);
+            font-size: clamp(1.2rem, 2.5vmin, 1.5rem);
             letter-spacing: 0.05em;
             opacity: 0.9;
             text-shadow: 2px 2px 0 rgba(0, 0, 0, 1), 0 0 8px rgba(255, 255, 255, 0.8), 0 0 15px rgba(255, 255, 255, 0.4);

@@ -222,7 +222,7 @@ export default class RenderEngine {
                     vec2 sampleUv = uv + heatOffset;
                     vec3 col;
                     vec3 fauxHalation;
-                    if (stressLevel < 0.02) {
+                    if (stressLevel < 0.02 && enableVHS < 0.01) {
                         vec4 tex = texture2D(tDiffuse, sampleUv);
                         col = tex.rgb;
                         fauxHalation = tex.rgb * 0.6;
@@ -232,6 +232,21 @@ export default class RenderEngine {
                         vec4 texB = texture2D(tDiffuse, sampleUv - offset);
                         col = vec3(texR.r, texG.g, texB.b);
                         fauxHalation = (texR.rgb + texB.rgb) * 0.3;
+                        
+                        if (enableVHS > 0.01) {
+                            float cb = 0.0015;
+                            vec3 c1 = texture2D(tDiffuse, sampleUv + vec2(cb, 0.0)).rgb;
+                            vec3 c2 = texture2D(tDiffuse, sampleUv + vec2(cb * 2.0, 0.0)).rgb;
+                            vec3 c3 = texture2D(tDiffuse, sampleUv + vec2(cb * 3.0, 0.0)).rgb;
+                            vec3 c4 = texture2D(tDiffuse, sampleUv + vec2(-cb, 0.0)).rgb;
+                            
+                            vec3 blurred = (texG.rgb + c1 + c2 + c3 + c4) * 0.2;
+                            float origLuma = dot(col, vec3(0.299, 0.587, 0.114));
+                            float blurredLuma = dot(blurred, vec3(0.299, 0.587, 0.114));
+                            
+                            vec3 vhsCol = blurred + (origLuma - blurredLuma);
+                            col = mix(col, vhsCol, enableVHS);
+                        }
                     }
                     if (glare > 0.01) {
                         float gBlur = glare * 0.03;

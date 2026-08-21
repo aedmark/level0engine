@@ -91,6 +91,7 @@ export const ArchHallProfile = (env, ctx) => {
             const housing = new THREE.Mesh(housingGeo, env.baseHousingMat);
             housing.position.set(bx, apexY - 0.04, bz);
             housing.userData.noCollision = true;
+            housing.userData.noShadow = true;
             addGeometry(housing);
 
             env._archSeamIndex = ((env._archSeamIndex || 0) + 1) % 8;
@@ -113,6 +114,7 @@ export const ArchHallProfile = (env, ctx) => {
             const panel = new THREE.Mesh(panelGeo, mat);
             panel.position.set(bx, apexY - 0.10, bz);
             panel.userData.noCollision = true;
+            panel.userData.noShadow = true;
             addGeometry(panel);
 
             if (isBroken) continue;
@@ -143,6 +145,7 @@ export const ArchHallProfile = (env, ctx) => {
         panel.position.set(cx, 2.98, cz);
         if (random() > 0.5) panel.rotation.y = Math.PI / 2;
         panel.userData.noCollision = true;
+        panel.userData.noShadow = true;
         addGeometry(panel);
 
         if (isBroken) return;

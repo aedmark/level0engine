@@ -116,14 +116,38 @@ const server = http.createServer((req, res) => {
                 res.end(`Sorry, check with the site admin for error: ${error.code} ..\n`);
                 return;
             }
+            
+            let output = content;
+            if (route === '/engine.html' && contentType === 'text/html') {
+                try {
+                    const srcDir = path.join(__dirname, 'src');
+                    const getFiles = (dir) => {
+                        const dirents = fs.readdirSync(dir, { withFileTypes: true });
+                        const files = dirents.map((dirent) => {
+                            const res = path.resolve(dir, dirent.name);
+                            return dirent.isDirectory() ? getFiles(res) : res;
+                        });
+                        return Array.prototype.concat(...files);
+                    };
+                    const jsFiles = getFiles(srcDir).filter(f => f.endsWith('.js'));
+                    const links = jsFiles.map(f => `<link rel="modulepreload" href="src${f.replace(srcDir, '').replace(/\\/g, '/')}">`).join('\n    ');
+                    
+                    let html = output.toString('utf-8');
+                    html = html.replace('<!-- DYNAMIC_PRELOADS -->', links);
+                    output = Buffer.from(html, 'utf-8');
+                } catch (e) {
+                    console.error('Failed to generate dynamic preloads', e);
+                }
+            }
             res.writeHead(200, {
                 ...ISOLATION_HEADERS,
                 'Content-Type': contentType,
                 'Cache-Control': cacheControl,
                 'ETag': etag,
-                'Last-Modified': stats.mtime.toUTCString()
+                'Last-Modified': stats.mtime.toUTCString(),
+                'Content-Length': Buffer.byteLength(output)
             });
-            res.end(content);
+            res.end(output);
         });
     });
 });

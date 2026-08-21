@@ -1,7 +1,18 @@
 # Level 0 Engine Changelog
 
-## [v1.3.3] - 2026-08-19
+## [v1.3.4] - 2026-08-20
 
+_Mechanic Tensegrity & Optics Refinement_
+
+### Changed
+
+- **[GAMEPLAY] Flashlight Depletion & Cooldown (`PlayerController.js`, `SomaticInput.js`, `SaveManager.js`):** The flashlight now enforces a 10-second penalty cooldown when the battery hits 0%. Additionally, a mechanical hysteresis lock prevents the player from toggling the flashlight back on until it has recharged to at least 25% capacity.
+- **[GAMEPLAY] Stamina Depletion & "Winded" Cooldown (`PlayerController.js`, `SaveManager.js`):** The stamina system now mirrors the flashlight penalty. Hitting 0% stamina initiates a 7-second cooldown where no regeneration occurs, and sprinting remains locked until the player has "caught their breath" (regenerated to 50% max stamina).
+- **[GRAPHICS] Arch Hall Fixture Shadow Culling (`ArchHall.js`, `ChunkManager.js`):** The geometry compiler in `ChunkManager` now respects a per-mesh `noShadow` flag (previously only checking materials), allowing the physical casing and panel meshes of Arch Hall light fixtures to be flagged as non-shadow-casting. This prevents the fixtures from casting harsh shadows of their own geometry while allowing their emitted light sources to continue casting dynamic shadows.
+- **[GRAPHICS] Flashlight Physical Optics Rework (`Environment.js`, `AtmosphereManager.js`):** Converted the flashlight's physical decay exponent from `2.0` (inverse square) to `1.0` (linear) to correctly emulate a collimated lens beam and prevent blowout/clipping when illuminating objects at point-blank range. To compensate, the base target intensity was lowered from `2.2` to `1.4` and the terminal falloff distance was extended from `45.0` to `55.0`.
+- **[GRAPHICS] Flashlight Beam Spread (`Environment.js`, `AtmosphereManager.js`):** Widened the flashlight's cone angle from 25 degrees (`Math.PI / 7`) to 45 degrees (`Math.PI / 4`) during standard traversal, and up to 60 degrees (`Math.PI / 3`) while crawling in vents. Penumbra was slightly increased to soften the edges of the wider cone.
+
+## [v1.3.3] - 2026-08-19
 _Spawn Safety & Shadow Lighting Optimization_
 
 ### Changed

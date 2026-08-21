@@ -63,7 +63,7 @@ export const SettlingFieldProfile = (env, ctx) => {
             const paperCount = 2 + Math.floor(lRand() * 3);
             for (let i = 0; i < paperCount; i++) {
                 const sheet = new THREE.Mesh(env.documentGeo, env.documentMat);
-                sheet.position.set(cx + (lRand() - 0.5) * 3.2, 0.015, cz + (lRand() - 0.5) * 3.2);
+                sheet.position.set(cx + (lRand() - 0.5) * 3.2, 0.015 + (lRand() * 0.02) + (i * 0.002), cz + (lRand() - 0.5) * 3.2);
                 sheet.rotation.y = lRand() * Math.PI * 2;
                 addGeometry(sheet);
             }

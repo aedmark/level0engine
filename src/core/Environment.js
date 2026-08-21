@@ -189,7 +189,7 @@ export default class Environment {
         this.scene.add(this.tagGroup);
         this.scene.add(this.camera);
         const shadowQuality = RenderEngine.getSavedShadowQuality();
-        this.flashlight = new THREE.SpotLight(0xffe8b3, 0.0, 45.0, Math.PI / 7, 0.5, 2.0);
+        this.flashlight = new THREE.SpotLight(0xffe8b3, 0.0, 55.0, Math.PI / 4, 0.6, 1.0);
         this.flashlight.position.set(0.3, -0.3, 0);
         this.flashlight.target.position.set(0.3, -0.3, -1);
         this.flashlight.castShadow = shadowQuality !== 'off';

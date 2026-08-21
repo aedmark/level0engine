@@ -107,7 +107,9 @@ if (savedState) {
     engine.camera.position.set(savedState.px, savedState.py, savedState.pz);
     engine.camera.rotation.set(savedState.rx, savedState.ry, 0, 'YXZ');
     player.stamina = savedState.stamina;
+    if (savedState.staminaCooldownTimer !== undefined) player.staminaCooldownTimer = savedState.staminaCooldownTimer;
     if (savedState.battery !== undefined) player.flashlightBattery = savedState.battery;
+    if (savedState.flashlightCooldownTimer !== undefined) player.flashlightCooldownTimer = savedState.flashlightCooldownTimer;
     if (savedState.flashlightActive !== undefined) player.input.state.flashlightActive = savedState.flashlightActive;
     if (savedState.isCrouching !== undefined) player.input.state.isCrouching = savedState.isCrouching;
     if (savedState.isCrawling !== undefined) player.input.state.isCrawling = savedState.isCrawling;
