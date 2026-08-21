@@ -106,6 +106,7 @@ The settings panel (`Tab`) provides a full structural and performance control su
 - `Three.js (r160)` - Loaded locally (`r160.js`) with no bundler or package manager involved, to preserve the zero-build-tool philosophy. Rendering, meshes, materials, and physics rely entirely on the native `THREE` namespace, taking advantage of modern features like `KHR_parallel_shader_compile` for non-blocking shader pre-warming. **Note:** The engine expects `THREE` to be globally injected; bare module imports (`import * as THREE from 'three'`) are strictly prohibited to maintain the zero-build-tool architecture.
 - `jsep` - Used locally in the Lore Editor to safely evaluate procedural logic and template expressions, replacing unsafe calls to `new Function`.
 - `marked` - Used locally in the Lore Editor to render markdown content.
+- `dompurify` - Used to sanitize HTML strings globally before injecting them into the DOM, preventing XSS.
 
 ## Architecture
 

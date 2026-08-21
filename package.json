@@ -9,6 +9,7 @@
     "build": "node build_static.js"
   },
   "dependencies": {
+    "dompurify": "^3.4.14",
     "jsep": "^1.4.0",
     "marked": "^18.0.10"
   }

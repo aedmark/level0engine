@@ -2,7 +2,7 @@ async function init() {
             try {
                 fetch('/HowTo.md').then(res => res.text()).then(text => {
                     const contentDiv = document.getElementById('welcome-msg-content');
-                    if (contentDiv) contentDiv.innerHTML = marked.parse(text);
+                    if (contentDiv) contentDiv.innerHTML = DOMPurify.sanitize(marked.parse(text));
                 }).catch(err => console.error('Failed to load HowTo.md', err));
 
                 const namesRes = await fetch('/api/data?file=parameters.json');

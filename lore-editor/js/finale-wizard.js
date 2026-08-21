@@ -95,13 +95,13 @@ const DEFAULT_FORESHADOW_SECTORS = ['ANNEX', 'ARCHIVE', 'SERVER', 'CLINIC', 'CHA
             nextBtn.onclick = finaleWizardState.step === 4 ? finishFinaleWizard : finaleWizardNext;
 
             if (finaleWizardState.step === 1) {
-                document.getElementById('wizard-body').innerHTML = renderFinaleWizardStep1();
+                document.getElementById('wizard-body').innerHTML = DOMPurify.sanitize(renderFinaleWizardStep1());
             } else if (finaleWizardState.step === 2) {
-                document.getElementById('wizard-body').innerHTML = renderFinaleWizardStep2();
+                document.getElementById('wizard-body').innerHTML = DOMPurify.sanitize(renderFinaleWizardStep2());
             } else if (finaleWizardState.step === 3) {
-                document.getElementById('wizard-body').innerHTML = renderFinaleWizardStep3();
+                document.getElementById('wizard-body').innerHTML = DOMPurify.sanitize(renderFinaleWizardStep3());
             } else if (finaleWizardState.step === 4) {
-                document.getElementById('wizard-body').innerHTML = renderFinaleWizardStep4();
+                document.getElementById('wizard-body').innerHTML = DOMPurify.sanitize(renderFinaleWizardStep4());
             }
         }
 

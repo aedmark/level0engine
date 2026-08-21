@@ -33,7 +33,7 @@ let inspectorData = null;
             document.getElementById('inspector-container').style.display = 'flex';
 
             const resultsEl = document.getElementById('inspector-results');
-            resultsEl.innerHTML = '<div style="color:var(--text-muted); font-family:var(--font-mono);">Loading...</div>';
+            resultsEl.innerHTML = DOMPurify.sanitize('<div style="color:var(--text-muted); font-family:var(--font-mono);">Loading...</div>');
 
             try {
                 const fetches = ['parameters.json', 'threads.json', 'puzzles.json', 'clues.json', 'lore.json', 'foreshadow.json', 'finales.json'].map(f => fetch('/api/data?file=' + f).then(r => r.json()));
@@ -65,7 +65,7 @@ let inspectorData = null;
 
                 renderInspectorResults();
             } catch (err) {
-                resultsEl.innerHTML = `<div style="color:var(--accent-red); font-family:var(--font-mono);">Failed to load puzzle inspector: ${err.message}</div>`;
+                resultsEl.innerHTML = DOMPurify.sanitize(`<div style="color:var(--accent-red); font-family:var(--font-mono);">Failed to load puzzle inspector: ${err.message}</div>`);
             }
         }
 
@@ -81,7 +81,7 @@ let inspectorData = null;
             const { params, threads, puzzles, clues, lore } = inspectorData;
 
             if (puzzles.length === 0) {
-                resultsEl.innerHTML = '<div style="color:var(--text-muted); font-family:var(--font-mono);">No puzzles defined in puzzles.json.</div>';
+                resultsEl.innerHTML = DOMPurify.sanitize('<div style="color:var(--text-muted); font-family:var(--font-mono);">No puzzles defined in puzzles.json.</div>');
                 return;
             }
 
@@ -154,6 +154,6 @@ let inspectorData = null;
                 html += `</div>`;
             });
 
-            resultsEl.innerHTML = html;
+            resultsEl.innerHTML = DOMPurify.sanitize(html);
         }
 

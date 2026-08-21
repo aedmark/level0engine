@@ -61,7 +61,7 @@ export default class PlayerController {
                 this.objectiveUI.style.color = '#ffffff';
             }
             if (this.objectiveUI.innerHTML !== uiHTML) {
-                this.objectiveUI.innerHTML = uiHTML;
+                this.objectiveUI.innerHTML = window.DOMPurify ? window.DOMPurify.sanitize(uiHTML) : uiHTML;
             }
         };
         this.updateObjectives();

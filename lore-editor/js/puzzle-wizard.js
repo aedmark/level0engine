@@ -131,9 +131,9 @@ function wizardBackDispatch() {
             nextBtn.onclick = wizardState.step === 4 ? finishWizard : wizardNext;
 
             if (wizardState.step === 1) {
-                document.getElementById('wizard-body').innerHTML = renderWizardStep1();
+                document.getElementById('wizard-body').innerHTML = DOMPurify.sanitize(renderWizardStep1());
             } else if (wizardState.step === 2) {
-                document.getElementById('wizard-body').innerHTML = renderWizardStep2();
+                document.getElementById('wizard-body').innerHTML = DOMPurify.sanitize(renderWizardStep2());
                 wizardUpdateCodePreview();
             } else if (wizardState.step === 3) {
                 await renderWizardStep3();
@@ -268,9 +268,9 @@ function wizardInsertVarToken(token) {
             try {
                 const mockCtx = buildMockCtx(wizardParamsWithStaged(), puzzlesData || []);
                 const result = window.safeEval(wizardState.accessCode, mockCtx.coreVars);
-                el.innerHTML = `<span class="badge badge-ok">Example result: ${result}</span>`;
+                el.innerHTML = DOMPurify.sanitize(`<span class="badge badge-ok">Example result: ${result}</span>`);
             } catch (e) {
-                el.innerHTML = `<span class="badge badge-danger">Does not evaluate: ${e.message}</span>`;
+                el.innerHTML = DOMPurify.sanitize(`<span class="badge badge-danger">Does not evaluate: ${e.message}</span>`);
             }
         }
 
@@ -320,11 +320,11 @@ function wizardInsertVarToken(token) {
             }
             addRow += `<button class="var-btn" onclick="wizardPromptNewThread()">+ New Thread</button></div>`;
 
-            body.innerHTML = `
+            body.innerHTML = DOMPurify.sanitize(`
                 <p class="help-text" style="margin-top:0; margin-bottom:16px;">Every thread here is a piece of evidence the player must find before this puzzle counts as solved. The badge shows whether anything currently delivers that evidence.</p>
                 ${rowsHtml}
                 ${addRow}
-            `;
+            `);
 
             threadKeys.forEach(async (t) => {
                 if (wizardState.openScaffoldFor === t) return;
@@ -334,7 +334,7 @@ function wizardInsertVarToken(token) {
                 if (badgeEl) { badgeEl.className = `badge ${cls}`; badgeEl.innerText = label; }
                 const slot = document.getElementById(`wizard-scaffold-slot-${t}`);
                 if (slot && count === 0) {
-                    slot.innerHTML = `<button class="var-btn" onclick="wizardOpenScaffoldForm('${t}')">+ Add a starter clue for ${t}</button>`;
+                    slot.innerHTML = DOMPurify.sanitize(`<button class="var-btn" onclick="wizardOpenScaffoldForm('${t}')">+ Add a starter clue for ${t}</button>`);
                 }
             });
         }
@@ -437,7 +437,7 @@ function wizardInsertVarToken(token) {
                 ? `<p class="help-text">Also adding ${newVarNames.length} new variable(s) to parameters.json: ${newVarNames.map(n => `${n} (${wizardState.newCoreVars[n].min}–${wizardState.newCoreVars[n].max})`).join(', ')}</p>`
                 : '';
 
-            body.innerHTML = `
+            body.innerHTML = DOMPurify.sanitize(`
                 <div style="margin-bottom:16px;"><b>ID:</b> ${wizardState.id}</div>
                 <div style="margin-bottom:16px;"><b>Access Code:</b> <code style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px;">${wizardState.accessCode}</code><br>
                     <span class="badge ${codeError ? 'badge-danger' : 'badge-ok'}" style="margin-top:6px; display:inline-flex;">${codeError ? 'ERROR: ' + codeError : 'Example result: ' + codeResult}</span>
@@ -446,7 +446,7 @@ function wizardInsertVarToken(token) {
                 ${threadRows || '<div class="inspector-sector-list">None — no in-world evidence required.</div>'}
                 ${scaffoldSummary}
                 ${newVarSummary}
-            `;
+            `);
         }
 
         async function finishWizard() {

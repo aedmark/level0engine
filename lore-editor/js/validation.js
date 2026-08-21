@@ -175,7 +175,7 @@ function updateLivePreview() {
 
             if (allIssues.length) {
                 banner.style.display = 'block';
-                banner.innerHTML = allIssues.map(i => `⚠ ${i}`).join('<br>');
+                banner.innerHTML = DOMPurify.sanitize(allIssues.map(i => `⚠ ${i}`).join('<br>'));
             } else {
                 banner.style.display = 'none';
             }
@@ -187,14 +187,14 @@ async function refreshThreadBadge() {
             const threadContainerVisible = document.getElementById('thread-container').style.display !== 'none';
             const threadVal = document.getElementById('tag-input').value;
             if (!threadContainerVisible || !threadVal) {
-                badgeEl.innerHTML = '';
+                badgeEl.innerHTML = DOMPurify.sanitize('');
                 return;
             }
     const currentItem = getCurrentEditorData();
             const puzzleScope = (currentItem && typeof currentItem.puzzle === 'string') ? currentItem.puzzle : undefined;
             const { count } = await computeThreadDelivery(threadVal, puzzleScope);
             const { cls, label } = badgeForDeliveryCount(count, 'corroborate');
-            badgeEl.innerHTML = `<span class="badge ${cls}">${label}</span>`;
+            badgeEl.innerHTML = DOMPurify.sanitize(`<span class="badge ${cls}">${label}</span>`);
         }
 
 
@@ -213,7 +213,7 @@ async function refreshThreadBadge() {
             document.getElementById('validation-container').style.display = 'flex';
 
             const resultsEl = document.getElementById('validation-results');
-            resultsEl.innerHTML = '<div style="color:var(--text-muted); font-family:var(--font-mono);">Running validation checks...</div>';
+            resultsEl.innerHTML = DOMPurify.sanitize('<div style="color:var(--text-muted); font-family:var(--font-mono);">Running validation checks...</div>');
             
             try {
                 const fetches = ['parameters.json', 'threads.json', 'puzzles.json', 'clues.json', 'lore.json', 'foreshadow.json', 'finales.json'].map(f => fetch('/api/data?file=' + f).then(r => r.json()));
@@ -474,10 +474,10 @@ async function refreshThreadBadge() {
                     });
                 }
                 
-                resultsEl.innerHTML = html;
+                resultsEl.innerHTML = DOMPurify.sanitize(html);
                 
             } catch (err) {
-                resultsEl.innerHTML = `<div style="color:var(--accent-red); font-family:var(--font-mono);">Failed to run validation: ${err.message}</div>`;
+                resultsEl.innerHTML = DOMPurify.sanitize(`<div style="color:var(--accent-red); font-family:var(--font-mono);">Failed to run validation: ${err.message}</div>`);
             }
         }
 

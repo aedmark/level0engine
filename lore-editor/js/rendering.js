@@ -61,7 +61,7 @@ function renderFileList() {
                 </button>
             </div>`;
 
-            fileListEl.innerHTML = html;
+            fileListEl.innerHTML = DOMPurify.sanitize(html);
         }
 
 async function selectFile(f) {
@@ -83,7 +83,7 @@ async function selectFile(f) {
             document.getElementById('inspector-container').style.display = 'none';
             document.getElementById('wizard-container').style.display = 'none';
             document.getElementById('display-filename').innerText = f;
-            document.getElementById('tree-content').innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:8px;">Decrypting node...</div>';
+            document.getElementById('tree-content').innerHTML = DOMPurify.sanitize('<div style="color:var(--text-muted); font-size:12px; padding:8px;">Decrypting node...</div>');
             document.getElementById('editor-content-area').style.display = 'none';
             document.getElementById('editor-empty-state').style.display = 'flex';
 
@@ -287,7 +287,7 @@ function renderTree() {
                 });
             }
             
-            treeContentEl.innerHTML = html;
+            treeContentEl.innerHTML = DOMPurify.sanitize(html);
         }
 
 function clickArrayRow(i, isItemObj) {
@@ -437,7 +437,7 @@ function getCurrentEditorData() {
             else if (selectedFile === 'foreshadow.json') title = 'Finale Group';
             
             let subtitle = selectedIndex !== null ? `/ Entry ${selectedIndex}` : '';
-            document.getElementById('editor-title').innerHTML = `${title} <span class="editor-subtitle">${subtitle}</span>`;
+            document.getElementById('editor-title').innerHTML = DOMPurify.sanitize(`${title} <span class="editor-subtitle">${subtitle}</span>`);
 
             const hintBox = document.getElementById('hint-box');
             if (selectedFile === 'foreshadow.json' && linkedData && selectedIndex !== null) {
@@ -491,7 +491,7 @@ function getCurrentEditorData() {
                 if (!isPuzzleObj) {
                     document.getElementById('template-preview').style.display = 'none';
                     document.getElementById('template-issues-banner').style.display = 'none';
-                    document.getElementById('thread-corrob-badge').innerHTML = '';
+                    document.getElementById('thread-corrob-badge').innerHTML = DOMPurify.sanitize('');
                     return;
                 }
             } else {
@@ -516,7 +516,7 @@ function getCurrentEditorData() {
                 tagBox.style.display = 'flex';
                 
                 if (isPuzzleObj) {
-                    document.getElementById('title-label').innerHTML = 'ID:<span class="help-icon">?</span>';
+                    document.getElementById('title-label').innerHTML = DOMPurify.sanitize('ID:<span class="help-icon">?</span>');
                     document.getElementById('title-input').value = val.id || '';
                     document.getElementById('title-input').parentElement.title = 'Internal Puzzle ID';
 
@@ -559,7 +559,7 @@ function getCurrentEditorData() {
                         document.getElementById('clue-thread-select').style.display = 'none';
                     }
                     typeInput.value = val.type || 'document';
-                    document.getElementById('title-label').innerHTML = isFinaleGroup ? 'Nickname:<span class="help-icon">?</span>' : 'Title:<span class="help-icon">?</span>';
+                    document.getElementById('title-label').innerHTML = DOMPurify.sanitize(isFinaleGroup ? 'Nickname:<span class="help-icon">?</span>' : 'Title:<span class="help-icon">?</span>');
                     document.getElementById('title-input').value = isFinaleGroup ? (val.nickname || '') : (val.title || '');
                     document.getElementById('title-input').parentElement.title = 'Internal identifier, not shown to players.';
                     document.getElementById('thread-container').style.display = (selectedFile === 'foreshadow.json' || selectedFile === 'finales.json' || selectedFile === 'threads.json') ? 'none' : 'flex';
@@ -589,7 +589,7 @@ function getCurrentEditorData() {
 
                         const lockThreadSelect = document.getElementById('finale-lock-thread-select');
                         const allThreadKeys = Object.keys(crossFileCache['threads.json'] || {}).filter(k => k !== 'TELL');
-                        lockThreadSelect.innerHTML = '<option value="">— None —</option>' +
+                        lockThreadSelect.innerHTML = DOMPurify.sanitize('<option value="">— None —</option>' +)
                             allThreadKeys.map(k => `<option value="${k}">${k}</option>`).join('');
                         lockThreadSelect.value = allThreadKeys.includes(val.lock_thread) ? val.lock_thread : '';
                     } else {

@@ -42,7 +42,7 @@ async function getLockedNamesSet() {
                     ${deleteControl}
                 </div>`;
             });
-            document.getElementById('names-container').innerHTML = html;
+            document.getElementById('names-container').innerHTML = DOMPurify.sanitize(html);
         }
 
 const BUILTIN_VARS = [
@@ -171,7 +171,7 @@ async function renderMergedVarsList() {
         .filter(e => !e.aliasOf || !builtinKeys.has(e.aliasOf))
         .forEach(e => { html += editableRow(e, false); });
 
-    document.getElementById('names-container').innerHTML = html;
+    document.getElementById('names-container').innerHTML = DOMPurify.sanitize(html);
 }
 
 function writeMergedVar(key, val, lockedKeys) {
@@ -212,7 +212,7 @@ function writeMergedVar(key, val, lockedKeys) {
                     ${deleteControl}
                 </div>`;
             });
-            document.getElementById('names-container').innerHTML = html;
+            document.getElementById('names-container').innerHTML = DOMPurify.sanitize(html);
 
             if (isLockThreads) {
                 const currentPuzzleId = fileData && fileData[selectedIndex] ? fileData[selectedIndex].id : null;
@@ -349,7 +349,7 @@ async function updatePuzzleSuggestions() {
                 if (puzzles.length === 0) {
                     html = '<div style="font-size:0.75rem; color:#6b7280;">No puzzles found</div>';
                 }
-                container.innerHTML = html;
+                container.innerHTML = DOMPurify.sanitize(html);
             } catch (e) {
                 console.error(e);
             }
@@ -419,7 +419,7 @@ function renderClueThreadSelect() {
             const hintEl = document.getElementById('thread-constraint-hint');
 
             if (allowed.length === 0) {
-                select.innerHTML = '<option value="">— No shared thread —</option>';
+                select.innerHTML = DOMPurify.sanitize('<option value="">— No shared thread —</option>');
                 select.value = '';
                 if (hintEl) { hintEl.style.display = 'inline'; hintEl.innerText = 'The checked puzzles share no LOCK_THREADS in common — this clue can never be valid for all of them at once.'; }
                 return;
@@ -432,7 +432,7 @@ function renderClueThreadSelect() {
                 corrected = true;
             }
 
-            select.innerHTML = allowed.map(t => {
+            select.innerHTML = DOMPurify.sanitize(allowed.map(t => {)
                 const label = (threadsData[t] && threadsData[t].title) ? `${t} — ${threadsData[t].title}` : t;
                 return `<option value="${t}" ${t === current ? 'selected' : ''}>${label}</option>`;
             }).join('');
@@ -467,7 +467,7 @@ function updateTagSuggestions() {
             defaults.forEach(t => tagSet.add(t));
             
             const dl = document.getElementById('tag-suggestions');
-            dl.innerHTML = '';
+            dl.innerHTML = DOMPurify.sanitize('');
             tagSet.forEach(t => {
                 if (!t) return;
                 if (selectedFile === 'lore.json' && (t === 'CIPHER' || t === 'TELL')) return;
@@ -520,7 +520,7 @@ function renderVariableToolbar() {
             });
             html += `</select>`;
 
-            tb.innerHTML = html;
+            tb.innerHTML = DOMPurify.sanitize(html);
         }
 
         function insertVar(v) {
