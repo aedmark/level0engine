@@ -490,7 +490,7 @@ export default class PlayerController {
         const vz = this.velocity.z * delta;
         const moveX = vx * cosY + vz * sinY;
         const moveZ = -vx * sinY + vz * cosY;
-        const visualHeight = this.isCrawling ? 0.3 : (this.isCrouching ? 0.8 : 1.6);
+        let visualHeight = this.isCrawling ? 0.3 : (this.isCrouching ? 0.8 : 1.6);
         const physicalTop = this.isCrawling ? 0.50 : (this.isCrouching ? 1.2 : 2.5);
         const feetY = this.camera.position.y - visualHeight;
         const snagShrink = this.isSqueezing ? 0.02 : 0.15;
@@ -527,7 +527,10 @@ export default class PlayerController {
             const impactX = hitX ? Math.abs(this.velocity.x) : 0;
             const impactZ = hitZ ? Math.abs(this.velocity.z) : 0;
             const impact = (impactX + impactZ) * delta;
-            if (impact > 0.05 && this.enableHeadBob && !this.wasColliding) {
+            if (manifold.hitFakeTunnel && impact > 0.05) {
+                document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 4.0, variant: 'bong'}}));
+                this.camera.rotation.x -= impact * 0.5;
+            } else if (impact > 0.05 && this.enableHeadBob && !this.wasColliding) {
                 this.camera.rotation.z += (Math.random() - 0.5) * impact * 0.5;
                 this.camera.rotation.x -= impact * 0.2;
                 this.camera.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this.camera.rotation.x));
@@ -663,6 +666,8 @@ export default class PlayerController {
         }
         dynamicMaxCamY = Math.min(dynamicMaxCamY, defaultMax);
         
+
+
         const groundCamY = Math.min(targetFeetY + visualHeight, dynamicMaxCamY) + bobOffset - leanDrop;
 
         if (activeSector === 'ACME' && inVoid && targetFeetY === -100) {
@@ -707,7 +712,7 @@ export default class PlayerController {
                     state.jump = false; 
                     const jumpVelocity = state.isRunning ? 9.5 : 7.0;
                     if (manifold && manifold.onAcme) {
-                        this.fallVelocity = -jumpVelocity * 3.5; // ACME BOUNCE (not 6, don't want to break through ceiling)
+                        this.fallVelocity = -jumpVelocity * 6.0; // ACME BOUNCE
                         document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 2.0, variant: 'acme_boing'}}));
                     } else {
                         this.fallVelocity = -jumpVelocity;

@@ -1,44 +1,7 @@
 import {placeSectorPaper} from '../NarrativeProps.js';
 
-const createAcmeTexture = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
-    const ctx2d = canvas.getContext('2d');
-    ctx2d.fillStyle = '#8B5A2B';
-    ctx2d.fillRect(0, 0, 512, 512);
-    ctx2d.fillStyle = '#654321';
-    for(let i = 0; i < 4; i++) ctx2d.fillRect(0, i * 128, 512, 10);
-    ctx2d.fillStyle = '#ff0000';
-    ctx2d.font = 'bold 120px sans-serif';
-    ctx2d.textAlign = 'center';
-    ctx2d.textBaseline = 'middle';
-    ctx2d.fillText('ACME', 256, 256);
-    return new THREE.CanvasTexture(canvas);
-};
-
-const createTunnelTexture = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
-    const ctx2d = canvas.getContext('2d');
-    ctx2d.fillStyle = '#aaaaaa';
-    ctx2d.fillRect(0, 0, 512, 512);
-    ctx2d.fillStyle = '#000000';
-    ctx2d.beginPath();
-    ctx2d.arc(256, 512, 200, Math.PI, 0);
-    ctx2d.fill();
-    ctx2d.fillStyle = '#555555';
-    ctx2d.beginPath();
-    ctx2d.moveTo(256, 312);
-    ctx2d.lineTo(156, 512);
-    ctx2d.lineTo(356, 512);
-    ctx2d.fill();
-    return new THREE.CanvasTexture(canvas);
-};
-
 export const AcmeSector = (env, ctx) => {
-    const { random, buildWall, addGeometry, chunkGroup, hash } = ctx;
+    const { random, chunkGroup, hash } = ctx;
     if (!env.canyonMat) {
         const canvas = document.createElement('canvas');
         canvas.width = 512;
@@ -56,66 +19,44 @@ export const AcmeSector = (env, ctx) => {
         tex.repeat.set(4, 4);
         env.canyonMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1.0 });
     }
-    
-    if (!env.acmeMat) env.acmeMat = new THREE.MeshStandardMaterial({ map: createAcmeTexture(), roughness: 0.9 });
-    if (!env.tunnelMat) env.tunnelMat = new THREE.MeshStandardMaterial({ map: createTunnelTexture(), roughness: 1.0 });
 
     return {
         id: "ACME",
         foundationMat: null,
         ceilingMat: null,
         build: (x, z, localX, localZ, maze) => {
+            // Maintain perimeter bounds and sector doors
             if (ctx.buildPerimeter(x, z, localX, localZ, env.canyonMat, "ACME")) return;
             
-            const isVoid = !maze || maze[localX][localZ];
+            const isPath = maze && !maze[localX][localZ];
             const gx = x * env.cellSize, gz = z * env.cellSize;
             
-            if (!isVoid) {
-                const floorGeo = new THREE.PlaneGeometry(env.cellSize, env.cellSize);
-                const bFloor = new THREE.Mesh(floorGeo, env.canyonMat);
-                bFloor.rotation.x = -Math.PI / 2;
-                bFloor.position.set(gx, 0, gz);
-                addGeometry(bFloor);
+            if (isPath) {
+                // Slabs with real thickness connecting the exits
+                const slabSize = env.cellSize * 0.75; // Creates a jump gap
+                const slabThickness = 1.0;
+                
+                const slabGeo = new THREE.BoxGeometry(slabSize, slabThickness, slabSize);
+                const slabMesh = new THREE.Mesh(slabGeo, env.canyonMat);
+                // Position so the top surface is flush with y=0
+                slabMesh.position.set(gx, -slabThickness / 2, gz);
+                slabMesh.castShadow = true;
+                slabMesh.receiveShadow = true;
+                chunkGroup.add(slabMesh);
 
-                // Add random painted tunnels on standard walls
-                if (random() > 0.8) {
-                    const tunnel = buildWall(env.cellSize * 0.8, env.cellSize * 0.8, env.tunnelMat, 0.1);
-                    tunnel.position.set(gx, 2.0, gz - env.cellSize / 2 + 0.1);
-                    addGeometry(tunnel);
-                }
-
+                const box = new THREE.Box3();
+                box.min.set(gx - slabSize / 2, -slabThickness, gz - slabSize / 2);
+                box.max.set(gx + slabSize / 2, 0, gz + slabSize / 2);
+                box.chunkHash = hash;
+                env.spatialGrid.insert(box);
             } else {
+                // Pure void
                 const voidBox = new THREE.Box3();
-                voidBox.min.set(gx - 2, -100, gz - 2);
-                voidBox.max.set(gx + 2, 3, gz + 2);
+                voidBox.min.set(gx - env.cellSize / 2, -100, gz - env.cellSize / 2);
+                voidBox.max.set(gx + env.cellSize / 2, 3, gz + env.cellSize / 2);
                 voidBox.isVoid = true;
                 voidBox.chunkHash = hash;
                 env.spatialGrid.insert(voidBox);
-
-                // Canyon pillars
-                if (random() > 0.85) {
-                    const pw = 4.0 + random() * 4.0;
-                    const pillar = buildWall(pw, pw, env.canyonMat, 80.0);
-                    pillar.position.set(gx, -20.0, gz);
-                    addGeometry(pillar);
-                }
-
-                // ACME crates for platforming
-                if (random() > 0.6) {
-                    const crateSize = 1.2 + random() * 1.5;
-                    // Vary height to test vertical pinballing
-                    const crateY = -1.0 + random() * 6.0; 
-                    
-                    const crateGeo = new THREE.BoxGeometry(crateSize, crateSize, crateSize);
-                    const crateMesh = new THREE.Mesh(crateGeo, env.acmeMat);
-                    crateMesh.position.set(gx, crateY, gz);
-                    chunkGroup.add(crateMesh);
-
-                    const box = new THREE.Box3().setFromObject(crateMesh);
-                    box.isAcme = true; // Pinball mechanic flag
-                    box.chunkHash = hash;
-                    env.spatialGrid.insert(box);
-                }
             }
         }
     };

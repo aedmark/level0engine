@@ -298,9 +298,19 @@
         <header class="terminal-header">
             <div>
                 <h1 class="terminal-title terminal-glow">LEVEL 0 ENGINE</h1>
-                <p class="terminal-subtitle">PROCESS: lvl_0_eng.exe // HI-MEM ENABLED // SECURE BOOT v1.4.2</p>
+                <p class="terminal-subtitle">PROCESS: lvl_0_eng.exe // HI-MEM ENABLED // SECURE BOOT v1.4</p>
             </div>
-            <button id="parentMenuBtn" class="btn-glitch" style="margin-left: 1rem;">MENU</button>
+            <div style="display: flex; gap: 1rem;">
+                <button onclick="window.open('readme.html', '_blank')" class="btn-glitch">
+                    HANDBOOK
+                </button>
+                <button id="parentMenuBtn" class="btn-glitch">
+                    MENU
+                </button>
+                <button onclick="requestEngineFullscreen()" class="btn-glitch">
+                    FULLSCREEN
+                </button>
+            </div>
         </header>
 
         <div class="iframe-wrapper">
@@ -319,17 +329,12 @@
 
             <div class="footer-actions">
                 <button onclick="window.open('https://github.com/aedmark/level0engine', '_blank')" class="btn-glitch">
-                    GITHUB
-                </button>
-                <button onclick="window.open('readme.html', '_blank')" class="btn-glitch">
-                    HANDBOOK
+                    SOURCE CODE
                 </button>
                 <button onclick="document.getElementById('engine-frame').contentWindow.location.reload();" class="btn-glitch">
                     REBOOT
                 </button>
-                <button onclick="requestEngineFullscreen()" class="btn-glitch">
-                    FULLSCREEN
-                </button>
+
             </div>
         </footer>
 

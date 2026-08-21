@@ -52,6 +52,7 @@ export function sweepGroundedCollision(grid, body, moveX, moveZ, scratch) {
     let groundY = -100;
     let dynamicMaxCamY = 5.0;
     let onAcme = false;
+    let hitFakeTunnel = false;
 
     for (let i = 0, len = boxes.length; i < len; i++) {
         const box = boxes[i];
@@ -82,17 +83,23 @@ export function sweepGroundedCollision(grid, body, moveX, moveZ, scratch) {
         if (!box.isVoid) {
             if (!hitX && boxX.intersectsBox(box)) {
                 const cx = (box.min.x + box.max.x) * 0.5;
-                if ((moveX > 0 && x < cx) || (moveX < 0 && x > cx)) hitX = true;
+                if ((moveX > 0 && x < cx) || (moveX < 0 && x > cx)) {
+                    hitX = true;
+                    if (box.isFakeTunnel) hitFakeTunnel = true;
+                }
             }
             if (!hitZ && boxZ.intersectsBox(box)) {
                 const cz = (box.min.z + box.max.z) * 0.5;
-                if ((moveZ > 0 && z < cz) || (moveZ < 0 && z > cz)) hitZ = true;
+                if ((moveZ > 0 && z < cz) || (moveZ < 0 && z > cz)) {
+                    hitZ = true;
+                    if (box.isFakeTunnel) hitFakeTunnel = true;
+                }
             }
         }
     }
     
     if (!inVoid && groundY === -100) groundY = 0;
-    return {hitX, hitZ, inVoid, groundY, boxes, dynamicMaxCamY, onAcme};
+    return {hitX, hitZ, inVoid, groundY, boxes, dynamicMaxCamY, onAcme, hitFakeTunnel};
 }
 
 export function computeAxisBlocking(scratchBoxX, scratchBoxZ, primaryBox, posX, posZ, localBoxes, seedBlockedX = false, seedBlockedZ = false) {

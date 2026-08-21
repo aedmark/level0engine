@@ -282,7 +282,7 @@ const SECTORS = {
     },
     ACME: {
         fog: 0.05, fogColor: 0xd96c40,
-        ambient: 0.50,
+        ambient: 0.90,
         ambience: {
             noise: 0.05,
             peace: 0.0,
