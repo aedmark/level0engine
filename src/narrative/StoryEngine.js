@@ -1,3 +1,4 @@
+import { safeEval } from '../utils/SafeEval.js';
 import {buildCaseFiles} from './CaseFiles.js';
 
 export default class StoryEngine {
@@ -107,7 +108,7 @@ export default class StoryEngine {
 
         const accessCodeConfig = this.activePuzzle.ACCESS_CODE || "0000";
         try {
-            this.accessCode = new Function('ctx', `return ${accessCodeConfig};`)(this.coreVars);
+            this.accessCode = safeEval(accessCodeConfig, this.coreVars);
         } catch(e) {
             console.error("Failed to eval ACCESS_CODE", e);
             this.accessCode = "0000";

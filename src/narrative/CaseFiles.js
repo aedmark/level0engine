@@ -1,3 +1,4 @@
+import { safeEval } from '../utils/SafeEval.js';
 export function buildCaseFiles(ctx, data) {
     const d = JSON.parse(JSON.stringify(data));
     const c = ctx.cast;
@@ -47,14 +48,14 @@ export function buildCaseFiles(ctx, data) {
         for (const varName in customVars) {
             const expr = customVars[varName];
             try {
-                const val = new Function('ctx', `return ${expr};`)(ctx);
+                const val = safeEval(expr, ctx);
                 s = s.replace(new RegExp(`\\$\\{${varName}\\}`, 'g'), val);
             } catch (e) {}
         }
         
         s = s.replace(/\$\{([^}]+)\}/g, (match, expr) => {
             try {
-                return new Function('ctx', `return ${expr};`)(ctx);
+                return safeEval(expr, ctx);
             } catch (e) {
                 return match;
             }

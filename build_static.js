@@ -30,7 +30,7 @@ html = html.replace('<!-- DYNAMIC_PRELOADS -->', links);
 const buildDir = path.join(__dirname, 'build');
 if (!fs.existsSync(buildDir)) fs.mkdirSync(buildDir);
 
-const filesToCopy = ['engine.html', 'index.html', 'r160.js', 'main.js', 'readme.html', 'changelog.md'];
+const filesToCopy = ['engine.html', 'index.html', 'r160.js', 'jsep.min.js', 'main.js', 'readme.html', 'changelog.md'];
 const dirsToCopy = ['src', 'assets', 'data'];
 
 function copyRecursiveSync(src, dest) {
