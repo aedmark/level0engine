@@ -25,6 +25,32 @@ export default class InteractionController {
         }
     }
 
+
+    _animateSliderPanels(ud, target, pDistSq, delta, entityOpen, baseSpeedMultiplier) {
+        if (ud.progress === target) return;
+        const speed = entityOpen ? 3.0 : baseSpeedMultiplier;
+        const dir = target > ud.progress ? 1 : -1;
+        ud.progress = Math.max(0, Math.min(1, ud.progress + dir * speed * delta));
+        const t = ud.progress;
+        const eased = t * t * (3 - 2 * t);
+        const axis = ud.spansX ? 'x' : 'z';
+        for (let i = 0; i < 2; i++) {
+            const p = ud.panels[i];
+            p.position[axis] = ud.baseOffsets[i] + ud.signs[i] * eased * ud.slideDist;
+        }
+        this.env.lumenGrid.shadowsDirty = true;
+        if (ud.progress > 0.12) {
+            if (!ud.box.isEmpty()) ud.box.makeEmpty();
+        } else if (ud.progress === 0) {
+            if (ud.box.isEmpty()) ud.box.copy(ud.closedBox);
+        }
+        if (ud.progress === 1 || ud.progress === 0) {
+            document.dispatchEvent(new CustomEvent('somatic-door', {
+                detail: {distSq: pDistSq, intensity: ud.progress === 0 ? 0.9 : 0.5, variant: 'blast'}
+            }));
+        }
+    }
+
     updateSliderDoor(door, playerPos, delta) {
         const env = this.env;
         const ud = door.userData;
@@ -81,27 +107,171 @@ export default class InteractionController {
                 env._doorSectorForce = ud.sectorId;
             }
         }
-        if (ud.progress === target) return;
-        const speed = entityOpen ? 3.0 : 0.9;
-        const dir = target > ud.progress ? 1 : -1;
-        ud.progress = Math.max(0, Math.min(1, ud.progress + dir * speed * delta));
-        const t = ud.progress;
-        const eased = t * t * (3 - 2 * t);
-        const axis = ud.spansX ? 'x' : 'z';
-        for (let i = 0; i < 2; i++) {
-            const p = ud.panels[i];
-            p.position[axis] = ud.baseOffsets[i] + ud.signs[i] * eased * ud.slideDist;
+        this._animateSliderPanels(ud, target, pDistSq, delta, entityOpen, 0.9);
+    }
+
+
+    _updateSwingingDoor(door, playerPos, delta) {
+        const env = this.env;
+        if (door.userData.codeLocked) door.userData.entityOpen = false;
+        const worldPos = door.matrixWorld ? this._objWorldPos.setFromMatrixPosition(door.matrixWorld) : door.position;
+        const pDistSq = playerPos.distanceToSquared(worldPos);
+        if (pDistSq > 400.0 && !door.userData.isLatched && !door.userData.entityOpen) return;
+        const playerOpen = door.userData.playerOpen === true;
+        const entityOpen = door.userData.entityOpen === true;
+        door.userData.entityOpen = false;
+        const isOpen = playerOpen || entityOpen;
+        let targetRot = door.userData.closedRot;
+        if (isOpen) {
+            if (!door.userData.isLatched) {
+                const triggerPos = (entityOpen && !playerOpen) ? env.anomaly.group.position : playerPos;
+                const isZDoor = door.userData.useXApproach ? false :
+                    (Math.abs(door.userData.closedRot) < 0.1 || Math.abs(door.userData.closedRot - Math.PI) < 0.1);
+                const swingAngle = Math.PI / 2.2;
+                let desiredRot;
+                if (isZDoor) {
+                    const approachZ = triggerPos.z - worldPos.z;
+                    desiredRot = approachZ < 0 ? (door.userData.closedRot + swingAngle) : (door.userData.closedRot - swingAngle);
+                } else {
+                    const approachX = triggerPos.x - worldPos.x;
+                    desiredRot = approachX < 0 ? (door.userData.closedRot - swingAngle) : (door.userData.closedRot + swingAngle);
+                }
+                door.userData.latchedRot = desiredRot;
+                door.userData.isLatched = true;
+                door.userData.swingSpeed = (entityOpen && !playerOpen) ? 35.0 : 8.0;
+                const intensity = (entityOpen && !playerOpen) ? 1.0 : 0.25;
+                document.dispatchEvent(new CustomEvent('somatic-door', {
+                    detail: {distSq: pDistSq, intensity: intensity}
+                }));
+            }
+            targetRot = door.userData.latchedRot;
+        } else {
+            door.userData.isLatched = false;
+            door.userData.swingSpeed = 8.0;
         }
-        env.lumenGrid.shadowsDirty = true;
-        if (ud.progress > 0.12) {
-            if (!ud.box.isEmpty()) ud.box.makeEmpty();
-        } else if (ud.progress === 0) {
-            if (ud.box.isEmpty()) ud.box.copy(ud.closedBox);
+        const rotDiff = targetRot - door.userData.currentRot;
+        if (Math.abs(rotDiff) > 0.001) {
+            door.userData.currentRot += rotDiff * door.userData.swingSpeed * delta;
+            door.rotation.y = door.userData.currentRot;
+            env.lumenGrid.shadowsDirty = true;
+            if (door.userData.box && isOpen) {
+                if (!door.userData.box.isEmpty()) door.userData.box.makeEmpty();
+            }
+            if (pDistSq < 2.5) {
+                const pushDist = Math.sqrt(pDistSq) || 0.1;
+                const pushStrength = (2.5 - pDistSq) * 15.0;
+                const pushX = ((playerPos.x - door.position.x) / pushDist) * pushStrength;
+                const pushZ = ((playerPos.z - door.position.z) / pushDist) * pushStrength;
+                const cosY = Math.cos(env.camera.rotation.y);
+                const sinY = Math.sin(env.camera.rotation.y);
+                const localVx = pushX * cosY - pushZ * sinY;
+                const localVz = pushX * sinY + pushZ * cosY;
+                env.player.velocity.x -= localVx;
+                env.player.velocity.z += localVz;
+            }
+        } else if (door.userData.currentRot !== targetRot) {
+            door.userData.currentRot = targetRot;
+            door.rotation.y = targetRot;
+            if (!isOpen && door.userData.box) {
+                door.updateMatrixWorld(true);
+                if (!door.userData.baseBox) {
+                    door.geometry.computeBoundingBox();
+                    door.userData.baseBox = door.geometry.boundingBox.clone();
+                }
+                door.userData.box.copy(door.userData.baseBox).applyMatrix4(door.matrixWorld);
+            }
         }
-        if (ud.progress === 1 || ud.progress === 0) {
-            document.dispatchEvent(new CustomEvent('somatic-door', {
-                detail: {distSq: pDistSq, intensity: ud.progress === 0 ? 0.9 : 0.5, variant: 'blast'}
-            }));
+    }
+
+    _updateInteractable(obj, playerPos, delta) {
+        const env = this.env;
+        if (obj.userData.type === 'grate' && !obj.userData.active) {
+            const pivot = obj.userData.pivot;
+            if (pivot) {
+                const diff = obj.userData.openRot - pivot.rotation.y;
+                if (Math.abs(diff) > 0.01) {
+                    pivot.rotation.y += diff * 8.0 * delta;
+                    env.lumenGrid.shadowsDirty = true;
+                    if (obj.userData.box && !obj.userData.box.isEmpty()) {
+                        obj.userData.box.makeEmpty();
+                    }
+                }
+            } else {
+                if (obj.userData.targetRot === undefined) {
+                    if (obj.userData.blocksX) {
+                        const fallSign = obj.userData.fallDir !== undefined ? obj.userData.fallDir : ((playerPos.x > obj.position.x) ? 1 : -1);
+                        obj.userData.targetRot = -fallSign * Math.PI / 2;
+                        obj.userData.targetPos = obj.position.x + fallSign * obj.position.y;
+                    } else {
+                        const fallSign = obj.userData.fallDir !== undefined ? obj.userData.fallDir : ((playerPos.z > obj.position.z) ? 1 : -1);
+                        obj.userData.targetRot = fallSign * Math.PI / 2;
+                        obj.userData.targetPos = obj.position.z + fallSign * obj.position.y;
+                    }
+                }
+                const diff = obj.userData.blocksX ? (obj.userData.targetRot - obj.rotation.z) : (obj.userData.targetRot - obj.rotation.x);
+                if (Math.abs(diff) > 0.01) {
+                    if (obj.userData.blocksX) {
+                        obj.rotation.z += diff * 15.0 * delta;
+                        obj.position.x += (obj.userData.targetPos - obj.position.x) * 15.0 * delta;
+                    } else {
+                        obj.rotation.x += diff * 15.0 * delta;
+                        obj.position.z += (obj.userData.targetPos - obj.position.z) * 15.0 * delta;
+                    }
+                    obj.position.y += (0.05 - obj.position.y) * 15.0 * delta;
+                    env.lumenGrid.shadowsDirty = true;
+                    if (obj.userData.box && !obj.userData.box.isEmpty()) {
+                        obj.userData.box.makeEmpty();
+                    }
+                }
+            }
+        } else if (obj.userData.type === 'valve') {
+            if (obj.userData.active) {
+                const vDistSq = obj.position.distanceToSquared(playerPos);
+                if (vDistSq < env.closestActiveValveDistSq) env.closestActiveValveDistSq = vDistSq;
+                if (obj.userData.wheel) {
+                    if (!obj.userData.spinAngle) obj.userData.spinAngle = 0;
+                    if (obj.userData.spinAngle > -Math.PI * 6) {
+                        const spin = 10.0 * delta;
+                        obj.userData.wheel.rotation.z -= spin;
+                        obj.userData.spinAngle -= spin;
+                    }
+                }
+            }
+        }
+    }
+
+    _updateAnimator(anim, playerPos, delta) {
+        const env = this.env;
+        if (anim.userData.type === 'ventFan' && anim.userData.active) {
+            anim.userData.fanMesh.rotation.z -= anim.userData.spinSpeed * delta;
+        } else if (anim.userData.type === 'cone') {
+            if (!anim.userData.tipped) {
+                if (env.player && env.player.isRunning) {
+                    const dx = playerPos.x - anim.position.x;
+                    const dz = playerPos.z - anim.position.z;
+                    const distSq2D = dx * dx + dz * dz;
+                    if (distSq2D < 0.64) {
+                        anim.userData.tipped = true;
+                        anim.userData.fallDir = anim.position.clone().sub(playerPos).normalize();
+                        document.dispatchEvent(new CustomEvent('somatic-step', {
+                            detail: {
+                                distSq: 0.1,
+                                intensity: 2.0
+                            }
+                        }));
+                        document.dispatchEvent(new CustomEvent('somatic-trip'));
+                    }
+                }
+            } else if (anim.userData.fallProgress < 1.0) {
+                if (anim.userData.fallProgress === 0) {
+                    anim.rotation.y = Math.atan2(anim.userData.fallDir.x, anim.userData.fallDir.z);
+                }
+                anim.userData.fallProgress += delta * 3.5;
+                if (anim.userData.fallProgress > 1.0) anim.userData.fallProgress = 1.0;
+                const t = anim.userData.fallProgress;
+                const eased = t * t * (3 - 2 * t);
+                anim.rotation.x = (Math.PI / 2 + 0.258) * eased;
+            }
         }
     }
 
@@ -377,27 +547,7 @@ export default class InteractionController {
             }));
         }
         if (ud.progress !== target) {
-            const speed = ud.entityOpen ? 3.0 : 1.2;
-            const dir = target > ud.progress ? 1 : -1;
-            ud.progress = Math.max(0, Math.min(1, ud.progress + dir * speed * delta));
-            const t = ud.progress;
-            const eased = t * t * (3 - 2 * t);
-            const axis = ud.spansX ? 'x' : 'z';
-            for (let i = 0; i < 2; i++) {
-                const p = ud.panels[i];
-                p.position[axis] = ud.baseOffsets[i] + ud.signs[i] * eased * ud.slideDist;
-            }
-            env.lumenGrid.shadowsDirty = true;
-            if (ud.progress > 0.12) {
-                if (!ud.box.isEmpty()) ud.box.makeEmpty();
-            } else if (ud.progress === 0) {
-                if (ud.box.isEmpty()) ud.box.copy(ud.closedBox);
-            }
-            if (ud.progress === 1 || ud.progress === 0) {
-                document.dispatchEvent(new CustomEvent('somatic-door', {
-                    detail: {distSq: pDistSq, intensity: ud.progress === 0 ? 0.9 : 0.5, variant: 'blast'}
-                }));
-            }
+            this._animateSliderPanels(ud, target, pDistSq, delta, ud.entityOpen, 1.2);
         }
         ud.entityOpen = false;
     }
