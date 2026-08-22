@@ -99,9 +99,6 @@ export default class Foley {
         }
     }
 
-    // A cartoon "long plunge" whistle: starts high and glides continuously downward for as long as
-    // the fall lasts (Web Audio schedules the whole glide up front; stopAcmeFallWhistle cuts it short
-    // wherever it happens to be). stopAcmeFallWhistle(caught=true) flips it into a quick rising "sproing".
     static startAcmeFallWhistle(engine) {
         if (!engine.initialized || engine.ctx.state === 'suspended') return;
         Foley.stopAcmeFallWhistle(engine, false);

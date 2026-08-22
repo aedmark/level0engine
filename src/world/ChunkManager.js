@@ -11,8 +11,6 @@ import {ArchHallProfile} from './blueprints/ArchHall.js';
 import BootController from '../ui/BootController.js';
 import * as SectorPlacement from './SectorPlacement.js';
 
-// ACME stacks this many freshly-generated maze levels above and below the entrance level
-// (19 levels total), giving real jumpable platforms up and down without unbounded generation cost.
 const ACME_LEVELS_EACH_SIDE = 9;
 
 const CELL_KEY_SPAN = 4194304;
@@ -368,8 +366,6 @@ export default class ChunkManager {
                 sectorMaze = env._generateSectorMaze(random);
             }
             if (activeSector.id === "ACME") {
-                // Entrance-level maze (sectorMaze) sits in the middle so hallways/doors line up with it;
-                // every other level gets its own freshly-generated layout so gaps don't stack vertically.
                 acmeLevelMazes = [];
                 for (let i = -ACME_LEVELS_EACH_SIDE; i <= ACME_LEVELS_EACH_SIDE; i++) {
                     acmeLevelMazes.push(i === 0 ? sectorMaze : env._generateSectorMaze(random));
@@ -436,7 +432,7 @@ export default class ChunkManager {
             canopy.position.set(startX * env.cellSize + centerOffset, canopyY, startZ * env.cellSize + centerOffset);
             canopy.castShadow = true;
             chunkGroup.add(canopy);
-            const skirtBottom = isAcmeVoid ? 100000.0 - 6.15 : (isAtriumVoid ? 55.6 : 2.85); // Adjust skirt for ACME
+            const skirtBottom = isAcmeVoid ? 100000.0 - 6.15 : (isAtriumVoid ? 55.6 : 2.85);
             const skirtTop = canopyY + 0.15;
             const skirtCenterY = (skirtBottom + skirtTop) / 2;
             const skirtHeight = skirtTop - skirtBottom;

@@ -1,17 +1,10 @@
 import SomaticInput from './SomaticInput.js';
 import { sweepGroundedCollision } from '../entities/HazardUtils.js';
 
-// Lowest Y a real ACME platform's underside can ever generate at (AcmeSector.js: topY range [-0.75, 0.75] minus crateSize 3.0)
 const ACME_LOWEST_PLATFORM_Y = -3.75;
-// Rescue warp only fires once well below that, so a fall reads as a real plunge rather than an instant catch
 const ACME_VOID_RESCUE_Y = ACME_LOWEST_PLATFORM_Y - 1000.0;
-// Terminal fall speed so a long ACME plunge can't destabilize physics/rendering
 const MAX_FALL_SPEED = 120.0;
-// Tuned so a walking bounce off an ACME crate clears ~1 level (AcmeSector's ACME_LEVEL_SPACING = 6),
-// and a running bounce clears ~2 - lets players climb the stack, not just fall through it.
 const ACME_BOUNCE_MULTIPLIER = 2.71;
-// Only start the falling slide-whistle once a drop has gone on this long, so routine short hops
-// between platforms/levels stay quiet and only genuine plunges get the cartoon treatment.
 const ACME_WHISTLE_MIN_FALL_TIME = 1.2;
 
 export default class PlayerController {
@@ -684,16 +677,14 @@ export default class PlayerController {
 
 
         if (activeSector === 'ACME' && targetFeetY !== -100000 && this.fallVelocity === 0) {
-            // Save entrance ground location for warp
             if (!this._acmeSafeSpot) {
                 this._acmeSafeSpot = new THREE.Vector3();
                 this._acmeSafeSpot.copy(this.camera.position);
             }
         } else if (activeSector !== 'ACME') {
-            this._acmeSafeSpot = null; // Reset when leaving the sector
+            this._acmeSafeSpot = null;
         }
-        
-        // --- ACME BOTTOMLESS PIT WARP ---
+
         if (activeSector === 'ACME' && this.camera.position.y < ACME_VOID_RESCUE_Y) {
             if (this._acmeSafeSpot) {
                 this.camera.position.copy(this._acmeSafeSpot);
@@ -753,7 +744,7 @@ export default class PlayerController {
                     state.jump = false; 
                     const jumpVelocity = state.isRunning ? 9.5 : 7.0;
                     if (manifold && manifold.onAcme) {
-                        this.fallVelocity = -jumpVelocity * ACME_BOUNCE_MULTIPLIER; // ACME BOUNCE
+                        this.fallVelocity = -jumpVelocity * ACME_BOUNCE_MULTIPLIER;
                         document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 2.0, variant: 'acme_boing'}}));
                     } else {
                         this.fallVelocity = -jumpVelocity;

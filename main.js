@@ -307,8 +307,6 @@ function animate() {
                 break;
             }
         }
-        // ACME's own deep-pit rescue (PlayerController._applyCinematics) handles falls in this sector;
-        // this generic guard is only for the rest of the map, which has no real pits.
         if (!currentZone || currentZone.id !== 'ACME') {
             if (currentZone) {
                 const tx = (currentZone.startX + 7.5) * environment.cellSize;

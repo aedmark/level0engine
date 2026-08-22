@@ -13,9 +13,8 @@ function evaluateAST(node, ctx) {
     
     if (node.type === 'Identifier') {
         if (node.name === 'ctx') return ctx;
-        if (node.name === 'Math') return Math;
+        if (node.name === 'Math') return Math;w
         if (node.name === 'String') return String;
-        // In some engines jsep parses properties directly
         if (ctx && typeof ctx === 'object' && node.name in ctx) return ctx[node.name];
         return undefined;
     }
