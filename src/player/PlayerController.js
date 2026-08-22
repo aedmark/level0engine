@@ -829,13 +829,34 @@ export default class PlayerController {
                 const lerpFactor = 1.0 - Math.exp(-12.0 * delta);
                 this.camera.position.y += (groundCamY - this.camera.position.y) * lerpFactor;
 
-                if (state.jump && !state.isCrawling && !state.isCrouching && !this.isSqueezing && this.exhaustion < 0.9) {
+                // A crouched player can still jump - the classic Half-Life
+                // "crouch jump". Ducking shrinks physicalTop (2.5 -> 1.2),
+                // which shrinks ceilingClearance right along with it, so
+                // dynamicMaxCamY (see sweepGroundedCollision) sits higher
+                // for a crouched hull than a standing one under the same
+                // overhang. Leaving the ground while already crouched (or
+                // ducking mid-air after a standing jump - toggling crouch
+                // isn't gated by airborne state) keeps that shorter hull for
+                // the whole arc, letting the player tuck under a low ledge
+                // lip that would cap a standing jump short, and land on top
+                // of it. Crawling/squeezing still block jumping outright -
+                // there's no leaving the ground from flat-on-the-floor or
+                // sideways-squeeze postures.
+                if (state.jump && !state.isCrawling && !this.isSqueezing && this.exhaustion < 0.9) {
                     state.jump = false;
                     const jumpVelocity = state.isRunning ? 9.5 : 7.0;
                     this.fallVelocity = -jumpVelocity;
                     document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.0}}));
                     this.camera.position.y += 0.06;
                     this.exhaustion = Math.min(1.0, this.exhaustion + (state.isRunning ? 0.3 : 0.15));
+                } else if (state.jump) {
+                    // Ineligible this frame (crawling/squeezing/too
+                    // exhausted) - drop the request rather than leave it
+                    // armed on state.jump. It used to just sit there and
+                    // could fire later once conditions changed, producing a
+                    // jump with no relation to when the player actually
+                    // pressed the key.
+                    state.jump = false;
                 }
             }
         }
