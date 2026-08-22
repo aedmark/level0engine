@@ -231,8 +231,9 @@ document.getElementById('sectorHuntSelect')?.addEventListener('change', async (e
         await new Promise(r => setTimeout(r, 20));
         waited += 20;
     }
-    const tx = (foundZone.startX + 7) * environment.cellSize;
-    const tz = (foundZone.startZ + 3) * environment.cellSize;
+    const hasEntrance = foundZone.entranceX !== undefined && foundZone.entranceZ !== undefined;
+    const tx = (hasEntrance ? foundZone.entranceX : foundZone.startX + 7) * environment.cellSize;
+    const tz = (hasEntrance ? foundZone.entranceZ : foundZone.startZ + 3) * environment.cellSize;
     engine.camera.position.set(tx, 1.6, tz);
     sectorHuntActive = false;
     console.log(`[SectorHunt] Found ${targetSector} at chunk ${foundHash} after ${step} chunk step(s), same seed.`);

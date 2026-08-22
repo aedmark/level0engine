@@ -2,9 +2,21 @@ import {placeSectorPaper} from '../NarrativeProps.js';
 
 export const ACME_LEVEL_SPACING = 1.2;
 
-const ACME_PLATFORM_SKIP_CHANCE = 0.28;
-const ACME_CONTAINER_CHANCE = 0.12;
-const ACME_CATWALK_CHANCE = 0.20;
+// --- Asset closet --------------------------------------------------------
+// The crate/container/stair/arch pass below turned into a visual nightmare
+// once everything fired at once - too much competing geometry to read or
+// navigate. Rather than delete that work, it's gated off here. The clean-
+// slate layout (pit + catwalks + open ceiling) runs instead. Flip this back
+// on - or build a smaller, deliberate subset - when we're ready to lay the
+// pieces out again one at a time.
+const ACME_STASHED_ASSETS_ENABLED = false;
+
+const ACME_PLATFORM_SKIP_CHANCE = 0.58;
+const ACME_CONTAINER_CHANCE = 0.05;
+const ACME_CATWALK_CHANCE = 0.22;
+const ACME_STAIR_CHANCE = 0.27;
+const ACME_ARCH_CHANCE = 0.16;
+const ACME_ENTRANCE_CLEARANCE_LEVELS = 3;
 
 const createAcmeTexture = () => {
     const canvas = document.createElement('canvas');
@@ -110,8 +122,8 @@ export const AcmeSector = (env, ctx) => {
         box.chunkHash = hash;
         env.spatialGrid.insert(box);
 
-        if (random() > 0.7) {
-            const stackHeight = Math.floor(random() * 3) + 1;
+        if (random() > 0.82) {
+            const stackHeight = Math.floor(random() * 2) + 1;
             for (let s = 1; s <= stackHeight; s++) {
                 const smSize = baseSize * 0.4;
                 const smGeo = new THREE.BoxGeometry(smSize, smSize, smSize);
@@ -192,6 +204,142 @@ export const AcmeSector = (env, ctx) => {
         env.spatialGrid.insert(box);
     };
 
+    // A climbable flight of solid steps. Each tread rises within the player's auto-step
+    // allowance so it reads as real stairs rather than a jump gauntlet, but the total rise
+    // doesn't promise to reach the next maze level - a staircase that goes nowhere in
+    // particular is exactly the Escher note we want here.
+    const buildStairPlatform = (gx, gz, levelBaseY) => {
+        const numSteps = 3 + Math.floor(random() * 4);
+        const stepRise = 0.28 + random() * 0.05;
+        const stepRun = 0.55 + random() * 0.18;
+        const stepWidth = env.cellSize * (0.5 + random() * 0.25);
+        const baseY = levelBaseY - 0.5;
+        const dirIdx = Math.floor(random() * 4);
+        const dx = dirIdx === 0 ? 1 : (dirIdx === 2 ? -1 : 0);
+        const dz = dirIdx === 1 ? 1 : (dirIdx === 3 ? -1 : 0);
+        const alongX = dx !== 0;
+        const totalRun = numSteps * stepRun;
+        const startOffset = -totalRun / 2;
+
+        for (let i = 0; i < numSteps; i++) {
+            const topY = levelBaseY + stepRise * i;
+            const stepH = topY - baseY;
+            const along = startOffset + stepRun * (i + 0.5);
+            const px = gx + dx * along;
+            const pz = gz + dz * along;
+
+            const treadGeo = new THREE.BoxGeometry(
+                alongX ? stepRun + 0.02 : stepWidth,
+                stepH,
+                alongX ? stepWidth : stepRun + 0.02
+            );
+            const tread = new THREE.Mesh(treadGeo, env.warehouseMat);
+            tread.position.set(px, baseY + stepH / 2, pz);
+            tread.castShadow = true;
+            tread.receiveShadow = true;
+            chunkGroup.add(tread);
+
+            const noseGeo = new THREE.BoxGeometry(
+                alongX ? 0.05 : stepWidth,
+                0.06,
+                alongX ? stepWidth : 0.05
+            );
+            const nose = new THREE.Mesh(noseGeo, env.blackIronMat);
+            nose.position.set(px - dx * stepRun / 2, topY, pz - dz * stepRun / 2);
+            chunkGroup.add(nose);
+
+            const box = new THREE.Box3();
+            const halfW = alongX ? (stepRun / 2 + 0.01) : stepWidth / 2;
+            const halfD = alongX ? stepWidth / 2 : (stepRun / 2 + 0.01);
+            box.min.set(px - halfW, baseY, pz - halfD);
+            box.max.set(px + halfW, topY, pz + halfD);
+            box.chunkHash = hash;
+            env.spatialGrid.insert(box);
+        }
+    };
+
+    // A freestanding archway: two pillars carrying a walkable lintel/bridge, with a
+    // decorative curved voussoir underside tracing the arch. The bridge sits roughly a
+    // level's height up, so it doubles as a mid-air stepping stone between platforms.
+    const buildArchPlatform = (gx, gz, levelBaseY) => {
+        const spanX = random() > 0.5;
+        const span = env.cellSize * (0.75 + random() * 0.35);
+        const halfSpan = span / 2;
+        const pillarSize = 0.28 + random() * 0.1;
+        const archHeight = 0.85 + random() * 0.5;
+        const lintelH = 0.3 + random() * 0.08;
+        const deckDepth = env.cellSize * 0.4;
+
+        const pillarGeo = new THREE.BoxGeometry(
+            spanX ? pillarSize : deckDepth,
+            archHeight,
+            spanX ? deckDepth : pillarSize
+        );
+        for (const side of [-1, 1]) {
+            const px = gx + (spanX ? side * halfSpan : 0);
+            const pz = gz + (spanX ? 0 : side * halfSpan);
+            const pillar = new THREE.Mesh(pillarGeo, env.warehouseMat);
+            pillar.position.set(px, levelBaseY + archHeight / 2, pz);
+            pillar.castShadow = true;
+            pillar.receiveShadow = true;
+            chunkGroup.add(pillar);
+
+            const halfPX = spanX ? pillarSize / 2 : deckDepth / 2;
+            const halfPZ = spanX ? deckDepth / 2 : pillarSize / 2;
+            const pBox = new THREE.Box3();
+            pBox.min.set(px - halfPX, levelBaseY, pz - halfPZ);
+            pBox.max.set(px + halfPX, levelBaseY + archHeight, pz + halfPZ);
+            pBox.chunkHash = hash;
+            env.spatialGrid.insert(pBox);
+        }
+
+        const lintelLen = span + pillarSize * 1.4;
+        const lintelGeo = new THREE.BoxGeometry(
+            spanX ? lintelLen : deckDepth,
+            lintelH,
+            spanX ? deckDepth : lintelLen
+        );
+        const lintel = new THREE.Mesh(lintelGeo, env.blackIronMat);
+        lintel.position.set(gx, levelBaseY + archHeight + lintelH / 2, gz);
+        lintel.castShadow = true;
+        lintel.receiveShadow = true;
+        chunkGroup.add(lintel);
+
+        const halfLX = spanX ? lintelLen / 2 : deckDepth / 2;
+        const halfLZ = spanX ? deckDepth / 2 : lintelLen / 2;
+        const lBox = new THREE.Box3();
+        lBox.min.set(gx - halfLX, levelBaseY + archHeight, gz - halfLZ);
+        lBox.max.set(gx + halfLX, levelBaseY + archHeight + lintelH, gz + halfLZ);
+        lBox.chunkHash = hash;
+        env.spatialGrid.insert(lBox);
+
+        const archRadius = halfSpan * 0.85;
+        const voussoirCount = 7;
+        const voussoirLen = (archRadius * Math.PI / voussoirCount) * 1.2;
+        const voussoirGeo = new THREE.BoxGeometry(
+            spanX ? voussoirLen : 0.16,
+            0.2,
+            spanX ? 0.16 : voussoirLen
+        );
+        for (let i = 0; i < voussoirCount; i++) {
+            const t = (i + 0.5) / voussoirCount;
+            const ang = Math.PI * t;
+            const vOff = Math.cos(ang) * archRadius;
+            const vY = levelBaseY + archHeight - archRadius + Math.sin(ang) * archRadius;
+            const seg = new THREE.Mesh(voussoirGeo, env.acmeMat);
+            if (spanX) {
+                seg.position.set(gx + vOff, vY, gz);
+                seg.rotation.z = Math.PI / 2 - ang;
+            } else {
+                seg.position.set(gx, vY, gz + vOff);
+                seg.rotation.x = ang - Math.PI / 2;
+            }
+            seg.castShadow = true;
+            seg.receiveShadow = true;
+            chunkGroup.add(seg);
+        }
+    };
+
     return {
         id: "ACME",
         foundationMat: null,
@@ -227,15 +375,26 @@ export const AcmeSector = (env, ctx) => {
                 const levelMaze = levels[li];
                 const isPath = levelMaze && !levelMaze[localX][localZ];
                 if (!isPath) continue;
-                if (li === midLevel && nearEntrance) continue;
-                if (random() < ACME_PLATFORM_SKIP_CHANCE) continue;
+                if (nearEntrance && li >= midLevel && li <= midLevel + ACME_ENTRANCE_CLEARANCE_LEVELS) continue;
 
                 const levelBaseY = (li - midLevel) * ACME_LEVEL_SPACING;
+
+                if (!ACME_STASHED_ASSETS_ENABLED) {
+                    // Clean-slate layout: nothing but catwalks dotted across the open pit.
+                    if (random() < ACME_CATWALK_CHANCE) buildCatwalkPlatform(gx, gz, levelBaseY);
+                    continue;
+                }
+
+                if (random() < ACME_PLATFORM_SKIP_CHANCE) continue;
                 const roll = random();
                 if (roll < ACME_CONTAINER_CHANCE) {
                     buildContainerPlatform(gx, gz, levelBaseY);
                 } else if (roll < ACME_CONTAINER_CHANCE + ACME_CATWALK_CHANCE) {
                     buildCatwalkPlatform(gx, gz, levelBaseY);
+                } else if (roll < ACME_CONTAINER_CHANCE + ACME_CATWALK_CHANCE + ACME_STAIR_CHANCE) {
+                    buildStairPlatform(gx, gz, levelBaseY);
+                } else if (roll < ACME_CONTAINER_CHANCE + ACME_CATWALK_CHANCE + ACME_STAIR_CHANCE + ACME_ARCH_CHANCE) {
+                    buildArchPlatform(gx, gz, levelBaseY);
                 } else {
                     buildCratePlatform(gx, gz, levelBaseY);
                 }

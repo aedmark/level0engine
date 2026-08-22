@@ -469,6 +469,11 @@ export default class SetPieces {
                     }
                 }
             }
+            const zone = env.macroZones.get(hash);
+            if (zone && zone.entranceX === undefined) {
+                zone.entranceX = innerCellX;
+                zone.entranceZ = innerCellZ;
+            }
             if (sectorId === "CHASM") {
                 if (!env.blackIronMat) env.blackIronMat = new THREE.MeshStandardMaterial({
                     color: 0x151515,
