@@ -58,7 +58,7 @@ const createContainerTexture = () => {
 };
 
 export const AcmeSector = (env, ctx) => {
-    const { random, chunkGroup, hash, buildWall, addGeometry } = ctx;
+    const { random, chunkGroup, hash } = ctx;
     if (!env.warehouseMat) {
         const canvas = document.createElement('canvas');
         canvas.width = 512;
@@ -176,9 +176,10 @@ export const AcmeSector = (env, ctx) => {
         env.spatialGrid.insert(box);
     };
 
-    // A flat industrial catwalk, borrowed in spirit (and materials) from the CHASM sector: a bare
-    // floor plate with railings along any edge that opens onto empty air at this level.
-    const buildCatwalkPlatform = (gx, gz, levelBaseY, levelMaze, localX, localZ) => {
+    // A flat industrial catwalk, borrowed in spirit (and materials) from the CHASM sector: just a bare
+    // floor plate. Unlike CHASM, ACME's platforms are already densely packed with crates and containers
+    // to catch a fall, so it doesn't need CHASM's guard railing along open edges.
+    const buildCatwalkPlatform = (gx, gz, levelBaseY) => {
         const floorGeo = env._cacheGeo('acmeCatwalkFloor', () => new THREE.PlaneGeometry(env.cellSize - 0.1, env.cellSize - 0.1));
         const floor = new THREE.Mesh(floorGeo, env.catwalkMat);
         floor.rotation.x = -Math.PI / 2;
@@ -194,24 +195,6 @@ export const AcmeSector = (env, ctx) => {
         box.chunkHash = hash;
         box.isAcme = true;
         env.spatialGrid.insert(box);
-
-        const isOpenEdge = (nx, nz) => {
-            if (nx < 0 || nx >= env.chunkSize || nz < 0 || nz >= env.chunkSize) return true;
-            return !(levelMaze && !levelMaze[nx][nz]);
-        };
-        const railPos = env.cellSize / 2 - 0.1;
-        const buildRail = (w, d, px, pz) => {
-            const top = buildWall(w, d, env.blackIronMat, 0.08);
-            top.position.set(px, levelBaseY + 1.15, pz);
-            addGeometry(top);
-            const mid = buildWall(w, d, env.blackIronMat, 0.05);
-            mid.position.set(px, levelBaseY + 0.6, pz);
-            addGeometry(mid);
-        };
-        if (isOpenEdge(localX - 1, localZ)) buildRail(0.08, env.cellSize, gx - railPos, gz);
-        if (isOpenEdge(localX + 1, localZ)) buildRail(0.08, env.cellSize, gx + railPos, gz);
-        if (isOpenEdge(localX, localZ - 1)) buildRail(env.cellSize, 0.08, gx, gz - railPos);
-        if (isOpenEdge(localX, localZ + 1)) buildRail(env.cellSize, 0.08, gx, gz + railPos);
     };
 
     return {
@@ -235,23 +218,11 @@ export const AcmeSector = (env, ctx) => {
             // Maintain perimeter bounds and sector doors, now using warehouse metal
             if (ctx.buildPerimeter(x, z, localX, localZ, env.warehouseMat, "ACME")) return;
 
-            // Guaranteed solid, textured ground near the sector's entrance ring, so stepping through
-            // the door doesn't drop you straight over a black void before the real maze begins.
+            // Guaranteed solid ground near the sector's entrance ring, so stepping through the door
+            // doesn't drop you straight over a black void before the real maze begins. Built as a
+            // catwalk (not a plain tile) so it actually reads as part of the structure.
             const nearEntrance = localX <= 2 || localX >= env.chunkSize - 3 || localZ <= 2 || localZ >= env.chunkSize - 3;
-            if (nearEntrance) {
-                const padGeo = env._cacheGeo('acmeEntrancePad', () => new THREE.PlaneGeometry(env.cellSize, env.cellSize));
-                const pad = new THREE.Mesh(padGeo, env.tileMat);
-                pad.rotation.x = -Math.PI / 2;
-                pad.position.set(gx, 0, gz);
-                pad.receiveShadow = true;
-                chunkGroup.add(pad);
-
-                const padBox = new THREE.Box3();
-                padBox.min.set(gx - env.cellSize / 2, -0.15, gz - env.cellSize / 2);
-                padBox.max.set(gx + env.cellSize / 2, 0, gz + env.cellSize / 2);
-                padBox.chunkHash = hash;
-                env.spatialGrid.insert(padBox);
-            }
+            if (nearEntrance) buildCatwalkPlatform(gx, gz, 0);
 
             // Criss-crossing industrial beams far down in the abyss (unconditional)
             if (random() > 0.6) { // Increased frequency
@@ -272,6 +243,9 @@ export const AcmeSector = (env, ctx) => {
                 const levelMaze = levels[li];
                 const isPath = levelMaze && !levelMaze[localX][localZ];
                 if (!isPath) continue;
+                // The guaranteed entrance-ring catwalk above already covers this exact spot at this
+                // exact height - building another platform on top of it would z-fight with it.
+                if (li === midLevel && nearEntrance) continue;
                 if (random() < ACME_PLATFORM_SKIP_CHANCE) continue; // intentional gap - room to run and jump
 
                 const levelBaseY = (li - midLevel) * ACME_LEVEL_SPACING;
@@ -279,7 +253,7 @@ export const AcmeSector = (env, ctx) => {
                 if (roll < ACME_CONTAINER_CHANCE) {
                     buildContainerPlatform(gx, gz, levelBaseY);
                 } else if (roll < ACME_CONTAINER_CHANCE + ACME_CATWALK_CHANCE) {
-                    buildCatwalkPlatform(gx, gz, levelBaseY, levelMaze, localX, localZ);
+                    buildCatwalkPlatform(gx, gz, levelBaseY);
                 } else {
                     buildCratePlatform(gx, gz, levelBaseY);
                 }
