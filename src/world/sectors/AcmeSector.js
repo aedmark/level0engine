@@ -48,12 +48,35 @@ export const AcmeSector = (env, ctx) => {
         foundationMat: null,
         ceilingMat: null,
         build: (x, z, localX, localZ, maze) => {
+            const gx = x * env.cellSize, gz = z * env.cellSize;
+            
+            // Void box for EVERY cell so falling anywhere works
+            const voidBox = new THREE.Box3();
+            voidBox.min.set(gx - env.cellSize / 2, -100000, gz - env.cellSize / 2);
+            voidBox.max.set(gx + env.cellSize / 2, 100000, gz + env.cellSize / 2);
+            voidBox.isVoid = true;
+            voidBox.chunkHash = hash;
+            env.spatialGrid.insert(voidBox);
+
             // Maintain perimeter bounds and sector doors, now using warehouse metal
             if (ctx.buildPerimeter(x, z, localX, localZ, env.warehouseMat, "ACME")) return;
             
             const isPath = maze && !maze[localX][localZ];
-            const gx = x * env.cellSize, gz = z * env.cellSize;
-            
+
+
+            // Criss-crossing industrial beams far down in the abyss (unconditional)
+            if (random() > 0.6) { // Increased frequency
+                const beamGeo = new THREE.BoxGeometry(env.cellSize * 4, 1.0, 1.0);
+                // Make them slightly emissive so they are visible in the pitch black abyss
+                const beamMat = new THREE.MeshStandardMaterial({color: 0x222222, emissive: 0x111111, metalness: 0.8, roughness: 0.4});
+                const beam = new THREE.Mesh(beamGeo, beamMat);
+                // Distribute them all the way down, with some closer to the top so they are visible immediately
+                beam.position.set(gx, -10 - random() * 99900, gz);
+                beam.rotation.y = random() > 0.5 ? 0 : Math.PI / 2;
+                beam.receiveShadow = true;
+                chunkGroup.add(beam);
+            }
+
             if (isPath) {
                 // ACME crates serving as the platforms
                 const crateSize = env.cellSize * 0.75; 
@@ -90,27 +113,9 @@ export const AcmeSector = (env, ctx) => {
 
                         const smBox = new THREE.Box3().setFromObject(smMesh);
                         smBox.chunkHash = hash;
+                        smBox.noCeilingClamp = true; // decorative clutter shouldn't cap jump height
                         env.spatialGrid.insert(smBox);
                     }
-                }
-            } else {
-                // Pure void abyss
-                const voidBox = new THREE.Box3();
-                voidBox.min.set(gx - env.cellSize / 2, -100, gz - env.cellSize / 2);
-                voidBox.max.set(gx + env.cellSize / 2, 3, gz + env.cellSize / 2);
-                voidBox.isVoid = true;
-                voidBox.chunkHash = hash;
-                env.spatialGrid.insert(voidBox);
-
-                // Criss-crossing industrial beams far down in the abyss
-                if (random() > 0.8) {
-                    const beamGeo = new THREE.BoxGeometry(env.cellSize * 4, 1.0, 1.0);
-                    const beamMat = new THREE.MeshStandardMaterial({color: 0x222222, metalness: 0.8, roughness: 0.4});
-                    const beam = new THREE.Mesh(beamGeo, beamMat);
-                    beam.position.set(gx, -15 - random() * 30, gz);
-                    beam.rotation.y = random() > 0.5 ? 0 : Math.PI / 2;
-                    beam.receiveShadow = true;
-                    chunkGroup.add(beam);
                 }
             }
         }

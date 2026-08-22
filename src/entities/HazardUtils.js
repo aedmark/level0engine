@@ -21,6 +21,22 @@ export function isRayPathBlocked(env, searchCenterX, searchCenterZ, searchDist, 
     return false;
 }
 
+/**
+ * PLAYER COLLISION ENGINE
+ * 
+ * IMPORTANT ARCHITECTURAL NOTE:
+ * `sweepGroundedCollision` and `resolveEntityLocomotion` (below) may appear as duplicated 
+ * AABB collision logic, but they are explicitly separated by design.
+ * 
+ * - THIS function (`sweepGroundedCollision`) is a high-fidelity physics sweep exclusively for the PLAYER.
+ *   It handles step-offsets, dynamic ceiling clearance for crouching, void/falling detection, and tactile surface feedback.
+ * 
+ * - The functions below (`computeAxisBlocking` and `resolveEntityLocomotion`) are lightweight heuristics 
+ *   exclusively for AI ENTITIES. They deliberately omit verticality, step-heights, and void checks to save CPU cycles.
+ * 
+ * DO NOT merge these functions. If you are modifying collision logic, ensure you are editing 
+ * the correct system (Player vs. Entity) based on your target actor.
+ */
 export function sweepGroundedCollision(grid, body, moveX, moveZ, scratch) {
     const {x, z, feetY, radius, height, stepOffset, currentFeetY} = body;
     const snagShrink = Math.min(0.15, radius * 0.25);
@@ -36,21 +52,21 @@ export function sweepGroundedCollision(grid, body, moveX, moveZ, scratch) {
     boxZ.min.set(x - radius + snagShrink, stepY, z + moveZ - radius);
     boxZ.max.set(x + radius - snagShrink, ceilY, z + moveZ + radius);
     
-    floorBox.min.set(x - radius, -10.0, z - radius);
+    floorBox.min.set(x - radius, -100000.0, z - radius);
     floorBox.max.set(x + radius, stepY, z + radius);
 
     let ceilingBox = scratch.ceilingBox;
     if (ceilingBox) {
         ceilingBox.min.set(x - radius, stepY, z - radius);
-        ceilingBox.max.set(x + radius, 10.0, z + radius);
+        ceilingBox.max.set(x + radius, 100000.0, z + radius);
     }
     
     const boxes = grid.getNearby(x, z, radius + 1.6);
     let hitX = false;
     let hitZ = false;
     let inVoid = false;
-    let groundY = -100;
-    let dynamicMaxCamY = 5.0;
+    let groundY = -100000;
+    let dynamicMaxCamY = 100000.0;
     let onAcme = false;
     let hitFakeTunnel = false;
 
@@ -59,14 +75,14 @@ export function sweepGroundedCollision(grid, body, moveX, moveZ, scratch) {
         if (box.isInvisibleBlocker) continue;
         if (box.isGrate && box.meshRef && !box.meshRef.userData.active) continue;
 
-        if (ceilingBox && !box.isVoid && box.min.y > stepY && ceilingBox.intersectsBox(box)) {
+        if (ceilingBox && !box.isVoid && !box.noCeilingClamp && box.min.y > stepY && ceilingBox.intersectsBox(box)) {
             const maxCam = box.min.y - scratch.ceilingClearance;
             if (maxCam < dynamicMaxCamY) {
                 dynamicMaxCamY = maxCam;
             }
         }
 
-        const isVerticallyRelevant = (box.min.y <= ceilY && box.max.y >= feetY - 10.0);
+        const isVerticallyRelevant = (box.min.y <= ceilY && box.max.y >= feetY - 10000.0);
         if (!isVerticallyRelevant && !box.isVoid) continue;
         
         if (box.isVoid && floorBox.intersectsBox(box)) inVoid = true;
@@ -98,7 +114,7 @@ export function sweepGroundedCollision(grid, body, moveX, moveZ, scratch) {
         }
     }
     
-    if (!inVoid && groundY === -100) groundY = 0;
+    if (!inVoid && groundY === -100000) groundY = 0;
     return {hitX, hitZ, inVoid, groundY, boxes, dynamicMaxCamY, onAcme, hitFakeTunnel};
 }
 

@@ -1,6 +1,13 @@
 import SomaticInput from './SomaticInput.js';
 import { sweepGroundedCollision } from '../entities/HazardUtils.js';
 
+// Lowest Y a real ACME platform's underside can ever generate at (AcmeSector.js: topY range [-0.75, 0.75] minus crateSize 3.0)
+const ACME_LOWEST_PLATFORM_Y = -3.75;
+// Rescue warp only fires once well below that, so a fall reads as a real plunge rather than an instant catch
+const ACME_VOID_RESCUE_Y = ACME_LOWEST_PLATFORM_Y - 1000.0;
+// Terminal fall speed so a long ACME plunge can't destabilize physics/rendering
+const MAX_FALL_SPEED = 120.0;
+
 export default class PlayerController {
     constructor(camera, domElement) {
         this.camera = camera;
@@ -649,7 +656,7 @@ export default class PlayerController {
         this._leanOffset.set(leanDirX * leanMag, 0, leanDirZ * leanMag);
         this.camera.position.x += this._leanOffset.x;
         this.camera.position.z += this._leanOffset.z;
-        if (!inVoid && targetFeetY === -100) targetFeetY = 0;
+        if (!inVoid && targetFeetY === -100000) targetFeetY = 0;
 
         let activeSector = "NORMAL";
         if (this.env && this.env._sectorFrame) {
@@ -659,7 +666,9 @@ export default class PlayerController {
         }
 
         let defaultMax = 2.8;
-        if (activeSector === 'CHASM' || activeSector === 'ATRIUM' || activeSector === 'ARCHIVE' || activeSector === 'ACME') {
+        if (activeSector === 'ACME') {
+            defaultMax = 100000.0;
+        } else if (activeSector === 'CHASM' || activeSector === 'ATRIUM' || activeSector === 'ARCHIVE') {
             defaultMax = 40.0;
         } else if (activeSector === 'IMPOUND') {
             defaultMax = 20.0;
@@ -668,29 +677,41 @@ export default class PlayerController {
         
 
 
-        const groundCamY = Math.min(targetFeetY + visualHeight, dynamicMaxCamY) + bobOffset - leanDrop;
-
-        if (activeSector === 'ACME' && inVoid && targetFeetY === -100) {
-            if (this.camera.rotation.x > -0.2 && this.direction.lengthSq() > 0.1) {
-                targetFeetY = this._groundFeetY;
-                inVoid = false;
-                this._acmeSuspended = true;
-            } else {
-                if (this._acmeSuspended) {
-                    this._acmeSuspended = false;
-                    document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.5, variant: 'slide_whistle'}}));
-                }
+        if (activeSector === 'ACME' && targetFeetY !== -100000 && this.fallVelocity === 0) {
+            // Save entrance ground location for warp
+            if (!this._acmeSafeSpot) {
+                this._acmeSafeSpot = new THREE.Vector3();
+                this._acmeSafeSpot.copy(this.camera.position);
             }
-        } else {
-            this._acmeSuspended = false;
+        } else if (activeSector !== 'ACME') {
+            this._acmeSafeSpot = null; // Reset when leaving the sector
+        }
+        
+        // --- ACME BOTTOMLESS PIT WARP ---
+        if (activeSector === 'ACME' && this.camera.position.y < ACME_VOID_RESCUE_Y) {
+            if (this._acmeSafeSpot) {
+                this.camera.position.copy(this._acmeSafeSpot);
+                this.camera.rotation.x = 0;
+            } else if (this.env && this.env._spawnElevator) {
+                const sp = this.env._spawnElevator.position;
+                this.camera.position.set(sp.x, sp.y + 1.6, sp.z);
+            }
+            this.fallVelocity = 0;
+            this.velocity.set(0, 0, 0);
+            this._groundFeetY = this.camera.position.y - visualHeight;
+            targetFeetY = this._groundFeetY;
+            document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 5.0, variant: 'slide_whistle'}}));
         }
 
-        if (targetFeetY === -100) {
-            this.fallVelocity = (this.fallVelocity || 0) + 30.0 * delta;
+        const groundCamY = Math.min(targetFeetY + visualHeight, dynamicMaxCamY) + bobOffset - leanDrop;
+
+        if (targetFeetY === -100000) {
+            this.fallVelocity = Math.min((this.fallVelocity || 0) + 30.0 * delta, MAX_FALL_SPEED);
             this.camera.position.y -= (this.fallVelocity * delta);
         } else {
             if (this.camera.position.y > groundCamY + 0.05 || (this.fallVelocity && this.fallVelocity < 0)) {
                 this.fallVelocity = (this.fallVelocity || 0) + 30.0 * delta;
+                if (this.fallVelocity > MAX_FALL_SPEED) this.fallVelocity = MAX_FALL_SPEED;
                 this.camera.position.y -= (this.fallVelocity * delta);
 
                 if (this.camera.position.y > dynamicMaxCamY) {
@@ -724,6 +745,6 @@ export default class PlayerController {
             }
         }
         
-        if (targetFeetY !== -100) this._groundFeetY = targetFeetY;
+        if (targetFeetY !== -100000) this._groundFeetY = targetFeetY;
     }
 }

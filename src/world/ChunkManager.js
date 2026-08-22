@@ -347,13 +347,15 @@ export default class ChunkManager {
             activeSector = sectorMatrix.find(s => s.id === activeSectorId);
             if (activeSector && activeSector.id === "IMPOUND") cHeight = 20.0;
             if (activeSector && activeSector.id === "ACME") cHeight = 40.0;
+            
+            const inset = (activeSector && activeSector.id === "ACME") ? 0 : 8;
             env.macroZones.set(hash, {
                 id: activeSector.id,
                 fog: env.atmosphereManager._sectorFog(activeSector.id),
-                minX: startX * env.cellSize + 8,
-                maxX: startX * env.cellSize + 56,
-                minZ: startZ * env.cellSize + 8,
-                maxZ: startZ * env.cellSize + 56,
+                minX: startX * env.cellSize + inset,
+                maxX: startX * env.cellSize + (64 - inset),
+                minZ: startZ * env.cellSize + inset,
+                maxZ: startZ * env.cellSize + (64 - inset),
                 startX: startX,
                 startZ: startZ
             });
@@ -412,15 +414,16 @@ export default class ChunkManager {
                 env.sharedAssets.add(env.voidShroudWhiteMat.uuid);
             }
             const isAtriumVoid = activeSector && activeSector.id === "ATRIUM";
+            const isAcmeVoid = activeSector && activeSector.id === "ACME";
             const shroudMat = isAtriumVoid ? env.voidShroudWhiteMat : env.voidShroudMat;
-            const canopyY = isAtriumVoid ? 66.0 : 9.0;
+            const canopyY = isAcmeVoid ? 100000.0 : (isAtriumVoid ? 66.0 : 9.0);
             const span = env.chunkSize * env.cellSize;
             const canopy = new THREE.Mesh(env._planeGeo(span, span), shroudMat);
             canopy.rotation.x = Math.PI / 2;
             canopy.position.set(startX * env.cellSize + centerOffset, canopyY, startZ * env.cellSize + centerOffset);
             canopy.castShadow = true;
             chunkGroup.add(canopy);
-            const skirtBottom = isAtriumVoid ? 55.6 : 2.85;
+            const skirtBottom = isAcmeVoid ? 100000.0 - 6.15 : (isAtriumVoid ? 55.6 : 2.85); // Adjust skirt for ACME
             const skirtTop = canopyY + 0.15;
             const skirtCenterY = (skirtBottom + skirtTop) / 2;
             const skirtHeight = skirtTop - skirtBottom;
@@ -443,7 +446,7 @@ export default class ChunkManager {
                 chunkGroup.add(skirt);
             }
             if (isChasm) {
-                const floorVoidY = -100.0;
+                const floorVoidY = isAcmeVoid ? -100000.0 : -100.0;
                 const floorVoid = new THREE.Mesh(env._planeGeo(span, span), shroudMat);
                 floorVoid.rotation.x = -Math.PI / 2;
                 floorVoid.position.set(cxw0, floorVoidY, czw0);
