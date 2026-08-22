@@ -1,7 +1,10 @@
 import SomaticInput from './SomaticInput.js';
 import { sweepGroundedCollision } from '../entities/HazardUtils.js';
 
+const ACME_LOWEST_PLATFORM_Y = -12.0;
+const ACME_VOID_RESCUE_Y = ACME_LOWEST_PLATFORM_Y - 1000.0;
 const MAX_FALL_SPEED = 120.0;
+const ACME_WHISTLE_MIN_FALL_TIME = 1.2;
 
 export default class PlayerController {
     constructor(camera, domElement) {
@@ -661,19 +664,59 @@ export default class PlayerController {
         }
 
         let defaultMax = 2.8;
-        if (activeSector === 'CHASM' || activeSector === 'ATRIUM' || activeSector === 'ARCHIVE') {
+        if (activeSector === 'ACME') {
+            defaultMax = 100000.0;
+        } else if (activeSector === 'CHASM' || activeSector === 'ATRIUM' || activeSector === 'ARCHIVE') {
             defaultMax = 40.0;
         } else if (activeSector === 'IMPOUND') {
             defaultMax = 20.0;
         }
         dynamicMaxCamY = Math.min(dynamicMaxCamY, defaultMax);
 
+        if (activeSector === 'ACME' && targetFeetY !== -100000 && this.fallVelocity === 0) {
+            if (!this._acmeSafeSpot) {
+                this._acmeSafeSpot = new THREE.Vector3();
+                this._acmeSafeSpot.copy(this.camera.position);
+            }
+        } else if (activeSector !== 'ACME') {
+            this._acmeSafeSpot = null;
+        }
+
+        if (activeSector === 'ACME' && this.camera.position.y < ACME_VOID_RESCUE_Y) {
+            if (this._acmeSafeSpot) {
+                this.camera.position.copy(this._acmeSafeSpot);
+                this.camera.rotation.x = 0;
+            } else if (this.env && this.env._spawnElevator) {
+                const sp = this.env._spawnElevator.position;
+                this.camera.position.set(sp.x, sp.y + 1.6, sp.z);
+            }
+            this.fallVelocity = 0;
+            this.velocity.set(0, 0, 0);
+            this._groundFeetY = this.camera.position.y - visualHeight;
+            targetFeetY = this._groundFeetY;
+            this._acmeJustWarped = true;
+            document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 5.0}}));
+        }
+
         const groundCamY = Math.min(targetFeetY + visualHeight, dynamicMaxCamY) + bobOffset - leanDrop;
 
         if (targetFeetY === -100000) {
+            if (activeSector === 'ACME') {
+                this._acmeFallElapsed = (this._acmeFallElapsed || 0) + delta;
+                if (!this._acmeWhistlePlaying && this._acmeFallElapsed > ACME_WHISTLE_MIN_FALL_TIME) {
+                    this._acmeWhistlePlaying = true;
+                    document.dispatchEvent(new CustomEvent('somatic-acme-fall-start'));
+                }
+            }
             this.fallVelocity = Math.min((this.fallVelocity || 0) + 30.0 * delta, MAX_FALL_SPEED);
             this.camera.position.y -= (this.fallVelocity * delta);
         } else {
+            if (this._acmeWhistlePlaying) {
+                this._acmeWhistlePlaying = false;
+                document.dispatchEvent(new CustomEvent('somatic-acme-fall-end', {detail: {caught: !!this._acmeJustWarped}}));
+            }
+            this._acmeFallElapsed = 0;
+            this._acmeJustWarped = false;
             if (this.camera.position.y > groundCamY + 0.05 || (this.fallVelocity && this.fallVelocity < 0)) {
                 this.fallVelocity = (this.fallVelocity || 0) + 30.0 * delta;
                 if (this.fallVelocity > MAX_FALL_SPEED) this.fallVelocity = MAX_FALL_SPEED;

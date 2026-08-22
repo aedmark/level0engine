@@ -308,17 +308,19 @@ function animate() {
                 break;
             }
         }
-        if (currentZone) {
-            const tx = (currentZone.startX + 7.5) * environment.cellSize;
-            const tz = (currentZone.startZ + 1.5) * environment.cellSize;
-            engine.camera.position.set(tx, 3.0, tz);
-            player.velocity.set(0, 0, 0);
-            player.fallVelocity = 0;
-            document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 2.0}}));
+        if (!currentZone || currentZone.id !== 'ACME') {
+            if (currentZone) {
+                const tx = (currentZone.startX + 7.5) * environment.cellSize;
+                const tz = (currentZone.startZ + 1.5) * environment.cellSize;
+                engine.camera.position.set(tx, 3.0, tz);
+                player.velocity.set(0, 0, 0);
+                player.fallVelocity = 0;
+                document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 2.0}}));
+                return;
+            }
+            handlePlayerDeath(400);
             return;
         }
-        handlePlayerDeath(400);
-        return;
     }
     const entityState = environment.updateEntity(engine.camera.position, delta, time);
     if (entityState && entityState.consumed) {
