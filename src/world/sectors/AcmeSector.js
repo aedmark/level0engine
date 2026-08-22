@@ -18,6 +18,24 @@ const ACME_STAIR_CHANCE = 0.27;
 const ACME_ARCH_CHANCE = 0.16;
 const ACME_ENTRANCE_CLEARANCE_LEVELS = 3;
 
+// --- Stairs pass (clean-slate layout only) --------------------------------
+// Connects a deliberate SUBSET of catwalks to the level directly above them,
+// plus a sprinkling of stairs that go nowhere at all, for the Escher motif.
+// ACME_STAIR_CONNECT_CHANCE: once a catwalk is placed, the odds it also grows
+//   a staircase reaching toward the next level up (only rolled/attempted when
+//   that level actually has a catwalk waiting to receive it).
+// ACME_STAIR_CONNECT_GAP: how far below the next level's catwalk deck the top
+//   stair tread stops - comfortably inside the player's 0.5-unit auto-step
+//   tolerance, but enough to keep the two surfaces from sharing an exact
+//   plane (the same coplanarity bug that caused the catwalk frame z-fighting).
+// ACME_STAIR_LOOSE_CHANCE: independent, lower-odds decorative stairs with no
+//   destination - reused half-rate when the cell has no catwalk at all, since
+//   a bare staircase floating with nothing nearby reads as more Escher than
+//   a whole flight orphaned next to an already-orphaned catwalk.
+const ACME_STAIR_CONNECT_CHANCE = 0.35;
+const ACME_STAIR_CONNECT_GAP = 0.35;
+const ACME_STAIR_LOOSE_CHANCE = 0.12;
+
 const createAcmeTexture = () => {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -64,7 +82,13 @@ const createContainerTexture = () => {
 };
 
 export const AcmeSector = (env, ctx) => {
-    const { random, chunkGroup, hash } = ctx;
+    const { random, chunkGroup, hash, addGeometry } = ctx;
+    // Every mesh below goes through `addGeometry` (with noCollision set) rather than a
+    // bare `chunkGroup.add`, so ChunkManager's `_compileInstances` pass can batch repeated
+    // geometry/material pairs into InstancedMesh groups instead of leaving each tile as its
+    // own draw call. Collision is untouched - every builder still computes and inserts its
+    // own Box3 by hand exactly as before; `noCollision` only tells addGeometry not to also
+    // derive a (wrong, paper-thin) box from the raw mesh geometry.
     if (!env.warehouseMat) {
         const canvas = document.createElement('canvas');
         canvas.width = 512;
@@ -105,14 +129,16 @@ export const AcmeSector = (env, ctx) => {
         crateMesh.rotation.y = rotY;
         crateMesh.castShadow = true;
         crateMesh.receiveShadow = true;
-        chunkGroup.add(crateMesh);
+        crateMesh.userData.noCollision = true;
+        addGeometry(crateMesh);
 
         const bandH = baseSize * 0.12;
         const bandGeo = new THREE.BoxGeometry(sizeX * 1.03, bandH, sizeZ * 1.03);
         const band = new THREE.Mesh(bandGeo, env.blackIronMat);
         band.position.set(gx, topY - baseSize * 0.5, gz);
         band.rotation.y = rotY;
-        chunkGroup.add(band);
+        band.userData.noCollision = true;
+        addGeometry(band);
 
         const halfX = rotY === 0 ? sizeX / 2 : sizeZ / 2;
         const halfZ = rotY === 0 ? sizeZ / 2 : sizeX / 2;
@@ -134,7 +160,8 @@ export const AcmeSector = (env, ctx) => {
                 smMesh.rotation.y = random() * Math.PI;
                 smMesh.castShadow = true;
                 smMesh.receiveShadow = true;
-                chunkGroup.add(smMesh);
+                smMesh.userData.noCollision = true;
+                addGeometry(smMesh);
 
                 const smBox = new THREE.Box3().setFromObject(smMesh);
                 smBox.chunkHash = hash;
@@ -156,13 +183,15 @@ export const AcmeSector = (env, ctx) => {
         mesh.rotation.y = rotY;
         mesh.castShadow = true;
         mesh.receiveShadow = true;
-        chunkGroup.add(mesh);
+        mesh.userData.noCollision = true;
+        addGeometry(mesh);
 
         const trimGeo = new THREE.BoxGeometry(length * 1.01, 0.1, width * 1.01);
         const trim = new THREE.Mesh(trimGeo, env.blackIronMat);
         trim.position.set(gx, levelBaseY - height / 2, gz);
         trim.rotation.y = rotY;
-        chunkGroup.add(trim);
+        trim.userData.noCollision = true;
+        addGeometry(trim);
 
         const halfX = rotY === 0 ? length / 2 : width / 2;
         const halfZ = rotY === 0 ? width / 2 : length / 2;
@@ -180,17 +209,24 @@ export const AcmeSector = (env, ctx) => {
         floor.position.set(gx, levelBaseY, gz);
         floor.castShadow = true;
         floor.receiveShadow = true;
-        chunkGroup.add(floor);
+        floor.userData.noCollision = true;
+        addGeometry(floor);
 
         const half = env.cellSize / 2;
+        // Frame sits just under the tread (top recessed 0.02 below levelBaseY) so it never
+        // shares an exact plane with the floor mesh above - that coincidence was causing
+        // z-fighting (and, through the grated catwalkMat's alpha-tested holes, made the
+        // frame flicker black where the two surfaces fought for the same pixels).
+        const FRAME_RECESS = 0.02;
         const frameLongGeo = env._cacheGeo('acmeCatwalkFrameLong', () => new THREE.BoxGeometry(env.cellSize, 0.2, 0.1));
         const frameShortGeo = env._cacheGeo('acmeCatwalkFrameShort', () => new THREE.BoxGeometry(0.1, 0.2, env.cellSize - 0.2));
         const addFrame = (geo, px, pz) => {
             const beam = new THREE.Mesh(geo, env.blackIronMat);
-            beam.position.set(px, levelBaseY - 0.1, pz);
+            beam.position.set(px, levelBaseY - 0.1 - FRAME_RECESS, pz);
             beam.castShadow = true;
             beam.receiveShadow = true;
-            chunkGroup.add(beam);
+            beam.userData.noCollision = true;
+            addGeometry(beam);
         };
         addFrame(frameLongGeo, gx, gz - half + 0.05);
         addFrame(frameLongGeo, gx, gz + half - 0.05);
@@ -205,12 +241,17 @@ export const AcmeSector = (env, ctx) => {
     };
 
     // A climbable flight of solid steps. Each tread rises within the player's auto-step
-    // allowance so it reads as real stairs rather than a jump gauntlet, but the total rise
-    // doesn't promise to reach the next maze level - a staircase that goes nowhere in
-    // particular is exactly the Escher note we want here.
-    const buildStairPlatform = (gx, gz, levelBaseY) => {
+    // allowance so it reads as real stairs rather than a jump gauntlet. By default the
+    // total rise doesn't promise to reach the next maze level - a staircase that goes
+    // nowhere in particular is exactly the Escher note we want here. Pass `targetRise`
+    // to instead aim the top tread at a specific height above `levelBaseY` (used to
+    // connect a catwalk to the level above it); left null, the rise stays arbitrary.
+    const buildStairPlatform = (gx, gz, levelBaseY, targetRise = null) => {
         const numSteps = 3 + Math.floor(random() * 4);
-        const stepRise = 0.28 + random() * 0.05;
+        // topY = levelBaseY + stepRise * i for i in [0, numSteps-1], so the achieved
+        // rise is stepRise * (numSteps - 1), not stepRise * numSteps - divide by the
+        // same (numSteps - 1) here so a requested targetRise lands exactly on the top step.
+        const stepRise = targetRise !== null ? targetRise / (numSteps - 1) : (0.28 + random() * 0.05);
         const stepRun = 0.55 + random() * 0.18;
         const stepWidth = env.cellSize * (0.5 + random() * 0.25);
         const baseY = levelBaseY - 0.5;
@@ -237,7 +278,8 @@ export const AcmeSector = (env, ctx) => {
             tread.position.set(px, baseY + stepH / 2, pz);
             tread.castShadow = true;
             tread.receiveShadow = true;
-            chunkGroup.add(tread);
+            tread.userData.noCollision = true;
+            addGeometry(tread);
 
             const noseGeo = new THREE.BoxGeometry(
                 alongX ? 0.05 : stepWidth,
@@ -246,7 +288,8 @@ export const AcmeSector = (env, ctx) => {
             );
             const nose = new THREE.Mesh(noseGeo, env.blackIronMat);
             nose.position.set(px - dx * stepRun / 2, topY, pz - dz * stepRun / 2);
-            chunkGroup.add(nose);
+            nose.userData.noCollision = true;
+            addGeometry(nose);
 
             const box = new THREE.Box3();
             const halfW = alongX ? (stepRun / 2 + 0.01) : stepWidth / 2;
@@ -282,7 +325,8 @@ export const AcmeSector = (env, ctx) => {
             pillar.position.set(px, levelBaseY + archHeight / 2, pz);
             pillar.castShadow = true;
             pillar.receiveShadow = true;
-            chunkGroup.add(pillar);
+            pillar.userData.noCollision = true;
+            addGeometry(pillar);
 
             const halfPX = spanX ? pillarSize / 2 : deckDepth / 2;
             const halfPZ = spanX ? deckDepth / 2 : pillarSize / 2;
@@ -303,7 +347,8 @@ export const AcmeSector = (env, ctx) => {
         lintel.position.set(gx, levelBaseY + archHeight + lintelH / 2, gz);
         lintel.castShadow = true;
         lintel.receiveShadow = true;
-        chunkGroup.add(lintel);
+        lintel.userData.noCollision = true;
+        addGeometry(lintel);
 
         const halfLX = spanX ? lintelLen / 2 : deckDepth / 2;
         const halfLZ = spanX ? deckDepth / 2 : lintelLen / 2;
@@ -336,7 +381,8 @@ export const AcmeSector = (env, ctx) => {
             }
             seg.castShadow = true;
             seg.receiveShadow = true;
-            chunkGroup.add(seg);
+            seg.userData.noCollision = true;
+            addGeometry(seg);
         }
     };
 
@@ -371,17 +417,44 @@ export const AcmeSector = (env, ctx) => {
 
             const levels = levelMazes || [maze];
             const midLevel = Math.floor(levels.length / 2);
+            let forceNextCatwalk = false;
             for (let li = 0; li < levels.length; li++) {
                 const levelMaze = levels[li];
                 const isPath = levelMaze && !levelMaze[localX][localZ];
+                const wasForced = forceNextCatwalk;
+                forceNextCatwalk = false;
                 if (!isPath) continue;
                 if (nearEntrance && li >= midLevel && li <= midLevel + ACME_ENTRANCE_CLEARANCE_LEVELS) continue;
 
                 const levelBaseY = (li - midLevel) * ACME_LEVEL_SPACING;
 
                 if (!ACME_STASHED_ASSETS_ENABLED) {
-                    // Clean-slate layout: nothing but catwalks dotted across the open pit.
-                    if (random() < ACME_CATWALK_CHANCE) buildCatwalkPlatform(gx, gz, levelBaseY);
+                    // Clean-slate layout: catwalks dotted across the open pit, with just
+                    // enough connecting stairs - plus a few that go nowhere - to read as
+                    // an Escher motif instead of a flat stack of identical decks.
+                    const builtCatwalk = wasForced || random() < ACME_CATWALK_CHANCE;
+                    if (builtCatwalk) {
+                        buildCatwalkPlatform(gx, gz, levelBaseY);
+
+                        // Only attempt a connecting staircase when the level directly above
+                        // actually has somewhere for it to land - checked against that
+                        // level's own maze cell and entrance-clearance band, the same way
+                        // this level itself was gated, so the stair never dead-ends in
+                        // mid-air. Forcing the destination catwalk to build guarantees it.
+                        const nextLi = li + 1;
+                        const nextIsPath = nextLi < levels.length && levels[nextLi] && !levels[nextLi][localX][localZ];
+                        const nextInClearance = nearEntrance && nextLi >= midLevel && nextLi <= midLevel + ACME_ENTRANCE_CLEARANCE_LEVELS;
+                        if (nextIsPath && !nextInClearance && random() < ACME_STAIR_CONNECT_CHANCE) {
+                            buildStairPlatform(gx, gz, levelBaseY, ACME_LEVEL_SPACING - ACME_STAIR_CONNECT_GAP);
+                            forceNextCatwalk = true;
+                        } else if (random() < ACME_STAIR_LOOSE_CHANCE) {
+                            buildStairPlatform(gx, gz, levelBaseY);
+                        }
+                    } else if (random() < ACME_STAIR_LOOSE_CHANCE * 0.5) {
+                        // A staircase to nowhere with no catwalk anywhere nearby - the
+                        // purposeless flight IS the Escher note.
+                        buildStairPlatform(gx, gz, levelBaseY);
+                    }
                     continue;
                 }
 
