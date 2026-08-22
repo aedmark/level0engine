@@ -887,10 +887,11 @@ export default class SetPieces {
                 env.geoCache.set(floorGeo.uuid, true);
             }
             if (needsFloor) {
-                const fMat = sectorId === "CHASM" ? (env.catwalkMat || env.tileMat) : env.tileMat;
+                const usesCatwalk = sectorId === "CHASM" || sectorId === "ACME";
+                const fMat = usesCatwalk ? (env.catwalkMat || env.tileMat) : env.tileMat;
                 const floor = new THREE.Mesh(floorGeo, fMat);
                 floor.rotation.x = -Math.PI / 2;
-                floor.position.set(cx, sectorId === "CHASM" ? 0 : 0.01, cz);
+                floor.position.set(cx, usesCatwalk ? 0 : 0.01, cz);
                 addGeometry(floor);
             }
             if (needsCeiling) {

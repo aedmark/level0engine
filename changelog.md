@@ -1,3 +1,20 @@
+## [v1.4.6] - 2026-08-21
+
+_ACME Catwalk & Container Rendering Fixes_
+
+### Changed
+
+- **[GRAPHICS] ACME Catwalk Guard Railing Removed (`AcmeSector.js`):** Stripped the CHASM-style guard railing from ACME catwalks. CHASM needs it to guard an open void edge, but ACME's platforms are already densely packed with crates and containers to catch a fall, so the railing was just visual clutter (and dropped the now-unused `buildWall`/`addGeometry` plumbing along with it).
+- **[GRAPHICS] ACME Catwalk Edge Framing (`AcmeSector.js`):** Welded a black-iron frame (four beams, offset `0.1` below the floor plane) around the border of each catwalk tile so the grate reads as a fabricated plate with real thickness instead of a bare flat sheet, borrowing the same framing CHASM already uses around its own catwalks.
+- **[WORLD] ACME Entrance Ring Now Builds a Catwalk (`AcmeSector.js`):** The guaranteed solid ground placed around the sector's entrance ring (so stepping through an airlock never drops you into the void) is now a real catwalk platform instead of a flat, near-black tile pad, so it actually reads as part of the structure instead of as a dead patch of floor.
+
+### Fixed
+
+- **[GRAPHICS] ACME Container Trim Z-Fighting (`AcmeSector.js`):** The shipping container's decorative trim band was positioned with its top face flush with the container's own top face, so the two overlapping surfaces fought for the same depth-buffer pixels across almost the entire walkable top. Moved the trim to the container's midline, matching the pattern the crate trim band already used safely.
+- **[GRAPHICS] ACME Entrance Ring Double-Building (`AcmeSector.js`):** The entrance-ring floor and the normal per-level platform roll (crate/container/catwalk) could both build geometry at the exact same cell and height, since nothing skipped platform generation for cells that already had guaranteed ground. Because the maze generator force-carves a straight corridor in front of every airlock, this collision was practically guaranteed right at the doors. The per-level platform build now skips the entrance-level maze entirely within the entrance ring.
+- **[GRAPHICS] ACME Airlock Threshold Floor Material (`SetPieces.js`):** The hallway floor patch built at each door threshold (`buildHallwaySegment`) only special-cased CHASM's catwalk material; every other sector, including ACME (which shares the same `needsFloor` requirement), fell through to the plain near-black tile, leaving a dark square right in front of every ACME airlock. ACME now uses the catwalk material there too, matching the floor on both sides of the door.
+- **[GRAPHICS] ACME Catwalk Tile Seams (`AcmeSector.js`):** Catwalk floor tiles were undersized by `cellSize - 0.1`, leaving a visible gap between adjacent tiles. Sized the floor (and its collision box) to the full `cellSize`, matching CHASM's original (gapless) version, so neighboring catwalk tiles now butt edge-to-edge.
+
 ## [v1.4.3] - 2026-08-21
 
 _ACME Sector Fall Physics & Environmental Integration_

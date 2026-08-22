@@ -176,11 +176,13 @@ export const AcmeSector = (env, ctx) => {
         env.spatialGrid.insert(box);
     };
 
-    // A flat industrial catwalk, borrowed in spirit (and materials) from the CHASM sector: just a bare
-    // floor plate. Unlike CHASM, ACME's platforms are already densely packed with crates and containers
-    // to catch a fall, so it doesn't need CHASM's guard railing along open edges.
+    // A flat industrial catwalk, borrowed in spirit (and materials) from the CHASM sector: a floor
+    // plate welded into a black-iron edge frame (also borrowed from CHASM, offset below the floor so
+    // it doesn't z-fight with it) so the grate reads as a real fabricated plate instead of a bare
+    // sheet. Unlike CHASM, ACME's platforms are already densely packed with crates and containers to
+    // catch a fall, so it doesn't need CHASM's guard railing along open edges.
     const buildCatwalkPlatform = (gx, gz, levelBaseY) => {
-        const floorGeo = env._cacheGeo('acmeCatwalkFloor', () => new THREE.PlaneGeometry(env.cellSize - 0.1, env.cellSize - 0.1));
+        const floorGeo = env._cacheGeo('acmeCatwalkFloor', () => new THREE.PlaneGeometry(env.cellSize, env.cellSize));
         const floor = new THREE.Mesh(floorGeo, env.catwalkMat);
         floor.rotation.x = -Math.PI / 2;
         floor.position.set(gx, levelBaseY, gz);
@@ -188,7 +190,21 @@ export const AcmeSector = (env, ctx) => {
         floor.receiveShadow = true;
         chunkGroup.add(floor);
 
-        const half = env.cellSize / 2 - 0.05;
+        const half = env.cellSize / 2;
+        const frameLongGeo = env._cacheGeo('acmeCatwalkFrameLong', () => new THREE.BoxGeometry(env.cellSize, 0.2, 0.1));
+        const frameShortGeo = env._cacheGeo('acmeCatwalkFrameShort', () => new THREE.BoxGeometry(0.1, 0.2, env.cellSize - 0.2));
+        const addFrame = (geo, px, pz) => {
+            const beam = new THREE.Mesh(geo, env.blackIronMat);
+            beam.position.set(px, levelBaseY - 0.1, pz);
+            beam.castShadow = true;
+            beam.receiveShadow = true;
+            chunkGroup.add(beam);
+        };
+        addFrame(frameLongGeo, gx, gz - half + 0.05);
+        addFrame(frameLongGeo, gx, gz + half - 0.05);
+        addFrame(frameShortGeo, gx - half + 0.05, gz);
+        addFrame(frameShortGeo, gx + half - 0.05, gz);
+
         const box = new THREE.Box3();
         box.min.set(gx - half, levelBaseY - 0.15, gz - half);
         box.max.set(gx + half, levelBaseY, gz + half);
