@@ -892,7 +892,7 @@ export default class SetPieces {
                 env.geoCache.set(floorGeo.uuid, true);
             }
             if (needsFloor) {
-                const usesCatwalk = sectorId === "CHASM" || sectorId === "ACME";
+                const usesCatwalk = sectorId === "CHASM";
                 const fMat = usesCatwalk ? (env.catwalkMat || env.tileMat) : env.tileMat;
                 const floor = new THREE.Mesh(floorGeo, fMat);
                 floor.rotation.x = -Math.PI / 2;

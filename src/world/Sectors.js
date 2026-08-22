@@ -279,22 +279,6 @@ const SECTORS = {
         },
         foley: {oscFreq: 800, filterType: 'bandpass', filterFreq: 2000, gain: 0.1, attack: 0.01, decay: 0.1},
         reverb: {rt60: 1.0, predelay: 0.010, wet: 0.15}
-    },
-    ACME: {
-        fog: 0.03, fogColor: 0x000000,
-        ambient: 0.90,
-        ambience: {
-            noise: 0.05,
-            peace: 0.0,
-            rumble: 20,
-            freq: 60,
-            freqOcc: 30,
-            whine: 0.0,
-            whineOcc: 0.0,
-            dynamicWhine: false
-        },
-        foley: {oscFreq: 240, filterType: 'bandpass', filterFreq: 1600, gain: 0.18, attack: 0.005, decay: 0.3},
-        reverb: {rt60: 3.5, predelay: 0.060, wet: 0.28}
     }
 };
 export default SECTORS;

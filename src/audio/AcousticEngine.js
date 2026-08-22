@@ -29,14 +29,6 @@ export default class AcousticEngine {
         Foley.trigger(this, type, distanceSq, intensity);
     }
 
-    startAcmeFallWhistle() {
-        Foley.startAcmeFallWhistle(this);
-    }
-
-    stopAcmeFallWhistle(caught) {
-        Foley.stopAcmeFallWhistle(this, caught);
-    }
-
     playMuzakNote(freq, time, isChord = false) {
         Foley.playMuzakNote(this, freq, time, isChord);
     }
