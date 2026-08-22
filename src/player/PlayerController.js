@@ -5,6 +5,10 @@ const ACME_LOWEST_PLATFORM_Y = -12.0;
 const ACME_VOID_RESCUE_Y = ACME_LOWEST_PLATFORM_Y - 1000.0;
 const MAX_FALL_SPEED = 120.0;
 const ACME_WHISTLE_MIN_FALL_TIME = 1.2;
+const LADDER_CLIMB_SPEED = 2.4;
+const LADDER_GRAB_RADIUS_SQ = 2.0;
+const LADDER_DISMOUNT_PUSH = 0.6;
+const LADDER_RUNG_SPACING = 0.3;
 
 export default class PlayerController {
     constructor(camera, domElement) {
@@ -136,6 +140,7 @@ export default class PlayerController {
         this.linguisticDarkMatter = 0.0;
         this.narrativeTension = 0.0;
         this.velocity.set(0, 0, 0);
+        this._onLadder = null;
         this.objectives.fixed = 0;
         this.objectives.escaped = false;
         this.hasVisitedAnnex = false;
@@ -268,8 +273,25 @@ export default class PlayerController {
             if (maxCenterHeight < 1.3) {
                 state.isCrawling = true;
                 state.isCrouching = false;
+                this._envForcedDown = true;
             } else if (maxCenterHeight < 2.5) {
-                if (!state.isCrawling) state.isCrouching = true;
+                if (!state.isCrawling) {
+                    state.isCrouching = true;
+                    this._envForcedDown = true;
+                }
+            } else if (this._envForcedDown) {
+                // Clearance opened back up - release the posture the
+                // environment forced on us (e.g. ducking under a low
+                // ceiling, or the tight overhead clearance while climbing a
+                // ladder). Without this, isCrawling/isCrouching only ever
+                // got set to true here and the player was stuck crawling
+                // forever once anything low forced it on, even after
+                // reaching open standing headroom (e.g. the top of a
+                // ladder). A voluntary crouch toggle never sets
+                // _envForcedDown, so it's left alone.
+                state.isCrawling = false;
+                state.isCrouching = false;
+                this._envForcedDown = false;
             }
         }
         this.isSqueezing = state.squeezeIntent;
@@ -574,6 +596,74 @@ export default class PlayerController {
         this._applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes, dynamicMaxCamY, manifold);
     }
 
+    // Returns true while the player is gripping a ladder this frame, in
+    // which case the caller must skip its own fall/ground physics entirely -
+    // vertical movement here is fully manual, driven by forward/backward
+    // input instead of gravity or step-offset.
+    _updateLadder(delta, localBoxes, state, visualHeight) {
+        if (this._onLadder) {
+            const box = this._onLadder;
+            if (state.jump) {
+                state.jump = false;
+                this.camera.position.x += box.ladderOutDir.x * LADDER_DISMOUNT_PUSH;
+                this.camera.position.z += box.ladderOutDir.z * LADDER_DISMOUNT_PUSH;
+                this.camera.position.y += 0.06;
+                this.fallVelocity = -3.0;
+                this._onLadder = null;
+                return true;
+            }
+            const climbDir = (state.moveForward ? 1 : 0) - (state.moveBackward ? 1 : 0);
+            if (climbDir === 0) {
+                this._onLadder = null;
+                this._ladderStepAccum = 0;
+                return false;
+            }
+            const cx = (box.min.x + box.max.x) / 2;
+            const cz = (box.min.z + box.max.z) / 2;
+            this.camera.position.x = cx;
+            this.camera.position.z = cz;
+            const step = climbDir * LADDER_CLIMB_SPEED * delta;
+            this.camera.position.y += step;
+            this.velocity.set(0, 0, 0);
+            this.fallVelocity = 0;
+            this._ladderStepAccum = (this._ladderStepAccum || 0) + Math.abs(step);
+            if (this._ladderStepAccum >= LADDER_RUNG_SPACING) {
+                this._ladderStepAccum = 0;
+                document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 0.7}}));
+            }
+            const feetY = this.camera.position.y - visualHeight;
+            if (feetY >= box.max.y || feetY <= box.min.y) {
+                const landY = feetY >= box.max.y ? box.max.y : box.min.y;
+                this.camera.position.y = landY + visualHeight;
+                this.camera.position.x += box.ladderOutDir.x * LADDER_DISMOUNT_PUSH;
+                this.camera.position.z += box.ladderOutDir.z * LADDER_DISMOUNT_PUSH;
+                this._groundFeetY = landY;
+                this._onLadder = null;
+                document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.5}}));
+            }
+            return true;
+        }
+        if (!localBoxes || !state.moveForward) return false;
+        const feetY = this.camera.position.y - visualHeight;
+        for (let i = 0; i < localBoxes.length; i++) {
+            const box = localBoxes[i];
+            if (!box.isLadder) continue;
+            if (feetY < box.min.y - 0.3 || feetY > box.max.y - 0.05) continue;
+            const cx = (box.min.x + box.max.x) / 2;
+            const cz = (box.min.z + box.max.z) / 2;
+            const dx = this.camera.position.x - cx;
+            const dz = this.camera.position.z - cz;
+            if (dx * dx + dz * dz > LADDER_GRAB_RADIUS_SQ) continue;
+            this._onLadder = box;
+            this._ladderStepAccum = 0;
+            this.velocity.set(0, 0, 0);
+            this.fallVelocity = 0;
+            document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.2}}));
+            return true;
+        }
+        return false;
+    }
+
     _applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes, dynamicMaxCamY, manifold) {
         const state = this.input.state;
         const baseBobFreq = state.isRunning ? 3.5 : 2.0;
@@ -697,6 +787,8 @@ export default class PlayerController {
             this._acmeJustWarped = true;
             document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 5.0}}));
         }
+
+        if (this._updateLadder(delta, localBoxes, state, visualHeight)) return;
 
         const groundCamY = Math.min(targetFeetY + visualHeight, dynamicMaxCamY) + bobOffset - leanDrop;
 

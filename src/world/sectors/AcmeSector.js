@@ -15,6 +15,10 @@ const ACME_ENTRANCE_CLEARANCE_LEVELS = 3;
 // to from the sector center - see SetPieces.generateSectorMaze.
 const DOORWAY_ANCHORS = [[7, 1], [7, 14], [1, 7], [14, 7]];
 
+// Which cell edge a column's ladder run mounts against; {dx,dz} points from
+// cell center out to the mount line, so -{dx,dz} is "back into the room."
+const LADDER_EDGES = [{dx: 1, dz: 0}, {dx: -1, dz: 0}, {dx: 0, dz: 1}, {dx: 0, dz: -1}];
+
 const createAcmeContainerTexture = (serial) => {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -111,6 +115,48 @@ export const AcmeSector = (env, ctx) => {
         addGeometry(box);
     };
 
+    // One segment always spans exactly one level's rise, so climbing through
+    // a tall stack just chains segments - the player can dismount onto any
+    // intermediate deck, not just the top and bottom of the run. Builds its
+    // own isLadder collision box by hand (addGeometry doesn't forward custom
+    // userData flags), following the same pattern as the void/grate boxes.
+    const buildLadderSegment = (mountX, mountZ, yBottom, edge, outDir) => {
+        const rise = ACME_LEVEL_SPACING;
+        const perp = edge.dx !== 0 ? {x: 0, z: 1} : {x: 1, z: 0};
+        const railGap = 0.3;
+        for (const sign of [1, -1]) {
+            const rail = buildWall(0.06, 0.06, env.blackIronMat, rise);
+            rail.position.set(mountX + perp.x * railGap * sign, yBottom + rise / 2, mountZ + perp.z * railGap * sign);
+            addGeometry(rail);
+        }
+        const rungCount = 4;
+        const rungRise = rise / rungCount;
+        for (let i = 0; i < rungCount; i++) {
+            const ly = yBottom + rungRise * (i + 0.5);
+            const rung = perp.x !== 0
+                ? buildWall(0.68, 0.05, env.blackIronMat, 0.05)
+                : buildWall(0.05, 0.68, env.blackIronMat, 0.05);
+            rung.position.set(mountX, ly, mountZ);
+            addGeometry(rung);
+        }
+        const halfDepth = 0.15, halfWidth = 0.4;
+        const box = new THREE.Box3();
+        box.min.set(
+            mountX - Math.abs(edge.dx) * halfDepth - Math.abs(perp.x) * halfWidth,
+            yBottom,
+            mountZ - Math.abs(edge.dz) * halfDepth - Math.abs(perp.z) * halfWidth
+        );
+        box.max.set(
+            mountX + Math.abs(edge.dx) * halfDepth + Math.abs(perp.x) * halfWidth,
+            yBottom + rise,
+            mountZ + Math.abs(edge.dz) * halfDepth + Math.abs(perp.z) * halfWidth
+        );
+        box.isLadder = true;
+        box.chunkHash = hash;
+        box.ladderOutDir = outDir;
+        env.spatialGrid.insert(box);
+    };
+
     return {
         id: "ACME",
         foundationMat: null,
@@ -184,7 +230,28 @@ export const AcmeSector = (env, ctx) => {
                 buildCatwalk(gx, gz, levelBaseY);
             }
 
-            // Pass 3: containers don't belong to any one level - drop one
+            // Pass 3: ladders wherever two catwalk levels are directly
+            // stacked, so there's always a way up between decks too close
+            // together to jump. One mount edge per column, so a tall stack
+            // reads as one continuous ladder instead of zig-zagging.
+            const edge = LADDER_EDGES[Math.floor(random() * LADDER_EDGES.length)];
+            // Mount just past the true cell edge (half depth of the ladder's
+            // own collision box) so its inner face sits flush with the
+            // platform's edge/rim instead of sitting back on top of the
+            // catwalk floor - that inward offset was why ladders looked
+            // pushed back and clipped through the deck above as you climbed.
+            const mountOffset = env.cellSize / 2 + 0.15;
+            const mountX = gx + edge.dx * mountOffset;
+            const mountZ = gz + edge.dz * mountOffset;
+            const outDir = {x: -edge.dx, z: -edge.dz};
+            for (let li = 0; li < levelMazes.length - 1; li++) {
+                if (decisions[li] && decisions[li + 1]) {
+                    const yBottom = (li - midLevel) * ACME_LEVEL_SPACING;
+                    buildLadderSegment(mountX, mountZ, yBottom, edge, outDir);
+                }
+            }
+
+            // Pass 4: containers don't belong to any one level - drop one
             // into the widest clear vertical gap in this column, as long as
             // there's room for it (with margin) so it never grows through
             // whatever's built above or below.
