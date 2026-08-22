@@ -99,6 +99,54 @@ export default class Foley {
         }
     }
 
+    // A cartoon "long plunge" whistle: starts high and glides continuously downward for as long as
+    // the fall lasts (Web Audio schedules the whole glide up front; stopAcmeFallWhistle cuts it short
+    // wherever it happens to be). stopAcmeFallWhistle(caught=true) flips it into a quick rising "sproing".
+    static startAcmeFallWhistle(engine) {
+        if (!engine.initialized || engine.ctx.state === 'suspended') return;
+        Foley.stopAcmeFallWhistle(engine, false);
+        const t = engine.ctx.currentTime;
+        const osc = engine.ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1100, t);
+        osc.frequency.exponentialRampToValueAtTime(85, t + 14.0);
+        const gain = engine.ctx.createGain();
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.linearRampToValueAtTime(0.11, t + 0.4);
+        osc.connect(gain);
+        gain.connect(engine.masterGain);
+        osc.start(t);
+        engine._acmeWhistle = {osc, gain};
+    }
+
+    static stopAcmeFallWhistle(engine, caught) {
+        const voice = engine && engine._acmeWhistle;
+        if (engine) engine._acmeWhistle = null;
+        if (!voice || !engine.initialized || engine.ctx.state === 'suspended') return;
+        const {osc, gain} = voice;
+        const t = engine.ctx.currentTime;
+        try {
+            const currentFreq = osc.frequency.value;
+            osc.frequency.cancelScheduledValues(t);
+            gain.gain.cancelScheduledValues(t);
+            gain.gain.setValueAtTime(gain.gain.value, t);
+            if (caught) {
+                osc.frequency.setValueAtTime(Math.max(currentFreq, 85), t);
+                osc.frequency.exponentialRampToValueAtTime(Math.max(currentFreq * 3.5, 700), t + 0.35);
+                gain.gain.linearRampToValueAtTime(0.0001, t + 0.5);
+                osc.stop(t + 0.55);
+            } else {
+                gain.gain.linearRampToValueAtTime(0.0001, t + 0.25);
+                osc.stop(t + 0.3);
+            }
+            osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+        } catch (e) {
+            try { osc.stop(); } catch (e2) {}
+            osc.disconnect();
+            gain.disconnect();
+        }
+    }
+
     static playMuzakNote(engine, freq, time, isChord = false) {
         if (!engine.muzakGain || engine.ctx.state === 'suspended') return;
         const osc = engine.ctx.createOscillator();

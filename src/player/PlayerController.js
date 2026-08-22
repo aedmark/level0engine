@@ -10,6 +10,9 @@ const MAX_FALL_SPEED = 120.0;
 // Tuned so a walking bounce off an ACME crate clears ~1 level (AcmeSector's ACME_LEVEL_SPACING = 6),
 // and a running bounce clears ~2 - lets players climb the stack, not just fall through it.
 const ACME_BOUNCE_MULTIPLIER = 2.71;
+// Only start the falling slide-whistle once a drop has gone on this long, so routine short hops
+// between platforms/levels stay quiet and only genuine plunges get the cartoon treatment.
+const ACME_WHISTLE_MIN_FALL_TIME = 1.2;
 
 export default class PlayerController {
     constructor(camera, domElement) {
@@ -703,15 +706,29 @@ export default class PlayerController {
             this.velocity.set(0, 0, 0);
             this._groundFeetY = this.camera.position.y - visualHeight;
             targetFeetY = this._groundFeetY;
-            document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 5.0, variant: 'slide_whistle'}}));
+            this._acmeJustWarped = true;
+            document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 5.0}}));
         }
 
         const groundCamY = Math.min(targetFeetY + visualHeight, dynamicMaxCamY) + bobOffset - leanDrop;
 
         if (targetFeetY === -100000) {
+            if (activeSector === 'ACME') {
+                this._acmeFallElapsed = (this._acmeFallElapsed || 0) + delta;
+                if (!this._acmeWhistlePlaying && this._acmeFallElapsed > ACME_WHISTLE_MIN_FALL_TIME) {
+                    this._acmeWhistlePlaying = true;
+                    document.dispatchEvent(new CustomEvent('somatic-acme-fall-start'));
+                }
+            }
             this.fallVelocity = Math.min((this.fallVelocity || 0) + 30.0 * delta, MAX_FALL_SPEED);
             this.camera.position.y -= (this.fallVelocity * delta);
         } else {
+            if (this._acmeWhistlePlaying) {
+                this._acmeWhistlePlaying = false;
+                document.dispatchEvent(new CustomEvent('somatic-acme-fall-end', {detail: {caught: !!this._acmeJustWarped}}));
+            }
+            this._acmeFallElapsed = 0;
+            this._acmeJustWarped = false;
             if (this.camera.position.y > groundCamY + 0.05 || (this.fallVelocity && this.fallVelocity < 0)) {
                 this.fallVelocity = (this.fallVelocity || 0) + 30.0 * delta;
                 if (this.fallVelocity > MAX_FALL_SPEED) this.fallVelocity = MAX_FALL_SPEED;
