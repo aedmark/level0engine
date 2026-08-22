@@ -1,6 +1,6 @@
 import {placeSectorPaper} from '../NarrativeProps.js';
 
-export const ACME_LEVEL_SPACING = 6.0;
+export const ACME_LEVEL_SPACING = 1.2;
 
 const ACME_PLATFORM_SKIP_CHANCE = 0.28;
 const ACME_CONTAINER_CHANCE = 0.12;
@@ -108,7 +108,6 @@ export const AcmeSector = (env, ctx) => {
         box.min.set(gx - halfX, topY - baseSize, gz - halfZ);
         box.max.set(gx + halfX, topY, gz + halfZ);
         box.chunkHash = hash;
-        box.isAcme = true;
         env.spatialGrid.insert(box);
 
         if (random() > 0.7) {
@@ -134,8 +133,8 @@ export const AcmeSector = (env, ctx) => {
     };
 
     const buildContainerPlatform = (gx, gz, levelBaseY) => {
-        const length = env.cellSize * (1.05 + random() * 0.3);
-        const width = env.cellSize * 0.55;
+        const length = env.cellSize * (1.6 + random() * 0.5);
+        const width = env.cellSize * 0.75;
         const height = 2.85;
         const rotY = random() > 0.5 ? 0 : Math.PI / 2;
 
@@ -159,7 +158,6 @@ export const AcmeSector = (env, ctx) => {
         box.min.set(gx - halfX, levelBaseY - height, gz - halfZ);
         box.max.set(gx + halfX, levelBaseY, gz + halfZ);
         box.chunkHash = hash;
-        box.isAcme = true;
         env.spatialGrid.insert(box);
     };
 
@@ -191,7 +189,6 @@ export const AcmeSector = (env, ctx) => {
         box.min.set(gx - half, levelBaseY - 0.15, gz - half);
         box.max.set(gx + half, levelBaseY, gz + half);
         box.chunkHash = hash;
-        box.isAcme = true;
         env.spatialGrid.insert(box);
     };
 

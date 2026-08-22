@@ -67,7 +67,6 @@ export function sweepGroundedCollision(grid, body, moveX, moveZ, scratch) {
     let inVoid = false;
     let groundY = -100000;
     let dynamicMaxCamY = 100000.0;
-    let onAcme = false;
     let hitFakeTunnel = false;
 
     for (let i = 0, len = boxes.length; i < len; i++) {
@@ -90,8 +89,6 @@ export function sweepGroundedCollision(grid, body, moveX, moveZ, scratch) {
         if (box.max.y > groundY && box.max.y <= stepY) {
             if (!box.isVoid && floorBox.intersectsBox(box)) {
                 groundY = box.max.y;
-                if (box.isAcme) onAcme = true;
-                else onAcme = false;
             }
         }
         
@@ -115,7 +112,7 @@ export function sweepGroundedCollision(grid, body, moveX, moveZ, scratch) {
     }
     
     if (!inVoid && groundY === -100000) groundY = 0;
-    return {hitX, hitZ, inVoid, groundY, boxes, dynamicMaxCamY, onAcme, hitFakeTunnel};
+    return {hitX, hitZ, inVoid, groundY, boxes, dynamicMaxCamY, hitFakeTunnel};
 }
 
 export function computeAxisBlocking(scratchBoxX, scratchBoxZ, primaryBox, posX, posZ, localBoxes, seedBlockedX = false, seedBlockedZ = false) {

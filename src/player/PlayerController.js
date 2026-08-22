@@ -4,7 +4,6 @@ import { sweepGroundedCollision } from '../entities/HazardUtils.js';
 const ACME_LOWEST_PLATFORM_Y = -3.75;
 const ACME_VOID_RESCUE_Y = ACME_LOWEST_PLATFORM_Y - 1000.0;
 const MAX_FALL_SPEED = 120.0;
-const ACME_BOUNCE_MULTIPLIER = 2.71;
 const ACME_WHISTLE_MIN_FALL_TIME = 1.2;
 
 export default class PlayerController {
@@ -741,15 +740,10 @@ export default class PlayerController {
                 this.camera.position.y += (groundCamY - this.camera.position.y) * lerpFactor;
 
                 if (state.jump && !state.isCrawling && !state.isCrouching && !this.isSqueezing && this.exhaustion < 0.9) {
-                    state.jump = false; 
+                    state.jump = false;
                     const jumpVelocity = state.isRunning ? 9.5 : 7.0;
-                    if (manifold && manifold.onAcme) {
-                        this.fallVelocity = -jumpVelocity * ACME_BOUNCE_MULTIPLIER;
-                        document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 2.0, variant: 'acme_boing'}}));
-                    } else {
-                        this.fallVelocity = -jumpVelocity;
-                        document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.0}}));
-                    }
+                    this.fallVelocity = -jumpVelocity;
+                    document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.0}}));
                     this.camera.position.y += 0.06;
                     this.exhaustion = Math.min(1.0, this.exhaustion + (state.isRunning ? 0.3 : 0.15));
                 }
