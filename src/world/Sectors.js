@@ -281,7 +281,7 @@ const SECTORS = {
         reverb: {rt60: 1.0, predelay: 0.010, wet: 0.15}
     },
     ACME: {
-        fog: 0.05, fogColor: 0xd96c40,
+        fog: 0.03, fogColor: 0x000000,
         ambient: 0.90,
         ambience: {
             noise: 0.05,

@@ -1,5 +1,9 @@
 import {placeSectorPaper} from '../NarrativeProps.js';
 
+// Vertical distance between stacked maze levels. Tuned so a walking bounce (see PlayerController's
+// ACME_BOUNCE_MULTIPLIER) clears almost exactly one level, and a running bounce clears nearly two.
+export const ACME_LEVEL_SPACING = 6.0;
+
 const createAcmeTexture = () => {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -47,19 +51,50 @@ export const AcmeSector = (env, ctx) => {
         id: "ACME",
         foundationMat: null,
         ceilingMat: null,
-        build: (x, z, localX, localZ, maze) => {
+        // levelMazes: array of maze grids stacked vertically (one per ACME_LEVEL_SPACING band), with the
+        // entrance-level maze (the one the hallways/doors align to) at its middle index. Falls back to a
+        // single entrance-level-only layout if the chunk builder didn't supply the full stack.
+        build: (x, z, localX, localZ, maze, levelMazes) => {
+            const gx = x * env.cellSize, gz = z * env.cellSize;
+
+            // Void box for EVERY cell so falling anywhere works
+            const voidBox = new THREE.Box3();
+            voidBox.min.set(gx - env.cellSize / 2, -100000, gz - env.cellSize / 2);
+            voidBox.max.set(gx + env.cellSize / 2, 100000, gz + env.cellSize / 2);
+            voidBox.isVoid = true;
+            voidBox.chunkHash = hash;
+            env.spatialGrid.insert(voidBox);
+
             // Maintain perimeter bounds and sector doors, now using warehouse metal
             if (ctx.buildPerimeter(x, z, localX, localZ, env.warehouseMat, "ACME")) return;
-            
-            const isPath = maze && !maze[localX][localZ];
-            const gx = x * env.cellSize, gz = z * env.cellSize;
-            
-            if (isPath) {
+
+            // Criss-crossing industrial beams far down in the abyss (unconditional)
+            if (random() > 0.6) { // Increased frequency
+                const beamGeo = new THREE.BoxGeometry(env.cellSize * 4, 1.0, 1.0);
+                // Make them slightly emissive so they are visible in the pitch black abyss
+                const beamMat = new THREE.MeshStandardMaterial({color: 0x222222, emissive: 0x111111, metalness: 0.8, roughness: 0.4});
+                const beam = new THREE.Mesh(beamGeo, beamMat);
+                // Distribute them all the way down, with some closer to the top so they are visible immediately
+                beam.position.set(gx, -10 - random() * 99900, gz);
+                beam.rotation.y = random() > 0.5 ? 0 : Math.PI / 2;
+                beam.receiveShadow = true;
+                chunkGroup.add(beam);
+            }
+
+            const levels = levelMazes || [maze];
+            const midLevel = Math.floor(levels.length / 2);
+            for (let li = 0; li < levels.length; li++) {
+                const levelMaze = levels[li];
+                const isPath = levelMaze && !levelMaze[localX][localZ];
+                if (!isPath) continue;
+
+                const levelBaseY = (li - midLevel) * ACME_LEVEL_SPACING;
+
                 // ACME crates serving as the platforms
-                const crateSize = env.cellSize * 0.75; 
+                const crateSize = env.cellSize * 0.75;
                 // Slight height variation for jumping dynamics
-                const topY = (random() * 1.5) - 0.75; 
-                
+                const topY = levelBaseY + (random() * 1.5) - 0.75;
+
                 const crateGeo = new THREE.BoxGeometry(crateSize, crateSize, crateSize);
                 const crateMesh = new THREE.Mesh(crateGeo, env.acmeMat);
                 crateMesh.position.set(gx, topY - (crateSize / 2), gz);
@@ -71,6 +106,7 @@ export const AcmeSector = (env, ctx) => {
                 box.min.set(gx - crateSize / 2, topY - crateSize, gz - crateSize / 2);
                 box.max.set(gx + crateSize / 2, topY, gz + crateSize / 2);
                 box.chunkHash = hash;
+                box.isAcme = true; // lets the player bounce off this platform to reach the level above
                 env.spatialGrid.insert(box);
 
                 // Add small decorative obstacle crates on top of the platform
@@ -90,27 +126,9 @@ export const AcmeSector = (env, ctx) => {
 
                         const smBox = new THREE.Box3().setFromObject(smMesh);
                         smBox.chunkHash = hash;
+                        smBox.noCeilingClamp = true; // decorative clutter shouldn't cap jump height
                         env.spatialGrid.insert(smBox);
                     }
-                }
-            } else {
-                // Pure void abyss
-                const voidBox = new THREE.Box3();
-                voidBox.min.set(gx - env.cellSize / 2, -100, gz - env.cellSize / 2);
-                voidBox.max.set(gx + env.cellSize / 2, 3, gz + env.cellSize / 2);
-                voidBox.isVoid = true;
-                voidBox.chunkHash = hash;
-                env.spatialGrid.insert(voidBox);
-
-                // Criss-crossing industrial beams far down in the abyss
-                if (random() > 0.8) {
-                    const beamGeo = new THREE.BoxGeometry(env.cellSize * 4, 1.0, 1.0);
-                    const beamMat = new THREE.MeshStandardMaterial({color: 0x222222, metalness: 0.8, roughness: 0.4});
-                    const beam = new THREE.Mesh(beamGeo, beamMat);
-                    beam.position.set(gx, -15 - random() * 30, gz);
-                    beam.rotation.y = random() > 0.5 ? 0 : Math.PI / 2;
-                    beam.receiveShadow = true;
-                    chunkGroup.add(beam);
                 }
             }
         }

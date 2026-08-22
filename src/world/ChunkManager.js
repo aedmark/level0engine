@@ -11,6 +11,10 @@ import {ArchHallProfile} from './blueprints/ArchHall.js';
 import BootController from '../ui/BootController.js';
 import * as SectorPlacement from './SectorPlacement.js';
 
+// ACME stacks this many freshly-generated maze levels above and below the entrance level
+// (19 levels total), giving real jumpable platforms up and down without unbounded generation cost.
+const ACME_LEVELS_EACH_SIDE = 9;
+
 const CELL_KEY_SPAN = 4194304;
 const cellKey = (x, z) => x * (CELL_KEY_SPAN * 2) + z;
 
@@ -325,6 +329,7 @@ export default class ChunkManager {
         const sectorMatrix = isMacroStructure ? TheArchitect.getSectorMatrix.call(env, ctx) : null;
         let activeSector = null;
         let sectorMaze = null;
+        let acmeLevelMazes = null;
         let chunkBreakerCount = 0;
         let cHeight = 3.0;
         const breakerPositions = [];
@@ -347,18 +352,28 @@ export default class ChunkManager {
             activeSector = sectorMatrix.find(s => s.id === activeSectorId);
             if (activeSector && activeSector.id === "IMPOUND") cHeight = 20.0;
             if (activeSector && activeSector.id === "ACME") cHeight = 40.0;
+            
+            const inset = (activeSector && activeSector.id === "ACME") ? 0 : 8;
             env.macroZones.set(hash, {
                 id: activeSector.id,
                 fog: env.atmosphereManager._sectorFog(activeSector.id),
-                minX: startX * env.cellSize + 8,
-                maxX: startX * env.cellSize + 56,
-                minZ: startZ * env.cellSize + 8,
-                maxZ: startZ * env.cellSize + 56,
+                minX: startX * env.cellSize + inset,
+                maxX: startX * env.cellSize + (64 - inset),
+                minZ: startZ * env.cellSize + inset,
+                maxZ: startZ * env.cellSize + (64 - inset),
                 startX: startX,
                 startZ: startZ
             });
             if (["ARCHIVE", "SERVER", "MAINTENANCE", "IMPOUND", "ATRIUM", "CHASM", "CLINIC", "INCINERATOR", "ACME"].includes(activeSector.id)) {
                 sectorMaze = env._generateSectorMaze(random);
+            }
+            if (activeSector.id === "ACME") {
+                // Entrance-level maze (sectorMaze) sits in the middle so hallways/doors line up with it;
+                // every other level gets its own freshly-generated layout so gaps don't stack vertically.
+                acmeLevelMazes = [];
+                for (let i = -ACME_LEVELS_EACH_SIDE; i <= ACME_LEVELS_EACH_SIDE; i++) {
+                    acmeLevelMazes.push(i === 0 ? sectorMaze : env._generateSectorMaze(random));
+                }
             }
             if (activeSector.foundationMat) {
                 const innerSize = (env.chunkSize - 2) * env.cellSize;
@@ -412,15 +427,16 @@ export default class ChunkManager {
                 env.sharedAssets.add(env.voidShroudWhiteMat.uuid);
             }
             const isAtriumVoid = activeSector && activeSector.id === "ATRIUM";
+            const isAcmeVoid = activeSector && activeSector.id === "ACME";
             const shroudMat = isAtriumVoid ? env.voidShroudWhiteMat : env.voidShroudMat;
-            const canopyY = isAtriumVoid ? 66.0 : 9.0;
+            const canopyY = isAcmeVoid ? 100000.0 : (isAtriumVoid ? 66.0 : 9.0);
             const span = env.chunkSize * env.cellSize;
             const canopy = new THREE.Mesh(env._planeGeo(span, span), shroudMat);
             canopy.rotation.x = Math.PI / 2;
             canopy.position.set(startX * env.cellSize + centerOffset, canopyY, startZ * env.cellSize + centerOffset);
             canopy.castShadow = true;
             chunkGroup.add(canopy);
-            const skirtBottom = isAtriumVoid ? 55.6 : 2.85;
+            const skirtBottom = isAcmeVoid ? 100000.0 - 6.15 : (isAtriumVoid ? 55.6 : 2.85); // Adjust skirt for ACME
             const skirtTop = canopyY + 0.15;
             const skirtCenterY = (skirtBottom + skirtTop) / 2;
             const skirtHeight = skirtTop - skirtBottom;
@@ -443,7 +459,7 @@ export default class ChunkManager {
                 chunkGroup.add(skirt);
             }
             if (isChasm) {
-                const floorVoidY = -100.0;
+                const floorVoidY = isAcmeVoid ? -100000.0 : -100.0;
                 const floorVoid = new THREE.Mesh(env._planeGeo(span, span), shroudMat);
                 floorVoid.rotation.x = -Math.PI / 2;
                 floorVoid.position.set(cxw0, floorVoidY, czw0);
@@ -489,7 +505,7 @@ export default class ChunkManager {
                         shellStartTime = performance.now();
                         if (!env.activeChunks.has(hash)) return;
                     }
-                    activeSector.build(x, z, localX, localZ, typeof sectorMaze !== 'undefined' ? sectorMaze : null);
+                    activeSector.build(x, z, localX, localZ, typeof sectorMaze !== 'undefined' ? sectorMaze : null, acmeLevelMazes);
                 }
             }
             if (stagingMeshes.length > 0) {
@@ -499,7 +515,7 @@ export default class ChunkManager {
         }
         const interiorArgs = {
             hash, chunkGroup, stagingMeshes, ctx, random, chunkX, chunkZ, startX, startZ,
-            isMacroStructure, activeSector, sectorMaze, structuralMatrix
+            isMacroStructure, activeSector, sectorMaze, acmeLevelMazes, structuralMatrix
         };
         if (isMacroStructure && activeSector) {
             chunkGroup.userData.contentReady = false;
@@ -512,7 +528,7 @@ export default class ChunkManager {
         const env = this.env;
         const {
             hash, chunkGroup, stagingMeshes, ctx, random, chunkX, chunkZ, startX, startZ,
-            isMacroStructure, activeSector, sectorMaze, structuralMatrix
+            isMacroStructure, activeSector, sectorMaze, acmeLevelMazes, structuralMatrix
         } = args;
         const cx = Math.sin(env.baseSeed) * 0.8;
         const cy = Math.cos(env.baseSeed * 0.5) * 0.8;
@@ -546,7 +562,7 @@ export default class ChunkManager {
                 const localZ = z - startZ;
                 if (isMacroStructure) {
                     if (ctx.isOccupied(x, z)) continue;
-                    activeSector.build(x, z, localX, localZ, typeof sectorMaze !== 'undefined' ? sectorMaze : null);
+                    activeSector.build(x, z, localX, localZ, typeof sectorMaze !== 'undefined' ? sectorMaze : null, acmeLevelMazes);
                     continue;
                 }
                 if (ctx.isOccupied(x, z)) continue;
