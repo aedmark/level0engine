@@ -2,15 +2,16 @@ import {placeSectorPaper} from '../NarrativeProps.js';
 
 export const ACME_LEVEL_SPACING = 1.2;
 
-// Raised from 0.75 - with ACME_LEVELS_EACH_SIDE now much bigger (see ChunkManager.js), a higher skip
-// chance means longer average runs of empty levels between decks, which is what actually produces long
-// ladder/chute segments (buildLadderSegment/buildChuteSegment both already take an arbitrary `rise`).
 const ACME_PLATFORM_SKIP_CHANCE = 0.82;
 const ACME_ENTRANCE_CLEARANCE_LEVELS = 3;
 const ACME_LADDER_RUNG_SPACING = 0.3;
-const ACME_CHUTE_ANGLE_DEG = 42;      // steep enough to read as a slide, shallow enough to look plausible
-const ACME_CHUTE_WIDTH = 0.9;         // rail-to-rail
-const ACME_CHUTE_CHANCE = 0.35;       // fraction of deck-to-deck hops that become a chute instead of a ladder
+const ACME_LADDER_HOLE_DEPTH = 1.4;
+const ACME_LADDER_HOLE_WIDTH = 1.15;
+
+const ACME_WORK_LIGHT_CHANCE = 0.4;
+const WORK_LIGHT_CORNERS = [{x: 1, z: 1}, {x: 1, z: -1}, {x: -1, z: 1}, {x: -1, z: -1}];
+
+const WORK_LIGHT_UP = new THREE.Vector3(0, 1, 0);
 
 const DOORWAY_ANCHORS = [[7, 1], [7, 14], [1, 7], [14, 7]];
 
@@ -28,7 +29,7 @@ const ensureAcmeMaterials = (env) => {
 };
 
 export const AcmeSector = (env, ctx) => {
-    const {random, buildWall, addGeometry, hash} = ctx;
+    const {random, buildWall, addGeometry, hash, getLightMaterial, chunkGroup} = ctx;
     ensureAcmeMaterials(env);
 
     const isNearEntrance = (localX, localZ, maze) => {
@@ -39,35 +40,77 @@ export const AcmeSector = (env, ctx) => {
         return false;
     };
 
-    const buildCatwalk = (gx, gz, y) => {
-        const floorGeo = env._planeGeo(env.cellSize, env.cellSize);
+    const buildCatwalk = (gx, gz, y, size = env.cellSize) => {
+        const floorGeo = size === env.cellSize ? env._planeGeo(env.cellSize, env.cellSize) : env._planeGeo(size, size);
         const floor = new THREE.Mesh(floorGeo, env.catwalkMat);
         floor.rotation.x = -Math.PI / 2;
         floor.position.set(gx, y, gz);
         addGeometry(floor);
-        const hx = env.cellSize / 2;
+        const hx = size / 2;
         const frameY = y - 0.1;
-        const rim1 = buildWall(env.cellSize, 0.08, env.blackIronMat, 0.12);
+        const rim1 = buildWall(size, 0.08, env.blackIronMat, 0.12);
         rim1.position.set(gx, frameY, gz - hx + 0.04);
         addGeometry(rim1);
-        const rim2 = buildWall(env.cellSize, 0.08, env.blackIronMat, 0.12);
+        const rim2 = buildWall(size, 0.08, env.blackIronMat, 0.12);
         rim2.position.set(gx, frameY, gz + hx - 0.04);
         addGeometry(rim2);
-        const rim3 = buildWall(0.08, env.cellSize - 0.16, env.blackIronMat, 0.12);
+        const rim3 = buildWall(0.08, size - 0.16, env.blackIronMat, 0.12);
         rim3.position.set(gx - hx + 0.04, frameY, gz);
         addGeometry(rim3);
-        const rim4 = buildWall(0.08, env.cellSize - 0.16, env.blackIronMat, 0.12);
+        const rim4 = buildWall(0.08, size - 0.16, env.blackIronMat, 0.12);
         rim4.position.set(gx + hx - 0.04, frameY, gz);
         addGeometry(rim4);
-        placeSectorPaper(env, ctx, "ACME", gx, gz, y + 0.02);
+        if (size === env.cellSize) placeSectorPaper(env, ctx, "ACME", gx, gz, y + 0.02);
     };
 
-    const buildLadderSegment = (mountX, mountZ, yBottom, rise, edge, outDir) => {
+    const buildHoledCatwalk = (gx, gz, y, edge) => {
+        const size = env.cellSize;
+        const hx = size / 2;
+        const holeHalfX = edge.dx !== 0 ? ACME_LADDER_HOLE_DEPTH / 2 : ACME_LADDER_HOLE_WIDTH / 2;
+        const holeHalfZ = edge.dx !== 0 ? ACME_LADDER_HOLE_WIDTH / 2 : ACME_LADDER_HOLE_DEPTH / 2;
+        const floorThickness = 0.1;
+        const floorY = y - floorThickness / 2;
+
+        const nsDepth = hx - holeHalfZ;
+        if (nsDepth > 0.02) {
+            const north = buildWall(size, nsDepth, env.catwalkMat, floorThickness);
+            north.position.set(gx, floorY, gz - holeHalfZ - nsDepth / 2);
+            addGeometry(north);
+            const south = buildWall(size, nsDepth, env.catwalkMat, floorThickness);
+            south.position.set(gx, floorY, gz + holeHalfZ + nsDepth / 2);
+            addGeometry(south);
+        }
+        const ewWidth = hx - holeHalfX;
+        if (ewWidth > 0.02) {
+            const east = buildWall(ewWidth, holeHalfZ * 2, env.catwalkMat, floorThickness);
+            east.position.set(gx + holeHalfX + ewWidth / 2, floorY, gz);
+            addGeometry(east);
+            const west = buildWall(ewWidth, holeHalfZ * 2, env.catwalkMat, floorThickness);
+            west.position.set(gx - holeHalfX - ewWidth / 2, floorY, gz);
+            addGeometry(west);
+        }
+
+        const frameY = y - 0.1;
+        const rim1 = buildWall(size, 0.08, env.blackIronMat, 0.12);
+        rim1.position.set(gx, frameY, gz - hx + 0.04);
+        addGeometry(rim1);
+        const rim2 = buildWall(size, 0.08, env.blackIronMat, 0.12);
+        rim2.position.set(gx, frameY, gz + hx - 0.04);
+        addGeometry(rim2);
+        const rim3 = buildWall(0.08, size - 0.16, env.blackIronMat, 0.12);
+        rim3.position.set(gx - hx + 0.04, frameY, gz);
+        addGeometry(rim3);
+        const rim4 = buildWall(0.08, size - 0.16, env.blackIronMat, 0.12);
+        rim4.position.set(gx + hx - 0.04, frameY, gz);
+        addGeometry(rim4);
+    };
+
+    const buildLadderSegment = (gx, gz, yBottom, rise, edge, outDir) => {
         const perp = edge.dx !== 0 ? {x: 0, z: 1} : {x: 1, z: 0};
         const railGap = 0.3;
         for (const sign of [1, -1]) {
             const rail = buildWall(0.06, 0.06, env.blackIronMat, rise);
-            rail.position.set(mountX + perp.x * railGap * sign, yBottom + rise / 2, mountZ + perp.z * railGap * sign);
+            rail.position.set(gx + perp.x * railGap * sign, yBottom + rise / 2, gz + perp.z * railGap * sign);
             addGeometry(rail);
         }
         const rungCount = Math.max(4, Math.round(rise / ACME_LADDER_RUNG_SPACING));
@@ -77,20 +120,20 @@ export const AcmeSector = (env, ctx) => {
             const rung = perp.x !== 0
                 ? buildWall(0.68, 0.05, env.blackIronMat, 0.05)
                 : buildWall(0.05, 0.68, env.blackIronMat, 0.05);
-            rung.position.set(mountX, ly, mountZ);
+            rung.position.set(gx, ly, gz);
             addGeometry(rung);
         }
         const halfDepth = 0.15, halfWidth = 0.4;
         const box = new THREE.Box3();
         box.min.set(
-            mountX - Math.abs(edge.dx) * halfDepth - Math.abs(perp.x) * halfWidth,
+            gx - Math.abs(edge.dx) * halfDepth - Math.abs(perp.x) * halfWidth,
             yBottom,
-            mountZ - Math.abs(edge.dz) * halfDepth - Math.abs(perp.z) * halfWidth
+            gz - Math.abs(edge.dz) * halfDepth - Math.abs(perp.z) * halfWidth
         );
         box.max.set(
-            mountX + Math.abs(edge.dx) * halfDepth + Math.abs(perp.x) * halfWidth,
+            gx + Math.abs(edge.dx) * halfDepth + Math.abs(perp.x) * halfWidth,
             yBottom + rise,
-            mountZ + Math.abs(edge.dz) * halfDepth + Math.abs(perp.z) * halfWidth
+            gz + Math.abs(edge.dz) * halfDepth + Math.abs(perp.z) * halfWidth
         );
         box.isLadder = true;
         box.chunkHash = hash;
@@ -98,82 +141,65 @@ export const AcmeSector = (env, ctx) => {
         env.spatialGrid.insert(box);
     };
 
-    // Angled chute: a one-way slide from `yTop` down to `yTop - rise`, mounted on the same edge/outDir
-    // ladders use. Unlike the ladder, it doesn't stack straight up the column - it runs outward along
-    // `outDir` as it descends, so a long chute drifts well clear of the vertical column below it. The
-    // collision box is a trigger volume only (see PlayerController#_updateChute / the isChute carve-outs
-    // in HazardUtils.sweepGroundedCollision) - it is never solid, the player is expected to walk straight
-    // onto it and get picked up by contact, not grab-and-climb like a ladder.
-    const buildChuteSegment = (mountX, mountZ, yTop, rise, edge, outDir) => {
-        const perp = edge.dx !== 0 ? {x: 0, z: 1} : {x: 1, z: 0};
-        const angleRad = ACME_CHUTE_ANGLE_DEG * Math.PI / 180;
-        const run = rise / Math.tan(angleRad);
-        const slopeLen = Math.sqrt(rise * rise + run * run);
 
-        const topX = mountX, topZ = mountZ, topY = yTop;
-        const bottomX = mountX + outDir.x * run;
-        const bottomZ = mountZ + outDir.z * run;
-        const bottomY = yTop - rise;
-        const midX = (topX + bottomX) / 2;
-        const midY = (topY + bottomY) / 2;
-        const midZ = (topZ + bottomZ) / 2;
+    const buildWorkLight = (gx, gz, deckY) => {
+        const corner = WORK_LIGHT_CORNERS[Math.floor(random() * WORK_LIGHT_CORNERS.length)];
+        const inset = env.cellSize / 2 * 0.55;
+        const lx = gx + corner.x * inset;
+        const lz = gz + corner.z * inset;
 
-        // Built flat (long axis along the run direction, `run` is always world X or world Z since `edge`
-        // is axis-aligned) then rotated down into the incline. Sign chosen so the end further along
-        // `outDir` is the low end.
-        const runsAlongX = edge.dx !== 0;
-        const tiltAxis = runsAlongX ? 'z' : 'x';
-        const tiltSign = runsAlongX ? -Math.sign(outDir.x) : Math.sign(outDir.z);
-        const tilt = tiltSign * angleRad;
-
-        const makeSlopedMesh = (mat, thickness, widthOffsetSign) => {
-            const w = runsAlongX ? slopeLen : ACME_CHUTE_WIDTH;
-            const d = runsAlongX ? ACME_CHUTE_WIDTH : slopeLen;
-            const mesh = buildWall(w, d, mat, thickness);
-            mesh.rotation[tiltAxis] = tilt;
-            const offX = widthOffsetSign ? perp.x * (ACME_CHUTE_WIDTH / 2) * widthOffsetSign : 0;
-            const offZ = widthOffsetSign ? perp.z * (ACME_CHUTE_WIDTH / 2) * widthOffsetSign : 0;
-            mesh.position.set(midX + offX, midY, midZ + offZ);
-            // addGeometry auto-boxes every mesh it's handed (see StructureKit.js's addGeometry) unless told
-            // not to - same as the baseboard trim meshes elsewhere in this codebase. Without this, the
-            // rotated surface/rail meshes would each silently get their own solid, axis-aligned bounding
-            // box (a box that encloses the whole tilted ramp), on top of the one deliberate `isChute`
-            // trigger volume below - which is exactly the "invisible wall under every chute" bug this
-            // fixes. The visible geometry here is purely cosmetic; only the isChute box should collide.
-            mesh.userData.noCollision = true;
-            return mesh;
-        };
-
-        const surface = makeSlopedMesh(env.blackIronMat, 0.06, 0);
-        addGeometry(surface);
-        for (const sign of [1, -1]) {
-            const rail = makeSlopedMesh(env.blackIronMat, 0.16, sign);
-            addGeometry(rail);
+        const footRadius = 0.24, hubRadius = 0.035, hubHeight = 0.72, legRadius = 0.018;
+        const legLen = Math.sqrt((footRadius - hubRadius) ** 2 + hubHeight ** 2);
+        const legGeo = env._cylinderGeo(legRadius, legRadius, legLen, 5);
+        for (let i = 0; i < 3; i++) {
+            const a = (i / 3) * Math.PI * 2;
+            const fx = lx + Math.cos(a) * footRadius, fz = lz + Math.sin(a) * footRadius;
+            const hx = lx + Math.cos(a) * hubRadius, hz = lz + Math.sin(a) * hubRadius;
+            const leg = new THREE.Mesh(legGeo, env.blackIronMat);
+            leg.position.set((fx + hx) / 2, deckY + hubHeight / 2, (fz + hz) / 2);
+            leg.quaternion.setFromUnitVectors(WORK_LIGHT_UP, new THREE.Vector3(hx - fx, hubHeight, hz - fz).normalize());
+            leg.userData.chunkHash = hash;
+            chunkGroup.add(leg);
+            leg.updateMatrixWorld(true);
+            env.walls.push(leg);
         }
 
-        const halfWidth = ACME_CHUTE_WIDTH / 2, halfDepth = 0.15;
-        const box = new THREE.Box3();
-        box.min.set(
-            Math.min(topX, bottomX) - Math.abs(perp.x) * halfWidth - Math.abs(edge.dx) * halfDepth,
-            bottomY,
-            Math.min(topZ, bottomZ) - Math.abs(perp.z) * halfWidth - Math.abs(edge.dz) * halfDepth
-        );
-        box.max.set(
-            Math.max(topX, bottomX) + Math.abs(perp.x) * halfWidth + Math.abs(edge.dx) * halfDepth,
-            topY,
-            Math.max(topZ, bottomZ) + Math.abs(perp.z) * halfWidth + Math.abs(edge.dz) * halfDepth
-        );
-        box.isChute = true;
-        box.chunkHash = hash;
-        box.chuteOutDir = outDir;
-        box.chuteTopX = topX;
-        box.chuteTopY = topY;
-        box.chuteTopZ = topZ;
-        box.chuteBottomX = bottomX;
-        box.chuteBottomY = bottomY;
-        box.chuteBottomZ = bottomZ;
-        box.chuteSlopeLen = slopeLen;
-        env.spatialGrid.insert(box);
+        const elevRad = 40 * Math.PI / 180;
+        const azimuth = random() * Math.PI * 2;
+        const aimDir = new THREE.Vector3(
+            Math.cos(azimuth) * Math.cos(elevRad),
+            Math.sin(elevRad),
+            Math.sin(azimuth) * Math.cos(elevRad)
+        ).normalize();
+
+        const hubPos = new THREE.Vector3(lx, deckY + hubHeight, lz);
+        const housingW = 0.24, housingT = 0.08, housingD = 0.18;
+        const housing = buildWall(housingW, housingD, env.blackIronMat, housingT);
+        housing.position.copy(hubPos).addScaledVector(aimDir, housingT / 2);
+        housing.quaternion.setFromUnitVectors(WORK_LIGHT_UP, aimDir);
+        addGeometry(housing);
+
+        const bulbMat = getLightMaterial(0xffffff, 0xffe9c0, false);
+        const panelW = 0.19, panelT = 0.02, panelD = 0.13, panelGap = 0.015;
+        const panel = buildWall(panelW, panelD, bulbMat, panelT);
+        const panelPos = hubPos.clone().addScaledVector(aimDir, housingT + panelGap + panelT / 2);
+        panel.position.copy(panelPos);
+        panel.quaternion.setFromUnitVectors(WORK_LIGHT_UP, aimDir);
+        panel.userData.chunkHash = hash;
+        chunkGroup.add(panel);
+        panel.updateMatrixWorld(true);
+        env.walls.push(panel);
+
+        env.fixtureData.push({
+            chunkHash: hash,
+            position: panelPos.clone(),
+            flickerOffset: random() * 500,
+            material: bulbMat,
+            isFaulty: random() > 0.85,
+            baseIntensity: 1.4,
+            targetIntensity: 1.4,
+            currentIntensity: 1.4
+        });
     };
 
     return {
@@ -197,6 +223,7 @@ export const AcmeSector = (env, ctx) => {
 
             if (nearEntrance) {
                 buildCatwalk(gx, gz, 0);
+                if (random() < ACME_WORK_LIGHT_CHANCE) buildWorkLight(gx, gz, 0);
             }
 
             const inClearance = (li) => nearEntrance && li >= midLevel && li <= midLevel + ACME_ENTRANCE_CLEARANCE_LEVELS;
@@ -210,30 +237,33 @@ export const AcmeSector = (env, ctx) => {
                 decisions[li] = 'catwalk';
             }
 
-            for (let li = 0; li < levelMazes.length; li++) {
-                if (!decisions[li]) continue;
-                const levelBaseY = (li - midLevel) * ACME_LEVEL_SPACING;
-                buildCatwalk(gx, gz, levelBaseY);
-            }
+            const ladderEdge = LADDER_EDGES[Math.floor(random() * LADDER_EDGES.length)];
+            const ladderOutDir = {x: -ladderEdge.dx, z: -ladderEdge.dz};
 
-            const edge = LADDER_EDGES[Math.floor(random() * LADDER_EDGES.length)];
-            const mountOffset = env.cellSize / 2 + 0.15;
-            const mountX = gx + edge.dx * mountOffset;
-            const mountZ = gz + edge.dz * mountOffset;
-            const outDir = {x: -edge.dx, z: -edge.dz};
+            const needsHole = new Array(levelMazes.length).fill(false);
+            const connectors = [];
             let prevDeckLevel = -1;
             for (let li = 0; li < levelMazes.length; li++) {
                 if (!decisions[li]) continue;
                 if (prevDeckLevel !== -1) {
-                    const yBottom = (prevDeckLevel - midLevel) * ACME_LEVEL_SPACING;
                     const rise = (li - prevDeckLevel) * ACME_LEVEL_SPACING;
-                    if (random() < ACME_CHUTE_CHANCE) {
-                        buildChuteSegment(mountX, mountZ, yBottom + rise, rise, edge, outDir);
-                    } else {
-                        buildLadderSegment(mountX, mountZ, yBottom, rise, edge, outDir);
-                    }
+                    connectors.push({prevDeckLevel, li, rise});
+                    needsHole[li] = true;
                 }
                 prevDeckLevel = li;
+            }
+
+            for (let li = 0; li < levelMazes.length; li++) {
+                if (!decisions[li]) continue;
+                const levelBaseY = (li - midLevel) * ACME_LEVEL_SPACING;
+                if (needsHole[li]) buildHoledCatwalk(gx, gz, levelBaseY, ladderEdge);
+                else buildCatwalk(gx, gz, levelBaseY);
+                if (random() < ACME_WORK_LIGHT_CHANCE) buildWorkLight(gx, gz, levelBaseY);
+            }
+
+            for (const seg of connectors) {
+                const yBottom = (seg.prevDeckLevel - midLevel) * ACME_LEVEL_SPACING;
+                buildLadderSegment(gx, gz, yBottom, seg.rise, ladderEdge, ladderOutDir);
             }
         }
     };

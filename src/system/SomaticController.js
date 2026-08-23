@@ -21,8 +21,6 @@ export default class SomaticController {
         document.addEventListener('somatic-lost', (e) => this.acoustics.triggerSomaticEvent(e.detail.isLaugh ? 'laugh' : 'whisper', e.detail.distSq, e.detail.intensity));
         document.addEventListener('somatic-acme-fall-start', () => this.acoustics.startAcmeFallWhistle());
         document.addEventListener('somatic-acme-fall-end', (e) => this.acoustics.stopAcmeFallWhistle(!!(e.detail && e.detail.caught)));
-        document.addEventListener('somatic-chute-start', () => this.acoustics.startChuteSlide());
-        document.addEventListener('somatic-chute-end', (e) => this.acoustics.stopChuteSlide(!!(e.detail && e.detail.caught)));
         document.addEventListener('somatic-blink', () => {
             const flash = document.getElementById('flash-overlay');
             if (flash && flash.style.opacity !== '0.98') {

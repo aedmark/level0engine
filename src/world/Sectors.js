@@ -281,8 +281,8 @@ const SECTORS = {
         reverb: {rt60: 1.0, predelay: 0.010, wet: 0.15}
     },
     ACME: {
-        fog: 0.02, fogColor: 0xd96c40,
-        ambient: 0.35,
+        fog: 0.03, fogColor: 0x333333,
+        ambient: 0.30,
         ambience: {
             noise: 0.05,
             peace: 0.0,
@@ -292,6 +292,12 @@ const SECTORS = {
             whine: 0.0,
             whineOcc: 0.0,
             dynamicWhine: false
+        },
+        dust: {
+            drift: 'vertical', driftY: -0.02, turbulence: 0.10,
+            baseOpacity: 0.25, crawlOpacity: 0.42,
+            baseSize: 0.25, crawlSize: 0.40,
+            color: 0xe8ddc5
         },
         foley: {oscFreq: 240, filterType: 'bandpass', filterFreq: 1600, gain: 0.18, attack: 0.005, decay: 0.3},
         reverb: {rt60: 3.5, predelay: 0.060, wet: 0.28}

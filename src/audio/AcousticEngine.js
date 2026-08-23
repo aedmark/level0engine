@@ -37,14 +37,6 @@ export default class AcousticEngine {
         Foley.stopAcmeFallWhistle(this, caught);
     }
 
-    startChuteSlide() {
-        Foley.startChuteSlide(this);
-    }
-
-    stopChuteSlide(caught) {
-        Foley.stopChuteSlide(this, caught);
-    }
-
     playMuzakNote(freq, time, isChord = false) {
         Foley.playMuzakNote(this, freq, time, isChord);
     }
