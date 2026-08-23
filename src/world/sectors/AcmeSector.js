@@ -8,10 +8,17 @@ const ACME_LADDER_RUNG_SPACING = 0.3;
 const ACME_LADDER_HOLE_DEPTH = 1.4;
 const ACME_LADDER_HOLE_WIDTH = 1.15;
 
-const ACME_WORK_LIGHT_CHANCE = 0.4;
-const WORK_LIGHT_CORNERS = [{x: 1, z: 1}, {x: 1, z: -1}, {x: -1, z: 1}, {x: -1, z: -1}];
-
-const WORK_LIGHT_UP = new THREE.Vector3(0, 1, 0);
+// Archive-style hanging lights, borrowed via env._buildHangingBowlLight and re-hung
+// in the gaps between vertically-adjacent Acme decks (the same gaps buildLadderSegment
+// already spans), instead of standing worklights.
+const ACME_HANGING_LIGHT_CHANCE = 0.5;
+const ACME_LIGHT_CORNERS = [{x: 1, z: 1}, {x: 1, z: -1}, {x: -1, z: 1}, {x: -1, z: -1}];
+const ACME_LIGHT_CORNER_INSET = 0.55;
+// Mirrors SetPieces.buildHangingBowlLight's own bowlRadius (0.4) -- the two are coupled
+// on purpose, since this is the same fixture. If that radius ever changes, update this too.
+const ACME_HANGING_LIGHT_BOWL_RADIUS = 0.4;
+const ACME_HANGING_LIGHT_CLEARANCE = 0.35;
+const ACME_HANGING_LIGHT_MIN_WIRE = 0.5;
 
 const DOORWAY_ANCHORS = [[7, 1], [7, 14], [1, 7], [14, 7]];
 
@@ -144,64 +151,15 @@ export const AcmeSector = (env, ctx) => {
     };
 
 
-    const buildWorkLight = (gx, gz, deckY) => {
-        const corner = WORK_LIGHT_CORNERS[Math.floor(random() * WORK_LIGHT_CORNERS.length)];
-        const inset = env.cellSize / 2 * 0.55;
+    const buildHangingLight = (gx, gz, ceilingY, rise) => {
+        const maxWire = rise - ACME_HANGING_LIGHT_BOWL_RADIUS - ACME_HANGING_LIGHT_CLEARANCE;
+        if (maxWire < ACME_HANGING_LIGHT_MIN_WIRE) return;
+        const wireLen = ACME_HANGING_LIGHT_MIN_WIRE + random() * (maxWire - ACME_HANGING_LIGHT_MIN_WIRE);
+        const corner = ACME_LIGHT_CORNERS[Math.floor(random() * ACME_LIGHT_CORNERS.length)];
+        const inset = env.cellSize / 2 * ACME_LIGHT_CORNER_INSET;
         const lx = gx + corner.x * inset;
         const lz = gz + corner.z * inset;
-
-        const footRadius = 0.24, hubRadius = 0.035, hubHeight = 0.72, legRadius = 0.018;
-        const legLen = Math.sqrt((footRadius - hubRadius) ** 2 + hubHeight ** 2);
-        const legGeo = env._cylinderGeo(legRadius, legRadius, legLen, 5);
-        for (let i = 0; i < 3; i++) {
-            const a = (i / 3) * Math.PI * 2;
-            const fx = lx + Math.cos(a) * footRadius, fz = lz + Math.sin(a) * footRadius;
-            const hx = lx + Math.cos(a) * hubRadius, hz = lz + Math.sin(a) * hubRadius;
-            const leg = new THREE.Mesh(legGeo, env.blackIronMat);
-            leg.position.set((fx + hx) / 2, deckY + hubHeight / 2, (fz + hz) / 2);
-            leg.quaternion.setFromUnitVectors(WORK_LIGHT_UP, new THREE.Vector3(hx - fx, hubHeight, hz - fz).normalize());
-            leg.userData.chunkHash = hash;
-            chunkGroup.add(leg);
-            leg.updateMatrixWorld(true);
-            env.walls.push(leg);
-        }
-
-        const elevRad = 40 * Math.PI / 180;
-        const azimuth = random() * Math.PI * 2;
-        const aimDir = new THREE.Vector3(
-            Math.cos(azimuth) * Math.cos(elevRad),
-            Math.sin(elevRad),
-            Math.sin(azimuth) * Math.cos(elevRad)
-        ).normalize();
-
-        const hubPos = new THREE.Vector3(lx, deckY + hubHeight, lz);
-        const housingW = 0.24, housingT = 0.08, housingD = 0.18;
-        const housing = buildWall(housingW, housingD, env.blackIronMat, housingT);
-        housing.position.copy(hubPos).addScaledVector(aimDir, housingT / 2);
-        housing.quaternion.setFromUnitVectors(WORK_LIGHT_UP, aimDir);
-        addGeometry(housing);
-
-        const bulbMat = getLightMaterial(0xffffff, 0xffe9c0, false);
-        const panelW = 0.19, panelT = 0.02, panelD = 0.13, panelGap = 0.015;
-        const panel = buildWall(panelW, panelD, bulbMat, panelT);
-        const panelPos = hubPos.clone().addScaledVector(aimDir, housingT + panelGap + panelT / 2);
-        panel.position.copy(panelPos);
-        panel.quaternion.setFromUnitVectors(WORK_LIGHT_UP, aimDir);
-        panel.userData.chunkHash = hash;
-        chunkGroup.add(panel);
-        panel.updateMatrixWorld(true);
-        env.walls.push(panel);
-
-        env.fixtureData.push({
-            chunkHash: hash,
-            position: panelPos.clone(),
-            flickerOffset: random() * 500,
-            material: bulbMat,
-            isFaulty: random() > 0.85,
-            baseIntensity: 1.4,
-            targetIntensity: 1.4,
-            currentIntensity: 1.4
-        });
+        env._buildHangingBowlLight(chunkGroup, hash, lx, lz, random, getLightMaterial, wireLen, ceilingY);
     };
 
     return {
@@ -225,7 +183,6 @@ export const AcmeSector = (env, ctx) => {
 
             if (nearEntrance) {
                 buildCatwalk(gx, gz, 0);
-                if (random() < ACME_WORK_LIGHT_CHANCE) buildWorkLight(gx, gz, 0);
             }
 
             const inClearance = (li) => nearEntrance && li >= midLevel && li <= midLevel + ACME_ENTRANCE_CLEARANCE_LEVELS;
@@ -260,12 +217,19 @@ export const AcmeSector = (env, ctx) => {
                 const levelBaseY = (li - midLevel) * ACME_LEVEL_SPACING;
                 if (needsHole[li]) buildHoledCatwalk(gx, gz, levelBaseY, ladderEdge);
                 else buildCatwalk(gx, gz, levelBaseY);
-                if (random() < ACME_WORK_LIGHT_CHANCE) buildWorkLight(gx, gz, levelBaseY);
             }
 
             for (const seg of connectors) {
                 const yBottom = (seg.prevDeckLevel - midLevel) * ACME_LEVEL_SPACING;
                 buildLadderSegment(gx, gz, yBottom, seg.rise, ladderEdge, ladderOutDir);
+            }
+
+            // Hang one Archive-style pendant per open span between adjacent decks, at a
+            // random safe corner and a random wire length clamped to clear the deck below.
+            for (const seg of connectors) {
+                if (random() >= ACME_HANGING_LIGHT_CHANCE) continue;
+                const ceilingY = (seg.li - midLevel) * ACME_LEVEL_SPACING;
+                buildHangingLight(gx, gz, ceilingY, seg.rise);
             }
         }
     };

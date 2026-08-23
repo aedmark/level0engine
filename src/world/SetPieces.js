@@ -993,22 +993,33 @@ export default class SetPieces {
         return pallet;
     }
 
-    buildHangingBowlLight(chunkGroup, hash, cx, cz, random, getLightMaterial) {
+    buildHangingBowlLight(chunkGroup, hash, cx, cz, random, getLightMaterial, wireLen = 3.0, ceilingY = null) {
         const env = this.env;
         const bowlRadius = 0.4;
-        const rimY = 2.65;
-        const domeTopY = rimY + bowlRadius;
-        const wireLen = 3.0;
-        const wireGeo = env._cacheGeo('archiveWire', () => new THREE.CylinderGeometry(0.012, 0.012, wireLen, 5));
+        const BASE_WIRE_LEN = 3.0;
+        const domeTopY = ceilingY !== null ? ceilingY - wireLen : 2.65 + bowlRadius;
+        const rimY = domeTopY - bowlRadius;
+        const wireGeo = env._cacheGeo('archiveWire', () => new THREE.CylinderGeometry(0.012, 0.012, BASE_WIRE_LEN, 5));
         const wire = new THREE.Mesh(wireGeo, env.metalMat);
+        wire.scale.y = wireLen / BASE_WIRE_LEN;
         wire.position.set(cx, domeTopY + wireLen / 2, cz);
         chunkGroup.add(wire);
         wire.updateMatrixWorld(true);
         env.walls.push(wire);
         const bowlGeo = env._cacheGeo('archiveBowl', () => new THREE.SphereGeometry(bowlRadius, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2));
         if (!env.archiveBowlMat) {
-            env.archiveBowlMat = env.rustMat.clone();
-            env.archiveBowlMat.side = THREE.DoubleSide;
+            // Old-school green enamel plate shade: glossy ceramic-like coating over tin,
+            // not raw rusted metal -- low metalness, low roughness, a hint of worn bump.
+            // NOTE: LazyMaterialWarmup.js prewarms this same material before any sector
+            // builds a fixture, so in practice ITS definition wins -- keep both in sync.
+            env.archiveBowlMat = new THREE.MeshStandardMaterial({
+                color: 0x1c4a34,
+                roughness: 0.3,
+                metalness: 0.12,
+                bumpMap: env.corrosionBumpTexture || null,
+                bumpScale: 0.01,
+                side: THREE.DoubleSide
+            });
             env.sharedAssets.add(env.archiveBowlMat.uuid);
         }
         const bowl = new THREE.Mesh(bowlGeo, env.archiveBowlMat);
@@ -1028,9 +1039,20 @@ export default class SetPieces {
         chunkGroup.add(bulb);
         bulb.updateMatrixWorld(true);
         env.walls.push(bulb);
+        // Aim a downward spot through the bowl's open bottom instead of an omnidirectional
+        // point light, so the housing physically blocks the glow -- most of these fixtures
+        // never win a real-time shadow-map slot (only a handful are budgeted at once), and
+        // an unshadowed point light shines straight through solid geometry regardless.
+        // The half-angle is derived from the actual bowl geometry so the cone matches the
+        // real opening rather than an eyeballed constant.
+        const spotAngle = Math.atan2(bowlRadius, bulbY - rimY);
         env.fixtureData.push({
             chunkHash: hash,
             position: new THREE.Vector3(cx, bulbY, cz),
+            isSpot: true,
+            targetPos: new THREE.Vector3(cx, bulbY - 6.0, cz),
+            spotAngle,
+            spotPenumbra: 0.5,
             flickerOffset: random() * 500,
             material: bulbMat,
             isFaulty: true,

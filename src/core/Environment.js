@@ -650,8 +650,8 @@ export default class Environment {
         return this.setPieces.buildPallet();
     }
 
-    _buildHangingBowlLight(chunkGroup, hash, cx, cz, random, getLightMaterial) {
-        return this.setPieces.buildHangingBowlLight(chunkGroup, hash, cx, cz, random, getLightMaterial);
+    _buildHangingBowlLight(chunkGroup, hash, cx, cz, random, getLightMaterial, wireLen, ceilingY) {
+        return this.setPieces.buildHangingBowlLight(chunkGroup, hash, cx, cz, random, getLightMaterial, wireLen, ceilingY);
     }
 
     _buildAtriumLight(chunkGroup, hash, cx, cz, random, getLightMaterial) {
