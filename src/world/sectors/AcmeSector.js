@@ -68,25 +68,27 @@ export const AcmeSector = (env, ctx) => {
         const hx = size / 2;
         const holeHalfX = edge.dx !== 0 ? ACME_LADDER_HOLE_DEPTH / 2 : ACME_LADDER_HOLE_WIDTH / 2;
         const holeHalfZ = edge.dx !== 0 ? ACME_LADDER_HOLE_WIDTH / 2 : ACME_LADDER_HOLE_DEPTH / 2;
-        const floorThickness = 0.1;
-        const floorY = y - floorThickness / 2;
 
         const nsDepth = hx - holeHalfZ;
         if (nsDepth > 0.02) {
-            const north = buildWall(size, nsDepth, env.catwalkMat, floorThickness);
-            north.position.set(gx, floorY, gz - holeHalfZ - nsDepth / 2);
+            const north = new THREE.Mesh(env._planeGeo(size, nsDepth), env.catwalkMat);
+            north.rotation.x = -Math.PI / 2;
+            north.position.set(gx, y, gz - holeHalfZ - nsDepth / 2);
             addGeometry(north);
-            const south = buildWall(size, nsDepth, env.catwalkMat, floorThickness);
-            south.position.set(gx, floorY, gz + holeHalfZ + nsDepth / 2);
+            const south = new THREE.Mesh(env._planeGeo(size, nsDepth), env.catwalkMat);
+            south.rotation.x = -Math.PI / 2;
+            south.position.set(gx, y, gz + holeHalfZ + nsDepth / 2);
             addGeometry(south);
         }
         const ewWidth = hx - holeHalfX;
         if (ewWidth > 0.02) {
-            const east = buildWall(ewWidth, holeHalfZ * 2, env.catwalkMat, floorThickness);
-            east.position.set(gx + holeHalfX + ewWidth / 2, floorY, gz);
+            const east = new THREE.Mesh(env._planeGeo(ewWidth, holeHalfZ * 2), env.catwalkMat);
+            east.rotation.x = -Math.PI / 2;
+            east.position.set(gx + holeHalfX + ewWidth / 2, y, gz);
             addGeometry(east);
-            const west = buildWall(ewWidth, holeHalfZ * 2, env.catwalkMat, floorThickness);
-            west.position.set(gx - holeHalfX - ewWidth / 2, floorY, gz);
+            const west = new THREE.Mesh(env._planeGeo(ewWidth, holeHalfZ * 2), env.catwalkMat);
+            west.rotation.x = -Math.PI / 2;
+            west.position.set(gx - holeHalfX - ewWidth / 2, y, gz);
             addGeometry(west);
         }
 
