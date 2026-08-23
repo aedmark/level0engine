@@ -37,15 +37,6 @@ export function isRayPathBlocked(env, searchCenterX, searchCenterZ, searchDist, 
  * DO NOT merge these functions. If you are modifying collision logic, ensure you are editing 
  * the correct system (Player vs. Entity) based on your target actor.
  */
-// How far below the player's/entity's feet a box is still worth testing every frame.
-// This used to be an effectively unbounded -10000 fudge, so a deep pit sector (ACME,
-// CHASM) paid an ever-growing per-frame collision cost for every level stacked in the
-// same XZ column, no matter how far below it actually was - the spatial hash only
-// buckets by X/Z, so getNearby() returns all of them regardless of height. 100 units
-// comfortably covers CHASM's deepest support truss (-80) and leaves ACME plenty of
-// headroom to grow deeper without that cost climbing without bound. Boxes further
-// below than this simply aren't "in play" yet; they come back into range as the
-// falling body gets closer, well before it could ever reach them in a single frame.
 const VERTICAL_RELEVANCE_MARGIN = 100.0;
 
 export function sweepGroundedCollision(grid, body, moveX, moveZ, scratch) {

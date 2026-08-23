@@ -9,10 +9,6 @@ const LADDER_CLIMB_SPEED = 2.4;
 const LADDER_GRAB_RADIUS_SQ = 2.0;
 const LADDER_DISMOUNT_PUSH = 0.6;
 const LADDER_RUNG_SPACING = 0.3;
-// Rungs/rails sit exactly at the mount line (zero depth offset - see
-// buildLadderSegment), so a climbing camera needs to stand off it by more
-// than a hair to keep them out in front of the lens instead of clipped
-// through it.
 const LADDER_CLIMB_STANDOFF = 0.4;
 
 export default class PlayerController {
@@ -269,15 +265,6 @@ export default class PlayerController {
         for (let i = 0; i < localBoxes.length; i++) {
             const box = localBoxes[i];
             if (box.isInvisibleBlocker) continue;
-            // A ladder isn't a ceiling - you climb past its vertical span,
-            // you don't bonk your head on it. Skipping it here matters a
-            // lot in practice: ACME chains ladder segments up a single
-            // column (see AcmeSector's "one mount edge per column"), so the
-            // next segment up almost always starts one level-spacing (1.2)
-            // above wherever you mounted - comfortably under the 1.3 crawl
-            // threshold - and once climbing has you centered on that same
-            // column, that box would sit directly overhead and force a
-            // crouch/crawl for the entire climb.
             if (!box.isVoid && !box.isLadder && box.min.y > currentFeetY + 0.4 && this._floorBox.intersectsBox(box)) {
                 const available = box.min.y - currentFeetY;
                 if (available < maxCenterHeight) maxCenterHeight = available;
@@ -295,15 +282,6 @@ export default class PlayerController {
                     this._envForcedDown = true;
                 }
             } else if (this._envForcedDown) {
-                // Clearance opened back up - release the posture the
-                // environment forced on us (e.g. ducking under a low
-                // ceiling, or the tight overhead clearance while climbing a
-                // ladder). Without this, isCrawling/isCrouching only ever
-                // got set to true here and the player was stuck crawling
-                // forever once anything low forced it on, even after
-                // reaching open standing headroom (e.g. the top of a
-                // ladder). A voluntary crouch toggle never sets
-                // _envForcedDown, so it's left alone.
                 state.isCrawling = false;
                 state.isCrouching = false;
                 this._envForcedDown = false;
@@ -611,30 +589,11 @@ export default class PlayerController {
         this._applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes, dynamicMaxCamY, manifold);
     }
 
-    // Returns true while the player is gripping a ladder this frame, in
-    // which case the caller must skip its own fall/ground physics entirely -
-    // vertical movement here is fully manual, driven by forward/backward
-    // input instead of gravity or step-offset.
-    //
-    // Mount is interact-driven (E), not walk-into-it: press E while facing
-    // a ladder run, in range, grounded or mid-air, to grab on. W/S climb
-    // up/down. Dismounting is jump-only, from anywhere on the run - a
-    // shove off the rail with a small hop, no safety net - plus an
-    // automatic dismount onto the platform the instant climbing carries
-    // your feet past either end of the segment. E does nothing once
-    // you're already gripping; it's spent getting you onto the ladder in
-    // the first place.
     _updateLadder(delta, localBoxes, state, visualHeight) {
         if (this._onLadder) {
             const box = this._onLadder;
             const cx = (box.min.x + box.max.x) / 2;
             const cz = (box.min.z + box.max.z) / 2;
-            // Stand off the mount line by LADDER_CLIMB_STANDOFF instead of
-            // centering exactly on it - the rungs/rails sit right at
-            // (cx, cz) with zero depth offset, so a camera placed there is
-            // *inside* the rung geometry (invisible / clipping through it).
-            // This holds every frame we're attached, mount included, so
-            // there's no separate re-center snap once climbing starts.
             this.camera.position.x = cx + box.ladderOutDir.x * LADDER_CLIMB_STANDOFF;
             this.camera.position.z = cz + box.ladderOutDir.z * LADDER_CLIMB_STANDOFF;
             this.velocity.set(0, 0, 0);
@@ -650,15 +609,10 @@ export default class PlayerController {
                 return true;
             }
 
-            // E is mount-only now - just drain a press made while already
-            // attached so it can't sit armed and fire on some later,
-            // unrelated ladder once we let go.
             state.interactPressed = false;
 
             const climbDir = (state.moveForward ? 1 : 0) - (state.moveBackward ? 1 : 0);
             if (climbDir === 0) {
-                // Neither held - grip the rail in place rather than
-                // dropping off; only jump (or reaching an end) lets go.
                 this._ladderStepAccum = 0;
                 return true;
             }
@@ -671,8 +625,6 @@ export default class PlayerController {
             }
             const feetY = this.camera.position.y - visualHeight;
             if (feetY >= box.max.y || feetY <= box.min.y) {
-                // Auto-dismount: climbing carried us past either end of
-                // this segment, so step off onto the platform there.
                 const landY = feetY >= box.max.y ? box.max.y : box.min.y;
                 this.camera.position.y = landY + visualHeight;
                 this.camera.position.x += box.ladderOutDir.x * LADDER_DISMOUNT_PUSH;
@@ -684,13 +636,6 @@ export default class PlayerController {
             return true;
         }
 
-        // Not attached: look for a mountable ladder every frame, not just
-        // on an E press, so it can drive env.isLookingAtInteractable and
-        // get the same "[E]" crosshair prompt every other interactable
-        // gets (see InteractionController.updateInteractives, which sets
-        // that same flag for doors/props - this just adds to it rather
-        // than fighting over the one flag, since that function already ran
-        // earlier in the frame and set its own doors/props result first).
         if (!localBoxes) return false;
         const feetY = this.camera.position.y - visualHeight;
         this.camera.getWorldDirection(this._ladderScratch);
@@ -705,21 +650,10 @@ export default class PlayerController {
             const dx = this.camera.position.x - cx;
             const dz = this.camera.position.z - cz;
             if (dx * dx + dz * dz > LADDER_GRAB_RADIUS_SQ) continue;
-            // "Only from the front": -ladderOutDir is the direction from
-            // the room out to the rungs (the way you'd face to climb this
-            // run), so require actually looking roughly at it rather than
-            // grabbing one blind from the side or over a shoulder. Skipped
-            // when looking nearly straight up/down, where the horizontal
-            // look direction is too close to zero to mean anything.
             if (lookLenSq > 0.02) {
                 const facing = (lookX * -box.ladderOutDir.x + lookZ * -box.ladderOutDir.z) / Math.sqrt(lookLenSq);
                 if (facing < 0.3) continue;
             }
-            // Found one - it's mountable this frame, so show the prompt
-            // even if E isn't down. Never write `false` here: this only
-            // ever adds a hit on top of whatever updateInteractives already
-            // decided for doors/props this frame, it doesn't get to erase
-            // theirs.
             if (this.env) this.env.isLookingAtInteractable = true;
             if (!state.interactPressed) return false;
             state.interactPressed = false;
@@ -730,8 +664,6 @@ export default class PlayerController {
             document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.2}}));
             return true;
         }
-        // No mountable ladder in range - drop a stray press instead of
-        // leaving it armed for some later, unrelated approach.
         if (state.interactPressed) state.interactPressed = false;
         return false;
     }
@@ -901,19 +833,6 @@ export default class PlayerController {
                 const lerpFactor = 1.0 - Math.exp(-12.0 * delta);
                 this.camera.position.y += (groundCamY - this.camera.position.y) * lerpFactor;
 
-                // A crouched player can still jump - the classic Half-Life
-                // "crouch jump". Ducking shrinks physicalTop (2.5 -> 1.2),
-                // which shrinks ceilingClearance right along with it, so
-                // dynamicMaxCamY (see sweepGroundedCollision) sits higher
-                // for a crouched hull than a standing one under the same
-                // overhang. Leaving the ground while already crouched (or
-                // ducking mid-air after a standing jump - toggling crouch
-                // isn't gated by airborne state) keeps that shorter hull for
-                // the whole arc, letting the player tuck under a low ledge
-                // lip that would cap a standing jump short, and land on top
-                // of it. Crawling/squeezing still block jumping outright -
-                // there's no leaving the ground from flat-on-the-floor or
-                // sideways-squeeze postures.
                 if (state.jump && !state.isCrawling && !this.isSqueezing && this.exhaustion < 0.9) {
                     state.jump = false;
                     const jumpVelocity = state.isRunning ? 9.5 : 7.0;
@@ -922,12 +841,6 @@ export default class PlayerController {
                     this.camera.position.y += 0.06;
                     this.exhaustion = Math.min(1.0, this.exhaustion + (state.isRunning ? 0.3 : 0.15));
                 } else if (state.jump) {
-                    // Ineligible this frame (crawling/squeezing/too
-                    // exhausted) - drop the request rather than leave it
-                    // armed on state.jump. It used to just sit there and
-                    // could fire later once conditions changed, producing a
-                    // jump with no relation to when the player actually
-                    // pressed the key.
                     state.jump = false;
                 }
             }

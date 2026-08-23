@@ -1,42 +1,13 @@
 import {placeSectorPaper} from '../NarrativeProps.js';
 
-// ACME is a bottomless-canyon sector: a stack of sparse catwalk levels
-// straddling y=0, open to a near-infinite sky above and a near-infinite drop
-// below. The level count/spacing live here; ChunkManager reads
-// ACME_LEVEL_SPACING to size the per-level maze stack it hands into
-// `build`.
-//
-// Lighting: no per-column lamp posts here anymore (used to be scattered
-// pole+glow props built per-chunk below) - an open-sky canyon reads better
-// lit by one real light than by a handful of disconnected glowing orbs with
-// no actual illumination of their own. See RenderEngine's `acmeSun`
-// (a directional light) and AtmosphereManager's `_updateAcmeSun`, which
-// fades it in/out and keeps it centered above the camera specifically while
-// the player is in this sector.
 export const ACME_LEVEL_SPACING = 1.2;
 
-// How often an eligible level/column gets skipped when deciding platforms
-// (Pass 1 below). Higher means fewer, farther-apart decks - was 0.58, which
-// packed enough of them directly on top of each other (an ~18% chance for
-// any given pair of levels to both land) that the stack read as cramped.
-// Nothing caps how big a gap the geometric distribution can produce; Pass 3
-// now bridges whatever gap actually lands with one continuous ladder rather
-// than only ever connecting immediately-adjacent decks, so a bigger gap
-// here just means a longer ladder, not a disconnected column.
 const ACME_PLATFORM_SKIP_CHANCE = 0.75;
 const ACME_ENTRANCE_CLEARANCE_LEVELS = 3;
-// Target spacing between rungs on a ladder run, regardless of how many
-// levels it spans - rung count scales with the run's total height instead
-// of staying fixed, so a long run climbing past several skipped levels
-// still reads as one continuous ladder and not a stretched-out short one.
 const ACME_LADDER_RUNG_SPACING = 0.3;
 
-// Doorway approach cells the maze generator force-carves a straight corridor
-// to from the sector center - see SetPieces.generateSectorMaze.
 const DOORWAY_ANCHORS = [[7, 1], [7, 14], [1, 7], [14, 7]];
 
-// Which cell edge a column's ladder run mounts against; {dx,dz} points from
-// cell center out to the mount line, so -{dx,dz} is "back into the room."
 const LADDER_EDGES = [{dx: 1, dz: 0}, {dx: -1, dz: 0}, {dx: 0, dz: 1}, {dx: 0, dz: -1}];
 
 const ensureAcmeMaterials = (env) => {
@@ -85,13 +56,6 @@ export const AcmeSector = (env, ctx) => {
         placeSectorPaper(env, ctx, "ACME", gx, gz, y + 0.02);
     };
 
-    // A run spans from one deck straight to the next one this column
-    // actually has, however many empty levels sit between them - Pass 3
-    // below no longer requires the two ends to be immediately adjacent.
-    // Rung count scales with `rise` so the rungs stay evenly spaced instead
-    // of stretching thin on a long run. Builds its own isLadder collision
-    // box by hand (addGeometry doesn't forward custom userData flags),
-    // following the same pattern as the void/grate boxes.
     const buildLadderSegment = (mountX, mountZ, yBottom, rise, edge, outDir) => {
         const perp = edge.dx !== 0 ? {x: 0, z: 1} : {x: 1, z: 0};
         const railGap = 0.3;
@@ -151,7 +115,6 @@ export const AcmeSector = (env, ctx) => {
                 buildCatwalk(gx, gz, 0);
             }
 
-            // Pass 1: decide which levels get a catwalk in this cell.
             const inClearance = (li) => nearEntrance && li >= midLevel && li <= midLevel + ACME_ENTRANCE_CLEARANCE_LEVELS;
             const decisions = new Array(levelMazes.length).fill(null);
             for (let li = 0; li < levelMazes.length; li++) {
@@ -163,25 +126,13 @@ export const AcmeSector = (env, ctx) => {
                 decisions[li] = 'catwalk';
             }
 
-            // Pass 2: build the catwalks.
             for (let li = 0; li < levelMazes.length; li++) {
                 if (!decisions[li]) continue;
                 const levelBaseY = (li - midLevel) * ACME_LEVEL_SPACING;
                 buildCatwalk(gx, gz, levelBaseY);
             }
 
-            // Pass 3: connect every consecutive pair of decks this column
-            // actually has with one continuous ladder, no matter how many
-            // empty levels separate them - a sparser Pass 1 (skip chance
-            // above) means most runs now span several levels instead of
-            // one. One mount edge per column, so a tall stack still reads
-            // as a single ladder line instead of zig-zagging between edges.
             const edge = LADDER_EDGES[Math.floor(random() * LADDER_EDGES.length)];
-            // Mount just past the true cell edge (half depth of the ladder's
-            // own collision box) so its inner face sits flush with the
-            // platform's edge/rim instead of sitting back on top of the
-            // catwalk floor - that inward offset was why ladders looked
-            // pushed back and clipped through the deck above as you climbed.
             const mountOffset = env.cellSize / 2 + 0.15;
             const mountX = gx + edge.dx * mountOffset;
             const mountZ = gz + edge.dz * mountOffset;

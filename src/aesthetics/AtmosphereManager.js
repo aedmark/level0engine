@@ -488,14 +488,6 @@ export default class AtmosphereManager {
         }
     }
 
-    // One strong directional light for ACME's open-sky canyon, standing in
-    // for the sector's old scattered lamp-post props (see AcmeSector.js).
-    // Fades in only while actually in ACME - 0 everywhere else, same
-    // tutorial-darkness gate as the ambient light above - and re-centers
-    // above the camera every frame, so its shadow frustum (a fixed
-    // 45-unit half-extent around the light itself - see RenderEngine)
-    // tracks wherever in the stack the player currently is instead of
-    // sitting fixed over one point in the world.
     _updateAcmeSun(activeSector, cameraPos) {
         const env = this.env;
         const sun = env.engine.acmeSun;

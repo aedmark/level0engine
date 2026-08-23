@@ -282,13 +282,6 @@ const SECTORS = {
     },
     ACME: {
         fog: 0.02, fogColor: 0xd96c40,
-        // Fill light only now - the sector's real illumination is
-        // AtmosphereManager's acmeSun (a directional light standing in for
-        // the old scattered lamp-post props, see AcmeSector.js). This used
-        // to carry the whole sector at 0.90 with nothing to cast a shadow;
-        // knocked down so the sun actually reads as the dominant light and
-        // catwalks/containers pick up real directional shading instead of
-        // flat all-around glow.
         ambient: 0.35,
         ambience: {
             noise: 0.05,
