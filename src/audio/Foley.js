@@ -144,6 +144,81 @@ export default class Foley {
         }
     }
 
+    // Chute slide loop: a rising, filtered-noise rush (metal-on-metal) plus a low sawtooth undertone,
+    // both ramping up over the first few seconds to suggest gathering speed - deliberately textured
+    // differently from the ACME fall whistle above (pure sine, falling pitch) so the two "moving fast,
+    // can't stop" states don't read as the same sound. `caught` (reached the bottom vs. bailed early
+    // with jump) picks the exit flourish, same idea as stopAcmeFallWhistle's caught flag.
+    static startChuteSlide(engine) {
+        if (!engine.initialized || engine.ctx.state === 'suspended') return;
+        Foley.stopChuteSlide(engine, false);
+        const t = engine.ctx.currentTime;
+
+        const noise = engine.ctx.createBufferSource();
+        noise.buffer = engine.noiseSrc.buffer;
+        noise.loop = true;
+        const filter = engine.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.Q.value = 4.0;
+        filter.frequency.setValueAtTime(500, t);
+        filter.frequency.exponentialRampToValueAtTime(2200, t + 3.0);
+        const noiseGain = engine.ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.0001, t);
+        noiseGain.gain.linearRampToValueAtTime(0.09, t + 0.3);
+        noise.connect(filter);
+        filter.connect(noiseGain);
+
+        const osc = engine.ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(70, t);
+        osc.frequency.exponentialRampToValueAtTime(180, t + 3.0);
+        const oscGain = engine.ctx.createGain();
+        oscGain.gain.setValueAtTime(0.0001, t);
+        oscGain.gain.linearRampToValueAtTime(0.05, t + 0.3);
+        osc.connect(oscGain);
+
+        noiseGain.connect(engine.masterGain);
+        oscGain.connect(engine.masterGain);
+        noise.start(t);
+        osc.start(t);
+        engine._chuteSlide = {noise, filter, noiseGain, osc, oscGain};
+    }
+
+    static stopChuteSlide(engine, caught) {
+        const voice = engine && engine._chuteSlide;
+        if (engine) engine._chuteSlide = null;
+        if (!voice || !engine.initialized || engine.ctx.state === 'suspended') return;
+        const {noise, filter, noiseGain, osc, oscGain} = voice;
+        const t = engine.ctx.currentTime;
+        try {
+            noiseGain.gain.cancelScheduledValues(t);
+            oscGain.gain.cancelScheduledValues(t);
+            noiseGain.gain.setValueAtTime(noiseGain.gain.value, t);
+            oscGain.gain.setValueAtTime(oscGain.gain.value, t);
+            if (caught) {
+                filter.frequency.cancelScheduledValues(t);
+                filter.frequency.setValueAtTime(filter.frequency.value, t);
+                filter.frequency.exponentialRampToValueAtTime(Math.max(filter.frequency.value * 1.6, 900), t + 0.15);
+                noiseGain.gain.linearRampToValueAtTime(0.0001, t + 0.3);
+                oscGain.gain.linearRampToValueAtTime(0.0001, t + 0.3);
+                noise.stop(t + 0.35);
+                osc.stop(t + 0.35);
+            } else {
+                noiseGain.gain.linearRampToValueAtTime(0.0001, t + 0.15);
+                oscGain.gain.linearRampToValueAtTime(0.0001, t + 0.15);
+                noise.stop(t + 0.2);
+                osc.stop(t + 0.2);
+            }
+            noise.onended = () => { noise.disconnect(); filter.disconnect(); noiseGain.disconnect(); };
+            osc.onended = () => { osc.disconnect(); oscGain.disconnect(); };
+        } catch (e) {
+            try { noise.stop(); } catch (e2) {}
+            try { osc.stop(); } catch (e3) {}
+            noise.disconnect(); filter.disconnect(); noiseGain.disconnect();
+            osc.disconnect(); oscGain.disconnect();
+        }
+    }
+
     static playMuzakNote(engine, freq, time, isChord = false) {
         if (!engine.muzakGain || engine.ctx.state === 'suspended') return;
         const osc = engine.ctx.createOscillator();

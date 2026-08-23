@@ -76,7 +76,7 @@ export function sweepGroundedCollision(grid, body, moveX, moveZ, scratch) {
         if (box.isInvisibleBlocker) continue;
         if (box.isGrate && box.meshRef && !box.meshRef.userData.active) continue;
 
-        if (ceilingBox && !box.isVoid && !box.noCeilingClamp && box.min.y > stepY && ceilingBox.intersectsBox(box)) {
+        if (ceilingBox && !box.isVoid && !box.isChute && !box.noCeilingClamp && box.min.y > stepY && ceilingBox.intersectsBox(box)) {
             const maxCam = box.min.y - scratch.ceilingClearance;
             if (maxCam < dynamicMaxCamY) {
                 dynamicMaxCamY = maxCam;
@@ -89,13 +89,16 @@ export function sweepGroundedCollision(grid, body, moveX, moveZ, scratch) {
         if (box.isVoid && floorBox.intersectsBox(box)) inVoid = true;
         
         if (box.max.y > groundY && box.max.y <= stepY) {
-            if (!box.isVoid && floorBox.intersectsBox(box)) {
+            if (!box.isVoid && !box.isChute && floorBox.intersectsBox(box)) {
                 groundY = box.max.y;
             }
         }
-        
+
         if (hitX && hitZ) continue;
-        if (!box.isVoid) {
+        // isChute boxes follow the isVoid precedent here: never solid in the generic sweep. Entry onto
+        // a chute is a contact check PlayerController#_updateChute does itself (see AcmeSector.js's
+        // buildChuteSegment comment for why - a chute is meant to be walked onto, not bumped into).
+        if (!box.isVoid && !box.isChute) {
             if (!hitX && boxX.intersectsBox(box)) {
                 const cx = (box.min.x + box.max.x) * 0.5;
                 if ((moveX > 0 && x < cx) || (moveX < 0 && x > cx)) {

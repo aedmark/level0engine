@@ -1,7 +1,10 @@
 import SomaticInput from './SomaticInput.js';
 import { sweepGroundedCollision } from '../entities/HazardUtils.js';
 
-const ACME_LOWEST_PLATFORM_Y = -12.0;
+// Lowest a deck can spawn is -ACME_LEVELS_EACH_SIDE * ACME_LEVEL_SPACING (ChunkManager.js / AcmeSector.js)
+// = -40 * 1.2 = -48; kept a level's worth of margin below that so the rescue net never fires above a
+// legitimately reachable platform.
+const ACME_LOWEST_PLATFORM_Y = -49.2;
 const ACME_VOID_RESCUE_Y = ACME_LOWEST_PLATFORM_Y - 1000.0;
 const MAX_FALL_SPEED = 120.0;
 const ACME_WHISTLE_MIN_FALL_TIME = 1.2;
@@ -10,6 +13,22 @@ const LADDER_GRAB_RADIUS_SQ = 2.0;
 const LADDER_DISMOUNT_PUSH = 0.6;
 const LADDER_RUNG_SPACING = 0.3;
 const LADDER_CLIMB_STANDOFF = 0.4;
+// Chutes accelerate like a real slide rather than climbing at a fixed pace like a ladder - that's the
+// whole point of the mechanic (see the ACME chute spec in scratch/). CHUTE_ACCEL/CHUTE_MAX_SPEED are
+// tuned against ACME_LEVEL_SPACING (1.2/level) so a short one-level chute is over quickly and a long,
+// many-level one has real time to build up speed.
+const CHUTE_ACCEL = 9.0;
+const CHUTE_MAX_SPEED = 9.5;
+const CHUTE_STANDOFF = 0.3;
+const CHUTE_DISMOUNT_PUSH = 0.6;
+const CHUTE_BAIL_PUSH = 0.5;
+const CHUTE_BAIL_FALL_VELOCITY = -2.0;
+// Entry is a distance-to-the-slope-line check, not a bounding-box check - a long chute's Box3 (see
+// buildChuteSegment) is a big diagonal volume, and with levels now spanning much further apart, a
+// loose AABB test would let players standing on an unrelated deck that happens to fall inside that
+// volume get pulled onto a chute they're nowhere near. sqrt(CHUTE_ENTRY_RADIUS_SQ) ~= half the chute's
+// rail-to-rail width plus a player radius plus a little slop.
+const CHUTE_ENTRY_RADIUS_SQ = 1.2;
 
 export default class PlayerController {
     constructor(camera, domElement) {
@@ -143,6 +162,9 @@ export default class PlayerController {
         this.narrativeTension = 0.0;
         this.velocity.set(0, 0, 0);
         this._onLadder = null;
+        this._onChute = null;
+        this._chuteProgress = 0;
+        this._chuteSpeed = 0;
         this.objectives.fixed = 0;
         this.objectives.escaped = false;
         this.hasVisitedAnnex = false;
@@ -265,7 +287,7 @@ export default class PlayerController {
         for (let i = 0; i < localBoxes.length; i++) {
             const box = localBoxes[i];
             if (box.isInvisibleBlocker) continue;
-            if (!box.isVoid && !box.isLadder && box.min.y > currentFeetY + 0.4 && this._floorBox.intersectsBox(box)) {
+            if (!box.isVoid && !box.isLadder && !box.isChute && box.min.y > currentFeetY + 0.4 && this._floorBox.intersectsBox(box)) {
                 const available = box.min.y - currentFeetY;
                 if (available < maxCenterHeight) maxCenterHeight = available;
             }
@@ -294,7 +316,7 @@ export default class PlayerController {
             this._vecMax.set(px + this.baseRadius, currentFeetY + (state.isCrawling ? 0.5 : 1.1), pz + this.baseRadius);
             this._floorBox.set(this._vecMin, this._vecMax);
             for (let i = 0; i < localBoxes.length; i++) {
-                if (localBoxes[i].isInvisibleBlocker || localBoxes[i].isLadder) continue;
+                if (localBoxes[i].isInvisibleBlocker || localBoxes[i].isLadder || localBoxes[i].isChute) continue;
                 if (this._floorBox.intersectsBox(localBoxes[i])) {
                     targetRadius = this.squeezeRadius;
                     this.isSqueezing = true;
@@ -668,6 +690,72 @@ export default class PlayerController {
         return false;
     }
 
+    // Chutes are the deliberate opposite of ladders: no interact prompt, no facing check, no pacing
+    // W/S - contact starts it, gravity-along-the-slope runs it, and it only ever goes one way. See the
+    // ACME chute spec (scratch/acme-chutes-spec.md) for why entry is contact-based rather than grab-on:
+    // isChute boxes are carved out of the solid collision path in HazardUtils.sweepGroundedCollision the
+    // same way isVoid boxes are, so nothing here needs to fight the generic wall/floor sweep for control.
+    _updateChute(delta, localBoxes, state, visualHeight) {
+        if (this._onChute) {
+            const box = this._onChute;
+
+            if (state.jump) {
+                state.jump = false;
+                this.camera.position.x += box.chuteOutDir.x * CHUTE_BAIL_PUSH;
+                this.camera.position.z += box.chuteOutDir.z * CHUTE_BAIL_PUSH;
+                this.fallVelocity = CHUTE_BAIL_FALL_VELOCITY;
+                this._onChute = null;
+                document.dispatchEvent(new CustomEvent('somatic-chute-end', {detail: {caught: false}}));
+                return true;
+            }
+
+            this._chuteSpeed = Math.min(CHUTE_MAX_SPEED, (this._chuteSpeed || 0) + CHUTE_ACCEL * delta);
+            this._chuteProgress = Math.min(1, (this._chuteProgress || 0) + (this._chuteSpeed * delta) / box.chuteSlopeLen);
+            const t = this._chuteProgress;
+
+            this.camera.position.x = box.chuteTopX + (box.chuteBottomX - box.chuteTopX) * t + box.chuteOutDir.x * CHUTE_STANDOFF;
+            this.camera.position.z = box.chuteTopZ + (box.chuteBottomZ - box.chuteTopZ) * t + box.chuteOutDir.z * CHUTE_STANDOFF;
+            this.camera.position.y = box.chuteTopY + (box.chuteBottomY - box.chuteTopY) * t + visualHeight;
+            this.velocity.set(0, 0, 0);
+            this.fallVelocity = 0;
+
+            if (t >= 1) {
+                this.camera.position.x += box.chuteOutDir.x * CHUTE_DISMOUNT_PUSH;
+                this.camera.position.z += box.chuteOutDir.z * CHUTE_DISMOUNT_PUSH;
+                this._groundFeetY = box.chuteBottomY;
+                this._onChute = null;
+                this._chuteSpeed = 0;
+                document.dispatchEvent(new CustomEvent('somatic-chute-end', {detail: {caught: true}}));
+                document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 2.0}}));
+            }
+            return true;
+        }
+
+        if (!localBoxes) return false;
+        const feetY = this.camera.position.y - visualHeight;
+        const px = this.camera.position.x, pz = this.camera.position.z;
+        for (let i = 0; i < localBoxes.length; i++) {
+            const box = localBoxes[i];
+            if (!box.isChute) continue;
+            if (feetY < box.chuteBottomY - 0.05 || feetY > box.chuteTopY + 0.05) continue;
+            const rise = box.chuteTopY - box.chuteBottomY;
+            const t = rise > 0 ? Math.max(0, Math.min(1, (box.chuteTopY - feetY) / rise)) : 0;
+            const expectedX = box.chuteTopX + (box.chuteBottomX - box.chuteTopX) * t;
+            const expectedZ = box.chuteTopZ + (box.chuteBottomZ - box.chuteTopZ) * t;
+            const ddx = px - expectedX, ddz = pz - expectedZ;
+            if (ddx * ddx + ddz * ddz > CHUTE_ENTRY_RADIUS_SQ) continue;
+            this._onChute = box;
+            this._chuteProgress = 0;
+            this._chuteSpeed = 0;
+            this.velocity.set(0, 0, 0);
+            this.fallVelocity = 0;
+            document.dispatchEvent(new CustomEvent('somatic-chute-start'));
+            document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.0}}));
+            return true;
+        }
+        return false;
+    }
+
     _applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes, dynamicMaxCamY, manifold) {
         const state = this.input.state;
         const baseBobFreq = state.isRunning ? 3.5 : 2.0;
@@ -793,6 +881,7 @@ export default class PlayerController {
         }
 
         if (this._updateLadder(delta, localBoxes, state, visualHeight)) return;
+        if (this._updateChute(delta, localBoxes, state, visualHeight)) return;
 
         const groundCamY = Math.min(targetFeetY + visualHeight, dynamicMaxCamY) + bobOffset - leanDrop;
 

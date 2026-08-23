@@ -11,7 +11,13 @@ import {ArchHallProfile} from './blueprints/ArchHall.js';
 import BootController from '../ui/BootController.js';
 import * as SectorPlacement from './SectorPlacement.js';
 
-const ACME_LEVELS_EACH_SIDE = 9;
+// Vertical sprawl of the ACME level stack: 40 levels above and below the entrance deck (81 total,
+// was 19). ACME's void ceiling/floor are already unbounded (canopyY/floorVoidY = +/-100000 below,
+// see the isAcmeVoid branch), so the only thing that was capping how tall/deep the sector could feel
+// was this constant. Maze generation per level is a cheap fixed-size DFS (SetPieces.generateSectorMaze),
+// so the extra levels are not a meaningful perf cost - keep PlayerController.js's ACME_LOWEST_PLATFORM_Y
+// in sync with this value (lowest possible deck is at -ACME_LEVELS_EACH_SIDE * ACME_LEVEL_SPACING).
+const ACME_LEVELS_EACH_SIDE = 40;
 
 const CELL_KEY_SPAN = 4194304;
 const cellKey = (x, z) => x * (CELL_KEY_SPAN * 2) + z;
