@@ -1,3 +1,24 @@
+## [v1.4.8] - 2026-08-23
+
+_Better Light, Softer Landing_
+
+### Removed
+
+- **[GRAPHICS] ACME Work Light Fixtures (`AcmeSector.js`):** Pulled `buildWorkLight` (the tripod-mounted floodlight added in v1.4.7.7) along with both its placement call sites and the now-dead `ACME_WORK_LIGHT_CHANCE`, `WORK_LIGHT_CORNERS`, `WORK_LIGHT_UP` constants. Replaced by the hanging bowl lights below.
+
+### Added
+
+- **[GRAPHICS] ACME Hanging Bowl Lights, Borrowed From The Archive (`AcmeSector.js`, `SetPieces.js`, `Environment.js`):** New `buildHangingLight`, called once per connector gap between vertically-adjacent occupied ACME decks (`ACME_HANGING_LIGHT_CHANCE = 0.5`) - the exact same gaps `buildLadderSegment` already spans - instead of scattering standing worklights across the catwalks. Rather than duplicate the fixture, `SetPieces.buildHangingBowlLight` (the Archive's own wire-and-dome pendant) picked up two new optional params, `wireLen` and `ceilingY`, so ACME can re-hang the identical mesh at whatever length the gap calls for, while every existing call site (Archive included) keeps its old hardcoded length by just omitting them. Each fixture's wire length is derived straight from the real gap (`rise`) between the two decks it's mounted between, so lengths vary naturally with however far apart that column's platforms happened to land, instead of every fixture hanging at the same fixed height. Each one also mounts at one of four corner insets (`ACME_LIGHT_CORNER_INSET = 0.55`) offset from the ladder's own center-column mount (see v1.4.6), with a fixed clearance (`ACME_HANGING_LIGHT_CLEARANCE = 0.35`) kept from both the bowl's radius and the platform edges, so a fixture can never collide with a ladder rail or a deck. Also had to fix `Environment.js`'s `_buildHangingBowlLight` delegation wrapper, which still had the old 6-argument signature and was silently dropping both new params on the floor - every fixture rendered at the same hardcoded default height until that got caught and the wrapper widened to actually forward `wireLen`/`ceilingY` through.
+
+### Changed
+
+- **[GRAPHICS] Hanging Bowl Light Housing Is Now Green Enamel, Not Bare Rust (`SetPieces.js`, `LazyMaterialWarmup.js`):** `archiveBowlMat` was a straight clone of `rustMat` - unfinished and washed-out, reading more like raw sheet metal than a light fixture. Replaced with its own `MeshStandardMaterial` (low roughness `0.3`, low metalness `0.12`, a light corrosion bump) for a glossy old-school green-enamel-over-tin look. Had to make the identical change in `LazyMaterialWarmup.js`'s own copy of the same lazy-init - it prewarms `archiveBowlMat` at boot, before any sector actually builds a fixture, so its definition always wins the race against `SetPieces.js`'s and was quietly serving the old color even after the fix landed there.
+- **[GRAPHICS] Bowl Lights No Longer Shine Through Their Own Housing:** They were plain omnidirectional point lights, and only a handful of the game's fixtures ever get a real-time shadow-map slot at any moment (`LumenGrid`'s `maxShadowLights = 6`) - everything outside that budget renders with no shadow occlusion, so the bulb's glow bled straight through the solid dome regardless. Converted to a downward-facing spotlight (`isSpot`, `targetPos`, `spotPenumbra: 0.5`) aimed through the bowl's open bottom, with its half-angle (`spotAngle`) derived from the bowl's actual radius and bulb height instead of an eyeballed constant, so the housing itself now physically blocks the light the way solid geometry should.
+
+### Fixed
+
+- **[PLAYER] Falling Into The ACME Void Before Ever Touching Ground Crashed The Engine (`PlayerController.js`):** `_applyCinematics`'s void-rescue fallback read `env._spawnElevator.position` - a field that never actually exists anywhere in the codebase; `ChunkManager.js` always resolves the real spawn coordinates into `.placement` (`{x, z, rotationY, ...}`) instead. The bug stayed hidden because the primary rescue path (`_acmeSafeSpot`, captured the first time the player stands on solid ACME ground with a valid footing) covers almost every fall - it only surfaced as `Cannot read properties of undefined (reading 'x')` when a player dropped into the pit before that safe spot ever got recorded. Now reads `.placement` instead, mirroring the exact pattern `ChunkManager.js` already uses to place the player at spawn, with a last-resort height-only rescue (`ACME_LOWEST_PLATFORM_Y + 3.0`) if even the elevator's placement isn't resolved yet - so there's no remaining path in the void-rescue branch that dereferences something undefined.
+
 ## [v1.4.7.7] - 2026-08-23
 
 _Let There Be (Portable) Light_
