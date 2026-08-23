@@ -1,3 +1,68 @@
+## [v1.4.13] - 2026-08-23
+
+_Crates Cleared Out_
+
+### Removed
+
+- **[WORLD] ACME Floating Shipping Containers (`AcmeSector.js`):** Pulled `buildFloatingContainer`, the container texture/material setup (`createAcmeContainerTexture`, `env.acmeContainerMats`), `ACME_CONTAINER_CHANCE`, and the Pass 4 placement pass that dropped one into a column's widest empty gap. Making room for something else in that space - no replacement built yet.
+
+## [v1.4.12] - 2026-08-23
+
+_Room To Breathe_
+
+### Changed
+
+- **[WORLD] ACME Platforms Spaced Further Apart (`AcmeSector.js`):** `ACME_PLATFORM_SKIP_CHANCE` raised from `0.58` to `0.75`. At the old value, any given pair of levels in a column had roughly an 18% chance of both landing a deck, which was frequent enough that stacks routinely piled several catwalks directly on top of each other with barely a body-height of clearance between them. Decks are now farther apart on average, with the sector's near-infinite vertical space actually put to use instead of being carved into piddly little slices.
+- **[WORLD] Ladders Span Whatever Gap Actually Lands, Not Just Adjacent Decks (`AcmeSector.js`):** Previously a ladder only ever appeared between two levels that were both immediately adjacent (`decisions[li] && decisions[li+1]`) - with decks spaced further apart now, that rule would have left most of them completely unconnected by any ladder at all. Pass 3 now walks the column's actual decks in order and builds one continuous run from each to the next, however many empty levels sit between them, instead of requiring zero gap. `buildLadderSegment` takes the run's total rise as a parameter rather than assuming a fixed one-level climb, and its rung count now scales with that rise (`Math.max(4, Math.round(rise / ACME_LADDER_RUNG_SPACING))`) so a long climb still reads as evenly-rung ladder instead of four rungs stretched thin over several stories. Checked for collisions with the existing floating-container placement (Pass 4, which can land in the same now-larger gap a ladder spans): the container's footprint is deliberately undersized (`cellSize - 0.3`) relative to the cell, and the ladder mounts outside the cell's true edge entirely (see v1.4.9's mount-offset fix), so there's always clearance between them regardless of which edge the ladder picked - worst case they now share a gap visually, a ladder climbing past a suspended container in open air, which isn't a bug.
+
+## [v1.4.11] - 2026-08-22
+
+_One Sun Over ACME_
+
+### Removed
+
+- **[GRAPHICS] ACME Lamp Posts (`AcmeSector.js`):** Deleted the scattered pole-and-glow-cube props (`env._acmeLampMat`, the per-chunk `_acmeLampHash`/`_acmeLampSet` placement pass) that used to dot the sector's catwalk band. They never cast real light in the first place - pure emissive decoration, no `THREE.Light` behind them - which is very likely why they read as "weird": a handful of disconnected glowing orbs in an already brightly-lit (`ambient: 0.90`), fog-lit open sky, contributing no actual illumination or shadow of their own.
+
+### Added
+
+- **[GRAPHICS] ACME Sun - One Global Directional Light (`RenderEngine.js`, `AtmosphereManager.js`):** Replaces the lamp posts with a single `THREE.DirectionalLight` (`engine.acmeSun`), added once in `RenderEngine`'s constructor alongside the existing hemisphere `ambientLight`. A new `AtmosphereManager._updateAcmeSun`, called every frame from `updateLights()` right after the existing ambient-light update, fades its intensity toward `2.2` only while `activeSector === 'ACME'` (`0` everywhere else, same tutorial-darkness gate the ambient light already respects) and re-centers it - position and target both - directly above the current camera position every frame. That re-centering matters: ACME is an open, near-infinite stack of levels, so a directional light fixed over one point in the world would leave the shadow frustum (a `45`-unit half-extent around the light - see the shadow camera bounds in `RenderEngine`) behind the moment the player moved any real distance from wherever it started.
+
+### Changed
+
+- **[WORLD] ACME Ambient Knocked Down To A Fill Light (`Sectors.js`):** `ambient: 0.90` (the highest of any sector, previously doing all the work alone) is now `0.35` - a supporting fill light instead of the sector's sole illumination, so the new sun actually reads as the dominant source and the catwalks/containers pick up real directional shading and cast shadows instead of sitting under flat, all-around glow with nothing to give the space depth.
+
+## [v1.4.10] - 2026-08-22
+
+_Ladders Get The Same "[E]" Prompt As Everything Else_
+
+### Added
+
+- **[PLAYER] Ladder Interact Prompt (`PlayerController.js`):** Grabbing a ladder had no crosshair prompt - every other interactable (doors, props) shows `[E]` via `env.isLookingAtInteractable`, driven by `InteractionController.updateInteractives`' own raycast-ish proximity/facing check over `env.interactables`/`env.interactiveDoors`, but ladders are bare `Box3` entries in the spatial grid, never registered there. `_updateLadder`'s "not attached" branch now runs its proximity/height/facing scan every frame instead of only on an actual E press, and sets `env.isLookingAtInteractable = true` the instant a mountable run is found in range and in the facing cone - same flag, same crosshair, same `[E]`. It only ever adds a `true`, never writes `false`, so it can't clobber a door/prop hit that `updateInteractives` already found earlier in the same frame (confirmed the call order in `main.js`: `updateInteractives` runs before `player.update`). The mount check itself is unchanged - this just surfaces its result before you commit to pressing E, exactly like the prompt already did for everything else.
+
+## [v1.4.9] - 2026-08-22
+
+_Ladders Actually Work Now_
+
+### Fixed
+
+- **[PLAYER] Ladder Boxes Were Registering As A Ceiling (`PlayerController.js`):** The root cause of "grab a ladder, get forced into a crouch": the overhead-clearance scan (`update()`, the one that auto-crouches/crawls under low ceilings) never excluded `isLadder` boxes. Climbing locks the camera's X/Z onto the ladder's own column, and ACME chains ladder segments up a single column one level-spacing (`1.2`) apart - just under the `1.3` crawl threshold - so the *next* segment up almost always sat directly overhead the moment you were centered on it, forcing a crouch or crawl for the whole climb. Ladder boxes are now skipped by that scan (and by the separate squeeze-radius re-expansion check, same class of bug). They were never meant to act as ceilings in the first place - you climb past their vertical span, you don't hit your head on it.
+- **[PLAYER] Climbing Camera Was Positioned Inside The Rungs (`PlayerController.js`):** `_updateLadder` centered the camera exactly on the ladder's mount line (`cx, cz`) every frame - and the rungs and rails are built with zero depth offset from that same line (see `buildLadderSegment` in `AcmeSector.js`), so the camera sat *inside* the rung geometry: invisible, or clipping straight through it. It's now offset off the mount line by a new `LADDER_CLIMB_STANDOFF` (`0.4`, in `ladderOutDir` - back into the room, the same direction dismounts already push) for every frame spent attached, mount included, so there's no extra re-center snap once climbing starts and the rungs sit visibly in front of the camera instead of on top of it. This is very likely also what read as "get pushed to the left of it" - the old hard center-snap landing wherever the approach happened to leave you, off-axis from the ladder's actual line.
+- **[PLAYER] Mounting Didn't Check Which Way You Were Facing (`PlayerController.js`):** Any press of E within grab range mounted a ladder regardless of which direction the player was looking - including with their back to it. Mounting now also requires the camera's look direction to roughly agree (within a permissive ~70-degree cone) with `-ladderOutDir` - the direction you'd actually be facing to climb that run - skipped only when looking close to straight up/down, where a horizontal facing check doesn't mean anything.
+
+### Changed
+
+- **[PLAYER] Ladder Dismount Is Jump-Only, Plus An Automatic Landing (`PlayerController.js`):** Removed the E-to-dismount "snap to the nearer end" behavior added in v1.4.8 - simpler is better here, and the existing pieces already covered both cases cleanly. Jump still lets go from anywhere on the run, on purpose with no safety check. The natural top/bottom exit - already firing whenever climbing carried your feet past either end of the segment - is now the *only* automatic dismount, and it was never actually removed, just no longer competing with a second, redundant E-driven version of the same idea. E is mount-only again.
+- **[PLAYER] Mounting Now Works Mid-Air (`PlayerController.js`):** No code changed to make this true - `_updateLadder` was already called every frame ahead of the fall/ground physics branch, mount or not, so pressing E toward a ladder run while still rising out of a jump already worked once the two bugs above (forced-crouch, camera-in-the-rungs) stopped making a successful mid-air grab look and feel like a failure. Worth calling out explicitly: jump toward a run above you, press E near the top of the arc to catch a rung, then climb the rest of the way up from there.
+
+## [v1.4.8] - 2026-08-22
+
+_Interactive Ladders_
+
+### Changed
+
+- **[PLAYER] Ladders Are Now Grab-On, Not Walk-Into (`PlayerController.js`, `SomaticInput.js`):** Mounting a ladder previously happened automatically the instant `moveForward` overlapped a ladder box's proximity/height check - no way to walk *past* the foot of one without grabbing it, and no explicit "let go" beyond releasing forward, which is what the old `climbDir === 0` branch used to do (drop off immediately - see the auto-release note in v1.4.7). Mounting is now interact-driven: `state.interactPressed`, a new edge-triggered flag `SomaticInput` sets alongside its existing `somatic-interact` event dispatch (keyboard `KeyE` and gamepad, both non-repeat), replaces the old `state.moveForward` check in `_updateLadder`'s mount scan. Once gripped, W/S still climb up/down exactly as before (`climbDir` off `moveForward`/`moveBackward`), but letting go of both now just holds position on the rail instead of dropping you - only jump or E end the climb.
+- **[PLAYER] Two Dismount Options With Different Guarantees (`PlayerController.js`):** Jump lets go from anywhere on the run, same push-off-and-hop as before - on purpose no safety check, so a jump dismount can drop you into open air if that's where you are. Interact instead computes which end of the current segment - `box.max.y` or `box.min.y` - is nearer to the player's feet and snaps them there, guaranteeing an E dismount always lands on the platform at the top or bottom of that segment rather than wherever they happened to be climbing.
+
 ## [v1.4.7] - 2026-08-22
 
 _Ladders, Posture, and the Half-Life Duck Jump_

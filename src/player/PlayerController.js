@@ -9,6 +9,11 @@ const LADDER_CLIMB_SPEED = 2.4;
 const LADDER_GRAB_RADIUS_SQ = 2.0;
 const LADDER_DISMOUNT_PUSH = 0.6;
 const LADDER_RUNG_SPACING = 0.3;
+// Rungs/rails sit exactly at the mount line (zero depth offset - see
+// buildLadderSegment), so a climbing camera needs to stand off it by more
+// than a hair to keep them out in front of the lens instead of clipped
+// through it.
+const LADDER_CLIMB_STANDOFF = 0.4;
 
 export default class PlayerController {
     constructor(camera, domElement) {
@@ -93,6 +98,7 @@ export default class PlayerController {
         this._boxX = new THREE.Box3();
         this._ceilingBox = new THREE.Box3();
         this._camTarget = new THREE.Vector3();
+        this._ladderScratch = new THREE.Vector3();
         this._scratchRay = new THREE.Ray();
         this._physicsBody = { x: 0, z: 0, feetY: 0, radius: 0, height: 0, stepOffset: 0, currentFeetY: 0 };
         this._physicsScratch = { boxX: null, boxZ: null, floorBox: null, ceilingBox: null, ceilingClearance: 0 };
@@ -263,7 +269,16 @@ export default class PlayerController {
         for (let i = 0; i < localBoxes.length; i++) {
             const box = localBoxes[i];
             if (box.isInvisibleBlocker) continue;
-            if (!box.isVoid && box.min.y > currentFeetY + 0.4 && this._floorBox.intersectsBox(box)) {
+            // A ladder isn't a ceiling - you climb past its vertical span,
+            // you don't bonk your head on it. Skipping it here matters a
+            // lot in practice: ACME chains ladder segments up a single
+            // column (see AcmeSector's "one mount edge per column"), so the
+            // next segment up almost always starts one level-spacing (1.2)
+            // above wherever you mounted - comfortably under the 1.3 crawl
+            // threshold - and once climbing has you centered on that same
+            // column, that box would sit directly overhead and force a
+            // crouch/crawl for the entire climb.
+            if (!box.isVoid && !box.isLadder && box.min.y > currentFeetY + 0.4 && this._floorBox.intersectsBox(box)) {
                 const available = box.min.y - currentFeetY;
                 if (available < maxCenterHeight) maxCenterHeight = available;
             }
@@ -301,7 +316,7 @@ export default class PlayerController {
             this._vecMax.set(px + this.baseRadius, currentFeetY + (state.isCrawling ? 0.5 : 1.1), pz + this.baseRadius);
             this._floorBox.set(this._vecMin, this._vecMax);
             for (let i = 0; i < localBoxes.length; i++) {
-                if (localBoxes[i].isInvisibleBlocker) continue;
+                if (localBoxes[i].isInvisibleBlocker || localBoxes[i].isLadder) continue;
                 if (this._floorBox.intersectsBox(localBoxes[i])) {
                     targetRadius = this.squeezeRadius;
                     this.isSqueezing = true;
@@ -600,9 +615,31 @@ export default class PlayerController {
     // which case the caller must skip its own fall/ground physics entirely -
     // vertical movement here is fully manual, driven by forward/backward
     // input instead of gravity or step-offset.
+    //
+    // Mount is interact-driven (E), not walk-into-it: press E while facing
+    // a ladder run, in range, grounded or mid-air, to grab on. W/S climb
+    // up/down. Dismounting is jump-only, from anywhere on the run - a
+    // shove off the rail with a small hop, no safety net - plus an
+    // automatic dismount onto the platform the instant climbing carries
+    // your feet past either end of the segment. E does nothing once
+    // you're already gripping; it's spent getting you onto the ladder in
+    // the first place.
     _updateLadder(delta, localBoxes, state, visualHeight) {
         if (this._onLadder) {
             const box = this._onLadder;
+            const cx = (box.min.x + box.max.x) / 2;
+            const cz = (box.min.z + box.max.z) / 2;
+            // Stand off the mount line by LADDER_CLIMB_STANDOFF instead of
+            // centering exactly on it - the rungs/rails sit right at
+            // (cx, cz) with zero depth offset, so a camera placed there is
+            // *inside* the rung geometry (invisible / clipping through it).
+            // This holds every frame we're attached, mount included, so
+            // there's no separate re-center snap once climbing starts.
+            this.camera.position.x = cx + box.ladderOutDir.x * LADDER_CLIMB_STANDOFF;
+            this.camera.position.z = cz + box.ladderOutDir.z * LADDER_CLIMB_STANDOFF;
+            this.velocity.set(0, 0, 0);
+            this.fallVelocity = 0;
+
             if (state.jump) {
                 state.jump = false;
                 this.camera.position.x += box.ladderOutDir.x * LADDER_DISMOUNT_PUSH;
@@ -612,20 +649,21 @@ export default class PlayerController {
                 this._onLadder = null;
                 return true;
             }
+
+            // E is mount-only now - just drain a press made while already
+            // attached so it can't sit armed and fire on some later,
+            // unrelated ladder once we let go.
+            state.interactPressed = false;
+
             const climbDir = (state.moveForward ? 1 : 0) - (state.moveBackward ? 1 : 0);
             if (climbDir === 0) {
-                this._onLadder = null;
+                // Neither held - grip the rail in place rather than
+                // dropping off; only jump (or reaching an end) lets go.
                 this._ladderStepAccum = 0;
-                return false;
+                return true;
             }
-            const cx = (box.min.x + box.max.x) / 2;
-            const cz = (box.min.z + box.max.z) / 2;
-            this.camera.position.x = cx;
-            this.camera.position.z = cz;
             const step = climbDir * LADDER_CLIMB_SPEED * delta;
             this.camera.position.y += step;
-            this.velocity.set(0, 0, 0);
-            this.fallVelocity = 0;
             this._ladderStepAccum = (this._ladderStepAccum || 0) + Math.abs(step);
             if (this._ladderStepAccum >= LADDER_RUNG_SPACING) {
                 this._ladderStepAccum = 0;
@@ -633,6 +671,8 @@ export default class PlayerController {
             }
             const feetY = this.camera.position.y - visualHeight;
             if (feetY >= box.max.y || feetY <= box.min.y) {
+                // Auto-dismount: climbing carried us past either end of
+                // this segment, so step off onto the platform there.
                 const landY = feetY >= box.max.y ? box.max.y : box.min.y;
                 this.camera.position.y = landY + visualHeight;
                 this.camera.position.x += box.ladderOutDir.x * LADDER_DISMOUNT_PUSH;
@@ -643,8 +683,19 @@ export default class PlayerController {
             }
             return true;
         }
-        if (!localBoxes || !state.moveForward) return false;
+
+        // Not attached: look for a mountable ladder every frame, not just
+        // on an E press, so it can drive env.isLookingAtInteractable and
+        // get the same "[E]" crosshair prompt every other interactable
+        // gets (see InteractionController.updateInteractives, which sets
+        // that same flag for doors/props - this just adds to it rather
+        // than fighting over the one flag, since that function already ran
+        // earlier in the frame and set its own doors/props result first).
+        if (!localBoxes) return false;
         const feetY = this.camera.position.y - visualHeight;
+        this.camera.getWorldDirection(this._ladderScratch);
+        const lookX = this._ladderScratch.x, lookZ = this._ladderScratch.z;
+        const lookLenSq = lookX * lookX + lookZ * lookZ;
         for (let i = 0; i < localBoxes.length; i++) {
             const box = localBoxes[i];
             if (!box.isLadder) continue;
@@ -654,6 +705,24 @@ export default class PlayerController {
             const dx = this.camera.position.x - cx;
             const dz = this.camera.position.z - cz;
             if (dx * dx + dz * dz > LADDER_GRAB_RADIUS_SQ) continue;
+            // "Only from the front": -ladderOutDir is the direction from
+            // the room out to the rungs (the way you'd face to climb this
+            // run), so require actually looking roughly at it rather than
+            // grabbing one blind from the side or over a shoulder. Skipped
+            // when looking nearly straight up/down, where the horizontal
+            // look direction is too close to zero to mean anything.
+            if (lookLenSq > 0.02) {
+                const facing = (lookX * -box.ladderOutDir.x + lookZ * -box.ladderOutDir.z) / Math.sqrt(lookLenSq);
+                if (facing < 0.3) continue;
+            }
+            // Found one - it's mountable this frame, so show the prompt
+            // even if E isn't down. Never write `false` here: this only
+            // ever adds a hit on top of whatever updateInteractives already
+            // decided for doors/props this frame, it doesn't get to erase
+            // theirs.
+            if (this.env) this.env.isLookingAtInteractable = true;
+            if (!state.interactPressed) return false;
+            state.interactPressed = false;
             this._onLadder = box;
             this._ladderStepAccum = 0;
             this.velocity.set(0, 0, 0);
@@ -661,6 +730,9 @@ export default class PlayerController {
             document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.2}}));
             return true;
         }
+        // No mountable ladder in range - drop a stray press instead of
+        // leaving it armed for some later, unrelated approach.
+        if (state.interactPressed) state.interactPressed = false;
         return false;
     }
 

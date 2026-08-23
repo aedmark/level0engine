@@ -12,7 +12,8 @@ export default class SomaticInput {
             isPeeking: false, targetLean: 0.0,
             isClosingEyes: false,
             isReading: false,
-            flyUp: false
+            flyUp: false,
+            interactPressed: false
         };
         this.cursorX = window.innerWidth / 2;
         this.cursorY = window.innerHeight / 2;
@@ -190,6 +191,7 @@ export default class SomaticInput {
                 if (this.hoveredElement) this.hoveredElement.click();
                 else document.dispatchEvent(new Event('somatic-close-document'));
             } else {
+                this.state.interactPressed = true;
                 document.dispatchEvent(new CustomEvent('somatic-interact', {
                     detail: {
                         position: this.camera.getWorldPosition(new THREE.Vector3()),
@@ -357,6 +359,7 @@ export default class SomaticInput {
             if (this.state.isReading) {
                 document.dispatchEvent(new Event('somatic-close-document'));
             } else {
+                this.state.interactPressed = true;
                 document.dispatchEvent(new CustomEvent('somatic-interact', {
                     detail: {
                         position: this.camera.getWorldPosition(new THREE.Vector3()),

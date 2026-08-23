@@ -48,6 +48,28 @@ export default class RenderEngine {
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
         this.ambientLight = new THREE.HemisphereLight(0xfff5c2, 0x3d3520, 0.30);
         this.scene.add(this.ambientLight);
+        // ACME's sun: one strong directional light standing in for that
+        // sector's scattered lamp-post props (removed - see AcmeSector.js).
+        // Starts at zero intensity; AtmosphereManager._updateAcmeSun fades
+        // it in only while the player is actually in ACME and re-centers it
+        // above the camera every frame so the shadow frustum tracks
+        // wherever in the stack the player currently is.
+        this.acmeSun = new THREE.DirectionalLight(0xfff2d8, 0);
+        this.acmeSun.position.set(0, 60, 0);
+        this.acmeSun.target.position.set(0, 0, 0);
+        this.acmeSun.castShadow = true;
+        this.acmeSun.shadow.mapSize.width = 2048;
+        this.acmeSun.shadow.mapSize.height = 2048;
+        this.acmeSun.shadow.camera.near = 10;
+        this.acmeSun.shadow.camera.far = 140;
+        this.acmeSun.shadow.camera.left = -45;
+        this.acmeSun.shadow.camera.right = 45;
+        this.acmeSun.shadow.camera.top = 45;
+        this.acmeSun.shadow.camera.bottom = -45;
+        this.acmeSun.shadow.bias = -0.0003;
+        this.acmeSun.shadow.normalBias = 0.02;
+        this.scene.add(this.acmeSun);
+        this.scene.add(this.acmeSun.target);
         const aaSamples = RenderEngine.getSavedAA();
         this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
             minFilter: THREE.LinearFilter,
