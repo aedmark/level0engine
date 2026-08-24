@@ -326,6 +326,7 @@ function animate() {
     if (entityState && entityState.consumed) {
         engine.camera.position.y = 0.2;
         engine.camera.rotation.z = Math.PI / 2.5;
+        acoustics.triggerSomaticEvent('thunder_crack', 0, 1.0);
         handlePlayerDeath(1500);
         return;
     }

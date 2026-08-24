@@ -16,6 +16,8 @@ const VOICES = {
     'rattle': ['sine', 40, 30, 0.3, 0.05, 0.02, 0.55, {type: 'bandpass', start: 2400, end: 1200, ramp: 0.45}],
     'hoot': ['sine', 340, 250, 0.3, 0.05, 0.08, 0.55, null],
     'drip': ['sine', 1100, 350, 0.06, 0.07, 0.005, 0.35, null],
+    'gutter_drip': ['sine', 500, 150, 0.09, 0.08, 0.006, 0.4, {type: 'lowpass', start: 1000, end: 300, ramp: 0.3}],
+    'metal_clank': ['triangle', 220, 140, 0.15, 0.09, 0.003, 0.6, {type: 'bandpass', start: 3000, end: 900, ramp: 0.08}],
     'laugh': ['square', 110, 35, 1.8, 0.25, 0.1, 2.5, {type: 'lowpass', start: 800, end: 150, ramp: 1.5}],
     'tape_garble': ['sawtooth', 300, 600, 0.05, 0.06, 0.02, 0.1, {type: 'bandpass', start: 1200, end: 600, ramp: 0.1}],
     'tape_click': ['square', 800, 100, 0.02, 0.15, 0.01, 0.05, null],
@@ -42,7 +44,26 @@ const VOICES = {
     'inventory_woosh': ['sine', 1, 1, 1.0, 0.15, 0.05, 0.25, {type: 'bandpass', start: 1500, end: 300, ramp: 0.2}],
     'document_rustle': ['sine', 1, 1, 1.0, 0.3, 0.03, 0.35, {type: 'bandpass', start: 3000, end: 1200, ramp: 0.3}],
     'electric_spark': ['sawtooth', 120, 120, 0, 0.4, 0.01, 0.15, {type: 'bandpass', start: 1500, end: 3000, ramp: 0.1}],
-    'light_flicker': ['sine', 1, 1, 0, 0.075, 0.02, 0.35, {type: 'bandpass', start: 4000, end: 2000, ramp: 0.35}]
+    'light_flicker': ['sine', 1, 1, 0, 0.075, 0.02, 0.35, {type: 'bandpass', start: 4000, end: 2000, ramp: 0.35}],
+    // Hard, instant-attack transient - too punchy for ACME's weather (which is always distant, per
+    // the delay in the pendingThunder scheduling in Mixer.js), so it's not used there. Kept as-is
+    // and reused as the anomaly-catch death sting in main.js instead, where a hard hit is the point.
+    'thunder_crack': ['square', 100, 40, 0.15, 0.25, 0.002, 0.4, {type: 'bandpass', start: 4000, end: 300, ramp: 0.35}],
+    // Slow-building, no percussive onset - ACME's weather is always distant (see the delay in
+    // Mixer.js's pendingThunder scheduling), and real distant thunder loses its sharp crack to
+    // atmospheric absorption by the time it arrives, leaving just this kind of soft rolling boom.
+    // Pitch descends modestly (not the octave-plus swings a synth default reaches for) from its
+    // most intense point into a lower rumble, timed to start dropping right as the volume swell
+    // peaks, then holds at that lower pitch while the volume alone fades to silence - real
+    // thunder's rumble doesn't keep sliding around once it's settled into rolling. The trailing
+    // `2.0` on each is an extra direct send into the reverb bus on top of the normal one every
+    // Foley voice already gets through masterGain, so these ring out in ACME's room noticeably
+    // wetter than a one-shot clank or drip would. Four variants (register + roll length, picked
+    // at random in Mixer.js) so consecutive strikes don't all sound like the same clip looping.
+    'thunder_rumble_1': ['sawtooth', 44, 32, 1.0, 0.34, 0.8, 4.5, {type: 'lowpass', start: 350, end: 70, ramp: 3.5}, 2.0],
+    'thunder_rumble_2': ['sawtooth', 38, 24, 1.3, 0.36, 1.0, 5.5, {type: 'lowpass', start: 300, end: 55, ramp: 4.5}, 2.0],
+    'thunder_rumble_3': ['sawtooth', 52, 40, 0.7, 0.32, 0.5, 3.2, {type: 'lowpass', start: 420, end: 90, ramp: 2.6}, 2.0],
+    'thunder_rumble_4': ['sawtooth', 46, 30, 1.1, 0.33, 0.9, 4.9, {type: 'lowpass', start: 380, end: 65, ramp: 3.8}, 2.0]
 };
 export default class Foley {
     static trigger(engine, type, distanceSq, intensity) {
@@ -51,7 +72,7 @@ export default class Foley {
         const distScalar = Math.max(0, 1.0 - (Math.sqrt(distanceSq) / 40.0));
         if (distScalar <= 0.01) return;
         const t = engine.ctx.currentTime;
-        const spawnVoice = (oscType, startFreq, targetFreq, rampTime, maxGain, attack, decay, noiseConfig) => {
+        const spawnVoice = (oscType, startFreq, targetFreq, rampTime, maxGain, attack, decay, noiseConfig, reverbBoost = 0) => {
             const osc = engine.ctx.createOscillator();
             osc.type = oscType;
             osc.frequency.setValueAtTime(startFreq, t);
@@ -75,6 +96,13 @@ export default class Foley {
                 noise.stop(t + decay);
             }
             localGain.connect(engine.masterGain);
+            let reverbTap;
+            if (reverbBoost > 0 && engine.reverbSend) {
+                reverbTap = engine.ctx.createGain();
+                reverbTap.gain.value = reverbBoost;
+                localGain.connect(reverbTap);
+                reverbTap.connect(engine.reverbSend);
+            }
             osc.start(t);
             osc.stop(t + decay);
             osc.onended = () => {
@@ -84,6 +112,7 @@ export default class Foley {
                     noise.disconnect();
                     filter.disconnect();
                 }
+                if (reverbTap) reverbTap.disconnect();
             };
         };
         if (type === 'step') {

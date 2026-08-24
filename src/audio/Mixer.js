@@ -7,9 +7,43 @@ function setMixParam(engine, time, key, param, target, timeConstant) {
     }
 }
 
+const THUNDER_RUMBLE_VARIANTS = ['thunder_rumble_1', 'thunder_rumble_2', 'thunder_rumble_3', 'thunder_rumble_4'];
+
+const DEFAULT_MUZAK_CHORDS = [
+    [174.61, 220.00, 261.63, 329.63],
+    [185.00, 220.00, 261.63, 311.13],
+    [196.00, 233.08, 293.66, 349.23],
+    [196.00, 246.94, 293.66, 349.23],
+];
+const DEFAULT_MUZAK_MELODY = [
+    349.23, 392.00, 440.00, 523.25,
+    349.23, null, 440.00, 392.00,
+    349.23, 392.00, 440.00, 523.25,
+    587.33, 523.25, 440.00, 392.00
+];
 const MUZAK_PROFILES = {
     ANNEX: {gain: 1.2, beat: 0.50, cutoff: 500, wobble: 15},
-    ATRIUM: {gain: 0.9, beat: 0.72, cutoff: 210, wobble: 34}
+    ATRIUM: {gain: 0.9, beat: 0.72, cutoff: 210, wobble: 34},
+    // Slower and quieter than Annex/Atrium's elevator-muzak feel - meant to sit under the rain/
+    // drip/clank ambience rather than compete with it. D natural minor instead of their major/
+    // dominant palette (Dm7/Am7 are new; Gm7/Fmaj7 are D minor's own relative-major chords,
+    // reused from the default set so it stays harmonically related rather than clashing), and the
+    // melody leans hard on rests for a sparser, more "chamber" phrasing instead of a steady run.
+    ACME: {
+        gain: 0.6, beat: 1.2, cutoff: 280, wobble: 12,
+        chords: [
+            [146.83, 174.61, 220.00, 261.63],
+            [196.00, 233.08, 293.66, 349.23],
+            [220.00, 261.63, 329.63, 392.00],
+            [174.61, 220.00, 261.63, 329.63]
+        ],
+        melody: [
+            293.66, null, 261.63, null,
+            220.00, null, 174.61, null,
+            261.63, null, 293.66, null,
+            329.63, null, 293.66, 261.63
+        ]
+    }
 };
 
 export default class Mixer {
@@ -28,7 +62,8 @@ export default class Mixer {
             paranoia,
             adrenaline = 0.0,
             eyesClosed = 0.0,
-            idlingCarDistSq = 9999.0
+            idlingCarDistSq = 9999.0,
+            pendingThunder = null
         } = telemetry;
         const proximity = Math.max(0, 1.0 - (minLightDist / 20.0));
         const mix = (SECTORS[activeSector] && SECTORS[activeSector].ambience) || SECTORS.NORMAL.ambience;
@@ -97,6 +132,25 @@ export default class Mixer {
                 engine._nextGroanTime = 0;
             }
         }
+        // AtmosphereManager rolls the actual strike (it owns the visual flash) and hands back
+        // pendingThunder for exactly one frame when one just fired - stash it as a deadline here
+        // so the boom lands after the flash instead of racing it, then fire a random one of the
+        // rolling-rumble variants (no sharp crack - see their comment in Foley.js).
+        // distanceSq of 0 deliberately bypasses triggerSomaticEvent's per-source falloff - thunder
+        // should read as "the whole room", not a point source.
+        if (activeSector === "ACME" && !isBlackout) {
+            if (pendingThunder) {
+                engine._acmeThunderAt = time + pendingThunder.delay;
+                engine._acmeThunderIntensity = pendingThunder.intensity;
+            }
+            if (engine._acmeThunderAt && time >= engine._acmeThunderAt) {
+                const variant = THUNDER_RUMBLE_VARIANTS[Math.floor(Math.random() * THUNDER_RUMBLE_VARIANTS.length)];
+                engine.triggerSomaticEvent(variant, 0, engine._acmeThunderIntensity);
+                engine._acmeThunderAt = 0;
+            }
+        } else {
+            engine._acmeThunderAt = 0;
+        }
         if (engine.muzakGain) {
             const muzak = isBlackout ? null : MUZAK_PROFILES[activeSector];
             if (muzak) {
@@ -108,18 +162,8 @@ export default class Mixer {
                 if (!engine._muzakNextBeat || time > engine._muzakNextBeat - 0.5) {
                     if (!engine._muzakNextBeat || engine._muzakNextBeat < time) engine._muzakNextBeat = time + 0.1;
                     if (engine._muzakStep === undefined) engine._muzakStep = 0;
-                    const chords = [
-                        [174.61, 220.00, 261.63, 329.63],
-                        [185.00, 220.00, 261.63, 311.13],
-                        [196.00, 233.08, 293.66, 349.23],
-                        [196.00, 246.94, 293.66, 349.23],
-                    ];
-                    const melody = [
-                        349.23, 392.00, 440.00, 523.25,
-                        349.23, null, 440.00, 392.00,
-                        349.23, 392.00, 440.00, 523.25,
-                        587.33, 523.25, 440.00, 392.00
-                    ];
+                    const chords = muzak.chords || DEFAULT_MUZAK_CHORDS;
+                    const melody = muzak.melody || DEFAULT_MUZAK_MELODY;
                     const beatTime = engine._muzakNextBeat;
                     const chordIdx = Math.floor(engine._muzakStep / 4) % chords.length;
                     if (engine._muzakStep % 4 === 0) {
@@ -153,6 +197,9 @@ export default class Mixer {
         }
         if (activeSector !== "CHECKPOINT" || isBlackout) {
             engine._checkpointNextEvent = 0;
+        }
+        if (activeSector !== "ACME" || isBlackout) {
+            engine._acmeNextEvent = 0;
         }
         if (!isBlackout) {
             switch (activeSector) {
@@ -230,6 +277,17 @@ export default class Mixer {
                         if (cRoll < 0.30) engine.triggerSomaticEvent('terminal_blip', cDistSq, 0.3 + Math.random() * 0.4);
                         else if (cRoll < 0.60) engine.triggerSomaticEvent('tape_garble', cDistSq, 0.4 + Math.random() * 0.4);
                         else engine.triggerSomaticEvent('tape_click', cDistSq, 0.2 + Math.random() * 0.3);
+                    }
+                    break;
+                case "ACME":
+                    if (!engine._acmeNextEvent) engine._acmeNextEvent = time + 2.0;
+                    if (time >= engine._acmeNextEvent) {
+                        engine._acmeNextEvent = time + 1.5 + Math.random() * 3.5;
+                        const acRoll = Math.random();
+                        const acDistSq = 16.0 + Math.random() * 260.0;
+                        if (acRoll < 0.45) engine.triggerSomaticEvent('gutter_drip', acDistSq, 0.4 + Math.random() * 0.4);
+                        else if (acRoll < 0.75) engine.triggerSomaticEvent('drip', acDistSq, 0.3 + Math.random() * 0.3);
+                        else engine.triggerSomaticEvent('metal_clank', acDistSq, 0.5 + Math.random() * 0.4);
                     }
                     break;
             }

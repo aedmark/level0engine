@@ -31,7 +31,8 @@ export default class AtmosphereManager {
         
         this._updateFogAndAtmosphere(time, darknessPressure, activeSector, targetFog);
         this._updateParticles(time, cameraPos, activeSector);
-        
+        const pendingThunder = this._updateLightning(time, activeSector, cameraPos);
+
         const anomalyPressure = env.player.anomalyPressure || 0;
         this._updateObjectives(cameraPos, anomalyPressure);
         
@@ -64,8 +65,63 @@ export default class AtmosphereManager {
             playerSpeed,
             playerExhaustion: env.player.exhaustion,
             isBlackout: env.blackoutChunks.size > 0,
-            idlingCarDistSq
+            idlingCarDistSq,
+            pendingThunder
         };
+    }
+
+    // ACME-only strobe: rolls a random strike interval, flashes RenderEngine's pre-created
+    // `lightningLight` (see its own comment - built at boot, not here, so the scene's one-time
+    // shader recompile for a new light lands during the boot warmup pass instead of as a stutter
+    // on the first real strike) with a sharp time-based envelope (occasionally double-pulsed, like
+    // real lightning), and hands back a one-frame `pendingThunder` payload {delay, intensity} so
+    // Mixer.js can schedule the boom to land after the flash instead of on top of it - closer
+    // "strikes" flash brighter and thunder sooner, distant ones dimmer with a longer delay.
+    _updateLightning(time, activeSector, cameraPos) {
+        const env = this.env;
+        const inAcme = activeSector === 'ACME' && !env.tutorialActive;
+        let pendingThunder = null;
+        if (inAcme) {
+            if (!env._lightningNextStrike) env._lightningNextStrike = time + 6.0 + Math.random() * 10.0;
+            if (time >= env._lightningNextStrike) {
+                env._lightningNextStrike = time + 14.0 + Math.random() * 34.0;
+                const closeness = Math.random();
+                if (!env._lightningLight) env._lightningLight = env.engine.lightningLight;
+                env._lightningFlashStart = time;
+                env._lightningFlashPeak = 1.5 + closeness * 4.5;
+                env._lightningFlashCloseness = closeness;
+                env._lightningDoubleFlash = Math.random() < 0.35;
+                pendingThunder = {delay: 0.4 + (1.0 - closeness) * 2.6, intensity: 0.5 + closeness * 0.5};
+            }
+        } else {
+            env._lightningNextStrike = 0;
+        }
+        if (env._lightningLight) {
+            const pulse = (t) => t < 0 ? 0 : (t < 0.04 ? 1 : Math.exp(-(t - 0.04) * 20));
+            const elapsed = time - (env._lightningFlashStart || -999);
+            let envelope = pulse(elapsed);
+            if (env._lightningDoubleFlash) envelope += pulse(elapsed - 0.12) * 0.6;
+            const envNorm = Math.min(1.0, envelope);
+            env._lightningLight.intensity = env._lightningFlashPeak * envNorm;
+            if (envelope > 0.001) {
+                env._lightningLight.position.set(cameraPos.x, cameraPos.y + 60, cameraPos.z);
+                env._lightningLight.target.position.set(cameraPos.x, cameraPos.y, cameraPos.z);
+                env._lightningLight.target.updateMatrixWorld();
+            }
+            // The directional light alone only lights surfaces that happen to face it - a player
+            // looking at a wall or the underside of a deck when it fires sees nothing change,
+            // which is exactly what got reported. Real lightning reads as the whole visible world
+            // getting brighter for a moment, not a spotlight - so also pop the render's exposure
+            // (already recomputed fresh every frame in _updateGlareAndPupil, which runs earlier
+            // in this same update, so multiplying it here for one frame doesn't fight that or
+            // leave a lingering offset next frame) for a screen-wide flash that's visible no
+            // matter which way the camera is pointed.
+            if (envNorm > 0.001 && env.engine.renderer && env.engine.baseExposure !== undefined) {
+                const closeness = env._lightningFlashCloseness || 0;
+                env.engine.renderer.toneMappingExposure *= (1.0 + envNorm * (0.8 + closeness * 1.8));
+            }
+        }
+        return pendingThunder;
     }
 
     _updateFixtures(time) {
@@ -74,6 +130,18 @@ export default class AtmosphereManager {
         if (env.fixtureData) {
             for (let i = 0; i < env.fixtureData.length; i++) {
                 const fixture = env.fixtureData[i];
+                if (fixture.swingPivot) {
+                    const t = time * fixture.swingSpeed;
+                    fixture.swingPivot.rotation.x = Math.sin(t + fixture.swingPhaseX) * fixture.swingAmp;
+                    fixture.swingPivot.rotation.z = Math.sin(t * 0.8 + fixture.swingPhaseZ) * fixture.swingAmp * 0.7;
+                    // The actual light (real pooled light in LumenGrid, glare/lens-flare direction
+                    // here) reads from fixture.position/targetPos, not from the bulb mesh - without
+                    // dragging those along too, the glowing bulb visibly swings while the light it's
+                    // supposed to be casting stays nailed in place.
+                    fixture.swingPivot.updateMatrixWorld(true);
+                    fixture.swingBulb.getWorldPosition(fixture.position);
+                    fixture.targetPos.set(fixture.position.x, fixture.position.y - 6.0, fixture.position.z);
+                }
                 if (fixture.isTowBeacon) {
                     const angle = time * fixture.sweepSpeed + fixture.sweepPhase;
                     if (!fixture.targetPos) fixture.targetPos = new THREE.Vector3();

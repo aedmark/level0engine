@@ -999,12 +999,19 @@ export default class SetPieces {
         const BASE_WIRE_LEN = 3.0;
         const domeTopY = ceilingY !== null ? ceilingY - wireLen : 2.65 + bowlRadius;
         const rimY = domeTopY - bowlRadius;
+        // Everything hangs from this ceiling mount point, so it's the pivot the whole
+        // fixture swings from - rotating it a couple degrees swings the wire, bowl and
+        // bulb together like a real chain-hung lamp instead of just spinning in place.
+        const anchorY = domeTopY + wireLen;
+        const pivot = new THREE.Group();
+        pivot.position.set(cx, anchorY, cz);
+        chunkGroup.add(pivot);
+
         const wireGeo = env._cacheGeo('archiveWire', () => new THREE.CylinderGeometry(0.012, 0.012, BASE_WIRE_LEN, 5));
         const wire = new THREE.Mesh(wireGeo, env.metalMat);
         wire.scale.y = wireLen / BASE_WIRE_LEN;
-        wire.position.set(cx, domeTopY + wireLen / 2, cz);
-        chunkGroup.add(wire);
-        wire.updateMatrixWorld(true);
+        wire.position.set(0, -wireLen / 2, 0);
+        pivot.add(wire);
         env.walls.push(wire);
         const bowlGeo = env._cacheGeo('archiveBowl', () => new THREE.SphereGeometry(bowlRadius, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2));
         if (!env.archiveBowlMat) {
@@ -1019,9 +1026,8 @@ export default class SetPieces {
             env.sharedAssets.add(env.archiveBowlMat.uuid);
         }
         const bowl = new THREE.Mesh(bowlGeo, env.archiveBowlMat);
-        bowl.position.set(cx, rimY, cz);
-        chunkGroup.add(bowl);
-        bowl.updateMatrixWorld(true);
+        bowl.position.set(0, rimY - anchorY, 0);
+        pivot.add(bowl);
         env.walls.push(bowl);
         const bulbRadius = 0.08;
         const bulbGeo = env._cacheGeo('archiveBulb', () => new THREE.SphereGeometry(bulbRadius, 8, 6));
@@ -1030,11 +1036,11 @@ export default class SetPieces {
         bulbMat.emissiveMap = null;
         const bulbY = domeTopY - bulbRadius;
         const bulb = new THREE.Mesh(bulbGeo, bulbMat);
-        bulb.position.set(cx, bulbY, cz);
+        bulb.position.set(0, bulbY - anchorY, 0);
         bulb.userData.chunkHash = hash;
-        chunkGroup.add(bulb);
-        bulb.updateMatrixWorld(true);
+        pivot.add(bulb);
         env.walls.push(bulb);
+        pivot.updateMatrixWorld(true);
         const spotAngle = Math.atan2(bowlRadius, bulbY - rimY);
         env.fixtureData.push({
             chunkHash: hash,
@@ -1050,7 +1056,13 @@ export default class SetPieces {
             isShadowCaster: true,
             baseIntensity: intensity,
             targetIntensity: intensity,
-            currentIntensity: intensity
+            currentIntensity: intensity,
+            swingPivot: pivot,
+            swingBulb: bulb,
+            swingPhaseX: random() * Math.PI * 2,
+            swingPhaseZ: random() * Math.PI * 2,
+            swingSpeed: 0.5 + random() * 0.3,
+            swingAmp: 0.03 + random() * 0.025
         });
     }
 
