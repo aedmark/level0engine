@@ -37,7 +37,6 @@ export default class AtmosphereManager {
         
         const playerSpeed = Math.sqrt((env.player.velocity.x * env.player.velocity.x) + (env.player.velocity.z * env.player.velocity.z));
         this._updateFlashlightAndAmbient(darknessPressure, activeSector);
-        this._updateAcmeSun(activeSector, cameraPos);
 
         if (env.fixtureData) {
             for (let i = 0; i < env.fixtureData.length; i++) {
@@ -491,20 +490,6 @@ export default class AtmosphereManager {
                 else if (env._stickySectorId === "INCINERATOR") targetGlowOpacity = 0.1;
                 env.glowMat.opacity += (targetGlowOpacity - env.glowMat.opacity) * 0.1;
             }
-        }
-    }
-
-    _updateAcmeSun(activeSector, cameraPos) {
-        const env = this.env;
-        const sun = env.engine.acmeSun;
-        if (!sun) return;
-        const inAcme = activeSector === 'ACME' && !env.tutorialActive;
-        const targetIntensity = inAcme ? 2.2 : 0.0;
-        sun.intensity += (targetIntensity - sun.intensity) * 0.05;
-        if (inAcme || sun.intensity > 0.01) {
-            sun.position.set(cameraPos.x, cameraPos.y + 60, cameraPos.z);
-            sun.target.position.set(cameraPos.x, cameraPos.y, cameraPos.z);
-            sun.target.updateMatrixWorld();
         }
     }
 

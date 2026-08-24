@@ -9,6 +9,11 @@ const LADDER_CLIMB_SPEED = 2.4;
 const LADDER_GRAB_RADIUS_SQ = 2.0;
 const LADDER_DISMOUNT_PUSH = 0.6;
 const LADDER_RUNG_SPACING = 0.3;
+// Footstep sound cadence while climbing, distinct from LADDER_RUNG_SPACING above (the physical
+// rung spacing) - firing a step sound every single rung read as climbing much faster than the
+// player's actual hand-over-hand pace, so this is deliberately 2x the rung spacing to halve the
+// footstep rate without changing the ladder's visual rung count.
+const LADDER_FOOTSTEP_SPACING = LADDER_RUNG_SPACING * 2;
 const LADDER_CLIMB_STANDOFF = 0.4;
 
 export default class PlayerController {
@@ -590,6 +595,26 @@ export default class PlayerController {
         this._applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes, dynamicMaxCamY, manifold);
     }
 
+    // ACME's multi-deck climbs are built as several stacked ladder boxes, one per deck-to-deck
+    // connector (see AcmeSector.js's buildLadderSegment), so the physical ladder often keeps
+    // going right where one box's rail ends and the next one's begins. Used by _updateLadder to
+    // hop the player onto the continuing segment instead of treating that seam as the end of
+    // the climb.
+    _findAdjacentLadder(localBoxes, cx, cz, boundaryY, goingUp, excludeBox) {
+        if (!localBoxes) return null;
+        const eps = 0.02;
+        for (let i = 0; i < localBoxes.length; i++) {
+            const box = localBoxes[i];
+            if (!box.isLadder || box === excludeBox) continue;
+            const boxCx = (box.min.x + box.max.x) / 2;
+            const boxCz = (box.min.z + box.max.z) / 2;
+            if (Math.abs(boxCx - cx) > eps || Math.abs(boxCz - cz) > eps) continue;
+            const edgeY = goingUp ? box.min.y : box.max.y;
+            if (Math.abs(edgeY - boundaryY) <= eps) return box;
+        }
+        return null;
+    }
+
     _updateLadder(delta, localBoxes, state, visualHeight) {
         if (this._onLadder) {
             const box = this._onLadder;
@@ -622,20 +647,25 @@ export default class PlayerController {
             const step = climbDir * LADDER_CLIMB_SPEED * delta;
             this.camera.position.y += step;
             this._ladderStepAccum = (this._ladderStepAccum || 0) + Math.abs(step);
-            if (this._ladderStepAccum >= LADDER_RUNG_SPACING) {
+            if (this._ladderStepAccum >= LADDER_FOOTSTEP_SPACING) {
                 this._ladderStepAccum = 0;
                 document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 0.7}}));
             }
             const feetY = this.camera.position.y - visualHeight;
-            if (feetY >= box.max.y || feetY <= box.min.y) {
-                const landY = feetY >= box.max.y ? box.max.y : box.min.y;
-                this.camera.position.y = landY + visualHeight;
-                this.camera.position.x += outDir.x * LADDER_DISMOUNT_PUSH;
-                this.camera.position.z += outDir.z * LADDER_DISMOUNT_PUSH;
-                this._groundFeetY = landY;
-                this._onLadder = null;
-                this._ladderApproachDir = null;
-                document.dispatchEvent(new CustomEvent('somatic-step', {detail: {intensity: 1.5}}));
+            if (feetY > box.max.y || feetY < box.min.y) {
+                const goingUp = feetY > box.max.y;
+                const boundary = goingUp ? box.max.y : box.min.y;
+                // No more auto-dismount, mid-climb or otherwise - jumping (above) is the only way
+                // off the ladder now. If another segment continues right from this seam, hop onto
+                // it and keep climbing instead of stopping dead at every intermediate deck; if not,
+                // this really is the end of the rail, so just clamp there and wait for a jump.
+                const next = this._findAdjacentLadder(localBoxes, cx, cz, boundary, goingUp, box);
+                this.camera.position.y = boundary + visualHeight;
+                if (next) {
+                    this._onLadder = next;
+                } else {
+                    this._ladderStepAccum = 0;
+                }
             }
             return true;
         }

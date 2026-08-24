@@ -7,6 +7,16 @@ const ACME_ENTRANCE_CLEARANCE_LEVELS = 3;
 const ACME_LADDER_RUNG_SPACING = 0.3;
 const ACME_LADDER_HOLE_DEPTH = 1.4;
 const ACME_LADDER_HOLE_WIDTH = 1.15;
+const ACME_LADDER_RAIL_GAP = 0.3;
+const ACME_LADDER_WELD_WIDTH = 0.3;
+const ACME_LADDER_WELD_THICKNESS = 0.12;
+// A ladder run's topmost segment has no deck to pass through above it, so its rails/rungs (and
+// grabbable Box3) used to stop dead flush with the top deck's surface - which meant a player
+// standing on that deck, feet exactly level with the ladder's top, fell outside the mount check's
+// height window and couldn't grab it at all. Extending just that top segment a few feet past the
+// deck it terminates at gives it a real, reachable stub to grab from above, like a real ladder
+// poking up past a roof hatch.
+const ACME_LADDER_TOP_OVERHANG = 1.2;
 
 const ACME_HANGING_LIGHT_CHANCE = 0.5;
 const ACME_LIGHT_CORNERS = [{x: 1, z: 1}, {x: 1, z: -1}, {x: -1, z: 1}, {x: -1, z: -1}];
@@ -50,7 +60,7 @@ export const AcmeSector = (env, ctx) => {
         floor.position.set(gx, y, gz);
         addGeometry(floor);
         const hx = size / 2;
-        const frameY = y - 0.1;
+        const frameY = y - 0.07;
         const rim1 = buildWall(size, 0.08, env.blackIronMat, 0.12);
         rim1.position.set(gx, frameY, gz - hx + 0.04);
         addGeometry(rim1);
@@ -95,7 +105,7 @@ export const AcmeSector = (env, ctx) => {
             addGeometry(west);
         }
 
-        const frameY = y - 0.1;
+        const frameY = y - 0.07;
         const rim1 = buildWall(size, 0.08, env.blackIronMat, 0.12);
         rim1.position.set(gx, frameY, gz - hx + 0.04);
         addGeometry(rim1);
@@ -112,7 +122,7 @@ export const AcmeSector = (env, ctx) => {
 
     const buildLadderSegment = (gx, gz, yBottom, rise, edge, outDir) => {
         const perp = edge.dx !== 0 ? {x: 0, z: 1} : {x: 1, z: 0};
-        const railGap = 0.3;
+        const railGap = ACME_LADDER_RAIL_GAP;
         for (const sign of [1, -1]) {
             const rail = buildWall(0.06, 0.06, env.blackIronMat, rise);
             rail.position.set(gx + perp.x * railGap * sign, yBottom + rise / 2, gz + perp.z * railGap * sign);
@@ -146,6 +156,31 @@ export const AcmeSector = (env, ctx) => {
         env.spatialGrid.insert(box);
     };
 
+    // Bridges the gap between the ladder's rails and the solid decking left standing
+    // around the manhole hole that deck's ladder run punches through (buildHoledCatwalk),
+    // so the rails read as bolted into the platform rather than floating loose inside the
+    // hole. One flat gusset plate per rail, running from the rail out to the hole's cut
+    // edge, at the same height/thickness as the deck's own rim framing.
+    const buildLadderWeld = (gx, gz, topY, edge) => {
+        const perp = edge.dx !== 0 ? {x: 0, z: 1} : {x: 1, z: 0};
+        const holeHalfSpan = ACME_LADDER_HOLE_WIDTH / 2;
+        const span = holeHalfSpan - ACME_LADDER_RAIL_GAP;
+        if (span <= 0.02) return;
+        // Sits proud of the deck rather than tangent to it: a plate merely tangent to the deck's
+        // zero-thickness surface either z-fights (flush) or reads as a floating gap through the
+        // grated deck texture (offset below), since there's no material thickness to hide the seam
+        // in. Embedding it slightly above the deck guarantees real overlap instead of a coincident
+        // or near-coincident face.
+        const frameY = topY - 0.04;
+        for (const sign of [1, -1]) {
+            const center = ACME_LADDER_RAIL_GAP + span / 2;
+            const weld = perp.x !== 0
+                ? buildWall(span, ACME_LADDER_WELD_WIDTH, env.blackIronMat, ACME_LADDER_WELD_THICKNESS)
+                : buildWall(ACME_LADDER_WELD_WIDTH, span, env.blackIronMat, ACME_LADDER_WELD_THICKNESS);
+            weld.position.set(gx + perp.x * center * sign, frameY, gz + perp.z * center * sign);
+            addGeometry(weld);
+        }
+    };
 
     const buildHangingLight = (gx, gz, ceilingY, rise) => {
         const maxWire = rise - ACME_HANGING_LIGHT_BOWL_RADIUS - ACME_HANGING_LIGHT_CLEARANCE;
@@ -215,9 +250,13 @@ export const AcmeSector = (env, ctx) => {
                 else buildCatwalk(gx, gz, levelBaseY);
             }
 
+            const topSegment = connectors[connectors.length - 1];
             for (const seg of connectors) {
                 const yBottom = (seg.prevDeckLevel - midLevel) * ACME_LEVEL_SPACING;
-                buildLadderSegment(gx, gz, yBottom, seg.rise, ladderEdge, ladderOutDir);
+                const overhang = seg === topSegment ? ACME_LADDER_TOP_OVERHANG : 0;
+                buildLadderSegment(gx, gz, yBottom, seg.rise + overhang, ladderEdge, ladderOutDir);
+                const topY = (seg.li - midLevel) * ACME_LEVEL_SPACING;
+                buildLadderWeld(gx, gz, topY, ladderEdge);
             }
 
             for (const seg of connectors) {
