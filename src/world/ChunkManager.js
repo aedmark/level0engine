@@ -432,12 +432,6 @@ export default class ChunkManager {
             canopy.position.set(startX * env.cellSize + centerOffset, canopyY, startZ * env.cellSize + centerOffset);
             canopy.castShadow = true;
             chunkGroup.add(canopy);
-            // Acme's skirt used to hug the underside of the (effectively unreachable) sky-high
-            // canopy, leaving the entire real playable range -- every deck, every catwalk --
-            // with no perimeter wall at all, so you could look sideways past the chunk's edge
-            // straight into whatever sector happens to be next door. It now starts at the same
-            // height the lower skirt below ends (0.15), so the two meet and there's a continuous
-            // black wall from deep underfoot to the canopy, at every height a player can reach.
             const skirtBottom = isAcmeVoid ? 0.15 : (isAtriumVoid ? 55.6 : 2.85);
             const skirtTop = canopyY + 0.15;
             const skirtCenterY = (skirtBottom + skirtTop) / 2;

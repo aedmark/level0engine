@@ -267,6 +267,12 @@ export default class AtmosphereManager {
         const env = this.env;
         if (env.dustCloud) {
             const dust = (SECTORS[activeSector] && SECTORS[activeSector].dust) || DEFAULT_DUST;
+            const wantsRain = !!dust.rain && !!env.rainTex;
+            if (wantsRain !== env._dustIsRain) {
+                env._dustIsRain = wantsRain;
+                env.dustCloud.material.map = wantsRain ? env.rainTex : env.particleTex;
+                env.dustCloud.material.needsUpdate = true;
+            }
             env.dustCloud.position.copy(cameraPos);
             env.dustCloud.rotation.y = time * 0.025;
             const positions = env.dustCloud.geometry.attributes.position.array;

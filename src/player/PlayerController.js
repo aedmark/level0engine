@@ -787,17 +787,9 @@ export default class PlayerController {
                 this.camera.position.copy(this._acmeSafeSpot);
                 this.camera.rotation.x = 0;
             } else if (this.env && this.env._spawnElevator && this.env._spawnElevator.placement) {
-                // _spawnElevator itself has no .position field -- ChunkManager.js always
-                // resolves the actual spawn coordinates into .placement (see its own
-                // camera.position.set(elevator.placement.x, 1.6, elevator.placement.z)
-                // call), so mirror that here rather than reading a field that's never set.
                 const sp = this.env._spawnElevator.placement;
                 this.camera.position.set(sp.x, 1.6, sp.z);
             } else {
-                // Neither a captured safe spot nor a resolved elevator placement is
-                // available yet (e.g. the player fell before ever touching ACME ground
-                // and before the elevator chunk finished anchoring) -- rescue straight
-                // up rather than dereferencing something that isn't there.
                 this.camera.position.y = ACME_LOWEST_PLATFORM_Y + 3.0;
             }
             this.fallVelocity = 0;

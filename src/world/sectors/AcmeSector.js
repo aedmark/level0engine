@@ -8,22 +8,12 @@ const ACME_LADDER_RUNG_SPACING = 0.3;
 const ACME_LADDER_HOLE_DEPTH = 1.4;
 const ACME_LADDER_HOLE_WIDTH = 1.15;
 
-// Archive-style hanging lights, borrowed via env._buildHangingBowlLight and re-hung
-// in the gaps between vertically-adjacent Acme decks (the same gaps buildLadderSegment
-// already spans), instead of standing worklights.
 const ACME_HANGING_LIGHT_CHANCE = 0.5;
 const ACME_LIGHT_CORNERS = [{x: 1, z: 1}, {x: 1, z: -1}, {x: -1, z: 1}, {x: -1, z: -1}];
 const ACME_LIGHT_CORNER_INSET = 0.55;
-// Mirrors SetPieces.buildHangingBowlLight's own bowlRadius (0.4) -- the two are coupled
-// on purpose, since this is the same fixture. If that radius ever changes, update this too.
 const ACME_HANGING_LIGHT_BOWL_RADIUS = 0.4;
 const ACME_HANGING_LIGHT_CLEARANCE = 0.35;
 const ACME_HANGING_LIGHT_MIN_WIRE = 0.5;
-// Archive's own bowl light is tuned for a tight, huddled reading nook (baseIntensity 1.5,
-// isFaulty true so it flickers and occasionally cuts to black -- that's the point, there).
-// Acme is hanging the same fixture in the middle of a mostly-unlit open shaft where it's
-// meant to actually read as a working light, so it gets its own brighter, steady setting
-// instead of silently inheriting Archive's mood lighting.
 const ACME_HANGING_LIGHT_INTENSITY = 4.5;
 
 const DOORWAY_ANCHORS = [[7, 1], [7, 14], [1, 7], [14, 7]];
@@ -230,8 +220,6 @@ export const AcmeSector = (env, ctx) => {
                 buildLadderSegment(gx, gz, yBottom, seg.rise, ladderEdge, ladderOutDir);
             }
 
-            // Hang one Archive-style pendant per open span between adjacent decks, at a
-            // random safe corner and a random wire length clamped to clear the deck below.
             for (const seg of connectors) {
                 if (random() >= ACME_HANGING_LIGHT_CHANCE) continue;
                 const ceilingY = (seg.li - midLevel) * ACME_LEVEL_SPACING;

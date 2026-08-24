@@ -25,10 +25,6 @@ export function warmLazySectorMaterials(env) {
         if (env.sharedAssets) env.sharedAssets.add(env.palletWoodMat.uuid);
     }
     if (!env.archiveBowlMat) {
-        // Keep in sync with SetPieces.js's buildHangingBowlLight -- this prewarm pass
-        // runs before any sector actually builds a fixture, so ITS definition is the
-        // one that wins; the lazy-init in SetPieces.js only ever fires if this one
-        // hasn't already (which, in practice, is never).
         env.archiveBowlMat = new THREE.MeshStandardMaterial({
             color: 0x1c4a34,
             roughness: 0.3,

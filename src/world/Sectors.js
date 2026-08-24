@@ -294,10 +294,11 @@ const SECTORS = {
             dynamicWhine: false
         },
         dust: {
-            drift: 'vertical', driftY: -0.02, turbulence: 0.05,
-            baseOpacity: 0.15, crawlOpacity: 0.42,
-            baseSize: 0.15, crawlSize: 0.50,
-            color: 0xe8ddc5
+            rain: true,
+            drift: 'vertical', driftY: -0.18, turbulence: 0.0,
+            baseOpacity: 0.3, crawlOpacity: 0.35,
+            baseSize: 0.12, crawlSize: 0.12,
+            color: 0xaab4bc
         },
         foley: {oscFreq: 240, filterType: 'bandpass', filterFreq: 1600, gain: 0.18, attack: 0.005, decay: 0.3},
         reverb: {rt60: 3.5, predelay: 0.060, wet: 0.28}

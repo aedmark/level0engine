@@ -138,6 +138,24 @@ export default class Environment {
         particleCtx.fillStyle = gradient;
         particleCtx.fillRect(0, 0, 64, 64);
         const particleTex = new THREE.CanvasTexture(particleCanvas);
+        this.particleTex = particleTex;
+
+        const rainCanvas = document.createElement('canvas');
+        rainCanvas.width = 16;
+        rainCanvas.height = 32;
+        const rainCtx = rainCanvas.getContext('2d');
+        const rainGradient = rainCtx.createLinearGradient(0, 0, 0, 32);
+        rainGradient.addColorStop(0, 'rgba(255,255,255,0)');
+        rainGradient.addColorStop(0.15, 'rgba(255,255,255,0.9)');
+        rainGradient.addColorStop(0.85, 'rgba(255,255,255,0.9)');
+        rainGradient.addColorStop(1, 'rgba(255,255,255,0)');
+        rainCtx.fillStyle = rainGradient;
+        rainCtx.fillRect(7, 0, 2, 32);
+        const rainTex = new THREE.CanvasTexture(rainCanvas);
+        rainTex.magFilter = THREE.NearestFilter;
+        rainTex.minFilter = THREE.NearestFilter;
+        this.rainTex = rainTex;
+
         const dustGeo = new THREE.BufferGeometry();
         const dustCount = 2500;
         const dustPos = new Float32Array(dustCount * 3);
