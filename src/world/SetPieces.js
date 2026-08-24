@@ -993,7 +993,7 @@ export default class SetPieces {
         return pallet;
     }
 
-    buildHangingBowlLight(chunkGroup, hash, cx, cz, random, getLightMaterial, wireLen = 3.0, ceilingY = null) {
+    buildHangingBowlLight(chunkGroup, hash, cx, cz, random, getLightMaterial, wireLen = 3.0, ceilingY = null, intensity = 1.5, faulty = true) {
         const env = this.env;
         const bowlRadius = 0.4;
         const BASE_WIRE_LEN = 3.0;
@@ -1055,12 +1055,12 @@ export default class SetPieces {
             spotPenumbra: 0.5,
             flickerOffset: random() * 500,
             material: bulbMat,
-            isFaulty: true,
+            isFaulty: faulty,
             isArchiveLight: true,
             isShadowCaster: true,
-            baseIntensity: 1.5,
-            targetIntensity: 1.5,
-            currentIntensity: 1.5
+            baseIntensity: intensity,
+            targetIntensity: intensity,
+            currentIntensity: intensity
         });
     }
 

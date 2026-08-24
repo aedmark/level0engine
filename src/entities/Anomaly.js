@@ -140,7 +140,7 @@ export default class Anomaly {
         if (!force && time < this._nextBoundsCheck) return;
         this._nextBoundsCheck = time + 3.0;
         if (!this.env || !this.env.getSectorBounds) return;
-        this._forbiddenBounds = ['ARCHIVE', 'IMPOUND', 'INCINERATOR', 'BOARDROOM', 'SERVER', 'CLINIC', 'MAINTENANCE', 'CHASM', 'ATRIUM', 'ANNEX', 'CHECKPOINT']
+        this._forbiddenBounds = ['ARCHIVE', 'IMPOUND', 'INCINERATOR', 'BOARDROOM', 'SERVER', 'CLINIC', 'MAINTENANCE', 'CHASM', 'ATRIUM', 'ANNEX', 'CHECKPOINT', 'ACME']
             .map(id => this.env.getSectorBounds(id))
             .filter(Boolean);
     }

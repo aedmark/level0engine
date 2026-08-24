@@ -388,5 +388,35 @@
       "title": "Extraction Note",
       "_locked": true
     }
+  ],
+  "ACME": [
+    {
+      "text": "${P} FACILITIES MEMO\nFROM: ${c.engineer}\n\nRequisitioned six replacement fixtures for the ACME shaft after crews kept reporting the lower decks going dark. All six approved. All six installed.\n\nThe lower decks are still dark.\n\nWhatever's lighting the top of that shaft holds steady no matter how far down you climb, directly overhead the whole way, like it's following you. It just stops reaching you somewhere around the fourth or fifth deck, same as it always has, fixtures or no fixtures.\n\nI don't think this is a fixture problem. I don't know who to write that up to instead.\n\n- ${c.engineer}",
+      "type": "document",
+      "thread": "GEOMETRY",
+      "title": "Solar Survey",
+      "_locked": true
+    },
+    {
+      "type": "tape",
+      "text": "[BOOTS ON METAL GRATING, RECEDING]\n\n...${c.lost} swears the drop has a bottom. Says you can see it from the fourth deck if the light's right.\n\nI watched them climb down out of the light at hour ${hrs}.\n\nI have not watched them climb back up.\n\n[CLICK]",
+      "thread": "LOST",
+      "title": "Last Rung",
+      "_locked": true
+    },
+    {
+      "text": "[SITE FREQUENCY LOG]\n\nSomething below the lowest mapped deck is running. Not the sun; the sun makes no sound at all.\n\nThis is a low mechanical thrum, felt through the ladder rails more than heard.\n\n${c.archivist} clocked it against the atrium PA loop out of curiosity. Same wavelength.\n\nNeither of us knows what that's supposed to mean, and neither of us had said so out loud until now.",
+      "type": "laptop",
+      "thread": "HUM",
+      "title": "Site Frequency Log",
+      "_locked": true
+    },
+    {
+      "text": "DECK COUNT, WEEK ${WEEK}\n\nLevels surveyed from the entrance ring down: sixty-one.\n\nLevels surveyed from the entrance ring up: four.\n\nSame catwalk, same ladder, same afternoon. I climbed it both directions myself.\n\nFacilities says to average the two numbers for the incident report. I am not doing that. Thirty-two and a half decks is not a real place to stand.\n\n- ${c.custodian}",
+      "type": "clipboard",
+      "thread": "GEOMETRY",
+      "title": "Deck Count",
+      "_locked": true
+    }
   ]
 }

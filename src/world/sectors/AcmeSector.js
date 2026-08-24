@@ -19,6 +19,12 @@ const ACME_LIGHT_CORNER_INSET = 0.55;
 const ACME_HANGING_LIGHT_BOWL_RADIUS = 0.4;
 const ACME_HANGING_LIGHT_CLEARANCE = 0.35;
 const ACME_HANGING_LIGHT_MIN_WIRE = 0.5;
+// Archive's own bowl light is tuned for a tight, huddled reading nook (baseIntensity 1.5,
+// isFaulty true so it flickers and occasionally cuts to black -- that's the point, there).
+// Acme is hanging the same fixture in the middle of a mostly-unlit open shaft where it's
+// meant to actually read as a working light, so it gets its own brighter, steady setting
+// instead of silently inheriting Archive's mood lighting.
+const ACME_HANGING_LIGHT_INTENSITY = 4.5;
 
 const DOORWAY_ANCHORS = [[7, 1], [7, 14], [1, 7], [14, 7]];
 
@@ -159,7 +165,7 @@ export const AcmeSector = (env, ctx) => {
         const inset = env.cellSize / 2 * ACME_LIGHT_CORNER_INSET;
         const lx = gx + corner.x * inset;
         const lz = gz + corner.z * inset;
-        env._buildHangingBowlLight(chunkGroup, hash, lx, lz, random, getLightMaterial, wireLen, ceilingY);
+        env._buildHangingBowlLight(chunkGroup, hash, lx, lz, random, getLightMaterial, wireLen, ceilingY, ACME_HANGING_LIGHT_INTENSITY, false);
     };
 
     return {
