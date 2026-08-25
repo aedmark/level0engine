@@ -24,11 +24,6 @@ const DEFAULT_MUZAK_MELODY = [
 const MUZAK_PROFILES = {
     ANNEX: {gain: 1.2, beat: 0.50, cutoff: 500, wobble: 15},
     ATRIUM: {gain: 0.9, beat: 0.72, cutoff: 210, wobble: 34},
-    // Slower and quieter than Annex/Atrium's elevator-muzak feel - meant to sit under the rain/
-    // drip/clank ambience rather than compete with it. D natural minor instead of their major/
-    // dominant palette (Dm7/Am7 are new; Gm7/Fmaj7 are D minor's own relative-major chords,
-    // reused from the default set so it stays harmonically related rather than clashing), and the
-    // melody leans hard on rests for a sparser, more "chamber" phrasing instead of a steady run.
     ACME: {
         gain: 0.6, beat: 1.2, cutoff: 280, wobble: 12,
         chords: [
@@ -132,12 +127,6 @@ export default class Mixer {
                 engine._nextGroanTime = 0;
             }
         }
-        // AtmosphereManager rolls the actual strike (it owns the visual flash) and hands back
-        // pendingThunder for exactly one frame when one just fired - stash it as a deadline here
-        // so the boom lands after the flash instead of racing it, then fire a random one of the
-        // rolling-rumble variants (no sharp crack - see their comment in Foley.js).
-        // distanceSq of 0 deliberately bypasses triggerSomaticEvent's per-source falloff - thunder
-        // should read as "the whole room", not a point source.
         if (activeSector === "ACME" && !isBlackout) {
             if (pendingThunder) {
                 engine._acmeThunderAt = time + pendingThunder.delay;

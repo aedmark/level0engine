@@ -48,10 +48,6 @@ export default class RenderEngine {
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
         this.ambientLight = new THREE.HemisphereLight(0xfff5c2, 0x3d3520, 0.30);
         this.scene.add(this.ambientLight);
-        // Created here at intensity 0, rather than lazily in AtmosphereManager on the first ACME
-        // lightning strike, so its shader recompile (adding any light to the scene forces every
-        // in-use material's WebGL program to recompile to account for it) happens during the boot
-        // warmup pass instead of landing as a hitch mid-game the first time it's actually needed.
         this.lightningLight = new THREE.DirectionalLight(0xdbe6ff, 0);
         this.lightningLight.castShadow = false;
         this.scene.add(this.lightningLight);

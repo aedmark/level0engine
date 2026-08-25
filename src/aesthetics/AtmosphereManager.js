@@ -70,13 +70,6 @@ export default class AtmosphereManager {
         };
     }
 
-    // ACME-only strobe: rolls a random strike interval, flashes RenderEngine's pre-created
-    // `lightningLight` (see its own comment - built at boot, not here, so the scene's one-time
-    // shader recompile for a new light lands during the boot warmup pass instead of as a stutter
-    // on the first real strike) with a sharp time-based envelope (occasionally double-pulsed, like
-    // real lightning), and hands back a one-frame `pendingThunder` payload {delay, intensity} so
-    // Mixer.js can schedule the boom to land after the flash instead of on top of it - closer
-    // "strikes" flash brighter and thunder sooner, distant ones dimmer with a longer delay.
     _updateLightning(time, activeSector, cameraPos) {
         const env = this.env;
         const inAcme = activeSector === 'ACME' && !env.tutorialActive;
@@ -108,14 +101,6 @@ export default class AtmosphereManager {
                 env._lightningLight.target.position.set(cameraPos.x, cameraPos.y, cameraPos.z);
                 env._lightningLight.target.updateMatrixWorld();
             }
-            // The directional light alone only lights surfaces that happen to face it - a player
-            // looking at a wall or the underside of a deck when it fires sees nothing change,
-            // which is exactly what got reported. Real lightning reads as the whole visible world
-            // getting brighter for a moment, not a spotlight - so also pop the render's exposure
-            // (already recomputed fresh every frame in _updateGlareAndPupil, which runs earlier
-            // in this same update, so multiplying it here for one frame doesn't fight that or
-            // leave a lingering offset next frame) for a screen-wide flash that's visible no
-            // matter which way the camera is pointed.
             if (envNorm > 0.001 && env.engine.renderer && env.engine.baseExposure !== undefined) {
                 const closeness = env._lightningFlashCloseness || 0;
                 env.engine.renderer.toneMappingExposure *= (1.0 + envNorm * (0.8 + closeness * 1.8));
@@ -134,10 +119,6 @@ export default class AtmosphereManager {
                     const t = time * fixture.swingSpeed;
                     fixture.swingPivot.rotation.x = Math.sin(t + fixture.swingPhaseX) * fixture.swingAmp;
                     fixture.swingPivot.rotation.z = Math.sin(t * 0.8 + fixture.swingPhaseZ) * fixture.swingAmp * 0.7;
-                    // The actual light (real pooled light in LumenGrid, glare/lens-flare direction
-                    // here) reads from fixture.position/targetPos, not from the bulb mesh - without
-                    // dragging those along too, the glowing bulb visibly swings while the light it's
-                    // supposed to be casting stays nailed in place.
                     fixture.swingPivot.updateMatrixWorld(true);
                     fixture.swingBulb.getWorldPosition(fixture.position);
                     fixture.targetPos.set(fixture.position.x, fixture.position.y - 6.0, fixture.position.z);

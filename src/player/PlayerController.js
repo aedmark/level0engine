@@ -9,10 +9,6 @@ const LADDER_CLIMB_SPEED = 2.4;
 const LADDER_GRAB_RADIUS_SQ = 2.0;
 const LADDER_DISMOUNT_PUSH = 0.6;
 const LADDER_RUNG_SPACING = 0.3;
-// Footstep sound cadence while climbing, distinct from LADDER_RUNG_SPACING above (the physical
-// rung spacing) - firing a step sound every single rung read as climbing much faster than the
-// player's actual hand-over-hand pace, so this is deliberately 2x the rung spacing to halve the
-// footstep rate without changing the ladder's visual rung count.
 const LADDER_FOOTSTEP_SPACING = LADDER_RUNG_SPACING * 2;
 const LADDER_CLIMB_STANDOFF = 0.4;
 
@@ -595,11 +591,6 @@ export default class PlayerController {
         this._applyCinematics(delta, postIntentSpeed, targetFeetY, visualHeight, inVoid, localBoxes, dynamicMaxCamY, manifold);
     }
 
-    // ACME's multi-deck climbs are built as several stacked ladder boxes, one per deck-to-deck
-    // connector (see AcmeSector.js's buildLadderSegment), so the physical ladder often keeps
-    // going right where one box's rail ends and the next one's begins. Used by _updateLadder to
-    // hop the player onto the continuing segment instead of treating that seam as the end of
-    // the climb.
     _findAdjacentLadder(localBoxes, cx, cz, boundaryY, goingUp, excludeBox) {
         if (!localBoxes) return null;
         const eps = 0.02;
@@ -655,10 +646,6 @@ export default class PlayerController {
             if (feetY > box.max.y || feetY < box.min.y) {
                 const goingUp = feetY > box.max.y;
                 const boundary = goingUp ? box.max.y : box.min.y;
-                // No more auto-dismount, mid-climb or otherwise - jumping (above) is the only way
-                // off the ladder now. If another segment continues right from this seam, hop onto
-                // it and keep climbing instead of stopping dead at every intermediate deck; if not,
-                // this really is the end of the rail, so just clamp there and wait for a jump.
                 const next = this._findAdjacentLadder(localBoxes, cx, cz, boundary, goingUp, box);
                 this.camera.position.y = boundary + visualHeight;
                 if (next) {

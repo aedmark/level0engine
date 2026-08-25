@@ -45,21 +45,7 @@ const VOICES = {
     'document_rustle': ['sine', 1, 1, 1.0, 0.3, 0.03, 0.35, {type: 'bandpass', start: 3000, end: 1200, ramp: 0.3}],
     'electric_spark': ['sawtooth', 120, 120, 0, 0.4, 0.01, 0.15, {type: 'bandpass', start: 1500, end: 3000, ramp: 0.1}],
     'light_flicker': ['sine', 1, 1, 0, 0.075, 0.02, 0.35, {type: 'bandpass', start: 4000, end: 2000, ramp: 0.35}],
-    // Hard, instant-attack transient - too punchy for ACME's weather (which is always distant, per
-    // the delay in the pendingThunder scheduling in Mixer.js), so it's not used there. Kept as-is
-    // and reused as the anomaly-catch death sting in main.js instead, where a hard hit is the point.
     'thunder_crack': ['square', 100, 40, 0.15, 0.25, 0.002, 0.4, {type: 'bandpass', start: 4000, end: 300, ramp: 0.35}],
-    // Slow-building, no percussive onset - ACME's weather is always distant (see the delay in
-    // Mixer.js's pendingThunder scheduling), and real distant thunder loses its sharp crack to
-    // atmospheric absorption by the time it arrives, leaving just this kind of soft rolling boom.
-    // Pitch descends modestly (not the octave-plus swings a synth default reaches for) from its
-    // most intense point into a lower rumble, timed to start dropping right as the volume swell
-    // peaks, then holds at that lower pitch while the volume alone fades to silence - real
-    // thunder's rumble doesn't keep sliding around once it's settled into rolling. The trailing
-    // `2.0` on each is an extra direct send into the reverb bus on top of the normal one every
-    // Foley voice already gets through masterGain, so these ring out in ACME's room noticeably
-    // wetter than a one-shot clank or drip would. Four variants (register + roll length, picked
-    // at random in Mixer.js) so consecutive strikes don't all sound like the same clip looping.
     'thunder_rumble_1': ['sawtooth', 44, 32, 1.0, 0.34, 0.8, 4.5, {type: 'lowpass', start: 350, end: 70, ramp: 3.5}, 2.0],
     'thunder_rumble_2': ['sawtooth', 38, 24, 1.3, 0.36, 1.0, 5.5, {type: 'lowpass', start: 300, end: 55, ramp: 4.5}, 2.0],
     'thunder_rumble_3': ['sawtooth', 52, 40, 0.7, 0.32, 0.5, 3.2, {type: 'lowpass', start: 420, end: 90, ramp: 2.6}, 2.0],

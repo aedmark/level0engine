@@ -999,9 +999,6 @@ export default class SetPieces {
         const BASE_WIRE_LEN = 3.0;
         const domeTopY = ceilingY !== null ? ceilingY - wireLen : 2.65 + bowlRadius;
         const rimY = domeTopY - bowlRadius;
-        // Everything hangs from this ceiling mount point, so it's the pivot the whole
-        // fixture swings from - rotating it a couple degrees swings the wire, bowl and
-        // bulb together like a real chain-hung lamp instead of just spinning in place.
         const anchorY = domeTopY + wireLen;
         const pivot = new THREE.Group();
         pivot.position.set(cx, anchorY, cz);

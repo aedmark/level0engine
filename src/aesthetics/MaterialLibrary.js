@@ -123,12 +123,6 @@ export default class MaterialLibrary {
             alphaTest: 0.5,
             metalness: 0.8,
             roughness: 0.6,
-            // A metalness-0.8 surface has almost no diffuse albedo of its own - it only reads as
-            // visible where it catches a direct light's specular highlight. That's fine under the
-            // old ACME sun, but with ACME now lit by low ambient only, the strands went as dark as
-            // the punched-out gaps between them, so the grate stopped reading as a perforated mesh
-            // and just looked like a flat opaque slab. A faint self-lit glow keeps the strands
-            // legible against the gaps without touching the sector's actual light levels.
             emissive: 0x2a1a10,
             emissiveIntensity: 0.35,
             side: THREE.DoubleSide
