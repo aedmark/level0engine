@@ -50,8 +50,9 @@ export const CheckpointSector = (env, ctx) => {
                 if (isBuiltRoom(localX, localZ)) {
                     const flankV = (localX === 6 || localX === 8) && localZ !== 6 && localZ !== 8;
                     env._buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, {
-                        buildWall, addGeometry, addFurniture, chunkGroup, hash,
-                        stagingMeshes, getLightMaterial: ctx.getLightMaterial
+                        random, buildWall, addGeometry, addFurniture, chunkGroup, hash,
+                        stagingMeshes, getLightMaterial: ctx.getLightMaterial,
+                        beginDoorFrame: ctx.beginDoorFrame, endDoorFrame: ctx.endDoorFrame
                     });
                     placeSectorPaper(env, ctx, "CHECKPOINT", x * env.cellSize, z * env.cellSize, undefined, 0.9);
                     return;

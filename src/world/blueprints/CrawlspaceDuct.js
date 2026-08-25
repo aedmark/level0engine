@@ -409,8 +409,8 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                     const addDoor = (isX, sign) => {
                         const px = cx + (isX ? sign * faceOffset : 0);
                         const pz = cz + (isX ? 0 : sign * faceOffset);
-                        
-                        ctx.addGrate(px, ductY + holeH / 2, pz, isX, {
+
+                        const grateMesh = ctx.addGrate(px, ductY + holeH / 2, pz, isX, {
                             width: snap(doorW),
                             height: snap(doorH),
                             thickness: 0.1,
@@ -436,10 +436,12 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                         const jambY = ductY + railInset;
                         const jambH = holeH - railInset * 2;
 
+                        if (grateMesh && ctx.beginDoorFrame) ctx.beginDoorFrame(grateMesh);
                         addTrim(frameT, jambH, jambX + (isX ? 0 : sideTrimOffset), jambY, jambZ + (isX ? sideTrimOffset : 0));
                         addTrim(frameT, jambH, jambX - (isX ? 0 : sideTrimOffset), jambY, jambZ - (isX ? sideTrimOffset : 0));
                         addTrim(holeW, frameT, jambX, ductY + holeH - frameT, jambZ);
                         addTrim(holeW, frameT, jambX, ductY, jambZ);
+                        if (grateMesh && ctx.endDoorFrame) ctx.endDoorFrame();
                     };
 
                     if (ctx.addGrate) {

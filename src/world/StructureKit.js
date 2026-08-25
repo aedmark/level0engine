@@ -402,6 +402,8 @@ export default class StructureKit {
                 trim.userData.noCollision = true;
                 helpers.addGeometry(trim);
             },
+            beginDoorFrame: (door) => { helpers._pendingDoorFrame = door; },
+            endDoorFrame: () => { helpers._pendingDoorFrame = null; },
             addGeometry: (mesh, isWarp = false) => {
                 mesh.userData.chunkHash = hash;
                 mesh.updateMatrixWorld(true);
@@ -411,6 +413,7 @@ export default class StructureKit {
                     box.chunkHash = hash;
                     if (mesh.userData.isEntityBlocker) box.isEntityBlocker = true;
                     if (isWarp) box.isWarpZone = true;
+                    if (helpers._pendingDoorFrame) box.doorFrameOwner = helpers._pendingDoorFrame;
                     env.spatialGrid.insert(box);
                     mesh.userData.collisionBox = box;
                 }
@@ -754,8 +757,10 @@ export default class StructureKit {
                 grateBox.chunkHash = hash;
                 grateBox.isGrate = true;
                 grateBox.meshRef = grate;
+                grateBox.doorFrameOwner = grate;
                 grate.userData.box = grateBox;
                 env.spatialGrid.insert(grateBox);
+                return grate;
             },
             buildChair: (x, y, z, rotY, matOverride = null) => {
                 const group = new THREE.Group();

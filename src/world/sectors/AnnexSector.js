@@ -500,16 +500,6 @@ export const AnnexSector = (env, ctx) => {
                 };
 
                 if (spansX) {
-                    for (let s = -1; s <= 1; s += 2) {
-                        const side = buildWall(sideW, env.cellSize, env.annexWallMat || env.sharedWallMat);
-                        side.position.set(ox + s * (gapW / 2 + sideW / 2), 1.5, oz);
-                        side.userData.isEntityBlocker = true;
-                        addGeometry(side);
-                    }
-                    const header = buildWall(gapW, env.cellSize, env.annexFrameMat || env.annexWallMat, 0.35);
-                    header.position.set(ox, 2.825, oz);
-                    addGeometry(header);
-
                     const doorW = 1.4, doorT = 0.1;
                     const doorGeo = env._cacheGeo('hingedDoor:X', () => {
                         const g = new THREE.BoxGeometry(doorW, 2.65, doorT);
@@ -525,12 +515,26 @@ export const AnnexSector = (env, ctx) => {
                     doorMesh.position.set(ox - doorW / 2, 1.325, oz);
                     doorMesh.userData = { chunkHash: hash, closedRot: 0, currentRot: 0, codeLocked: isCodeLocked };
                     doorMesh.castShadow = doorMesh.receiveShadow = true;
+
+                    ctx.beginDoorFrame(doorMesh);
+                    for (let s = -1; s <= 1; s += 2) {
+                        const side = buildWall(sideW, env.cellSize, env.annexWallMat || env.sharedWallMat);
+                        side.position.set(ox + s * (gapW / 2 + sideW / 2), 1.5, oz);
+                        side.userData.isEntityBlocker = true;
+                        addGeometry(side);
+                    }
+                    const header = buildWall(gapW, env.cellSize, env.annexFrameMat || env.annexWallMat, 0.35);
+                    header.position.set(ox, 2.825, oz);
+                    addGeometry(header);
+                    ctx.endDoorFrame();
+
                     chunkGroup.add(doorMesh);
                     env.interactiveDoors.push(doorMesh);
                     env.walls.push(doorMesh);
                     doorMesh.updateMatrixWorld();
                     const dBox = new THREE.Box3().setFromObject(doorMesh);
                     dBox.chunkHash = hash;
+                    dBox.doorFrameOwner = doorMesh;
                     doorMesh.userData.box = dBox;
                     env.spatialGrid.insert(dBox);
 
@@ -538,16 +542,6 @@ export const AnnexSector = (env, ctx) => {
                         buildSecurityKeypad(doorMesh, ox + 0.68, 1.35, oz + approachSign * 0.28, -Math.PI / 2);
                     }
                 } else {
-                    for (let s = -1; s <= 1; s += 2) {
-                        const side = buildWall(env.cellSize, sideW, env.annexWallMat || env.sharedWallMat);
-                        side.position.set(ox, 1.5, oz + s * (gapW / 2 + sideW / 2));
-                        side.userData.isEntityBlocker = true;
-                        addGeometry(side);
-                    }
-                    const header = buildWall(env.cellSize, gapW, env.annexFrameMat || env.annexWallMat, 0.35);
-                    header.position.set(ox, 2.825, oz);
-                    addGeometry(header);
-
                     const doorW = 1.4, doorT = 0.1;
                     const doorGeo = env._cacheGeo('hingedDoor:Z', () => {
                         const g = new THREE.BoxGeometry(doorT, 2.65, doorW);
@@ -565,12 +559,26 @@ export const AnnexSector = (env, ctx) => {
                         chunkHash: hash, closedRot: 0, currentRot: 0, codeLocked: isCodeLocked, useXApproach: true
                     };
                     doorMesh.castShadow = doorMesh.receiveShadow = true;
+
+                    ctx.beginDoorFrame(doorMesh);
+                    for (let s = -1; s <= 1; s += 2) {
+                        const side = buildWall(env.cellSize, sideW, env.annexWallMat || env.sharedWallMat);
+                        side.position.set(ox, 1.5, oz + s * (gapW / 2 + sideW / 2));
+                        side.userData.isEntityBlocker = true;
+                        addGeometry(side);
+                    }
+                    const header = buildWall(env.cellSize, gapW, env.annexFrameMat || env.annexWallMat, 0.35);
+                    header.position.set(ox, 2.825, oz);
+                    addGeometry(header);
+                    ctx.endDoorFrame();
+
                     chunkGroup.add(doorMesh);
                     env.interactiveDoors.push(doorMesh);
                     env.walls.push(doorMesh);
                     doorMesh.updateMatrixWorld();
                     const dBox = new THREE.Box3().setFromObject(doorMesh);
                     dBox.chunkHash = hash;
+                    dBox.doorFrameOwner = doorMesh;
                     doorMesh.userData.box = dBox;
                     env.spatialGrid.insert(dBox);
 

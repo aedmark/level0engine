@@ -78,8 +78,13 @@ export const HingedDoorwayProfile = (env, ctx) => {
             door.updateMatrixWorld();
             const dBox = new THREE.Box3().setFromObject(door);
             dBox.chunkHash = hash;
+            dBox.doorFrameOwner = door;
             door.userData.box = dBox;
             env.spatialGrid.insert(dBox);
+
+            for (const frameMesh of [p1, p2, top, jambL, jambR, jambT]) {
+                if (frameMesh.userData.collisionBox) frameMesh.userData.collisionBox.doorFrameOwner = door;
+            }
         }
     };
 };

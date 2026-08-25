@@ -111,8 +111,72 @@ export default class InteractionController {
     }
 
 
+    // Shared core for anything that swings on a hinge (room doors, duct grates, gate arms):
+    // sweep the visible mesh's geometry through candidate rotations and reject any that
+    // intersect real collision geometry, so a hinge never commits to a swing that clips.
+    // `rotNode` is whatever actually rotates (the mesh itself for a self-hinged door, or a
+    // parent pivot Group for anything mounted off-center like a grate or gate arm);
+    // `sweepMesh` is the mesh whose geometry defines the swept shape (a child of rotNode,
+    // or rotNode itself when they're the same object).
+    _hingeSweepBoxAt(rotNode, sweepMesh, targetRot) {
+        if (!sweepMesh.userData.baseBox) {
+            sweepMesh.geometry.computeBoundingBox();
+            sweepMesh.userData.baseBox = sweepMesh.geometry.boundingBox.clone();
+        }
+        const prevRot = rotNode.rotation.y;
+        rotNode.rotation.y = targetRot;
+        rotNode.updateMatrixWorld(true);
+        if (!this._swingProbeBox) this._swingProbeBox = new THREE.Box3();
+        this._swingProbeBox.copy(sweepMesh.userData.baseBox).applyMatrix4(sweepMesh.matrixWorld);
+        rotNode.rotation.y = prevRot;
+        rotNode.updateMatrixWorld(true);
+        return this._swingProbeBox;
+    }
+
+    _isHingeSweepClear(rotNode, sweepMesh, worldPos, fromRot, targetRot, owner, radius) {
+        const env = this.env;
+        const nearby = env.spatialGrid.getNearby(worldPos.x, worldPos.z, radius);
+        const count = nearby.length;
+        const steps = 4;
+        for (let s = 1; s <= steps; s++) {
+            const rot = fromRot + (targetRot - fromRot) * (s / steps);
+            const box = this._hingeSweepBoxAt(rotNode, sweepMesh, rot);
+            box.expandByScalar(-0.03);
+            for (let i = 0; i < count; i++) {
+                const other = nearby[i];
+                if (other.doorFrameOwner === owner) continue;
+                if (other.intersectsBox(box)) return false;
+            }
+        }
+        return true;
+    }
+
+    // Tries each candidate rotation in order and returns the first that sweeps clear;
+    // falls back to `fromRot` (stays put) if none of them do.
+    _resolveHingeSwing(rotNode, sweepMesh, worldPos, fromRot, candidates, owner, radius) {
+        for (const rot of candidates) {
+            if (this._isHingeSweepClear(rotNode, sweepMesh, worldPos, fromRot, rot, owner, radius)) return rot;
+        }
+        return fromRot;
+    }
+
+    _resolveDoorSwing(door, worldPos, triggerPos) {
+        const swingAngle = Math.PI / 2.2;
+        const isZDoor = door.userData.useXApproach ? false :
+            (Math.abs(door.userData.closedRot) < 0.1 || Math.abs(door.userData.closedRot - Math.PI) < 0.1);
+        const preferPlus = isZDoor
+            ? (triggerPos.z - worldPos.z) < 0
+            : !((triggerPos.x - worldPos.x) < 0);
+        const closedRot = door.userData.closedRot;
+        const first = closedRot + (preferPlus ? swingAngle : -swingAngle);
+        const second = closedRot + (preferPlus ? -swingAngle : swingAngle);
+        const rotNode = door.userData.pivot || door;
+        return this._resolveHingeSwing(rotNode, door, worldPos, closedRot, [first, second], door, 3.0);
+    }
+
     _updateSwingingDoor(door, playerPos, delta) {
         const env = this.env;
+        const rotNode = door.userData.pivot || door;
         if (door.userData.codeLocked) door.userData.entityOpen = false;
         const worldPos = door.matrixWorld ? this._objWorldPos.setFromMatrixPosition(door.matrixWorld) : door.position;
         const pDistSq = playerPos.distanceToSquared(worldPos);
@@ -125,18 +189,7 @@ export default class InteractionController {
         if (isOpen) {
             if (!door.userData.isLatched) {
                 const triggerPos = (entityOpen && !playerOpen) ? env.anomaly.group.position : playerPos;
-                const isZDoor = door.userData.useXApproach ? false :
-                    (Math.abs(door.userData.closedRot) < 0.1 || Math.abs(door.userData.closedRot - Math.PI) < 0.1);
-                const swingAngle = Math.PI / 2.2;
-                let desiredRot;
-                if (isZDoor) {
-                    const approachZ = triggerPos.z - worldPos.z;
-                    desiredRot = approachZ < 0 ? (door.userData.closedRot + swingAngle) : (door.userData.closedRot - swingAngle);
-                } else {
-                    const approachX = triggerPos.x - worldPos.x;
-                    desiredRot = approachX < 0 ? (door.userData.closedRot - swingAngle) : (door.userData.closedRot + swingAngle);
-                }
-                door.userData.latchedRot = desiredRot;
+                door.userData.latchedRot = this._resolveDoorSwing(door, worldPos, triggerPos);
                 door.userData.isLatched = true;
                 door.userData.swingSpeed = (entityOpen && !playerOpen) ? 35.0 : 8.0;
                 const intensity = (entityOpen && !playerOpen) ? 1.0 : 0.25;
@@ -152,7 +205,7 @@ export default class InteractionController {
         const rotDiff = targetRot - door.userData.currentRot;
         if (Math.abs(rotDiff) > 0.001) {
             door.userData.currentRot += rotDiff * door.userData.swingSpeed * delta;
-            door.rotation.y = door.userData.currentRot;
+            rotNode.rotation.y = door.userData.currentRot;
             env.lumenGrid.shadowsDirty = true;
             if (door.userData.box && isOpen) {
                 if (!door.userData.box.isEmpty()) door.userData.box.makeEmpty();
@@ -160,8 +213,8 @@ export default class InteractionController {
             if (pDistSq < 2.5) {
                 const pushDist = Math.sqrt(pDistSq) || 0.1;
                 const pushStrength = (2.5 - pDistSq) * 15.0;
-                const pushX = ((playerPos.x - door.position.x) / pushDist) * pushStrength;
-                const pushZ = ((playerPos.z - door.position.z) / pushDist) * pushStrength;
+                const pushX = ((playerPos.x - worldPos.x) / pushDist) * pushStrength;
+                const pushZ = ((playerPos.z - worldPos.z) / pushDist) * pushStrength;
                 const cosY = Math.cos(env.camera.rotation.y);
                 const sinY = Math.sin(env.camera.rotation.y);
                 const localVx = pushX * cosY - pushZ * sinY;
@@ -171,9 +224,9 @@ export default class InteractionController {
             }
         } else if (door.userData.currentRot !== targetRot) {
             door.userData.currentRot = targetRot;
-            door.rotation.y = targetRot;
+            rotNode.rotation.y = targetRot;
             if (!isOpen && door.userData.box) {
-                door.updateMatrixWorld(true);
+                rotNode.updateMatrixWorld(true);
                 if (!door.userData.baseBox) {
                     door.geometry.computeBoundingBox();
                     door.userData.baseBox = door.geometry.boundingBox.clone();
@@ -183,12 +236,20 @@ export default class InteractionController {
         }
     }
 
+    _resolveGrateSwing(grateMesh, pivot) {
+        const openRot = grateMesh.userData.openRot;
+        return this._resolveHingeSwing(pivot, grateMesh, pivot.position, 0, [openRot, -openRot], grateMesh, 2.5);
+    }
+
     _updateInteractable(obj, playerPos, delta) {
         const env = this.env;
         if (obj.userData.type === 'grate' && !obj.userData.active) {
             const pivot = obj.userData.pivot;
             if (pivot) {
-                const diff = obj.userData.openRot - pivot.rotation.y;
+                if (obj.userData.resolvedOpenRot === undefined) {
+                    obj.userData.resolvedOpenRot = this._resolveGrateSwing(obj, pivot);
+                }
+                const diff = obj.userData.resolvedOpenRot - pivot.rotation.y;
                 if (Math.abs(diff) > 0.01) {
                     pivot.rotation.y += diff * 8.0 * delta;
                     env.lumenGrid.shadowsDirty = true;
@@ -327,6 +388,7 @@ export default class InteractionController {
                 return;
             }
             if (door.userData.codeLocked) door.userData.entityOpen = false;
+            const rotNode = door.userData.pivot || door;
             const worldPos = door.matrixWorld ? this._objWorldPos.setFromMatrixPosition(door.matrixWorld) : door.position;
             const pDistSq = playerPos.distanceToSquared(worldPos);
             if (pDistSq > 400.0 && !door.userData.isLatched && !door.userData.entityOpen) return;
@@ -338,18 +400,7 @@ export default class InteractionController {
             if (isOpen) {
                 if (!door.userData.isLatched) {
                     const triggerPos = (entityOpen && !playerOpen) ? env.anomaly.group.position : playerPos;
-                    const isZDoor = door.userData.useXApproach ? false :
-                        (Math.abs(door.userData.closedRot) < 0.1 || Math.abs(door.userData.closedRot - Math.PI) < 0.1);
-                    const swingAngle = Math.PI / 2.2;
-                    let desiredRot;
-                    if (isZDoor) {
-                        const approachZ = triggerPos.z - worldPos.z;
-                        desiredRot = approachZ < 0 ? (door.userData.closedRot + swingAngle) : (door.userData.closedRot - swingAngle);
-                    } else {
-                        const approachX = triggerPos.x - worldPos.x;
-                        desiredRot = approachX < 0 ? (door.userData.closedRot - swingAngle) : (door.userData.closedRot + swingAngle);
-                    }
-                    door.userData.latchedRot = desiredRot;
+                    door.userData.latchedRot = this._resolveDoorSwing(door, worldPos, triggerPos);
                     door.userData.isLatched = true;
                     door.userData.swingSpeed = (entityOpen && !playerOpen) ? 35.0 : 8.0;
                     const intensity = (entityOpen && !playerOpen) ? 1.0 : 0.25;
@@ -365,7 +416,7 @@ export default class InteractionController {
             const rotDiff = targetRot - door.userData.currentRot;
             if (Math.abs(rotDiff) > 0.001) {
                 door.userData.currentRot += rotDiff * door.userData.swingSpeed * delta;
-                door.rotation.y = door.userData.currentRot;
+                rotNode.rotation.y = door.userData.currentRot;
                 env.lumenGrid.shadowsDirty = true;
                 if (door.userData.box && isOpen) {
                     if (!door.userData.box.isEmpty()) door.userData.box.makeEmpty();
@@ -373,15 +424,15 @@ export default class InteractionController {
                 if (pDistSq < 2.5) {
                     const pushDist = Math.sqrt(pDistSq) || 0.1;
                     const pushStrength = (2.5 - pDistSq) * 15.0;
-                    const pushX = (playerPos.x - door.position.x) / pushDist;
-                    const pushZ = (playerPos.z - door.position.z) / pushDist;
+                    const pushX = (playerPos.x - worldPos.x) / pushDist;
+                    const pushZ = (playerPos.z - worldPos.z) / pushDist;
                     env.player.applyExternalImpulse(pushX, pushZ, pushStrength);
                 }
             } else if (door.userData.currentRot !== targetRot) {
                 door.userData.currentRot = targetRot;
-                door.rotation.y = targetRot;
+                rotNode.rotation.y = targetRot;
                 if (!isOpen && door.userData.box) {
-                    door.updateMatrixWorld(true);
+                    rotNode.updateMatrixWorld(true);
                     if (!door.userData.baseBox) {
                         door.geometry.computeBoundingBox();
                         door.userData.baseBox = door.geometry.boundingBox.clone();
@@ -396,7 +447,10 @@ export default class InteractionController {
                 if (obj.userData.type === 'grate' && !obj.userData.active) {
                     const pivot = obj.userData.pivot;
                     if (pivot) {
-                        const diff = obj.userData.openRot - pivot.rotation.y;
+                        if (obj.userData.resolvedOpenRot === undefined) {
+                            obj.userData.resolvedOpenRot = this._resolveGrateSwing(obj, pivot);
+                        }
+                        const diff = obj.userData.resolvedOpenRot - pivot.rotation.y;
                         if (Math.abs(diff) > 0.01) {
                             pivot.rotation.y += diff * 8.0 * delta;
                             env.lumenGrid.shadowsDirty = true;

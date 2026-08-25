@@ -113,8 +113,10 @@ export const BoardroomSector = (env, ctx) => {
                 door.updateMatrixWorld();
                 const dBox = new THREE.Box3().setFromObject(door);
                 dBox.chunkHash = hash;
+                dBox.doorFrameOwner = door;
                 door.userData.box = dBox;
                 env.spatialGrid.insert(dBox);
+                return door;
             };
             const glassFace = (alongX, faceC, latC, len, withDoor) => {
                 const half = len / 2;
@@ -128,9 +130,11 @@ export const BoardroomSector = (env, ctx) => {
                         const rEnd = latC + half - 0.22;
                         pane(true, (lStart + dl) / 2, faceC, dl - lStart);
                         pane(true, (dr + rEnd) / 2, faceC, rEnd - dr);
+                        const doorRef = hangDoor(true, bx - 0.5, faceC, 0);
+                        ctx.beginDoorFrame(doorRef);
                         post(dl, faceC, 0.1);
                         post(dr, faceC, 0.1);
-                        hangDoor(true, bx - 0.5, faceC, 0);
+                        ctx.endDoorFrame();
                     } else {
                         pane(true, latC, faceC, len - 0.44);
                         post(latC, faceC, 0.1);
@@ -145,9 +149,11 @@ export const BoardroomSector = (env, ctx) => {
                         const rEnd = latC + half - 0.22;
                         pane(false, faceC, (lStart + dl) / 2, dl - lStart);
                         pane(false, faceC, (dr + rEnd) / 2, rEnd - dr);
+                        const doorRef = hangDoor(false, faceC, bz + 0.5, Math.PI / 2);
+                        ctx.beginDoorFrame(doorRef);
                         post(faceC, dl, 0.1);
                         post(faceC, dr, 0.1);
-                        hangDoor(false, faceC, bz + 0.5, Math.PI / 2);
+                        ctx.endDoorFrame();
                     } else {
                         pane(false, faceC, latC, len - 0.44);
                         post(faceC, latC, 0.1);
