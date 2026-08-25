@@ -1289,7 +1289,7 @@ export default class ChunkManager {
         const env = this.env;
         if (!materials || materials.size === 0) return;
         this.queueShadowPrewarm(materials);
-        if (!env._programKeepAlive) env._programKeepAlive = [];
+        if (!env._programKeepAlive) env._programKeepAlive = new Map();
         if (!env._warmedMaterials) env._warmedMaterials = new Set();
         if (!env._probeGeo) env._probeGeo = new THREE.PlaneGeometry(0.001, 0.001);
         const keepAlive = env._programKeepAlive;
@@ -1300,9 +1300,12 @@ export default class ChunkManager {
 
         for (const [material, forms] of entries) {
             for (const form of forms) {
-                env._warmedMaterials.add(ChunkManager._warmKey(material, form));
+                const warmKey = ChunkManager._warmKey(material, form);
+                env._warmedMaterials.add(warmKey);
                 const clone = material.clone();
-                keepAlive.push(clone);
+                const stale = keepAlive.get(warmKey);
+                if (stale) stale.dispose();
+                keepAlive.set(warmKey, clone);
                 if (form === 'plain') {
                     batch.add(new THREE.Mesh(env._probeGeo, clone));
                 } else if (form === 'instanced') {
@@ -1426,10 +1429,20 @@ export default class ChunkManager {
     }
 
     _forgetMaterialPrograms(material) {
-        const warmed = this.env._warmedMaterials;
-        if (!warmed) return;
+        const env = this.env;
+        const warmed = env._warmedMaterials;
+        const keepAlive = env._programKeepAlive;
+        if (!warmed && !keepAlive) return;
         for (const form of ALL_PROBE_FORMS) {
-            warmed.delete(ChunkManager._warmKey(material, form));
+            const key = ChunkManager._warmKey(material, form);
+            if (warmed) warmed.delete(key);
+            if (keepAlive) {
+                const clone = keepAlive.get(key);
+                if (clone) {
+                    clone.dispose();
+                    keepAlive.delete(key);
+                }
+            }
         }
     }
 

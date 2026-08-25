@@ -29,7 +29,7 @@ export default class ShaderWarmup {
     }
 
     static async _warm(env, onProgress = null, materials = null) {
-        env._programKeepAlive = [];
+        env._programKeepAlive = new Map();
 
         materials = materials || this._collectMaterials(env);
         const BATCH = 8;

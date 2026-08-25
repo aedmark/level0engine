@@ -1,4 +1,4 @@
-import {sweepGroundedCollision} from './HazardUtils.js';
+import {sweepGroundedCollision, isRayPathBlocked} from './HazardUtils.js';
 
 const SPRINT_SPEED = 5.3;
 const PURSUE_SPEED = 3.4;
