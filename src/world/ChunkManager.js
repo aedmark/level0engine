@@ -879,19 +879,23 @@ export default class ChunkManager {
     }
 
     _airlockApron(airlock) {
+        // Kept in sync with the identical helper in ChunkWorker.js (duplicated because the
+        // worker can't share code with the main thread). Just enough for standing-height
+        // approach to the threshold - the airlock's own built chamber is already exactly one
+        // cell wide, so this only needs the one cell right outside the threshold, not a foyer.
         const env = this.env;
         const wox = Math.round(airlock.outerPos.x / env.cellSize);
         const woz = Math.round(airlock.outerPos.z / env.cellSize);
         const dir = airlock.outSign;
         if (airlock.spansX) {
             return {
-                clearX: [wox - 1, wox, wox + 1],
-                clearZ: [woz, woz + dir, woz + dir * 2, woz + dir * 3]
+                clearX: [wox],
+                clearZ: [woz, woz + dir]
             };
         }
         return {
-            clearX: [wox, wox + dir, wox + dir * 2, wox + dir * 3],
-            clearZ: [woz - 1, woz, woz + 1]
+            clearX: [wox, wox + dir],
+            clearZ: [woz]
         };
     }
 

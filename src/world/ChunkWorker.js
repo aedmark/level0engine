@@ -2,18 +2,21 @@ const CELL_KEY_SPAN = 4194304;
 const cellKey = (x, z) => x * (CELL_KEY_SPAN * 2) + z;
 
 function _airlockApron(airlock, cellSize) {
+    // Just enough for standing-height approach to the threshold: the airlock's own built
+    // chamber is already exactly one cell wide, so the apron only needs to guarantee the one
+    // cell right outside the threshold isn't blocked - not a whole foyer.
     const wox = Math.round(airlock.outerPos.x / cellSize);
     const woz = Math.round(airlock.outerPos.z / cellSize);
     const dir = airlock.outSign;
     if (airlock.spansX) {
         return {
-            clearX: [wox - 1, wox, wox + 1],
-            clearZ: [woz, woz + dir, woz + dir * 2, woz + dir * 3]
+            clearX: [wox],
+            clearZ: [woz, woz + dir]
         };
     }
     return {
-        clearX: [wox, wox + dir, wox + dir * 2, wox + dir * 3],
-        clearZ: [woz - 1, woz, woz + 1]
+        clearX: [wox, wox + dir],
+        clearZ: [woz]
     };
 }
 
