@@ -43,7 +43,7 @@ export const AnomalousPointOfInterestProfile = (env, ctx) => {
                 addGeometry(wall);
                 return;
             }
-            env._globalSwitches.push({x: cx, z: cz, poi: true});
+            env._globalSwitches.push({x: cx, z: cz, poi: true, chunkHash: hash});
             if (ctx.markOccupied) ctx.markOccupied(x, z);
             const flavor = Math.floor(poiRandom() * 6);
             if (flavor === 0) {
@@ -238,12 +238,13 @@ export const AnomalousPointOfInterestProfile = (env, ctx) => {
                 place(door, 0, 1.33, 0);
                 door.userData = {
                     interact: (p) => {
+                        env._objectiveTextOverride = {text: "ERR: THRESHOLD COLLAPSED", until: performance.now() + 3000};
                         if (p && p.updateObjectives) p.updateObjectives("ERR: THRESHOLD COLLAPSED");
+                        document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 1.0, intensity: 0.15}}));
                     }
                 };
-                if (!env.interactiveProps) env.interactiveProps = [];
-                env.interactiveProps.push(door);
                 env.walls.push(door);
+                env.interactables.push(door);
                 addGeometry(door);
                 const glow = new THREE.Mesh(env._boxGeo(1.44, 2.70, 0.03), env.anomalySeamMat);
                 place(glow, 0, 1.35, 0);

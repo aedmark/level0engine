@@ -883,12 +883,21 @@ export default class SetPieces {
                 }
                 const boxes = env.spatialGrid.chunkMap.get(adjHash);
                 if (boxes) {
-                    for (const box of boxes) {
+                    // Snapshot before mutating - env.spatialGrid.remove() below deletes
+                    // straight out of this same Set.
+                    for (const box of Array.from(boxes)) {
                         const cx = Math.round((box.min.x + box.max.x) / 2 / env.cellSize);
                         const cz = Math.round((box.min.z + box.max.z) / 2 / env.cellSize);
                         if (clearX.includes(cx) && clearZ.includes(cz)) {
-                            box.min.y = 10000;
-                            box.max.y = 10000;
+                            // A cleared interactable (e.g. a crawlspace duct's hinged grate)
+                            // would otherwise stay in env.interactables forever: invisible,
+                            // uninteractable (its box is gone), but still iterated every frame.
+                            const owner = box.meshRef || box.interactableEntity;
+                            if (owner && env.interactables) {
+                                const idx = env.interactables.indexOf(owner);
+                                if (idx !== -1) env.interactables.splice(idx, 1);
+                            }
+                            env.spatialGrid.remove(box);
                         }
                     }
                 }

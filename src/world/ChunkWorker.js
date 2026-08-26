@@ -26,7 +26,7 @@ function _isAirlockApron(x, z, airlocks, cellSize) {
     return false;
 }
 
-const TERMINUS_EXITS = ["DUCT OR VENT", "DUCT OR VENT", "CRAWLSPACE_DUCT", "CRAWLSPACE_DUCT"];
+const TERMINUS_EXITS = ["DUCT", "VENT", "CRAWLSPACE_DUCT", "CRAWLSPACE_DUCT"];
 
 function _planDoorwayRun(random, doorX, doorZ, dir, inChunk, cellKey, reserved, approaches, runMin, runMax, airlocks, cellSize, getForcedFn, pathTheme, isWallFn) {
     const claimed = new Set();
@@ -248,6 +248,8 @@ function _planDoorways(random, startX, startZ, size, isWallFn, forcedStructureFn
 }
 
 self.onmessage = function(e) {
+    const hash = e.data && e.data.hash;
+    try {
     const {
         chunkX,
         chunkZ,
@@ -258,8 +260,7 @@ self.onmessage = function(e) {
         baseSeed,
         cx,
         cy,
-        airlocks,
-        hash
+        airlocks
     } = e.data;
 
     let prngSeed = (baseSeed + (chunkX * 104729) + (chunkZ * 1299827)) >>> 0;
@@ -569,4 +570,19 @@ self.onmessage = function(e) {
         forcedStructuresGrid: Array.from(forcedStructuresGrid.entries()),
         doorwayPlans: Array.from(doorwayPlans.entries())
     });
+    } catch (err) {
+        // Never let a thrown exception here vanish as an unhandled worker error: the main
+        // thread is awaiting a resolver keyed on `hash` for every chunk build, and an
+        // uncaught error would leave that await pending forever, permanently wedging
+        // ChunkManager.isBuildingChunk and halting all future chunk generation for the rest
+        // of the session with no console output. Resolve with empty (wall-less) grids instead
+        // so the requesting chunk build can complete — degraded for this one chunk, not fatal.
+        self.postMessage({
+            hash,
+            isWallGrid: [],
+            forcedStructuresGrid: [],
+            doorwayPlans: [],
+            error: (err && err.message) || String(err)
+        });
+    }
 };

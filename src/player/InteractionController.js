@@ -237,52 +237,72 @@ export default class InteractionController {
     }
 
     _resolveGrateSwing(grateMesh, pivot) {
+        // Grates only ever swing outward (openRot was chosen at generation time to point away
+        // from the duct/shaft they're mounted in) - the reverse direction sweeps back into the
+        // shaft's own lining, which is almost always tighter than the swing needs and isn't a
+        // meaningful "alternate side" the way it is for a room door with open space on both
+        // sides. If the one true direction is blocked, stay shut rather than swing somewhere
+        // that was never a sensible fallback.
         const openRot = grateMesh.userData.openRot;
-        return this._resolveHingeSwing(pivot, grateMesh, pivot.position, 0, [openRot, -openRot], grateMesh, 2.5);
+        return this._resolveHingeSwing(pivot, grateMesh, pivot.position, 0, [openRot], grateMesh, 2.5);
     }
 
     _updateInteractable(obj, playerPos, delta) {
         const env = this.env;
-        if (obj.userData.type === 'grate' && !obj.userData.active) {
+        if (obj.userData.type === 'grate' && obj.userData.pivot) {
+            // Hinged grates (e.g. crawlspace duct doors) toggle open/closed like a room door -
+            // userData.active means "closed", matching the interact handler's toggle. Kick-down
+            // grates (the `else` branch below) stay one-shot: a grate that's fallen to the floor
+            // can't un-fall, so they're only handled while userData.active is still true.
             const pivot = obj.userData.pivot;
-            if (pivot) {
-                if (obj.userData.resolvedOpenRot === undefined) {
-                    obj.userData.resolvedOpenRot = this._resolveGrateSwing(obj, pivot);
+            if (!obj.userData.active && obj.userData.resolvedOpenRot === undefined) {
+                obj.userData.resolvedOpenRot = this._resolveGrateSwing(obj, pivot);
+            }
+            const targetRot = obj.userData.active ? 0 : obj.userData.resolvedOpenRot;
+            const diff = targetRot - pivot.rotation.y;
+            if (Math.abs(diff) > 0.01) {
+                pivot.rotation.y += diff * 8.0 * delta;
+                env.lumenGrid.shadowsDirty = true;
+                if (obj.userData.box && !obj.userData.active) {
+                    if (!obj.userData.box.isEmpty()) obj.userData.box.makeEmpty();
                 }
-                const diff = obj.userData.resolvedOpenRot - pivot.rotation.y;
-                if (Math.abs(diff) > 0.01) {
-                    pivot.rotation.y += diff * 8.0 * delta;
-                    env.lumenGrid.shadowsDirty = true;
-                    if (obj.userData.box && !obj.userData.box.isEmpty()) {
-                        obj.userData.box.makeEmpty();
+            } else if (pivot.rotation.y !== targetRot) {
+                pivot.rotation.y = targetRot;
+                if (obj.userData.active && obj.userData.box) {
+                    pivot.updateMatrixWorld(true);
+                    if (!obj.userData.baseBox) {
+                        obj.geometry.computeBoundingBox();
+                        obj.userData.baseBox = obj.geometry.boundingBox.clone();
                     }
+                    obj.userData.box.copy(obj.userData.baseBox).applyMatrix4(obj.matrixWorld);
                 }
-            } else {
-                if (obj.userData.targetRot === undefined) {
-                    if (obj.userData.blocksX) {
-                        const fallSign = obj.userData.fallDir !== undefined ? obj.userData.fallDir : ((playerPos.x > obj.position.x) ? 1 : -1);
-                        obj.userData.targetRot = -fallSign * Math.PI / 2;
-                        obj.userData.targetPos = obj.position.x + fallSign * obj.position.y;
-                    } else {
-                        const fallSign = obj.userData.fallDir !== undefined ? obj.userData.fallDir : ((playerPos.z > obj.position.z) ? 1 : -1);
-                        obj.userData.targetRot = fallSign * Math.PI / 2;
-                        obj.userData.targetPos = obj.position.z + fallSign * obj.position.y;
-                    }
+            }
+        } else if (obj.userData.type === 'grate' && !obj.userData.active) {
+            // Kick-down grate (no pivot): a one-shot fall, not reversible.
+            if (obj.userData.targetRot === undefined) {
+                if (obj.userData.blocksX) {
+                    const fallSign = obj.userData.fallDir !== undefined ? obj.userData.fallDir : ((playerPos.x > obj.position.x) ? 1 : -1);
+                    obj.userData.targetRot = -fallSign * Math.PI / 2;
+                    obj.userData.targetPos = obj.position.x + fallSign * obj.position.y;
+                } else {
+                    const fallSign = obj.userData.fallDir !== undefined ? obj.userData.fallDir : ((playerPos.z > obj.position.z) ? 1 : -1);
+                    obj.userData.targetRot = fallSign * Math.PI / 2;
+                    obj.userData.targetPos = obj.position.z + fallSign * obj.position.y;
                 }
-                const diff = obj.userData.blocksX ? (obj.userData.targetRot - obj.rotation.z) : (obj.userData.targetRot - obj.rotation.x);
-                if (Math.abs(diff) > 0.01) {
-                    if (obj.userData.blocksX) {
-                        obj.rotation.z += diff * 15.0 * delta;
-                        obj.position.x += (obj.userData.targetPos - obj.position.x) * 15.0 * delta;
-                    } else {
-                        obj.rotation.x += diff * 15.0 * delta;
-                        obj.position.z += (obj.userData.targetPos - obj.position.z) * 15.0 * delta;
-                    }
-                    obj.position.y += (0.05 - obj.position.y) * 15.0 * delta;
-                    env.lumenGrid.shadowsDirty = true;
-                    if (obj.userData.box && !obj.userData.box.isEmpty()) {
-                        obj.userData.box.makeEmpty();
-                    }
+            }
+            const diff = obj.userData.blocksX ? (obj.userData.targetRot - obj.rotation.z) : (obj.userData.targetRot - obj.rotation.x);
+            if (Math.abs(diff) > 0.01) {
+                if (obj.userData.blocksX) {
+                    obj.rotation.z += diff * 15.0 * delta;
+                    obj.position.x += (obj.userData.targetPos - obj.position.x) * 15.0 * delta;
+                } else {
+                    obj.rotation.x += diff * 15.0 * delta;
+                    obj.position.z += (obj.userData.targetPos - obj.position.z) * 15.0 * delta;
+                }
+                obj.position.y += (0.05 - obj.position.y) * 15.0 * delta;
+                env.lumenGrid.shadowsDirty = true;
+                if (obj.userData.box && !obj.userData.box.isEmpty()) {
+                    obj.userData.box.makeEmpty();
                 }
             }
         } else if (obj.userData.type === 'valve') {
@@ -347,7 +367,9 @@ export default class InteractionController {
         if (env.camera) env.camera.getWorldDirection(this._camDir);
         const checkObj = (obj) => {
             if (obj.userData.isSlider && !obj.userData.isAirlockDoor) return;
-            if (obj.userData.active === false) return;
+            // Hinged grates toggle like a door - active===false just means "currently open,
+            // can be closed again", not "used up" the way it does for other interactables.
+            if (obj.userData.active === false && !(obj.userData.type === 'grate' && obj.userData.pivot)) return;
             const worldPos = obj.matrixWorld ? this._objWorldPos.setFromMatrixPosition(obj.matrixWorld) : obj.position;
             const distSq = worldPos.distanceToSquared(playerPos);
             if (distSq < closestDistSq) {
@@ -444,46 +466,55 @@ export default class InteractionController {
         let closestActiveValveDistSq = 9999.0;
         if (env.interactables) {
             env.interactables.forEach(obj => {
-                if (obj.userData.type === 'grate' && !obj.userData.active) {
+                if (obj.userData.type === 'grate' && obj.userData.pivot) {
                     const pivot = obj.userData.pivot;
-                    if (pivot) {
-                        if (obj.userData.resolvedOpenRot === undefined) {
-                            obj.userData.resolvedOpenRot = this._resolveGrateSwing(obj, pivot);
+                    if (!obj.userData.active && obj.userData.resolvedOpenRot === undefined) {
+                        obj.userData.resolvedOpenRot = this._resolveGrateSwing(obj, pivot);
+                    }
+                    const targetRot = obj.userData.active ? 0 : obj.userData.resolvedOpenRot;
+                    const diff = targetRot - pivot.rotation.y;
+                    if (Math.abs(diff) > 0.01) {
+                        pivot.rotation.y += diff * 8.0 * delta;
+                        env.lumenGrid.shadowsDirty = true;
+                        if (obj.userData.box && !obj.userData.active) {
+                            if (!obj.userData.box.isEmpty()) obj.userData.box.makeEmpty();
                         }
-                        const diff = obj.userData.resolvedOpenRot - pivot.rotation.y;
-                        if (Math.abs(diff) > 0.01) {
-                            pivot.rotation.y += diff * 8.0 * delta;
-                            env.lumenGrid.shadowsDirty = true;
-                            if (obj.userData.box && !obj.userData.box.isEmpty()) {
-                                obj.userData.box.makeEmpty();
+                    } else if (pivot.rotation.y !== targetRot) {
+                        pivot.rotation.y = targetRot;
+                        if (obj.userData.active && obj.userData.box) {
+                            pivot.updateMatrixWorld(true);
+                            if (!obj.userData.baseBox) {
+                                obj.geometry.computeBoundingBox();
+                                obj.userData.baseBox = obj.geometry.boundingBox.clone();
                             }
+                            obj.userData.box.copy(obj.userData.baseBox).applyMatrix4(obj.matrixWorld);
                         }
-                    } else {
-                        if (obj.userData.targetRot === undefined) {
-                            if (obj.userData.blocksX) {
-                                const fallSign = obj.userData.fallDir !== undefined ? obj.userData.fallDir : ((playerPos.x > obj.position.x) ? 1 : -1);
-                                obj.userData.targetRot = -fallSign * Math.PI / 2;
-                                obj.userData.targetPos = obj.position.x + fallSign * obj.position.y;
-                            } else {
-                                const fallSign = obj.userData.fallDir !== undefined ? obj.userData.fallDir : ((playerPos.z > obj.position.z) ? 1 : -1);
-                                obj.userData.targetRot = fallSign * Math.PI / 2;
-                                obj.userData.targetPos = obj.position.z + fallSign * obj.position.y;
-                            }
+                    }
+                } else if (obj.userData.type === 'grate' && !obj.userData.active) {
+                    if (obj.userData.targetRot === undefined) {
+                        if (obj.userData.blocksX) {
+                            const fallSign = obj.userData.fallDir !== undefined ? obj.userData.fallDir : ((playerPos.x > obj.position.x) ? 1 : -1);
+                            obj.userData.targetRot = -fallSign * Math.PI / 2;
+                            obj.userData.targetPos = obj.position.x + fallSign * obj.position.y;
+                        } else {
+                            const fallSign = obj.userData.fallDir !== undefined ? obj.userData.fallDir : ((playerPos.z > obj.position.z) ? 1 : -1);
+                            obj.userData.targetRot = fallSign * Math.PI / 2;
+                            obj.userData.targetPos = obj.position.z + fallSign * obj.position.y;
                         }
-                        const diff = obj.userData.blocksX ? (obj.userData.targetRot - obj.rotation.z) : (obj.userData.targetRot - obj.rotation.x);
-                        if (Math.abs(diff) > 0.01) {
-                            if (obj.userData.blocksX) {
-                                obj.rotation.z += diff * 15.0 * delta;
-                                obj.position.x += (obj.userData.targetPos - obj.position.x) * 15.0 * delta;
-                            } else {
-                                obj.rotation.x += diff * 15.0 * delta;
-                                obj.position.z += (obj.userData.targetPos - obj.position.z) * 15.0 * delta;
-                            }
-                            obj.position.y += (0.05 - obj.position.y) * 15.0 * delta;
-                            env.lumenGrid.shadowsDirty = true;
-                            if (obj.userData.box && !obj.userData.box.isEmpty()) {
-                                obj.userData.box.makeEmpty();
-                            }
+                    }
+                    const diff = obj.userData.blocksX ? (obj.userData.targetRot - obj.rotation.z) : (obj.userData.targetRot - obj.rotation.x);
+                    if (Math.abs(diff) > 0.01) {
+                        if (obj.userData.blocksX) {
+                            obj.rotation.z += diff * 15.0 * delta;
+                            obj.position.x += (obj.userData.targetPos - obj.position.x) * 15.0 * delta;
+                        } else {
+                            obj.rotation.x += diff * 15.0 * delta;
+                            obj.position.z += (obj.userData.targetPos - obj.position.z) * 15.0 * delta;
+                        }
+                        obj.position.y += (0.05 - obj.position.y) * 15.0 * delta;
+                        env.lumenGrid.shadowsDirty = true;
+                        if (obj.userData.box && !obj.userData.box.isEmpty()) {
+                            obj.userData.box.makeEmpty();
                         }
                     }
                 } else if (obj.userData.type === 'valve') {
@@ -1045,7 +1076,7 @@ export default class InteractionController {
                 }
                 hit.add(steamGroup);
                 if (!env.steamGroups) env.steamGroups = [];
-                env.steamGroups.push({group: steamGroup});
+                env.steamGroups.push({group: steamGroup, chunkHash: hit.userData.chunkHash});
                 return;
             }
             if (hit && hit.userData.type === 'breaker') {
@@ -1054,6 +1085,9 @@ export default class InteractionController {
                 this.triggerBreaker(hit);
             } else if (hit && hit.userData.type === 'exit_switch') {
                 if (!hit.userData.active) this.beginBreakerScan(hit);
+            } else if (hit && hit.userData.type === 'grate' && hit.userData.pivot) {
+                hit.userData.active = !hit.userData.active;
+                document.dispatchEvent(new CustomEvent('somatic-vent', {detail: {distSq: 1.0, intensity: 1.5}}));
             } else if (hit && hit.userData.type === 'grate' && hit.userData.active) {
                 hit.userData.active = false;
                 document.dispatchEvent(new CustomEvent('somatic-vent', {detail: {distSq: 1.0, intensity: 1.5}}));
@@ -1081,6 +1115,8 @@ export default class InteractionController {
                 }));
             } else if (hit && hit.userData.type === 'exit' && hit.userData.active) {
                 document.dispatchEvent(new CustomEvent('somatic-inquest', {detail: {exitRef: hit}}));
+            } else if (hit && typeof hit.userData.interact === 'function') {
+                hit.userData.interact(env.player);
             }
         });
         

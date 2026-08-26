@@ -233,6 +233,12 @@ export default class Environment {
             console.error('[BOOT] lazyLoadSectorAssets failed:', err);
             bootCtrl.addLog(`SECTOR TEXTURE BUNDLE BUILD FAILED: ${err && err.message}`);
         });
+        // lazyLoadSectorAssets assigns each sector's wall/floor/ceiling materials and geometries
+        // directly onto `this` — but it runs after injectMaterials()'s one-time sharedAssets
+        // sweep, so without this they'd never be protected from chunk-teardown disposal and the
+        // first chunk of any given sector type to unload would dispose materials every other
+        // chunk of that sector still on screen (or built later) is still referencing.
+        MaterialLibrary.registerSharedAssets(this);
         bootCtrl.addLog(`ALL SECTOR TEXTURE BUNDLES READY (${Math.round(performance.now() - sectorAssetsStart)}ms)`);
 
         const warmupStart = performance.now();
@@ -460,7 +466,13 @@ export default class Environment {
             this.scene.remove(chunkGroup);
             chunkGroup.traverse((child) => {
                 if (child.isInstancedMesh) child.dispose();
-                if (child.geometry && !this.sharedAssets.has(child.geometry.uuid) && (!this.geoCache || !this.geoCache.has(child.geometry.uuid))) {
+                if (child.isLight && child.shadow && child.shadow.map) {
+                    child.shadow.map.dispose();
+                    child.shadow.map = null;
+                }
+                // Sprites (steam VFX, flares) all share one geometry singleton internal to
+                // three.js itself - see ChunkManager._asyncDisposeChunks for the same guard.
+                if (child.geometry && !child.isSprite && !this.sharedAssets.has(child.geometry.uuid) && (!this.geoCache || !this.geoCache.has(child.geometry.uuid))) {
                     child.geometry.dispose();
                 }
                 if (child.material) {
@@ -475,6 +487,24 @@ export default class Environment {
             });
         });
         this.activeChunks.clear();
+        // Pending breaker flicker/restore timers reference fixtures whose materials are about
+        // to be disposed above; left uncancelled they fire 0.2-35s from now against stale
+        // objects, and since chunk hashes are coordinate-based (not per-run-unique) a stale
+        // restoreTimer can silently end a blackout the *next* run legitimately started in a
+        // chunk at the same coordinates.
+        if (this.fixtureData) {
+            this.fixtureData.forEach(f => {
+                clearTimeout(f.flickerTimer);
+                clearTimeout(f.restoreTimer);
+            });
+        }
+        if (this.steamGroups) {
+            this.steamGroups.forEach(g => {
+                g.group.children.forEach(sprite => {
+                    if (sprite.material) sprite.material.dispose();
+                });
+            });
+        }
         this.walls = [];
         this.fixtureData = [];
         this.idlingCars = [];
@@ -482,6 +512,7 @@ export default class Environment {
         this.interactables = [];
         this.animators = [];
         this.steamClouds = [];
+        this.steamGroups = [];
         this.interactiveDoors = [];
         this.airlocks = [];
         this.macroZones.clear();

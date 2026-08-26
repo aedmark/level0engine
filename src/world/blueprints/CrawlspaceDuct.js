@@ -267,6 +267,13 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
                     if (ctx.markOccupied) ctx.markOccupied(cell.x, cell.z);
                     if (ctx.claimCell) ctx.claimCell(cell.x, cell.z);
                     if (ctx.setWall) ctx.setWall(cell.x, cell.z, false);
+                    // Only the origin cell (x,z) carries the "CRAWLSPACE_DUCT" forced-structure
+                    // name by default - tag every tile in the BFS'd network too, so a room cell
+                    // built later that happens to sit next to a door exit elsewhere in the
+                    // network (not just next to the origin) still sees it via the existing
+                    // isNearFixture adjacency check in ChunkManager._buildEmptyCell and skips
+                    // placing a tall obstacle right in the door's swing path.
+                    if (ctx.forceStructure) ctx.forceStructure(cell.x, cell.z, "CRAWLSPACE_DUCT");
 
                     const nConn = cell.connections.N || cell.exits.N;
                     const sConn = cell.connections.S || cell.exits.S;

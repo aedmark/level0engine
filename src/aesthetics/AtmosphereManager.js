@@ -368,6 +368,16 @@ export default class AtmosphereManager {
 
     _updateObjectives(cameraPos, anomalyPressure) {
         const env = this.env;
+        // A short-lived message (e.g. a jammed/anomalous fixture's interact response) takes
+        // over the POI readout for a few seconds instead of being clobbered on the very next
+        // tick by the distance-to-nearest-objective text computed below.
+        if (env._objectiveTextOverride) {
+            if (performance.now() < env._objectiveTextOverride.until) {
+                if (env.player && env.player.updateObjectives) env.player.updateObjectives(env._objectiveTextOverride.text);
+                return;
+            }
+            env._objectiveTextOverride = null;
+        }
         if (env.interactables && env.player && env.player.updateObjectives) {
             let nearestDistSq = Infinity;
             const isExitPhase = env.player.objectives.fixed >= env.player.objectives.total;

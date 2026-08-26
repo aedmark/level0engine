@@ -59,6 +59,12 @@ export default class StructuralBlueprints {
                     `[StructuralBlueprints] prob values sum to ${total.toFixed(4)}, over 1.0. ` +
                     `Blueprints past the crossover point can never be selected.`
                 );
+            } else if (total < 1.0 - 1e-6) {
+                console.warn(
+                    `[StructuralBlueprints] prob values sum to ${total.toFixed(4)}, under 1.0. ` +
+                    `select() silently returns null for the remaining ${(1 - total).toFixed(4)} of rolls, ` +
+                    `falling back to a plain wall more often than the probs alone suggest.`
+                );
             }
         }
         return matrix;

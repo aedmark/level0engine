@@ -145,7 +145,13 @@ export default class ChunkManager {
                 if (env._annexKeypadChunks) env._annexKeypadChunks.delete(h);
             });
             this._pruneDeadChunkEntries(env.walls, deadHashes, w => w.userData.chunkHash);
-            this._pruneDeadChunkEntries(env.fixtureData, deadHashes, f => f.chunkHash);
+            // Cancel pending flicker/restore timers (InteractionController.triggerBreaker) for
+            // fixtures whose chunk is unloading - see Environment.generate() for why leaving
+            // these to fire later against a stale fixture is a correctness bug, not just a leak.
+            this._pruneDeadChunkEntries(env.fixtureData, deadHashes, f => f.chunkHash, (f) => {
+                clearTimeout(f.flickerTimer);
+                clearTimeout(f.restoreTimer);
+            });
             this._pruneDeadChunkEntries(env.idlingCars, deadHashes, c => c.chunkHash);
             this._pruneDeadChunkEntries(env.hangingCables, deadHashes, c => c.chunkHash);
             this._pruneDeadChunkEntries(env.interactiveDoors, deadHashes, d => d.userData.chunkHash);
@@ -164,15 +170,34 @@ export default class ChunkManager {
             if (env.pointsOfInterest) {
                 this._pruneDeadChunkEntries(env.pointsOfInterest, deadHashes, p => p.chunkHash);
             }
+            if (env._globalSwitches) {
+                // Otherwise this grows for the rest of the session and every future POI
+                // placement does an O(n) linear scan against every POI ever built, anywhere.
+                this._pruneDeadChunkEntries(env._globalSwitches, deadHashes, s => s.chunkHash);
+            }
+            if (env.steamGroups) {
+                // Without this, a steam-particle group stays parented to its valve mesh forever
+                // (chunk unload never detaches it), so env.steamGroups keeps a live reference
+                // that chains all the way back up through the valve to its chunkGroup — the
+                // chunk's whole subtree becomes unreachable-for-GC even after disposal, on top
+                // of the group itself costing 20 sprites of per-frame work forever.
+                this._pruneDeadChunkEntries(env.steamGroups, deadHashes, g => g.chunkHash, (g) => {
+                    g.group.children.forEach(sprite => {
+                        if (sprite.material) sprite.material.dispose();
+                    });
+                    if (g.group.parent) g.group.parent.remove(g.group);
+                });
+            }
         }
     }
-    _pruneDeadChunkEntries(arr, deadHashes, getHash) {
-        const env = this.env;
+    _pruneDeadChunkEntries(arr, deadHashes, getHash, onRemove) {
         let write = 0;
         for (let read = 0; read < arr.length; read++) {
             const item = arr[read];
             if (!deadHashes.has(getHash(item))) {
                 arr[write++] = item;
+            } else if (onRemove) {
+                onRemove(item);
             }
         }
         arr.length = write;
@@ -283,7 +308,17 @@ export default class ChunkManager {
             for (let j = 0; j < meshes.length; j++) {
                 const child = meshes[j];
                 if (child.isInstancedMesh) child.dispose();
-                if (child.geometry && !env.sharedAssets.has(child.geometry.uuid) && !env.geoCache.has(child.geometry.uuid)) {
+                // A shadow-casting light lazily allocates a GPU shadow-map render target the
+                // first time it's actually rendered; nothing else in this traversal frees it.
+                if (child.isLight && child.shadow && child.shadow.map) {
+                    child.shadow.map.dispose();
+                    child.shadow.map = null;
+                }
+                // THREE.Sprite instances created without an explicit geometry argument (every
+                // Sprite in this codebase) all share one module-level BufferGeometry singleton
+                // internal to three.js itself - disposing it here would break every sprite in
+                // the entire game, not just this chunk's.
+                if (child.geometry && !child.isSprite && !env.sharedAssets.has(child.geometry.uuid) && !env.geoCache.has(child.geometry.uuid)) {
                     child.geometry.dispose();
                 }
                 if (Array.isArray(child.material)) {
@@ -573,7 +608,8 @@ export default class ChunkManager {
                         this.worker = new Worker(new URL('./ChunkWorker.js', import.meta.url));
                         this.workerResolvers = new Map();
                         this.worker.onmessage = (e) => {
-                            const { hash, isWallGrid, forcedStructuresGrid, doorwayPlans } = e.data;
+                            const { hash, isWallGrid, forcedStructuresGrid, doorwayPlans, error } = e.data;
+                            if (error) console.error(`[ChunkWorker] chunk ${hash} generated with empty fallback grids after an internal error:`, error);
                             const resolver = this.workerResolvers.get(hash);
                             if (resolver) {
                                 resolver({
@@ -583,6 +619,20 @@ export default class ChunkManager {
                                 });
                                 this.workerResolvers.delete(hash);
                             }
+                        };
+                        // Backstop for failures ChunkWorker.js's own try/catch can't cover
+                        // (e.g. a syntax/load error in the worker script itself, before
+                        // self.onmessage is even wired up). Without this, any pending await
+                        // on this.workerResolvers would hang forever, permanently wedging
+                        // isBuildingChunk and halting all future chunk generation with no
+                        // console output. Resolve every pending request with empty grids so
+                        // generation can keep going instead of freezing the whole session.
+                        this.worker.onerror = (err) => {
+                            console.error('[ChunkWorker] uncaught worker error, unblocking pending chunk builds with empty fallback grids:', err.message || err);
+                            for (const resolver of this.workerResolvers.values()) {
+                                resolver({isWallGrid: new Map(), forcedStructuresGrid: new Map(), doorwayPlans: new Map()});
+                            }
+                            this.workerResolvers.clear();
                         };
                     }
 
@@ -863,8 +913,18 @@ export default class ChunkManager {
         const isMacro = (mcx, mcz) => {
             if (!SectorPlacement.isMacroChunk(placement, mcx, mcz)) return false;
             if (!placement.ids) {
-                const sectorMatrix = TheArchitect.getSectorMatrix.call(this.env, {random: Math.random});
-                placement.ids = sectorMatrix.filter(s => s.id !== "EXIT").map(s => s.id);
+                // Sector factories only get a minimal {random} stub here (not a full chunk-build
+                // ctx), and today none of them do eager top-level ctx access outside their build
+                // closures - but if a future one ever does, this must not take chunk generation
+                // down with it (this check itself runs mid-build), so fall back to "unknown"
+                // rather than let the exception propagate.
+                try {
+                    const sectorMatrix = TheArchitect.getSectorMatrix.call(this.env, {random: Math.random});
+                    placement.ids = sectorMatrix.filter(s => s.id !== "EXIT").map(s => s.id);
+                } catch (err) {
+                    console.error('[ChunkManager] getSectorMatrix failed during airlock-apron check:', err);
+                    placement.ids = [];
+                }
             }
             const sectorId = SectorPlacement.sectorIdFor(placement, placement.ids, mcx, mcz);
             return sectorId !== "ATRIUM";
@@ -897,7 +957,7 @@ export default class ChunkManager {
 
         let forcedName = ctx.getForcedStructure && ctx.getForcedStructure(x, z);
         const YIELDS_TO_DUCT = ["empty_door_frame", "CRAWLSPACE_HALL"];
-        const DUCT_STRUCTURES = ["DUCT OR VENT", "CRAWLSPACE_DUCT", "TUNNEL BURST"];
+        const DUCT_STRUCTURES = ["DUCT", "VENT", "CRAWLSPACE_DUCT", "TUNNEL BURST"];
         if (forcedName && YIELDS_TO_DUCT.includes(forcedName) && ctx.getForcedStructure) {
             const abuttingDuct =
                 DUCT_STRUCTURES.includes(ctx.getForcedStructure(x + 1, z)) ||
@@ -943,7 +1003,7 @@ export default class ChunkManager {
         const floorRoll = random();
         let isNearFixture = false;
         if (ctx.getForcedStructure) {
-            const fixtures = ["HINGED DOORWAY", "DUCT OR VENT", "HATCH", "AIRLOCK", "empty_door_frame", "CRAWLSPACE_DUCT"];
+            const fixtures = ["HINGED DOORWAY", "DUCT", "VENT", "HATCH", "AIRLOCK", "empty_door_frame", "CRAWLSPACE_DUCT"];
             if (fixtures.includes(ctx.getForcedStructure(x + 1, z))) isNearFixture = true;
             else if (fixtures.includes(ctx.getForcedStructure(x - 1, z))) isNearFixture = true;
             else if (fixtures.includes(ctx.getForcedStructure(x, z + 1))) isNearFixture = true;
