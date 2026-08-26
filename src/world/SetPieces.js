@@ -5,77 +5,42 @@ export default class SetPieces {
 
     buildCheckpointRoom(x, z, localX, localZ, flankV, ckHash, ctx) {
         const env = this.env;
-        const {random, buildWall, addGeometry, addFurniture, chunkGroup, hash, stagingMeshes, getLightMaterial} = ctx;
+        const {buildWall, addGeometry, addFurniture, chunkGroup, hash, stagingMeshes, getLightMaterial} = ctx;
         const cs = env.cellSize;
         const cx0 = x * cs, cz0 = z * cs;
         const dir = flankV ? (localX === 6 ? 1 : -1) : (localZ === 6 ? 1 : -1);
         const bx = cx0 + (flankV ? dir * (cs / 2) : 0);
         const bz = cz0 + (flankV ? 0 : dir * (cs / 2));
         const doorW = 1.4, doorT = 0.1;
-        const frameMat = env.annexFrameMat || env.metalMat;
-        const leafMat = env.annexDoorMat || env.doorMat;
+        const frameMat = env.metalMat;
+        // Same "stainless steel door" material chain buildBlastDoor uses for airlock doors -
+        // every checkpoint storage door should read as one consistent style, matching that.
+        const leafMat = env.stainlessDoorMat || env.titaniumMat || env.stainlessMat || env.metalMat;
         const decor = (m) => {
             m.userData.chunkHash = hash;
             m.updateMatrixWorld(true);
             stagingMeshes.push(m);
         };
 
-        // Some checkpoints get a swinging security gate (a chest-height barrier arm on an
-        // off-center pivot) instead of a solid door. It reuses the same opening/frame as the
-        // door and the same reactive hinge-swing resolver, just mounted on a pivot rather than
-        // rotating around its own origin - the same way a hinged duct grate does.
-        const isSecurityGate = random() > 0.55;
-        let doorMesh, gatePivot = null;
+        let doorMesh;
         if (flankV) {
-            if (isSecurityGate) {
-                const gateH = 1.6;
-                const g = env._cacheGeo('securityGate:Z', () => {
-                    const gg = new THREE.BoxGeometry(doorT, gateH, doorW);
-                    gg.translate(doorT / 2, 0, doorW / 2);
-                    return gg;
-                });
-                gatePivot = new THREE.Group();
-                gatePivot.position.set(bx, gateH / 2, cz0 - doorW / 2);
-                gatePivot.userData.chunkHash = hash;
-                chunkGroup.add(gatePivot);
-                doorMesh = new THREE.Mesh(g, env.hazardMat || leafMat);
-                gatePivot.add(doorMesh);
-                doorMesh.userData = {chunkHash: hash, closedRot: 0, currentRot: 0, useXApproach: true, pivot: gatePivot};
-            } else {
-                const g = env._cacheGeo('hingedDoor:Z', () => {
-                    const gg = new THREE.BoxGeometry(doorT, 2.65, doorW);
-                    gg.translate(doorT / 2, 0, doorW / 2);
-                    return gg;
-                });
-                doorMesh = new THREE.Mesh(g, leafMat);
-                doorMesh.position.set(bx, 1.325, cz0 - doorW / 2);
-                doorMesh.userData = {chunkHash: hash, closedRot: 0, currentRot: 0, useXApproach: true};
-            }
+            const g = env._cacheGeo('hingedDoor:Z', () => {
+                const gg = new THREE.BoxGeometry(doorT, 2.65, doorW);
+                gg.translate(doorT / 2, 0, doorW / 2);
+                return gg;
+            });
+            doorMesh = new THREE.Mesh(g, leafMat);
+            doorMesh.position.set(bx, 1.325, cz0 - doorW / 2);
+            doorMesh.userData = {chunkHash: hash, closedRot: 0, currentRot: 0, useXApproach: true};
         } else {
-            if (isSecurityGate) {
-                const gateH = 1.6;
-                const g = env._cacheGeo('securityGate:X', () => {
-                    const gg = new THREE.BoxGeometry(doorW, gateH, doorT);
-                    gg.translate(doorW / 2, 0, doorT / 2);
-                    return gg;
-                });
-                gatePivot = new THREE.Group();
-                gatePivot.position.set(cx0 - doorW / 2, gateH / 2, bz);
-                gatePivot.userData.chunkHash = hash;
-                chunkGroup.add(gatePivot);
-                doorMesh = new THREE.Mesh(g, env.hazardMat || leafMat);
-                gatePivot.add(doorMesh);
-                doorMesh.userData = {chunkHash: hash, closedRot: 0, currentRot: 0, pivot: gatePivot};
-            } else {
-                const g = env._cacheGeo('hingedDoor:X', () => {
-                    const gg = new THREE.BoxGeometry(doorW, 2.65, doorT);
-                    gg.translate(doorW / 2, 0, doorT / 2);
-                    return gg;
-                });
-                doorMesh = new THREE.Mesh(g, leafMat);
-                doorMesh.position.set(cx0 - doorW / 2, 1.325, bz);
-                doorMesh.userData = {chunkHash: hash, closedRot: 0, currentRot: 0};
-            }
+            const g = env._cacheGeo('hingedDoor:X', () => {
+                const gg = new THREE.BoxGeometry(doorW, 2.65, doorT);
+                gg.translate(doorW / 2, 0, doorT / 2);
+                return gg;
+            });
+            doorMesh = new THREE.Mesh(g, leafMat);
+            doorMesh.position.set(cx0 - doorW / 2, 1.325, bz);
+            doorMesh.userData = {chunkHash: hash, closedRot: 0, currentRot: 0};
         }
         doorMesh.castShadow = doorMesh.receiveShadow = true;
 
@@ -119,10 +84,10 @@ export default class SetPieces {
         }
         ctx.endDoorFrame();
 
-        if (!gatePivot) chunkGroup.add(doorMesh);
+        chunkGroup.add(doorMesh);
         env.interactiveDoors.push(doorMesh);
         env.walls.push(doorMesh);
-        (gatePivot || doorMesh).updateMatrixWorld(true);
+        doorMesh.updateMatrixWorld(true);
         const dBox = new THREE.Box3().setFromObject(doorMesh);
         dBox.chunkHash = hash;
         dBox.doorFrameOwner = doorMesh;
@@ -563,11 +528,70 @@ export default class SetPieces {
                 }
             }
             env._buildAirlock(chunkGroup, hash, outer.x * env.cellSize, outer.z * env.cellSize, spansX, sectorId, outSign);
+            if (sectorId === "CHECKPOINT") {
+                this.buildSecurityGate(chunkGroup, hash, innerCellX * env.cellSize, innerCellZ * env.cellSize, spansX, ctx);
+            }
             if (needsFloor || needsCeiling) {
                 env._buildHallwaySegment(chunkGroup, hash, innerCellX * env.cellSize, innerCellZ * env.cellSize, spansX, needsFloor, needsCeiling, sectorId, false);
                 env._buildHallwaySegment(chunkGroup, hash, outer.x * env.cellSize, outer.z * env.cellSize, spansX, needsFloor, needsCeiling, sectorId, false);
             }
         }
+    }
+
+    // A floor-to-ceiling black-metal obstacle wall with a door-sized swinging gate cut into it -
+    // sits in the checkpoint entrance hallway, close to the airlock. `spansX` follows
+    // buildAirlock's convention (true = cross-section along X, travel along Z), not
+    // buildCheckpointRoom's inverted `flankV`.
+    buildSecurityGate(chunkGroup, hash, cx, cz, spansX, ctx) {
+        const env = this.env;
+        const gateMat = env.airlockSealMat || env.metalMat;
+        const doorW = 1.4, doorT = 0.1;
+        const panelW = 1.2;
+        const offset = (env.cellSize / 2) - (panelW / 2);
+
+        let doorMesh;
+        if (spansX) {
+            const g = env._cacheGeo('securityGateDoor:X', () => {
+                const gg = new THREE.BoxGeometry(doorW, 2.65, doorT);
+                gg.translate(doorW / 2, 0, doorT / 2);
+                return gg;
+            });
+            doorMesh = new THREE.Mesh(g, gateMat);
+            doorMesh.position.set(cx - doorW / 2, 1.325, cz);
+            doorMesh.userData = {chunkHash: hash, closedRot: 0, currentRot: 0};
+        } else {
+            const g = env._cacheGeo('securityGateDoor:Z', () => {
+                const gg = new THREE.BoxGeometry(doorT, 2.65, doorW);
+                gg.translate(doorT / 2, 0, doorW / 2);
+                return gg;
+            });
+            doorMesh = new THREE.Mesh(g, gateMat);
+            doorMesh.position.set(cx, 1.325, cz - doorW / 2);
+            doorMesh.userData = {chunkHash: hash, closedRot: 0, currentRot: 0, useXApproach: true};
+        }
+        doorMesh.castShadow = doorMesh.receiveShadow = true;
+
+        ctx.beginDoorFrame(doorMesh);
+        for (let s = -1; s <= 1; s += 2) {
+            const panel = spansX
+                ? ctx.buildWall(panelW, 0.25, gateMat)
+                : ctx.buildWall(0.25, panelW, gateMat);
+            if (spansX) panel.position.set(cx + s * offset, 1.5, cz);
+            else panel.position.set(cx, 1.5, cz + s * offset);
+            panel.userData.isEntityBlocker = true;
+            ctx.addGeometry(panel);
+        }
+        ctx.endDoorFrame();
+
+        chunkGroup.add(doorMesh);
+        env.interactiveDoors.push(doorMesh);
+        env.walls.push(doorMesh);
+        doorMesh.updateMatrixWorld(true);
+        const dBox = new THREE.Box3().setFromObject(doorMesh);
+        dBox.chunkHash = hash;
+        dBox.doorFrameOwner = doorMesh;
+        doorMesh.userData.box = dBox;
+        env.spatialGrid.insert(dBox);
     }
 
     buildBlastDoor(chunkGroup, hash, cx, cz, spansX, opts = {}) {

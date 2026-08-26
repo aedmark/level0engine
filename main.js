@@ -363,7 +363,7 @@ function animate() {
     environment.drainProgramLinks(linkStallMasked ? 60.0 : 1.5, linkStallMasked);
 }
 
-const COMPILE_SLICES = 3;
+const COMPILE_SLICES = 10;
 
 async function compileSceneInGroups(engine, bootCtrl, targetSlices = COMPILE_SLICES) {
     const scene = engine.scene;
