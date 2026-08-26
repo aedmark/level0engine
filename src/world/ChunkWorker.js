@@ -283,7 +283,7 @@ self.onmessage = function(e) {
     else if (pathThemeRoll > 0.40) pathTheme = 'RIDE_QUEUE_HALL';
     else if (pathThemeRoll > 0.18) pathTheme = 'ARCH_HALL';
 
-    const wanderingPath = pathTheme === 'ARCH_HALL';
+    const wanderingPath = pathTheme === 'ARCH_HALL' || pathTheme === 'CREVICE_HALL';
     const clampX = (v) => Math.max(startX, Math.min(startX + chunkSize - 1, v));
     const clampZ = (v) => Math.max(startZ, Math.min(startZ + chunkSize - 1, v));
 

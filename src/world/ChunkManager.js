@@ -961,7 +961,7 @@ export default class ChunkManager {
 
         let forcedName = ctx.getForcedStructure && ctx.getForcedStructure(x, z);
         const YIELDS_TO_DUCT = ["empty_door_frame", "CRAWLSPACE_HALL"];
-        const DUCT_STRUCTURES = ["DUCT", "VENT", "CRAWLSPACE_DUCT", "TUNNEL BURST"];
+        const DUCT_STRUCTURES = ["DUCT", "VENT", "CRAWLSPACE_DUCT", "TUNNEL BURST", "CREVICE_NETWORK"];
         if (forcedName && YIELDS_TO_DUCT.includes(forcedName) && ctx.getForcedStructure) {
             const abuttingDuct =
                 DUCT_STRUCTURES.includes(ctx.getForcedStructure(x + 1, z)) ||
@@ -1007,7 +1007,7 @@ export default class ChunkManager {
         const floorRoll = random();
         let isNearFixture = false;
         if (ctx.getForcedStructure) {
-            const fixtures = ["HINGED DOORWAY", "DUCT", "VENT", "HATCH", "AIRLOCK", "empty_door_frame", "CRAWLSPACE_DUCT"];
+            const fixtures = ["HINGED DOORWAY", "DUCT", "VENT", "HATCH", "AIRLOCK", "empty_door_frame", "CRAWLSPACE_DUCT", "CREVICE_NETWORK"];
             if (fixtures.includes(ctx.getForcedStructure(x + 1, z))) isNearFixture = true;
             else if (fixtures.includes(ctx.getForcedStructure(x - 1, z))) isNearFixture = true;
             else if (fixtures.includes(ctx.getForcedStructure(x, z + 1))) isNearFixture = true;

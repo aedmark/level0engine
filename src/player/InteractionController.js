@@ -237,14 +237,7 @@ export default class InteractionController {
     }
 
     _resolveGrateSwing(grateMesh, pivot) {
-        // Grates only ever swing outward (openRot was chosen at generation time to point away
-        // from the duct/shaft they're mounted in) - the reverse direction sweeps back into the
-        // shaft's own lining, which is almost always tighter than the swing needs and isn't a
-        // meaningful "alternate side" the way it is for a room door with open space on both
-        // sides. If the one true direction is blocked, stay shut rather than swing somewhere
-        // that was never a sensible fallback.
-        const openRot = grateMesh.userData.openRot;
-        return this._resolveHingeSwing(pivot, grateMesh, pivot.position, 0, [openRot], grateMesh, 2.5);
+        return grateMesh.userData.openRot !== undefined ? grateMesh.userData.openRot : (Math.PI / 2);
     }
 
     _updateInteractable(obj, playerPos, delta) {
@@ -1087,7 +1080,8 @@ export default class InteractionController {
                 if (!hit.userData.active) this.beginBreakerScan(hit);
             } else if (hit && hit.userData.type === 'grate' && hit.userData.pivot) {
                 hit.userData.active = !hit.userData.active;
-                document.dispatchEvent(new CustomEvent('somatic-vent', {detail: {distSq: 1.0, intensity: 1.5}}));
+                const soundType = hit.userData.isMiniDoor ? 'somatic-door' : 'somatic-vent';
+                document.dispatchEvent(new CustomEvent(soundType, {detail: {distSq: 1.0, intensity: 0.5, variant: 'wood'}}));
             } else if (hit && hit.userData.type === 'grate' && hit.userData.active) {
                 hit.userData.active = false;
                 document.dispatchEvent(new CustomEvent('somatic-vent', {detail: {distSq: 1.0, intensity: 1.5}}));

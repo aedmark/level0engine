@@ -719,7 +719,8 @@ export default class StructureKit {
                 grate.userData = {
                     type: 'grate', active: true, chunkHash: hash,
                     blocksX: blocksX, worldPos: {x: px, z: pz},
-                    fallDir: opts.fallDir
+                    fallDir: opts.fallDir,
+                    isMiniDoor: !!opts.isMiniDoor
                 };
                 grate.castShadow = (!mat.userData || !mat.userData.noShadow);
                 grate.receiveShadow = true;
