@@ -363,33 +363,63 @@ function animate() {
     environment.drainProgramLinks(linkStallMasked ? 60.0 : 1.5, linkStallMasked);
 }
 
-const COMPILE_SLICES = 12;
+const COMPILE_LEAF_BATCH = 16;
 
-async function compileSceneInGroups(engine, bootCtrl, targetSlices = COMPILE_SLICES) {
+async function compileSceneInGroups(engine, bootCtrl, leafBatchSize = COMPILE_LEAF_BATCH) {
     const scene = engine.scene;
     const allChildren = scene.children;
     const resident = [];
-    const rest = [];
+    const chunkGroups = [];
     for (const child of allChildren) {
-        (child.isLight || child.isCamera ? resident : rest).push(child);
+        (child.isLight || child.isCamera ? resident : chunkGroups).push(child);
     }
 
-    if (rest.length === 0) {
+    if (chunkGroups.length === 0) {
         await engine.renderer.compileAsync(scene, engine.camera);
         return;
     }
 
-    const sliceCount = Math.max(1, Math.min(targetSlices, rest.length));
-    const groupsPerSlice = Math.ceil(rest.length / sliceCount);
+    // Slicing by whole top-level chunk group caps granularity at however many chunks are
+    // loaded (as few as 9 at boot) and lets one prop-heavy chunk dominate a single slice -
+    // that's the ~1s single-slice spike this replaces. Flattening to individual mesh/instanced-
+    // mesh leaves first lets every slice hold a similar number of materials regardless of which
+    // chunk they came from, and stays evenly sized even if render distance changes chunk count.
+    // compile() never reads position/world-matrix, so a leaf can be safely re-pointed at a
+    // scratch group for the duration of one compile() call - its real parent's `.children` array
+    // is never touched, so there's nothing to restore beyond `obj.parent` itself afterward.
+    const leaves = [];
+    for (const group of chunkGroups) {
+        group.traverse((obj) => {
+            if (obj.material) leaves.push(obj);
+        });
+    }
+
+    if (leaves.length === 0) {
+        await engine.renderer.compileAsync(scene, engine.camera);
+        return;
+    }
+
+    const totalBatches = Math.ceil(leaves.length / leafBatchSize);
+    const scratch = new THREE.Group();
     try {
-        for (let i = 0; i < sliceCount; i++) {
-            const slice = rest.slice(i * groupsPerSlice, (i + 1) * groupsPerSlice);
-            scene.children = resident.concat(slice);
-            bootCtrl.beginCrawl(600, (i + 1) / sliceCount);
+        for (let i = 0; i < leaves.length; i += leafBatchSize) {
+            const batch = leaves.slice(i, i + leafBatchSize);
+            const realParents = batch.map(obj => obj.parent);
+            for (const obj of batch) {
+                scratch.children.push(obj);
+                obj.parent = scratch;
+            }
+            scene.children = resident.concat([scratch]);
+            const batchIdx = i / leafBatchSize + 1;
+            bootCtrl.beginCrawl(400, batchIdx / totalBatches);
             const t0 = performance.now();
             await engine.renderer.compileAsync(scene, engine.camera);
-            bootCtrl.setPhaseProgress((i + 1) / sliceCount,
-                `LINKED PROGRAM GROUP ${i + 1}/${sliceCount} (${Math.round(performance.now() - t0)}ms)`);
+            bootCtrl.setPhaseProgress(batchIdx / totalBatches,
+                `LINKED PROGRAM GROUP ${batchIdx}/${totalBatches} (${Math.round(performance.now() - t0)}ms)`);
+            for (let j = 0; j < batch.length; j++) {
+                batch[j].parent = realParents[j];
+            }
+            scratch.children.length = 0;
         }
     } finally {
         scene.children = allChildren;

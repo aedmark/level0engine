@@ -4,10 +4,32 @@ export const TheFaradayCageProfile = (env, ctx) => {
     return {
         name: "THE FARADAY CAGE",
         prob: 0.0016, build: (x, z) => {
+            // The cage occupies a whole wall cell and leaves exactly one of its four walls open
+            // as the entrance - that side has to actually face a walkable neighbor, the same
+            // requirement WideHeaderGap/HingedDoorway already enforce for their own single gap.
+            // Index-to-neighbor mapping matches the wall-building loop below (i=0 north/-Z,
+            // i=1 east/+X, i=2 south/+Z, i=3 west/-X). Picking blind (as this used to) sealed
+            // the cage behind its own wall whenever the maze had already decided that side was
+            // solid - which is most of the time, since only 1 of 4 sides is open on average.
+            // ctx.isWall isn't assigned until the per-cell loop hits its first wall cell, which
+            // happens after the whole structural matrix (this factory included) is already built,
+            // so it has to be read fresh off ctx here rather than destructured above - destructuring
+            // it up there (like every other local) would have captured `undefined` permanently.
+            const isWall = ctx.isWall;
+            const neighborIsOpen = (i) => {
+                if (!isWall) return true;
+                if (i === 0) return !isWall(x, z - 1);
+                if (i === 1) return !isWall(x + 1, z);
+                if (i === 2) return !isWall(x, z + 1);
+                return !isWall(x - 1, z);
+            };
+            const openDirs = [0, 1, 2, 3].filter(neighborIsOpen);
+            if (openDirs.length === 0) return false;
+
             const cx = x * env.cellSize;
             const cz = z * env.cellSize;
             if (ctx.markOccupied) ctx.markOccupied(x, z);
-            
+
             if (!env._copperSolidMat) {
                 env._copperSolidMat = new THREE.MeshStandardMaterial({
                     color: 0x8a5020,
@@ -17,8 +39,8 @@ export const TheFaradayCageProfile = (env, ctx) => {
                 env.sharedAssets.add(env._copperSolidMat.uuid);
             }
             const wallMat = env._copperSolidMat;
-            
-            const dir = Math.floor(random() * 4);
+
+            const dir = openDirs[Math.floor(random() * openDirs.length)];
             const thick = 0.4;
             const off = (env.cellSize / 2) - (thick / 2);
             for (let i = 0; i < 4; i++) {
