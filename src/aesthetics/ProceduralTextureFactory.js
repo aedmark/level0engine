@@ -5,6 +5,7 @@ import ClinicTextures from './textures/sectors/ClinicTextures.js';
 import AtriumTextures from './textures/sectors/AtriumTextures.js';
 import OrganicTextures from './textures/common/OrganicTextures.js';
 import TechTextures from './textures/common/TechTextures.js';
+import CreviceTextures from './textures/common/CreviceTextures.js';
 import HazardTextures from './textures/common/HazardTextures.js';
 import PropTextures from './textures/common/PropTextures.js';
 import AnnexTextures from './textures/sectors/AnnexTextures.js';
@@ -28,7 +29,8 @@ export default class ProceduralTextureFactory {
         if (ProceduralTextureFactory.USE_STATIC_TEXTURES) {
             const staticAssets = await StaticTextureLoader.loadCoreAssets(onProgress);
             staticAssets.flangeMat = TechTextures._buildFlangeAsset(masterNoise);
-            
+            if (!staticAssets.creviceWallMat) staticAssets.creviceWallMat = CreviceTextures._buildLathAndPlasterAsset(masterNoise);
+
             const structAssets = StructuralTextures._buildStructuralAssets(masterNoise);
             staticAssets.doorMat = structAssets.doorMat;
             staticAssets.subwayTileMats = structAssets.subwayTileMats;
@@ -79,7 +81,8 @@ export default class ProceduralTextureFactory {
             ...techAssets,
             ...hazardAssets,
             ...serverAssets,
-            ...clinicAssets
+            ...clinicAssets,
+            creviceWallMat: CreviceTextures._buildLathAndPlasterAsset(masterNoise)
         };
         
         ProceduralTextureFactory._applyOpts(assets);

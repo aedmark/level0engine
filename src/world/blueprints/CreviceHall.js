@@ -1,10 +1,18 @@
 export const CREVICE_GAP = 0.65;
 
+// THREE.BoxGeometry face-group order: [+X, -X, +Y, -Y, +Z, -Z]
+const FACE = {PX: 0, NX: 1, PY: 2, NY: 3, PZ: 4, NZ: 5};
+
 export const CreviceHallProfile = (env, ctx) => {
     const { addGeometry, buildWall } = ctx;
     const gap = CREVICE_GAP;
-    const quadSize = (env.cellSize - gap) / 2;
-    const quadOffset = (env.cellSize / 2) - (quadSize / 2);
+    // buildWall rounds every dimension to the nearest 0.05, so round quadSize
+    // the same way here and derive quadOffset from that rounded value.
+    // Otherwise the pillar renders wider than this offset math accounts for
+    // (1.675 -> 1.7) and eats into the neighboring channel wall, overlapping
+    // it by more than the intended seam padding and causing z-fighting.
+    const quadSize = Math.round(((env.cellSize - gap) / 2) * 20) / 20;
+    const quadOffset = quadSize / 2 + gap / 2;
 
     const addWallMesh = (mesh) => {
         mesh.userData.isEntityBlocker = true;
@@ -12,48 +20,58 @@ export const CreviceHallProfile = (env, ctx) => {
         return mesh;
     };
 
+    // Only the faces bordering the crevice's own interior gap get the exposed
+    // lath/plaster material; every other face keeps the ordinary wallpaper so
+    // the crevice blends in when seen from an adjoining room.
+    const faceMats = (...interiorFaces) => {
+        const arr = [env.sharedWallMat, env.sharedWallMat, env.sharedWallMat, env.sharedWallMat, env.sharedWallMat, env.sharedWallMat];
+        for (const f of interiorFaces) arr[f] = env.creviceWallMat;
+        return arr;
+    };
+
     const buildCornerPillar = (cx, cz, offX, offZ) => {
-        const p = buildWall(quadSize, quadSize, env.sharedWallMat);
+        const mats = faceMats(offX > 0 ? FACE.NX : FACE.PX, offZ > 0 ? FACE.NZ : FACE.PZ);
+        const p = buildWall(quadSize, quadSize, mats);
         p.position.set(cx + offX * quadOffset, 1.5, cz + offZ * quadOffset);
         return addWallMesh(p);
     };
 
     const buildClosedChannel = (cx, cz, dir) => {
         if (dir === 'N') {
-            const w = buildWall(gap, quadSize, env.sharedWallMat);
+            const w = buildWall(gap, quadSize, faceMats(FACE.PZ));
             w.position.set(cx, 1.5, cz - quadOffset);
             return addWallMesh(w);
         } else if (dir === 'S') {
-            const w = buildWall(gap, quadSize, env.sharedWallMat);
+            const w = buildWall(gap, quadSize, faceMats(FACE.NZ));
             w.position.set(cx, 1.5, cz + quadOffset);
             return addWallMesh(w);
         } else if (dir === 'E') {
-            const w = buildWall(quadSize, gap, env.sharedWallMat);
+            const w = buildWall(quadSize, gap, faceMats(FACE.NX));
             w.position.set(cx + quadOffset, 1.5, cz);
             return addWallMesh(w);
         } else if (dir === 'W') {
-            const w = buildWall(quadSize, gap, env.sharedWallMat);
+            const w = buildWall(quadSize, gap, faceMats(FACE.PX));
             w.position.set(cx - quadOffset, 1.5, cz);
             return addWallMesh(w);
         }
     };
 
     const buildStraightZ = (cx, cz) => {
-        const w1 = buildWall(quadSize, env.cellSize, env.sharedWallMat);
+        const w1 = buildWall(quadSize, env.cellSize, faceMats(FACE.PX));
         w1.position.set(cx - quadOffset, 1.5, cz);
         addWallMesh(w1);
 
-        const w2 = buildWall(quadSize, env.cellSize, env.sharedWallMat);
+        const w2 = buildWall(quadSize, env.cellSize, faceMats(FACE.NX));
         w2.position.set(cx + quadOffset, 1.5, cz);
         addWallMesh(w2);
     };
 
     const buildStraightX = (cx, cz) => {
-        const w1 = buildWall(env.cellSize, quadSize, env.sharedWallMat);
+        const w1 = buildWall(env.cellSize, quadSize, faceMats(FACE.PZ));
         w1.position.set(cx, 1.5, cz - quadOffset);
         addWallMesh(w1);
 
-        const w2 = buildWall(env.cellSize, quadSize, env.sharedWallMat);
+        const w2 = buildWall(env.cellSize, quadSize, faceMats(FACE.NZ));
         w2.position.set(cx, 1.5, cz + quadOffset);
         addWallMesh(w2);
     };
