@@ -1,3 +1,19 @@
+## [v1.5.2.1] - 2026-08-27
+
+_Old Walls, New Plaster, No More Fighting_
+
+### Added
+
+- **[WORLD] Crevice Hall Walls Get Their Own Exposed Lath-And-Plaster Material (`CreviceTextures.js`, `CreviceHall.js`, `ProceduralTextureFactory.js`):** Crevice halls (the narrow squeeze-through fissures) previously just reused `env.sharedWallMat` - the same generic wallpaper as every other wall in the level - so a crevice looked identical to an ordinary corridor from the inside. New `CreviceTextures._buildLathAndPlasterAsset` procedurally draws an old-school exposed-construction look: horizontal wood lath boards (grain streaks, nail holes, a repeating vertical support beam) with irregular, softly-curved plaster seeping through the board seams, registered as `env.creviceWallMat` in `ProceduralTextureFactory.generateAssets`. Since `THREE.BoxGeometry` already defines one material group per face, each crevice wall/pillar segment in `CreviceHall.js` now gets a 6-entry face-material array instead of one uniform material - only the face(s) actually bordering the crevice's own open interior use the new material, every other face (including the fully-enclosed dead-cell case) keeps the ordinary wallpaper, so a crevice reads as an ordinary wall from an adjoining room and only reveals the exposed-construction look once you're actually inside it.
+
+### Fixed
+
+- **[WORLD] Crevice Corner Pillars Z-Fought Their Neighboring Wall Segments At Every T-Intersection And Corner (`CreviceHall.js`):** `quadOffset` (the position offset every pillar/channel-wall segment is placed at) was derived from `quadSize`'s raw unrounded value (`1.675`), but `buildWall` rounds every dimension it's given to the nearest `0.05` before building geometry (`1.675` -> `1.7`) - a mismatch `quadOffset`'s own math never accounted for. The pillar rendered 0.025 units wider than its position offset expected, eating into the neighboring channel wall's space. Confirmed by running the real `CreviceHallProfile` builder in a scene and computing world-space AABB overlaps rather than by inspection alone: a corner pillar and its adjacent closed-channel wall genuinely occupied the same 3D space by 0.0325 units, across the piece's entire height and depth - enough to z-fight visibly, not a hairline seam, and reproducible at every T-intersection, L-bend, and cross junction. Went unnoticed with the old uniform wallpaper (both overlapping surfaces looked identical) and only became visible once the new lath texture's non-repeating board pattern exposed it. Now rounds `quadSize` up front to the same `0.05` grid `buildWall` uses and derives `quadOffset` from that already-rounded value, bringing the overlap down to the standard `0.02` seam padding used everywhere else in the game - confirmed via the same AABB measurement, down from 0.0325 to exactly 0.0200 across T-junction, L-bend, and cross configurations.
+
+### Changed
+
+- **[ENGINE] `flangeMat` Now Actually Uses The Static Texture Pool (`ProceduralTextureFactory.js`):** `flangeMat` already had a baked `.webp` pair and a `metadata.json` entry, but `generateAssets` regenerated it live on every single load regardless - unlike every other static-pool asset (`tagMat`, and now `creviceWallMat`), which only fall back to procedural generation when their static entry is missing. Never a deliberate exception, just never got folded in. Now uses the same `if (!staticAssets.flangeMat)` fallback as the others, so it actually loads from the pre-baked static asset instead of paying the canvas-generation cost on every boot.
+
 ## [v1.5.2] - 2026-08-26
 
 _Nothing Freezes, Nothing's Sealed_
