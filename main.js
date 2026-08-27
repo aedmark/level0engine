@@ -421,6 +421,17 @@ async function compileSceneInGroups(engine, bootCtrl, targetSlices = COMPILE_SLI
     const compileStart = performance.now();
     await compileSceneInGroups(engine, bootCtrl);
 
+    // The FXAA/VHS post-processing passes never appear anywhere in the scene graph the chunk
+    // compile above just walked - they're their own tiny scenes on engine, rendered directly by
+    // RenderEngine.render() - so without this they'd get their one-time shader compile for free
+    // on the very first real frame instead of here, in a phase where a pause is already expected.
+    const postCompileStart = performance.now();
+    await Promise.all([
+        engine.renderer.compileAsync(engine.fxaaScene, engine.fxaaCamera),
+        engine.renderer.compileAsync(engine.postScene, engine.postCamera)
+    ]);
+    bootCtrl.addLog(`POST-PROCESS SHADERS LINKED (${Math.round(performance.now() - postCompileStart)}ms)`);
+
     bootCtrl.setPhaseProgress(1, `SHADER PROGRAM PERMUTATIONS LINKED [OK] (${Math.round(performance.now() - compileStart)}ms)`);
 
     environment.isSectorTransitioning = false;

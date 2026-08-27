@@ -23,8 +23,36 @@ export default class ShaderWarmup {
 
             const materials = this._collectMaterials(env);
             await this._warm(env, onProgress, materials);
+            await this._drainShadowQueue(env, onProgress);
         } catch (err) {
             console.warn('Shader warmup aborted:', err);
+        }
+    }
+
+    // warmMaterialVariants (called per-batch above) already pushes every material it warms onto
+    // ChunkManager's shadow-probe queue - it just never gets *drained* until a real chunk builds
+    // (or the 2ms/frame trickle during normal play). Since every sector's materials already exist
+    // on `env` by this point (lazyLoadSectorAssets runs before this), draining that queue here
+    // front-loads the one-time shadow-depth shader compile for the whole game's material set into
+    // this already-visible loading phase, instead of it landing as a surprise multi-second stall
+    // the first time a chunk with never-before-seen materials streams in mid-gameplay.
+    static async _drainShadowQueue(env, onProgress = null) {
+        const cm = env.chunkManager;
+        const queue = cm && cm._shadowQueue;
+        if (!queue || queue.length === 0) return;
+        const total = queue.length;
+        const t0 = performance.now();
+        let lastReport = t0;
+        while (queue.length > 0) {
+            cm.drainShadowPrewarm(8.0);
+            if (onProgress && performance.now() - lastReport > 150) {
+                onProgress(1, `LOCKING GRAPHICS SHADOW CASCADE SLOTS [${total - queue.length}/${total}]`);
+                lastReport = performance.now();
+            }
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+        if (onProgress) {
+            onProgress(1, `SHADOW CASCADE SLOTS LOCKED [${total}] (${Math.round(performance.now() - t0)}ms)`);
         }
     }
 
