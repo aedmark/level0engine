@@ -3,6 +3,7 @@ export const PipeClusterProfile = (env, ctx) => {
     return {
         name: "PIPE CLUSTER",
         prob: 0.01, build: (x, z) => {
+            if (ctx.markPermeable) ctx.markPermeable(x, z);
             const colCount = Math.floor(random() * 3) + 2;
             for (let i = 0; i < colCount; i++) {
                 const support = new THREE.Mesh(env.vPipeGeo, env.pipeMat || env.rustMat);

@@ -36,8 +36,7 @@ export const WreckedFurniturePileProfile = (env, ctx) => {
                 }
             }
             pile.position.set(cx, 0, cz);
-            addFurniture(pile);
-
+            return addFurniture(pile);
         }
     };
 };

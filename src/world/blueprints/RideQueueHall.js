@@ -1,5 +1,11 @@
 export const RideQueueHallProfile = (env, ctx) => {
-    const { addGeometry, buildWall, isWall } = ctx;
+    const { addGeometry, buildWall } = ctx;
+    // ctx.isWall isn't assigned until the per-cell build loop runs, which happens after this
+    // factory does (see WideHeaderGap.js for the bug this pattern already caused once) - several
+    // closures below (isStraightQueueZ/isStraightQueueX) capture `isWall` at factory time, so a
+    // plain destructure would freeze in `undefined`. Wrapping it keeps every downstream closure
+    // reading ctx.isWall live.
+    const isWall = (bx, bz) => ctx.isWall(bx, bz);
     return {
         name: "RIDE_QUEUE_HALL",
         prob: 0,

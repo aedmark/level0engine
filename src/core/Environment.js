@@ -517,6 +517,9 @@ export default class Environment {
         this.airlocks = [];
         this.macroZones.clear();
         this.discoveredSectors.clear();
+        this.lockedRoomSpawned = false;
+        this.dynamicExitHash = null;
+        this._annexChunkGrids = new Map();
         this.spatialGrid.clear();
         this.currentChunkCoords = {x: null, z: null, qx: null, qz: null};
         this.blackoutChunks.clear();

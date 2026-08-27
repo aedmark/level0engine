@@ -14,12 +14,12 @@ export const OfficeAmenitiesProfile = (env, ctx) => {
             const roll = random();
             if (roll > 0.9 && buildCouch) {
                 const rotY = random() * Math.PI * 2;
-                addFurniture(buildCouch(px, 0, pz, rotY));
-            } else {
-                const wall = buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
-                wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);
-                addGeometry(wall);
+                if (addFurniture(buildCouch(px, 0, pz, rotY))) return true;
             }
+            const wall = buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
+            wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);
+            addGeometry(wall);
+            return true;
         }
     };
 };

@@ -704,7 +704,7 @@ export default class ChunkManager {
                         ? structuralMatrix.find(s => s.name === forcedName)
                         : TheArchitect.selectStructure(structuralMatrix, structRoll);
                     let built = false;
-                    if (structure && !(this._isAirlockApron(x, z) && (structure.name === "CRATES" || structure.name === "ELEVATOR"))) {
+                    if (structure && !(this._isAirlockApron(x, z) && structure.name === "CRATES")) {
                         built = structure.build(x, z) !== false;
                     }
                     if (!built) {
@@ -1007,7 +1007,7 @@ export default class ChunkManager {
         const floorRoll = random();
         let isNearFixture = false;
         if (ctx.getForcedStructure) {
-            const fixtures = ["HINGED DOORWAY", "DUCT", "VENT", "HATCH", "AIRLOCK", "empty_door_frame", "CRAWLSPACE_DUCT", "CREVICE_NETWORK"];
+            const fixtures = ["HINGED DOORWAY", "DUCT", "VENT", "empty_door_frame", "CRAWLSPACE_DUCT", "CREVICE_NETWORK"];
             if (fixtures.includes(ctx.getForcedStructure(x + 1, z))) isNearFixture = true;
             else if (fixtures.includes(ctx.getForcedStructure(x - 1, z))) isNearFixture = true;
             else if (fixtures.includes(ctx.getForcedStructure(x, z + 1))) isNearFixture = true;
