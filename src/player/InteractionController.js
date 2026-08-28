@@ -384,14 +384,8 @@ export default class InteractionController {
                 if (box.chunkHash) env.spatialGrid.insert(box);
             }
         };
-        if (env.interactables) env.interactables.forEach(indexObj);
-        if (env.interactiveDoors) env.interactiveDoors.forEach(indexObj);
-        
-        const localBoxes = env.spatialGrid.getNearby(playerPos.x, playerPos.z, 5.0);
-        for (let i = 0; i < localBoxes.length; i++) {
-            const obj = localBoxes[i].interactableEntity;
-            if (obj) checkObj(obj);
-        }
+        if (env.interactables) env.interactables.forEach(obj => { indexObj(obj); checkObj(obj); });
+        if (env.interactiveDoors) env.interactiveDoors.forEach(obj => { indexObj(obj); checkObj(obj); });
         env.isLookingAtInteractable = lookingAtHit;
         this.updateBreakerScan(playerPos, delta);
         if (env.airlocks) {
