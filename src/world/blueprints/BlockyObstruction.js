@@ -4,8 +4,13 @@ export const BlockyObstructionProfile = (env, ctx) => {
         name: "BLOCKY OBSTRUCTION",
         prob: 0.1007, build: (x, z) => {
             const isStraight = random() > 0.5;
-            const blockW = 1.85;
-            const offset = 1.075;
+            // blockW/offset keep each piece's outer edge flush with the cell boundary
+            // (offset + blockW/2 == cellSize/2) while opening a full 1.0-unit gap between
+            // opposing pieces (2 * (offset - blockW/2)) - the old 1.85/1.075 pairing left only
+            // 0.3, well under the player's 0.8-unit squeeze threshold, so both the straight
+            // corridor and the pinwheel obstruction silently forced an unmarked crevice-squeeze.
+            const blockW = 1.5;
+            const offset = 1.25;
             if (isStraight) {
                 const isZ = random() > 0.5;
                 const w1 = isZ ? blockW : env.cellSize;

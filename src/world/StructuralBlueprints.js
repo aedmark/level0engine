@@ -4,6 +4,8 @@ import {WideHeaderGapProfile} from './blueprints/WideHeaderGap.js';
 import {PartitionHeaderProfile} from './blueprints/PartitionHeader.js';
 import {HingedDoorwayProfile} from './blueprints/HingedDoorway.js';
 import {NarrowHeaderGapProfile} from './blueprints/NarrowHeaderGap.js';
+import {LCornerNookProfile} from './blueprints/LCornerNook.js';
+import {AlcoveCornerProfile} from './blueprints/AlcoveCorner.js';
 import {CratesProfile} from './blueprints/Crates.js';
 import {DuctProfile} from './blueprints/Duct.js';
 import {VentProfile} from './blueprints/Vent.js';
@@ -30,6 +32,8 @@ export default class StructuralBlueprints {
             PartitionHeaderProfile(this, ctx),
             HingedDoorwayProfile(this, ctx),
             NarrowHeaderGapProfile(this, ctx),
+            LCornerNookProfile(this, ctx),
+            AlcoveCornerProfile(this, ctx),
             CratesProfile(this, ctx),
             DuctProfile(this, ctx),
             VentProfile(this, ctx),

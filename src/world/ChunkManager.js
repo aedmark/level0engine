@@ -696,6 +696,7 @@ export default class ChunkManager {
 
                 let isWall = ctx.isWall(x, z);
                 const damp = env._dampAt(x, z);
+                let debugLabel = null;
                 if (isWall) {
                     wallCells.add(cellKey(x, z));
                     const forcedName = ctx.getForcedStructure && ctx.getForcedStructure(x, z);
@@ -711,12 +712,15 @@ export default class ChunkManager {
                         solidWallCells.add(cellKey(x, z));
                         ctx.buildDefaultWall(x, z);
                     }
+                    if (window.EDMARK_DEBUG_MODE) debugLabel = (built && structure) ? structure.name : 'SOLID WALL';
                 } else {
+                    if (window.EDMARK_DEBUG_MODE) debugLabel = (ctx.getForcedStructure && ctx.getForcedStructure(x, z)) || 'OPEN';
                     this._buildEmptyCell({
                         x, z, env, ctx, random, hash, chunkGroup, localX, localZ,
                         isWallCell, isSolidWallCell, breakerPositions
                     }, emptyState);
                 }
+                if (debugLabel) this._addDebugCellLabel(chunkGroup, x, z, debugLabel, hash);
             }
         }
         
@@ -946,6 +950,40 @@ export default class ChunkManager {
         return false;
     }
 
+    // Debug-only: one shared canvas-texture material per unique cell name, so labeling
+    // thousands of cells stays cheap - depthTest stays on so ordinary ceilings occlude these
+    // (invisible during normal play), only readable from above in noclip/EDMARK_DEBUG_MODE.
+    _getDebugLabelMaterial(name) {
+        if (!this._debugLabelMatCache) this._debugLabelMatCache = new Map();
+        let material = this._debugLabelMatCache.get(name);
+        if (material) return material;
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 64;
+        const c = canvas.getContext('2d');
+        c.fillStyle = 'rgba(0,0,0,0.6)';
+        c.fillRect(0, 0, canvas.width, canvas.height);
+        c.font = 'bold 24px monospace';
+        c.fillStyle = '#39ff6a';
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillText(name, canvas.width / 2, canvas.height / 2);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        material = new THREE.SpriteMaterial({map: texture, depthWrite: false});
+        this._debugLabelMatCache.set(name, material);
+        return material;
+    }
+
+    _addDebugCellLabel(chunkGroup, x, z, name, hash) {
+        const sprite = new THREE.Sprite(this._getDebugLabelMaterial(name));
+        sprite.scale.set(3.2, 0.8, 1);
+        sprite.position.set(x * this.env.cellSize, 4.5, z * this.env.cellSize);
+        sprite.userData.chunkHash = hash;
+        sprite.userData.isDebugLabel = true;
+        chunkGroup.add(sprite);
+    }
+
     _buildEmptyCell(args, state) {
         const { x, z, env, ctx, random, hash, chunkGroup, localX, localZ, isWallCell, isSolidWallCell, breakerPositions } = args;
         let hasTallObstacle = false;
@@ -1016,8 +1054,10 @@ export default class ChunkManager {
         
         if (!hasTallObstacle && floorRoll > 0.80 && !isArtery && !isAirlockApproach && !isNearFixture) {
             hasTallObstacle = true;
-            const divW = random() > 0.5 ? env.cellSize * 0.8 : env.cellSize * 0.2;
-            const divD = divW === env.cellSize * 0.8 ? env.cellSize * 0.2 : env.cellSize * 0.8;
+            // Long axis must leave at least the player's squeeze-trigger width (0.8) clear at
+            // each end, or walking around the divider silently becomes an unmarked crevice.
+            const divW = random() > 0.5 ? env.cellSize * 0.5 : env.cellSize * 0.2;
+            const divD = divW === env.cellSize * 0.5 ? env.cellSize * 0.2 : env.cellSize * 0.5;
             const divider = ctx.buildWall(divW, divD, env.sharedWallMat);
             divider.position.set(x * env.cellSize, 1.5, z * env.cellSize);
             ctx.addGeometry(divider);

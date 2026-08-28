@@ -58,8 +58,7 @@ export default class Environment {
         this.blackoutChunks = new Set();
         this.macroZones = new Map();
         this.discoveredSectors = new Map();
-        this.pointsOfInterest = [];
-        this._breakerHuntHops = undefined;
+        this.pointsOfInterest = [];        this._breakerHuntHops = undefined;
         this.breakerScan = null;
         this._scanDir = new THREE.Vector3();
         this._scanAim = new THREE.Vector3();
@@ -525,8 +524,7 @@ export default class Environment {
         this.blackoutChunks.clear();
         this.observers = [];
         this._globalSwitches = [];
-        this.pointsOfInterest = [];
-        this._breakerHuntHops = this.interactionController.rollHuntHops();
+        this.pointsOfInterest = [];        this._breakerHuntHops = this.interactionController.rollHuntHops();
         this._runSalt32 = (Math.random() * 4294967296) >>> 0;
         this._macroChunkHashes = new Set();
         this._spawnElevator = null;
