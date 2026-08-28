@@ -137,10 +137,17 @@ export default class StaticTextureLoader {
             meta.hasRoughnessMap ? this._loadTexRaw(`${name}_roughness`, rx, ry, ws, wt) : null
         ]);
 
-        if ((meta.hasMap && !map) || (meta.hasBumpMap && !bumpMap) ||
-            (meta.hasEmissiveMap && !emissiveMap) || (meta.hasRoughnessMap && !roughnessMap)) {
+        // Only the base diffuse map is load-bearing enough to fail the whole material over - a
+        // missing bump/emissive/roughness layer (e.g. metadata and the on-disk files briefly
+        // disagreeing after an asset was removed/renamed, or a stale cached metadata.json on a
+        // returning client) should degrade that one detail layer, not null out a material that
+        // every mesh using it then can't render at all.
+        if (meta.hasMap && !map) {
             return null;
         }
+        if (meta.hasBumpMap && !bumpMap) console.warn(`[StaticTextureLoader] ${name}: bump map failed to load, continuing without it.`);
+        if (meta.hasEmissiveMap && !emissiveMap) console.warn(`[StaticTextureLoader] ${name}: emissive map failed to load, continuing without it.`);
+        if (meta.hasRoughnessMap && !roughnessMap) console.warn(`[StaticTextureLoader] ${name}: roughness map failed to load, continuing without it.`);
 
         if (map) matParams.map = map;
         if (bumpMap) matParams.bumpMap = bumpMap;

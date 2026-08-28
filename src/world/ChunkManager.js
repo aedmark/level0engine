@@ -1170,6 +1170,10 @@ export default class ChunkManager {
                 compileStartTime = performance.now();
             }
             const group = groups[i];
+            if (!group.material || (Array.isArray(group.material) && group.material.some(m => !m))) {
+                console.warn('[ChunkManager] Skipping instanced group with a missing material (failed texture load?):', group.geometry);
+                continue;
+            }
             const isDecal = !Array.isArray(group.material) && (group.material === env.glowMat);
             if (group.meshes.length > 1 && !Array.isArray(group.material)) {
                 const iMesh = new THREE.InstancedMesh(group.geometry, group.material, group.meshes.length);
