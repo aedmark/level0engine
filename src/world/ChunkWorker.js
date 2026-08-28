@@ -250,6 +250,193 @@ function _planDoorways(random, startX, startZ, size, isWallFn, forcedStructureFn
     }
 }
 
+const LOOP_MAX_CONNECTORS = 3;
+const LOOP_SEARCH_RADIUS = 4;
+const LOOP_BFS_CAP = 40;
+const LOOP_RATIO_MIN = 3;
+
+// Finds structural dead ends left behind by _planDoorways / the fractal-pocket reconnect
+// pass and stitches a handful of them into loops. A candidate pair only qualifies when it's
+// a genuine shortcut - spatially close but many corridor-steps apart by the only existing
+// route - so this targets backtrack-inducing dead ends without eliminating every closet/vent
+// spur (VENT-capped leaves are excluded outright; the connector budget keeps the rest sparse).
+function _closeLoops(random, startX, startZ, chunkSize, isWallFn, setWallFn, forceStructureFn, getForcedStructureFn, cellKey, pathTheme) {
+    const endX = startX + chunkSize - 1;
+    const endZ = startZ + chunkSize - 1;
+    const inChunk = (cx, cz) => cx >= startX && cx <= endX && cz >= startZ && cz <= endZ;
+    const isOpen = (cx, cz) => inChunk(cx, cz) && !isWallFn(cx, cz);
+
+    // Edge-midpoint / corner cells carved by carvePath() are the inter-chunk connectors -
+    // never touch them, even if they happen to read as degree-1 locally.
+    const seamKeys = new Set([
+        cellKey(startX + 7, startZ), cellKey(startX + 7, endZ),
+        cellKey(startX, startZ + 7), cellKey(endX, startZ + 7)
+    ]);
+    if (startX === 0 && startZ === 0) seamKeys.add(cellKey(0, 0));
+
+    const degree = (cx, cz) => {
+        let n = 0;
+        if (isOpen(cx + 1, cz)) n++;
+        if (isOpen(cx - 1, cz)) n++;
+        if (isOpen(cx, cz + 1)) n++;
+        if (isOpen(cx, cz - 1)) n++;
+        return n;
+    };
+
+    const leaves = [];
+    for (let cx = startX; cx <= endX; cx++) {
+        for (let cz = startZ; cz <= endZ; cz++) {
+            if (!isOpen(cx, cz)) continue;
+            if (seamKeys.has(cellKey(cx, cz))) continue;
+            if (degree(cx, cz) !== 1) continue;
+
+            let openDx = 0, openDz = 0;
+            if (isOpen(cx + 1, cz)) { openDx = 1; openDz = 0; }
+            else if (isOpen(cx - 1, cz)) { openDx = -1; openDz = 0; }
+            else if (isOpen(cx, cz + 1)) { openDx = 0; openDz = 1; }
+            else { openDx = 0; openDz = -1; }
+
+            // The cell the corridor dead-ends into, opposite its one open neighbor. A VENT
+            // there means this is a decorative sealed closet, not a corridor - leave it alone.
+            const capX = cx - openDx, capZ = cz - openDz;
+            if (getForcedStructureFn(capX, capZ) === "VENT") continue;
+
+            leaves.push({cx, cz});
+        }
+    }
+    if (leaves.length < 2) return;
+
+    const bfsTopoDist = (sx, sz) => {
+        const dist = new Map();
+        dist.set(cellKey(sx, sz), 0);
+        const q = [{cx: sx, cz: sz}];
+        let head = 0;
+        while (head < q.length) {
+            const cur = q[head++];
+            const d = dist.get(cellKey(cur.cx, cur.cz));
+            if (d >= LOOP_BFS_CAP) continue;
+            const neighbors = [[cur.cx + 1, cur.cz], [cur.cx - 1, cur.cz], [cur.cx, cur.cz + 1], [cur.cx, cur.cz - 1]];
+            for (const [nx, nz] of neighbors) {
+                if (!isOpen(nx, nz)) continue;
+                const k = cellKey(nx, nz);
+                if (dist.has(k)) continue;
+                dist.set(k, d + 1);
+                q.push({cx: nx, cz: nz});
+            }
+        }
+        return dist;
+    };
+
+    // Straight run when aligned, otherwise a single L-bend - same grid-strided shape as the
+    // rest of this file's corridors. Excludes both endpoints; caller carves only the interior.
+    const pathBetween = (ax, az, bx, bz) => {
+        const cells = [];
+        if (ax === bx || az === bz) {
+            if (ax === bx) {
+                const lo = Math.min(az, bz), hi = Math.max(az, bz);
+                for (let z = lo + 1; z < hi; z++) cells.push({cx: ax, cz: z});
+            } else {
+                const lo = Math.min(ax, bx), hi = Math.max(ax, bx);
+                for (let x = lo + 1; x < hi; x++) cells.push({cx: x, cz: az});
+            }
+            return cells;
+        }
+        const bendOnX = random() > 0.5;
+        if (bendOnX) {
+            const lo = Math.min(ax, bx), hi = Math.max(ax, bx);
+            for (let x = lo; x <= hi; x++) if (x !== ax) cells.push({cx: x, cz: az});
+            const loz = Math.min(az, bz), hiz = Math.max(az, bz);
+            for (let z = loz; z <= hiz; z++) if (z !== az) cells.push({cx: bx, cz: z});
+        } else {
+            const lo = Math.min(az, bz), hi = Math.max(az, bz);
+            for (let z = lo; z <= hi; z++) if (z !== az) cells.push({cx: ax, cz: z});
+            const lox = Math.min(ax, bx), hix = Math.max(ax, bx);
+            for (let x = lox; x <= hix; x++) if (x !== ax) cells.push({cx: x, cz: bz});
+        }
+        return cells.filter(c => !(c.cx === bx && c.cz === bz));
+    };
+
+    const reserved = new Set();
+    const consumed = new Set();
+    const seenPairs = new Set();
+    const pairKey = (a, b) => a < b ? `${a}|${b}` : `${b}|${a}`;
+    const candidates = [];
+
+    for (const leaf of leaves) {
+        const leafKey = cellKey(leaf.cx, leaf.cz);
+        const topo = bfsTopoDist(leaf.cx, leaf.cz);
+        for (let dx = -LOOP_SEARCH_RADIUS; dx <= LOOP_SEARCH_RADIUS; dx++) {
+            for (let dz = -LOOP_SEARCH_RADIUS; dz <= LOOP_SEARCH_RADIUS; dz++) {
+                const chebyshev = Math.max(Math.abs(dx), Math.abs(dz));
+                if (chebyshev === 0) continue;
+                const tx = leaf.cx + dx, tz = leaf.cz + dz;
+                if (!isOpen(tx, tz)) continue;
+                const tKey = cellKey(tx, tz);
+                if (tKey === leafKey) continue;
+                const topoDist = topo.get(tKey);
+                if (topoDist === undefined) continue;
+                // A genuine shortcut: many corridor-steps apart despite being grid-close.
+                if (topoDist / chebyshev < LOOP_RATIO_MIN) continue;
+                const pk = pairKey(leafKey, tKey);
+                if (seenPairs.has(pk)) continue;
+                seenPairs.add(pk);
+
+                const path = pathBetween(leaf.cx, leaf.cz, tx, tz);
+                let clear = true;
+                for (const c of path) {
+                    if (!inChunk(c.cx, c.cz) || isOpen(c.cx, c.cz)) { clear = false; break; }
+                }
+                if (!clear) continue;
+
+                candidates.push({leafKey, tKey, path, score: topoDist / chebyshev});
+            }
+        }
+    }
+    if (!candidates.length) return;
+
+    candidates.sort((a, b) => b.score - a.score);
+
+    let accepted = 0;
+    for (const cand of candidates) {
+        if (accepted >= LOOP_MAX_CONNECTORS) break;
+        if (consumed.has(cand.leafKey) || consumed.has(cand.tKey)) continue;
+        let stillClear = true;
+        for (const c of cand.path) {
+            const ck = cellKey(c.cx, c.cz);
+            if (isOpen(c.cx, c.cz) || reserved.has(ck)) { stillClear = false; break; }
+        }
+        if (!stillClear) continue;
+
+        cand.path.forEach(c => {
+            setWallFn(c.cx, c.cz, false);
+            forceStructureFn(c.cx, c.cz, pathTheme || null);
+            reserved.add(cellKey(c.cx, c.cz));
+        });
+
+        const flankSet = new Set(cand.path.map(c => cellKey(c.cx, c.cz)));
+        flankSet.add(cand.leafKey);
+        flankSet.add(cand.tKey);
+        cand.path.forEach(c => {
+            for (let ox = -1; ox <= 1; ox++) {
+                for (let oz = -1; oz <= 1; oz++) {
+                    if (!ox && !oz) continue;
+                    const sx = c.cx + ox, sz = c.cz + oz;
+                    if (!inChunk(sx, sz)) continue;
+                    const sk = cellKey(sx, sz);
+                    if (flankSet.has(sk) || reserved.has(sk) || isOpen(sx, sz)) continue;
+                    setWallFn(sx, sz, true);
+                    forceStructureFn(sx, sz, "SOLID FILL");
+                    reserved.add(sk);
+                }
+            }
+        });
+
+        consumed.add(cand.leafKey);
+        consumed.add(cand.tKey);
+        accepted++;
+    }
+}
+
 self.onmessage = function(e) {
     const hash = e.data && e.data.hash;
     try {
@@ -566,6 +753,8 @@ self.onmessage = function(e) {
     }
 
     _planDoorways(random, startX, startZ, chunkSize, isWallFn, getForcedStructureFn, setWallFn, forceStructureFn, airlocks, cellSize, doorwayPlans, pathTheme);
+
+    _closeLoops(random, startX, startZ, chunkSize, isWallFn, setWallFn, forceStructureFn, getForcedStructureFn, cellKey, pathTheme);
 
     self.postMessage({
         hash,
