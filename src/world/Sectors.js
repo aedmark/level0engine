@@ -37,8 +37,8 @@ export const MIN_AMBIENT = 0.005;
 
 const SECTORS = {
     NORMAL: {
-        fog: 0.01, fogColor: 0x333333,
-        ambient: 0.50,
+        fog: 0.01,
+        ambient: 0.69,
         ambience: {
             noise: 0.0,
             peace: 0.0,

@@ -31,9 +31,11 @@ export default class ProceduralTextureFactory {
             if (!staticAssets.flangeMat) staticAssets.flangeMat = TechTextures._buildFlangeAsset(masterNoise);
             if (!staticAssets.creviceWallMat) staticAssets.creviceWallMat = CreviceTextures._buildLathAndPlasterAsset(masterNoise);
 
-            const structAssets = StructuralTextures._buildStructuralAssets(masterNoise);
-            staticAssets.doorMat = structAssets.doorMat;
-            staticAssets.subwayTileMats = structAssets.subwayTileMats;
+            if (!staticAssets.doorMat || !staticAssets.subwayTileMats) {
+                const structAssets = StructuralTextures._buildStructuralAssets(masterNoise);
+                if (!staticAssets.doorMat) staticAssets.doorMat = structAssets.doorMat;
+                if (!staticAssets.subwayTileMats) staticAssets.subwayTileMats = structAssets.subwayTileMats;
+            }
             
             Object.assign(staticAssets, SurfaceTextures._buildDuctInteriorSet(masterNoise));
             

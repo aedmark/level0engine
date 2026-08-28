@@ -15,6 +15,7 @@ import {setPodiumScan, setPodiumSpent, SCAN_DURATION} from '../world/BreakerPodi
 import RenderEngine from './RenderEngine.js';
 import ShaderWarmup from './ShaderWarmup.js';
 import BootController from '../ui/BootController.js';
+import NormalSector from '../world/sectors/NormalSector.js';
 
 export default class Environment {
     get anomaly() {
@@ -85,31 +86,7 @@ export default class Environment {
         });
         bootCtrl.addLog(`CORE ASSETS LOADED (${Math.round(performance.now() - coreAssetsStart)}ms)`);
         Object.assign(this, assets);
-        const {carpetTexture, ceilingTexture, ceilingBumpTexture} = assets;
-        carpetTexture.repeat.set(16, 16);
-        ceilingTexture.repeat.set(20, 20);
-        ceilingBumpTexture.repeat.set(20, 20);
-        this.carpetMat = new THREE.MeshStandardMaterial({
-            map: carpetTexture,
-            roughness: 1.0,
-            bumpMap: carpetTexture,
-            bumpScale: 0.015
-        });
-        this.ceilMat = new THREE.MeshStandardMaterial({
-            map: ceilingTexture,
-            color: 0xffffff,
-            emissive: 0x857752,
-            roughness: 0.92,
-            bumpMap: ceilingBumpTexture,
-            bumpScale: 0.02
-        });
-        this.ceilMatHall = this.ceilMat.clone();
-        this.ceilMatHall.map = ceilingTexture.clone();
-        this.ceilMatHall.map.repeat.set(1, 1);
-        this.ceilMatHall.map.needsUpdate = true;
-        this.ceilMatHall.bumpMap = ceilingBumpTexture.clone();
-        this.ceilMatHall.bumpMap.repeat.set(1, 1);
-        this.ceilMatHall.bumpMap.needsUpdate = true;
+        NormalSector.buildMaterials(this, assets);
         if (this.serverMat) {
             this.serverMat.metalness = 0.0;
             this.serverMat.roughness = 0.95;

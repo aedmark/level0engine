@@ -386,7 +386,7 @@ export default class ChunkManager {
             if (activeSector && activeSector.id === "IMPOUND") cHeight = 20.0;
             if (activeSector && activeSector.id === "ACME") cHeight = 40.0;
 
-            const inset = (activeSector && activeSector.id === "ACME") ? 0 : 8;
+            const inset = 8;
             env.macroZones.set(hash, {
                 id: activeSector.id,
                 fog: env.atmosphereManager._sectorFog(activeSector.id),

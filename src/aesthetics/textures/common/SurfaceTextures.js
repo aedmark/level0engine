@@ -574,9 +574,9 @@ export default class SurfaceTextures {
         for (let ty = 0; ty < ROWS; ty++) {
             for (let tx = 0; tx < COLS; tx++) {
                 const t = tiles[ty * COLS + tx];
-                const r = 245 - t.age * 22;
-                const g = 241 - t.age * 32;
-                const b = 227 - t.age * 56;
+                const r = 255 - t.age * 22;
+                const g = 248 - t.age * 32;
+                const b = 236 - t.age * 56;
                 ctx.fillStyle = `rgb(${r | 0}, ${g | 0}, ${b | 0})`;
                 ctx.fillRect(tx * TW, ty * TH, TW, TH);
             }
