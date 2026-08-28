@@ -4,7 +4,7 @@ export const TunnelBurstProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, hash} = ctx;
     return {
         name: "TUNNEL BURST",
-        prob: 0.0538, build: (x, z) => {
+        prob: 0.0953, build: (x, z) => {
             if (!env.ductLiningMat) {
                 env.ductLiningMat = makeDuctInterior(env.ductMat.clone());
                 env.ductLiningMat.userData.noShadow = true;

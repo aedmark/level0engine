@@ -7,12 +7,18 @@ export const CreviceHallProfile = (env, ctx) => {
     const { addGeometry, buildWall } = ctx;
     const gap = CREVICE_GAP;
     // buildWall rounds every dimension to the nearest 0.05, so round quadSize
-    // the same way here and derive quadOffset from that rounded value.
-    // Otherwise the pillar renders wider than this offset math accounts for
-    // (1.675 -> 1.7) and eats into the neighboring channel wall, overlapping
-    // it by more than the intended seam padding and causing z-fighting.
+    // the same way here too - otherwise the pillar renders wider than this
+    // offset math accounts for (1.675 -> 1.7).
     const quadSize = Math.round(((env.cellSize - gap) / 2) * 20) / 20;
-    const quadOffset = quadSize / 2 + gap / 2;
+    // Anchor to the true cell boundary (cellSize/2) rather than building the
+    // offset back up from quadSize+gap/2: since quadSize is rounded but gap
+    // and cellSize aren't, quadSize+gap/2 no longer equals cellSize/2 (e.g.
+    // 1.7+0.325 = 2.025, not 2.0), so every piece overshot its own cell by
+    // the rounding error and z-fought with the neighboring cell's pieces at
+    // seams and corners. Deriving the offset from cellSize instead keeps the
+    // outer face exactly flush with the cell edge (the interior gap ends up
+    // a hair narrower than CREVICE_GAP, which is invisible at this scale).
+    const quadOffset = env.cellSize / 2 - quadSize / 2;
 
     const addWallMesh = (mesh) => {
         mesh.userData.isEntityBlocker = true;

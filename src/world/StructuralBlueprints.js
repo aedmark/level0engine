@@ -4,8 +4,6 @@ import {WideHeaderGapProfile} from './blueprints/WideHeaderGap.js';
 import {PartitionHeaderProfile} from './blueprints/PartitionHeader.js';
 import {HingedDoorwayProfile} from './blueprints/HingedDoorway.js';
 import {NarrowHeaderGapProfile} from './blueprints/NarrowHeaderGap.js';
-import {LCornerNookProfile} from './blueprints/LCornerNook.js';
-import {AlcoveCornerProfile} from './blueprints/AlcoveCorner.js';
 import {CratesProfile} from './blueprints/Crates.js';
 import {DuctProfile} from './blueprints/Duct.js';
 import {VentProfile} from './blueprints/Vent.js';
@@ -17,7 +15,6 @@ import {SettlingFieldProfile} from './blueprints/SettlingField.js';
 import {AnomalousPointOfInterestProfile} from './blueprints/AnomalousPointOfInterest.js';
 import {WreckedFurniturePileProfile} from './blueprints/WreckedFurniturePile.js';
 import {TheFaradayCageProfile} from './blueprints/TheFaradayCage.js';
-import {TheOasisProfile} from './blueprints/TheOasis.js';
 import {OfficeAmenitiesProfile} from './blueprints/OfficeAmenities.js';
 import {RoundPillarProfile} from './blueprints/RoundPillar.js';
 import {CurvedArchwayProfile} from './blueprints/CurvedArchway.js';
@@ -33,8 +30,6 @@ export default class StructuralBlueprints {
             PartitionHeaderProfile(this, ctx),
             HingedDoorwayProfile(this, ctx),
             NarrowHeaderGapProfile(this, ctx),
-            LCornerNookProfile(this, ctx),
-            AlcoveCornerProfile(this, ctx),
             CratesProfile(this, ctx),
             DuctProfile(this, ctx),
             VentProfile(this, ctx),
@@ -46,7 +41,6 @@ export default class StructuralBlueprints {
             AnomalousPointOfInterestProfile(this, ctx),
             WreckedFurniturePileProfile(this, ctx),
             TheFaradayCageProfile(this, ctx),
-            TheOasisProfile(this, ctx),
             OfficeAmenitiesProfile(this, ctx),
             RoundPillarProfile(this, ctx),
             CurvedArchwayProfile(this, ctx),

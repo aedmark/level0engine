@@ -522,6 +522,15 @@ export default class InteractionController {
                                 obj.userData.spinAngle -= spin;
                             }
                         }
+                        obj.userData.steamTimer -= delta;
+                        if (obj.userData.steamTimer <= 0) {
+                            obj.userData.active = false;
+                            obj.userData.spinAngle = 0;
+                            if (obj.userData.steamGroup && obj.userData.steamGroup.parent) {
+                                obj.userData.steamGroup.parent.remove(obj.userData.steamGroup);
+                            }
+                            obj.userData.steamGroup = null;
+                        }
                     }
                 }
             });
@@ -547,6 +556,9 @@ export default class InteractionController {
                                     }
                                 }));
                                 document.dispatchEvent(new CustomEvent('somatic-trip'));
+                                document.dispatchEvent(new CustomEvent('maintenance-cone-tipped', {
+                                    detail: {position: anim.position.clone()}
+                                }));
                             }
                         }
                     } else if (anim.userData.fallProgress < 1.0) {
@@ -870,6 +882,15 @@ export default class InteractionController {
         document.dispatchEvent(new CustomEvent('somatic-breaker', {detail: {distSq: 1.0, intensity: 2.0}}));
         if (!isBlackout) {
             env.blackoutChunks.add(chunkHash);
+            const bounds = env.getSectorBounds ? env.getSectorBounds('MAINTENANCE') : null;
+            if (bounds) {
+                const worldPos = podium.matrixWorld ? this._objWorldPos.setFromMatrixPosition(podium.matrixWorld) : podium.position;
+                if (worldPos.x >= bounds.minX && worldPos.x <= bounds.maxX && worldPos.z >= bounds.minZ && worldPos.z <= bounds.maxZ) {
+                    setTimeout(() => {
+                        document.dispatchEvent(new CustomEvent('maintenance-power-restored', {detail: {chunkHash}}));
+                    }, 25000 + Math.random() * 10000);
+                }
+            }
             env.fixtureData.forEach(fixture => {
                 if (fixture.chunkHash === chunkHash && !fixture.isDead && !fixture.isLighthouse && !fixture.isArchiveLight) {
                     fixture.originalFaulty = fixture.isFaulty;
@@ -1035,6 +1056,7 @@ export default class InteractionController {
             if (hit && hit.userData.type === 'valve') {
                 if (hit.userData.active) return;
                 hit.userData.active = true;
+                hit.userData.steamTimer = 5.0 + Math.random() * 5.0;
                 document.dispatchEvent(new CustomEvent('somatic-valve', {detail: {distSq: 1.0, intensity: 1.5}}));
                 if (!env.steamTex) {
                     const canvas = document.createElement('canvas');
@@ -1068,6 +1090,7 @@ export default class InteractionController {
                     steamGroup.add(sprite);
                 }
                 hit.add(steamGroup);
+                hit.userData.steamGroup = steamGroup;
                 if (!env.steamGroups) env.steamGroups = [];
                 env.steamGroups.push({group: steamGroup, chunkHash: hit.userData.chunkHash});
                 return;

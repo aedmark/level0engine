@@ -30,9 +30,6 @@ export default class ServerTextures {
         const serverFloorTexture = TextureMechanics._createWrappedTexture(sFloorCanvas, 1, 1);
         const serverFloorMat = new THREE.MeshStandardMaterial({
             map: serverFloorTexture,
-            emissiveMap: serverFloorTexture,
-            emissive: 0xffffff,
-            emissiveIntensity: 0.4,
             roughness: 0.8,
             metalness: 0.4,
             bumpMap: serverFloorTexture,
@@ -61,10 +58,7 @@ export default class ServerTextures {
             roughness: 0.95,
             metalness: 0.1,
             bumpMap: serverCeilingTexture,
-            bumpScale: 0.01,
-            emissiveMap: serverCeilingTexture,
-            emissive: 0x4a5565,
-            emissiveIntensity: 0.4
+            bumpScale: 0.01
         });
 
         return { serverFloorMat, serverCeilingMat };

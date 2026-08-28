@@ -2,7 +2,7 @@ export const PipeClusterProfile = (env, ctx) => {
     const {random, addGeometry} = ctx;
     return {
         name: "PIPE CLUSTER",
-        prob: 0.01, build: (x, z) => {
+        prob: 0.05, build: (x, z) => {
             if (ctx.markPermeable) ctx.markPermeable(x, z);
             const colCount = Math.floor(random() * 3) + 2;
             for (let i = 0; i < colCount; i++) {

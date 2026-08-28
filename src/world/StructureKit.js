@@ -62,7 +62,6 @@ export default class StructureKit {
         const env = this.env;
         const BASEBOARD_H = 3.0 * (32 / 512);
         const TRIM_H = 3.0 * (4 / 512);
-        let hasOasis = random() > 0.75;
         const helpers = {
             random,
             runSalt32: env._runSalt32 || 0,
@@ -78,18 +77,6 @@ export default class StructureKit {
                 wall.userData.cellZ = z;
                 helpers.addGeometry(wall);
                 return wall;
-            },
-            claimOasis: (x, z) => {
-                if (hasOasis) {
-                    if (x !== undefined && z !== undefined) {
-                        const localZ = ((z % env.chunkSize) + env.chunkSize) % env.chunkSize;
-                        if (localZ === env.chunkSize - 1) return false;
-                        if (helpers.markOccupied) helpers.markOccupied(x, z + 1);
-                    }
-                    hasOasis = false;
-                    return true;
-                }
-                return false;
             },
             getLightMaterial: (colorHex, emissiveHex, isBroken = false, plain = false, variant = '') => {
                 if (!env._lightMatPool) env._lightMatPool = new Map();

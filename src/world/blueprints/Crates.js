@@ -2,7 +2,7 @@ export const CratesProfile = (env, ctx) => {
     const {random, buildWall, addGeometry} = ctx;
     return {
         name: "CRATES",
-        prob: 0.0452, build: (x, z) => {
+        prob: 0.0852, build: (x, z) => {
             const dir = Math.floor(random() * 4);
             const isZ = dir % 2 === 0;
             const sign = (dir > 1) ? 1 : -1;

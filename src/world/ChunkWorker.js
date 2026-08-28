@@ -204,7 +204,7 @@ function _planDoorways(random, startX, startZ, size, isWallFn, forcedStructureFn
                 });
                 p.alcoves.forEach(c => {
                     setWallFn(c.cx, c.cz, true);
-                    forceStructureFn(c.cx, c.cz, random() > 0.5 ? "ALCOVE CORNER" : "ROUND ALCOVE");
+                    forceStructureFn(c.cx, c.cz, "ROUND ALCOVE");
                     reserved.add(key(c.cx, c.cz));
                 });
                 p.seal.forEach(c => {

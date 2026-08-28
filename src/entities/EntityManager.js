@@ -4,6 +4,7 @@ import WardenEntity from './WardenEntity.js';
 import IncineratorEntity from './IncineratorEntity.js';
 import BackupDaemonEntity from './BackupDaemonEntity.js';
 import ClawEntity from './ClawEntity.js';
+import SentryConeEntity from './SentryConeEntity.js';
 
 export default class EntityManager {
     constructor(scene, camera, player, environment) {
@@ -17,7 +18,8 @@ export default class EntityManager {
             'IMPOUND': new WardenEntity(scene, camera, player, environment),
             'INCINERATOR': new IncineratorEntity(scene, camera, player, environment),
             'SERVER': new BackupDaemonEntity(scene, camera, player, environment),
-            'ATRIUM': new ClawEntity(scene, camera, player, environment)
+            'ATRIUM': new ClawEntity(scene, camera, player, environment),
+            'MAINTENANCE': new SentryConeEntity(scene, camera, player, environment)
         };
         for (let key in this.entities) {
             const entity = this.entities[key];
