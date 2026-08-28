@@ -1,6 +1,12 @@
 import TextureMechanics from '../TextureMechanics.js';
 
 export default class MaintenanceTextures {
+    static _buildLeakStainGeo() {
+        const leakStainGeo = new THREE.PlaneGeometry(1.6, 1.6);
+        leakStainGeo.rotateX(-Math.PI / 2);
+        return leakStainGeo;
+    }
+
     static _buildMaintenanceAssets(masterNoise) {
         const {canvas: leakCanvas, ctx: leakCtx} = TextureMechanics._createContext(256, 256, false);
         for (let i = 0; i < 10; i++) {
@@ -25,8 +31,7 @@ export default class MaintenanceTextures {
             polygonOffset: true,
             polygonOffsetFactor: -1
         });
-        const leakStainGeo = new THREE.PlaneGeometry(1.6, 1.6);
-        leakStainGeo.rotateX(-Math.PI / 2);
+        const leakStainGeo = MaintenanceTextures._buildLeakStainGeo();
         const coneCanvas = document.createElement('canvas');
         coneCanvas.width = 256;
         coneCanvas.height = 256;

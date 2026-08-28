@@ -97,8 +97,14 @@ export default class ProceduralTextureFactory {
             ['IMPOUND', (noise) => ImpoundTextures._buildImpoundAssets(noise)],
             ['BOARDROOM', (noise) => BoardroomTextures._buildBoardroomAssets(noise)],
             ['ATRIUM', (noise) => AtriumTextures._buildAtriumAssets(noise)],
-            ['MAINTENANCE', (noise) => MaintenanceTextures._buildMaintenanceAssets(noise)],
-            ['ARCHIVE', (noise) => ArchiveTextures._buildArchiveAssets(noise)],
+            ['MAINTENANCE', (noise) => MaintenanceTextures._buildMaintenanceAssets(noise), {
+                leakStainGeo: () => MaintenanceTextures._buildLeakStainGeo()
+            }],
+            ['ARCHIVE', (noise) => ArchiveTextures._buildArchiveAssets(noise), {
+                paperGeo: () => ArchiveTextures._buildPaperGeo(),
+                coffeeStainGeo: () => ArchiveTextures._buildCoffeeStainGeo(),
+                bookMatSets: (noise) => ArchiveTextures._buildBookMatSets(noise)
+            }],
             ['CHECKPOINT', (noise) => CheckpointTextures._buildCheckpointAssets(noise)],
             ['INCINERATOR', (noise) => IncineratorTextures._buildIncineratorAssets(noise)],
             ['EXIT', (noise) => ExitTextures._buildExitAssets(noise)]
@@ -113,7 +119,7 @@ export default class ProceduralTextureFactory {
 
         let i = 0;
         let staticHits = 0;
-        for (const [name, buildFn] of lazyModules) {
+        for (const [name, buildFn, residualBuilders] of lazyModules) {
             await TextureMechanics._yield();
             i++;
             if (!buildFn) continue;
@@ -123,7 +129,20 @@ export default class ProceduralTextureFactory {
             let source = 'static';
 
             if (ProceduralTextureFactory.USE_STATIC_TEXTURES) {
-                sectorAssets = await StaticTextureLoader.loadSectorAssets(name);
+                const result = await StaticTextureLoader.loadSectorAssets(name);
+                if (result) {
+                    const {assets: staticAssets, residual} = result;
+                    if (residual.length === 0) {
+                        sectorAssets = staticAssets;
+                    } else if (residualBuilders && residual.every(key => typeof residualBuilders[key] === 'function')) {
+                        // The rest of this sector's assets loaded fine from static - only these
+                        // few keys couldn't be exported (e.g. a bare geometry). Fill just those
+                        // in live rather than falling back to regenerating the whole sector.
+                        for (const key of residual) staticAssets[key] = residualBuilders[key](masterNoise);
+                        sectorAssets = staticAssets;
+                        source = 'static+residual';
+                    }
+                }
             }
             if (sectorAssets) {
                 staticHits++;

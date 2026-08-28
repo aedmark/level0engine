@@ -213,7 +213,6 @@ export default class StaticTextureLoader {
         const sectors = metadata[SECTOR_METADATA_KEY];
         const bundle = sectors && sectors[sectorName];
         if (!bundle || !bundle.keys) return null;
-        if (Array.isArray(bundle.residual) && bundle.residual.length > 0) return null;
 
         const entries = Object.entries(bundle.keys);
         if (entries.length === 0) return null;
@@ -232,7 +231,7 @@ export default class StaticTextureLoader {
                 out[key] = item;
             }
             this.flushPendingSaves().catch(() => {});
-            return out;
+            return {assets: out, residual: Array.isArray(bundle.residual) ? bundle.residual : []};
         } catch (err) {
             console.warn(`[TEXTURES] Static bundle for ${sectorName} failed to load, falling back to generator:`, err);
             return null;

@@ -1,6 +1,39 @@
 import TextureMechanics from '../TextureMechanics.js';
 
 export default class ArchiveTextures {
+    static _buildPaperGeo() {
+        return new THREE.PlaneGeometry(0.2, 0.28);
+    }
+
+    static _buildCoffeeStainGeo() {
+        return new THREE.PlaneGeometry(0.25, 0.25);
+    }
+
+    static _buildBookMatSets(masterNoise) {
+        const {canvas: pageCanvas, ctx: pageCtx} = TextureMechanics._createContext(64, 64);
+        pageCtx.fillStyle = '#e8e5df';
+        pageCtx.fillRect(0, 0, 64, 64);
+        pageCtx.fillStyle = 'rgba(0,0,0,0.1)';
+        for (let i = 0; i < 64; i += 2) pageCtx.fillRect(0, i, 64, 0.5);
+        const pageTex = new THREE.CanvasTexture(pageCanvas);
+        const pageMat = new THREE.MeshStandardMaterial({map: pageTex, roughness: 0.9});
+        const coverColors = ['#753434', '#344a75', '#34754a', '#756034', '#555555'];
+        return coverColors.map(color => {
+            const {canvas: covCanvas, ctx: covCtx} = TextureMechanics._createContext(64, 64);
+            covCtx.fillStyle = color;
+            covCtx.fillRect(0, 0, 64, 64);
+            covCtx.globalAlpha = 0.3;
+            covCtx.drawImage(masterNoise, 0, 0, 64, 64);
+            covCtx.globalAlpha = 1.0;
+            covCtx.fillStyle = 'rgba(0,0,0,0.4)';
+            covCtx.fillRect(10, 0, 4, 64);
+            covCtx.fillRect(50, 0, 4, 64);
+            const covTex = new THREE.CanvasTexture(covCanvas);
+            const covMat = new THREE.MeshStandardMaterial({map: covTex, roughness: 0.8});
+            return [pageMat, pageMat, covMat, covMat, pageMat, covMat];
+        });
+    }
+
     static _buildArchiveAssets(masterNoise) {
         const {canvas: wallCanvas, ctx: wallCtx} = TextureMechanics._createContext(512, 512);
         wallCtx.fillStyle = '#546e58';
@@ -60,8 +93,6 @@ export default class ArchiveTextures {
             metalness: 0.0
         });
         archiveBaseboardTrimMat.userData.noShadow = true;
-        archiveWallMat.userData.baseboardMat = archiveBaseboardMat;
-        archiveWallMat.userData.baseboardTrimMat = archiveBaseboardTrimMat;
         const {canvas: floorCanvas, ctx: floorCtx} = TextureMechanics._createContext(256, 256);
         const tileA = '#ddceA2', tileB = '#8a3a2e';
         const tiles = 8, tileSize = 256 / tiles;
@@ -239,7 +270,7 @@ export default class ArchiveTextures {
         }
         const paperTex = new THREE.CanvasTexture(pCanvas);
         const paperMat = new THREE.MeshStandardMaterial({map: paperTex, roughness: 1.0});
-        const paperGeo = new THREE.PlaneGeometry(0.2, 0.28);
+        const paperGeo = ArchiveTextures._buildPaperGeo();
         const {canvas: cCanvas, ctx: cCtx} = TextureMechanics._createContext(64, 64, false);
         const grad = cCtx.createRadialGradient(32, 32, 10, 32, 32, 30);
         grad.addColorStop(0, 'rgba(40, 20, 10, 0.05)');
@@ -259,29 +290,8 @@ export default class ArchiveTextures {
             polygonOffset: true,
             polygonOffsetFactor: -1
         });
-        const coffeeStainGeo = new THREE.PlaneGeometry(0.25, 0.25);
-        const {canvas: pageCanvas, ctx: pageCtx} = TextureMechanics._createContext(64, 64);
-        pageCtx.fillStyle = '#e8e5df';
-        pageCtx.fillRect(0, 0, 64, 64);
-        pageCtx.fillStyle = 'rgba(0,0,0,0.1)';
-        for (let i = 0; i < 64; i += 2) pageCtx.fillRect(0, i, 64, 0.5);
-        const pageTex = new THREE.CanvasTexture(pageCanvas);
-        const pageMat = new THREE.MeshStandardMaterial({map: pageTex, roughness: 0.9});
-        const coverColors = ['#753434', '#344a75', '#34754a', '#756034', '#555555'];
-        const bookMatSets = coverColors.map(color => {
-            const {canvas: covCanvas, ctx: covCtx} = TextureMechanics._createContext(64, 64);
-            covCtx.fillStyle = color;
-            covCtx.fillRect(0, 0, 64, 64);
-            covCtx.globalAlpha = 0.3;
-            covCtx.drawImage(masterNoise, 0, 0, 64, 64);
-            covCtx.globalAlpha = 1.0;
-            covCtx.fillStyle = 'rgba(0,0,0,0.4)';
-            covCtx.fillRect(10, 0, 4, 64);
-            covCtx.fillRect(50, 0, 4, 64);
-            const covTex = new THREE.CanvasTexture(covCanvas);
-            const covMat = new THREE.MeshStandardMaterial({map: covTex, roughness: 0.8});
-            return [pageMat, pageMat, covMat, covMat, pageMat, covMat];
-        });
+        const coffeeStainGeo = ArchiveTextures._buildCoffeeStainGeo();
+        const bookMatSets = ArchiveTextures._buildBookMatSets(masterNoise);
         const bkc = document.createElement('canvas');
         bkc.width = 256;
         bkc.height = 128;
