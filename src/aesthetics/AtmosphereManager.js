@@ -1,4 +1,4 @@
-import SECTORS, {DEFAULT_DUST, DEFAULT_EXHAUST, DEFAULT_AMBIENT, MIN_AMBIENT} from '../world/Sectors.js';
+import SECTORS, {DEFAULT_DUST, DEFAULT_EXHAUST, DEFAULT_AMBIENT, MIN_AMBIENT, DEFAULT_GROUND_COLOR, DEFAULT_ATMOSPHERE_COLOR} from '../world/Sectors.js';
 
 export default class AtmosphereManager {
     constructor(env) {
@@ -293,7 +293,7 @@ export default class AtmosphereManager {
             const fogBreath = Math.sin(time * 0.05) * (env.currentFogDensity * 0.3);
             env.scene.fog.density = env.currentFogDensity + fogBreath;
         }
-        if (!env._baseFogColor) env._baseFogColor = new THREE.Color(0xa89f68);
+        if (!env._baseFogColor) env._baseFogColor = new THREE.Color(DEFAULT_ATMOSPHERE_COLOR);
         if (!env._targetFogColor) env._targetFogColor = new THREE.Color();
         const sectorRow = SECTORS[activeSector];
         if (sectorRow && sectorRow.fogColor !== undefined) {
@@ -537,7 +537,7 @@ export default class AtmosphereManager {
             env.engine.ambientLight.intensity += (targetAmbient - env.engine.ambientLight.intensity) * 0.05;
 
             if (env.engine.ambientLight.isHemisphereLight) {
-                const targetGroundHex = row && row.groundColor !== undefined ? row.groundColor : 0x3d3520;
+                const targetGroundHex = row && row.groundColor !== undefined ? row.groundColor : DEFAULT_GROUND_COLOR;
                 if (!env._targetGroundColor) env._targetGroundColor = new THREE.Color();
                 env._targetGroundColor.setHex(targetGroundHex);
                 env.engine.ambientLight.groundColor.lerp(env._targetGroundColor, 0.05);

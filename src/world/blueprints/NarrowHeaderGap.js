@@ -2,7 +2,7 @@ export const NarrowHeaderGapProfile = (env, ctx) => {
     const {buildWall, addGeometry} = ctx;
     return {
         name: "NARROW HEADER GAP",
-        prob: 0.0431, build: (x, z) => {
+        prob: 0.0375, build: (x, z) => {
             // ctx.isWall isn't assigned until the per-cell loop hits its first wall cell, which
             // happens after the whole structural matrix (this factory included) is already built -
             // destructuring it above like the other locals would have captured `undefined`

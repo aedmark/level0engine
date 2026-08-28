@@ -186,7 +186,6 @@ export default class StructureKit {
                     shape.lineTo(-radius, EPS);
 
                     geo = new THREE.ExtrudeGeometry(shape, { depth: depth - EPS*2, bevelEnabled: false, curveSegments: 32 });
-                    geo = geo.toNonIndexed();
                     geo.translate(0, 0, -(depth - EPS*2) / 2);
 
                     const pos = geo.attributes.position;

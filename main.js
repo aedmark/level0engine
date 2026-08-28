@@ -16,6 +16,7 @@ import KeypadController from './src/ui/KeypadController.js';
 import InquestController from './src/ui/InquestController.js';
 import UIManager from './src/ui/UIManager.js';
 import {DebugHUD} from './src/ui/DebugHUD.js';
+import {AtmosphereTuner} from './src/ui/AtmosphereTuner.js';
 import RemapController from './src/ui/RemapController.js';
 import BootController from './src/ui/BootController.js';
 import ContinuePrompt from './src/ui/ContinuePrompt.js';
@@ -128,6 +129,7 @@ docViewer.bindEvents();
 keypad.bindEvents();
 inquest.bindEvents();
 DebugHUD.bindEvents();
+AtmosphereTuner.bindEvents();
 saveManager.markBootComplete();
 saveManager.startAutoSave();
 UIManager.startVHSTimer();
@@ -357,6 +359,7 @@ function animate() {
     }
     UIManager.update(time, engine, player, environment);
     DebugHUD.update(time, delta, telemetry, engine, player, environment);
+    AtmosphereTuner.update(environment);
     engine.render();
     environment.drainShadowPrewarm(2.0);
     const linkStallMasked = player.wasFrozenByLoad;

@@ -2,7 +2,7 @@ export const BlockyObstructionProfile = (env, ctx) => {
     const {random, buildWall, addGeometry} = ctx;
     return {
         name: "BLOCKY OBSTRUCTION",
-        prob: 0.1007, build: (x, z) => {
+        prob: 0.0873, build: (x, z) => {
             const isStraight = random() > 0.5;
             // blockW/offset keep each piece's outer edge flush with the cell boundary
             // (offset + blockW/2 == cellSize/2) while opening a full 1.0-unit gap between

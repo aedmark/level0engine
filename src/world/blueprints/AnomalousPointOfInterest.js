@@ -2,7 +2,7 @@ export const AnomalousPointOfInterestProfile = (env, ctx) => {
     const {buildWall, addGeometry, buildChair, buildTable, addFurniture, chunkGroup, hash} = ctx;
     return {
         name: "ANOMALOUS POINT OF INTEREST",
-        prob: 0.0101, build: (x, z) => {
+        prob: 0.0088, build: (x, z) => {
             const cx = x * env.cellSize;
             const cz = z * env.cellSize;
             if (!env._globalSwitches) env._globalSwitches = [];

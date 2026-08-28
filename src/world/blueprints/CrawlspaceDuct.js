@@ -42,7 +42,7 @@ export const CrawlspaceDuctProfile = (env, ctx) => {
     const ductCeilingMat = () => env.ductCeilingMat || env.ductWallMat;
     return {
         name: "CRAWLSPACE_DUCT",
-        prob: 0.0862, build: (x, z) => {
+        prob: 0.0749, build: (x, z) => {
             let isFloorLevel = random() > 0.50;
             const addGeometry = ctx.addGeometry;
 

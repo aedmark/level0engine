@@ -4,7 +4,7 @@ export const DuctProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, hash} = ctx;
     return {
         name: "DUCT",
-        prob: 0.0431, build: (x, z) => {
+        prob: 0.0375, build: (x, z) => {
             
             const addGeometry = ctx.addGeometry;
             if (!env.ductLiningMat) {

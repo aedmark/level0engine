@@ -1,6 +1,7 @@
+import {DEFAULT_GROUND_COLOR, DEFAULT_ATMOSPHERE_COLOR} from '../world/Sectors.js';
+
 export default class RenderEngine {
     constructor() {
-        THREE.ColorManagement.enabled = false;
         this.aspectRatio = 1.3333333333;
         this.resolutionScale = RenderEngine.getSavedResolutionScale();
         this.enablePostProcessing = RenderEngine.getSavedPostProcess();
@@ -11,8 +12,8 @@ export default class RenderEngine {
             `(crossOriginIsolated=${self.crossOriginIsolated === true}) — ` +
             `delta smoothing ${this.smoothsDelta ? 'ON' : 'off'}.`);
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0xa89f68);
-        this.scene.fog = new THREE.FogExp2(0xa89f68, 0.05);
+        this.scene.background = new THREE.Color(DEFAULT_ATMOSPHERE_COLOR);
+        this.scene.fog = new THREE.FogExp2(DEFAULT_ATMOSPHERE_COLOR, 0.05);
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
         this.camera.position.y = 1.6;
         const logDepth = new URLSearchParams(window.location.search).has('logdepth');
@@ -21,7 +22,6 @@ export default class RenderEngine {
             powerPreference: "high-performance",
             logarithmicDepthBuffer: logDepth
         });
-        this.renderer.useLegacyLights = true;
         this.renderer.debug.checkShaderErrors =
             new URLSearchParams(window.location.search).has('shaderdebug');
         this.renderer.setPixelRatio(1.0);
@@ -38,7 +38,7 @@ export default class RenderEngine {
         }
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         const gammaSlider = document.getElementById('gammaSlider');
-        this.baseExposure = gammaSlider ? Number(gammaSlider.value) / 100 : 0.70;
+        this.baseExposure = gammaSlider ? Number(gammaSlider.value) / 100 : 1.40;
         this.renderer.toneMappingExposure = this.baseExposure;
         if ('outputColorSpace' in this.renderer) {
             this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -46,7 +46,7 @@ export default class RenderEngine {
             this.renderer.outputEncoding = THREE.sRGBEncoding;
         }
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
-        this.ambientLight = new THREE.HemisphereLight(0xfff5c2, 0x3d3520, 0.30);
+        this.ambientLight = new THREE.HemisphereLight(0xfffbe5, DEFAULT_GROUND_COLOR, 0.30);
         this.scene.add(this.ambientLight);
         this.lightningLight = new THREE.DirectionalLight(0xdbe6ff, 0);
         this.lightningLight.castShadow = false;

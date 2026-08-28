@@ -28,22 +28,74 @@ export default class ProceduralTextureFactory {
 
         if (ProceduralTextureFactory.USE_STATIC_TEXTURES) {
             const staticAssets = await StaticTextureLoader.loadCoreAssets(onProgress);
-            if (!staticAssets.flangeMat) staticAssets.flangeMat = TechTextures._buildFlangeAsset(masterNoise);
             if (!staticAssets.creviceWallMat) staticAssets.creviceWallMat = CreviceTextures._buildLathAndPlasterAsset(masterNoise);
 
-            if (!staticAssets.doorMat || !staticAssets.subwayTileMats) {
-                const structAssets = StructuralTextures._buildStructuralAssets(masterNoise);
-                if (!staticAssets.doorMat) staticAssets.doorMat = structAssets.doorMat;
-                if (!staticAssets.subwayTileMats) staticAssets.subwayTileMats = structAssets.subwayTileMats;
+            const techKeys = ['ventMat', 'ductMat', 'serverMat', 'baseLightMat', 'baseBrokenLightMat',
+                'baseHousingMat', 'matteLightMat', 'matteBrokenLightMat', 'flangeMat'];
+            if (techKeys.some(key => !staticAssets[key])) {
+                const techAssets = TechTextures._buildTechAssets(masterNoise);
+                for (const key of techKeys) {
+                    if (!staticAssets[key]) staticAssets[key] = techAssets[key];
+                }
             }
-            
+
+            const structKeys = ['headerMat', 'wallTexture', 'wallBumpTexture', 'structMat', 'woodMat',
+                'doorMat', 'baseboardMat', 'baseboardTrimMat', 'subwayTileMats'];
+            if (structKeys.some(key => !staticAssets[key])) {
+                const structAssets = StructuralTextures._buildStructuralAssets(masterNoise);
+                for (const key of structKeys) {
+                    if (!staticAssets[key]) staticAssets[key] = structAssets[key];
+                }
+            }
+
+            const surfaceKeys = ['carpetTexture', 'ceilingTexture', 'ceilingBumpTexture', 'tileMat', 'clinicMat',
+                'atriumFloorMat', 'clinicFloorMat', 'clinicCeilingMat', 'clinicWallMat', 'clinicRailMat'];
+            if (surfaceKeys.some(key => !staticAssets[key])) {
+                const surfaceAssets = await SurfaceTextures._buildSurfaceAssets(masterNoise);
+                for (const key of surfaceKeys) {
+                    if (!staticAssets[key]) staticAssets[key] = surfaceAssets[key];
+                }
+            }
+
+            const organicKeys = ['fabricMat', 'mossMat', 'cornMat', 'dirtMat', 'nightSkyMat'];
+            if (organicKeys.some(key => !staticAssets[key])) {
+                const organicAssets = OrganicTextures._buildOrganicAssets(masterNoise);
+                for (const key of organicKeys) {
+                    if (!staticAssets[key]) staticAssets[key] = organicAssets[key];
+                }
+            }
+
+            const serverKeys = ['serverFloorMat', 'serverCeilingMat'];
+            if (serverKeys.some(key => !staticAssets[key])) {
+                const serverAssets = ServerTextures._buildServerAssets(masterNoise);
+                for (const key of serverKeys) {
+                    if (!staticAssets[key]) staticAssets[key] = serverAssets[key];
+                }
+            }
+
+            if (!staticAssets.pegboardTex) staticAssets.pegboardTex = PropTextures.generatePegboardTexture();
+            if (!staticAssets.fernTex) staticAssets.fernTex = PropTextures.generateFernTexture();
+
+            const cartonKeys = ['fileBoxMat', 'movingBoxMat', 'bananaBoxMat', 'parcelBoxMat', 'cartonMats'];
+            if (cartonKeys.some(key => !staticAssets[key])) {
+                const cartonAssets = PropTextures._buildCartons();
+                for (const key of cartonKeys) {
+                    if (!staticAssets[key]) staticAssets[key] = cartonAssets[key];
+                }
+            }
+
             Object.assign(staticAssets, SurfaceTextures._buildDuctInteriorSet(masterNoise));
-            
+
             const hazardAssets = HazardTextures._buildHazardAndMiscAssets(masterNoise);
             staticAssets.tagGeo = hazardAssets.tagGeo;
             staticAssets.glowGeo = hazardAssets.glowGeo;
-            if (!staticAssets.tagMat) staticAssets.tagMat = hazardAssets.tagMat;
-            
+            const hazardKeys = ['fenceMat', 'hazardMat', 'glowMat', 'flareMat', 'tagMat', 'voidMat', 'metalMat',
+                'paintedSteelMat', 'pittedMetalMat', 'titaniumMat', 'pipeMat', 'breakerPanelMat', 'stainlessMat',
+                'stainlessDoorMat', 'corrosionBumpTexture'];
+            for (const key of hazardKeys) {
+                if (!staticAssets[key]) staticAssets[key] = hazardAssets[key];
+            }
+
             ProceduralTextureFactory._applyOpts(staticAssets);
             return staticAssets;
         }

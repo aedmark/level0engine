@@ -2,7 +2,7 @@ export const RoundPillarProfile = (env, ctx) => {
     const {random, buildCylinder, addGeometry} = ctx;
     return {
         name: "ROUND PILLAR",
-        prob: 0.0215, build: (x, z) => {
+        prob: 0.0187, build: (x, z) => {
             if (ctx.markPermeable) ctx.markPermeable(x, z);
             let maxRadius = 1.25;
             if (ctx.isWall && (!ctx.isWall(x-1, z) || !ctx.isWall(x+1, z) || !ctx.isWall(x, z-1) || !ctx.isWall(x, z+1))) {

@@ -3,7 +3,7 @@ export const TheFaradayCageProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, chunkGroup, hash} = ctx;
     return {
         name: "THE FARADAY CAGE",
-        prob: 0.0016, build: (x, z) => {
+        prob: 0.0014, build: (x, z) => {
             // The cage occupies a whole wall cell and leaves exactly one of its four walls open
             // as the entrance - that side has to actually face a walkable neighbor, the same
             // requirement WideHeaderGap/HingedDoorway already enforce for their own single gap.

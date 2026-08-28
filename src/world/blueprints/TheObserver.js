@@ -2,7 +2,7 @@ export const TheObserverProfile = (env, ctx) => {
     const {random, buildWall, addGeometry} = ctx;
     return {
         name: "THE OBSERVER",
-        prob: 0.07, build: (x, z) => {
+        prob: 0.0608, build: (x, z) => {
             if (random() > 0.92 && ctx.addObserver) {
                 ctx.addObserver(x * env.cellSize, z * env.cellSize);
                 if (ctx.markOccupied) ctx.markOccupied(x, z);

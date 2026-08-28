@@ -33,6 +33,100 @@ const MIME_TYPES = {
 
 const IMMUTABLE_ROUTES = /^\/(r160\.js|assets\/fonts\/)/;
 
+const ALLOWED_SECTOR_FIELDS = new Set(['ambient', 'fog', 'fogColor', 'groundColor']);
+const COLOR_FIELDS = new Set(['fogColor', 'groundColor']);
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const toHexLiteral = (n) => '0x' + (Number(n) >>> 0).toString(16).padStart(6, '0');
+
+function assertBraceBalance(original, patched, label) {
+    const count = (s, ch) => (s.split(ch).length - 1);
+    if (count(original, '{') !== count(patched, '{') || count(original, '}') !== count(patched, '}')) {
+        throw new Error(`Refusing to write ${label}: brace count changed unexpectedly`);
+    }
+}
+
+function patchSectorBlock(text, sectorName, fields) {
+    if (!/^[A-Z0-9_]+$/.test(sectorName)) {
+        throw new Error(`Invalid sector name "${sectorName}"`);
+    }
+    const startRe = new RegExp(`\\b${escapeRe(sectorName)}\\s*:\\s*\\{`);
+    const m = startRe.exec(text);
+    if (!m) throw new Error(`Sector "${sectorName}" not found in Sectors.js`);
+
+    const blockOpenIdx = m.index + m[0].length - 1;
+    let depth = 0;
+    let endIdx = -1;
+    for (let i = blockOpenIdx; i < text.length; i++) {
+        if (text[i] === '{') depth++;
+        else if (text[i] === '}') {
+            depth--;
+            if (depth === 0) { endIdx = i; break; }
+        }
+    }
+    if (endIdx === -1) throw new Error(`Unbalanced braces scanning sector "${sectorName}"`);
+
+    let block = text.slice(blockOpenIdx, endIdx + 1);
+    const indentMatch = block.match(/\n(\s+)\S/);
+    const indent = indentMatch ? indentMatch[1] : '        ';
+
+    for (const [key, value] of Object.entries(fields)) {
+        if (!ALLOWED_SECTOR_FIELDS.has(key)) continue;
+        const valueText = COLOR_FIELDS.has(key) ? toHexLiteral(value) : String(value);
+        const fieldRe = new RegExp(`\\b${key}\\s*:\\s*[^,}\\n]+`);
+        if (fieldRe.test(block)) {
+            block = block.replace(fieldRe, `${key}: ${valueText}`);
+        } else {
+            block = block.replace('{', `{\n${indent}${key}: ${valueText},`);
+        }
+    }
+
+    return text.slice(0, blockOpenIdx) + block + text.slice(endIdx + 1);
+}
+
+function patchNamedConst(text, constName, newHex) {
+    const re = new RegExp(`(export const ${escapeRe(constName)}\\s*=\\s*)0x[0-9a-fA-F]{6}(\\s*;)`);
+    if (!re.test(text)) throw new Error(`Could not find export const ${constName} in Sectors.js`);
+    return text.replace(re, `$1${newHex}$2`);
+}
+
+function patchSkyColor(text, newHex) {
+    const re = /(new THREE\.HemisphereLight\(\s*)0x[0-9a-fA-F]{6}(\s*,)/;
+    if (!re.test(text)) throw new Error('Could not find HemisphereLight sky color literal in RenderEngine.js');
+    return text.replace(re, `$1${newHex}$2`);
+}
+
+function writePatched(filePath, patchFn, label) {
+    const original = fs.readFileSync(filePath, 'utf-8');
+    const patched = patchFn(original);
+    assertBraceBalance(original, patched, label);
+    fs.writeFileSync(filePath, patched);
+}
+
+function saveAtmosphere(data) {
+    const results = [];
+    const sectorsPath = path.join(__dirname, 'src', 'world', 'Sectors.js');
+    const enginePath = path.join(__dirname, 'src', 'core', 'RenderEngine.js');
+
+    if (data.sector && data.sectorFields && Object.keys(data.sectorFields).length) {
+        writePatched(sectorsPath, (text) => patchSectorBlock(text, data.sector, data.sectorFields), 'Sectors.js (sector block)');
+        results.push(`Sectors.js: SECTORS.${data.sector} updated (${Object.keys(data.sectorFields).join(', ')})`);
+    }
+
+    if (data.baseFields && data.baseFields.atmosphereColor !== undefined) {
+        const hex = toHexLiteral(data.baseFields.atmosphereColor);
+        writePatched(sectorsPath, (text) => patchNamedConst(text, 'DEFAULT_ATMOSPHERE_COLOR', hex), 'Sectors.js (DEFAULT_ATMOSPHERE_COLOR)');
+        results.push(`Sectors.js: DEFAULT_ATMOSPHERE_COLOR -> ${hex}`);
+    }
+
+    if (data.baseFields && data.baseFields.skyColor !== undefined) {
+        const hex = toHexLiteral(data.baseFields.skyColor);
+        writePatched(enginePath, (text) => patchSkyColor(text, hex), 'RenderEngine.js (sky color)');
+        results.push(`RenderEngine.js: sky color -> ${hex}`);
+    }
+
+    return results;
+}
+
 const cacheControlFor = (route) =>
     IMMUTABLE_ROUTES.test(route) ? 'public, max-age=31536000, immutable' : 'no-cache';
 
@@ -79,6 +173,23 @@ const server = http.createServer((req, res) => {
                 fs.writeFileSync(filePath, buf);
                 res.writeHead(200, { 'Content-Type': 'text/plain' });
                 res.end('OK');
+            } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'text/plain' });
+                res.end(err.toString());
+            }
+        });
+        return;
+    }
+
+    if (req.method === 'POST' && route === '/save-atmosphere') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+            try {
+                const data = JSON.parse(body);
+                const results = saveAtmosphere(data);
+                res.writeHead(200, { 'Content-Type': 'text/plain' });
+                res.end(results.length ? results.join('\n') : 'No changes to save.');
             } catch (err) {
                 res.writeHead(500, { 'Content-Type': 'text/plain' });
                 res.end(err.toString());

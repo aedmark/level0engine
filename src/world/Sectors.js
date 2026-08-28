@@ -35,10 +35,16 @@ export const DEFAULT_AMBIENT = 0.30;
 
 export const MIN_AMBIENT = 0.005;
 
+export const DEFAULT_GROUND_COLOR = 0x555550;
+
+export const DEFAULT_ATMOSPHERE_COLOR = 0xd3ca92;
+
 const SECTORS = {
     NORMAL: {
-        fog: 0.01,
-        ambient: 0.69,
+        fogColor: 0xfffcd6,
+        fog: 0.015,
+        ambient: 1,
+        groundColor: 0xfffcf5,
         ambience: {
             noise: 0.0,
             peace: 0.0,

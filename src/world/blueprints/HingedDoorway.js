@@ -2,7 +2,7 @@ export const HingedDoorwayProfile = (env, ctx) => {
     const {buildWall, addGeometry, chunkGroup, hash} = ctx;
     return {
         name: "HINGED DOORWAY",
-        prob: 0.0862,
+        prob: 0.0749,
         build: (x, z) => {
             const plan = ctx.getDoorwayPlan ? ctx.getDoorwayPlan(x, z) : null;
             if (!plan) {

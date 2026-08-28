@@ -6,7 +6,7 @@ export const CreviceNetworkProfile = (env, ctx) => {
 
     return {
         name: "CREVICE_NETWORK",
-        prob: 0.0346,
+        prob: 0.0301,
         build: (x, z) => {
             const startX = Math.floor(x / env.chunkSize) * env.chunkSize;
             const startZ = Math.floor(z / env.chunkSize) * env.chunkSize;
