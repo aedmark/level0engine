@@ -45,13 +45,13 @@ export const LEGACY_LIGHT_COMPENSATION = Math.PI;
 
 export const DEFAULT_GROUND_COLOR = 0x555550;
 
-export const DEFAULT_ATMOSPHERE_COLOR = 0xdedcce;
+export const DEFAULT_ATMOSPHERE_COLOR = 0xf4f2e6;
 
 const SECTORS = {
     NORMAL: {
-        fogColor: 0xd3d1b6,
+        fogColor: 0xfff0d6,
         fog: 0.015,
-        ambient: 0.17,
+        ambient: 0.57,
         groundColor: 0xfffcf5,
         ambience: {
             noise: 0.0,
@@ -67,9 +67,9 @@ const SECTORS = {
         reverb: {rt60: 0.8, predelay: 0.010, wet: 0.14}
     },
     ARCHIVE: {
-        groundColor: 0xf7d6b1,
-        fog: 0.08, fogColor: 0x212121,
-        ambient: 1,
+        groundColor: 0xb09b9b,
+        fog: 0.03, fogColor: 0x474747,
+        ambient: 0.59,
         ambience: {
             noise: 0.06,
             peace: 0.0,

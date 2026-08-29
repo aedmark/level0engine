@@ -398,6 +398,7 @@ export default class StructureKit {
                     const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
                     box.chunkHash = hash;
                     if (mesh.userData.isEntityBlocker) box.isEntityBlocker = true;
+                    if (mesh.userData.noLightOcclusion) box.noLightOcclusion = true;
                     if (isWarp) box.isWarpZone = true;
                     if (helpers._pendingDoorFrame) box.doorFrameOwner = helpers._pendingDoorFrame;
                     env.spatialGrid.insert(box);
@@ -479,6 +480,7 @@ export default class StructureKit {
                     const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
                     box.chunkHash = hash;
                     if (mesh.userData.isEntityBlocker) box.isEntityBlocker = true;
+                    if (mesh.userData.noLightOcclusion) box.noLightOcclusion = true;
                     env.spatialGrid.insert(box);
                     mesh.userData.collisionBox = box;
                 }

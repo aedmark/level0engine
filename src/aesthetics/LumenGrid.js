@@ -196,7 +196,7 @@ export default class LumenGrid {
         dy *= scale;
         dz *= scale;
         return grid.forEachAlongSegment(ox, oz, ox + dx, oz + dz, (box) => {
-            if (box.isInvisibleBlocker || box.isVoid || box.isWarpZone) return false;
+            if (box.isInvisibleBlocker || box.isVoid || box.isWarpZone || box.noLightOcclusion) return false;
             if (box.isGrate && box.meshRef && !box.meshRef.userData.active) return false;
             if (box.max.y - box.min.y < OCCLUDER_MIN_HEIGHT) return false;
             return this._segmentHitsBox(ox, oy, oz, dx, dy, dz, box);

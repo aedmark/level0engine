@@ -1069,7 +1069,7 @@ export default class SetPieces {
         return pallet;
     }
 
-    buildHangingBowlLight(chunkGroup, hash, cx, cz, random, getLightMaterial, wireLen = 3.0, ceilingY = null, intensity = 1.5, faulty = true) {
+    buildHangingBowlLight(chunkGroup, hash, cx, cz, random, getLightMaterial, wireLen = 3.0, ceilingY = null, intensity = 3.2, faulty = true) {
         const env = this.env;
         const bowlRadius = 0.4;
         const BASE_WIRE_LEN = 3.0;
@@ -1089,9 +1089,11 @@ export default class SetPieces {
         const bowlGeo = env._cacheGeo('archiveBowl', () => new THREE.SphereGeometry(bowlRadius, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2));
         if (!env.archiveBowlMat) {
             env.archiveBowlMat = new THREE.MeshStandardMaterial({
-                color: 0x1c4a34,
-                roughness: 0.3,
-                metalness: 0.12,
+                color: 0x3c8362,
+                emissive: 0x3a2410,
+                emissiveIntensity: 0.25,
+                roughness: 0.16,
+                metalness: 0.35,
                 bumpMap: env.corrosionBumpTexture || null,
                 bumpScale: 0.01,
                 side: THREE.DoubleSide
@@ -1114,14 +1116,20 @@ export default class SetPieces {
         pivot.add(bulb);
         env.walls.push(bulb);
         pivot.updateMatrixWorld(true);
-        const spotAngle = Math.atan2(bowlRadius, bulbY - rimY);
+        // The shade-derived angle (~51deg) reads as too tight a beam in practice - open it up
+        // well past the shade's own opening so the fixture throws light like a real bowl pendant
+        // (which scatters off the shade's underside, not just what passes straight through the
+        // rim) rather than a tightly collimated spot. Clamped short of grazing-wide so it still
+        // reads as directional light, not an omnidirectional point source.
+        const spotAngle = Math.min(Math.PI / 2.3, Math.atan2(bowlRadius, bulbY - rimY) * 1.6);
         env.fixtureData.push({
             chunkHash: hash,
             position: new THREE.Vector3(cx, bulbY, cz),
             isSpot: true,
             targetPos: new THREE.Vector3(cx, bulbY - 6.0, cz),
             spotAngle,
-            spotPenumbra: 0.5,
+            spotPenumbra: 0.35,
+            distance: 18.0,
             flickerOffset: random() * 500,
             material: bulbMat,
             isFaulty: faulty,

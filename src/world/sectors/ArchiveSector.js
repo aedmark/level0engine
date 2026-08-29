@@ -195,11 +195,13 @@ export const ArchiveSector = (env, ctx) => {
                         if (e < 0 ? !openNeg : !openPos) continue;
                         const upright = buildWall(alongZ ? 1.0 : 0.12, alongZ ? 0.12 : 1.0, env.woodMat, 3.0);
                         upright.position.set(sx + (alongZ ? 0 : e * capOffset), 1.5, sz + (alongZ ? e * capOffset : 0));
+                        upright.userData.noLightOcclusion = true;
                         addGeometry(upright);
                     }
                     const spine = buildWall(alongZ ? 0.08 : runSpan, alongZ ? runSpan : 0.08, env.woodMat, 3.0);
                     spine.position.set(sx, 1.5, sz);
                     spine.userData.isEntityBlocker = true;
+                    spine.userData.noLightOcclusion = true;
                     addGeometry(spine);
                     const levels = [0.14, 0.88, 1.62, 2.36];
                     for (let li = 0; li < levels.length; li++) {
