@@ -1,3 +1,5 @@
+import {LEGACY_LIGHT_COMPENSATION} from '../world/Sectors.js';
+
 const CHASE_SPEED = 4.2;
 const CATCH_DIST_SQ = 1.0;
 const RESPAWN_DIST_SQ = 6400.0;
@@ -179,7 +181,7 @@ export default class SentryConeEntity {
         this.group.position.set(clamped.x, 0, clamped.z);
         this.target.copy(this.group.position);
         this.group.visible = true;
-        this.light.intensity = 1.2;
+        this.light.intensity = 1.2 * LEGACY_LIGHT_COMPENSATION;
         this._facing = Math.atan2(playerPos.x - clamped.x, playerPos.z - clamped.z);
         this._heading.x = Math.sin(this._facing);
         this._heading.z = Math.cos(this._facing);
@@ -399,7 +401,7 @@ export default class SentryConeEntity {
             this._slewFacing(Math.atan2(this._heading.x, this._heading.z), delta);
         }
         this.bodyGroup.rotation.y = this._facing;
-        this.light.intensity = 1.5 + Math.sin(time * 20.0) * 0.8;
+        this.light.intensity = (1.5 + Math.sin(time * 20.0) * 0.8) * LEGACY_LIGHT_COMPENSATION;
     }
 
     _animateRun(time, delta) {
@@ -416,6 +418,6 @@ export default class SentryConeEntity {
             this._slewFacing(Math.atan2(this._heading.x, this._heading.z), delta);
         }
         this.bodyGroup.rotation.y = this._facing;
-        this.light.intensity = 1.0 + Math.sin(time * 14.0) * 0.6;
+        this.light.intensity = (1.0 + Math.sin(time * 14.0) * 0.6) * LEGACY_LIGHT_COMPENSATION;
     }
 }

@@ -35,15 +35,23 @@ export const DEFAULT_AMBIENT = 0.30;
 
 export const MIN_AMBIENT = 0.005;
 
+// three.js r155 dropped the implicit x(pi) applied to every non-ambient/hemisphere light's
+// color*intensity when useLegacyLights is off (see WebGLLights.setup's scaleFactor). Every
+// intensity value that reaches a THREE.Light directly (ambient/hemisphere/flashlight/lightning
+// here, plus LumenGrid's pooled point/spot lights) was authored under the old legacy-lit scale,
+// so compensate at the point of assignment rather than re-tuning every authored constant.
+// First-pass factor - expect to dial this in by feel once there's a proper tuning UI for it.
+export const LEGACY_LIGHT_COMPENSATION = Math.PI;
+
 export const DEFAULT_GROUND_COLOR = 0x555550;
 
-export const DEFAULT_ATMOSPHERE_COLOR = 0xd3ca92;
+export const DEFAULT_ATMOSPHERE_COLOR = 0xdedcce;
 
 const SECTORS = {
     NORMAL: {
-        fogColor: 0xfffcd6,
+        fogColor: 0xd3d1b6,
         fog: 0.015,
-        ambient: 1,
+        ambient: 0.17,
         groundColor: 0xfffcf5,
         ambience: {
             noise: 0.0,
@@ -59,8 +67,9 @@ const SECTORS = {
         reverb: {rt60: 0.8, predelay: 0.010, wet: 0.14}
     },
     ARCHIVE: {
-        fog: 0.07, fogColor: 0x000000,
-        ambient: 0.10,
+        groundColor: 0xf7d6b1,
+        fog: 0.08, fogColor: 0x212121,
+        ambient: 1,
         ambience: {
             noise: 0.06,
             peace: 0.0,
@@ -287,8 +296,8 @@ const SECTORS = {
         reverb: {rt60: 1.0, predelay: 0.010, wet: 0.15}
     },
     ACME: {
-        fog: 0.08, fogColor: 0x101010,
-        ambient: 0.05,
+        fog: 0.015, fogColor: 0x0a0a0a,
+        ambient: 0.68,
         ambience: {
             noise: 0.05,
             peace: 0.0,

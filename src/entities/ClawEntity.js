@@ -1,4 +1,5 @@
 import {} from './HazardUtils.js';
+import {LEGACY_LIGHT_COMPENSATION} from '../world/Sectors.js';
 
 export default class ClawEntity {
     constructor(scene, camera, player, environment) {
@@ -144,7 +145,7 @@ export default class ClawEntity {
                                 document.dispatchEvent(new CustomEvent('somatic-claw', { detail: { variant: 'claw_warning', intensity: 1.0 } }));
                                 this.warningTimer = 0;
                                 this.group.position.set(playerPos.x, playerPos.y + 12.0, playerPos.z);
-                                this.warningLight.intensity = 2.0;
+                                this.warningLight.intensity = 2.0 * LEGACY_LIGHT_COMPENSATION;
                             }
                         } else {
                             this.idleTimer = Math.max(0, this.idleTimer - delta * 2);
@@ -160,14 +161,14 @@ export default class ClawEntity {
             this.warningTimer += delta;
             this.group.position.set(playerPos.x, playerPos.y + 12.0, playerPos.z);
 
-            this.warningLight.intensity = 3.0 + Math.sin(time * 30.0) * 2.0;
+            this.warningLight.intensity = (3.0 + Math.sin(time * 30.0) * 2.0) * LEGACY_LIGHT_COMPENSATION;
             
             if (this.warningTimer > 1.2) {
                 this.state = 'DROP';
                 document.dispatchEvent(new CustomEvent('somatic-claw', { detail: { variant: 'claw_drop', intensity: 1.0 } }));
                 this.dropTimer = 0;
                 this.warningLight.intensity = 0;
-                this.clawLight.intensity = 2.0;
+                this.clawLight.intensity = 2.0 * LEGACY_LIGHT_COMPENSATION;
                 this.dropTargetY = playerPos.y + 1.6;
 
                 if (!this.player.isGodMode) {

@@ -1,4 +1,5 @@
 import {releasePropLighting} from '../world/PropGlow.js';
+import {LEGACY_LIGHT_COMPENSATION} from '../world/Sectors.js';
 
 export default class InteractionController {
     constructor(env) {
@@ -861,7 +862,7 @@ export default class InteractionController {
         env._breakerHuntHops = this.rollHuntHops();
         document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 0.1, intensity: 1.5}}));
         if (env.engine.ambientLight) {
-            env.engine.ambientLight.intensity = 2.0;
+            env.engine.ambientLight.intensity = 2.0 * LEGACY_LIGHT_COMPENSATION;
         }
     }
 
@@ -922,7 +923,7 @@ export default class InteractionController {
                             fixture.material.emissive.setHex(fixture.originalEmissive);
                             if (fixture.isFake) fixture.material.emissiveIntensity = 0.4;
                         }
-                        if (fixture.lightObj) fixture.lightObj.intensity = fixture.baseIntensity;
+                        if (fixture.lightObj) fixture.lightObj.intensity = fixture.baseIntensity * LEGACY_LIGHT_COMPENSATION;
                     }, 25000 + Math.random() * 10000);
                 }
             });

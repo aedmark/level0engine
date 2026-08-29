@@ -1,3 +1,4 @@
+import {LEGACY_LIGHT_COMPENSATION} from '../world/Sectors.js';
 
 export default class ArchivistEntity {
     constructor(scene, camera, player, environment) {
@@ -90,7 +91,7 @@ export default class ArchivistEntity {
         this.group.position.set(clamped.x, y, clamped.z);
         this.target.copy(this.group.position);
         this._setBodyVisible(true);
-        this.light.intensity = 1.1;
+        this.light.intensity = 1.1 * LEGACY_LIGHT_COMPENSATION;
         this.observeTimer = 0;
     }
 
@@ -120,7 +121,7 @@ export default class ArchivistEntity {
                 this.group.position.set(clamped.x, 0, clamped.z);
                 this.target.copy(this.group.position);
                 this._setBodyVisible(true);
-                this.light.intensity = 1.1;
+                this.light.intensity = 1.1 * LEGACY_LIGHT_COMPENSATION;
                 this.graceTimer = 3.0;
                 this.observeTimer = 0;
             }
@@ -184,7 +185,7 @@ export default class ArchivistEntity {
         if (isObserved) {
             this.observeTimer = (this.observeTimer || 0) + delta;
             this.core.scale.setScalar(1.0 - Math.min(0.8, this.observeTimer * 0.4));
-            this.light.intensity = 1.1 - Math.min(0.8, this.observeTimer * 0.4);
+            this.light.intensity = (1.1 - Math.min(0.8, this.observeTimer * 0.4)) * LEGACY_LIGHT_COMPENSATION;
             if (this.observeTimer > 2.0 && !this.droppedDoc) {
                 this.dropDocument();
                 this.fleeTimer = 0.6;
@@ -195,7 +196,7 @@ export default class ArchivistEntity {
         } else {
             this.observeTimer = Math.max(0, (this.observeTimer || 0) - delta);
             this.core.scale.setScalar(1.0);
-            this.light.intensity = 1.1;
+            this.light.intensity = 1.1 * LEGACY_LIGHT_COMPENSATION;
         }
         if (!isObserved) {
             const ARCHIVIST_CURIOUS_NEAR = 6.0;

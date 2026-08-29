@@ -1,4 +1,5 @@
 import {computeAxisBlocking} from './HazardUtils.js';
+import {LEGACY_LIGHT_COMPENSATION} from '../world/Sectors.js';
 
 export default class WardenEntity {
     constructor(scene, camera, player, environment) {
@@ -151,7 +152,7 @@ export default class WardenEntity {
         this.target.copy(this.group.position);
         this.base.visible = true;
         this.upperBody.visible = true;
-        this.light.intensity = 2.0;
+        this.light.intensity = 2.0 * LEGACY_LIGHT_COMPENSATION;
         this.light.shadow.autoUpdate = true;
         this.light.color.setHex(0xffffff);
         if (this.eyeMat) {
@@ -252,7 +253,7 @@ export default class WardenEntity {
         }
         if (isSpotted) {
             this.light.color.setHex(0xff0000);
-            this.light.intensity = 4.0;
+            this.light.intensity = 4.0 * LEGACY_LIGHT_COMPENSATION;
             if (this.eyeMat) {
                 this.eyeMat.color.setHex(0xff0000);
                 this.eyeMat.opacity = 1.0;
@@ -264,7 +265,7 @@ export default class WardenEntity {
             this.target.copy(playerPos);
         } else {
             this.light.color.setHex(0xffffff);
-            this.light.intensity = 2.0;
+            this.light.intensity = 2.0 * LEGACY_LIGHT_COMPENSATION;
             if (this.eyeMat) {
                 this.eyeMat.color.setHex(0xdadada);
                 this.eyeMat.opacity = 0.55;

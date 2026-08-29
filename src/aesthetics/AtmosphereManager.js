@@ -1,4 +1,4 @@
-import SECTORS, {DEFAULT_DUST, DEFAULT_EXHAUST, DEFAULT_AMBIENT, MIN_AMBIENT, DEFAULT_GROUND_COLOR, DEFAULT_ATMOSPHERE_COLOR} from '../world/Sectors.js';
+import SECTORS, {DEFAULT_DUST, DEFAULT_EXHAUST, DEFAULT_AMBIENT, MIN_AMBIENT, DEFAULT_GROUND_COLOR, DEFAULT_ATMOSPHERE_COLOR, LEGACY_LIGHT_COMPENSATION} from '../world/Sectors.js';
 
 export default class AtmosphereManager {
     constructor(env) {
@@ -43,7 +43,7 @@ export default class AtmosphereManager {
             for (let i = 0; i < env.fixtureData.length; i++) {
                 const fix = env.fixtureData[i];
                 if (fix.lightObj) {
-                    fix.lightObj.intensity = fix.currentIntensity;
+                    fix.lightObj.intensity = fix.currentIntensity * LEGACY_LIGHT_COMPENSATION;
                 }
             }
         }
@@ -95,7 +95,7 @@ export default class AtmosphereManager {
             let envelope = pulse(elapsed);
             if (env._lightningDoubleFlash) envelope += pulse(elapsed - 0.12) * 0.6;
             const envNorm = Math.min(1.0, envelope);
-            env._lightningLight.intensity = env._lightningFlashPeak * envNorm;
+            env._lightningLight.intensity = env._lightningFlashPeak * envNorm * LEGACY_LIGHT_COMPENSATION;
             if (envelope > 0.001) {
                 env._lightningLight.position.set(cameraPos.x, cameraPos.y + 60, cameraPos.z);
                 env._lightningLight.target.position.set(cameraPos.x, cameraPos.y, cameraPos.z);
@@ -502,7 +502,7 @@ export default class AtmosphereManager {
     _updateFlashlightAndAmbient(darknessPressure, activeSector) {
         const env = this.env;
         if (env.flashlight) {
-            let targetIntensity = env.player.flashlightActive ? 1.4 : 0.0;
+            let targetIntensity = env.player.flashlightActive ? 1.4 * LEGACY_LIGHT_COMPENSATION : 0.0;
             if (env.player.flashlightActive) {
                 if (env.player.flashlightBattery <= 0) {
                     targetIntensity = 0.0;
@@ -532,7 +532,7 @@ export default class AtmosphereManager {
             }
             const row = SECTORS[activeSector];
             const sectorAmbient = row && row.ambient !== undefined ? row.ambient : DEFAULT_AMBIENT;
-            const targetAmbient = env.tutorialActive ? 0.0 : Math.max(MIN_AMBIENT, sectorAmbient * (1.0 - darknessPressure * 0.5));
+            const targetAmbient = env.tutorialActive ? 0.0 : Math.max(MIN_AMBIENT, sectorAmbient * (1.0 - darknessPressure * 0.5)) * LEGACY_LIGHT_COMPENSATION;
 
             env.engine.ambientLight.intensity += (targetAmbient - env.engine.ambientLight.intensity) * 0.05;
 

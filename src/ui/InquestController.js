@@ -1,3 +1,5 @@
+import {LEGACY_LIGHT_COMPENSATION} from '../world/Sectors.js';
+
 export default class InquestController {
     constructor(player, acoustics, engine, environment, getStoryFn, onAscension, onBlackout) {
         this.player = player;
@@ -32,7 +34,7 @@ export default class InquestController {
                 this.player.objectiveUI.innerHTML = '> CASE CLOSED.<br>> DESCENDING TO DEEPER LAYER...';
                 this.player.objectiveUI.style.color = '#aa55ff';
                 document.dispatchEvent(new CustomEvent('somatic-door', {detail: {distSq: 0.1, intensity: 3.0}}));
-                if (this.engine.ambientLight) this.engine.ambientLight.intensity = 5.0;
+                if (this.engine.ambientLight) this.engine.ambientLight.intensity = 5.0 * LEGACY_LIGHT_COMPENSATION;
                 const flash = document.getElementById('flash-overlay');
                 if (flash) {
                     flash.style.transition = 'opacity 3.0s ease-in';

@@ -1,3 +1,4 @@
+import {LEGACY_LIGHT_COMPENSATION} from '../world/Sectors.js';
 
 export default class BackupDaemonEntity {
     constructor(scene, camera, player, environment) {
@@ -89,7 +90,7 @@ export default class BackupDaemonEntity {
 
     _activateSlot(slot, position) {
         slot.group.position.copy(position);
-        slot.light.intensity = 0.9;
+        slot.light.intensity = 0.9 * LEGACY_LIGHT_COMPENSATION;
         slot.cycleTimer = 0;
         slot.shards.forEach(s => {
             s.landed = true;
@@ -113,7 +114,7 @@ export default class BackupDaemonEntity {
         this._unlightAll();
         this.group.position.set(x, this._ceilingY(), z);
         this._setBodyVisible(true);
-        this.light.intensity = 0.7;
+        this.light.intensity = 0.7 * LEGACY_LIGHT_COMPENSATION;
     }
 
     deactivate() {
@@ -303,7 +304,7 @@ export default class BackupDaemonEntity {
             if (!slot || !entry) continue;
             slot.group.position.copy(entry.position);
             const flicker = 0.65 + Math.random() * 0.45;
-            slot.light.intensity = 0.9 * flicker;
+            slot.light.intensity = 0.9 * flicker * LEGACY_LIGHT_COMPENSATION;
             slot.cycleTimer -= delta;
             if (slot.cycleTimer <= 0 && slot.shards.every(s => s.landed)) {
                 this._launchBurst(slot);

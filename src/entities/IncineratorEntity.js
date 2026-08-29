@@ -1,4 +1,5 @@
 import {computeAxisBlocking} from './HazardUtils.js';
+import {LEGACY_LIGHT_COMPENSATION} from '../world/Sectors.js';
 
 export default class IncineratorEntity {
     constructor(scene, camera, player, environment) {
@@ -202,7 +203,7 @@ export default class IncineratorEntity {
         const slot = this.emberSlot;
         const gravity = 4.5;
         const anyLit = slot.shards.some(s => !s.landed);
-        slot.light.intensity = anyLit ? (0.8 * (0.6 + Math.random() * 0.4)) : 0;
+        slot.light.intensity = anyLit ? (0.8 * (0.6 + Math.random() * 0.4) * LEGACY_LIGHT_COMPENSATION) : 0;
         slot.cycleTimer -= delta * (1.0 + this.heatLevel * 0.3);
         if (slot.cycleTimer <= 0 && slot.shards.every(s => s.landed)) {
             this._launchEmberBurst();
@@ -264,7 +265,7 @@ export default class IncineratorEntity {
         this.group.position.set(clamped.x, y, clamped.z);
         this.target.copy(this.group.position);
         this._setBodyVisible(true);
-        this.light.intensity = 1.1;
+        this.light.intensity = 1.1 * LEGACY_LIGHT_COMPENSATION;
     }
 
     _clampToBounds(x, z) {
@@ -313,7 +314,7 @@ export default class IncineratorEntity {
                 this.player.stamina = Math.max(0.0, this.player.stamina - drain * this.player.maxStamina);
                 this.player.exhaustion = Math.min(this.player.exhaustion + drain, 1.0);
             }
-            this.light.intensity = 1.1 + this.heatLevel * 0.7;
+            this.light.intensity = (1.1 + this.heatLevel * 0.7) * LEGACY_LIGHT_COMPENSATION;
             this.light.color.setHex(0xffaa00);
             if (Math.random() < delta * this.heatLevel * 2.0) {
                 document.dispatchEvent(new CustomEvent('somatic-ember-slither', {
@@ -325,7 +326,7 @@ export default class IncineratorEntity {
             }
         } else {
             this.heatLevel = Math.max(0.0, this.heatLevel - (delta * 0.5));
-            this.light.intensity = 1.1 + (Math.sin(time * 5.0) * 0.4);
+            this.light.intensity = (1.1 + (Math.sin(time * 5.0) * 0.4)) * LEGACY_LIGHT_COMPENSATION;
             this.light.color.setHex(0xff4400);
             this.target.copy(playerPos);
             const speed = 1.4 + (this.heatLevel * 1.4);
@@ -407,7 +408,7 @@ export default class IncineratorEntity {
             this.lureBulb.position.y = 0.55 + lureBob;
             this.lureLight.position.copy(this.lureBulb.position);
             const watchIntensity = this.heatLevel / 10.0;
-            this.lureLight.intensity = 0.5 + watchIntensity * 2.2;
+            this.lureLight.intensity = (0.5 + watchIntensity * 2.2) * LEGACY_LIGHT_COMPENSATION;
             const eyeForward = 0.32, eyeUp = 0.18, eyeSpread = 0.14;
             this.eyeL.position.set(
                 head.position.x + heading.x * eyeForward + rightX * eyeSpread,

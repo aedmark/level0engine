@@ -1,3 +1,5 @@
+import {LEGACY_LIGHT_COMPENSATION} from '../world/Sectors.js';
+
 const OCCLUDED_LIGHT_FLOOR = 0.20;
 const OCCLUDER_MIN_HEIGHT = 2.0;
 const SIGHTLINE_END_INSET = 0.45;
@@ -26,8 +28,8 @@ export default class LumenGrid {
         const spotShadowSize = shadowQuality === 'low' ? 512 : 1024;
         for (let i = 0; i < this.maxActiveLights; i++) {
             const radius = i < this.maxShadowLights ? 20.0 : 10.0;
-            const pointLight = new THREE.PointLight(0xffebd6, 0, radius, 2.0);
-            const spotLight = new THREE.SpotLight(0xffebd6, 0, radius, Math.PI / 8, 0.4, 2.0);
+            const pointLight = new THREE.PointLight(0xffebd6, 0, radius, 1.0);
+            const spotLight = new THREE.SpotLight(0xffebd6, 0, radius, Math.PI / 8, 0.4, 1.0);
             if (i < this.maxShadowLights) {
                 const setupShadow = (l, mapSize) => {
                     l.castShadow = true;
@@ -394,7 +396,7 @@ export default class LumenGrid {
         }
         
         fixture.currentIntensity = isOn ? fixture.baseIntensity * 1.5 : 0.0;
-        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
+        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar * LEGACY_LIGHT_COMPENSATION;
         if (fixture.material) fixture.material.emissiveIntensity = (isOn ? 1.5 : 0.0) * fadeEnvelope;
     }
 
@@ -403,7 +405,7 @@ export default class LumenGrid {
         const pulseVal = (Math.sin(time * Math.PI * 2 * pulseFreq + fixture.flickerOffset) + 1.0) / 2.0;
         const eased = pulseVal * pulseVal * (3.0 - 2.0 * pulseVal);
         fixture.currentIntensity = fixture.baseIntensity * (0.3 + 0.7 * eased);
-        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
+        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar * LEGACY_LIGHT_COMPENSATION;
         if (fixture.material) fixture.material.emissiveIntensity = (0.2 + 0.8 * eased) * fadeEnvelope;
     }
 
@@ -411,7 +413,7 @@ export default class LumenGrid {
         const pulseVal = (Math.sin(time * fixture.sweepSpeed + fixture.sweepPhase) + 1.0) / 2.0;
         const eased = pulseVal * pulseVal;
         fixture.currentIntensity = fixture.baseIntensity * (0.2 + 1.3 * eased);
-        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
+        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar * LEGACY_LIGHT_COMPENSATION;
         if (fixture.material) fixture.material.emissiveIntensity = (0.5 + 1.5 * eased) * fadeEnvelope;
     }
 
@@ -439,7 +441,7 @@ export default class LumenGrid {
         }
         const flickerScale = fixture._flickering ? fixture._flickerDepth : 1.0;
         fixture.currentIntensity = fixture.baseIntensity * flickerScale;
-        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar;
+        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar * LEGACY_LIGHT_COMPENSATION;
         if (fixture.material) {
             const peakEmissive = fixture.emissiveIntensity !== undefined
                 ? fixture.emissiveIntensity * flickerScale
@@ -450,7 +452,7 @@ export default class LumenGrid {
 
     _applyDefaultBehavior(fixture, light, time, fadeEnvelope, intensityScalar) {
         const normalIntensity = fixture.currentIntensity !== undefined ? fixture.currentIntensity : fixture.baseIntensity;
-        light.intensity = (normalIntensity + (Math.sin(time * 120.0 + fixture.flickerOffset) * 0.02)) * fadeEnvelope * intensityScalar;
+        light.intensity = (normalIntensity + (Math.sin(time * 120.0 + fixture.flickerOffset) * 0.02)) * fadeEnvelope * intensityScalar * LEGACY_LIGHT_COMPENSATION;
         if (fixture.material) {
             const baseEmissive = fixture.isLighthouse
                 ? 5.0
