@@ -748,7 +748,14 @@ export default class SetPieces {
         const innerDoor = buildDoor(innerX, innerZ);
         const SHELL_HALF = 1.875;
         const SHELL_SPAN = 4.0;
-        const SHELL_H = 3.0;
+        // Vaulted sectors build their perimeter walls taller than the standard 3.0 - each sector's
+        // buildPerimeter call passes height=6.0 (ARCHIVE) / 20.0 (IMPOUND), but pushWallSegment
+        // adds +2.0 on top of that for the main (non-shoulder) wall runs, so the real wall top is
+        // 8.0 / 22.0. The airlock shell has to reach that same real height, or it caps out at 3.0
+        // while the room keeps going, leaving an open column above the airlock up to the true
+        // ceiling/void.
+        const VAULTED_SHELL_HEIGHTS = {ARCHIVE: 8.0, IMPOUND: 22.0};
+        const SHELL_H = VAULTED_SHELL_HEIGHTS[sectorId] || 3.0;
         const WALL_T = 0.28;
         const DOOR_TOP = 2.6;
 
@@ -782,7 +789,7 @@ export default class SetPieces {
             );
         }
 
-        const ROOF_BOTTOM = 2.97;
+        const ROOF_BOTTOM = SHELL_H - 0.03;
         shellPiece(SHELL_SPAN, 0.06, SHELL_SPAN, midX, 0.03, midZ, shellMat, false);
         shellPiece(SHELL_SPAN, 0.10, SHELL_SPAN, midX, ROOF_BOTTOM + 0.05, midZ, shellMat, false);
 

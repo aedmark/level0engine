@@ -981,6 +981,10 @@ export default class StructureKit {
                     wall.receiveShadow = true;
                     wall.userData.isEntityBlocker = true;
                     wall.userData.baseboardFootprint = {w: segW, d: segD, h: segH};
+                    if (sectorId === "ARCHIVE" && env.archiveBaseboardMat) {
+                        wall.userData.baseboardFaceMats = env.archiveBaseboardMat;
+                        wall.userData.baseboardTrimFaceMats = env.archiveBaseboardTrimMat;
+                    }
                     helpers.addGeometry(wall);
                 };
                 if (!isShoulder) {

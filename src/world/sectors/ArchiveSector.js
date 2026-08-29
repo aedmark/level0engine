@@ -64,16 +64,16 @@ export const ArchiveSector = (env, ctx) => {
                     if (isCorner) {
                         const sxp = localX === 0 ? 1 : -1;
                         const szp = localZ === 0 ? 1 : -1;
-                        const post = buildWall(0.4, 0.4, env.archiveWallMat || env.structMat, 6.0);
-                        post.position.set(x * env.cellSize + sxp * 2.2, 3.0, z * env.cellSize + szp * 2.2);
+                        const post = buildWall(0.4, 0.4, env.archiveWallMat || env.structMat, 8.0);
+                        post.position.set(x * env.cellSize + sxp * 2.2, 4.0, z * env.cellSize + szp * 2.2);
                         addGeometry(post);
                     } else {
                         for (let li = 0; li < liners.length; li++) {
                             const ldx = liners[li][0], ldz = liners[li][1];
                             const liner = buildWall(
                                 ldx !== 0 ? 0.4 : env.cellSize, ldz !== 0 ? 0.4 : env.cellSize,
-                                env.archiveWallMat || env.structMat, 6.0);
-                            liner.position.set(x * env.cellSize + ldx * 2.2, 3.0, z * env.cellSize + ldz * 2.2);
+                                env.archiveWallMat || env.structMat, 8.0);
+                            liner.position.set(x * env.cellSize + ldx * 2.2, 4.0, z * env.cellSize + ldz * 2.2);
                             addGeometry(liner);
                         }
                     }

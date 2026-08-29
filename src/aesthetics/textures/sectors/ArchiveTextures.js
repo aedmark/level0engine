@@ -37,42 +37,25 @@ export default class ArchiveTextures {
     static _buildArchiveAssets(masterNoise) {
         const {canvas: wallCanvas, ctx: wallCtx} = TextureMechanics._createContext(512, 512);
         wallCtx.fillStyle = '#546e58';
-        wallCtx.fillRect(0, 0, 512, 384);
+        wallCtx.fillRect(0, 0, 512, 512);
         wallCtx.lineWidth = 1;
         for (let i = 0; i < 512; i += 16) {
             wallCtx.strokeStyle = (i % 64 === 0) ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.02)';
             wallCtx.beginPath();
             wallCtx.moveTo(i, 0);
-            wallCtx.lineTo(i, 384);
+            wallCtx.lineTo(i, 512);
             wallCtx.stroke();
         }
-        wallCtx.fillStyle = '#6a4a34';
-        wallCtx.fillRect(0, 384, 512, 128);
-        for (let i = 0; i < 512; i += 4) {
-            if (i % 64 === 0) {
-                wallCtx.fillStyle = '#483020';
-                wallCtx.fillRect(i, 384, 4, 128);
-                wallCtx.fillStyle = '#74523c';
-                wallCtx.fillRect(i + 4, 384, 2, 128);
-            } else if (Math.random() > 0.3) {
-                wallCtx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-                wallCtx.fillRect(i, 384, 1 + Math.random(), 128);
-            }
-        }
-        wallCtx.fillStyle = '#483020';
-        wallCtx.fillRect(0, 380, 512, 4);
-        wallCtx.fillStyle = '#74523c';
-        wallCtx.fillRect(0, 376, 512, 4);
-        wallCtx.fillStyle = '#4c3424';
-        wallCtx.fillRect(0, 480, 512, 32);
-        wallCtx.fillStyle = '#382618';
-        wallCtx.fillRect(0, 476, 512, 4);
         wallCtx.globalAlpha = 0.4;
         wallCtx.drawImage(masterNoise, 0, 0);
         wallCtx.globalAlpha = 1.0;
         wallCtx.fillStyle = 'rgba(0,0,0,0.15)';
         wallCtx.fillRect(255, 0, 2, 512);
-        const archiveWallTexture = TextureMechanics._createWrappedTexture(wallCanvas, 4, 1, true);
+        // Height 6.0 in ArchiveSector.js (double the standard 3.0 wall) means buildWall's UV
+        // logic repeats this texture x2 vertically - it has to be seamless top-to-bottom with no
+        // baked-in floor-level detail (a baseboard band here would show up a second time at the
+        // repeat seam, partway up the wall instead of only at the true floor).
+        const archiveWallTexture = TextureMechanics._createWrappedTexture(wallCanvas, 4, 1, false);
         const archiveWallMat = new THREE.MeshStandardMaterial({
             map: archiveWallTexture,
             roughness: 0.95,

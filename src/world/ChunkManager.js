@@ -459,15 +459,20 @@ export default class ChunkManager {
             }
             const isAtriumVoid = activeSector && activeSector.id === "ATRIUM";
             const isAcmeVoid = activeSector && activeSector.id === "ACME";
+            const isArchiveVoid = activeSector && activeSector.id === "ARCHIVE";
             const shroudMat = isAtriumVoid ? env.voidShroudWhiteMat : env.voidShroudMat;
-            const canopyY = isAcmeVoid ? 100000.0 : (isAtriumVoid ? 66.0 : 9.0);
+            const canopyY = isAcmeVoid ? 100000.0 : (isAtriumVoid ? 66.0 : (isArchiveVoid ? 32.0 : 9.0));
             const span = env.chunkSize * env.cellSize;
             const canopy = new THREE.Mesh(env._planeGeo(span, span), shroudMat);
             canopy.rotation.x = Math.PI / 2;
             canopy.position.set(startX * env.cellSize + centerOffset, canopyY, startZ * env.cellSize + centerOffset);
             canopy.castShadow = true;
             chunkGroup.add(canopy);
-            const skirtBottom = isAcmeVoid ? 0.15 : (isAtriumVoid ? 55.6 : 2.85);
+            // Archive's perimeter walls pass height=6.0 into buildPerimeter, but pushWallSegment
+            // adds +2.0 on top of that for the main (non-shoulder) wall runs, so the real wall top
+            // is 8.0 - the skirt has to start there, or the void plane cuts in partway through
+            // visible wall instead of picking up cleanly where it stops.
+            const skirtBottom = isAcmeVoid ? 0.15 : (isAtriumVoid ? 55.6 : (isArchiveVoid ? 7.85 : 2.85));
             const skirtTop = canopyY + 0.15;
             const skirtCenterY = (skirtBottom + skirtTop) / 2;
             const skirtHeight = skirtTop - skirtBottom;
