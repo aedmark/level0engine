@@ -39,14 +39,28 @@ export const LEGACY_LIGHT_COMPENSATION = Math.PI;
 
 export const DEFAULT_GROUND_COLOR = 0x555550;
 
-export const DEFAULT_ATMOSPHERE_COLOR = 0x875e5e;
+export const DEFAULT_ATMOSPHERE_COLOR = 0xffffff;
+
+export const DEFAULT_LIGHT_INTENSITY = 1.0;
+
+export const DEFAULT_LIGHT_COLOR = 0xffffff;
+
+export const DEFAULT_LIGHT_RANGE = 1.0;
+
+export const DEFAULT_SHADOWS_ENABLED = true;
+
+export const DEFAULT_SHADOW_RADIUS = 1.0;
 
 const SECTORS = {
     NORMAL: {
+        shadowRadius: 4.75,
+        lightRange: 1.6,
+        lightColor: 0xa1a4e2,
+        lightIntensity: 1.5,
         fogColor: 0x9e9e9e,
-        fog: 0.015,
-        ambient: 0.77,
-        groundColor: 0xcdcdcb,
+        fog: 0,
+        ambient: 0.5,
+        groundColor: 0x8a8a8a,
         ambience: {
             noise: 0.0,
             peace: 0.0,
@@ -61,9 +75,13 @@ const SECTORS = {
         reverb: {rt60: 0.8, predelay: 0.010, wet: 0.14}
     },
     ARCHIVE: {
-        groundColor: 0x6fce3b,
-        fog: 0.08, fogColor: 0x000000,
-        ambient: 0.54,
+        shadowRadius: 4,
+        lightRange: 0.8,
+        lightColor: 0xa8baff,
+        lightIntensity: 2.8,
+        groundColor: 0xffffff,
+        fog: 0.08, fogColor: 0x262626,
+        ambient: 0.52,
         ambience: {
             noise: 0.06,
             peace: 0.0,

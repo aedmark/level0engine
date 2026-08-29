@@ -35,6 +35,8 @@ const IMMUTABLE_ROUTES = /^\/(r160\.js|assets\/fonts\/)/;
 
 const ALLOWED_SECTOR_FIELDS = new Set(['ambient', 'fog', 'fogColor', 'groundColor']);
 const COLOR_FIELDS = new Set(['fogColor', 'groundColor']);
+const ALLOWED_LIGHT_FIELDS = new Set(['lightIntensity', 'lightColor', 'lightRange', 'shadowsEnabled', 'shadowRadius']);
+const LIGHT_COLOR_FIELDS = new Set(['lightColor']);
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const toHexLiteral = (n) => '0x' + (Number(n) >>> 0).toString(16).padStart(6, '0');
 
@@ -45,7 +47,7 @@ function assertBraceBalance(original, patched, label) {
     }
 }
 
-function patchSectorBlock(text, sectorName, fields) {
+function patchSectorBlock(text, sectorName, fields, allowedFields = ALLOWED_SECTOR_FIELDS, colorFields = COLOR_FIELDS) {
     if (!/^[A-Z0-9_]+$/.test(sectorName)) {
         throw new Error(`Invalid sector name "${sectorName}"`);
     }
@@ -70,8 +72,8 @@ function patchSectorBlock(text, sectorName, fields) {
     const indent = indentMatch ? indentMatch[1] : '        ';
 
     for (const [key, value] of Object.entries(fields)) {
-        if (!ALLOWED_SECTOR_FIELDS.has(key)) continue;
-        const valueText = COLOR_FIELDS.has(key) ? toHexLiteral(value) : String(value);
+        if (!allowedFields.has(key)) continue;
+        const valueText = colorFields.has(key) ? toHexLiteral(value) : String(value);
         const fieldRe = new RegExp(`\\b${key}\\s*:\\s*[^,}\\n]+`);
         if (fieldRe.test(block)) {
             block = block.replace(fieldRe, `${key}: ${valueText}`);
@@ -122,6 +124,22 @@ function saveAtmosphere(data) {
         const hex = toHexLiteral(data.baseFields.skyColor);
         writePatched(enginePath, (text) => patchSkyColor(text, hex), 'RenderEngine.js (sky color)');
         results.push(`RenderEngine.js: sky color -> ${hex}`);
+    }
+
+    return results;
+}
+
+function saveLight(data) {
+    const results = [];
+    const sectorsPath = path.join(__dirname, 'src', 'world', 'Sectors.js');
+
+    if (data.sector && data.sectorFields && Object.keys(data.sectorFields).length) {
+        writePatched(
+            sectorsPath,
+            (text) => patchSectorBlock(text, data.sector, data.sectorFields, ALLOWED_LIGHT_FIELDS, LIGHT_COLOR_FIELDS),
+            'Sectors.js (sector block)'
+        );
+        results.push(`Sectors.js: SECTORS.${data.sector} updated (${Object.keys(data.sectorFields).join(', ')})`);
     }
 
     return results;
@@ -188,6 +206,23 @@ const server = http.createServer((req, res) => {
             try {
                 const data = JSON.parse(body);
                 const results = saveAtmosphere(data);
+                res.writeHead(200, { 'Content-Type': 'text/plain' });
+                res.end(results.length ? results.join('\n') : 'No changes to save.');
+            } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'text/plain' });
+                res.end(err.toString());
+            }
+        });
+        return;
+    }
+
+    if (req.method === 'POST' && route === '/save-light') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+            try {
+                const data = JSON.parse(body);
+                const results = saveLight(data);
                 res.writeHead(200, { 'Content-Type': 'text/plain' });
                 res.end(results.length ? results.join('\n') : 'No changes to save.');
             } catch (err) {

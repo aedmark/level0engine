@@ -1,4 +1,11 @@
-import {LEGACY_LIGHT_COMPENSATION} from '../world/Sectors.js';
+import {
+    LEGACY_LIGHT_COMPENSATION,
+    DEFAULT_LIGHT_INTENSITY,
+    DEFAULT_LIGHT_COLOR,
+    DEFAULT_LIGHT_RANGE,
+    DEFAULT_SHADOWS_ENABLED,
+    DEFAULT_SHADOW_RADIUS
+} from '../world/Sectors.js';
 
 const OCCLUDED_LIGHT_FLOOR = 0.20;
 const OCCLUDER_MIN_HEIGHT = 2.0;
@@ -6,6 +13,14 @@ const SIGHTLINE_END_INSET = 0.45;
 const OCCLUSION_TEST_INTERVAL = 0.25;
 const MAX_OCCLUSION_TESTS_PER_FRAME = 8;
 const OCCLUSION_SLOT_PENALTY = 900.0;
+
+const FALLBACK_SECTOR_LIGHT = {
+    lightIntensity: DEFAULT_LIGHT_INTENSITY,
+    lightColor: DEFAULT_LIGHT_COLOR,
+    lightRange: DEFAULT_LIGHT_RANGE,
+    shadowsEnabled: DEFAULT_SHADOWS_ENABLED,
+    shadowRadius: DEFAULT_SHADOW_RADIUS
+};
 
 export default class LumenGrid {
     constructor(env, shadowQuality = 'high', maxShadowLights = 6) {
@@ -24,6 +39,8 @@ export default class LumenGrid {
         this.maxForcedShadowUpdatesPerFrame = 3;
         this._pendingShadowSlots = new Set();
         this.spawnFadeInDuration = 0.6;
+        this._sectorLight = FALLBACK_SECTOR_LIGHT;
+        this._sectorTint = new THREE.Color(1, 1, 1);
         const pointShadowSize = 512;
         const spotShadowSize = shadowQuality === 'low' ? 512 : 1024;
         for (let i = 0; i < this.maxActiveLights; i++) {
@@ -58,7 +75,10 @@ export default class LumenGrid {
         }
     }
 
-    update(cameraPos, fixtureData, time, currentChunkHash) {
+    update(cameraPos, fixtureData, time, currentChunkHash, sectorLight) {
+        this._sectorLight = sectorLight || FALLBACK_SECTOR_LIGHT;
+        this._sectorTint.setHex(this._sectorLight.lightColor);
+
         let darknessPressure = 0;
         if (!this._prevActive) this._prevActive = new Set();
         this._prevActive.clear();
@@ -272,7 +292,7 @@ export default class LumenGrid {
     }
 
     _insertFixture(fixture) {
-        if (!fixture.noShadow) {
+        if (!fixture.noShadow && this._sectorLight.shadowsEnabled) {
             let insertPos = -1;
             for (let j = 0; j < this.maxShadowLights; j++) {
                 if (!this._activeFixtures[j] || fixture._biasedDistSq < this._activeFixtures[j]._biasedDistSq) {
@@ -318,18 +338,21 @@ export default class LumenGrid {
         
         const isLH = fixture.isLighthouse;
         const isLongReach = index < this.longReachSlots;
+        const lightRange = this._sectorLight.lightRange;
         const targetReach = fixture.distance !== undefined
-            ? fixture.distance
+            ? fixture.distance * lightRange
             : (isLH ? 150.0 : (isLongReach ? 20.0 : 10.0));
-            
+
         if (fixture._currentReach === undefined) fixture._currentReach = targetReach;
         fixture._currentReach += (targetReach - fixture._currentReach) * 0.04;
         light.distance = fixture._currentReach;
 
+        if (isShadowCaster) light.shadow.radius = this._sectorLight.shadowRadius;
+
         const dist = Math.sqrt(fixture.distSq);
         const cullLimit = this.maxActiveLights > 12 ? 55.0 : 35.0;
         const activeRadius = fixture.distance !== undefined
-            ? Math.max(fixture.distance, cullLimit)
+            ? Math.max(fixture.distance * lightRange, cullLimit)
             : (isLH ? 120.0 : cullLimit);
         const distanceEnvelope = Math.max(0, Math.min(1, (activeRadius - dist) / 25.0));
         
@@ -356,7 +379,9 @@ export default class LumenGrid {
         } else if (fixture.material && fixture.material.emissive) {
             light.color.copy(fixture.material.emissive);
         }
-        
+        light.color.multiply(this._sectorTint);
+
+
         this._applyBehaviors(fixture, light, time, fadeEnvelope, intensityScalar);
     }
 
@@ -396,7 +421,7 @@ export default class LumenGrid {
         }
         
         fixture.currentIntensity = isOn ? fixture.baseIntensity * 1.5 : 0.0;
-        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar * LEGACY_LIGHT_COMPENSATION;
+        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar * LEGACY_LIGHT_COMPENSATION * this._sectorLight.lightIntensity;
         if (fixture.material) fixture.material.emissiveIntensity = (isOn ? 1.5 : 0.0) * fadeEnvelope;
     }
 
@@ -405,7 +430,7 @@ export default class LumenGrid {
         const pulseVal = (Math.sin(time * Math.PI * 2 * pulseFreq + fixture.flickerOffset) + 1.0) / 2.0;
         const eased = pulseVal * pulseVal * (3.0 - 2.0 * pulseVal);
         fixture.currentIntensity = fixture.baseIntensity * (0.3 + 0.7 * eased);
-        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar * LEGACY_LIGHT_COMPENSATION;
+        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar * LEGACY_LIGHT_COMPENSATION * this._sectorLight.lightIntensity;
         if (fixture.material) fixture.material.emissiveIntensity = (0.2 + 0.8 * eased) * fadeEnvelope;
     }
 
@@ -413,7 +438,7 @@ export default class LumenGrid {
         const pulseVal = (Math.sin(time * fixture.sweepSpeed + fixture.sweepPhase) + 1.0) / 2.0;
         const eased = pulseVal * pulseVal;
         fixture.currentIntensity = fixture.baseIntensity * (0.2 + 1.3 * eased);
-        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar * LEGACY_LIGHT_COMPENSATION;
+        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar * LEGACY_LIGHT_COMPENSATION * this._sectorLight.lightIntensity;
         if (fixture.material) fixture.material.emissiveIntensity = (0.5 + 1.5 * eased) * fadeEnvelope;
     }
 
@@ -441,7 +466,7 @@ export default class LumenGrid {
         }
         const flickerScale = fixture._flickering ? fixture._flickerDepth : 1.0;
         fixture.currentIntensity = fixture.baseIntensity * flickerScale;
-        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar * LEGACY_LIGHT_COMPENSATION;
+        light.intensity = fixture.currentIntensity * fadeEnvelope * intensityScalar * LEGACY_LIGHT_COMPENSATION * this._sectorLight.lightIntensity;
         if (fixture.material) {
             const peakEmissive = fixture.emissiveIntensity !== undefined
                 ? fixture.emissiveIntensity * flickerScale
@@ -452,7 +477,7 @@ export default class LumenGrid {
 
     _applyDefaultBehavior(fixture, light, time, fadeEnvelope, intensityScalar) {
         const normalIntensity = fixture.currentIntensity !== undefined ? fixture.currentIntensity : fixture.baseIntensity;
-        light.intensity = (normalIntensity + (Math.sin(time * 120.0 + fixture.flickerOffset) * 0.02)) * fadeEnvelope * intensityScalar * LEGACY_LIGHT_COMPENSATION;
+        light.intensity = (normalIntensity + (Math.sin(time * 120.0 + fixture.flickerOffset) * 0.02)) * fadeEnvelope * intensityScalar * LEGACY_LIGHT_COMPENSATION * this._sectorLight.lightIntensity;
         if (fixture.material) {
             const baseEmissive = fixture.isLighthouse
                 ? 5.0

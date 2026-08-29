@@ -1,4 +1,7 @@
-import SECTORS, {DEFAULT_DUST, DEFAULT_EXHAUST, DEFAULT_AMBIENT, MIN_AMBIENT, DEFAULT_GROUND_COLOR, DEFAULT_ATMOSPHERE_COLOR, LEGACY_LIGHT_COMPENSATION} from '../world/Sectors.js';
+import SECTORS, {
+    DEFAULT_DUST, DEFAULT_EXHAUST, DEFAULT_AMBIENT, MIN_AMBIENT, DEFAULT_GROUND_COLOR, DEFAULT_ATMOSPHERE_COLOR, LEGACY_LIGHT_COMPENSATION,
+    DEFAULT_LIGHT_INTENSITY, DEFAULT_LIGHT_COLOR, DEFAULT_LIGHT_RANGE, DEFAULT_SHADOWS_ENABLED, DEFAULT_SHADOW_RADIUS
+} from '../world/Sectors.js';
 
 export default class AtmosphereManager {
     constructor(env) {
@@ -16,8 +19,11 @@ export default class AtmosphereManager {
             env.audioDirection = new THREE.Vector3();
         }
 
+        const {activeSector, targetFog} = env._sectorFrame || env._resolveActiveSector(cameraPos);
+        const sectorLight = this._resolveSectorLight(activeSector);
+
         const currentChunkHash = `${env.currentChunkCoords.x},${env.currentChunkCoords.z}`;
-        const lumenData = env.lumenGrid.update(cameraPos, env.fixtureData, time, currentChunkHash);
+        const lumenData = env.lumenGrid.update(cameraPos, env.fixtureData, time, currentChunkHash, sectorLight);
         const darknessPressure = lumenData.darknessPressure;
         const nearestFixture = lumenData.nearestFixture;
         const minLightDistSq = lumenData.minLightDistSq;
@@ -26,9 +32,7 @@ export default class AtmosphereManager {
 
         this._updateGlareAndPupil(time, cameraPos, nearestFixture, minLightDistSq, minLightDist);
         const isOccluded = this._updateAudioOcclusion(time, cameraPos, nearestFixture, minLightDist);
-        
-        const {activeSector, targetFog} = env._sectorFrame || env._resolveActiveSector(cameraPos);
-        
+
         this._updateFogAndAtmosphere(time, darknessPressure, activeSector, targetFog);
         this._updateParticles(time, cameraPos, activeSector);
         const pendingThunder = this._updateLightning(time, activeSector, cameraPos);
@@ -43,7 +47,7 @@ export default class AtmosphereManager {
             for (let i = 0; i < env.fixtureData.length; i++) {
                 const fix = env.fixtureData[i];
                 if (fix.lightObj) {
-                    fix.lightObj.intensity = fix.currentIntensity * LEGACY_LIGHT_COMPENSATION;
+                    fix.lightObj.intensity = fix.currentIntensity * LEGACY_LIGHT_COMPENSATION * sectorLight.lightIntensity;
                 }
             }
         }
@@ -553,5 +557,16 @@ export default class AtmosphereManager {
         const env = this.env;
         const s = SECTORS[id];
         return (s && s.fog !== undefined) ? s.fog : 0.05;
+    }
+
+    _resolveSectorLight(id) {
+        const s = SECTORS[id];
+        return {
+            lightIntensity: (s && s.lightIntensity !== undefined) ? s.lightIntensity : DEFAULT_LIGHT_INTENSITY,
+            lightColor: (s && s.lightColor !== undefined) ? s.lightColor : DEFAULT_LIGHT_COLOR,
+            lightRange: (s && s.lightRange !== undefined) ? s.lightRange : DEFAULT_LIGHT_RANGE,
+            shadowsEnabled: (s && s.shadowsEnabled !== undefined) ? s.shadowsEnabled : DEFAULT_SHADOWS_ENABLED,
+            shadowRadius: (s && s.shadowRadius !== undefined) ? s.shadowRadius : DEFAULT_SHADOW_RADIUS
+        };
     }
 }

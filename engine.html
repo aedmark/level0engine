@@ -239,6 +239,72 @@
             user-select: all;
         }
 
+        #light-tuner {
+            display: none;
+            position: absolute;
+            top: 1.75rem;
+            right: 1.75rem;
+            z-index: 1500;
+            pointer-events: auto;
+            background: rgba(10, 10, 6, 0.88);
+            border: 1px solid #4a452a;
+            color: #d4c382;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            line-height: 1.5;
+            padding: 0.6rem 0.8rem;
+            text-align: left;
+            width: 260px;
+        }
+        #light-tuner h4 {
+            margin: 0.4rem 0 0.3rem;
+            color: #7fd47f;
+            font-size: 11px;
+            letter-spacing: 0.05em;
+        }
+        #light-tuner label {
+            display: block;
+            margin-top: 0.35rem;
+            font-size: 10px;
+            opacity: 0.85;
+        }
+        #light-tuner input[type="range"] {
+            width: 100%;
+        }
+        #light-tuner input[type="color"] {
+            width: 100%;
+            height: 1.4rem;
+            padding: 0;
+            border: 1px solid #4a452a;
+            background: none;
+        }
+        #light-tuner input[type="checkbox"] {
+            margin-top: 0.35rem;
+        }
+        #light-tuner button {
+            width: 100%;
+            margin-top: 0.5rem;
+            font-family: inherit;
+            font-size: 10px;
+            background: rgba(127, 212, 127, 0.1);
+            color: #7fd47f;
+            border: 1px solid #4a452a;
+            padding: 0.3rem;
+            cursor: pointer;
+        }
+        #light-tuner pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 10px;
+            margin-top: 0.4rem;
+            padding: 0.3rem;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid #332f1c;
+            max-height: 140px;
+            overflow-y: auto;
+            user-select: all;
+        }
+
         #inquest-overlay {
             display: none;
             position: absolute;
@@ -1239,6 +1305,22 @@
         <p style="font-size: 9px; opacity: 0.6; margin: 0.4rem 0 0;">Exposure is tuned via the Gamma slider in Settings, not here.</p>
         <button id="atm-export-btn">SAVE TO SECTORS.JS</button>
         <pre id="atm-export-output"></pre>
+    </div>
+    <div id="light-tuner">
+        <h4>LIGHT TUNER — <span id="lt-sector-label">NORMAL</span></h4>
+        <label>Intensity <span id="lt-lightIntensity-val"></span></label>
+        <input type="range" id="lt-lightIntensity" min="0" max="3" step="0.05">
+        <label>Range <span id="lt-lightRange-val"></span></label>
+        <input type="range" id="lt-lightRange" min="0.25" max="3" step="0.05">
+        <label>Color Tint</label>
+        <input type="color" id="lt-lightColor">
+        <h4>SHADOWS</h4>
+        <label><input type="checkbox" id="lt-shadowsEnabled"> Shadows Enabled</label>
+        <label>Softness (blur radius) <span id="lt-shadowRadius-val"></span></label>
+        <input type="range" id="lt-shadowRadius" min="0" max="6" step="0.25">
+        <p style="font-size: 9px; opacity: 0.6; margin: 0.4rem 0 0;">Softness only visible at High shadow quality (PCF Soft).</p>
+        <button id="lt-export-btn">SAVE TO SECTORS.JS</button>
+        <pre id="lt-export-output"></pre>
     </div>
     <div id="inquest-overlay">
         <div class="inquest-header">EXIT PROTOCOL — INQUEST TERMINAL</div>
