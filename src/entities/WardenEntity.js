@@ -1,4 +1,4 @@
-import {computeAxisBlocking} from './HazardUtils.js';
+import {computeAxisBlocking, isRayPathBlocked, resolveEntityLocomotion} from './HazardUtils.js';
 import {LEGACY_LIGHT_COMPENSATION} from '../world/Sectors.js';
 
 export default class WardenEntity {
@@ -16,6 +16,8 @@ export default class WardenEntity {
         this._toPlayer = new THREE.Vector3();
         this._nextPos = new THREE.Vector3();
         this._box = new THREE.Box3();
+        this._boxX = new THREE.Box3();
+        this._boxZ = new THREE.Box3();
         this._locomotionScratch = {
             dir: new THREE.Vector3(),
             moveVec: new THREE.Vector3(),
@@ -31,8 +33,6 @@ export default class WardenEntity {
             stuckTimeLimit: 0.0,
             teleportDist: 0.0
         };
-        this._boxX = new THREE.Box3();
-        this._boxZ = new THREE.Box3();
         this._min = new THREE.Vector3();
         this._max = new THREE.Vector3();
         this._rayTarget = new THREE.Vector3();

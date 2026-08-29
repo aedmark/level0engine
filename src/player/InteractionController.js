@@ -112,13 +112,6 @@ export default class InteractionController {
     }
 
 
-    // Shared core for anything that swings on a hinge (room doors, duct grates, gate arms):
-    // sweep the visible mesh's geometry through candidate rotations and reject any that
-    // intersect real collision geometry, so a hinge never commits to a swing that clips.
-    // `rotNode` is whatever actually rotates (the mesh itself for a self-hinged door, or a
-    // parent pivot Group for anything mounted off-center like a grate or gate arm);
-    // `sweepMesh` is the mesh whose geometry defines the swept shape (a child of rotNode,
-    // or rotNode itself when they're the same object).
     _hingeSweepBoxAt(rotNode, sweepMesh, targetRot) {
         if (!sweepMesh.userData.baseBox) {
             sweepMesh.geometry.computeBoundingBox();
@@ -152,8 +145,6 @@ export default class InteractionController {
         return true;
     }
 
-    // Tries each candidate rotation in order and returns the first that sweeps clear;
-    // falls back to `fromRot` (stays put) if none of them do.
     _resolveHingeSwing(rotNode, sweepMesh, worldPos, fromRot, candidates, owner, radius) {
         for (const rot of candidates) {
             if (this._isHingeSweepClear(rotNode, sweepMesh, worldPos, fromRot, rot, owner, radius)) return rot;
@@ -244,10 +235,6 @@ export default class InteractionController {
     _updateInteractable(obj, playerPos, delta) {
         const env = this.env;
         if (obj.userData.type === 'grate' && obj.userData.pivot) {
-            // Hinged grates (e.g. crawlspace duct doors) toggle open/closed like a room door -
-            // userData.active means "closed", matching the interact handler's toggle. Kick-down
-            // grates (the `else` branch below) stay one-shot: a grate that's fallen to the floor
-            // can't un-fall, so they're only handled while userData.active is still true.
             const pivot = obj.userData.pivot;
             if (!obj.userData.active && obj.userData.resolvedOpenRot === undefined) {
                 obj.userData.resolvedOpenRot = this._resolveGrateSwing(obj, pivot);
@@ -272,7 +259,6 @@ export default class InteractionController {
                 }
             }
         } else if (obj.userData.type === 'grate' && !obj.userData.active) {
-            // Kick-down grate (no pivot): a one-shot fall, not reversible.
             if (obj.userData.targetRot === undefined) {
                 if (obj.userData.blocksX) {
                     const fallSign = obj.userData.fallDir !== undefined ? obj.userData.fallDir : ((playerPos.x > obj.position.x) ? 1 : -1);
@@ -361,8 +347,6 @@ export default class InteractionController {
         if (env.camera) env.camera.getWorldDirection(this._camDir);
         const checkObj = (obj) => {
             if (obj.userData.isSlider && !obj.userData.isAirlockDoor) return;
-            // Hinged grates toggle like a door - active===false just means "currently open,
-            // can be closed again", not "used up" the way it does for other interactables.
             if (obj.userData.active === false && !(obj.userData.type === 'grate' && obj.userData.pivot)) return;
             const worldPos = obj.matrixWorld ? this._objWorldPos.setFromMatrixPosition(obj.matrixWorld) : obj.position;
             const distSq = worldPos.distanceToSquared(playerPos);

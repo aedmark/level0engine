@@ -137,11 +137,6 @@ export default class StaticTextureLoader {
             meta.hasRoughnessMap ? this._loadTexRaw(`${name}_roughness`, rx, ry, ws, wt) : null
         ]);
 
-        // Only the base diffuse map is load-bearing enough to fail the whole material over - a
-        // missing bump/emissive/roughness layer (e.g. metadata and the on-disk files briefly
-        // disagreeing after an asset was removed/renamed, or a stale cached metadata.json on a
-        // returning client) should degrade that one detail layer, not null out a material that
-        // every mesh using it then can't render at all.
         if (meta.hasMap && !map) {
             return null;
         }

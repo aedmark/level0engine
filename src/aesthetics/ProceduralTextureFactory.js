@@ -187,9 +187,6 @@ export default class ProceduralTextureFactory {
                     if (residual.length === 0) {
                         sectorAssets = staticAssets;
                     } else if (residualBuilders && residual.every(key => typeof residualBuilders[key] === 'function')) {
-                        // The rest of this sector's assets loaded fine from static - only these
-                        // few keys couldn't be exported (e.g. a bare geometry). Fill just those
-                        // in live rather than falling back to regenerating the whole sector.
                         for (const key of residual) staticAssets[key] = residualBuilders[key](masterNoise);
                         sectorAssets = staticAssets;
                         source = 'static+residual';

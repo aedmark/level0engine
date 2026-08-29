@@ -13,8 +13,6 @@ export default class SetPieces {
         const bz = cz0 + (flankV ? 0 : dir * (cs / 2));
         const doorW = 1.4, doorT = 0.1;
         const frameMat = env.metalMat;
-        // Same "stainless steel door" material chain buildBlastDoor uses for airlock doors -
-        // every checkpoint storage door should read as one consistent style, matching that.
         const leafMat = env.stainlessDoorMat || env.titaniumMat || env.stainlessMat || env.metalMat;
         const decor = (m) => {
             m.userData.chunkHash = hash;
@@ -538,10 +536,6 @@ export default class SetPieces {
         }
     }
 
-    // A floor-to-ceiling black-metal obstacle wall with a door-sized swinging gate cut into it -
-    // sits in the checkpoint entrance hallway, close to the airlock. `spansX` follows
-    // buildAirlock's convention (true = cross-section along X, travel along Z), not
-    // buildCheckpointRoom's inverted `flankV`.
     buildSecurityGate(chunkGroup, hash, cx, cz, spansX, ctx) {
         const env = this.env;
         const gateMat = env.airlockSealMat || env.metalMat;
@@ -748,12 +742,6 @@ export default class SetPieces {
         const innerDoor = buildDoor(innerX, innerZ);
         const SHELL_HALF = 1.875;
         const SHELL_SPAN = 4.0;
-        // Vaulted sectors build their perimeter walls taller than the standard 3.0 - each sector's
-        // buildPerimeter call passes height=6.0 (ARCHIVE) / 20.0 (IMPOUND), but pushWallSegment
-        // adds +2.0 on top of that for the main (non-shoulder) wall runs, so the real wall top is
-        // 8.0 / 22.0. The airlock shell has to reach that same real height, or it caps out at 3.0
-        // while the room keeps going, leaving an open column above the airlock up to the true
-        // ceiling/void.
         const VAULTED_SHELL_HEIGHTS = {ARCHIVE: 8.0, IMPOUND: 22.0};
         const SHELL_H = VAULTED_SHELL_HEIGHTS[sectorId] || 3.0;
         const WALL_T = 0.28;
@@ -914,15 +902,10 @@ export default class SetPieces {
                 }
                 const boxes = env.spatialGrid.chunkMap.get(adjHash);
                 if (boxes) {
-                    // Snapshot before mutating - env.spatialGrid.remove() below deletes
-                    // straight out of this same Set.
                     for (const box of Array.from(boxes)) {
                         const cx = Math.round((box.min.x + box.max.x) / 2 / env.cellSize);
                         const cz = Math.round((box.min.z + box.max.z) / 2 / env.cellSize);
                         if (clearX.includes(cx) && clearZ.includes(cz)) {
-                            // A cleared interactable (e.g. a crawlspace duct's hinged grate)
-                            // would otherwise stay in env.interactables forever: invisible,
-                            // uninteractable (its box is gone), but still iterated every frame.
                             const owner = box.meshRef || box.interactableEntity;
                             if (owner && env.interactables) {
                                 const idx = env.interactables.indexOf(owner);
@@ -1123,11 +1106,6 @@ export default class SetPieces {
         pivot.add(bulb);
         env.walls.push(bulb);
         pivot.updateMatrixWorld(true);
-        // The shade-derived angle (~51deg) reads as too tight a beam in practice - open it up
-        // well past the shade's own opening so the fixture throws light like a real bowl pendant
-        // (which scatters off the shade's underside, not just what passes straight through the
-        // rim) rather than a tightly collimated spot. Clamped short of grazing-wide so it still
-        // reads as directional light, not an omnidirectional point source.
         const spotAngle = Math.min(Math.PI / 2.3, Math.atan2(bowlRadius, bulbY - rimY) * 1.6);
         env.fixtureData.push({
             chunkHash: hash,

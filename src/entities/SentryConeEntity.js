@@ -144,12 +144,6 @@ export default class SentryConeEntity {
         this._progressLastDist = null;
         this._bounds = this.env && this.env.getSectorBounds ? this.env.getSectorBounds('MAINTENANCE') : null;
         const clamped = this._clampToBounds(x, z);
-        // Rendered (invisibly, tucked below the floor) from the moment the sector loads rather
-        // than staying visible=false until the ambush - a mesh that's never actually been drawn
-        // pays for its first real GPU buffer/shader setup on whatever frame it finally appears,
-        // which used to land as a hitch right at the "you tripped the cone" jump-scare moment.
-        // Getting it on-screen (however briefly and unseen) during ordinary exploration moves
-        // that one-time cost somewhere the player won't notice it.
         this.group.position.set(clamped.x, PARK_DEPTH, clamped.z);
         this.target.copy(this.group.position);
         this.group.visible = true;
@@ -284,10 +278,6 @@ export default class SentryConeEntity {
         const dz = this.target.z - pos.z;
         const distToTarget = Math.sqrt(dx * dx + dz * dz);
         if (distToTarget < 0.1) return;
-        // A per-frame "found nothing clear" check alone can't catch the case where the probe
-        // keeps finding a technically-clear direction that just isn't leading anywhere (e.g.
-        // sliding back and forth along the same wall) - so also track real progress toward
-        // the target over time and fold stagnation into the same stuck/recovery counter.
         this._progressCheckTimer += delta;
         if (this._progressCheckTimer >= 1.0) {
             this._progressCheckTimer = 0;
@@ -304,11 +294,6 @@ export default class SentryConeEntity {
             chosenAngle = desiredAngle;
             this._deflectSign = 0;
         } else {
-            // Expand outward in angle on both sides together, preferring whichever side we
-            // last deflected toward at each tier - this avoids flip-flopping between sides
-            // frame-to-frame, but (unlike exhausting one whole side first) never lets a
-            // "clear but pointless" near-180 escape on the wrong side win before the other
-            // side's much more useful moderate-angle opening even gets tried.
             for (let t = 0; t < STEER_TIERS.length && chosenAngle === null; t++) {
                 const mag = STEER_TIERS[t];
                 const first = this._deflectSign < 0 ? -mag : mag;

@@ -13,8 +13,8 @@ export const CreviceNetworkProfile = (env, ctx) => {
 
             const network = new Map();
             let numExits = 0;
-            const maxTiles = 6 + Math.floor(random() * 8); // 6 to 13 cells
-            const maxExits = 2 + Math.floor(random() * 2); // 2 to 3 exits
+            const maxTiles = 6 + Math.floor(random() * 8);
+            const maxExits = 2 + Math.floor(random() * 2);
 
             const getOpposite = (dir) => {
                 if (dir === 'N') return 'S';
@@ -118,7 +118,6 @@ export const CreviceNetworkProfile = (env, ctx) => {
                 }
             }
 
-            // Pruning pass: recursively remove dead-ends, but allow 1 intentional alcove stub
             let hasAlcove = false;
             let pruned = true;
             while (pruned) {
@@ -137,7 +136,6 @@ export const CreviceNetworkProfile = (env, ctx) => {
                     if (cell.exits.W) exitCount++;
 
                     if (connCount === 1 && exitCount === 0) {
-                        // Allow rare, intentional dead-end alcoves (12% chance for at most 1 in the network)
                         if (!hasAlcove && random() < 0.12 && network.size >= 4) {
                             cell.isAlcove = true;
                             hasAlcove = true;
@@ -176,12 +174,10 @@ export const CreviceNetworkProfile = (env, ctx) => {
                 if (cell.exits.W) totalRemainingExits++;
             }
 
-            // Must connect at least 2 distinct exits and span multiple tiles
             if (network.size <= 1 || totalRemainingExits < 2) {
                 return false;
             }
 
-            // Commit and build geometry for all cells in the network
             for (const cell of network.values()) {
                 if (ctx.markOccupied) ctx.markOccupied(cell.x, cell.z);
                 if (ctx.claimCell) ctx.claimCell(cell.x, cell.z);

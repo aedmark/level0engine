@@ -382,14 +382,6 @@ async function compileSceneInGroups(engine, bootCtrl, leafBatchSize = COMPILE_LE
         return;
     }
 
-    // Slicing by whole top-level chunk group caps granularity at however many chunks are
-    // loaded (as few as 9 at boot) and lets one prop-heavy chunk dominate a single slice -
-    // that's the ~1s single-slice spike this replaces. Flattening to individual mesh/instanced-
-    // mesh leaves first lets every slice hold a similar number of materials regardless of which
-    // chunk they came from, and stays evenly sized even if render distance changes chunk count.
-    // compile() never reads position/world-matrix, so a leaf can be safely re-pointed at a
-    // scratch group for the duration of one compile() call - its real parent's `.children` array
-    // is never touched, so there's nothing to restore beyond `obj.parent` itself afterward.
     const leaves = [];
     for (const group of chunkGroups) {
         group.traverse((obj) => {
@@ -454,10 +446,6 @@ async function compileSceneInGroups(engine, bootCtrl, leafBatchSize = COMPILE_LE
     const compileStart = performance.now();
     await compileSceneInGroups(engine, bootCtrl);
 
-    // The FXAA/VHS post-processing passes never appear anywhere in the scene graph the chunk
-    // compile above just walked - they're their own tiny scenes on engine, rendered directly by
-    // RenderEngine.render() - so without this they'd get their one-time shader compile for free
-    // on the very first real frame instead of here, in a phase where a pause is already expected.
     const postCompileStart = performance.now();
     await Promise.all([
         engine.renderer.compileAsync(engine.fxaaScene, engine.fxaaCamera),

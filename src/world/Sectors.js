@@ -35,24 +35,18 @@ export const DEFAULT_AMBIENT = 0.30;
 
 export const MIN_AMBIENT = 0.005;
 
-// three.js r155 dropped the implicit x(pi) applied to every non-ambient/hemisphere light's
-// color*intensity when useLegacyLights is off (see WebGLLights.setup's scaleFactor). Every
-// intensity value that reaches a THREE.Light directly (ambient/hemisphere/flashlight/lightning
-// here, plus LumenGrid's pooled point/spot lights) was authored under the old legacy-lit scale,
-// so compensate at the point of assignment rather than re-tuning every authored constant.
-// First-pass factor - expect to dial this in by feel once there's a proper tuning UI for it.
 export const LEGACY_LIGHT_COMPENSATION = Math.PI;
 
 export const DEFAULT_GROUND_COLOR = 0x555550;
 
-export const DEFAULT_ATMOSPHERE_COLOR = 0xf4f2e6;
+export const DEFAULT_ATMOSPHERE_COLOR = 0x875e5e;
 
 const SECTORS = {
     NORMAL: {
-        fogColor: 0xfff0d6,
+        fogColor: 0x9e9e9e,
         fog: 0.015,
-        ambient: 0.57,
-        groundColor: 0xfffcf5,
+        ambient: 0.77,
+        groundColor: 0xcdcdcb,
         ambience: {
             noise: 0.0,
             peace: 0.0,
@@ -67,9 +61,9 @@ const SECTORS = {
         reverb: {rt60: 0.8, predelay: 0.010, wet: 0.14}
     },
     ARCHIVE: {
-        groundColor: 0xb09b9b,
-        fog: 0.04, fogColor: 0x252222,
-        ambient: 0.59,
+        groundColor: 0x6fce3b,
+        fog: 0.08, fogColor: 0x000000,
+        ambient: 0.54,
         ambience: {
             noise: 0.06,
             peace: 0.0,
@@ -90,8 +84,9 @@ const SECTORS = {
         reverb: {rt60: 1.1, predelay: 0.014, wet: 0.16}
     },
     IMPOUND: {
-        fog: 0.12, fogColor: 0x1A1313,
-        ambient: 0.01,
+        groundColor: 0xf1e0ff,
+        fog: 0.09, fogColor: 0x5f5959,
+        ambient: 0.32,
         ambience: {
             noise: 0.19,
             peace: 0.0,
@@ -112,7 +107,7 @@ const SECTORS = {
         reverb: {rt60: 1.9, predelay: 0.040, wet: 0.22}
     },
     BOARDROOM: {
-        fog: 0.02, fogColor: 0xa0bbd6,
+        fog: 0.02, fogColor: 0x495969,
         ambient: 0.69, groundColor: 0x8899aa,
         ambience: {
             noise: 0.05,
@@ -128,8 +123,9 @@ const SECTORS = {
         reverb: {rt60: 0.7, predelay: 0.011, wet: 0.12}
     },
     SERVER: {
-        fog: 0.04, fogColor: 0x380159,
-        ambient: 0.20,
+        groundColor: 0xd4d4d4,
+        fog: 0.04, fogColor: 0x170024,
+        ambient: 0.25,
         ambience: {
             noise: 0.05,
             peace: 0.0,
@@ -155,8 +151,9 @@ const SECTORS = {
         reverb: {rt60: 0.55, predelay: 0.007, wet: 0.10}
     },
     CLINIC: {
+        groundColor: 0xa3a3a3,
         fog: 0.03,
-        ambient: 0.25,
+        ambient: 0.16,
         ambience: {
             noise: 0.05,
             peace: 0.0,
@@ -172,8 +169,9 @@ const SECTORS = {
     },
 
     MAINTENANCE: {
+        groundColor: 0x9c9c9c,
         fog: 0.08, fogColor: 0x572503,
-        ambient: 0.16,
+        ambient: 0.41,
         ambience: {
             noise: 0.55,
             peace: 0.0,
@@ -188,8 +186,9 @@ const SECTORS = {
         reverb: {rt60: 0.6, predelay: 0.006, wet: 0.10}
     },
     INCINERATOR: {
-        fog: 0.18, fogColor: 0xD15900,
-        ambient: 0.10,
+        groundColor: 0x878773,
+        fog: 0.18, fogColor: 0xffa057,
+        ambient: 0.19,
         ambience: {
             noise: 0.65,
             peace: 0.01,
@@ -209,8 +208,9 @@ const SECTORS = {
         reverb: {rt60: 1.3, predelay: 0.012, wet: 0.18}
     },
     CHASM: {
-        fog: 0.20, fogColor: 0x050733,
-        ambient: 0.04,
+        groundColor: 0x8fe9ff,
+        fog: 0.12, fogColor: 0x191d71,
+        ambient: 0.51,
         ambience: {
             noise: 0.25,
             peace: 0.0,
@@ -231,8 +231,9 @@ const SECTORS = {
         reverb: {rt60: 4.5, predelay: 0.085, wet: 0.38}
     },
     ATRIUM: {
-        fog: 0.08, fogColor: 0x000000,
-        ambient: 0.03,
+        groundColor: 0xabab9b,
+        fog: 0.08, fogColor: 0x212121,
+        ambient: 0.05,
         ambience: {
             noise: 0.13,
             peace: 0.0,
@@ -253,8 +254,9 @@ const SECTORS = {
         reverb: {rt60: 3.0, predelay: 0.045, wet: 0.30}
     },
     ANNEX: {
-        fog: 0.01, fogColor: 0x222222,
-        ambient: 0.75,
+        groundColor: 0xffffcc,
+        fog: 0.005, fogColor: 0xffffff,
+        ambient: 0.52,
         ambience: {
             noise: 0.03,
             peace: 0.0,
@@ -280,8 +282,10 @@ const SECTORS = {
         reverb: {rt60: 0.9, predelay: 0.012, wet: 0.14}
     },
     CHECKPOINT: {
+        groundColor: 0xadac94,
+        fogColor: 0x8f8f8f,
         fog: 0.02,
-        ambient: 0.38,
+        ambient: 0.78,
         ambience: {
             noise: 0.2,
             peace: 0.0,
@@ -296,8 +300,9 @@ const SECTORS = {
         reverb: {rt60: 1.0, predelay: 0.010, wet: 0.15}
     },
     ACME: {
-        fog: 0.015, fogColor: 0x0a0a0a,
-        ambient: 0.68,
+        groundColor: 0xffffff,
+        fog: 0.06, fogColor: 0x3c475d,
+        ambient: 0.81,
         ambience: {
             noise: 0.05,
             peace: 0.0,

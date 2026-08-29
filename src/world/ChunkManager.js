@@ -145,9 +145,6 @@ export default class ChunkManager {
                 if (env._annexKeypadChunks) env._annexKeypadChunks.delete(h);
             });
             this._pruneDeadChunkEntries(env.walls, deadHashes, w => w.userData.chunkHash);
-            // Cancel pending flicker/restore timers (InteractionController.triggerBreaker) for
-            // fixtures whose chunk is unloading - see Environment.generate() for why leaving
-            // these to fire later against a stale fixture is a correctness bug, not just a leak.
             this._pruneDeadChunkEntries(env.fixtureData, deadHashes, f => f.chunkHash, (f) => {
                 clearTimeout(f.flickerTimer);
                 clearTimeout(f.restoreTimer);
@@ -171,16 +168,9 @@ export default class ChunkManager {
                 this._pruneDeadChunkEntries(env.pointsOfInterest, deadHashes, p => p.chunkHash);
             }
             if (env._globalSwitches) {
-                // Otherwise this grows for the rest of the session and every future POI
-                // placement does an O(n) linear scan against every POI ever built, anywhere.
                 this._pruneDeadChunkEntries(env._globalSwitches, deadHashes, s => s.chunkHash);
             }
             if (env.steamGroups) {
-                // Without this, a steam-particle group stays parented to its valve mesh forever
-                // (chunk unload never detaches it), so env.steamGroups keeps a live reference
-                // that chains all the way back up through the valve to its chunkGroup — the
-                // chunk's whole subtree becomes unreachable-for-GC even after disposal, on top
-                // of the group itself costing 20 sprites of per-frame work forever.
                 this._pruneDeadChunkEntries(env.steamGroups, deadHashes, g => g.chunkHash, (g) => {
                     g.group.children.forEach(sprite => {
                         if (sprite.material) sprite.material.dispose();
@@ -308,16 +298,10 @@ export default class ChunkManager {
             for (let j = 0; j < meshes.length; j++) {
                 const child = meshes[j];
                 if (child.isInstancedMesh) child.dispose();
-                // A shadow-casting light lazily allocates a GPU shadow-map render target the
-                // first time it's actually rendered; nothing else in this traversal frees it.
                 if (child.isLight && child.shadow && child.shadow.map) {
                     child.shadow.map.dispose();
                     child.shadow.map = null;
                 }
-                // THREE.Sprite instances created without an explicit geometry argument (every
-                // Sprite in this codebase) all share one module-level BufferGeometry singleton
-                // internal to three.js itself - disposing it here would break every sprite in
-                // the entire game, not just this chunk's.
                 if (child.geometry && !child.isSprite && !env.sharedAssets.has(child.geometry.uuid) && !env.geoCache.has(child.geometry.uuid)) {
                     child.geometry.dispose();
                 }
@@ -468,10 +452,6 @@ export default class ChunkManager {
             canopy.position.set(startX * env.cellSize + centerOffset, canopyY, startZ * env.cellSize + centerOffset);
             canopy.castShadow = true;
             chunkGroup.add(canopy);
-            // Archive's perimeter walls pass height=6.0 into buildPerimeter, but pushWallSegment
-            // adds +2.0 on top of that for the main (non-shoulder) wall runs, so the real wall top
-            // is 8.0 - the skirt has to start there, or the void plane cuts in partway through
-            // visible wall instead of picking up cleanly where it stops.
             const skirtBottom = isAcmeVoid ? 0.15 : (isAtriumVoid ? 55.6 : (isArchiveVoid ? 7.85 : 2.85));
             const skirtTop = canopyY + 0.15;
             const skirtCenterY = (skirtBottom + skirtTop) / 2;
@@ -625,13 +605,6 @@ export default class ChunkManager {
                                 this.workerResolvers.delete(hash);
                             }
                         };
-                        // Backstop for failures ChunkWorker.js's own try/catch can't cover
-                        // (e.g. a syntax/load error in the worker script itself, before
-                        // self.onmessage is even wired up). Without this, any pending await
-                        // on this.workerResolvers would hang forever, permanently wedging
-                        // isBuildingChunk and halting all future chunk generation with no
-                        // console output. Resolve every pending request with empty grids so
-                        // generation can keep going instead of freezing the whole session.
                         this.worker.onerror = (err) => {
                             console.error('[ChunkWorker] uncaught worker error, unblocking pending chunk builds with empty fallback grids:', err.message || err);
                             for (const resolver of this.workerResolvers.values()) {
@@ -888,10 +861,6 @@ export default class ChunkManager {
     }
 
     _airlockApron(airlock) {
-        // Kept in sync with the identical helper in ChunkWorker.js (duplicated because the
-        // worker can't share code with the main thread). Just enough for standing-height
-        // approach to the threshold - the airlock's own built chamber is already exactly one
-        // cell wide, so this only needs the one cell right outside the threshold, not a foyer.
         const env = this.env;
         const wox = Math.round(airlock.outerPos.x / env.cellSize);
         const woz = Math.round(airlock.outerPos.z / env.cellSize);
@@ -926,11 +895,6 @@ export default class ChunkManager {
         const isMacro = (mcx, mcz) => {
             if (!SectorPlacement.isMacroChunk(placement, mcx, mcz)) return false;
             if (!placement.ids) {
-                // Sector factories only get a minimal {random} stub here (not a full chunk-build
-                // ctx), and today none of them do eager top-level ctx access outside their build
-                // closures - but if a future one ever does, this must not take chunk generation
-                // down with it (this check itself runs mid-build), so fall back to "unknown"
-                // rather than let the exception propagate.
                 try {
                     const sectorMatrix = TheArchitect.getSectorMatrix.call(this.env, {random: Math.random});
                     placement.ids = sectorMatrix.filter(s => s.id !== "EXIT").map(s => s.id);
@@ -955,9 +919,6 @@ export default class ChunkManager {
         return false;
     }
 
-    // Debug-only: one shared canvas-texture material per unique cell name, so labeling
-    // thousands of cells stays cheap - depthTest stays on so ordinary ceilings occlude these
-    // (invisible during normal play), only readable from above in noclip/EDMARK_DEBUG_MODE.
     _getDebugLabelMaterial(name) {
         if (!this._debugLabelMatCache) this._debugLabelMatCache = new Map();
         let material = this._debugLabelMatCache.get(name);
@@ -1059,8 +1020,6 @@ export default class ChunkManager {
         
         if (!hasTallObstacle && floorRoll > 0.80 && !isArtery && !isAirlockApproach && !isNearFixture) {
             hasTallObstacle = true;
-            // Long axis must leave at least the player's squeeze-trigger width (0.8) clear at
-            // each end, or walking around the divider silently becomes an unmarked crevice.
             const divW = random() > 0.5 ? env.cellSize * 0.5 : env.cellSize * 0.2;
             const divD = divW === env.cellSize * 0.5 ? env.cellSize * 0.2 : env.cellSize * 0.5;
             const divider = ctx.buildWall(divW, divD, env.sharedWallMat);

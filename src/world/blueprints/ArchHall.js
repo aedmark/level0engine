@@ -13,10 +13,6 @@ const APEX_CLEARANCE = 0.3;
 
 export const ArchHallProfile = (env, ctx) => {
     const {addGeometry, random} = ctx;
-    // ctx.isWall isn't assigned until the per-cell build loop runs, which happens after this
-    // factory does (see WideHeaderGap.js for the bug this pattern already caused once) - several
-    // closures below (links/axisOf) capture `isWall` at factory time, so a plain destructure would
-    // freeze in `undefined`. Wrapping it keeps every downstream closure reading ctx.isWall live.
     const isWall = (bx, bz) => ctx.isWall(bx, bz);
 
     const half = env.cellSize / 2;

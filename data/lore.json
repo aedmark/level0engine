@@ -313,6 +313,27 @@
       "thread": "GEOMETRY",
       "title": "Cafeteria Notes",
       "_locked": true
+    },
+    {
+      "text": "SIGN-OUT SHEET\n\nNAME: ___________\nTIME OUT: ___________\nTIME IN: ___________\n\nEvery line on this page is filled in the same handwriting.\n\nNone of it is ${c.custodian}'s.",
+      "type": "clipboard",
+      "thread": "GEOMETRY",
+      "title": "Sign-Out Sheet",
+      "_locked": true
+    },
+    {
+      "text": "INSPECTION CHECKLIST, WEEK ${WEEK}\n\n[ ] Lights functional\n[ ] Exits marked\n[ ] Floor dry\n[ ] Nothing standing in the corners\n\nAll boxes checked. ${c.engineer} does not remember checking them.",
+      "type": "clipboard",
+      "thread": "HUM",
+      "title": "Inspection Checklist",
+      "_locked": true
+    },
+    {
+      "text": "SUPPLY REQUEST FORM\n\nITEM REQUESTED: More forms.\n\nQUANTITY: All of them.\n\nAPPROVED BY: ${c.lead}\n\nAPPROVED ON: a date that has not happened yet.",
+      "type": "clipboard",
+      "thread": "CIPHER",
+      "title": "Supply Request",
+      "_locked": true
     }
   ],
   "IMPOUND": [
@@ -328,6 +349,27 @@
       "type": "note",
       "thread": "GEOMETRY",
       "title": "Meepis",
+      "_locked": true
+    },
+    {
+      "text": "PROPERTY INTAKE FORM\n\nITEM: Sedan, color listed as \"see attached,\" no attachment on file.\n\nPEN ASSIGNED: ${pen}\n\nCONDITION: Undamaged. Keys not found. Ignition not required.\n\n- ${c.custodian}",
+      "type": "clipboard",
+      "thread": "GEOMETRY",
+      "title": "Sedan Intake",
+      "_locked": true
+    },
+    {
+      "text": "LOST PROPERTY CLAIM\n\nCLAIMANT: ${c.lost}\n\nITEM CLAIMED: Themselves.\n\nSTATUS: Claim denied. Claimant does not match any item currently logged in this pen.\n\n- ${c.archivist}",
+      "type": "clipboard",
+      "thread": "LOST",
+      "title": "Self-Claim Denied",
+      "_locked": true
+    },
+    {
+      "text": "TRANSFER SLIP\n\nFROM PEN: ${pen}\nTO PEN: ${pen}\n\nReason for transfer: none given. Item did not move. Paperwork processed anyway.\n\n- ${c.custodian}",
+      "type": "clipboard",
+      "thread": "PEN",
+      "title": "Transfer Slip",
       "_locked": true
     }
   ],

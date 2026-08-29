@@ -29,13 +29,6 @@ export default class ShaderWarmup {
         }
     }
 
-    // warmMaterialVariants (called per-batch above) already pushes every material it warms onto
-    // ChunkManager's shadow-probe queue - it just never gets *drained* until a real chunk builds
-    // (or the 2ms/frame trickle during normal play). Since every sector's materials already exist
-    // on `env` by this point (lazyLoadSectorAssets runs before this), draining that queue here
-    // front-loads the one-time shadow-depth shader compile for the whole game's material set into
-    // this already-visible loading phase, instead of it landing as a surprise multi-second stall
-    // the first time a chunk with never-before-seen materials streams in mid-gameplay.
     static async _drainShadowQueue(env, onProgress = null) {
         const cm = env.chunkManager;
         const queue = cm && cm._shadowQueue;

@@ -4,6 +4,12 @@ import {buildCaseFiles} from './CaseFiles.js';
 export default class StoryEngine {
     static NAMES_DATA = { FIRST: [], LAST: [], PROJECT_NAMES: [] };
     static CASES_DATA = {};
+    static CLIPBOARD_FALLBACKS = [
+        {text: "[ MISSING PAPERWORK ]"},
+        {text: "[ FORM ILLEGIBLE ]"},
+        {text: "[ WATER DAMAGE ]"},
+        {text: "[ SIGNATURE UNREADABLE ]"}
+    ];
 
     static async loadData(dataDir = './data', onProgress = null) {
         try {
@@ -360,19 +366,22 @@ export default class StoryEngine {
                 useZone = 'DEFAULT';
             }
             if (n >= pool.length || pool.length === 0) {
-                pool = [{text: "[ MISSING PAPERWORK ]"}];
-                n = 0;
+                pool = StoryEngine.CLIPBOARD_FALLBACKS;
+                const dealt = this.clipboardsDealt.get('FALLBACK') || 0;
+                n = dealt % pool.length;
                 useZone = 'FALLBACK';
+                this.clipboardsDealt.set('FALLBACK', dealt + 1);
+            } else {
+                this.clipboardsDealt.set(useZone, n + 1);
             }
-            this.clipboardsDealt.set(useZone, n + 1);
             const obj = pool[n];
             const text = obj.text;
             this.assignments.set(assignKey, text);
             this.collected.push(text);
             if (obj.thread) this.threadOf.set(text, obj.thread);
             return {
-                text, 
-                progress: this.progress(), 
+                text,
+                progress: this.progress(),
                 clipboard: true,
                 thread: obj.thread || null,
                 corroboration: this._registerThread(text, zone)

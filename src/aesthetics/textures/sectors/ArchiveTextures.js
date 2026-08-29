@@ -51,10 +51,6 @@ export default class ArchiveTextures {
         wallCtx.globalAlpha = 1.0;
         wallCtx.fillStyle = 'rgba(0,0,0,0.15)';
         wallCtx.fillRect(255, 0, 2, 512);
-        // Height 6.0 in ArchiveSector.js (double the standard 3.0 wall) means buildWall's UV
-        // logic repeats this texture x2 vertically - it has to be seamless top-to-bottom with no
-        // baked-in floor-level detail (a baseboard band here would show up a second time at the
-        // repeat seam, partway up the wall instead of only at the true floor).
         const archiveWallTexture = TextureMechanics._createWrappedTexture(wallCanvas, 4, 1, false);
         const archiveWallMat = new THREE.MeshStandardMaterial({
             map: archiveWallTexture,

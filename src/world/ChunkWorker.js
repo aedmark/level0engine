@@ -2,9 +2,6 @@ const CELL_KEY_SPAN = 4194304;
 const cellKey = (x, z) => x * (CELL_KEY_SPAN * 2) + z;
 
 function _airlockApron(airlock, cellSize) {
-    // Just enough for standing-height approach to the threshold: the airlock's own built
-    // chamber is already exactly one cell wide, so the apron only needs to guarantee the one
-    // cell right outside the threshold isn't blocked - not a whole foyer.
     const wox = Math.round(airlock.outerPos.x / cellSize);
     const woz = Math.round(airlock.outerPos.z / cellSize);
     const dir = airlock.outSign;
@@ -255,19 +252,12 @@ const LOOP_SEARCH_RADIUS = 4;
 const LOOP_BFS_CAP = 40;
 const LOOP_RATIO_MIN = 3;
 
-// Finds structural dead ends left behind by _planDoorways / the fractal-pocket reconnect
-// pass and stitches a handful of them into loops. A candidate pair only qualifies when it's
-// a genuine shortcut - spatially close but many corridor-steps apart by the only existing
-// route - so this targets backtrack-inducing dead ends without eliminating every closet/vent
-// spur (VENT-capped leaves are excluded outright; the connector budget keeps the rest sparse).
 function _closeLoops(random, startX, startZ, chunkSize, isWallFn, setWallFn, forceStructureFn, getForcedStructureFn, cellKey, pathTheme) {
     const endX = startX + chunkSize - 1;
     const endZ = startZ + chunkSize - 1;
     const inChunk = (cx, cz) => cx >= startX && cx <= endX && cz >= startZ && cz <= endZ;
     const isOpen = (cx, cz) => inChunk(cx, cz) && !isWallFn(cx, cz);
 
-    // Edge-midpoint / corner cells carved by carvePath() are the inter-chunk connectors -
-    // never touch them, even if they happen to read as degree-1 locally.
     const seamKeys = new Set([
         cellKey(startX + 7, startZ), cellKey(startX + 7, endZ),
         cellKey(startX, startZ + 7), cellKey(endX, startZ + 7)
@@ -296,8 +286,6 @@ function _closeLoops(random, startX, startZ, chunkSize, isWallFn, setWallFn, for
             else if (isOpen(cx, cz + 1)) { openDx = 0; openDz = 1; }
             else { openDx = 0; openDz = -1; }
 
-            // The cell the corridor dead-ends into, opposite its one open neighbor. A VENT
-            // there means this is a decorative sealed closet, not a corridor - leave it alone.
             const capX = cx - openDx, capZ = cz - openDz;
             if (getForcedStructureFn(capX, capZ) === "VENT") continue;
 
@@ -327,8 +315,6 @@ function _closeLoops(random, startX, startZ, chunkSize, isWallFn, setWallFn, for
         return dist;
     };
 
-    // Straight run when aligned, otherwise a single L-bend - same grid-strided shape as the
-    // rest of this file's corridors. Excludes both endpoints; caller carves only the interior.
     const pathBetween = (ax, az, bx, bz) => {
         const cells = [];
         if (ax === bx || az === bz) {
@@ -375,7 +361,6 @@ function _closeLoops(random, startX, startZ, chunkSize, isWallFn, setWallFn, for
                 if (tKey === leafKey) continue;
                 const topoDist = topo.get(tKey);
                 if (topoDist === undefined) continue;
-                // A genuine shortcut: many corridor-steps apart despite being grid-close.
                 if (topoDist / chebyshev < LOOP_RATIO_MIN) continue;
                 const pk = pairKey(leafKey, tKey);
                 if (seenPairs.has(pk)) continue;
@@ -763,12 +748,6 @@ self.onmessage = function(e) {
         doorwayPlans: Array.from(doorwayPlans.entries())
     });
     } catch (err) {
-        // Never let a thrown exception here vanish as an unhandled worker error: the main
-        // thread is awaiting a resolver keyed on `hash` for every chunk build, and an
-        // uncaught error would leave that await pending forever, permanently wedging
-        // ChunkManager.isBuildingChunk and halting all future chunk generation for the rest
-        // of the session with no console output. Resolve with empty (wall-less) grids instead
-        // so the requesting chunk build can complete — degraded for this one chunk, not fatal.
         self.postMessage({
             hash,
             isWallGrid: [],

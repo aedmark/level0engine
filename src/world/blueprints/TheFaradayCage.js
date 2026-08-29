@@ -4,17 +4,6 @@ export const TheFaradayCageProfile = (env, ctx) => {
     return {
         name: "THE FARADAY CAGE",
         prob: 0.0014, build: (x, z) => {
-            // The cage occupies a whole wall cell and leaves exactly one of its four walls open
-            // as the entrance - that side has to actually face a walkable neighbor, the same
-            // requirement WideHeaderGap/HingedDoorway already enforce for their own single gap.
-            // Index-to-neighbor mapping matches the wall-building loop below (i=0 north/-Z,
-            // i=1 east/+X, i=2 south/+Z, i=3 west/-X). Picking blind (as this used to) sealed
-            // the cage behind its own wall whenever the maze had already decided that side was
-            // solid - which is most of the time, since only 1 of 4 sides is open on average.
-            // ctx.isWall isn't assigned until the per-cell loop hits its first wall cell, which
-            // happens after the whole structural matrix (this factory included) is already built,
-            // so it has to be read fresh off ctx here rather than destructured above - destructuring
-            // it up there (like every other local) would have captured `undefined` permanently.
             const isWall = ctx.isWall;
             const neighborIsOpen = (i) => {
                 if (!isWall) return true;

@@ -133,13 +133,6 @@ export default class MaterialLibrary {
         MaterialLibrary._reportClobberedAssets(env, assetSnapshot);
     }
 
-    // Marks every geometry/material currently sitting directly on `env` as shared, so chunk
-    // teardown's generic dispose sweep (ChunkManager._asyncDisposeChunks) never frees it out
-    // from under other chunks still using it. injectMaterials() calls this once for the core
-    // asset set; call it again after anything else assigns more shared assets onto `env` later
-    // (e.g. ProceduralTextureFactory.lazyLoadSectorAssets, which runs after injectMaterials and
-    // otherwise leaves its sector materials/geometries unregistered and vulnerable to premature
-    // disposal the first time a chunk using them unloads).
     static registerSharedAssets(env) {
         if (!env.sharedAssets) env.sharedAssets = new Set();
         Object.values(env).forEach(v => {

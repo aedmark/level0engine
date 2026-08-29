@@ -121,11 +121,6 @@ export default class CreviceTextures {
         const map = TextureMechanics._createWrappedTexture(canvas, 2, 2);
         const bumpMap = TextureMechanics._createWrappedTexture(bumpCanvas, 2, 2);
 
-        // High-contrast repeating board seams alias badly at the UV
-        // discontinuity where a box's faces meet at a corner; mipmapping
-        // (and the anisotropy _applyOpts applies globally) makes the GPU's
-        // mip selection spike right at that seam, reading as sparkly shimmer.
-        // Plain bilinear sampling trades a little distant softness for it.
         for (const tex of [map, bumpMap]) {
             tex.generateMipmaps = false;
             tex.minFilter = THREE.LinearFilter;

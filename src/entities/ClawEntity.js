@@ -1,4 +1,4 @@
-import {} from './HazardUtils.js';
+import {isRayPathBlocked} from './HazardUtils.js';
 import {LEGACY_LIGHT_COMPENSATION} from '../world/Sectors.js';
 
 export default class ClawEntity {
