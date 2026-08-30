@@ -46,7 +46,7 @@ export default class RenderEngine {
             this.renderer.outputEncoding = THREE.sRGBEncoding;
         }
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
-        this.ambientLight = new THREE.HemisphereLight(0xb5b5b5, DEFAULT_GROUND_COLOR, 0.30);
+        this.ambientLight = new THREE.HemisphereLight(0xededed, DEFAULT_GROUND_COLOR, 0.30);
         this.scene.add(this.ambientLight);
         this.lightningLight = new THREE.DirectionalLight(0xdbe6ff, 0);
         this.lightningLight.castShadow = false;

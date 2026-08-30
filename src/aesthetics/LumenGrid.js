@@ -339,9 +339,8 @@ export default class LumenGrid {
         const isLH = fixture.isLighthouse;
         const isLongReach = index < this.longReachSlots;
         const lightRange = this._sectorLight.lightRange;
-        const targetReach = fixture.distance !== undefined
-            ? fixture.distance * lightRange
-            : (isLH ? 150.0 : (isLongReach ? 20.0 : 10.0));
+        const baseReach = fixture.distance !== undefined ? fixture.distance : (isLongReach ? 20.0 : 10.0);
+        const targetReach = isLH ? 150.0 : baseReach * lightRange;
 
         if (fixture._currentReach === undefined) fixture._currentReach = targetReach;
         fixture._currentReach += (targetReach - fixture._currentReach) * 0.04;
@@ -351,9 +350,7 @@ export default class LumenGrid {
 
         const dist = Math.sqrt(fixture.distSq);
         const cullLimit = this.maxActiveLights > 12 ? 55.0 : 35.0;
-        const activeRadius = fixture.distance !== undefined
-            ? Math.max(fixture.distance * lightRange, cullLimit)
-            : (isLH ? 120.0 : cullLimit);
+        const activeRadius = isLH ? 120.0 : Math.max(baseReach * lightRange, cullLimit);
         const distanceEnvelope = Math.max(0, Math.min(1, (activeRadius - dist) / 25.0));
         
         if (fixture._activatedAt === undefined) fixture._activatedAt = time;
