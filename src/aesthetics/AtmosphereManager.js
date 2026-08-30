@@ -297,22 +297,16 @@ export default class AtmosphereManager {
             const fogBreath = Math.sin(time * 0.05) * (env.currentFogDensity * 0.3);
             env.scene.fog.density = env.currentFogDensity + fogBreath;
         }
-        if (!env._baseFogColor) env._baseFogColor = new THREE.Color(DEFAULT_ATMOSPHERE_COLOR);
         if (!env._targetFogColor) env._targetFogColor = new THREE.Color();
         const sectorRow = SECTORS[activeSector];
-        if (sectorRow && sectorRow.fogColor !== undefined) {
-            env._targetFogColor.setHex(sectorRow.fogColor);
-        } else {
-            env._targetFogColor.copy(env._baseFogColor);
-        }
+        env._targetFogColor.setHex(sectorRow && sectorRow.fogColor !== undefined ? sectorRow.fogColor : DEFAULT_ATMOSPHERE_COLOR);
         if (!env._blackColor) env._blackColor = new THREE.Color(0x000000);
         const flashlightIsLit = env.player.flashlightActive && env.flashlight && env.flashlight.intensity > 0.1;
         const darknessRatio = Math.min(1.0, darknessPressure * 0.4) * (flashlightIsLit ? 0.35 : 1.0);
         if (!env._finalFogColor) env._finalFogColor = new THREE.Color();
         const finalTargetColor = env._finalFogColor.copy(env._targetFogColor).lerp(env._blackColor, darknessRatio);
-        const colorRate = env._targetFogColor.equals(env._baseFogColor) ? 0.25 : 0.15;
-        env.scene.fog.color.lerp(finalTargetColor, colorRate);
-        env.scene.background.lerp(finalTargetColor, colorRate);
+        env.scene.fog.color.lerp(finalTargetColor, 0.15);
+        env.scene.background.lerp(finalTargetColor, 0.15);
     }
 
     _updateParticles(time, cameraPos, activeSector) {

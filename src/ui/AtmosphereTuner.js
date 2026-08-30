@@ -24,8 +24,7 @@ export const AtmosphereTuner = {
             fog: document.getElementById('atm-fog'),
             fogColor: document.getElementById('atm-fogColor'),
             groundColor: document.getElementById('atm-groundColor'),
-            skyColor: document.getElementById('atm-skyColor'),
-            baseColor: document.getElementById('atm-baseColor')
+            skyColor: document.getElementById('atm-skyColor')
         };
         if (!this._inputs.ambient) return;
 
@@ -33,8 +32,7 @@ export const AtmosphereTuner = {
         this._inputs.fog.addEventListener('input', () => this._applyNumeric('fog'));
         this._inputs.fogColor.addEventListener('input', () => this._applyColor('fogColor'));
         this._inputs.groundColor.addEventListener('input', () => this._applyColor('groundColor'));
-        this._inputs.skyColor.addEventListener('input', () => this._applyBaseColor('skyColor'));
-        this._inputs.baseColor.addEventListener('input', () => this._applyBaseColor('baseColor'));
+        this._inputs.skyColor.addEventListener('input', () => this._applySkyColor());
 
         const saveBtn = document.getElementById('atm-export-btn');
         if (saveBtn) saveBtn.addEventListener('click', () => this._save());
@@ -67,15 +65,13 @@ export const AtmosphereTuner = {
 
     _readSnapshot(sectorId, environment) {
         const row = SECTORS[sectorId] || {};
-        const baseColorHex = environment._baseFogColor ? environment._baseFogColor.getHex() : DEFAULT_ATMOSPHERE_COLOR;
         return {
             sectorId,
             ambient: row.ambient !== undefined ? row.ambient : 0.30,
             fog: row.fog !== undefined ? row.fog : 0.05,
-            fogColor: row.fogColor !== undefined ? row.fogColor : baseColorHex,
+            fogColor: row.fogColor !== undefined ? row.fogColor : DEFAULT_ATMOSPHERE_COLOR,
             groundColor: row.groundColor !== undefined ? row.groundColor : DEFAULT_GROUND_COLOR,
-            skyColor: environment.engine.ambientLight.color.getHex(),
-            baseColor: baseColorHex
+            skyColor: environment.engine.ambientLight.color.getHex()
         };
     },
 
@@ -88,7 +84,6 @@ export const AtmosphereTuner = {
         i.fogColor.value = hexToCss(snap.fogColor);
         i.groundColor.value = hexToCss(snap.groundColor);
         i.skyColor.value = hexToCss(snap.skyColor);
-        i.baseColor.value = hexToCss(snap.baseColor);
     },
 
     _setReadout(field, val) {
@@ -111,16 +106,11 @@ export const AtmosphereTuner = {
         this._row()[field] = cssToHex(this._inputs[field].value);
     },
 
-    _applyBaseColor(field) {
+    _applySkyColor() {
         const env = this._env;
         if (!env) return;
-        const hex = cssToHex(this._inputs[field].value);
-        if (field === 'skyColor') {
-            env.engine.ambientLight.color.setHex(hex);
-        } else if (field === 'baseColor') {
-            if (!env._baseFogColor) env._baseFogColor = new THREE.Color();
-            env._baseFogColor.setHex(hex);
-        }
+        const hex = cssToHex(this._inputs.skyColor.value);
+        env.engine.ambientLight.color.setHex(hex);
     },
 
     async _save() {
@@ -137,9 +127,7 @@ export const AtmosphereTuner = {
 
         const baseFields = {};
         const skyHex = cssToHex(this._inputs.skyColor.value);
-        const baseHex = cssToHex(this._inputs.baseColor.value);
         if (skyHex !== this._snapshot.skyColor) baseFields.skyColor = skyHex;
-        if (baseHex !== this._snapshot.baseColor) baseFields.atmosphereColor = baseHex;
 
         if (Object.keys(sectorFields).length === 0 && Object.keys(baseFields).length === 0) {
             out.textContent = 'No changes to save.';

@@ -85,12 +85,6 @@ function patchSectorBlock(text, sectorName, fields, allowedFields = ALLOWED_SECT
     return text.slice(0, blockOpenIdx) + block + text.slice(endIdx + 1);
 }
 
-function patchNamedConst(text, constName, newHex) {
-    const re = new RegExp(`(export const ${escapeRe(constName)}\\s*=\\s*)0x[0-9a-fA-F]{6}(\\s*;)`);
-    if (!re.test(text)) throw new Error(`Could not find export const ${constName} in Sectors.js`);
-    return text.replace(re, `$1${newHex}$2`);
-}
-
 function patchSkyColor(text, newHex) {
     const re = /(new THREE\.HemisphereLight\(\s*)0x[0-9a-fA-F]{6}(\s*,)/;
     if (!re.test(text)) throw new Error('Could not find HemisphereLight sky color literal in RenderEngine.js');
@@ -112,12 +106,6 @@ function saveAtmosphere(data) {
     if (data.sector && data.sectorFields && Object.keys(data.sectorFields).length) {
         writePatched(sectorsPath, (text) => patchSectorBlock(text, data.sector, data.sectorFields), 'Sectors.js (sector block)');
         results.push(`Sectors.js: SECTORS.${data.sector} updated (${Object.keys(data.sectorFields).join(', ')})`);
-    }
-
-    if (data.baseFields && data.baseFields.atmosphereColor !== undefined) {
-        const hex = toHexLiteral(data.baseFields.atmosphereColor);
-        writePatched(sectorsPath, (text) => patchNamedConst(text, 'DEFAULT_ATMOSPHERE_COLOR', hex), 'Sectors.js (DEFAULT_ATMOSPHERE_COLOR)');
-        results.push(`Sectors.js: DEFAULT_ATMOSPHERE_COLOR -> ${hex}`);
     }
 
     if (data.baseFields && data.baseFields.skyColor !== undefined) {
