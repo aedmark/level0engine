@@ -1,6 +1,7 @@
 import SECTORS, {
     DEFAULT_DUST, DEFAULT_EXHAUST, DEFAULT_AMBIENT, MIN_AMBIENT, DEFAULT_GROUND_COLOR, DEFAULT_ATMOSPHERE_COLOR, LEGACY_LIGHT_COMPENSATION,
-    DEFAULT_LIGHT_INTENSITY, DEFAULT_LIGHT_COLOR, DEFAULT_LIGHT_RANGE, DEFAULT_SHADOWS_ENABLED, DEFAULT_SHADOW_RADIUS
+    DEFAULT_LIGHT_INTENSITY, DEFAULT_LIGHT_COLOR, DEFAULT_LIGHT_RANGE, DEFAULT_SHADOWS_ENABLED, DEFAULT_SHADOW_RADIUS,
+    DEFAULT_RECT_LIGHT_INTENSITY
 } from '../world/Sectors.js';
 
 export default class AtmosphereManager {
@@ -560,7 +561,8 @@ export default class AtmosphereManager {
             lightColor: (s && s.lightColor !== undefined) ? s.lightColor : DEFAULT_LIGHT_COLOR,
             lightRange: (s && s.lightRange !== undefined) ? s.lightRange : DEFAULT_LIGHT_RANGE,
             shadowsEnabled: (s && s.shadowsEnabled !== undefined) ? s.shadowsEnabled : DEFAULT_SHADOWS_ENABLED,
-            shadowRadius: (s && s.shadowRadius !== undefined) ? s.shadowRadius : DEFAULT_SHADOW_RADIUS
+            shadowRadius: (s && s.shadowRadius !== undefined) ? s.shadowRadius : DEFAULT_SHADOW_RADIUS,
+            rectLightIntensity: (s && s.rectLightIntensity !== undefined) ? s.rectLightIntensity : DEFAULT_RECT_LIGHT_INTENSITY
         };
     }
 }

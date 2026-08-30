@@ -35,7 +35,7 @@ const IMMUTABLE_ROUTES = /^\/(r160\.js|assets\/fonts\/)/;
 
 const ALLOWED_SECTOR_FIELDS = new Set(['ambient', 'fog', 'fogColor', 'groundColor']);
 const COLOR_FIELDS = new Set(['fogColor', 'groundColor']);
-const ALLOWED_LIGHT_FIELDS = new Set(['lightIntensity', 'lightColor', 'lightRange', 'shadowsEnabled', 'shadowRadius']);
+const ALLOWED_LIGHT_FIELDS = new Set(['lightIntensity', 'lightColor', 'lightRange', 'shadowsEnabled', 'shadowRadius', 'rectLightIntensity']);
 const LIGHT_COLOR_FIELDS = new Set(['lightColor']);
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const toHexLiteral = (n) => '0x' + (Number(n) >>> 0).toString(16).padStart(6, '0');

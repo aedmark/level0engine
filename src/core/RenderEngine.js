@@ -1,4 +1,5 @@
 import {DEFAULT_GROUND_COLOR, DEFAULT_ATMOSPHERE_COLOR} from '../world/Sectors.js';
+import {RectAreaLightUniformsLib} from '../aesthetics/RectAreaLightUniforms.js';
 
 export default class RenderEngine {
     constructor() {
@@ -6,17 +7,23 @@ export default class RenderEngine {
         this.resolutionScale = RenderEngine.getSavedResolutionScale();
         this.enablePostProcessing = RenderEngine.getSavedPostProcess();
         this.enableFXAA = RenderEngine.getSavedFXAA();
+        this.enableSSAO = RenderEngine.getSavedSSAO();
         this.timerQuantumMs = RenderEngine.detectTimerQuantum();
         this.smoothsDelta = this.timerQuantumMs >= 0.5;
         console.log(`[BOOT] Timer quantum ${this.timerQuantumMs.toFixed(4)}ms ` +
             `(crossOriginIsolated=${self.crossOriginIsolated === true}) — ` +
             `delta smoothing ${this.smoothsDelta ? 'ON' : 'off'}.`);
+        RectAreaLightUniformsLib.init();
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(DEFAULT_ATMOSPHERE_COLOR);
         this.scene.fog = new THREE.FogExp2(DEFAULT_ATMOSPHERE_COLOR, 0.05);
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
         this.camera.position.y = 1.6;
         const logDepth = new URLSearchParams(window.location.search).has('logdepth');
+        if (logDepth) {
+            // SSAO's depth unprojection assumes standard (non-logarithmic) NDC depth.
+            this.enableSSAO = false;
+        }
         this.renderer = new THREE.WebGLRenderer({
             antialias: RenderEngine.getSavedAA() > 0,
             powerPreference: "high-performance",
@@ -58,6 +65,7 @@ export default class RenderEngine {
             magFilter: THREE.LinearFilter,
             samples: aaSamples > 0 ? aaSamples : 0
         });
+        this.target.depthTexture = new THREE.DepthTexture(window.innerWidth, window.innerHeight);
         this.fxaaTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
             minFilter: THREE.LinearFilter,
             magFilter: THREE.LinearFilter
@@ -124,6 +132,137 @@ export default class RenderEngine {
         });
         const fxaaPlane = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.fxaaMaterial);
         this.fxaaScene.add(fxaaPlane);
+
+        const SSAO_KERNEL_SIZE = 8;
+        const ssaoKernel = [];
+        for (let i = 0; i < SSAO_KERNEL_SIZE; i++) {
+            let sx, sy, sz, len;
+            do {
+                sx = Math.random() * 2 - 1;
+                sy = Math.random() * 2 - 1;
+                sz = Math.random();
+                len = Math.sqrt(sx * sx + sy * sy + sz * sz);
+            } while (len === 0);
+            sx /= len; sy /= len; sz /= len;
+            let scale = i / SSAO_KERNEL_SIZE;
+            scale = 0.1 + 0.9 * (scale * scale);
+            ssaoKernel.push(new THREE.Vector3(sx * scale, sy * scale, sz * scale));
+        }
+        this.ssaoTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
+            minFilter: THREE.LinearFilter,
+            magFilter: THREE.LinearFilter
+        });
+        this.ssaoScene = new THREE.Scene();
+        this.ssaoCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        this.ssaoMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                tDiffuse: {value: this.target.texture},
+                tDepth: {value: this.target.depthTexture},
+                texelSize: {value: new THREE.Vector2(1 / window.innerWidth, 1 / window.innerHeight)},
+                cameraProjectionMatrix: {value: this.camera.projectionMatrix},
+                cameraProjectionMatrixInverse: {value: this.camera.projectionMatrixInverse},
+                kernel: {value: ssaoKernel},
+                radius: {value: 0.6},
+                bias: {value: 0.03},
+                aoPower: {value: 1.6},
+                strength: {value: 0.9}
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                uniform sampler2D tDepth;
+                uniform vec2 texelSize;
+                uniform mat4 cameraProjectionMatrix;
+                uniform mat4 cameraProjectionMatrixInverse;
+                uniform vec3 kernel[${SSAO_KERNEL_SIZE}];
+                uniform float radius;
+                uniform float bias;
+                uniform float aoPower;
+                uniform float strength;
+                varying vec2 vUv;
+
+                float readDepth(vec2 uv) {
+                    return texture2D(tDepth, uv).x;
+                }
+
+                vec3 getViewPos(vec2 uv, float depth) {
+                    vec4 ndc = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+                    vec4 viewPos = cameraProjectionMatrixInverse * ndc;
+                    return viewPos.xyz / viewPos.w;
+                }
+
+                float interleavedGradientNoise(vec2 fragCoord) {
+                    return fract(52.9829189 * fract(dot(fragCoord, vec2(0.06711056, 0.00583715))));
+                }
+
+                void main() {
+                    float depth = readDepth(vUv);
+                    vec3 col = texture2D(tDiffuse, vUv).rgb;
+                    if (depth >= 1.0) {
+                        gl_FragColor = vec4(col, 1.0);
+                        return;
+                    }
+                    vec3 origin = getViewPos(vUv, depth);
+
+                    // Single-direction depth derivatives blow up at grazing viewing
+                    // angles (a corridor wall seen nearly edge-on has huge per-pixel
+                    // depth deltas). Take whichever side of each axis has the smaller
+                    // depth discontinuity so we don't straddle it.
+                    vec2 uvX1 = vUv + vec2(texelSize.x, 0.0);
+                    vec2 uvX2 = vUv - vec2(texelSize.x, 0.0);
+                    vec3 posX1 = getViewPos(uvX1, readDepth(uvX1));
+                    vec3 posX2 = getViewPos(uvX2, readDepth(uvX2));
+                    vec3 dX = (abs(posX1.z - origin.z) < abs(posX2.z - origin.z)) ? (posX1 - origin) : (origin - posX2);
+
+                    vec2 uvY1 = vUv + vec2(0.0, texelSize.y);
+                    vec2 uvY2 = vUv - vec2(0.0, texelSize.y);
+                    vec3 posY1 = getViewPos(uvY1, readDepth(uvY1));
+                    vec3 posY2 = getViewPos(uvY2, readDepth(uvY2));
+                    vec3 dY = (abs(posY1.z - origin.z) < abs(posY2.z - origin.z)) ? (posY1 - origin) : (origin - posY2);
+
+                    vec3 normal = normalize(cross(dX, dY));
+
+                    float randAngle = interleavedGradientNoise(gl_FragCoord.xy) * 6.2831853;
+                    vec3 randomVec = vec3(cos(randAngle), sin(randAngle), 0.0);
+                    vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
+                    vec3 bitangent = cross(normal, tangent);
+                    mat3 tbn = mat3(tangent, bitangent, normal);
+
+                    // Standard (non-logarithmic) depth precision falls off sharply with
+                    // distance, so a fixed bias reads as banding far from the camera.
+                    // Scale it up quadratically with view-space depth to compensate.
+                    float distBias = bias * (1.0 + origin.z * origin.z * 0.01);
+
+                    float occlusion = 0.0;
+                    for (int i = 0; i < ${SSAO_KERNEL_SIZE}; i++) {
+                        vec3 samplePos = origin + (tbn * kernel[i]) * radius;
+                        vec4 offset = cameraProjectionMatrix * vec4(samplePos, 1.0);
+                        offset.xyz /= offset.w;
+                        vec2 sampleUv = offset.xy * 0.5 + 0.5;
+                        if (sampleUv.x < 0.0 || sampleUv.x > 1.0 || sampleUv.y < 0.0 || sampleUv.y > 1.0) continue;
+                        float sampleDepth = readDepth(sampleUv);
+                        if (sampleDepth >= 1.0) continue;
+                        vec3 sampledViewPos = getViewPos(sampleUv, sampleDepth);
+                        float rangeCheck = smoothstep(0.0, 1.0, radius / max(0.0001, abs(origin.z - sampledViewPos.z)));
+                        occlusion += (sampledViewPos.z >= samplePos.z + distBias ? 1.0 : 0.0) * rangeCheck;
+                    }
+                    occlusion = 1.0 - (occlusion / float(${SSAO_KERNEL_SIZE}));
+                    occlusion = pow(clamp(occlusion, 0.0, 1.0), aoPower);
+
+                    col *= mix(1.0, occlusion, strength);
+                    gl_FragColor = vec4(col, 1.0);
+                }
+            `
+        });
+        const ssaoPlane = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.ssaoMaterial);
+        this.ssaoScene.add(ssaoPlane);
+
         this.postScene = new THREE.Scene();
         this.postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
         this.exhaustion = 0.0;
@@ -332,6 +471,11 @@ export default class RenderEngine {
         return state.fxaa === true;
     }
 
+    static getSavedSSAO() {
+        const state = RenderEngine.getSavedState();
+        return state.ssao === true;
+    }
+
     static getSavedMaxShadowLights() {
         const state = RenderEngine.getSavedState();
         return state.shadowLights !== undefined ? parseInt(state.shadowLights) : 6;
@@ -376,6 +520,8 @@ export default class RenderEngine {
         this.target.setSize(renderW, renderH);
         this.fxaaTarget.setSize(renderW, renderH);
         this.fxaaMaterial.uniforms.resolution.value.set(1 / renderW, 1 / renderH);
+        this.ssaoTarget.setSize(renderW, renderH);
+        this.ssaoMaterial.uniforms.texelSize.value.set(1 / renderW, 1 / renderH);
     }
 
     static detectTimerQuantum() {
@@ -413,13 +559,22 @@ export default class RenderEngine {
     render() {
         this.renderer.setRenderTarget(this.target);
         this.renderer.render(this.scene, this.camera);
+
+        let baseTexture = this.target.texture;
+        if (this.enableSSAO) {
+            this.ssaoMaterial.uniforms.tDiffuse.value = this.target.texture;
+            this.renderer.setRenderTarget(this.ssaoTarget);
+            this.renderer.render(this.ssaoScene, this.ssaoCamera);
+            baseTexture = this.ssaoTarget.texture;
+        }
+
         if (this.enableFXAA) {
-            this.fxaaMaterial.uniforms.tDiffuse.value = this.target.texture;
+            this.fxaaMaterial.uniforms.tDiffuse.value = baseTexture;
             this.renderer.setRenderTarget(this.fxaaTarget);
             this.renderer.render(this.fxaaScene, this.fxaaCamera);
             this.postMaterial.uniforms.tDiffuse.value = this.fxaaTarget.texture;
         } else {
-            this.postMaterial.uniforms.tDiffuse.value = this.target.texture;
+            this.postMaterial.uniforms.tDiffuse.value = baseTexture;
         }
         this.postMaterial.uniforms.time.value = this.time;
         this.postMaterial.uniforms.exhaustion.value = this.exhaustion;

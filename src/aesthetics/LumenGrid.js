@@ -4,7 +4,8 @@ import {
     DEFAULT_LIGHT_COLOR,
     DEFAULT_LIGHT_RANGE,
     DEFAULT_SHADOWS_ENABLED,
-    DEFAULT_SHADOW_RADIUS
+    DEFAULT_SHADOW_RADIUS,
+    DEFAULT_RECT_LIGHT_INTENSITY
 } from '../world/Sectors.js';
 
 const OCCLUDED_LIGHT_FLOOR = 0.20;
@@ -19,8 +20,12 @@ const FALLBACK_SECTOR_LIGHT = {
     lightColor: DEFAULT_LIGHT_COLOR,
     lightRange: DEFAULT_LIGHT_RANGE,
     shadowsEnabled: DEFAULT_SHADOWS_ENABLED,
-    shadowRadius: DEFAULT_SHADOW_RADIUS
+    shadowRadius: DEFAULT_SHADOW_RADIUS,
+    rectLightIntensity: DEFAULT_RECT_LIGHT_INTENSITY
 };
+
+const RECT_LIGHT_CULL_RADIUS = 22.0;
+const RECT_LIGHT_FADE_BAND = 6.0;
 
 export default class LumenGrid {
     constructor(env, shadowQuality = 'high', maxShadowLights = 6) {
@@ -41,7 +46,7 @@ export default class LumenGrid {
         this.spawnFadeInDuration = 0.6;
         this._sectorLight = FALLBACK_SECTOR_LIGHT;
         this._sectorTint = new THREE.Color(1, 1, 1);
-        const pointShadowSize = 512;
+        const pointShadowSize = 1024;
         const spotShadowSize = shadowQuality === 'low' ? 512 : 1024;
         for (let i = 0; i < this.maxActiveLights; i++) {
             const radius = i < this.maxShadowLights ? 20.0 : 10.0;
@@ -73,6 +78,15 @@ export default class LumenGrid {
                 }
             });
         }
+
+        this.maxRectLights = 10;
+        this._activeRectFixtures = new Array(this.maxRectLights).fill(null);
+        this.rectLightPool = [];
+        for (let i = 0; i < this.maxRectLights; i++) {
+            const rectLight = new THREE.RectAreaLight(0xffebd6, 0, 1, 1);
+            this.scene.add(rectLight);
+            this.rectLightPool.push(rectLight);
+        }
     }
 
     update(cameraPos, fixtureData, time, currentChunkHash, sectorLight) {
@@ -86,6 +100,7 @@ export default class LumenGrid {
             if (this._activeFixtures[i]) this._prevActive.add(this._activeFixtures[i]);
         }
         this._activeFixtures.fill(null);
+        this._activeRectFixtures.fill(null);
 
         this._occlusionTestsThisFrame = 0;
         darknessPressure = this._cullAndSortFixtures(cameraPos, fixtureData, currentChunkHash, time);
@@ -159,7 +174,17 @@ export default class LumenGrid {
         }
         this._shadowRR = (this._shadowRR + 1) % this.maxShadowLights;
         this.shadowsDirty = false;
-        
+
+        for (let i = 0; i < this.maxRectLights; i++) {
+            const rectLight = this.rectLightPool[i];
+            const fixture = this._activeRectFixtures[i];
+            if (fixture) {
+                this._updateRectLightProperties(rectLight, fixture, time);
+            } else {
+                rectLight.intensity = 0;
+            }
+        }
+
         return {darknessPressure, nearestFixture, minLightDistSq};
     }
 
@@ -274,7 +299,10 @@ export default class LumenGrid {
                 if (fixture.isDead) {
                     darknessPressure += Math.max(0.0, 1.0 - (distSq * 0.00111));
                 }
-                if (!fixture.isFake) {
+                if (fixture.isPanelLight) {
+                    fixture.distSq = distSq;
+                    this._insertRectFixture(fixture);
+                } else if (!fixture.isFake) {
                     fixture.distSq = distSq;
                     this._updateFixtureVisibility(fixture, cameraPos, time);
                     fixture._biasedDistSq = fixture.hasShadow ? distSq - 120.0 : distSq;
@@ -324,6 +352,53 @@ export default class LumenGrid {
                 this._activeFixtures[insertPos2] = fixture;
             }
         }
+    }
+
+    _insertRectFixture(fixture) {
+        let insertPos = -1;
+        for (let j = 0; j < this.maxRectLights; j++) {
+            if (!this._activeRectFixtures[j] || fixture.distSq < this._activeRectFixtures[j].distSq) {
+                insertPos = j;
+                break;
+            }
+        }
+        if (insertPos !== -1) {
+            for (let j = this.maxRectLights - 1; j > insertPos; j--) {
+                this._activeRectFixtures[j] = this._activeRectFixtures[j - 1];
+            }
+            this._activeRectFixtures[insertPos] = fixture;
+        }
+    }
+
+    _updateRectLightProperties(light, fixture, time) {
+        if (fixture.isDead) {
+            light.intensity = 0;
+            return;
+        }
+        light.position.copy(fixture.position);
+        if (fixture.rectQuaternion) light.quaternion.copy(fixture.rectQuaternion);
+        light.updateMatrixWorld(true);
+        light.width = fixture.rectWidth !== undefined ? fixture.rectWidth : 1.0;
+        light.height = fixture.rectHeight !== undefined ? fixture.rectHeight : 1.0;
+
+        if (fixture.color) {
+            light.color.copy(fixture.color);
+        } else if (fixture.material && fixture.material.emissive) {
+            light.color.copy(fixture.material.emissive);
+        }
+        light.color.multiply(this._sectorTint);
+
+        const dist = Math.sqrt(fixture.distSq);
+        const distanceEnvelope = Math.max(0, Math.min(1, (RECT_LIGHT_CULL_RADIUS - dist) / RECT_LIGHT_FADE_BAND));
+
+        if (fixture._rectActivatedAt === undefined) fixture._rectActivatedAt = time;
+        const sinceActivation = time - fixture._rectActivatedAt;
+        const spawnRamp = sinceActivation >= this.spawnFadeInDuration
+            ? 1.0 : Math.max(0, sinceActivation / this.spawnFadeInDuration);
+        const fadeEnvelope = distanceEnvelope * spawnRamp;
+
+        const baseIntensity = fixture.rectBaseIntensity !== undefined ? fixture.rectBaseIntensity : 1.0;
+        light.intensity = baseIntensity * fadeEnvelope * this._sectorLight.rectLightIntensity;
     }
 
     _updateLightProperties(light, fixture, index, time, isShadowCaster) {

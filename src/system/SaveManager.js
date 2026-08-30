@@ -58,6 +58,7 @@ export default class SaveManager {
             document.getElementById('fxaaToggle').checked = state.fxaa === true;
             document.getElementById('postToggle').checked = state.post !== false;
             document.getElementById('headBobToggle').checked = state.headBob !== false;
+            document.getElementById('ssaoToggle').checked = state.ssao === true;
             this.engine.aspectRatio = state.aspect === 'auto' ? 'auto' : parseFloat(state.aspect || 1.3333333333);
             this.engine.resolutionScale = parseFloat(state.res) || 1.0;
             this.engine.enablePostProcessing = state.post !== false;
@@ -145,6 +146,7 @@ export default class SaveManager {
             fxaa: document.getElementById('fxaaToggle').checked,
             post: document.getElementById('postToggle').checked,
             headBob: document.getElementById('headBobToggle').checked,
+            ssao: document.getElementById('ssaoToggle').checked,
             elevator: this.environment.elevatorAnchor || null,
             consumed: Array.from(this.environment.consumedProps || []),
             macroChunks: Array.from(this.environment._macroChunkHashes),

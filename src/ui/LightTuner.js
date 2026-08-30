@@ -3,7 +3,8 @@ import SECTORS, {
     DEFAULT_LIGHT_COLOR,
     DEFAULT_LIGHT_RANGE,
     DEFAULT_SHADOWS_ENABLED,
-    DEFAULT_SHADOW_RADIUS
+    DEFAULT_SHADOW_RADIUS,
+    DEFAULT_RECT_LIGHT_INTENSITY
 } from '../world/Sectors.js';
 
 const hexToCss = (hex) => '#' + hex.toString(16).padStart(6, '0');
@@ -30,7 +31,8 @@ export const LightTuner = {
             lightColor: document.getElementById('lt-lightColor'),
             lightRange: document.getElementById('lt-lightRange'),
             shadowsEnabled: document.getElementById('lt-shadowsEnabled'),
-            shadowRadius: document.getElementById('lt-shadowRadius')
+            shadowRadius: document.getElementById('lt-shadowRadius'),
+            rectLightIntensity: document.getElementById('lt-rectLightIntensity')
         };
         if (!this._inputs.lightIntensity) return;
 
@@ -39,6 +41,7 @@ export const LightTuner = {
         this._inputs.lightRange.addEventListener('input', () => this._applyNumeric('lightRange'));
         this._inputs.shadowsEnabled.addEventListener('change', () => this._applyBool('shadowsEnabled'));
         this._inputs.shadowRadius.addEventListener('input', () => this._applyNumeric('shadowRadius'));
+        this._inputs.rectLightIntensity.addEventListener('input', () => this._applyNumeric('rectLightIntensity'));
 
         const saveBtn = document.getElementById('lt-export-btn');
         if (saveBtn) saveBtn.addEventListener('click', () => this._save());
@@ -77,7 +80,8 @@ export const LightTuner = {
             lightColor: row.lightColor !== undefined ? row.lightColor : DEFAULT_LIGHT_COLOR,
             lightRange: row.lightRange !== undefined ? row.lightRange : DEFAULT_LIGHT_RANGE,
             shadowsEnabled: row.shadowsEnabled !== undefined ? row.shadowsEnabled : DEFAULT_SHADOWS_ENABLED,
-            shadowRadius: row.shadowRadius !== undefined ? row.shadowRadius : DEFAULT_SHADOW_RADIUS
+            shadowRadius: row.shadowRadius !== undefined ? row.shadowRadius : DEFAULT_SHADOW_RADIUS,
+            rectLightIntensity: row.rectLightIntensity !== undefined ? row.rectLightIntensity : DEFAULT_RECT_LIGHT_INTENSITY
         };
     },
 
@@ -91,6 +95,8 @@ export const LightTuner = {
         i.shadowsEnabled.checked = snap.shadowsEnabled;
         i.shadowRadius.value = snap.shadowRadius;
         this._setReadout('shadowRadius', snap.shadowRadius);
+        i.rectLightIntensity.value = snap.rectLightIntensity;
+        this._setReadout('rectLightIntensity', snap.rectLightIntensity);
     },
 
     _setReadout(field, val) {
@@ -118,7 +124,7 @@ export const LightTuner = {
         const row = this._row();
 
         const sectorFields = {};
-        for (const f of ['lightIntensity', 'lightColor', 'lightRange', 'shadowsEnabled', 'shadowRadius']) {
+        for (const f of ['lightIntensity', 'lightColor', 'lightRange', 'shadowsEnabled', 'shadowRadius', 'rectLightIntensity']) {
             const current = row[f];
             if (current === undefined || current === this._snapshot[f]) continue;
             sectorFields[f] = current;

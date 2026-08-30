@@ -51,12 +51,14 @@ export const DEFAULT_SHADOWS_ENABLED = true;
 
 export const DEFAULT_SHADOW_RADIUS = 1.0;
 
+export const DEFAULT_RECT_LIGHT_INTENSITY = 1.0;
+
 const SECTORS = {
     NORMAL: {
         shadowRadius: 2.75,
         lightRange: 0.9,
         lightColor: 0x8a8b93,
-        lightIntensity: 2.7,
+        lightIntensity: 2.05,
         fogColor: 0x9e9e9e,
         fog: 0,
         ambient: 0.4,

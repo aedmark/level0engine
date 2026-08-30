@@ -29,6 +29,19 @@ const SHADOW_PROBE_BATCH = 1;
 
 const ALL_PROBE_FORMS = new Set(['plain', 'instanced', 'coloured']);
 
+let _panelRectQuatFlat = null;
+let _panelRectQuatRotated = null;
+function _panelRectQuaternion(isRotated) {
+    if (!_panelRectQuatFlat) {
+        // Faces straight down (local -Z -> world -Y) regardless of the panel's
+        // own yaw; the yaw is baked in here too so the light's width/height axes
+        // stay paired with the panel mesh's own local X/Z box dimensions.
+        _panelRectQuatFlat = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0, 'YXZ'));
+        _panelRectQuatRotated = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, Math.PI / 2, 0, 'YXZ'));
+    }
+    return isRotated ? _panelRectQuatRotated : _panelRectQuatFlat;
+}
+
 export default class ChunkManager {
     constructor(env) {
         this.env = env;
@@ -1061,7 +1074,12 @@ export default class ChunkManager {
                     baseIntensity: isTracked ? 0.6 : 0.0,
                     targetIntensity: isTracked ? 0.6 : 0.0,
                     currentIntensity: isTracked ? 0.6 : 0.0,
-                    isFake: !isTracked
+                    isFake: !isTracked,
+                    isPanelLight: true,
+                    rectBaseIntensity: 1.0,
+                    rectWidth: env.sharedPanelGeo.parameters.width,
+                    rectHeight: env.sharedPanelGeo.parameters.depth,
+                    rectQuaternion: _panelRectQuaternion(isRotated)
                 });
             }
         } else if (!hasTallObstacle && random() > 0.95 && state.chunkBreakerCount < 3 && !isArtery) {

@@ -1317,6 +1317,9 @@
         <label>Softness (blur radius) <span id="lt-shadowRadius-val"></span></label>
         <input type="range" id="lt-shadowRadius" min="0" max="6" step="0.25">
         <p style="font-size: 9px; opacity: 0.6; margin: 0.4rem 0 0;">Softness only visible at High shadow quality (PCF Soft).</p>
+        <h4>CEILING PANEL LIGHTS</h4>
+        <label>Panel Light Intensity <span id="lt-rectLightIntensity-val"></span></label>
+        <input type="range" id="lt-rectLightIntensity" min="0" max="3" step="0.05">
         <button id="lt-export-btn">SAVE TO SECTORS.JS</button>
         <pre id="lt-export-output"></pre>
     </div>
@@ -1449,6 +1452,10 @@
         <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; cursor: pointer;">
             <input type="checkbox" id="headBobToggle" checked style="width: auto; margin: 0;">
             Enable Head Bob
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; cursor: pointer;">
+            <input type="checkbox" id="ssaoToggle" style="width: auto; margin: 0;">
+            Enable Ambient Occlusion (SSAO)
         </label>
         <div class="btn-container">
             <button id="saveApplyBtn" class="btn" style="border-color: #55ff55; color: #55ff55; margin-bottom: 1rem;">SAVE & APPLY SETTINGS</button>
