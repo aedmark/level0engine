@@ -46,7 +46,7 @@ export default class RenderEngine {
             this.renderer.outputEncoding = THREE.sRGBEncoding;
         }
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
-        this.ambientLight = new THREE.HemisphereLight(0xffffff, DEFAULT_GROUND_COLOR, 0.30);
+        this.ambientLight = new THREE.HemisphereLight(0xb5b5b5, DEFAULT_GROUND_COLOR, 0.30);
         this.scene.add(this.ambientLight);
         this.lightningLight = new THREE.DirectionalLight(0xdbe6ff, 0);
         this.lightningLight.castShadow = false;
@@ -411,53 +411,34 @@ export default class RenderEngine {
     }
 
     render() {
-        if (this.enablePostProcessing) {
-            this.renderer.setRenderTarget(this.target);
-            this.renderer.render(this.scene, this.camera);
-            if (this.enableFXAA) {
-                this.fxaaMaterial.uniforms.tDiffuse.value = this.target.texture;
-                this.renderer.setRenderTarget(this.fxaaTarget);
-                this.renderer.render(this.fxaaScene, this.fxaaCamera);
-                this.postMaterial.uniforms.tDiffuse.value = this.fxaaTarget.texture;
-            } else {
-                this.postMaterial.uniforms.tDiffuse.value = this.target.texture;
-            }
-            this.postMaterial.uniforms.time.value = this.time;
-            this.postMaterial.uniforms.exhaustion.value = this.exhaustion;
-            this.postMaterial.uniforms.squeeze.value = this.squeeze || 0.0;
-            this.postMaterial.uniforms.anomaly.value = this.anomaly || 0.0;
-            this.postMaterial.uniforms.darkness.value = this.darkness || 0.0;
-            this.postMaterial.uniforms.panic.value = this.paranoia || 0.0;
-            this.postMaterial.uniforms.adrenaline.value = this.adrenaline || 0.0;
-            this.postMaterial.uniforms.eyesClosed.value = this.eyesClosed || 0.0;
-            this.postMaterial.uniforms.glare.value = this.glare || 0.0;
-            this.postMaterial.uniforms.enableVHS.value = 1.0;
-            this.postMaterial.uniforms.exposure.value = this.baseExposure !== undefined ? this.baseExposure : 0.70;
-            if (this.glareColor) this.postMaterial.uniforms.glareColor.value.copy(this.glareColor);
-            if (this.heatTarget !== undefined) {
-                if (this.currentHeat === undefined) this.currentHeat = 0.0;
-                this.currentHeat += (this.heatTarget - this.currentHeat) * 0.016 * 2.0;
-                this.postMaterial.uniforms.heat.value = this.currentHeat;
-            }
-            this.renderer.setRenderTarget(null);
-            this.renderer.render(this.postScene, this.postCamera);
-        } else if (this.enableFXAA) {
-            this.renderer.setRenderTarget(this.target);
-            this.renderer.render(this.scene, this.camera);
+        this.renderer.setRenderTarget(this.target);
+        this.renderer.render(this.scene, this.camera);
+        if (this.enableFXAA) {
             this.fxaaMaterial.uniforms.tDiffuse.value = this.target.texture;
-            this.renderer.setRenderTarget(null);
+            this.renderer.setRenderTarget(this.fxaaTarget);
             this.renderer.render(this.fxaaScene, this.fxaaCamera);
-            if (this.heatTarget !== undefined) {
-                if (this.currentHeat === undefined) this.currentHeat = 0.0;
-                this.currentHeat += (this.heatTarget - this.currentHeat) * 0.016 * 2.0;
-            }
+            this.postMaterial.uniforms.tDiffuse.value = this.fxaaTarget.texture;
         } else {
-            this.renderer.setRenderTarget(null);
-            this.renderer.render(this.scene, this.camera);
-            if (this.heatTarget !== undefined) {
-                if (this.currentHeat === undefined) this.currentHeat = 0.0;
-                this.currentHeat += (this.heatTarget - this.currentHeat) * 0.016 * 2.0;
-            }
+            this.postMaterial.uniforms.tDiffuse.value = this.target.texture;
         }
+        this.postMaterial.uniforms.time.value = this.time;
+        this.postMaterial.uniforms.exhaustion.value = this.exhaustion;
+        this.postMaterial.uniforms.squeeze.value = this.squeeze || 0.0;
+        this.postMaterial.uniforms.anomaly.value = this.anomaly || 0.0;
+        this.postMaterial.uniforms.darkness.value = this.darkness || 0.0;
+        this.postMaterial.uniforms.panic.value = this.paranoia || 0.0;
+        this.postMaterial.uniforms.adrenaline.value = this.adrenaline || 0.0;
+        this.postMaterial.uniforms.eyesClosed.value = this.eyesClosed || 0.0;
+        this.postMaterial.uniforms.glare.value = this.glare || 0.0;
+        this.postMaterial.uniforms.enableVHS.value = this.enablePostProcessing ? 1.0 : 0.0;
+        this.postMaterial.uniforms.exposure.value = this.baseExposure !== undefined ? this.baseExposure : 0.70;
+        if (this.glareColor) this.postMaterial.uniforms.glareColor.value.copy(this.glareColor);
+        if (this.heatTarget !== undefined) {
+            if (this.currentHeat === undefined) this.currentHeat = 0.0;
+            this.currentHeat += (this.heatTarget - this.currentHeat) * 0.016 * 2.0;
+            this.postMaterial.uniforms.heat.value = this.currentHeat;
+        }
+        this.renderer.setRenderTarget(null);
+        this.renderer.render(this.postScene, this.postCamera);
     }
 }
