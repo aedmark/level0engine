@@ -80,6 +80,21 @@ export const ArchHallProfile = (env, ctx) => {
         return slab;
     };
 
+    const capClosedSide = (cx, cz, d) => {
+        const mat = env.subwayTileMatsStraight
+            ? env.subwayTileMatsStraight[Math.floor(random() * env.subwayTileMatsStraight.length)]
+            : env.structMat;
+        const thickness = 0.5;
+        const alongZWall = d.dx !== 0;
+        const w = alongZWall ? thickness : env.cellSize;
+        const depth = alongZWall ? env.cellSize : thickness;
+        const wall = ctx.buildWall(w, depth, mat);
+        wall.position.set(cx + d.dx * (half - thickness / 2), 1.5, cz + d.dz * (half - thickness / 2));
+        wall.userData.isEntityBlocker = true;
+        addGeometry(wall);
+        ctx.addBaseboardBox(wall.position.x, wall.position.z, w, depth);
+    };
+
     const addApexSeam = (cx, cz, alongZ) => {
         const offsets = [-env.cellSize / 4, env.cellSize / 4];
 
@@ -194,6 +209,10 @@ export const ArchHallProfile = (env, ctx) => {
                 if (neighbourIsArch && axisOf(nx, nz) !== null) continue;
                 if (neighbourIsArch && d.dx <= 0 && d.dz <= 0) continue;
                 buildSlab(cx, cz, RIB_DEPTH, d, d.dz !== 0);
+            }
+            for (const d of DIRS) {
+                if (link.some(l => l.dx === d.dx && l.dz === d.dz)) continue;
+                capClosedSide(cx, cz, d);
             }
             addLandingPanel(cx, cz);
             return false;

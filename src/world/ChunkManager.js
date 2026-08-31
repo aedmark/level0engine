@@ -29,6 +29,13 @@ const SHADOW_PROBE_BATCH = 1;
 
 const ALL_PROBE_FORMS = new Set(['plain', 'instanced', 'coloured']);
 
+// Panel positions aren't checked against nearby wall distance, so in a tight cell the
+// light plane's edge can end up almost touching a wall/corner - RectAreaLight's LTC
+// falloff goes unstable at near-zero distance-to-plane, showing up as a bright streak
+// funneling out along the seam. Shrinking the emitting rect (not the visible panel mesh)
+// keeps its edges further from any adjacent wall regardless of how cramped the cell is.
+const RECT_LIGHT_SIZE_MARGIN = 0.6;
+
 let _panelRectQuatFlat = null;
 let _panelRectQuatRotated = null;
 function _panelRectQuaternion(isRotated) {
@@ -991,7 +998,7 @@ export default class ChunkManager {
         if (forcedName === 'empty_door_frame') {
             hasTallObstacle = true;
             const breachProfile = EmptyDoorFrameProfile(env, ctx);
-            breachProfile.build(x, z, isWallCell);
+            breachProfile.build(x, z, ctx.isWall);
         } else if (forcedName === 'CRAWLSPACE_HALL') {
             hasTallObstacle = true;
             const crawlProfile = CrawlspaceHallProfile(env, ctx);
@@ -999,7 +1006,7 @@ export default class ChunkManager {
         } else if (forcedName === 'CREVICE_HALL') {
             hasTallObstacle = true;
             const creviceProfile = CreviceHallProfile(env, ctx);
-            creviceProfile.build(x, z, isWallCell);
+            creviceProfile.build(x, z, ctx.isWall);
         } else if (forcedName === 'RIDE_QUEUE_HALL') {
             hasTallObstacle = true;
             const rideProfile = RideQueueHallProfile(env, ctx);
@@ -1077,8 +1084,8 @@ export default class ChunkManager {
                     isFake: !isTracked,
                     isPanelLight: true,
                     rectBaseIntensity: 1.0,
-                    rectWidth: env.sharedPanelGeo.parameters.width,
-                    rectHeight: env.sharedPanelGeo.parameters.depth,
+                    rectWidth: env.sharedPanelGeo.parameters.width * RECT_LIGHT_SIZE_MARGIN,
+                    rectHeight: env.sharedPanelGeo.parameters.depth * RECT_LIGHT_SIZE_MARGIN,
                     rectQuaternion: _panelRectQuaternion(isRotated)
                 });
             }

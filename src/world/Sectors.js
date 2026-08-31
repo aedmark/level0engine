@@ -55,13 +55,14 @@ export const DEFAULT_RECT_LIGHT_INTENSITY = 1.0;
 
 const SECTORS = {
     NORMAL: {
-        shadowRadius: 2.75,
-        lightRange: 2.2,
-        lightColor: 0x8a8b93,
-        lightIntensity: 0.8,
-        fogColor: 0x7a7a7a,
-        fog: 0.005,
-        ambient: 0.38,
+        rectLightIntensity: 2.35,
+        shadowRadius: 3.25,
+        lightRange: 2.15,
+        lightColor: 0xffffff,
+        lightIntensity: 1.05,
+        fogColor: 0xa6a6a6,
+        fog: 0.015,
+        ambient: 0.3,
         groundColor: 0xededed,
         ambience: {
             noise: 0.0,

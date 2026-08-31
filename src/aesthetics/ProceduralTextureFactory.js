@@ -42,7 +42,7 @@ export default class ProceduralTextureFactory {
             }
 
             const structKeys = ['headerMat', 'wallTexture', 'wallBumpTexture', 'structMat', 'woodMat',
-                'doorMat', 'baseboardMat', 'baseboardTrimMat', 'subwayTileMats'];
+                'doorMat', 'baseboardMat', 'baseboardTrimMat', 'subwayTileMats', 'subwayTileMatsStraight'];
             if (structKeys.some(key => !staticAssets[key])) {
                 const structAssets = StructuralTextures._buildStructuralAssets(masterNoise);
                 for (const key of structKeys) {
