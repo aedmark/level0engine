@@ -68,6 +68,22 @@ export const CreviceHallProfile = (env, ctx) => {
         addWallMesh(w2);
     };
 
+    const buildFloorAndCeiling = (cx, cz) => {
+        const floor = new THREE.Mesh(env._planeGeo(env.cellSize, env.cellSize), env.creviceFloorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.set(cx, 0.015, cz);
+        floor.userData.noCollision = true;
+        floor.receiveShadow = true;
+        addGeometry(floor);
+
+        const ceiling = new THREE.Mesh(env._planeGeo(env.cellSize, env.cellSize), env.creviceCeilingMat);
+        ceiling.rotation.x = Math.PI / 2;
+        ceiling.position.set(cx, 2.985, cz);
+        ceiling.userData.noCollision = true;
+        ceiling.receiveShadow = true;
+        addGeometry(ceiling);
+    };
+
     return {
         name: "CREVICE_HALL",
         prob: 0,
@@ -105,10 +121,12 @@ export const CreviceHallProfile = (env, ctx) => {
 
             if (N && S && !E && !W) {
                 buildStraightZ(cx, cz);
+                buildFloorAndCeiling(cx, cz);
                 return true;
             }
             if (E && W && !N && !S) {
                 buildStraightX(cx, cz);
+                buildFloorAndCeiling(cx, cz);
                 return true;
             }
 
@@ -121,6 +139,8 @@ export const CreviceHallProfile = (env, ctx) => {
             if (!S) buildClosedChannel(cx, cz, 'S');
             if (!E) buildClosedChannel(cx, cz, 'E');
             if (!W) buildClosedChannel(cx, cz, 'W');
+
+            buildFloorAndCeiling(cx, cz);
 
             return true;
         }

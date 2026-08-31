@@ -29,6 +29,8 @@ export default class ProceduralTextureFactory {
         if (ProceduralTextureFactory.USE_STATIC_TEXTURES) {
             const staticAssets = await StaticTextureLoader.loadCoreAssets(onProgress);
             if (!staticAssets.creviceWallMat) staticAssets.creviceWallMat = CreviceTextures._buildLathAndPlasterAsset(masterNoise);
+            if (!staticAssets.creviceCeilingMat) staticAssets.creviceCeilingMat = CreviceTextures._buildJoistCeilingAsset(masterNoise);
+            if (!staticAssets.creviceFloorMat) staticAssets.creviceFloorMat = CreviceTextures._buildUnderlaymentFloorAsset(masterNoise);
 
             const techKeys = ['ventMat', 'ductMat', 'serverMat', 'baseLightMat', 'baseBrokenLightMat',
                 'baseHousingMat', 'matteLightMat', 'matteBrokenLightMat', 'flangeMat'];
@@ -136,7 +138,9 @@ export default class ProceduralTextureFactory {
             ...hazardAssets,
             ...serverAssets,
             ...clinicAssets,
-            creviceWallMat: CreviceTextures._buildLathAndPlasterAsset(masterNoise)
+            creviceWallMat: CreviceTextures._buildLathAndPlasterAsset(masterNoise),
+            creviceCeilingMat: CreviceTextures._buildJoistCeilingAsset(masterNoise),
+            creviceFloorMat: CreviceTextures._buildUnderlaymentFloorAsset(masterNoise)
         };
         
         ProceduralTextureFactory._applyOpts(assets);

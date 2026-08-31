@@ -58,7 +58,7 @@ const SECTORS = {
         shadowRadius: 2.75,
         lightRange: 2.2,
         lightColor: 0x8a8b93,
-        lightIntensity: 1.2,
+        lightIntensity: 0.8,
         fogColor: 0x7a7a7a,
         fog: 0.005,
         ambient: 0.38,
