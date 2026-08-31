@@ -49,7 +49,10 @@ export const ArchHallProfile = (env, ctx) => {
 
     const buildSlab = (cx, cz, depth, dir, alongZ) => {
         const mat = env.subwayTileMats ? env.subwayTileMats[Math.floor(random() * env.subwayTileMats.length)] : env.structMat;
-        const slab = ctx.buildArchCutout(radius, JAMB, archHeight, depth, springHeight, mat);
+        const outerMat = env.subwayTileMatsStraight
+            ? env.subwayTileMatsStraight[Math.floor(random() * env.subwayTileMatsStraight.length)]
+            : mat;
+        const slab = ctx.buildArchCutout(radius, JAMB, archHeight, depth, springHeight, mat, outerMat);
         const push = (env.cellSize - depth) / 2;
         slab.position.set(cx + (dir ? dir.dx * push : 0), 0, cz + (dir ? dir.dz * push : 0));
         

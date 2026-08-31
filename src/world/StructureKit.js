@@ -169,7 +169,7 @@ export default class StructureKit {
                     insert(Math.min(xa, xb), yb, Math.max(xa, xb), totalY);
                 }
             },
-            buildArchCutout: (radius, thickness, outerY, depth, springY, mat) => {
+            buildArchCutout: (radius, thickness, outerY, depth, springY, mat, outerMat = mat) => {
                 const key = `archCutout_${radius}_${thickness}_${outerY}_${depth}_${springY}`;
                 let geo = env.geoCache.get(key);
                 if (!geo) {
@@ -282,7 +282,7 @@ export default class StructureKit {
                     env.geoCache.set(key, geo);
                     env.geoCache.set(geo.uuid, true);
                 }
-                return new THREE.Mesh(geo, [env.sharedWallMat, mat]);
+                return new THREE.Mesh(geo, [outerMat, mat]);
             },
             buildCurvedCornerBlock: (size, mat) => {
                 const t = 0.0;

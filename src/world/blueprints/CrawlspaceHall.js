@@ -1,5 +1,5 @@
 export const CrawlspaceHallProfile = (env, ctx) => {
-    const { addGeometry } = ctx;
+    const { addGeometry, random } = ctx;
     return {
         name: "CRAWLSPACE_HALL",
         prob: 0,
@@ -12,7 +12,23 @@ export const CrawlspaceHallProfile = (env, ctx) => {
                 return new THREE.BoxGeometry(env.cellSize, dropHeight, env.cellSize);
             });
 
-            const dropMesh = new THREE.Mesh(dropGeo, env.ceilingMat || env.sharedWallMat);
+            const baseMat = env.ceilingMat || env.sharedWallMat;
+            const straightTileMat = () => env.subwayTileMatsStraight
+                ? env.subwayTileMatsStraight[Math.floor(random() * env.subwayTileMatsStraight.length)]
+                : baseMat;
+            const isArchNeighbor = (dx, dz) =>
+                !!ctx.getForcedStructure && ctx.getForcedStructure(x + dx, z + dz) === 'ARCH_HALL';
+            // Face order matches THREE.BoxGeometry's own groups: +X, -X, +Y, -Y, +Z, -Z.
+            const dropMats = [
+                isArchNeighbor(1, 0) ? straightTileMat() : baseMat,
+                isArchNeighbor(-1, 0) ? straightTileMat() : baseMat,
+                baseMat,
+                baseMat,
+                isArchNeighbor(0, 1) ? straightTileMat() : baseMat,
+                isArchNeighbor(0, -1) ? straightTileMat() : baseMat
+            ];
+
+            const dropMesh = new THREE.Mesh(dropGeo, dropMats);
             dropMesh.position.set(x * env.cellSize, yCenter, z * env.cellSize);
             dropMesh.userData.isEntityBlocker = true;
             addGeometry(dropMesh);

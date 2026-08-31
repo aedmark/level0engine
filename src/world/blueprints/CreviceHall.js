@@ -3,7 +3,7 @@ export const CREVICE_GAP = 0.65;
 const FACE = {PX: 0, NX: 1, PY: 2, NY: 3, PZ: 4, NZ: 5};
 
 export const CreviceHallProfile = (env, ctx) => {
-    const { addGeometry, buildWall } = ctx;
+    const { addGeometry, buildWall, random } = ctx;
     const gap = CREVICE_GAP;
     const quadSize = Math.round(((env.cellSize - gap) / 2) * 20) / 20;
     const quadOffset = env.cellSize / 2 - quadSize / 2;
@@ -21,49 +21,76 @@ export const CreviceHallProfile = (env, ctx) => {
         return arr;
     };
 
-    const buildCornerPillar = (cx, cz, offX, offZ) => {
-        const mats = faceMats(offX > 0 ? FACE.NX : FACE.PX, offZ > 0 ? FACE.NZ : FACE.PZ);
+    // A crevice's exterior faces normally keep the ordinary wallpaper since they usually
+    // border a normal wall cell - but when the neighbor in that direction is an ARCH_HALL,
+    // swap that one face to a subway tile variant so the tiled look doesn't cut off abruptly
+    // at the boundary.
+    const straightTileMat = () => env.subwayTileMatsStraight
+        ? env.subwayTileMatsStraight[Math.floor(random() * env.subwayTileMatsStraight.length)]
+        : env.sharedWallMat;
+
+    const applyArchBorder = (arr, faceIndex, gx, gz, dx, dz) => {
+        if (ctx.getForcedStructure && ctx.getForcedStructure(gx + dx, gz + dz) === 'ARCH_HALL') {
+            arr[faceIndex] = straightTileMat();
+        }
+        return arr;
+    };
+
+    const buildCornerPillar = (x, z, cx, cz, offX, offZ) => {
+        const interiorX = offX > 0 ? FACE.NX : FACE.PX;
+        const interiorZ = offZ > 0 ? FACE.NZ : FACE.PZ;
+        const mats = faceMats(interiorX, interiorZ);
+        applyArchBorder(mats, offX > 0 ? FACE.PX : FACE.NX, x, z, offX, 0);
+        applyArchBorder(mats, offZ > 0 ? FACE.PZ : FACE.NZ, x, z, 0, offZ);
         const p = buildWall(quadSize, quadSize, mats, 3.0, 0, 0);
         p.position.set(cx + offX * quadOffset, 1.5, cz + offZ * quadOffset);
         return addWallMesh(p);
     };
 
-    const buildClosedChannel = (cx, cz, dir) => {
+    const buildClosedChannel = (x, z, cx, cz, dir) => {
         if (dir === 'N') {
-            const w = buildWall(channelSpan, quadSize, faceMats(FACE.PZ), 3.0, 0, 0);
+            const mats = applyArchBorder(faceMats(FACE.PZ), FACE.NZ, x, z, 0, -1);
+            const w = buildWall(channelSpan, quadSize, mats, 3.0, 0, 0);
             w.position.set(cx, 1.5, cz - quadOffset);
             return addWallMesh(w);
         } else if (dir === 'S') {
-            const w = buildWall(channelSpan, quadSize, faceMats(FACE.NZ), 3.0, 0, 0);
+            const mats = applyArchBorder(faceMats(FACE.NZ), FACE.PZ, x, z, 0, 1);
+            const w = buildWall(channelSpan, quadSize, mats, 3.0, 0, 0);
             w.position.set(cx, 1.5, cz + quadOffset);
             return addWallMesh(w);
         } else if (dir === 'E') {
-            const w = buildWall(quadSize, channelSpan, faceMats(FACE.NX), 3.0, 0, 0);
+            const mats = applyArchBorder(faceMats(FACE.NX), FACE.PX, x, z, 1, 0);
+            const w = buildWall(quadSize, channelSpan, mats, 3.0, 0, 0);
             w.position.set(cx + quadOffset, 1.5, cz);
             return addWallMesh(w);
         } else if (dir === 'W') {
-            const w = buildWall(quadSize, channelSpan, faceMats(FACE.PX), 3.0, 0, 0);
+            const mats = applyArchBorder(faceMats(FACE.PX), FACE.NX, x, z, -1, 0);
+            const w = buildWall(quadSize, channelSpan, mats, 3.0, 0, 0);
             w.position.set(cx - quadOffset, 1.5, cz);
             return addWallMesh(w);
         }
     };
 
-    const buildStraightZ = (cx, cz) => {
-        const w1 = buildWall(quadSize, env.cellSize, faceMats(FACE.PX), 3.0, 0, 0);
+    const buildStraightZ = (x, z, cx, cz) => {
+        const mats1 = applyArchBorder(faceMats(FACE.PX), FACE.NX, x, z, -1, 0);
+        const w1 = buildWall(quadSize, env.cellSize, mats1, 3.0, 0, 0);
         w1.position.set(cx - quadOffset, 1.5, cz);
         addWallMesh(w1);
 
-        const w2 = buildWall(quadSize, env.cellSize, faceMats(FACE.NX), 3.0, 0, 0);
+        const mats2 = applyArchBorder(faceMats(FACE.NX), FACE.PX, x, z, 1, 0);
+        const w2 = buildWall(quadSize, env.cellSize, mats2, 3.0, 0, 0);
         w2.position.set(cx + quadOffset, 1.5, cz);
         addWallMesh(w2);
     };
 
-    const buildStraightX = (cx, cz) => {
-        const w1 = buildWall(env.cellSize, quadSize, faceMats(FACE.PZ), 3.0, 0, 0);
+    const buildStraightX = (x, z, cx, cz) => {
+        const mats1 = applyArchBorder(faceMats(FACE.PZ), FACE.NZ, x, z, 0, -1);
+        const w1 = buildWall(env.cellSize, quadSize, mats1, 3.0, 0, 0);
         w1.position.set(cx, 1.5, cz - quadOffset);
         addWallMesh(w1);
 
-        const w2 = buildWall(env.cellSize, quadSize, faceMats(FACE.NZ), 3.0, 0, 0);
+        const mats2 = applyArchBorder(faceMats(FACE.NZ), FACE.PZ, x, z, 0, 1);
+        const w2 = buildWall(env.cellSize, quadSize, mats2, 3.0, 0, 0);
         w2.position.set(cx, 1.5, cz + quadOffset);
         addWallMesh(w2);
     };
@@ -120,25 +147,25 @@ export const CreviceHallProfile = (env, ctx) => {
             }
 
             if (N && S && !E && !W) {
-                buildStraightZ(cx, cz);
+                buildStraightZ(x, z, cx, cz);
                 buildFloorAndCeiling(cx, cz);
                 return true;
             }
             if (E && W && !N && !S) {
-                buildStraightX(cx, cz);
+                buildStraightX(x, z, cx, cz);
                 buildFloorAndCeiling(cx, cz);
                 return true;
             }
 
-            buildCornerPillar(cx, cz, -1, -1);
-            buildCornerPillar(cx, cz, 1, -1);
-            buildCornerPillar(cx, cz, -1, 1);
-            buildCornerPillar(cx, cz, 1, 1);
+            buildCornerPillar(x, z, cx, cz, -1, -1);
+            buildCornerPillar(x, z, cx, cz, 1, -1);
+            buildCornerPillar(x, z, cx, cz, -1, 1);
+            buildCornerPillar(x, z, cx, cz, 1, 1);
 
-            if (!N) buildClosedChannel(cx, cz, 'N');
-            if (!S) buildClosedChannel(cx, cz, 'S');
-            if (!E) buildClosedChannel(cx, cz, 'E');
-            if (!W) buildClosedChannel(cx, cz, 'W');
+            if (!N) buildClosedChannel(x, z, cx, cz, 'N');
+            if (!S) buildClosedChannel(x, z, cx, cz, 'S');
+            if (!E) buildClosedChannel(x, z, cx, cz, 'E');
+            if (!W) buildClosedChannel(x, z, cx, cz, 'W');
 
             buildFloorAndCeiling(cx, cz);
 
