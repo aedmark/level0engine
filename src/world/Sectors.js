@@ -56,12 +56,12 @@ export const DEFAULT_RECT_LIGHT_INTENSITY = 1.0;
 const SECTORS = {
     NORMAL: {
         shadowRadius: 2.75,
-        lightRange: 0.9,
+        lightRange: 2.2,
         lightColor: 0x8a8b93,
-        lightIntensity: 2.05,
-        fogColor: 0x9e9e9e,
-        fog: 0,
-        ambient: 0.4,
+        lightIntensity: 1.2,
+        fogColor: 0x7a7a7a,
+        fog: 0.005,
+        ambient: 0.38,
         groundColor: 0xededed,
         ambience: {
             noise: 0.0,
@@ -78,12 +78,12 @@ const SECTORS = {
     },
     ARCHIVE: {
         shadowRadius: 4,
-        lightRange: 0.85,
+        lightRange: 1,
         lightColor: 0xa8baff,
-        lightIntensity: 2.3,
+        lightIntensity: 2.55,
         groundColor: 0xffffff,
         fog: 0.145, fogColor: 0x212121,
-        ambient: 0.36,
+        ambient: 0.44,
         ambience: {
             noise: 0.06,
             peace: 0.0,

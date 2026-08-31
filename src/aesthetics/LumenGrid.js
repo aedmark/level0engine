@@ -46,11 +46,11 @@ export default class LumenGrid {
         this.spawnFadeInDuration = 0.6;
         this._sectorLight = FALLBACK_SECTOR_LIGHT;
         this._sectorTint = new THREE.Color(1, 1, 1);
-        const pointShadowSize = 1024;
-        const spotShadowSize = shadowQuality === 'low' ? 512 : 1024;
+        const pointShadowSize = 2048;
+        const spotShadowSize = shadowQuality === 'low' ? 1024 : 2048;
         for (let i = 0; i < this.maxActiveLights; i++) {
             const radius = i < this.maxShadowLights ? 20.0 : 10.0;
-            const pointLight = new THREE.PointLight(0xffebd6, 0, radius, 1.0);
+            const pointLight = new THREE.PointLight(0xffebd6, 0, radius, 1.5);
             const spotLight = new THREE.SpotLight(0xffebd6, 0, radius, Math.PI / 8, 0.4, 1.0);
             if (i < this.maxShadowLights) {
                 const setupShadow = (l, mapSize) => {

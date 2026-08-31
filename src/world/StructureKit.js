@@ -99,15 +99,15 @@ export default class StructureKit {
                 }
                 return env._lightMatPool.get(key);
             },
-            buildWall: (w, d, mat, h = 3.0, yOffset = 0) => {
+            buildWall: (w, d, mat, h = 3.0, yOffset = 0, pad = 0.02) => {
                 w = Math.round(w * 20) / 20;
                 d = Math.round(d * 20) / 20;
                 h = Math.round(h * 20) / 20;
                 yOffset = Math.round(yOffset * 20) / 20;
-                const key = `${w}_${h}_${d}_${yOffset}`;
+                const key = `${w}_${h}_${d}_${yOffset}_${pad}`;
                 let geo = env.geoCache.get(key);
                 if (!geo) {
-                    geo = new THREE.BoxGeometry(w + 0.02, h + 0.02, d + 0.02);
+                    geo = new THREE.BoxGeometry(w + pad, h + pad, d + pad);
                     const uv = geo.attributes.uv;
                     for (let i = 0; i < 8; i++) uv.setX(i, uv.getX(i) * (d / env.cellSize));
                     for (let i = 16; i < 24; i++) uv.setX(i, uv.getX(i) * (w / env.cellSize));
@@ -125,7 +125,9 @@ export default class StructureKit {
                     env.geoCache.set(geo.uuid, true);
                 }
                 const mesh = new THREE.Mesh(geo, mat);
-                if (mat === env.sharedWallMat && yOffset === 0) {
+                const usesSharedWallMat = mat === env.sharedWallMat ||
+                    (Array.isArray(mat) && mat.some(m => m === env.sharedWallMat));
+                if (usesSharedWallMat && yOffset === 0) {
                     mesh.userData.baseboardFootprint = {w, d, h};
                 }
                 return mesh;

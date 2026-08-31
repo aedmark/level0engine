@@ -121,12 +121,6 @@ export default class CreviceTextures {
         const map = TextureMechanics._createWrappedTexture(canvas, 2, 2);
         const bumpMap = TextureMechanics._createWrappedTexture(bumpCanvas, 2, 2);
 
-        for (const tex of [map, bumpMap]) {
-            tex.generateMipmaps = false;
-            tex.minFilter = THREE.LinearFilter;
-            tex.magFilter = THREE.LinearFilter;
-        }
-
         return new THREE.MeshStandardMaterial({
             map,
             roughness: 0.92,

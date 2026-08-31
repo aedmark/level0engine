@@ -305,7 +305,7 @@ export default class PlayerController {
             }
         }
         this.playerRadius += (targetRadius - this.playerRadius) * 8.0 * delta;
-        const targetNear = this.isSqueezing ? 0.01 : 0.1;
+        const targetNear = this.isSqueezing ? 0.07 : 0.1;
         if (this.camera.near !== targetNear) {
             this.camera.near = targetNear;
             this.camera.updateProjectionMatrix();
