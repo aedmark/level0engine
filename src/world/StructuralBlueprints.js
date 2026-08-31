@@ -11,7 +11,8 @@ import {DuctProfile} from './blueprints/Duct.js';
 import {VentProfile} from './blueprints/Vent.js';
 import {CrawlspaceDuctProfile} from './blueprints/CrawlspaceDuct.js';
 import {BlockyObstructionProfile} from './blueprints/BlockyObstruction.js';
-import {TunnelBurstProfile} from './blueprints/TunnelBurst.js';
+import {SplitWallBurstProfile} from './blueprints/SplitWallBurst.js';
+import {SteppedBurstProfile} from './blueprints/SteppedBurst.js';
 import {TheObserverProfile} from './blueprints/TheObserver.js';
 import {SettlingFieldProfile} from './blueprints/SettlingField.js';
 import {AnomalousPointOfInterestProfile} from './blueprints/AnomalousPointOfInterest.js';
@@ -39,7 +40,8 @@ export default class StructuralBlueprints {
             VentProfile(this, ctx),
             CrawlspaceDuctProfile(this, ctx),
             BlockyObstructionProfile(this, ctx),
-            TunnelBurstProfile(this, ctx),
+            SplitWallBurstProfile(this, ctx),
+            SteppedBurstProfile(this, ctx),
             TheObserverProfile(this, ctx),
             SettlingFieldProfile(this, ctx),
             AnomalousPointOfInterestProfile(this, ctx),
