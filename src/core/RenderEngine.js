@@ -21,7 +21,6 @@ export default class RenderEngine {
         this.camera.position.y = 1.6;
         const logDepth = new URLSearchParams(window.location.search).has('logdepth');
         if (logDepth) {
-            // SSAO's depth unprojection assumes standard (non-logarithmic) NDC depth.
             this.enableSSAO = false;
         }
         this.renderer = new THREE.WebGLRenderer({
@@ -60,9 +59,6 @@ export default class RenderEngine {
         this.scene.add(this.lightningLight);
         this.scene.add(this.lightningLight.target);
         const aaSamples = RenderEngine.getSavedAA();
-        // A multisampled target's resolved depth texture is unreliable to sample
-        // from externally - SSAO needs a single-sample depth buffer. FXAA remains
-        // available as AA when SSAO is on and MSAA is forced off here.
         const targetSamples = (aaSamples > 0 && !this.enableSSAO) ? aaSamples : 0;
         this.target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
             minFilter: THREE.LinearFilter,
@@ -156,8 +152,6 @@ export default class RenderEngine {
             minFilter: THREE.LinearFilter,
             magFilter: THREE.LinearFilter
         });
-        // View-space normal G-buffer, rendered as a full second geometry pass with
-        // an override material. NearestFilter so normals never blend across an edge.
         this.normalMaterial = new THREE.MeshNormalMaterial();
         this.normalTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
             minFilter: THREE.NearestFilter,
@@ -219,22 +213,13 @@ export default class RenderEngine {
                         return;
                     }
                     vec3 origin = getViewPos(vUv, depth);
-
-                    // Real per-pixel view-space normal from the G-buffer pass, not
-                    // inferred from noisy depth deltas.
                     vec3 normal = normalize(texture2D(tNormal, vUv).xyz * 2.0 - 1.0);
-
                     float randAngle = interleavedGradientNoise(gl_FragCoord.xy) * 6.2831853;
                     vec3 randomVec = vec3(cos(randAngle), sin(randAngle), 0.0);
                     vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
                     vec3 bitangent = cross(normal, tangent);
                     mat3 tbn = mat3(tangent, bitangent, normal);
-
-                    // Standard (non-logarithmic) depth precision falls off sharply with
-                    // distance, so a fixed bias reads as banding far from the camera.
-                    // Scale it up quadratically with view-space depth to compensate.
                     float distBias = bias * (1.0 + origin.z * origin.z * 0.01);
-
                     float occlusion = 0.0;
                     for (int i = 0; i < ${SSAO_KERNEL_SIZE}; i++) {
                         vec3 samplePos = origin + (tbn * kernel[i]) * radius;
@@ -250,14 +235,8 @@ export default class RenderEngine {
                     }
                     occlusion = 1.0 - (occlusion / float(${SSAO_KERNEL_SIZE}));
                     occlusion = pow(clamp(occlusion, 0.0, 1.0), aoPower);
-
-                    // A fixed view-space sample radius covers fewer screen pixels the
-                    // farther away it is, so the kernel degenerates into near-duplicate
-                    // samples at range - high-variance noise no bias can fix. Fade AO
-                    // out with distance instead of pretending it's reliable out there.
                     float distFade = 1.0 - smoothstep(fadeStart, fadeEnd, -origin.z);
                     occlusion = mix(1.0, occlusion, distFade);
-
                     gl_FragColor = vec4(vec3(occlusion), 1.0);
                 }
             `
@@ -265,10 +244,6 @@ export default class RenderEngine {
         const ssaoPlane = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.ssaoMaterial);
         this.ssaoScene.add(ssaoPlane);
 
-        // Raw AO from only ${SSAO_KERNEL_SIZE} samples is inherently noisy per-pixel;
-        // that noise is fixed in screen space while world geometry isn't, so without
-        // a blur pass it reads as a pattern that crawls/warps as the camera moves.
-        // Blur it (and composite onto the real color) before anything else uses it.
         this.ssaoBlurTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
             minFilter: THREE.LinearFilter,
             magFilter: THREE.LinearFilter

@@ -21,10 +21,6 @@ export const CreviceHallProfile = (env, ctx) => {
         return arr;
     };
 
-    // A crevice's exterior faces normally keep the ordinary wallpaper since they usually
-    // border a normal wall cell - but when the neighbor in that direction is an ARCH_HALL,
-    // swap that one face to a subway tile variant so the tiled look doesn't cut off abruptly
-    // at the boundary.
     const straightTileMat = () => env.subwayTileMatsStraight
         ? env.subwayTileMatsStraight[Math.floor(random() * env.subwayTileMatsStraight.length)]
         : env.sharedWallMat;

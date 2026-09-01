@@ -29,20 +29,12 @@ const SHADOW_PROBE_BATCH = 1;
 
 const ALL_PROBE_FORMS = new Set(['plain', 'instanced', 'coloured']);
 
-// Panel positions aren't checked against nearby wall distance, so in a tight cell the
-// light plane's edge can end up almost touching a wall/corner - RectAreaLight's LTC
-// falloff goes unstable at near-zero distance-to-plane, showing up as a bright streak
-// funneling out along the seam. Shrinking the emitting rect (not the visible panel mesh)
-// keeps its edges further from any adjacent wall regardless of how cramped the cell is.
 const RECT_LIGHT_SIZE_MARGIN = 0.6;
 
 let _panelRectQuatFlat = null;
 let _panelRectQuatRotated = null;
 function _panelRectQuaternion(isRotated) {
     if (!_panelRectQuatFlat) {
-        // Faces straight down (local -Z -> world -Y) regardless of the panel's
-        // own yaw; the yaw is baked in here too so the light's width/height axes
-        // stay paired with the panel mesh's own local X/Z box dimensions.
         _panelRectQuatFlat = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0, 'YXZ'));
         _panelRectQuatRotated = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, Math.PI / 2, 0, 'YXZ'));
     }
