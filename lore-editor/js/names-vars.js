@@ -432,10 +432,10 @@ function renderClueThreadSelect() {
                 corrected = true;
             }
 
-            select.innerHTML = DOMPurify.sanitize(allowed.map(t => {)
+            select.innerHTML = DOMPurify.sanitize(allowed.map(t => {
                 const label = (threadsData[t] && threadsData[t].title) ? `${t} — ${threadsData[t].title}` : t;
                 return `<option value="${t}" ${t === current ? 'selected' : ''}>${label}</option>`;
-            }).join('');
+            }).join(''));
             select.value = current;
 
             if (corrected) {

@@ -173,5 +173,10 @@ export default class Foley {
         env.gain.exponentialRampToValueAtTime(0.001, time + 1.5);
         osc.start(time);
         osc.stop(time + 1.5);
+        osc.onended = () => {
+            osc.disconnect();
+            if (engine.muzakLFOGain) { try { engine.muzakLFOGain.disconnect(osc.frequency); } catch (e) {} }
+            env.disconnect();
+        };
     }
 }

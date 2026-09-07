@@ -108,6 +108,7 @@ export default class PaintballSystem {
             pb.life -= delta;
             if (pb.life <= 0) {
                 this.ballGroup.remove(pb.mesh);
+                pb.mesh.material.dispose();
                 this.paintballs.splice(i, 1);
                 continue;
             }
@@ -169,6 +170,7 @@ export default class PaintballSystem {
                 }));
                 
                 this.ballGroup.remove(pb.mesh);
+                pb.mesh.material.dispose();
                 this.paintballs.splice(i, 1);
             } else {
                 pb.mesh.position.copy(p_new);
@@ -180,6 +182,7 @@ export default class PaintballSystem {
             sp.life -= delta;
             if (sp.life <= 0) {
                 this.splatterGroup.remove(sp.group);
+                sp.mat.dispose();
                 this.splatters.splice(i, 1);
             } else if (sp.life < 2.0) {
                 sp.mat.transparent = true;

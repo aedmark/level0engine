@@ -43,7 +43,7 @@ export default class ImpoundTextures {
         wallCtx.globalAlpha = 1.0;
         const impoundWallTexture = new THREE.CanvasTexture(wallCanvas);
         impoundWallTexture.wrapS = THREE.RepeatWrapping;
-        impoundWallTexture.wrapT = THREE.ClampToEdgeWrapping;
+        impoundWallTexture.wrapT = THREE.RepeatWrapping;
         impoundWallTexture.repeat.set(4, 1);
         const impoundWallMat = new THREE.MeshStandardMaterial({
             map: impoundWallTexture,

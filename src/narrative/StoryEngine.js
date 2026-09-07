@@ -525,7 +525,8 @@ export default class StoryEngine {
             laptopsDealt: Array.from(this.laptopsDealt.entries()),
             clipboardsDealt: Array.from(this.clipboardsDealt.entries()),
             corroborated: Array.from(this.corroborated),
-            sectorsRead: Array.from(this.sectorsRead)
+            sectorsRead: Array.from(this.sectorsRead),
+            threadSectors: Array.from(this.threadSectors.entries()).map(([thread, sectors]) => [thread, Array.from(sectors)])
         };
     }
 
@@ -542,5 +543,6 @@ export default class StoryEngine {
         if (state.clipboardsDealt) this.clipboardsDealt = new Map(state.clipboardsDealt);
         if (state.corroborated) this.corroborated = new Set(state.corroborated);
         if (state.sectorsRead) this.sectorsRead = new Set(state.sectorsRead);
+        if (state.threadSectors) this.threadSectors = new Map(state.threadSectors.map(([thread, sectors]) => [thread, new Set(sectors)]));
     }
 }

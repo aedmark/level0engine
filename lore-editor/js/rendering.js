@@ -589,8 +589,8 @@ function getCurrentEditorData() {
 
                         const lockThreadSelect = document.getElementById('finale-lock-thread-select');
                         const allThreadKeys = Object.keys(crossFileCache['threads.json'] || {}).filter(k => k !== 'TELL');
-                        lockThreadSelect.innerHTML = DOMPurify.sanitize('<option value="">— None —</option>' +)
-                            allThreadKeys.map(k => `<option value="${k}">${k}</option>`).join('');
+                        lockThreadSelect.innerHTML = DOMPurify.sanitize('<option value="">— None —</option>' +
+                            allThreadKeys.map(k => `<option value="${k}">${k}</option>`).join(''));
                         lockThreadSelect.value = allThreadKeys.includes(val.lock_thread) ? val.lock_thread : '';
                     } else {
                         document.getElementById('option-container').style.display = 'none';

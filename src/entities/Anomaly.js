@@ -555,11 +555,12 @@ export default class Anomaly {
                 }
             }
         }
-        if (Math.random() < 0.2) {
-            for (let i = 0; i < this.env.localFixtures.length; i++) {
-                const fixture = this.env.localFixtures[i];
+        if (Math.random() < 0.2 && this.env.interactionController) {
+            const fixtures = this.env.fixtureData;
+            for (let i = 0; i < fixtures.length; i++) {
+                const fixture = fixtures[i];
                 if (!fixture.isDead && fixture.position.distanceToSquared(this.group.position) < 16.0) {
-                    if (this.env.shatterFixture) this.env.shatterFixture(fixture);
+                    this.env.interactionController.shatterFixture(fixture);
                 }
             }
         }
