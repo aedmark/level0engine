@@ -18,7 +18,6 @@ export const CrawlspaceHallProfile = (env, ctx) => {
                 : baseMat;
             const isArchNeighbor = (dx, dz) =>
                 !!ctx.getForcedStructure && ctx.getForcedStructure(x + dx, z + dz) === 'ARCH_HALL';
-            // Face order matches THREE.BoxGeometry's own groups: +X, -X, +Y, -Y, +Z, -Z.
             const dropMats = [
                 isArchNeighbor(1, 0) ? straightTileMat() : baseMat,
                 isArchNeighbor(-1, 0) ? straightTileMat() : baseMat,
