@@ -223,7 +223,7 @@ const server = http.createServer((req, res) => {
 
     let filePath = path.join(__dirname, route === '/' ? 'index.html' : route);
 
-    if (!filePath.startsWith(__dirname)) {
+    if (filePath !== __dirname && !filePath.startsWith(__dirname + path.sep)) {
         res.writeHead(403, { 'Content-Type': 'text/plain' });
         return res.end('403 Forbidden');
     }

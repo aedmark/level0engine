@@ -33,12 +33,16 @@ if (!fs.existsSync(buildDir)) fs.mkdirSync(buildDir);
 const filesToCopy = ['engine.html', 'index.html', 'r160.js', 'jsep.min.js', 'purify.min.js', 'main.js', 'readme.html', 'changelog.md'];
 const dirsToCopy = ['src', 'assets', 'data'];
 
+// The lore editor's reset baselines — never fetched by the shipped game, so they don't belong in the itch.io build.
+const EXCLUDED_DIR_NAMES = new Set(['factory']);
+
 function copyRecursiveSync(src, dest) {
     const stats = fs.statSync(src);
     const isDirectory = stats.isDirectory();
     if (isDirectory) {
         if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
         fs.readdirSync(src).forEach(childItemName => {
+            if (EXCLUDED_DIR_NAMES.has(childItemName)) return;
             copyRecursiveSync(path.join(src, childItemName), path.join(dest, childItemName));
         });
     } else {

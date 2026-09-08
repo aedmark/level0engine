@@ -1,3 +1,5 @@
+import {archBorderMats} from './ArchBorderMats.js';
+
 export const BlockyObstructionProfile = (env, ctx) => {
     const {random, buildWall, addGeometry} = ctx;
     return {
@@ -7,18 +9,8 @@ export const BlockyObstructionProfile = (env, ctx) => {
             const blockW = 1.5;
             const offset = 1.25;
 
-            const straightTileMat = () => env.subwayTileMatsStraight
-                ? env.subwayTileMatsStraight[Math.floor(random() * env.subwayTileMatsStraight.length)]
-                : env.sharedWallMat;
-            const isArchNeighbor = (dx, dz) =>
-                !!ctx.getForcedStructure && ctx.getForcedStructure(x + dx, z + dz) === 'ARCH_HALL';
-            const matsWithOuter = (faceIndices, dirs) => {
-                const arr = [env.sharedWallMat, env.sharedWallMat, env.sharedWallMat, env.sharedWallMat, env.sharedWallMat, env.sharedWallMat];
-                for (let i = 0; i < faceIndices.length; i++) {
-                    if (isArchNeighbor(dirs[i][0], dirs[i][1])) arr[faceIndices[i]] = straightTileMat();
-                }
-                return arr;
-            };
+            const matsWithOuter = (faceIndices, dirs) => archBorderMats(env, ctx, random, x, z, env.sharedWallMat,
+                faceIndices.map((index, i) => ({index, dx: dirs[i][0], dz: dirs[i][1]})));
 
             if (isStraight) {
                 const isZ = random() > 0.5;

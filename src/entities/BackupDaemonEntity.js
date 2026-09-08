@@ -1,3 +1,4 @@
+import {buildShardSlot, launchShardBurst, stepShardPhysics} from './ShardParticles.js';
 import {LEGACY_LIGHT_COMPENSATION} from '../world/Sectors.js';
 
 export default class BackupDaemonEntity {
@@ -50,38 +51,18 @@ export default class BackupDaemonEntity {
     _buildSparkSlot() {
         if (!this._sparkGeo) this._sparkGeo = new THREE.TetrahedronGeometry(0.05, 0);
         if (!this._sparkMat) this._sparkMat = new THREE.MeshBasicMaterial({color: 0xffd83c});
-        const group = new THREE.Group();
-        const light = new THREE.PointLight(0x9ff6ff, 0, 3.2, 2.0);
-        group.add(light);
-        const shards = [];
-        for (let i = 0; i < 6; i++) {
-            const mesh = new THREE.Mesh(this._sparkGeo, this._sparkMat);
-            mesh.visible = false;
-            shards.push({
-                mesh, localX: 0, localY: 0, localZ: 0, velX: 0, velY: 0, velZ: 0,
-                landed: true, launchDelay: 0
-            });
-            group.add(mesh);
-        }
-        this.scene.add(group);
-        return {group, light, shards, cycleTimer: 0};
+        const slot = buildShardSlot({
+            shardGeo: this._sparkGeo,
+            shardMat: this._sparkMat,
+            shardCount: 6,
+            light: new THREE.PointLight(0x9ff6ff, 0, 3.2, 2.0)
+        });
+        this.scene.add(slot.group);
+        return slot;
     }
 
     _launchBurst(slot) {
-        const angle = Math.random() * Math.PI * 2;
-        slot.shards.forEach(s => {
-            const a = angle + (Math.random() - 0.5) * 0.9;
-            const speed = 1.0 + Math.random() * 1.2;
-            s.velX = Math.cos(a) * speed;
-            s.velZ = Math.sin(a) * speed;
-            s.velY = 0.6 + Math.random() * 0.9;
-            s.localX = 0;
-            s.localY = 0;
-            s.localZ = 0;
-            s.landed = false;
-            s.launchDelay = Math.random() * 0.15;
-            s.mesh.visible = false;
-        });
+        launchShardBurst(slot.shards, {velYBase: 0.6, velYRange: 0.9, launchDelayRange: 0.15});
         if (window.acoustics) {
             const distSq = this.camera.position.distanceToSquared(slot.group.position);
             window.acoustics.triggerSomaticEvent('electric_spark', distSq * 15.0, 0.2 + Math.random() * 0.2);
@@ -297,7 +278,6 @@ export default class BackupDaemonEntity {
     }
 
     _animateSparks(delta, time) {
-        const gravity = 5.0;
         for (let i = 0; i < this._litSlots.length; i++) {
             const slot = this._litSlots[i];
             const entry = this._litCables[i];
@@ -310,27 +290,7 @@ export default class BackupDaemonEntity {
                 this._launchBurst(slot);
                 slot.cycleTimer = 0.6 + Math.random() * 1.2;
             }
-            const floorLocalY = -slot.group.position.y;
-            slot.shards.forEach(s => {
-                if (s.landed) return;
-                if (s.launchDelay > 0) {
-                    s.launchDelay -= delta;
-                    return;
-                }
-                s.mesh.visible = true;
-                s.velY -= gravity * delta;
-                s.localX += s.velX * delta;
-                s.localY += s.velY * delta;
-                s.localZ += s.velZ * delta;
-                if (s.localY <= floorLocalY) {
-                    s.localY = floorLocalY;
-                    s.landed = true;
-                    s.mesh.visible = false;
-                }
-                s.mesh.position.set(s.localX, s.localY, s.localZ);
-                s.mesh.rotation.x += 0.2;
-                s.mesh.rotation.y += 0.15;
-            });
+            stepShardPhysics(slot.shards, delta, 5.0, -slot.group.position.y, 0.2, 0.15);
         }
     }
 }

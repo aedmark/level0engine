@@ -251,9 +251,9 @@ export default class CheckpointTextures {
         ctx.globalAlpha = 1.0;
         TextureMechanics._ditherCanvas(ctx, W, H, rand, 10);
 
-        const map = TextureMechanics._createWrappedTexture(canvas, 2, 1, true);
-        const bumpMap = TextureMechanics._createWrappedTexture(bumpCanvas, 2, 1, true);
-        const roughnessMap = TextureMechanics._createWrappedTexture(roughCanvas, 2, 1, true);
+        const map = TextureMechanics._createWrappedTexture(canvas, 2, 1, false);
+        const bumpMap = TextureMechanics._createWrappedTexture(bumpCanvas, 2, 1, false);
+        const roughnessMap = TextureMechanics._createWrappedTexture(roughCanvas, 2, 1, false);
         return new THREE.MeshStandardMaterial({
             map,
             bumpMap,

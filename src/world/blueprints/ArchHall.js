@@ -1,4 +1,5 @@
 import {ARCH_WALK_CLEARANCE} from '../StructureKit.js';
+import {pickStraightTileMat} from './ArchBorderMats.js';
 
 const DIRS = [
     {dx: 1, dz: 0},
@@ -49,9 +50,7 @@ export const ArchHallProfile = (env, ctx) => {
 
     const buildSlab = (cx, cz, depth, dir, alongZ) => {
         const mat = env.subwayTileMats ? env.subwayTileMats[Math.floor(random() * env.subwayTileMats.length)] : env.structMat;
-        const outerMat = env.subwayTileMatsStraight
-            ? env.subwayTileMatsStraight[Math.floor(random() * env.subwayTileMatsStraight.length)]
-            : mat;
+        const outerMat = pickStraightTileMat(env, random, mat);
         const slab = ctx.buildArchCutout(radius, JAMB, archHeight, depth, springHeight, mat, outerMat);
         const push = (env.cellSize - depth) / 2;
         slab.position.set(cx + (dir ? dir.dx * push : 0), 0, cz + (dir ? dir.dz * push : 0));
@@ -84,9 +83,7 @@ export const ArchHallProfile = (env, ctx) => {
     };
 
     const capClosedSide = (cx, cz, d) => {
-        const mat = env.subwayTileMatsStraight
-            ? env.subwayTileMatsStraight[Math.floor(random() * env.subwayTileMatsStraight.length)]
-            : env.structMat;
+        const mat = pickStraightTileMat(env, random, env.structMat);
         const thickness = 0.5;
         const alongZWall = d.dx !== 0;
         const w = alongZWall ? thickness : env.cellSize;

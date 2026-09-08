@@ -1,3 +1,5 @@
+import {archBorderMats} from './ArchBorderMats.js';
+
 export const SteppedBurstProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, hash} = ctx;
     return {
@@ -30,16 +32,8 @@ export const SteppedBurstProfile = (env, ctx) => {
                 else ctx.setWall(x + burstLength, z, false);
             }
 
-            const straightTileMat = () => env.subwayTileMatsStraight
-                ? env.subwayTileMatsStraight[Math.floor(random() * env.subwayTileMatsStraight.length)]
-                : env.sharedWallMat;
-            const isArchNeighbor = (gx, gz, dx, dz) =>
-                !!ctx.getForcedStructure && ctx.getForcedStructure(gx + dx, gz + dz) === 'ARCH_HALL';
-            const matsWithOuter = (faceIndex, gx, gz, dx, dz) => {
-                const arr = [env.sharedWallMat, env.sharedWallMat, env.sharedWallMat, env.sharedWallMat, env.sharedWallMat, env.sharedWallMat];
-                if (isArchNeighbor(gx, gz, dx, dz)) arr[faceIndex] = straightTileMat();
-                return arr;
-            };
+            const matsWithOuter = (faceIndex, gx, gz, dx, dz) =>
+                archBorderMats(env, ctx, random, gx, gz, env.sharedWallMat, [{index: faceIndex, dx, dz}]);
 
             const sideW = 1.0;
             const sideOffset = (env.cellSize / 2) - (sideW / 2);

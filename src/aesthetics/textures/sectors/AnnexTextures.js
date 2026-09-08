@@ -218,7 +218,7 @@ export default class AnnexTextures {
 
         const annexWallTexture = new THREE.CanvasTexture(annexWallCanvas);
         annexWallTexture.wrapS = THREE.RepeatWrapping;
-        annexWallTexture.wrapT = THREE.ClampToEdgeWrapping;
+        annexWallTexture.wrapT = THREE.RepeatWrapping;
         annexWallTexture.repeat.set(4, 1);
 
         const annexWallMat = new THREE.MeshStandardMaterial({

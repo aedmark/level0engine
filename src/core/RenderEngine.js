@@ -30,6 +30,7 @@ export default class RenderEngine {
         });
         this.renderer.debug.checkShaderErrors =
             new URLSearchParams(window.location.search).has('shaderdebug');
+        this.ssaoDebugMode = new URLSearchParams(window.location.search).get('ssaodebug');
         this.renderer.setPixelRatio(1.0);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         const shadowQuality = RenderEngine.getSavedShadowQuality();
@@ -598,7 +599,7 @@ export default class RenderEngine {
             this.renderer.setRenderTarget(this.ssaoTarget);
             this.renderer.render(this.ssaoScene, this.ssaoCamera);
 
-            const ssaoDebug = new URLSearchParams(window.location.search).get('ssaodebug');
+            const ssaoDebug = this.ssaoDebugMode;
             if (ssaoDebug === 'normal') {
                 baseTexture = this.normalTarget.texture;
             } else if (ssaoDebug === 'ao') {

@@ -349,8 +349,8 @@ export default class IncineratorTextures {
         ctx.globalAlpha = 1.0;
         TextureMechanics._ditherCanvas(ctx, W, H, rand, 7);
 
-        const map = TextureMechanics._createWrappedTexture(canvas, 2, 1, true);
-        const bumpMap = TextureMechanics._createWrappedTexture(bumpCanvas, 2, 1, true);
+        const map = TextureMechanics._createWrappedTexture(canvas, 2, 1, false);
+        const bumpMap = TextureMechanics._createWrappedTexture(bumpCanvas, 2, 1, false);
         return new THREE.MeshStandardMaterial({
             map,
             bumpMap,

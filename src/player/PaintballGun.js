@@ -1,6 +1,4 @@
-function clamp(val, max) {
-    return Math.max(-max, Math.min(max, val));
-}
+import {computeProximityTuck, computeGaitSwing, updateTrailTracking, updateSway} from './HeldItemRig.js';
 
 export default class PaintballGun {
     constructor(engine, environment, player) {
@@ -72,64 +70,8 @@ export default class PaintballGun {
         });
     }
 
-    _skinTexture() {
-        if (this._skinTexCache) return this._skinTexCache;
-        const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = 256;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#9c6f5a';
-        ctx.fillRect(0, 0, 256, 256);
-        ctx.fillStyle = '#7a5241';
-        for (let i = 0; i < 400; i++) {
-            const x = Math.random() * 256, y = Math.random() * 256;
-            const r = Math.random() * 4 + 1;
-            ctx.globalAlpha = Math.random() * 0.15;
-            ctx.beginPath();
-            ctx.arc(x, y, r, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        const tex = new THREE.CanvasTexture(canvas);
-        tex.colorSpace = THREE.SRGBColorSpace;
-        this._skinTexCache = tex;
-        return tex;
-    }
-
     _proximityTuck(cam) {
-        const state = this.player.input ? this.player.input.state : null;
-        if (this.player.isSqueezing || (state && state.isCrawling)) return 1;
-        const env = this.environment;
-        if (!env || !env.spatialGrid || !env.spatialGrid.getNearby) return 0;
-
-        this._probeVec.copy(this.basePos).applyQuaternion(cam.quaternion);
-        const cx = cam.position.x + this._probeVec.x;
-        const cy = cam.position.y + this._probeVec.y;
-        const cz = cam.position.z + this._probeVec.z;
-
-        const REACH = 0.60; 
-        const CLEAR = 0.15; 
-
-        const boxes = env.spatialGrid.getNearby(cx, cz, REACH + 0.5);
-        let nearestSq = Infinity;
-
-        for (let i = 0; i < boxes.length; i++) {
-            const box = boxes[i];
-            if (box.isInvisibleBlocker) continue;
-
-            const clampX = Math.max(box.min.x, Math.min(cx, box.max.x));
-            const clampY = Math.max(box.min.y, Math.min(cy, box.max.y));
-            const clampZ = Math.max(box.min.z, Math.min(cz, box.max.z));
-
-            const dx = cx - clampX;
-            const dy = cy - clampY;
-            const dz = cz - clampZ;
-            const dSq = dx * dx + dy * dy + dz * dz;
-
-            if (dSq < nearestSq) nearestSq = dSq;
-        }
-
-        if (nearestSq >= REACH * REACH) return 0;
-        const d = Math.sqrt(nearestSq);
-        return Math.max(0, Math.min(1, 1 - (d - CLEAR) / (REACH - CLEAR)));
+        return computeProximityTuck(this, cam, 0.60);
     }
 
     _build() {
@@ -278,13 +220,7 @@ export default class PaintballGun {
         const roll = (1 - eased) * 0.85;
         const pullIn = (1 - eased) * 0.2;
         
-        const phase = (this.player.headBobPhase || 0) * 0.35;
-        const gait = this.player.gait || 0;
-
-        const swingX = Math.sin(phase) * 0.020 * gait;
-        const swingY = Math.sin(phase * 2.0) * 0.013 * gait;
-        const swingRoll = Math.sin(phase) * 0.055 * gait;
-        const swingPitch = Math.sin(phase * 2.0 + 0.6) * 0.030 * gait;
+        const {phase, gait, swingX, swingY, swingRoll, swingPitch} = computeGaitSwing(this.player);
 
         const pitch = cam.rotation.x;
         const counterBob = Math.sin(phase * 2.0) * 0.015 * gait;
@@ -308,40 +244,7 @@ export default class PaintballGun {
             this.basePos.z + this._swayZ + pullIn + recoilZ
         );
 
-        const speed = Math.sqrt(
-            this.player.velocity.x * this.player.velocity.x +
-            this.player.velocity.z * this.player.velocity.z
-        );
-
-        const sinY = Math.sin(cam.rotation.y), cosY = Math.cos(cam.rotation.y);
-        const vRight = this.player.velocity.x * cosY - this.player.velocity.z * sinY;
-        const vForward = -this.player.velocity.x * sinY - this.player.velocity.z * cosY;
-
-        const lagX = -clamp(vRight * 0.0105, 0.045);
-        const lagY = -clamp(speed * 0.0060, 0.035);
-        const lagZ = clamp(vForward * 0.0075, 0.032);
-
-        this._swayX += (lagX - this._swayX) * Math.min(1, dt * 11.0);
-        this._swayY += (lagY - this._swayY) * Math.min(1, dt * 10.0);
-        this._swayZ += (lagZ - this._swayZ) * Math.min(1, dt * 8.0);
-
-        if (this._prevYaw === undefined) this._prevYaw = cam.rotation.y;
-        if (this._prevPitch === undefined) this._prevPitch = cam.rotation.x;
-
-        let dYaw = cam.rotation.y - this._prevYaw;
-        while (dYaw > Math.PI) dYaw -= Math.PI * 2;
-        while (dYaw < -Math.PI) dYaw += Math.PI * 2;
-        const dPitch = cam.rotation.x - this._prevPitch;
-        
-        this._prevYaw = cam.rotation.y;
-        this._prevPitch = cam.rotation.x;
-        
-        const invDt = 1 / Math.max(dt, 1e-4);
-        const yawRate = clamp(dYaw * invDt, 6.0);
-        const pitchRate = clamp(dPitch * invDt, 6.0);
-        const follow = Math.min(1, dt * 9.0);
-        
-        this._trailYaw += (yawRate - this._trailYaw) * follow;
-        this._trailPitch += (pitchRate - this._trailPitch) * follow;
+        updateSway(this, cam, dt);
+        updateTrailTracking(this, cam, dt);
     }
 }

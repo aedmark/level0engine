@@ -119,9 +119,9 @@ export default class ExitTextures {
         
         TextureMechanics._ditherCanvas(ctx, W, H, rand, 8);
 
-        const map = TextureMechanics._createWrappedTexture(canvas, 4, 1, true);
-        const bumpMap = TextureMechanics._createWrappedTexture(bumpCanvas, 4, 1, true);
-        const roughnessMap = TextureMechanics._createWrappedTexture(roughCanvas, 4, 1, true);
+        const map = TextureMechanics._createWrappedTexture(canvas, 4, 1, false);
+        const bumpMap = TextureMechanics._createWrappedTexture(bumpCanvas, 4, 1, false);
+        const roughnessMap = TextureMechanics._createWrappedTexture(roughCanvas, 4, 1, false);
         
         return {
             exitWallMat: new THREE.MeshStandardMaterial({

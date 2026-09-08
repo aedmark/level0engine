@@ -1,3 +1,5 @@
+import {buildHeldHand, computeProximityTuck, computeGaitSwing, updateTrailTracking, updateSway} from './HeldItemRig.js';
+
 export default class Flashlight {
     constructor(engine, environment, player) {
         this.engine = engine;
@@ -16,126 +18,24 @@ export default class Flashlight {
         this._build();
     }
 
-    _skinTexture() {
-        const S = 128;
-        const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = S;
-        const c = canvas.getContext('2d');
-        c.fillStyle = '#a87a5e';
-        c.fillRect(0, 0, S, S);
-        for (let i = 0; i < 420; i++) {
-            const x = Math.random() * S, y = Math.random() * S;
-            const r = 1 + Math.random() * 7;
-            const warm = Math.random() > 0.45;
-            c.beginPath();
-            c.arc(x, y, r, 0, Math.PI * 2);
-            c.fillStyle = warm
-                ? `rgba(158,96,72,${(0.03 + Math.random() * 0.07).toFixed(3)})`
-                : `rgba(206,168,138,${(0.03 + Math.random() * 0.07).toFixed(3)})`;
-            c.fill();
-        }
-        for (let i = 0; i < 26; i++) {
-            const x = Math.random() * S, y = Math.random() * S;
-            c.strokeStyle = `rgba(92,56,40,${(0.06 + Math.random() * 0.10).toFixed(3)})`;
-            c.lineWidth = 0.6 + Math.random() * 1.0;
-            c.beginPath();
-            c.moveTo(x, y);
-            c.lineTo(x + (Math.random() - 0.5) * 22, y + (Math.random() - 0.5) * 8);
-            c.stroke();
-        }
-        const tex = new THREE.CanvasTexture(canvas);
-        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-        return tex;
-    }
-
-    _finger(lengths, curls, rad, skin) {
-        const root = new THREE.Group();
-        let parent = root;
-        for (let i = 0; i < lengths.length; i++) {
-            const len = lengths[i];
-            const r = rad * (1 - i * 0.13);
-            const joint = new THREE.Group();
-            joint.rotation.x = curls[i];
-            parent.add(joint);
-            const knuckle = new THREE.Mesh(new THREE.SphereGeometry(r * 1.06, 8, 6), skin);
-            joint.add(knuckle);
-            const seg = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.94, r * 0.88, len, 8), skin);
-            seg.position.y = len / 2;
-            joint.add(seg);
-            if (i === lengths.length - 1) {
-                const tip = new THREE.Mesh(new THREE.SphereGeometry(r * 0.9, 8, 6), skin);
-                tip.position.y = len;
-                tip.scale.set(1, 0.85, 1);
-                joint.add(tip);
-            }
-            const next = new THREE.Group();
-            next.position.y = len;
-            joint.add(next);
-            parent = next;
-        }
-        return root;
-    }
-
     _buildHand() {
-        const hand = new THREE.Group();
-        const skinTex = this._skinTexture();
-        const skin = new THREE.MeshStandardMaterial({
-            map: skinTex, roughness: 0.78, metalness: 0.0,
-            emissive: 0x120a06, emissiveIntensity: 0.35
+        const {hand, forearm} = buildHeldHand({
+            palmX: 0.004,
+            fingers: [
+                {x: -0.030, len: [0.040, 0.030, 0.022], curl: [1.2, 1.3, 1.1], r: 0.0125, y: 0.055},
+                {x: 0.002, len: [0.044, 0.033, 0.024], curl: [1.25, 1.3, 1.15], r: 0.0130, y: 0.057},
+                {x: 0.033, len: [0.041, 0.031, 0.022], curl: [1.25, 1.35, 1.15], r: 0.0122, y: 0.055},
+                {x: 0.061, len: [0.033, 0.025, 0.019], curl: [1.3, 1.4, 1.2], r: 0.0108, y: 0.049}
+            ],
+            thumb: {
+                len: [0.048, 0.032], curl: [0.8, 0.62], r: 0.0155,
+                position: new THREE.Vector3(-0.086, -0.010, -0.024),
+                rotation: new THREE.Euler(0.35, 0.18, -1.0)
+            },
+            forearmPosition: new THREE.Vector3(0.0083, -0.0724, -0.0660),
+            forearmRotation: new THREE.Euler(-0.30, 0, 0.10)
         });
-        const cuffMat = new THREE.MeshStandardMaterial({
-            color: 0x3f4438, roughness: 0.96, metalness: 0.0,
-            emissive: 0x0a0b08, emissiveIntensity: 0.3
-        });
-
-        const palm = new THREE.Mesh(new THREE.BoxGeometry(0.132, 0.122, 0.032), skin);
-        palm.position.set(0.004, -0.008, -0.036);
-        palm.rotation.x = -0.06;
-        hand.add(palm);
-        const heel = new THREE.Mesh(new THREE.SphereGeometry(0.052, 10, 8), skin);
-        heel.scale.set(1.15, 0.72, 0.42);
-        heel.position.set(0.004, -0.062, -0.038);
-        hand.add(heel);
-
-        const FINGERS = [
-            {x: -0.030, len: [0.040, 0.030, 0.022], curl: [1.2, 1.3, 1.1], r: 0.0125, y: 0.055},
-            {x: 0.002, len: [0.044, 0.033, 0.024], curl: [1.25, 1.3, 1.15], r: 0.0130, y: 0.057},
-            {x: 0.033, len: [0.041, 0.031, 0.022], curl: [1.25, 1.35, 1.15], r: 0.0122, y: 0.055},
-            {x: 0.061, len: [0.033, 0.025, 0.019], curl: [1.3, 1.4, 1.2], r: 0.0108, y: 0.049}
-        ];
-        for (const f of FINGERS) {
-            const finger = this._finger(f.len, f.curl, f.r, skin);
-            finger.position.set(f.x, f.y, -0.040);
-            finger.rotation.z = -f.x * 1.6;
-            hand.add(finger);
-        }
-
-        const thumb = this._finger([0.048, 0.032], [0.8, 0.62], 0.0155, skin);
-        thumb.position.set(-0.086, -0.010, -0.024);
-        thumb.rotation.set(0.35, 0.18, -1.0);
-        hand.add(thumb);
-
-        const forearm = new THREE.Group();
-        forearm.position.set(0.0083, -0.0724, -0.0660);
-        forearm.rotation.set(-0.30, 0, 0.10);
-
-        const WRIST_LEN = 0.075, CUFF_LEN = 0.055, SLEEVE_LEN = 0.26;
-        const CUFF_LAP = 0.014, SLEEVE_LAP = 0.010;
-        const cuffTop = -(WRIST_LEN - CUFF_LAP);
-        const sleeveTop = cuffTop - CUFF_LEN + SLEEVE_LAP;
-
-        const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.040, 0.045, WRIST_LEN, 12), skin);
-        wrist.position.y = -WRIST_LEN / 2;
-        forearm.add(wrist);
-        const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.054, 0.062, CUFF_LEN, 12), cuffMat);
-        cuff.position.y = cuffTop - CUFF_LEN / 2;
-        forearm.add(cuff);
-        const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.057, 0.070, SLEEVE_LEN, 12), cuffMat);
-        sleeve.position.y = sleeveTop - SLEEVE_LEN / 2;
-        forearm.add(sleeve);
-        hand.add(forearm);
         this.forearm = forearm;
-
         return hand;
     }
 
@@ -182,41 +82,7 @@ export default class Flashlight {
     }
 
     _proximityTuck(cam) {
-        const state = this.player.input ? this.player.input.state : null;
-        if (this.player.isSqueezing || (state && state.isCrawling)) return 1;
-        const env = this.environment;
-        if (!env || !env.spatialGrid || !env.spatialGrid.getNearby) return 0;
-
-        this._probeVec.copy(this.basePos).applyQuaternion(cam.quaternion);
-        const cx = cam.position.x + this._probeVec.x;
-        const cy = cam.position.y + this._probeVec.y;
-        const cz = cam.position.z + this._probeVec.z;
-
-        const REACH = 0.60; 
-        const CLEAR = 0.15; 
-
-        const boxes = env.spatialGrid.getNearby(cx, cz, REACH + 0.5);
-        let nearestSq = Infinity;
-
-        for (let i = 0; i < boxes.length; i++) {
-            const box = boxes[i];
-            if (box.isInvisibleBlocker) continue;
-
-            const clampX = Math.max(box.min.x, Math.min(cx, box.max.x));
-            const clampY = Math.max(box.min.y, Math.min(cy, box.max.y));
-            const clampZ = Math.max(box.min.z, Math.min(cz, box.max.z));
-
-            const dx = cx - clampX;
-            const dy = cy - clampY;
-            const dz = cz - clampZ;
-            const dSq = dx * dx + dy * dy + dz * dz;
-
-            if (dSq < nearestSq) nearestSq = dSq;
-        }
-
-        if (nearestSq >= REACH * REACH) return 0;
-        const d = Math.sqrt(nearestSq);
-        return Math.max(0, Math.min(1, 1 - (d - CLEAR) / (REACH - CLEAR)));
+        return computeProximityTuck(this, cam, 0.60);
     }
 
     update(delta) {
@@ -258,29 +124,11 @@ export default class Flashlight {
         const drop = (1 - eased) * 0.46;
         const roll = (1 - eased) * 0.85;
 
-        const phase = (this.player.headBobPhase || 0) * 0.35;
-        const gait = this.player.gait || 0;
-
-        const swingX = Math.sin(phase) * 0.020 * gait;
-        const swingY = Math.sin(phase * 2.0) * 0.013 * gait;
-        const swingRoll = Math.sin(phase) * 0.055 * gait;
-        const swingPitch = Math.sin(phase * 2.0 + 0.6) * 0.030 * gait;
+        const {swingX, swingY, swingRoll, swingPitch} = computeGaitSwing(this.player);
 
         const counterBob = -(this.player.bobOffset || 0) * 0.34;
 
-        let dYaw = cam.rotation.y - this._prevYaw;
-        while (dYaw > Math.PI) dYaw -= Math.PI * 2;
-        while (dYaw < -Math.PI) dYaw += Math.PI * 2;
-        const dPitch = cam.rotation.x - this._prevPitch;
-        this._prevYaw = cam.rotation.y;
-        this._prevPitch = cam.rotation.x;
-        const clamp = (v, m) => Math.max(-m, Math.min(m, v));
-        const invDt = 1 / Math.max(dt, 1e-4);
-        const yawRate = clamp(dYaw * invDt, 6.0);
-        const pitchRate = clamp(dPitch * invDt, 6.0);
-        const follow = Math.min(1, dt * 9.0);
-        this._trailYaw += (yawRate - this._trailYaw) * follow;
-        this._trailPitch += (pitchRate - this._trailPitch) * follow;
+        updateTrailTracking(this, cam, dt);
 
         this.rig.rotation.set(
             this.baseRot.x - roll * 0.55 + swingPitch - this._trailPitch * 0.013,
@@ -288,20 +136,7 @@ export default class Flashlight {
             this.baseRot.z + roll + swingRoll - this._trailYaw * 0.022
         );
 
-        const speed = Math.sqrt(
-            this.player.velocity.x * this.player.velocity.x +
-            this.player.velocity.z * this.player.velocity.z
-        );
-
-        const sinY = Math.sin(cam.rotation.y), cosY = Math.cos(cam.rotation.y);
-        const vRight = this.player.velocity.x * cosY - this.player.velocity.z * sinY;
-        const vForward = -this.player.velocity.x * sinY - this.player.velocity.z * cosY;
-        const lagX = -clamp(vRight * 0.0105, 0.045);
-        const lagY = -clamp(speed * 0.0060, 0.035);
-        const lagZ = clamp(vForward * 0.0075, 0.032);
-        this._swayX += (lagX - this._swayX) * Math.min(1, dt * 11.0);
-        this._swayY += (lagY - this._swayY) * Math.min(1, dt * 10.0);
-        this._swayZ += (lagZ - this._swayZ) * Math.min(1, dt * 8.0);
+        updateSway(this, cam, dt);
         const pullIn = (1 - eased) * 0.28;
         const pullLeft = (1 - eased) * 0.12;
 

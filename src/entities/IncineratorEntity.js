@@ -1,4 +1,5 @@
 import {computeAxisBlocking, isRayPathBlocked, resolveEntityLocomotion} from './HazardUtils.js';
+import {buildShardSlot, launchShardBurst, stepShardPhysics} from './ShardParticles.js';
 import {LEGACY_LIGHT_COMPENSATION} from '../world/Sectors.js';
 
 export default class IncineratorEntity {
@@ -156,52 +157,27 @@ export default class IncineratorEntity {
                 emissiveIntensity: 2.0
             });
         }
-        const group = new THREE.Group();
         this._emberAnchorY = 0.7;
-        group.position.set(0, this._emberAnchorY, 0);
-        const light = new THREE.PointLight(0xff8822, 0, 3.0, 2.0);
-        group.add(light);
-        const shards = [];
-        for (let i = 0; i < 7; i++) {
-            const mesh = new THREE.Mesh(this._emberGeo, this._emberMat);
-            mesh.visible = false;
-            group.add(mesh);
-            shards.push({
-                mesh,
-                localX: 0,
-                localY: 0,
-                localZ: 0,
-                velX: 0,
-                velY: 0,
-                velZ: 0,
-                landed: true,
-                launchDelay: 0
-            });
-        }
-        this.bodyGroup.add(group);
-        this.emberSlot = {group, light, shards, cycleTimer: 0.4};
+        this.emberSlot = buildShardSlot({
+            shardGeo: this._emberGeo,
+            shardMat: this._emberMat,
+            shardCount: 7,
+            light: new THREE.PointLight(0xff8822, 0, 3.0, 2.0),
+            cycleTimer: 0.4
+        });
+        this.emberSlot.group.position.set(0, this._emberAnchorY, 0);
+        this.bodyGroup.add(this.emberSlot.group);
     }
 
     _launchEmberBurst() {
-        const angle = Math.random() * Math.PI * 2;
-        this.emberSlot.shards.forEach(s => {
-            const a = angle + (Math.random() - 0.5) * 0.9;
-            const speed = 1.0 + Math.random() * 1.2;
-            s.velX = Math.cos(a) * speed;
-            s.velZ = Math.sin(a) * speed;
-            s.velY = 1.4 + Math.random() * 1.2 + this.heatLevel * 0.15;
-            s.localX = 0;
-            s.localY = 0;
-            s.localZ = 0;
-            s.landed = false;
-            s.launchDelay = Math.random() * 0.12;
-            s.mesh.visible = false;
+        launchShardBurst(this.emberSlot.shards, {
+            velYBase: 1.4, velYRange: 1.2, extraVelY: this.heatLevel * 0.15,
+            launchDelayRange: 0.12
         });
     }
 
     _animateSparks(delta) {
         const slot = this.emberSlot;
-        const gravity = 4.5;
         const anyLit = slot.shards.some(s => !s.landed);
         slot.light.intensity = anyLit ? (0.8 * (0.6 + Math.random() * 0.4) * LEGACY_LIGHT_COMPENSATION) : 0;
         slot.cycleTimer -= delta * (1.0 + this.heatLevel * 0.3);
@@ -209,27 +185,7 @@ export default class IncineratorEntity {
             this._launchEmberBurst();
             slot.cycleTimer = 0.45 + Math.random() * 0.9;
         }
-        const floorLocalY = -this._emberAnchorY;
-        slot.shards.forEach(s => {
-            if (s.landed) return;
-            if (s.launchDelay > 0) {
-                s.launchDelay -= delta;
-                return;
-            }
-            s.mesh.visible = true;
-            s.velY -= gravity * delta;
-            s.localX += s.velX * delta;
-            s.localY += s.velY * delta;
-            s.localZ += s.velZ * delta;
-            if (s.localY <= floorLocalY) {
-                s.localY = floorLocalY;
-                s.landed = true;
-                s.mesh.visible = false;
-            }
-            s.mesh.position.set(s.localX, s.localY, s.localZ);
-            s.mesh.rotation.x += 0.25;
-            s.mesh.rotation.y += 0.2;
-        });
+        stepShardPhysics(slot.shards, delta, 4.5, -this._emberAnchorY, 0.25, 0.2);
     }
 
     _setBodyVisible(visible) {
@@ -337,9 +293,6 @@ export default class IncineratorEntity {
         }
         this._animate(time);
         this._animateSparks(delta);
-        if (this.env) {
-            const ambientHeat = this.heatLevel > 0 ? (this.heatLevel / 10.0) : 0.0;
-        }
         return null;
     }
 

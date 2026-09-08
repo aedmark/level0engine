@@ -57,6 +57,13 @@
       "thread": "GEOMETRY",
       "title": "Floor Plan Request",
       "_locked": true
+    },
+    {
+      "text": "[INTERDEPARTMENTAL MEMO]\n\nTO: Dr. ${c.doctor.last_name}, Clinic\nFROM: Records\n\nRE: Your fourth request this month for a copy of the acoustic survey.\n\nThe acoustic survey does not exist. I have told you this four times. Writing it a fifth will not summon it into being, and neither, it turns out, will asking nicely.\n\n- ${c.archivist}",
+      "type": "note",
+      "thread": "HUM",
+      "title": "Fourth Request",
+      "_locked": true
     }
   ],
   "INCINERATOR": [
@@ -222,6 +229,27 @@
       "text": "[STATIC]\n\n[Unintelligible whispering]\n\n[CLICK]",
       "thread": "HUM",
       "title": "Whispering",
+      "_locked": true
+    },
+    {
+      "text": "[SLEEP LOG]\n\nPATIENT: SELF\n\nI diagnosed the tone as tinnitus in four separate patients this week before I stopped being able to hear anything else and diagnosed myself with the same thing.\n\nTinnitus does not usually get louder when the patient stops talking.\n\n- Dr. ${c.doctor.last_name}",
+      "type": "note",
+      "thread": "HUM",
+      "title": "Self-Diagnosis",
+      "_locked": true
+    },
+    {
+      "text": "[INTAKE FORM]\n\nPATIENT: ${c.lost}\nATTENDING: Dr. ${c.doctor.last_name}\n\nCHIEF COMPLAINT: \"I already checked in today.\"\n\nCHART REVIEW: Patient has not checked in today. Patient has, per this same chart, checked in eleven times this week.\n\nI have started initialing each visit so I can prove to myself, later, that I was here for all of them.",
+      "type": "document",
+      "thread": "LOST",
+      "title": "Eleven Visits",
+      "_locked": true
+    },
+    {
+      "text": "[SUPPLY REQUEST — DENIED]\n\nREQUESTED: Directional signage for Exam 3.\n\nREASON FOR REQUEST: Exam 3 has not been in the same place twice.\n\nDENIAL REASON: Signage assumes a fixed referent. See attached memo on living floor plans.\n\nI don't want a philosophy lecture, I want my patients to stop ending up in Exam 6.\n\n- Dr. ${c.doctor.last_name}",
+      "type": "clipboard",
+      "thread": "GEOMETRY",
+      "title": "Exam 3",
       "_locked": true
     }
   ],

@@ -135,7 +135,9 @@ export default class StructureKit {
             buildCylinder: (radiusTop, radiusBottom, height, radialSegments, mat, yOffset = 0) => {
                 const geo = this.cylinderGeo(radiusTop, radiusBottom, height, radialSegments);
                 const mesh = new THREE.Mesh(geo, mat);
-                if (mat === env.sharedWallMat && yOffset === 0 && radiusTop === radiusBottom) {
+                const usesSharedWallMat = mat === env.sharedWallMat ||
+                    (Array.isArray(mat) && mat.some(m => m === env.sharedWallMat));
+                if (usesSharedWallMat && yOffset === 0 && radiusTop === radiusBottom) {
                     mesh.userData.baseboardFootprint = {r: radiusTop, h: height};
                 }
                 return mesh;

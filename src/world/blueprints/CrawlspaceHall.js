@@ -1,3 +1,5 @@
+import {archBorderMats} from './ArchBorderMats.js';
+
 export const CrawlspaceHallProfile = (env, ctx) => {
     const { addGeometry, random } = ctx;
     return {
@@ -13,19 +15,12 @@ export const CrawlspaceHallProfile = (env, ctx) => {
             });
 
             const baseMat = env.ceilingMat || env.sharedWallMat;
-            const straightTileMat = () => env.subwayTileMatsStraight
-                ? env.subwayTileMatsStraight[Math.floor(random() * env.subwayTileMatsStraight.length)]
-                : baseMat;
-            const isArchNeighbor = (dx, dz) =>
-                !!ctx.getForcedStructure && ctx.getForcedStructure(x + dx, z + dz) === 'ARCH_HALL';
-            const dropMats = [
-                isArchNeighbor(1, 0) ? straightTileMat() : baseMat,
-                isArchNeighbor(-1, 0) ? straightTileMat() : baseMat,
-                baseMat,
-                baseMat,
-                isArchNeighbor(0, 1) ? straightTileMat() : baseMat,
-                isArchNeighbor(0, -1) ? straightTileMat() : baseMat
-            ];
+            const dropMats = archBorderMats(env, ctx, random, x, z, baseMat, [
+                {index: 0, dx: 1, dz: 0},
+                {index: 1, dx: -1, dz: 0},
+                {index: 4, dx: 0, dz: 1},
+                {index: 5, dx: 0, dz: -1}
+            ]);
 
             const dropMesh = new THREE.Mesh(dropGeo, dropMats);
             dropMesh.position.set(x * env.cellSize, yCenter, z * env.cellSize);

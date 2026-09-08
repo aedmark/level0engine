@@ -52,7 +52,7 @@ export default class BoardroomTextures {
         wallCtx.fillRect(0, 476, 512, 4);
         wallCtx.fillStyle = 'rgba(0,0,0,0.12)';
         wallCtx.fillRect(255, 0, 2, 512);
-        const boardWallTexture = TextureMechanics._createWrappedTexture(wallCanvas, 1.75, 1, true);
+        const boardWallTexture = TextureMechanics._createWrappedTexture(wallCanvas, 1.75, 1, false);
         const boardWallMat = new THREE.MeshStandardMaterial({
             map: boardWallTexture,
             color: 0xA9D2FC,
