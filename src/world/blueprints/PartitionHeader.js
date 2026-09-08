@@ -18,12 +18,12 @@ export const PartitionHeaderProfile = (env, ctx) => {
 
             const p1 = buildWall(isZ ? pW : env.cellSize, isZ ? env.cellSize : pW,
                 isZ ? archBorderMats(env, ctx, random, x, z, env.sharedWallMat, [{index: 1, dx: -1, dz: 0}])
-                    : archBorderMats(env, ctx, random, x, z, env.sharedWallMat, [{index: 5, dx: 0, dz: -1}]));
+                    : archBorderMats(env, ctx, random, x, z, env.sharedWallMat, [{index: 5, dx: 0, dz: -1}]), 3.0, 0, 0);
             p1.position.set(x * env.cellSize - (isZ ? offset : 0), 1.5, z * env.cellSize - (isZ ? 0 : offset));
             addGeometry(p1);
             const p2 = buildWall(isZ ? pW : env.cellSize, isZ ? env.cellSize : pW,
                 isZ ? archBorderMats(env, ctx, random, x, z, env.sharedWallMat, [{index: 0, dx: 1, dz: 0}])
-                    : archBorderMats(env, ctx, random, x, z, env.sharedWallMat, [{index: 4, dx: 0, dz: 1}]));
+                    : archBorderMats(env, ctx, random, x, z, env.sharedWallMat, [{index: 4, dx: 0, dz: 1}]), 3.0, 0, 0);
             p2.position.set(x * env.cellSize + (isZ ? offset : 0), 1.5, z * env.cellSize + (isZ ? 0 : offset));
             addGeometry(p2);
             const header = buildWall(isZ ? env.cellSize - (pW * 2) : env.cellSize, isZ ? env.cellSize : env.cellSize - (pW * 2), env.headerMat, 0.4, 2.6);

@@ -42,12 +42,12 @@ export const SplitWallBurstProfile = (env, ctx) => {
                 const segZ = z + (dirZ ? i : 0);
                 if (ctx.markOccupied) ctx.markOccupied(segX, segZ);
                 const block1 = buildWall(dirZ ? wallW : env.cellSize, dirZ ? env.cellSize : wallW,
-                    dirZ ? matsWithOuter(1, segX, segZ, -1, 0) : matsWithOuter(5, segX, segZ, 0, -1));
+                    dirZ ? matsWithOuter(1, segX, segZ, -1, 0) : matsWithOuter(5, segX, segZ, 0, -1), 3.0, 0, 0);
                 block1.position.set(segX * env.cellSize + (dirZ ? -offset : 0), 1.5, segZ * env.cellSize + (dirZ ? 0 : -offset));
                 block1.userData.isEntityBlocker = true;
                 addGeometry(block1);
                 const block2 = buildWall(dirZ ? wallW : env.cellSize, dirZ ? env.cellSize : wallW,
-                    dirZ ? matsWithOuter(0, segX, segZ, 1, 0) : matsWithOuter(4, segX, segZ, 0, 1));
+                    dirZ ? matsWithOuter(0, segX, segZ, 1, 0) : matsWithOuter(4, segX, segZ, 0, 1), 3.0, 0, 0);
                 block2.position.set(segX * env.cellSize + (dirZ ? offset : 0), 1.5, segZ * env.cellSize + (dirZ ? 0 : offset));
                 block2.userData.isEntityBlocker = true;
                 addGeometry(block2);

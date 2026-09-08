@@ -16,11 +16,11 @@ export const BlockyObstructionProfile = (env, ctx) => {
                 const isZ = random() > 0.5;
                 const w1 = isZ ? blockW : env.cellSize;
                 const d1 = isZ ? env.cellSize : blockW;
-                const block1 = buildWall(w1, d1, isZ ? matsWithOuter([1], [[-1, 0]]) : matsWithOuter([5], [[0, -1]]));
+                const block1 = buildWall(w1, d1, isZ ? matsWithOuter([1], [[-1, 0]]) : matsWithOuter([5], [[0, -1]]), 3.0, 0, 0);
                 block1.position.set(x * env.cellSize - (isZ ? offset : 0), 1.5, z * env.cellSize - (isZ ? 0 : offset));
                 block1.userData.isEntityBlocker = true;
                 addGeometry(block1);
-                const block2 = buildWall(w1, d1, isZ ? matsWithOuter([0], [[1, 0]]) : matsWithOuter([4], [[0, 1]]));
+                const block2 = buildWall(w1, d1, isZ ? matsWithOuter([0], [[1, 0]]) : matsWithOuter([4], [[0, 1]]), 3.0, 0, 0);
                 block2.position.set(x * env.cellSize + (isZ ? offset : 0), 1.5, z * env.cellSize + (isZ ? 0 : offset));
                 block2.userData.isEntityBlocker = true;
                 addGeometry(block2);
@@ -30,15 +30,15 @@ export const BlockyObstructionProfile = (env, ctx) => {
                 const innerBlock = buildWall(blockW, blockW, matsWithOuter(
                     [flipX > 0 ? 0 : 1, flipZ > 0 ? 4 : 5],
                     [[flipX, 0], [0, flipZ]]
-                ));
+                ), 3.0, 0, 0);
                 innerBlock.position.set(x * env.cellSize + (flipX * offset), 1.5, z * env.cellSize + (flipZ * offset));
                 innerBlock.userData.isEntityBlocker = true;
                 addGeometry(innerBlock);
-                const wallX = buildWall(blockW, env.cellSize, matsWithOuter([-flipX > 0 ? 0 : 1], [[-flipX, 0]]));
+                const wallX = buildWall(blockW, env.cellSize, matsWithOuter([-flipX > 0 ? 0 : 1], [[-flipX, 0]]), 3.0, 0, 0);
                 wallX.position.set(x * env.cellSize - (flipX * offset), 1.5, z * env.cellSize);
                 wallX.userData.isEntityBlocker = true;
                 addGeometry(wallX);
-                const wallZ = buildWall(env.cellSize, blockW, matsWithOuter([-flipZ > 0 ? 4 : 5], [[0, -flipZ]]));
+                const wallZ = buildWall(env.cellSize, blockW, matsWithOuter([-flipZ > 0 ? 4 : 5], [[0, -flipZ]]), 3.0, 0, 0);
                 wallZ.position.set(x * env.cellSize, 1.5, z * env.cellSize - (flipZ * offset));
                 wallZ.userData.isEntityBlocker = true;
                 addGeometry(wallZ);

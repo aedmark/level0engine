@@ -44,11 +44,11 @@ export const SteppedBurstProfile = (env, ctx) => {
                 const segZ = z + (dirZ ? i : 0);
                 if (ctx.markOccupied) ctx.markOccupied(segX, segZ);
                 const side1 = buildWall(dirZ ? sideW : env.cellSize, dirZ ? env.cellSize : sideW,
-                    dirZ ? matsWithOuter(1, segX, segZ, -1, 0) : matsWithOuter(5, segX, segZ, 0, -1));
+                    dirZ ? matsWithOuter(1, segX, segZ, -1, 0) : matsWithOuter(5, segX, segZ, 0, -1), 3.0, 0, 0);
                 side1.position.set(segX * env.cellSize + (dirZ ? -sideOffset : 0), 1.5, segZ * env.cellSize + (dirZ ? 0 : -sideOffset));
                 addGeometry(side1);
                 const side2 = buildWall(dirZ ? sideW : env.cellSize, dirZ ? env.cellSize : sideW,
-                    dirZ ? matsWithOuter(0, segX, segZ, 1, 0) : matsWithOuter(4, segX, segZ, 0, 1));
+                    dirZ ? matsWithOuter(0, segX, segZ, 1, 0) : matsWithOuter(4, segX, segZ, 0, 1), 3.0, 0, 0);
                 side2.position.set(segX * env.cellSize + (dirZ ? sideOffset : 0), 1.5, segZ * env.cellSize + (dirZ ? 0 : sideOffset));
                 addGeometry(side2);
                 const roof = buildWall(dirZ ? roofW : env.cellSize, dirZ ? env.cellSize : roofW, env.sharedWallMat, roofH, 1.2);
