@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LEVEL 0 ENGINE // Handbook</title>
+    <title>LEVEL 0 ENGINE // Procedural Horror Simulator</title>
     <meta name="theme-color" content="#050505">
 
     <link href="assets/fonts/vt323.css" rel="stylesheet">
@@ -353,22 +353,31 @@
 
         <div class="terminal-gradient"></div>
 
-        <header class="terminal-header">
-            <div>
-                <h1 class="terminal-title terminal-glow">SYS.HANDBOOK</h1>
-                <p class="terminal-subtitle">Level 0 Engine: Procedural Liminal Space Simulator</p>
+        
+        <header class="terminal-header" style="flex-direction: column; align-items: center; text-align: center; padding: 4rem 0 2rem; border-bottom: none;">
+            <div style="margin-bottom: 2rem;">
+                <h1 class="terminal-title terminal-glow" style="font-size: 4rem; line-height: 1;">LEVEL 0 ENGINE</h1>
+                <p class="terminal-subtitle" style="font-size: 1.2rem; color: var(--liminal-500); margin-top: 1rem;">The infinite is not waiting for you.</p>
             </div>
-            <div class="sys-info">
-                2<span>SYS.VER 1.5.7</span>
+            <div style="display: flex; gap: 1rem; justify-content: center; width: 100%;">
+                <button onclick="window.opener ? window.close() : window.location.href='index.html'" class="btn-glitch" style="font-size: 1.2rem; padding: 1rem 2rem;">BOOT ENGINE</button>
+                <button onclick="window.location.href='https://github.com/aedmark/level0engine'" class="btn-glitch" style="font-size: 1.2rem; padding: 1rem 2rem;">SOURCE CODE</button>
             </div>
         </header>
 
         <article class="terminal-article">
-
-            <section>
+            
+            <section style="margin-top: 2rem; border-top: 1px solid var(--liminal-800); padding-top: 2rem;">
+                <div class="info-block" style="border-left: 4px solid var(--liminal-400); padding-left: 1rem; margin-bottom: 2rem; font-size: 1.1rem;">
+                    <p class="mb-4" style="color: var(--liminal-100);"><strong>Procedural Space:</strong> Labyrinths generated on the fly.<br>
+                    <strong>Deterministic Seeds:</strong> The same geometry for every explorer.<br>
+                    <strong>Brutalist Friction:</strong> Somatic collisions and tight bottlenecks.<br>
+                    <strong>Zero Dependencies:</strong> Runs entirely natively in-browser via ES6.</p>
+                </div>
                 <p class="intro-text mb-4">
-                    You are trapped in an infinite, shifting corporate facility. 
+                    The Level 0 Engine is a mathematically pure, zero-dependency procedural 3D horror simulator running natively in your browser. You are trapped in an infinite, shifting corporate facility. Your only tools are a heavy kinetic flashlight and your own sanity.
                 </p>
+
                 <p class="mb-4">
                     There is an exit, but the building will not surrender it easily. You must navigate the labyrinth, restore power by finding localized surge breakers, and piece together the final truth of the facility's incident from scattered case files. 
                 </p>
@@ -421,7 +430,18 @@
             </section>
 
             <section>
-                <h2 class="section-title">> System Operation</h2>
+                
+            <section>
+                <h2 class="section-title">> Technical Architecture</h2>
+                <div class="info-block">
+                    <p><strong class="highlight-text">Zero-Dependency ES6:</strong> The engine uses no bundlers or build steps. It runs entirely on native ES6 modules and WebGL via Three.js.</p>
+                    <p><strong class="highlight-text">Procedural Audio & Acoustics:</strong> A live, native digital signal processor (DSP) shifts room tones—from the sterile hiss of corporate HVACs to the recycled-air hush of the atrium—and physically muffles sounds when occluded by walls.</p>
+                    <p><strong class="highlight-text">Physics & Lighting:</strong> O(1) Spatial Hash Grid collisions and zero-allocation scratch vectors maintain silky 60fps. Dynamic lighting uses a fixed hardware shadow-caster pool with hysteresis to eliminate popping.</p>
+                    <p><strong class="highlight-text">Native Post-Processing:</strong> Dynamic Chromatic Aberration, CRT scanlines, and claustrophobic vignettes are tied directly to the Anomaly's proximity pressure. The optical feed violently tears as the entity enters striking distance.</p>
+                </div>
+            </section>
+
+<h2 class="section-title">> System Operation</h2>
                 <div class="info-block">
                     <p><strong class="highlight-text">Boot Sequence & Persistence:</strong> Upon initializing the engine, you will be presented with a terminal prompt. Select <strong>Continue Session</strong> to resume exactly where you left off, preserving your current run and inventory. Select <strong>Purge & Start New Game</strong> to wipe all memory caches and generate a fresh reality.</p>
                     <p><strong class="highlight-text">Performance & Aesthetics:</strong> The engine features a heavily optimized boot sequence and fixed lighting pool to maintain performance. By default, FXAA (anti-aliasing) is disabled to enhance the retro VHS pixelation and boost GPU fill-rate. You can adjust this and other visual parameters in the Settings panel (<code>Tab</code>).</p>
@@ -438,11 +458,15 @@
 
         </article>
 
-        <footer class="terminal-footer">
-            <button onclick="window.close()" class="btn-glitch">
-                Acknowledge & Return
+        
+        <footer class="terminal-footer" style="flex-direction: column; text-align: center; padding: 4rem 0;">
+            <p style="color: var(--liminal-500); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.2em;">The Anomaly is waiting.</p>
+            <h2 style="font-size: 2.5rem; color: var(--liminal-100); margin-bottom: 2rem; font-family: var(--font-vhs);">Pick a seed. Step inside.</h2>
+            <button onclick="window.opener ? window.close() : window.location.href='index.html'" class="btn-glitch" style="font-size: 1.5rem; padding: 1rem 3rem;">
+                INITIALIZE SESSION
             </button>
         </footer>
+
 
     </div>
 </main>

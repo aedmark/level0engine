@@ -329,15 +329,27 @@
                 <h1><div class="status-dot"></div> Level 0 Lore Editor</h1>
             <p>System Override</p>
             </div>
+            
             <div class="file-list" id="file-list">
                 <h2>Data Nodes</h2>
             </div>
+            <div style="padding: 16px;">
+                <button class="add-btn" onclick="showCoverageReport()" style="border-color: rgba(251,191,36,0.3); color: var(--accent-amber);">View Coverage Report</button>
+            </div>
+
             <input type="file" id="import-file-input" accept="application/json" style="display:none" onchange="handleImportFileSelected(this)">
         </aside>
 
         <main class="editor-section">
             <div id="welcome-msg">
                 <div style="max-width:800px; width:100%; display:flex; flex-direction:column; gap:16px;">
+                    
+                    <div id="coverage-view" style="display: none; width: 100%; max-width: 900px;">
+                        <h2 class="editor-title">Coverage Report</h2>
+                        <p class="editor-subtitle">Compare available lore entries against typical generator capacity.</p>
+                        <div id="coverage-content" style="margin-top: 24px; display: flex; flex-direction: column; gap: 16px;"></div>
+                    </div>
+
                     <div id="welcome-quickstart" style="background: rgba(251,191,36,0.06); border: 1px solid rgba(251,191,36,0.25); border-radius: 8px; padding: 24px;">
                         <h3 style="color: var(--accent-amber); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px;">Start Here</h3>
                         <p style="font-family: var(--font-mono); font-size: 0.875rem; color: var(--text-main); line-height: 1.6; margin-bottom: 16px;">

@@ -882,7 +882,7 @@ export default class StructureKit {
                 const isShoulder = isShoulderNS || isShoulderEW;
                 if (isDoorwayNS || isDoorwayEW) {
                     const wMat = wallMat || env.sharedWallMat;
-                    const isVoidSector = sectorId === "CHASM";
+                    const isVoidSector = SECTORS[sectorId] && SECTORS[sectorId].voidFloorY !== undefined;
                     const aMat = isVoidSector ? wMat : (env.metalMat || env.structMat);
                     const outerMat = env.sharedWallMat;
                     const buildMat = (isNS) => {
@@ -985,9 +985,10 @@ export default class StructureKit {
                     wall.receiveShadow = true;
                     wall.userData.isEntityBlocker = true;
                     wall.userData.baseboardFootprint = {w: segW, d: segD, h: segH};
-                    if (sectorId === "ARCHIVE" && env.archiveBaseboardMat) {
-                        wall.userData.baseboardFaceMats = env.archiveBaseboardMat;
-                        wall.userData.baseboardTrimFaceMats = env.archiveBaseboardTrimMat;
+                    const sectorDef = SECTORS[sectorId] || {};
+                    if (sectorDef.baseboardMatKey && env[sectorDef.baseboardMatKey]) {
+                        wall.userData.baseboardFaceMats = env[sectorDef.baseboardMatKey];
+                        wall.userData.baseboardTrimFaceMats = env[sectorDef.baseboardTrimMatKey];
                     }
                     helpers.addGeometry(wall);
                 };

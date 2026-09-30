@@ -70,3 +70,5 @@ globalThis.document.createElement = () => ({
     }),
     width: 1, height: 1
 });
+
+globalThis.window = globalThis;

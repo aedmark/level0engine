@@ -455,7 +455,8 @@ export default class SetPieces {
                         innerCellX = startX + lx;
                         innerCellZ = startZ + lz;
                     }
-                    if (sectorId === "MAINTENANCE") {
+                    const sectorDef = SECTORS[sectorId] || {};
+                    if (sectorDef.hasHazardTrim) {
                         const len = env.cellSize;
                         const tOff = (env.cellSize / 2) - 0.2;
                         if (spansX) {
@@ -481,7 +482,8 @@ export default class SetPieces {
                 zone.entranceX = innerCellX;
                 zone.entranceZ = innerCellZ;
             }
-            if (sectorId === "CHASM") {
+            const sectorDef = SECTORS[sectorId] || {};
+            if (sectorDef.hasEntranceRailing) {
                 if (!env.blackIronMat) env.blackIronMat = new THREE.MeshStandardMaterial({
                     color: 0x151515,
                     roughness: 0.7,
@@ -527,7 +529,7 @@ export default class SetPieces {
                 }
             }
             env._buildAirlock(chunkGroup, hash, outer.x * env.cellSize, outer.z * env.cellSize, spansX, sectorId, outSign);
-            if (sectorId === "CHECKPOINT") {
+            if (sectorDef.hasSecurityGate) {
                 this.buildSecurityGate(chunkGroup, hash, innerCellX * env.cellSize, innerCellZ * env.cellSize, spansX, ctx);
             }
             if (needsFloor || needsCeiling) {
@@ -968,11 +970,10 @@ export default class SetPieces {
             }
             if (needsCeiling) {
                 let mat = env.ceilMatHall || env.ceilMat;
-                let isChasm = sectorId === "CHASM";
+                const sectorDef = SECTORS[sectorId] || {};
+                let isChasm = sectorDef.hasNarrowCeiling;
                 if (isChasm) mat = env.blackIronMat || env.structMat;
-                else if (sectorId === "IMPOUND") mat = env.impoundCeilingMat || env.structMat;
-                else if (sectorId === "INCINERATOR") mat = env.incinCeilingMat || env.structMat;
-                else if (sectorId === "ANNEX") mat = env.annexCeilingMat || env.structMat;
+                else if (sectorDef.ceilingMatKey) mat = env[sectorDef.ceilingMatKey] || env.structMat;
                 if (isChasm) {
                     const ceilGeo = new THREE.BoxGeometry(
                         spansX ? 3.9 : env.cellSize,

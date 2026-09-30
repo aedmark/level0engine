@@ -379,7 +379,7 @@ export default class AtmosphereManager {
             const isExitPhase = env.player.objectives.fixed >= env.player.objectives.total;
             if (isExitPhase && !env.player.inventory.hasExitKey) {
                 for (const zone of env.macroZones.values()) {
-                    if (zone.id !== "ANNEX") continue;
+                    if (!SECTORS[zone.id] || !SECTORS[zone.id].isExitKeyLocation) continue;
                     const nx = Math.max(zone.minX, Math.min(cameraPos.x, zone.maxX));
                     const nz = Math.max(zone.minZ, Math.min(cameraPos.z, zone.maxZ));
                     const dx = cameraPos.x - nx;
@@ -540,9 +540,8 @@ export default class AtmosphereManager {
             }
             if (env.glowMat) {
                 let targetGlowOpacity = Math.max(0.0, 1.0 - (darknessPressure * 0.4));
-                if (env._stickySectorId === "IMPOUND" || env._stickySectorId === "CHASM" || env._stickySectorId === "ATRIUM" || env._stickySectorId === "CLINIC" || env._stickySectorId === "BOARDROOM" || env._stickySectorId === "ANNEX") targetGlowOpacity = 0.0;
-                else if (env._stickySectorId === "ARCHIVE") targetGlowOpacity = 0.15;
-                else if (env._stickySectorId === "INCINERATOR") targetGlowOpacity = 0.1;
+                const stickyDef = SECTORS[env._stickySectorId] || {};
+                if (stickyDef.glowOpacity !== undefined) targetGlowOpacity = stickyDef.glowOpacity;
                 env.glowMat.opacity += (targetGlowOpacity - env.glowMat.opacity) * 0.1;
             }
         }

@@ -17,7 +17,7 @@ Goal: the repository can be checked by one command and resumed without tribal kn
 
 - [x] P1-01 Adopt the agent documentation scheme (AGENTS, ROADMAP, docs/, tools/check_docs.py). Retrofitted from the
   code and history; `python3 tools/check_docs.py` passes (2026-09-30)
-- [ ] P1-02 Add a `.gitignore`: `build/`, `node_modules/`, OS and editor clutter (`.DS_Store`, `Thumbs.db`, `.idea/`,
+- [x] P1-02 Add a `.gitignore`: `build/`, `node_modules/`, OS and editor clutter (`.DS_Store`, `Thumbs.db`, `.idea/`,
   `.vscode/`), logs (`*.log`), and local Claude settings (`.claude/settings.local.json`). Check nothing currently
   tracked matches before adding a pattern (`git ls-files -ci --exclude-standard`). Done when `npm run build` leaves
   `git status` clean. Found during P1-01, 2026-09-30
@@ -25,7 +25,7 @@ Goal: the repository can be checked by one command and resumed without tribal kn
   `r160.js` onto `globalThis` so modules that use the `THREE` global can be imported. `npm test` runs
   `node --test test/`. Done when `npm test` runs one passing test and fails when that test is broken on purpose.
   Found during P1-01, 2026-09-30
-- [ ] P1-04 Reconcile the README with the code. Sector count, ACME, `NormalSector.js`, the sixth sector hazard
+- [x] P1-04 Reconcile the README with the code. Sector count, ACME, `NormalSector.js`, the sixth sector hazard
   (`SentryConeEntity`), and the physics-math claim fixed 2026-09-30; left: modules the README's architecture list
   still omits (`ChunkManager.js`, `ChunkWorker.js`, `PaintballSystem.js`, the `src/ui/` tuners). Found during P1-01,
   2026-09-30
@@ -61,14 +61,14 @@ Drafted 2026-09-30 from the code and changelog; confirmed by the maintainer the 
   sector matrix, headless) and compare a layout fingerprint. Then list and remove any `Math.random()` that affects
   layout rather than cosmetics (candidates: `ChunkManager.js` sector-matrix lookup, `buildBreakerPodium`'s default
   `random`). Needs P1-03. 2026-09-30
-- [ ] P2-03 Decide on `aoMap`: v1.5.7 found it probably inert because no geometry sets `uv2`. Either add `uv2` where
+- [x] P2-03 Decide on `aoMap`: v1.5.7 found it probably inert because no geometry sets `uv2`. Either add `uv2` where
   AO matters and verify it visibly, or remove the dead `aoMap` wiring. 2026-09-30
-- [ ] P2-04 `Duct.js` arch-hall border tiling, deliberately skipped in v1.5.7 because ducts are built from 8–10
+- [x] P2-04 `Duct.js` arch-hall border tiling, deliberately skipped in v1.5.7 because ducts are built from 8–10
   pieces per branch. Only if the seam is noticed in play. 2026-09-30
 - [ ] P2-05 Firefox hitching budget: measure shader-link stalls with the Debug HUD on a fixed seed and route in
   Chromium vs. Firefox, then see whether more warmup in `ShaderWarmup.js`/`LazyMaterialWarmup.js` before a zone's
   blast door opens hides them. Record the numbers either way. 2026-09-30
-- [ ] P2-06 Split `ChunkManager.js`: it owns streaming, cell building, zone bounds, lighting spawns and the
+- [x] P2-06 Split `ChunkManager.js`: it owns streaming, cell building, zone bounds, lighting spawns and the
   airlock-apron checks. Extract along those lines once P2-01 has removed the sector special cases, with P2-02 as the
   safety net. 2026-09-30
 
@@ -77,12 +77,12 @@ Drafted 2026-09-30 from the code and changelog; confirmed by the maintainer the 
 Goal: every seed tells a complete, solvable case, and authors can see that before a player does.
 Drafted 2026-09-30 from the code and changelog; confirmed by the maintainer the same day (Q-001).
 
-- [ ] P3-01 Solvability sweep: for a few hundred seeds, deal the case with `StoryEngine` headlessly and check that the
+- [x] P3-01 Solvability sweep: for a few hundred seeds, deal the case with `StoryEngine` headlessly and check that the
   tell is seeded into five sectors, each lock leg (rule, year, pen) has sources in three or more sectors, and no
   thread depends on a sector that seed never places. Needs P1-03. 2026-09-30
-- [ ] P3-02 Measure the Assembled Lock odds the README states (all three legs in three random sectors "roughly 44%")
+- [x] P3-02 Measure the Assembled Lock odds the README states (all three legs in three random sectors "roughly 44%")
   with the P3-01 sweep, and correct the README or the dealing to match. 2026-09-30
-- [ ] P3-03 Coverage report in the Lore Editor: per sector and document type, how many entries exist against how
+- [x] P3-03 Coverage report in the Lore Editor: per sector and document type, how many entries exist against how
   many the generators can place, so authors see when pickups will fall back to generic text. 2026-09-30
 - [ ] P3-04 Lore Editor validation: refuse to save an entry whose conditions reference an unknown thread, variable or
   sector, using the same `jsep` parse the game uses. 2026-09-30

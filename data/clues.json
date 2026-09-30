@@ -22,6 +22,22 @@
       "thread": "CIPHER",
       "puzzle": "REQ_PUZZLE",
       "title": "Misfiled Combo Note"
+    },
+    {
+      "text": "[FILE INDEX UPDATE]\n\nAll records prior to hour ${hrs} have been sealed. The timestamp is the only metric we can trust anymore.",
+      "type": "document",
+      "thread": "HOUR",
+      "title": "File Index Update",
+      "puzzle": "HOUR_PUZZLE",
+      "_locked": true
+    },
+    {
+      "text": "[REQUISITION SUMMARY]\n\nThe current open requisition number is ${REQ}. Please stop asking the archive staff to verify this. Go to Maintenance.",
+      "type": "document",
+      "thread": "REQ_CODE",
+      "title": "Req Summary",
+      "puzzle": "REQ_PUZZLE",
+      "_locked": true
     }
   ],
   "ARCHIVE": [
@@ -48,6 +64,34 @@
       "puzzle": "HOUR_PUZZLE",
       "title": "HOUR Tape",
       "_locked": true
+    },
+    {
+      "type": "tape",
+      "text": "[SOUND OF SHUFFLING PAPERS]\n\n...if you need to get back in, remember: it's the requisition number first, then the pen. Don't use the year.\n\n[CLICK]",
+      "thread": "CIPHER",
+      "puzzle": "REQ_PUZZLE",
+      "title": "Req Tape",
+      "_locked": true
+    },
+    {
+      "text": "[ARCHIVE LOG]\n\nAll documents timestamped hour ${hrs} have been recalled. Do not file them.",
+      "type": "document",
+      "thread": "HOUR",
+      "title": "Archive Log",
+      "puzzle": "HOUR_PUZZLE",
+      "_locked": true
+    },
+    {
+      "text": "[MISSING ITEM REPORT]\n\nMissing from Pen ${pen}: One (1) rolling cart. If found, please return it to Pen ${pen}.",
+      "type": "clipboard",
+      "thread": "PEN",
+      "title": "Missing Cart",
+      "puzzle": [
+        "ORIGINAL_PEN",
+        "HOUR_PUZZLE",
+        "REQ_PUZZLE"
+      ],
+      "_locked": true
     }
   ],
   "INCINERATOR": [
@@ -66,6 +110,22 @@
       "title": "Scrap Intake #1",
       "_locked": true,
       "puzzle": "ORIGINAL_PEN"
+    },
+    {
+      "text": "[BURN LOG EXCERPT]\n\nDo not burn the REQ numbers. The gate code is the REQ number followed by the PEN number. If you burn the logs we will never get back into records.",
+      "type": "document",
+      "thread": "CIPHER",
+      "title": "Burn Log Excerpt",
+      "puzzle": "REQ_PUZZLE",
+      "_locked": true
+    },
+    {
+      "text": "[BURN SCHEDULE]\n\nBurn shift was supposed to end at hour ${hrs - 5}. We are currently at hour ${hrs}. The relief crew is late.",
+      "type": "document",
+      "thread": "HOUR",
+      "title": "Burn Schedule",
+      "puzzle": "HOUR_PUZZLE",
+      "_locked": true
     }
   ],
   "CHECKPOINT": [
@@ -111,6 +171,26 @@
       "puzzle": "REQ_PUZZLE",
       "title": "Gatehouse Requisition Note",
       "_locked": true
+    },
+    {
+      "text": "[SECURITY LOG]\n\nUnauthorized access attempt at Pen ${pen}. Gate was found open. Nothing was taken, but the pen feels... emptier.",
+      "type": "document",
+      "thread": "PEN",
+      "title": "Security Log - Pen",
+      "puzzle": [
+        "ORIGINAL_PEN",
+        "HOUR_PUZZLE",
+        "REQ_PUZZLE"
+      ],
+      "_locked": true
+    },
+    {
+      "text": "[SHIFT CHANGE PROTOCOL]\n\nGuard shifts are no longer measured in days. Measure your shift by the elapsed hour count. We are currently approaching hour ${hrs} and relief is not coming.",
+      "type": "clipboard",
+      "thread": "HOUR",
+      "title": "Shift Protocol",
+      "puzzle": "HOUR_PUZZLE",
+      "_locked": true
     }
   ],
   "MAINTENANCE": [
@@ -136,6 +216,33 @@
       "thread": "REQ_CODE",
       "puzzle": "REQ_PUZZLE",
       "title": "Requisition Log",
+      "_locked": true
+    },
+    {
+      "text": "WORK ORDER #882\n\nPen ${pen} gate latch is sticking again. Don't replace it, just oil it. The latch isn't what's holding it open anyway.\n\n- ${c.custodian}",
+      "type": "clipboard",
+      "thread": "PEN",
+      "title": "Sticking Latch",
+      "puzzle": [
+        "ORIGINAL_PEN",
+        "HOUR_PUZZLE",
+        "REQ_PUZZLE"
+      ],
+      "_locked": true
+    },
+    {
+      "text": "BOILER INSPECTION\n\nThe original boiler installation dates back to ${year}. We are not authorized to replace components older than the site itself.",
+      "type": "clipboard",
+      "thread": "EPOCH",
+      "title": "Boiler Inspection",
+      "_locked": true
+    },
+    {
+      "text": "[MAINTENANCE REMINDER]\n\nThe records lock combo is requisition + pen. Two digits each. I know it's a stupid system. I didn't design it.",
+      "type": "note",
+      "thread": "CIPHER",
+      "title": "Maintenance Reminder",
+      "puzzle": "REQ_PUZZLE",
       "_locked": true
     }
   ],
@@ -171,6 +278,22 @@
       "title": "Intake Tag",
       "_locked": true,
       "puzzle": "HOUR_PUZZLE"
+    },
+    {
+      "text": "IMPOUND LOG\n\nItem seized under requisition ${REQ}. It will remain here until the requisition is cleared, which it won't be.",
+      "type": "clipboard",
+      "thread": "REQ_CODE",
+      "title": "Seized Item Log",
+      "puzzle": "REQ_PUZZLE",
+      "_locked": true
+    },
+    {
+      "text": "[SEIZED DOCUMENTS]\n\nConfiscated from a staff member muttering about 'the hour and the pen'. We don't know what it means, but they were trying to access the records room.",
+      "type": "clipboard",
+      "thread": "CIPHER",
+      "title": "Confiscated Note",
+      "puzzle": "HOUR_PUZZLE",
+      "_locked": true
     }
   ],
   "CLINIC": [
@@ -184,6 +307,29 @@
         "HOUR_PUZZLE",
         "REQ_PUZZLE"
       ],
+      "_locked": true
+    },
+    {
+      "text": "[MEDICAL RECORD ARCHIVE]\n\nEarliest recorded injury on site occurred in ${year}. The patient file is entirely redacted, but the date remains.",
+      "type": "laptop",
+      "thread": "EPOCH",
+      "title": "Oldest Record",
+      "_locked": true
+    },
+    {
+      "text": "[STAFF NOTICE]\n\nThe clinic does not have the records room code. We do not care what the pour year or the pen number is. Stop coming here for it.",
+      "type": "document",
+      "thread": "CIPHER",
+      "title": "Clinic Notice",
+      "puzzle": "ORIGINAL_PEN",
+      "_locked": true
+    },
+    {
+      "text": "[MEDICAL SUPPLY REQ]\n\nRequisition ${REQ} for bandages is still pending. We are out.",
+      "type": "clipboard",
+      "thread": "REQ_CODE",
+      "title": "Supply Req",
+      "puzzle": "REQ_PUZZLE",
       "_locked": true
     }
   ],

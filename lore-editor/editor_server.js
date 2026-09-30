@@ -11,6 +11,8 @@ const DATA_DIR = path.join(__dirname, '../data');
 const FACTORY_DIR = path.join(DATA_DIR, 'factory');
 const JS_DIR = path.join(__dirname, 'js');
 
+import { getCoverage } from "./coverage.js";
+
 const KNOWN_DATA_FILES = ['lore.json', 'clues.json', 'finales.json', 'foreshadow.json', 'puzzles.json', 'threads.json', 'parameters.json'];
 
 function isSafeDataPath(filePath) {
@@ -68,6 +70,18 @@ const server = http.createServer((req, res) => {
             res.end(data);
         });
         return;
+    }
+
+    
+    if (req.method === 'GET' && req.url === '/api/coverage') {
+        try {
+            const data = getCoverage();
+            res.writeHead(200, { 'Content-Type': 'application/json', ...NO_CACHE_HEADERS });
+            return res.end(JSON.stringify(data));
+        } catch (e) {
+            res.writeHead(500);
+            return res.end(JSON.stringify({ error: e.message }));
+        }
     }
 
     if (req.url.startsWith('/api/data')) {

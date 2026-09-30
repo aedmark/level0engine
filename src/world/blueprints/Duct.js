@@ -1,4 +1,5 @@
 import {makeDuctInterior} from '../../core/DuctLighting.js';
+import {archBorderMats} from '../ArchBorderMats.js';
 
 export const DuctProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, hash} = ctx;
@@ -197,13 +198,14 @@ export const DuctProfile = (env, ctx) => {
                     const wConn = cell.connections.W || cell.exits.W;
 
                     const corners = [
-                        {x: cx - sideOffset, z: cz - sideOffset},
-                        {x: cx + sideOffset, z: cz - sideOffset},
-                        {x: cx - sideOffset, z: cz + sideOffset},
-                        {x: cx + sideOffset, z: cz + sideOffset}
+                        {x: cx - sideOffset, z: cz - sideOffset, faces: [{index: 1, dx: -1, dz: 0}, {index: 5, dx: 0, dz: -1}]},
+                        {x: cx + sideOffset, z: cz - sideOffset, faces: [{index: 0, dx: 1, dz: 0}, {index: 5, dx: 0, dz: -1}]},
+                        {x: cx - sideOffset, z: cz + sideOffset, faces: [{index: 1, dx: -1, dz: 0}, {index: 4, dx: 0, dz: 1}]},
+                        {x: cx + sideOffset, z: cz + sideOffset, faces: [{index: 0, dx: 1, dz: 0}, {index: 4, dx: 0, dz: 1}]}
                     ];
                     for (const pos of corners) {
-                        const pillar = buildWall(sideW, sideW, env.sharedWallMat);
+                        const pMats = archBorderMats(env, ctx, random, cell.x, cell.z, env.sharedWallMat, pos.faces);
+                        const pillar = buildWall(sideW, sideW, pMats);
                         pillar.position.set(pos.x, 1.5, pos.z);
                         addWall(pillar);
                     }
@@ -243,21 +245,21 @@ export const DuctProfile = (env, ctx) => {
                     addGeometry(cLining4);
 
                     const branches = [
-                        {dir: 'N', conn: nConn, x: cx, z: cz - sideOffset, w: holeW, d: sideW, isZ: false},
-                        {dir: 'S', conn: sConn, x: cx, z: cz + sideOffset, w: holeW, d: sideW, isZ: false},
-                        {dir: 'E', conn: eConn, x: cx + sideOffset, z: cz, w: sideW, d: holeW, isZ: true},
-                        {dir: 'W', conn: wConn, x: cx - sideOffset, z: cz, w: sideW, d: holeW, isZ: true}
+                        {dir: 'N', conn: nConn, x: cx, z: cz - sideOffset, w: holeW, d: sideW, isZ: false, faces: [{index: 5, dx: 0, dz: -1}]},
+                        {dir: 'S', conn: sConn, x: cx, z: cz + sideOffset, w: holeW, d: sideW, isZ: false, faces: [{index: 4, dx: 0, dz: 1}]},
+                        {dir: 'E', conn: eConn, x: cx + sideOffset, z: cz, w: sideW, d: holeW, isZ: true, faces: [{index: 0, dx: 1, dz: 0}]},
+                        {dir: 'W', conn: wConn, x: cx - sideOffset, z: cz, w: sideW, d: holeW, isZ: true, faces: [{index: 1, dx: -1, dz: 0}]}
                     ];
 
                     for (const branch of branches) {
                         if (branch.conn) {
                             if (ductY > 0) {
-                                const bFloor = buildWall(branch.w, branch.d, env.sharedWallMat, ductY, 0);
+                                const bFloor = buildWall(branch.w, branch.d, archBorderMats(env, ctx, random, cell.x, cell.z, env.sharedWallMat, branch.faces), ductY, 0);
                                 bFloor.position.set(branch.x, ductY / 2, branch.z);
                                 addGeometry(bFloor);
                             }
 
-                            const bRoof = buildWall(branch.w, branch.d, env.sharedWallMat, topH, ductY + holeH);
+                            const bRoof = buildWall(branch.w, branch.d, archBorderMats(env, ctx, random, cell.x, cell.z, env.sharedWallMat, branch.faces), topH, ductY + holeH);
                             bRoof.position.set(branch.x, ductY + holeH + topH / 2, branch.z);
                             addGeometry(bRoof);
 
@@ -288,7 +290,7 @@ export const DuctProfile = (env, ctx) => {
                             addGeometry(lSide1);
                             addGeometry(lSide2);
                         } else {
-                            const block = buildWall(branch.w, branch.d, env.sharedWallMat);
+                            const block = buildWall(branch.w, branch.d, archBorderMats(env, ctx, random, cell.x, cell.z, env.sharedWallMat, branch.faces));
                             block.position.set(branch.x, 1.5, branch.z);
                             addWall(block);
 
