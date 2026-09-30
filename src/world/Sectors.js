@@ -55,6 +55,9 @@ export const DEFAULT_RECT_LIGHT_INTENSITY = 1.0;
 
 const SECTORS = {
     NORMAL: {
+        hasMaze: false,
+        anomalyAllowed: true,
+
         rectLightIntensity: 2.35,
         shadowRadius: 3.25,
         lightRange: 2.15,
@@ -78,6 +81,12 @@ const SECTORS = {
         reverb: {rt60: 0.8, predelay: 0.010, wet: 0.14}
     },
     ARCHIVE: {
+        hasMaze: true,
+        ceilingHeight: 3,
+        voidCeiling: {y:32,white:false},
+        maxCamY: 40,
+        hallwayNeedsCeiling: false,
+
         shadowRadius: 4,
         lightRange: 1,
         lightColor: 0xa8baff,
@@ -105,6 +114,11 @@ const SECTORS = {
         reverb: {rt60: 1.1, predelay: 0.014, wet: 0.16}
     },
     IMPOUND: {
+        hasMaze: true,
+        ceilingHeight: 20,
+        maxCamY: 20,
+        hallwayNeedsCeiling: false,
+
         lightRange: 1.75,
         lightColor: 0xead91f,
         lightIntensity: 2.2,
@@ -131,6 +145,7 @@ const SECTORS = {
         reverb: {rt60: 1.9, predelay: 0.040, wet: 0.22}
     },
     BOARDROOM: {
+
         lightIntensity: 3,
         fog: 0.01, fogColor: 0x9e9e9e,
         ambient: 0.29, groundColor: 0xffffff,
@@ -148,6 +163,8 @@ const SECTORS = {
         reverb: {rt60: 0.7, predelay: 0.011, wet: 0.12}
     },
     SERVER: {
+        hasMaze: true,
+
         shadowRadius: 3,
         lightRange: 1.25,
         lightIntensity: 1.75,
@@ -179,6 +196,8 @@ const SECTORS = {
         reverb: {rt60: 0.55, predelay: 0.007, wet: 0.10}
     },
     CLINIC: {
+        hasMaze: true,
+
         fogColor: 0x5c5c5c,
         groundColor: 0x000000,
         fog: 0.03,
@@ -198,6 +217,8 @@ const SECTORS = {
     },
 
     MAINTENANCE: {
+        hasMaze: true,
+
         groundColor: 0x9c9c9c,
         fog: 0.08, fogColor: 0x572503,
         ambient: 0.41,
@@ -215,6 +236,8 @@ const SECTORS = {
         reverb: {rt60: 0.6, predelay: 0.006, wet: 0.10}
     },
     INCINERATOR: {
+        hasMaze: true,
+
         lightIntensity: 1.05,
         groundColor: 0x535350,
         fog: 0.13, fogColor: 0xcc7533,
@@ -238,6 +261,13 @@ const SECTORS = {
         reverb: {rt60: 1.3, predelay: 0.012, wet: 0.18}
     },
     CHASM: {
+        hasMaze: true,
+        voidCeiling: {y:9,white:false},
+        voidFloorY: -100,
+        hallwayNeedsFloor: true,
+        hallwayNeedsCeiling: false,
+        maxCamY: 40,
+
         groundColor: 0x8fe9ff,
         fog: 0.12, fogColor: 0x191d71,
         ambient: 0.51,
@@ -261,6 +291,11 @@ const SECTORS = {
         reverb: {rt60: 4.5, predelay: 0.085, wet: 0.38}
     },
     ATRIUM: {
+        hasMaze: true,
+        voidCeiling: {y:66,white:true},
+        maxCamY: 40,
+        hallwayNeedsCeiling: false,
+
         lightRange: 1.8,
         lightColor: 0xb8bcff,
         lightIntensity: 2,
@@ -287,6 +322,7 @@ const SECTORS = {
         reverb: {rt60: 3.0, predelay: 0.045, wet: 0.30}
     },
     ANNEX: {
+
         lightIntensity: 2.3,
         groundColor: 0xffffff,
         fog: 0.005, fogColor: 0xffffff,
@@ -311,11 +347,14 @@ const SECTORS = {
         reverb: {rt60: 0.35, predelay: 0.005, wet: 0.08}
     },
     EXIT: {
+        anomalyAllowed: true,
+
         fog: 0.03, fogColor: 0x332525, ambient: 0.15,
         foley: {oscFreq: 700, filterType: 'bandpass', filterFreq: 2700, gain: 0.14, attack: 0.008, decay: 0.075},
         reverb: {rt60: 0.9, predelay: 0.012, wet: 0.14}
     },
     CHECKPOINT: {
+
         lightIntensity: 1.55,
         groundColor: 0xeae8c3,
         fogColor: 0x636363,
@@ -335,6 +374,17 @@ const SECTORS = {
         reverb: {rt60: 1.0, predelay: 0.010, wet: 0.15}
     },
     ACME: {
+        hasMaze: true,
+        multiLevelMaze: 40,
+        ceilingHeight: 40,
+        voidCeiling: {y:100000,white:false},
+        voidFloorY: -100000,
+        hallwayNeedsFloor: true,
+        hallwayNeedsCeiling: false,
+        bottomlessRescue: true,
+        maxCamY: 100000,
+        hasLightning: true, acmeAudio: true,
+
         lightRange: 1.6,
         lightColor: 0xe6db65,
         lightIntensity: 2.05,

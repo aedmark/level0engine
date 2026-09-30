@@ -21,7 +21,7 @@ Goal: the repository can be checked by one command and resumed without tribal kn
   `.vscode/`), logs (`*.log`), and local Claude settings (`.claude/settings.local.json`). Check nothing currently
   tracked matches before adding a pattern (`git ls-files -ci --exclude-standard`). Done when `npm run build` leaves
   `git status` clean. Found during P1-01, 2026-09-30
-- [ ] P1-03 Test harness with no new dependencies: Node's built-in `node:test`, with a small helper that loads
+- [x] P1-03 Test harness with no new dependencies: Node's built-in `node:test`, with a small helper that loads
   `r160.js` onto `globalThis` so modules that use the `THREE` global can be imported. `npm test` runs
   `node --test test/`. Done when `npm test` runs one passing test and fails when that test is broken on purpose.
   Found during P1-01, 2026-09-30
@@ -29,22 +29,22 @@ Goal: the repository can be checked by one command and resumed without tribal kn
   (`SentryConeEntity`), and the physics-math claim fixed 2026-09-30; left: modules the README's architecture list
   still omits (`ChunkManager.js`, `ChunkWorker.js`, `PaintballSystem.js`, the `src/ui/` tuners). Found during P1-01,
   2026-09-30
-- [ ] P1-05 Syntax check for every module: a test that runs `node --check` over each `.js` file in `src/`,
+- [x] P1-05 Syntax check for every module: a test that runs `node --check` over each `.js` file in `src/`,
   `lore-editor/js/`, and the root scripts. Needs P1-03. 2026-09-30
-- [ ] P1-06 Static import check: every name a module calls from a sibling module's exports is actually imported.
+- [x] P1-06 Static import check: every name a module calls from a sibling module's exports is actually imported.
   Would have caught the v1.5.6 entity `ReferenceError`s (`isRayPathBlocked`, `resolveEntityLocomotion`). A
   lightweight scan of export and import lines is enough; no linter dependency. Needs P1-03.
   2026-09-30
-- [ ] P1-07 Registry tests: every file in `src/world/blueprints/` is registered in `StructuralBlueprints.js`;
+- [x] P1-07 Registry tests: every file in `src/world/blueprints/` is registered in `StructuralBlueprints.js`;
   registered `prob` values sum to `1.0000` (±0.0001); every sector in `SectorBlueprints.js` has a `Sectors.js` entry
   and a `data/lore.json` pool; every `EntityManager` key is a real sector ID. Needs P1-03. 2026-09-30
-- [ ] P1-08 Narrative data tests: `data/*.json` parse; every `data/factory/` file has the same top-level shape as its
+- [x] P1-08 Narrative data tests: `data/*.json` parse; every `data/factory/` file has the same top-level shape as its
   live counterpart; every sector pool has at least one entry of each document type its generator places (the
   v1.5.6 Impound clipboard bug). Needs P1-03. 2026-09-30
-- [ ] P1-09 Server tests: start `engine_server.js` on a spare `PORT`, check that `/` serves `index.html`, that a
+- [x] P1-09 Server tests: start `engine_server.js` on a spare `PORT`, check that `/` serves `index.html`, that a
   `../` path is refused with 403, and that `/export` refuses a name escaping `assets/textures/`. Needs P1-03.
   2026-09-30
-- [ ] P1-10 Run `npm test` and `python3 tools/check_docs.py` on every push with a GitHub Actions workflow
+- [x] P1-10 Run `npm test` and `python3 tools/check_docs.py` on every push with a GitHub Actions workflow
   (`aedmark/level0engine`). Needs P1-03 and maintainer approval to add CI. 2026-09-30
 
 ## Phase 2: Engine and world
@@ -52,12 +52,12 @@ Goal: the repository can be checked by one command and resumed without tribal kn
 Goal: make sector behaviour data-driven instead of scattered, and prove the world is reproducible from its seed.
 Drafted 2026-09-30 from the code and changelog; confirmed by the maintainer the same day (Q-001).
 
-- [ ] P2-01 Move per-sector special cases into `Sectors.js` flags. `ChunkManager.js` hardcodes sector-ID lists for
+- [x] P2-01 Move per-sector special cases into `Sectors.js` flags. `ChunkManager.js` hardcodes sector-ID lists for
   ceiling height, void ceilings, hallway floors and ceilings (around lines 383–520), `Anomaly.js` hardcodes its
   forbidden-sector list, and `PlayerController.js`, `Mixer.js`, `AtmosphereManager.js` and `main.js` special-case
   `ACME`. Adding a sector today means finding all of them. Done when a new sector needs only its generator and its
   `Sectors.js` entry, and P1-07 checks the flags. 2026-09-30
-- [ ] P2-02 Seed reproducibility test: generate the same chunks twice from one seed (via `ChunkWorker` and the
+- [x] P2-02 Seed reproducibility test: generate the same chunks twice from one seed (via `ChunkWorker` and the
   sector matrix, headless) and compare a layout fingerprint. Then list and remove any `Math.random()` that affects
   layout rather than cosmetics (candidates: `ChunkManager.js` sector-matrix lookup, `buildBreakerPodium`'s default
   `random`). Needs P1-03. 2026-09-30

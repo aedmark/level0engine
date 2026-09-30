@@ -107,7 +107,7 @@ function ensureAssets(env) {
     return assets;
 }
 
-export function buildBreakerPodium(env, hash, random = Math.random) {
+export function buildBreakerPodium(env, hash, random) {
     const a = ensureAssets(env);
     const podium = new THREE.Group();
     const body = new THREE.Group();

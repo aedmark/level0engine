@@ -1,5 +1,5 @@
 import {ARCH_WALK_CLEARANCE} from '../StructureKit.js';
-import {pickStraightTileMat} from './ArchBorderMats.js';
+import {pickStraightTileMat} from '../ArchBorderMats.js';
 
 const DIRS = [
     {dx: 1, dz: 0},

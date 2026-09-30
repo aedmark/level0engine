@@ -1,7 +1,7 @@
 import TheArchitect from "../core/TheArchitect.js";
 import StructureKit from "./StructureKit.js";
-import {spawnBreakerPodium} from './blueprints/BreakerPodiumSpawn.js';
-import {spawnElevatorCar} from './blueprints/ElevatorSpawn.js';
+import {spawnBreakerPodium} from './BreakerPodiumSpawn.js';
+import {spawnElevatorCar} from './ElevatorSpawn.js';
 import {EmptyDoorFrameProfile} from './blueprints/EmptyDoorFrame.js';
 import {CrawlspaceDuctProfile} from './blueprints/CrawlspaceDuct.js';
 import {CrawlspaceHallProfile} from './blueprints/CrawlspaceHall.js';
@@ -11,7 +11,6 @@ import {ArchHallProfile} from './blueprints/ArchHall.js';
 import BootController from '../ui/BootController.js';
 import * as SectorPlacement from './SectorPlacement.js';
 
-const ACME_LEVELS_EACH_SIDE = 40;
 
 const CELL_KEY_SPAN = 4194304;
 const cellKey = (x, z) => x * (CELL_KEY_SPAN * 2) + z;
@@ -379,8 +378,7 @@ export default class ChunkManager {
             }
             env.discoveredSectors.set(hash, activeSectorId);
             activeSector = sectorMatrix.find(s => s.id === activeSectorId);
-            if (activeSector && activeSector.id === "IMPOUND") cHeight = 20.0;
-            if (activeSector && activeSector.id === "ACME") cHeight = 40.0;
+            if (activeSector && activeSector.ceilingHeight !== undefined) cHeight = activeSector.ceilingHeight;
 
             const inset = 8;
             env.macroZones.set(hash, {
@@ -393,12 +391,12 @@ export default class ChunkManager {
                 startX: startX,
                 startZ: startZ
             });
-            if (["ARCHIVE", "SERVER", "MAINTENANCE", "IMPOUND", "ATRIUM", "CHASM", "CLINIC", "INCINERATOR", "ACME"].includes(activeSector.id)) {
+            if (activeSector.hasMaze) {
                 sectorMaze = env._generateSectorMaze(random);
             }
-            if (activeSector.id === "ACME") {
+            if (activeSector.multiLevelMaze) {
                 acmeLevelMazes = [];
-                for (let i = -ACME_LEVELS_EACH_SIDE; i <= ACME_LEVELS_EACH_SIDE; i++) {
+                for (let i = -activeSector.multiLevelMaze; i <= activeSector.multiLevelMaze; i++) {
                     acmeLevelMazes.push(i === 0 ? sectorMaze : env._generateSectorMaze(random));
                 }
             }
@@ -424,8 +422,8 @@ export default class ChunkManager {
                 chunkGroup.add(cPlane);
             }
         }
-        const isChasm = activeSector && (activeSector.id === "CHASM" || activeSector.id === "ACME");
-        const usesVoidCeiling = activeSector && (activeSector.id === "CHASM" || activeSector.id === "ATRIUM" || activeSector.id === "ARCHIVE" || activeSector.id === "ACME");
+        const isChasm = activeSector && activeSector.voidFloorY !== undefined;
+        const usesVoidCeiling = activeSector && activeSector.voidCeiling !== undefined;
         const centerOffset = (env.chunkSize * env.cellSize) / 2 - (env.cellSize / 2);
         const floorGeo = env._planeGeo(env.chunkSize * env.cellSize, env.chunkSize * env.cellSize);
         const ceilGeo = floorGeo;
@@ -453,18 +451,15 @@ export default class ChunkManager {
                 env.voidShroudWhiteMat = new THREE.MeshBasicMaterial({color: 0xffffff, side: THREE.DoubleSide});
                 env.sharedAssets.add(env.voidShroudWhiteMat.uuid);
             }
-            const isAtriumVoid = activeSector && activeSector.id === "ATRIUM";
-            const isAcmeVoid = activeSector && activeSector.id === "ACME";
-            const isArchiveVoid = activeSector && activeSector.id === "ARCHIVE";
-            const shroudMat = isAtriumVoid ? env.voidShroudWhiteMat : env.voidShroudMat;
-            const canopyY = isAcmeVoid ? 100000.0 : (isAtriumVoid ? 66.0 : (isArchiveVoid ? 32.0 : 9.0));
+            const shroudMat = activeSector.voidCeiling.white ? env.voidShroudWhiteMat : env.voidShroudMat;
+            const canopyY = activeSector.voidCeiling.y;
             const span = env.chunkSize * env.cellSize;
             const canopy = new THREE.Mesh(env._planeGeo(span, span), shroudMat);
             canopy.rotation.x = Math.PI / 2;
             canopy.position.set(startX * env.cellSize + centerOffset, canopyY, startZ * env.cellSize + centerOffset);
             canopy.castShadow = true;
             chunkGroup.add(canopy);
-            const skirtBottom = isAcmeVoid ? 0.15 : (isAtriumVoid ? 55.6 : (isArchiveVoid ? 7.85 : 2.85));
+            const skirtBottom = canopyY < 20 ? 2.85 : (canopyY < 40 ? 7.85 : (canopyY < 70 ? 55.6 : 0.15));
             const skirtTop = canopyY + 0.15;
             const skirtCenterY = (skirtBottom + skirtTop) / 2;
             const skirtHeight = skirtTop - skirtBottom;
@@ -487,7 +482,7 @@ export default class ChunkManager {
                 chunkGroup.add(skirt);
             }
             if (isChasm) {
-                const floorVoidY = isAcmeVoid ? -100000.0 : -100.0;
+                const floorVoidY = activeSector.voidFloorY;
                 const floorVoid = new THREE.Mesh(env._planeGeo(span, span), shroudMat);
                 floorVoid.rotation.x = -Math.PI / 2;
                 floorVoid.position.set(cxw0, floorVoidY, czw0);
@@ -516,8 +511,8 @@ export default class ChunkManager {
         ctx.markOccupied = (ox, oz) => occupied.add(cellKey(ox, oz));
         ctx.isOccupied = (ox, oz) => occupied.has(cellKey(ox, oz));
         if (isMacroStructure && activeSector) {
-            const hallwayNeedsFloor = activeSector.id === "CHASM" || activeSector.id === "ACME";
-            const hallwayNeedsCeiling = activeSector.id !== "ARCHIVE" && activeSector.id !== "IMPOUND" && activeSector.id !== "ATRIUM" && activeSector.id !== "CHASM" && activeSector.id !== "ACME";
+            const hallwayNeedsFloor = activeSector.hallwayNeedsFloor || false;
+            const hallwayNeedsCeiling = activeSector.hallwayNeedsCeiling !== undefined ? activeSector.hallwayNeedsCeiling : true;
             env._buildEntranceHallways(chunkGroup, hash, startX, startZ, activeSector.id, ctx, hallwayNeedsFloor, hallwayNeedsCeiling, sectorMaze);
             const edge = env.chunkSize - 1;
             let shellStartTime = performance.now();
@@ -908,7 +903,12 @@ export default class ChunkManager {
             if (!SectorPlacement.isMacroChunk(placement, mcx, mcz)) return false;
             if (!placement.ids) {
                 try {
-                    const sectorMatrix = TheArchitect.getSectorMatrix.call(this.env, {random: Math.random});
+                    let prngSeed = (this.env.baseSeed || 0) >>> 0;
+                    const seededRandom = () => {
+                        prngSeed = (prngSeed * 1664525 + 1013904223) >>> 0;
+                        return prngSeed / 4294967296.0;
+                    };
+                    const sectorMatrix = TheArchitect.getSectorMatrix.call(this.env, {random: seededRandom});
                     placement.ids = sectorMatrix.filter(s => s.id !== "EXIT").map(s => s.id);
                 } catch (err) {
                     console.error('[ChunkManager] getSectorMatrix failed during airlock-apron check:', err);

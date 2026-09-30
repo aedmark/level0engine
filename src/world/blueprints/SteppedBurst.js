@@ -1,4 +1,4 @@
-import {archBorderMats} from './ArchBorderMats.js';
+import {archBorderMats} from '../ArchBorderMats.js';
 
 export const SteppedBurstProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, hash} = ctx;

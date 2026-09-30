@@ -1,3 +1,4 @@
+import SECTORS from './Sectors.js';
 export default class SetPieces {
     constructor(env) {
         this.env = env;
@@ -378,7 +379,7 @@ export default class SetPieces {
                 tag.position.set(tagX, 0.93, tagZ);
                 tag.rotation.y = random() * Math.PI;
                 tag.userData = {
-                    type: 'document',
+                    type: 'clipboard',
                     chunkHash: hash,
                     active: true,
                     zone: 'IMPOUND',
@@ -958,7 +959,7 @@ export default class SetPieces {
                 env.geoCache.set(floorGeo.uuid, true);
             }
             if (needsFloor) {
-                const usesCatwalk = sectorId === "CHASM" || sectorId === "ACME";
+                const usesCatwalk = SECTORS[sectorId] && SECTORS[sectorId].voidFloorY !== undefined;
                 const fMat = usesCatwalk ? (env.catwalkMat || env.tileMat) : env.tileMat;
                 const floor = new THREE.Mesh(floorGeo, fMat);
                 floor.rotation.x = -Math.PI / 2;

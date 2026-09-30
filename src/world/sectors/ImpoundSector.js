@@ -202,7 +202,7 @@ export const ImpoundSector = (env, ctx) => {
                             tag.position.set(hbx, hN * 0.5 + 0.01, hbz);
                             tag.rotation.y = random() * Math.PI;
                             tag.userData = {
-                                type: 'document',
+                                type: 'clipboard',
                                 chunkHash: hash,
                                 active: true,
                                 zone: 'IMPOUND',

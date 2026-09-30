@@ -1,4 +1,4 @@
-import {archBorderMats} from './ArchBorderMats.js';
+import {archBorderMats} from '../ArchBorderMats.js';
 
 export const LCornerNookProfile = (env, ctx) => {
     const {random, buildWall, addGeometry, buildTable, addFurniture} = ctx;

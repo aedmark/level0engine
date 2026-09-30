@@ -1,4 +1,4 @@
-import {buildWaitingBench} from '../ClinicFurniture.js';
+import {buildWaitingBench} from './ClinicFurniture.js';
 
 const BAY_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 

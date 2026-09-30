@@ -77,7 +77,7 @@ export default class AtmosphereManager {
 
     _updateLightning(time, activeSector, cameraPos) {
         const env = this.env;
-        const inAcme = activeSector === 'ACME' && !env.tutorialActive;
+        const inAcme = SECTORS[activeSector] && SECTORS[activeSector].hasLightning && !env.tutorialActive;
         let pendingThunder = null;
         if (inAcme) {
             if (!env._lightningNextStrike) env._lightningNextStrike = time + 6.0 + Math.random() * 10.0;

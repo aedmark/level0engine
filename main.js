@@ -1,3 +1,4 @@
+import SECTORS from './src/world/Sectors.js';
 import RenderEngine from './src/core/RenderEngine.js';
 import * as SectorPlacement from './src/world/SectorPlacement.js';
 import PlayerController from './src/player/PlayerController.js';
@@ -312,7 +313,8 @@ function animate() {
                 break;
             }
         }
-        if (!currentZone || currentZone.id !== 'ACME') {
+        const hasRescue = currentZone && SECTORS[currentZone.id] && SECTORS[currentZone.id].bottomlessRescue;
+        if (!currentZone || !hasRescue) {
             if (currentZone) {
                 const tx = (currentZone.startX + 7.5) * environment.cellSize;
                 const tz = (currentZone.startZ + 1.5) * environment.cellSize;

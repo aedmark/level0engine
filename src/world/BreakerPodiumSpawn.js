@@ -1,4 +1,4 @@
-import {buildBreakerPodium, PODIUM_PLATE_Y} from '../BreakerPodium.js';
+import {buildBreakerPodium, PODIUM_PLATE_Y} from './BreakerPodium.js';
 
 export const spawnBreakerPodium = (env, ctx, x, z) => {
     const {random, chunkGroup, hash} = ctx;

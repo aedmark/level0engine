@@ -1,4 +1,4 @@
-import {archBorderMats} from './ArchBorderMats.js';
+import {archBorderMats} from '../ArchBorderMats.js';
 
 export const CrawlspaceHallProfile = (env, ctx) => {
     const { addGeometry, random } = ctx;

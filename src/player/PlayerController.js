@@ -1,10 +1,11 @@
+import SECTORS from '../world/Sectors.js';
 import SomaticInput from './SomaticInput.js';
 import { sweepGroundedCollision } from '../entities/HazardUtils.js';
 
-const ACME_LOWEST_PLATFORM_Y = -49.2;
-const ACME_VOID_RESCUE_Y = ACME_LOWEST_PLATFORM_Y - 1000.0;
+const VOID_LOWEST_PLATFORM_Y = -49.2;
+const VOID_RESCUE_Y = VOID_LOWEST_PLATFORM_Y - 1000.0;
 const MAX_FALL_SPEED = 120.0;
-const ACME_WHISTLE_MIN_FALL_TIME = 1.2;
+const VOID_WHISTLE_MIN_FALL_TIME = 1.2;
 const LADDER_CLIMB_SPEED = 2.4;
 const LADDER_GRAB_RADIUS_SQ = 2.0;
 const LADDER_DISMOUNT_PUSH = 0.6;
@@ -780,26 +781,20 @@ export default class PlayerController {
             activeSector = this.env._resolveActiveSector(this.camera.position).activeSector;
         }
 
-        let defaultMax = 2.8;
-        if (activeSector === 'ACME') {
-            defaultMax = 100000.0;
-        } else if (activeSector === 'CHASM' || activeSector === 'ATRIUM' || activeSector === 'ARCHIVE') {
-            defaultMax = 40.0;
-        } else if (activeSector === 'IMPOUND') {
-            defaultMax = 20.0;
-        }
+        let defaultMax = SECTORS[activeSector] && SECTORS[activeSector].maxCamY !== undefined ? SECTORS[activeSector].maxCamY : 2.8;
         dynamicMaxCamY = Math.min(dynamicMaxCamY, defaultMax);
 
-        if (activeSector === 'ACME' && targetFeetY !== -100000 && this.fallVelocity === 0) {
+        const hasRescue = SECTORS[activeSector] && SECTORS[activeSector].bottomlessRescue;
+        if (hasRescue && targetFeetY !== -100000 && this.fallVelocity === 0) {
             if (!this._acmeSafeSpot) {
                 this._acmeSafeSpot = new THREE.Vector3();
                 this._acmeSafeSpot.copy(this.camera.position);
             }
-        } else if (activeSector !== 'ACME') {
+        } else if (!hasRescue) {
             this._acmeSafeSpot = null;
         }
 
-        if (activeSector === 'ACME' && this.camera.position.y < ACME_VOID_RESCUE_Y) {
+        if (hasRescue && this.camera.position.y < VOID_RESCUE_Y) {
             if (this._acmeSafeSpot) {
                 this.camera.position.copy(this._acmeSafeSpot);
                 this.camera.rotation.x = 0;
@@ -807,7 +802,7 @@ export default class PlayerController {
                 const sp = this.env._spawnElevator.placement;
                 this.camera.position.set(sp.x, 1.6, sp.z);
             } else {
-                this.camera.position.y = ACME_LOWEST_PLATFORM_Y + 3.0;
+                this.camera.position.y = VOID_LOWEST_PLATFORM_Y + 3.0;
             }
             this.fallVelocity = 0;
             this.velocity.set(0, 0, 0);
@@ -822,9 +817,9 @@ export default class PlayerController {
         const groundCamY = Math.min(targetFeetY + visualHeight, dynamicMaxCamY) + bobOffset - leanDrop;
 
         if (targetFeetY === -100000) {
-            if (activeSector === 'ACME') {
+            if (hasRescue) {
                 this._acmeFallElapsed = (this._acmeFallElapsed || 0) + delta;
-                if (!this._acmeWhistlePlaying && this._acmeFallElapsed > ACME_WHISTLE_MIN_FALL_TIME) {
+                if (!this._acmeWhistlePlaying && this._acmeFallElapsed > VOID_WHISTLE_MIN_FALL_TIME) {
                     this._acmeWhistlePlaying = true;
                     document.dispatchEvent(new CustomEvent('somatic-acme-fall-start'));
                 }

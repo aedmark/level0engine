@@ -127,7 +127,7 @@ export default class Mixer {
                 engine._nextGroanTime = 0;
             }
         }
-        if (activeSector === "ACME" && !isBlackout) {
+        if (SECTORS[activeSector] && SECTORS[activeSector].hasLightning && !isBlackout) {
             if (pendingThunder) {
                 engine._acmeThunderAt = time + pendingThunder.delay;
                 engine._acmeThunderIntensity = pendingThunder.intensity;
@@ -187,7 +187,7 @@ export default class Mixer {
         if (activeSector !== "CHECKPOINT" || isBlackout) {
             engine._checkpointNextEvent = 0;
         }
-        if (activeSector !== "ACME" || isBlackout) {
+        if (!(SECTORS[activeSector] && SECTORS[activeSector].acmeAudio) || isBlackout) {
             engine._acmeNextEvent = 0;
         }
         if (!isBlackout) {
@@ -268,15 +268,17 @@ export default class Mixer {
                         else engine.triggerSomaticEvent('tape_click', cDistSq, 0.2 + Math.random() * 0.3);
                     }
                     break;
-                case "ACME":
-                    if (!engine._acmeNextEvent) engine._acmeNextEvent = time + 2.0;
-                    if (time >= engine._acmeNextEvent) {
-                        engine._acmeNextEvent = time + 1.5 + Math.random() * 3.5;
-                        const acRoll = Math.random();
-                        const acDistSq = 16.0 + Math.random() * 260.0;
-                        if (acRoll < 0.45) engine.triggerSomaticEvent('gutter_drip', acDistSq, 0.4 + Math.random() * 0.4);
-                        else if (acRoll < 0.75) engine.triggerSomaticEvent('drip', acDistSq, 0.3 + Math.random() * 0.3);
-                        else engine.triggerSomaticEvent('metal_clank', acDistSq, 0.5 + Math.random() * 0.4);
+                default:
+                    if (SECTORS[activeSector] && SECTORS[activeSector].acmeAudio) {
+                        if (!engine._acmeNextEvent) engine._acmeNextEvent = time + 2.0;
+                        if (time >= engine._acmeNextEvent) {
+                            engine._acmeNextEvent = time + 1.5 + Math.random() * 3.5;
+                            const acRoll = Math.random();
+                            const acDistSq = 16.0 + Math.random() * 260.0;
+                            if (acRoll < 0.45) engine.triggerSomaticEvent('gutter_drip', acDistSq, 0.4 + Math.random() * 0.4);
+                            else if (acRoll < 0.75) engine.triggerSomaticEvent('drip', acDistSq, 0.3 + Math.random() * 0.3);
+                            else engine.triggerSomaticEvent('metal_clank', acDistSq, 0.5 + Math.random() * 0.4);
+                        }
                     }
                     break;
             }

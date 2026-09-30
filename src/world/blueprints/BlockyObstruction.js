@@ -1,4 +1,4 @@
-import {archBorderMats} from './ArchBorderMats.js';
+import {archBorderMats} from '../ArchBorderMats.js';
 
 export const BlockyObstructionProfile = (env, ctx) => {
     const {random, buildWall, addGeometry} = ctx;

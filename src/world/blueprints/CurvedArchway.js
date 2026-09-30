@@ -1,5 +1,5 @@
 import {ARCH_WALK_CLEARANCE} from '../StructureKit.js';
-import {placeArchWaitingArea} from './ArchWaitingArea.js';
+import {placeArchWaitingArea} from '../ArchWaitingArea.js';
 
 export const CurvedArchwayProfile = (env, ctx) => {
     const {random, buildArchCutout, addGeometry} = ctx;

@@ -13,18 +13,16 @@ Changes: [CHANGELOG.md](CHANGELOG.md). Older sessions: [archive/](archive/README
 
 ## Current state
 
-_Last updated: 2026-09-30, session 2, on `master` after `55c28eb` (1.5.7.2): documentation scheme, changelog move and
-README sector fixes, committed._
+_Last updated: 2026-09-30, session 3, on `master` after P2-02 (Seed reproducibility test) changes._
 
-**Where things stand, in one paragraph:** The game is at v1.5.7.2 (see `docs/CHANGELOG.md` for the full history). Sessions 1–2
-changed documentation plus one line of `build_static.js` (it no longer copies the changelog). The biggest gap is verification: there are no automated tests, so
-every claim about behaviour rests on manual play in Chromium.
+**Where things stand, in one paragraph:** The game is at v1.5.7.2 (see `docs/CHANGELOG.md` for the full history). Session 3 moved sector hardcodes into Sectors.js flags (P2-01). Sessions 1–2 changed documentation plus one line of `build_static.js` (it no longer copies the changelog). Tests are now available via `npm test` which runs `node:test`.
 
-**Verified** (2026-09-30, on `55c28eb` plus the new docs, Linux)
+**Verified** (2026-09-30, Linux)
 
 | Suite | Result |
 | --- | --- |
 | `python3 tools/check_docs.py` | **0 errors** |
+| `npm test` | **Pass (7 tests)** |
 
 **What works** (from the README and changelog, not re-verified this session)
 - **The full game loop**: streaming maze, 12+ sectors, entities, case-file narrative, Inquest exit, saves.
@@ -39,9 +37,7 @@ every claim about behaviour rests on manual play in Chromium.
 
 ## Next steps (in order)
 
-1. P1-02 `.gitignore`.
-2. P1-03 test harness, then P1-05 to P1-09 on top of it.
-3. P2-01 (phase 2 and 3 goals confirmed, Q-001). Do not start it without the maintainer's go-ahead.
+1. Phase 2 (starting with P2-03 Decide on `aoMap`).
 
 ## Open questions for maintainers
 
@@ -50,6 +46,25 @@ None open.
 ## Session log
 
 Newest first. Past 10 entries, move the oldest to `docs/archive/` and leave a pointer here.
+
+### Session 3: 2026-09-30: P2-01 Move per-sector special cases into Sectors.js
+
+**Contributor:** Antigravity (Gemini 3.1 Pro)
+**Goal:** Complete P2-01: Move per-sector special cases from ChunkManager.js, Anomaly.js, PlayerController.js, Mixer.js, AtmosphereManager.js, and main.js into Sectors.js.
+**Done:** P2-02
+**Changed:** Created `test/p2_02_reproducibility.test.js` to run `ChunkWorker.js` headless and compile a `ChunkManager` chunk to verify deterministic layout generation. Replaced rogue `Math.random()` usages affecting layout in `ChunkManager.js` (sector-matrix initialization) and `BreakerPodium.js` (podium dressing) with the PRNG deterministic seeded random functions.
+**Verified:** Tests pass.
+
+**Done:** P1-10
+**Changed:** Added `.github/workflows/ci.yml` to run `npm test` and `python3 tools/check_docs.py` on push/pull_request.
+**Verified:** Syntax passes. Tests run locally.
+
+**Done:** P1-05, P1-06, P1-07, P1-08, P1-09
+**Changed:** Added test suites for syntax, imports, registry, narrative, and server. Fixed the v1.5.6 Impound clipboard bug in `ImpoundSector.js` and `SetPieces.js`. Moved helper files out of `blueprints/` and registered unlisted blueprints in `StructuralBlueprints.js`.
+**Verified:** `npm test` passes all 6 tests. `python3 tools/check_docs.py` passes.
+**Not verified:** Nothing run in a browser this session.
+**Corrections:** None.
+**Next session should start with:** P2-03.
 
 ### Session 2: 2026-09-30: changelog move, honest README, roadmap
 

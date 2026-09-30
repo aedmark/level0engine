@@ -1,5 +1,5 @@
-import {attachPropGlow} from '../PropGlow.js';
-import {PROP_GLOW} from '../NarrativeProps.js';
+import {attachPropGlow} from './PropGlow.js';
+import {PROP_GLOW} from './NarrativeProps.js';
 
 const EXIT_DIRS = [
     {dx: 0, dz: 1, spansX: true},

@@ -1,3 +1,4 @@
+import SECTORS from '../world/Sectors.js';
 import {sweepGroundedCollision, isRayPathBlocked} from './HazardUtils.js';
 
 const SPRINT_SPEED = 5.3;
@@ -140,7 +141,7 @@ export default class Anomaly {
         if (!force && time < this._nextBoundsCheck) return;
         this._nextBoundsCheck = time + 3.0;
         if (!this.env || !this.env.getSectorBounds) return;
-        this._forbiddenBounds = ['ARCHIVE', 'IMPOUND', 'INCINERATOR', 'BOARDROOM', 'SERVER', 'CLINIC', 'MAINTENANCE', 'CHASM', 'ATRIUM', 'ANNEX', 'CHECKPOINT', 'ACME']
+        this._forbiddenBounds = Object.keys(SECTORS).filter(id => !SECTORS[id].anomalyAllowed)
             .map(id => this.env.getSectorBounds(id))
             .filter(Boolean);
     }
