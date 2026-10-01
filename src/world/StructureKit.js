@@ -1,4 +1,5 @@
 
+import SECTORS from './Sectors.js';
 export const ARCH_WALK_CLEARANCE = 2.55;
 
 const SEAT_UPRIGHT_DOT = 0.7;
