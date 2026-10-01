@@ -1,479 +1,204 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LEVEL 0 ENGINE // Procedural Horror Simulator</title>
-    <meta name="theme-color" content="#050505">
-
-    <link href="assets/fonts/vt323.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-
-    <style>
-        :root {
-            --liminal-900: #1a1811;
-            --liminal-800: #332d1c;
-            --liminal-500: #a89f68;
-            --liminal-400: #d4c382;
-            --liminal-100: #ffffe0;
-            --font-mono: 'Space Mono', monospace;
-            --font-vhs: 'VT323', monospace;
-        }
-
-        *, *::before, *::after {
-            box-sizing: border-box;
-        }
-
-        h1, h2, p, ol, ul {
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            margin: 0;
-            background-color: #050505;
-            color: var(--liminal-400);
-            font-family: var(--font-mono);
-            font-size: 0.875rem;
-            -webkit-font-smoothing: antialiased;
-            overflow-x: hidden;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        .noise-overlay {
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: 50;
-            opacity: 0.04;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-        }
-
-        .scanlines {
-            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
-            background-size: 100% 4px;
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: 49;
-        }
-
-        @keyframes flicker {
-            0% { opacity: 0.9; text-shadow: 0 0 4px rgba(212, 195, 130, 0.4); }
-            5% { opacity: 0.5; text-shadow: none; }
-            10% { opacity: 0.9; text-shadow: 0 0 4px rgba(212, 195, 130, 0.4); }
-            15% { opacity: 1; text-shadow: 0 0 8px rgba(212, 195, 130, 0.6); }
-            50% { opacity: 0.8; text-shadow: 0 0 4px rgba(212, 195, 130, 0.4); }
-            100% { opacity: 1; text-shadow: 0 0 10px rgba(212, 195, 130, 0.8); }
-        }
-
-        .terminal-glow {
-            animation: flicker 5s infinite alternate;
-        }
-
-        ::selection {
-            background: var(--liminal-400);
-            color: #050505;
-        }
-
-        .main-wrapper {
-            flex-grow: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 1rem;
-            margin-top: 2rem;
-            margin-bottom: 2rem;
-            position: relative;
-            z-index: 10;
-        }
-
-        .terminal-box {
-            max-width: 56rem;
-            width: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            border: 1px solid var(--liminal-800);
-            padding: 1.5rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
-            position: relative;
-        }
-
-        .terminal-gradient {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 0.25rem;
-            background: linear-gradient(to right, transparent, var(--liminal-800), transparent);
-            opacity: 0.5;
-        }
-
-        .terminal-header {
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 2.5rem;
-            border-bottom: 1px solid var(--liminal-800);
-            padding-bottom: 1rem;
-        }
-
-        .terminal-title {
-            font-size: 3rem;
-            font-weight: 700;
-            font-family: var(--font-vhs);
-            letter-spacing: 0.1em;
-            color: var(--liminal-100);
-            text-transform: uppercase;
-        }
-
-        .terminal-subtitle {
-            color: var(--liminal-500);
-            margin-top: 0.25rem;
-            letter-spacing: 0.2em;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-        }
-
-        .sys-info {
-            margin-top: 1rem;
-            text-align: left;
-            font-size: 0.75rem;
-            color: var(--liminal-800);
-            font-weight: 700;
-            letter-spacing: 0.1em;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .return-link {
-            color: var(--liminal-500);
-            text-decoration: none;
-            text-transform: uppercase;
-            letter-spacing: 0.2em;
-            transition: color 0.2s ease;
-        }
-
-        .return-link:hover {
-            color: var(--liminal-100);
-            animation: flicker 5s infinite alternate;
-        }
-
-        .terminal-article {
-            line-height: 1.625;
-            font-size: 0.875rem;
-            display: flex;
-            flex-direction: column;
-            gap: 2rem;
-        }
-
-        .terminal-article p.intro-text {
-            font-size: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        .terminal-article p.mb-4 {
-            margin-bottom: 1rem;
-        }
-
-        .section-title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--liminal-100);
-            border-bottom: 1px solid var(--liminal-800);
-            padding-bottom: 0.5rem;
-            margin-bottom: 1rem;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-        }
-
-        .info-block {
-            padding-left: 1rem;
-            border-left: 2px solid var(--liminal-800);
-            color: var(--liminal-400);
-            padding-top: 0.5rem;
-            padding-bottom: 0.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .highlight-text {
-            color: var(--liminal-100);
-            font-weight: 700;
-        }
-
-        .block-title {
-            display: block;
-            margin-top: 0.5rem;
-            margin-bottom: 0.5rem;
-            color: var(--liminal-100);
-            font-weight: 700;
-        }
-
-        .sub-text {
-            color: var(--liminal-500);
-            font-style: italic;
-            font-size: 0.75rem;
-        }
-
-        .ordered-list {
-            list-style-type: decimal;
-            padding-left: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .ordered-list > li::marker {
-            color: var(--liminal-800);
-            font-weight: 700;
-        }
-
-        .sub-list {
-            list-style-type: disc;
-            padding-left: 1rem;
-            border-left: 1px solid var(--liminal-800);
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            margin-top: 0.5rem;
-        }
-
-        .sub-list > li::marker {
-            color: var(--liminal-800);
-        }
-
-        code {
-            background-color: rgba(26, 24, 17, 0.8);
-            color: var(--liminal-100);
-            padding: 0.125rem 0.375rem;
-            border: 1px solid var(--liminal-800);
-            border-radius: 0.125rem;
-            font-size: 0.85em;
-        }
-
-        .terminal-footer {
-            margin-top: 4rem;
-            padding-top: 2rem;
-            border-top: 1px solid var(--liminal-800);
-            display: flex;
-            justify-content: center;
-        }
-
-        .btn-glitch {
-            display: inline-block;
-            border: 1px solid var(--liminal-400);
-            color: var(--liminal-400);
-            padding: 1rem 3rem;
-            text-align: center;
-            text-transform: uppercase;
-            letter-spacing: 0.2em;
-            font-weight: 700;
-            font-size: 0.875rem;
-            text-decoration: none;
-            transition: all 0.2s ease;
-            position: relative;
-            overflow: hidden;
-            cursor: pointer;
-        }
-
-        .btn-glitch:hover {
-            background-color: var(--liminal-400);
-            color: #050505;
-            box-shadow: 0 0 15px rgba(212, 195, 130, 0.5);
-        }
-
-        .btn-glitch::before {
-            content: '';
-            position: absolute;
-            top: 0; left: -100%; width: 100%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.5s ease;
-        }
-
-        .btn-glitch:hover::before {
-            left: 100%;
-        }
-
-        .page-footer {
-            position: relative;
-            z-index: 10;
-            text-align: center;
-            padding: 1rem 1rem 2rem 1rem;
-            font-size: 0.75rem;
-            color: var(--liminal-800);
-            letter-spacing: 0.1em;
-        }
-
-        .career-link {
-            color: inherit;
-            text-decoration: none;
-            transition: color 0.2s ease;
-        }
-
-        .career-link:hover {
-            color: var(--liminal-500);
-        }
-
-        @media (min-width: 768px) {
-            .main-wrapper {
-                padding: 2rem;
-            }
-            .terminal-box {
-                padding: 2.5rem;
-            }
-            .terminal-header {
-                flex-direction: row;
-                align-items: flex-end;
-            }
-            .terminal-title {
-                font-size: 3.75rem;
-            }
-            .sys-info {
-                margin-top: 0;
-                text-align: right;
-            }
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Level 0 Engine is a procedural liminal-space horror game running natively in the browser.">
+  <meta name="theme-color" content="#1a1811">
+  <title>Level 0 Engine — Procedural Liminal Horror</title>
+  <link href="assets/fonts/vt323.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="site.css">
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to the game</a>
 
-<div class="noise-overlay"></div>
-<div class="scanlines"></div>
+  <header class="site-header">
+    <a class="wordmark" href="index.html" aria-label="Level 0 Engine home">
+      <span class="wordmark-main">LEVEL 0</span>
+      <span class="wordmark-mark">ENGINE</span>
+    </a>
+    <nav aria-label="Primary navigation">
+      <a href="#discover">Discover</a>
+      <a href="#how-to-survive">How to survive</a>
+      <a href="#controls">Controls</a>
+      <a class="nav-cta" href="https://github.com/aedmark/level0engine">Source</a>
+    </nav>
+  </header>
 
-<main class="main-wrapper">
-    <div class="terminal-box">
+  <main id="main">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-image" role="img" aria-label="A dark, liminal office space illuminated only by a flashlight"></div>
+      <div class="hero-shade"></div>
+      <div class="hero-content">
+        <p class="eyebrow">Level 0 Engine · Procedural Liminal Horror</p>
+        <h1 id="hero-title">The dark is not empty.</h1>
+        <p class="hero-lede">
+          A procedural liminal-space horror game running natively in the browser on WebGL. 
+          The maze, textures, audio, and narrative are all generated at runtime from a seed.
+          Find the breakers, settle the truth, and escape before your sanity fractures.
+        </p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="terminal.html">Initialize Session</a>
+        </div>
+      </div>
+      <p class="hero-caption">Zero-Dependency ES6 · Runs locally in the browser</p>
+    </section>
 
-        <div class="terminal-gradient"></div>
+    <section class="signal-strip" aria-label="Project highlights">
+      <p><strong>Infinite</strong><span>procedural labyrinths</span></p>
+      <p><strong>13</strong><span>distinct macro sectors</span></p>
+      <p><strong>0</strong><span>external build steps</span></p>
+      <p><strong>1</strong><span>roaming anomaly</span></p>
+    </section>
 
-        
-        <header class="terminal-header" style="flex-direction: column; align-items: center; text-align: center; padding: 4rem 0 2rem; border-bottom: none;">
-            <div style="margin-bottom: 2rem;">
-                <h1 class="terminal-title terminal-glow" style="font-size: 4rem; line-height: 1;">LEVEL 0 ENGINE</h1>
-                <p class="terminal-subtitle" style="font-size: 1.2rem; color: var(--liminal-500); margin-top: 1rem;">The infinite is not waiting for you.</p>
-            </div>
-            <div style="display: flex; gap: 1rem; justify-content: center; width: 100%;">
-                <button onclick="window.opener ? window.close() : window.location.href='terminal.html'" class="btn-glitch" style="font-size: 1.2rem; padding: 1rem 2rem;">BOOT ENGINE</button>
-                <button onclick="window.location.href='https://github.com/aedmark/level0engine'" class="btn-glitch" style="font-size: 1.2rem; padding: 1rem 2rem;">SOURCE CODE</button>
-            </div>
-        </header>
+    <section class="section discover" id="discover" aria-labelledby="discover-title">
+      <div class="section-heading">
+        <p class="eyebrow">Architecture & Engine</p>
+        <h2 id="discover-title">Built for the web, native to the browser.</h2>
+        <p>
+          The engine runs entirely on native ES6 modules and WebGL via Three.js. 
+          O(1) Spatial Hash Grid collisions and zero-allocation scratch vectors maintain silky 60fps,
+          while dynamic lighting uses a fixed hardware shadow-caster pool with hysteresis to eliminate popping.
+        </p>
+      </div>
 
-        <article class="terminal-article">
-            
-            <section style="margin-top: 2rem; border-top: 1px solid var(--liminal-800); padding-top: 2rem;">
-                <div class="info-block" style="border-left: 4px solid var(--liminal-400); padding-left: 1rem; margin-bottom: 2rem; font-size: 1.1rem;">
-                    <p class="mb-4" style="color: var(--liminal-100);"><strong>Procedural Space:</strong> Labyrinths generated on the fly.<br>
-                    <strong>Deterministic Seeds:</strong> The same geometry for every explorer.<br>
-                    <strong>Brutalist Friction:</strong> Somatic collisions and tight bottlenecks.<br>
-                    <strong>Zero Dependencies:</strong> Runs entirely natively in-browser via ES6.</p>
-                </div>
-                <p class="intro-text mb-4">
-                    The Level 0 Engine is a mathematically pure, zero-dependency procedural 3D horror simulator running natively in your browser. You are trapped in an infinite, shifting corporate facility. Your only tools are a heavy kinetic flashlight and your own sanity.
-                </p>
+      <div class="gallery">
+        <figure class="gallery-item">
+          <img src="screenshot.png" alt="In-game screenshot of Level 0 Engine">
+          <figcaption>
+            <strong>Procedural Acoustics & Post-Processing</strong>
+            Dynamic Chromatic Aberration, CRT scanlines, and claustrophobic vignettes tied directly to the Anomaly's proximity pressure. Live DSP shifts room tones and physically muffles sounds when occluded by walls.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
 
-                <p class="mb-4">
-                    There is an exit, but the building will not surrender it easily. You must navigate the labyrinth, restore power by finding localized surge breakers, and piece together the final truth of the facility's incident from scattered case files. 
-                </p>
-                <p class="mb-4" style="color: var(--liminal-500)">
-                    Trust your compass. Manage your charge. Don't look back.
-                </p>
-            </section>
+    <section class="section guide" id="how-to-survive" aria-labelledby="guide-title">
+      <div class="section-heading">
+        <p class="eyebrow">The rules of the labyrinth</p>
+        <h2 id="guide-title">How to survive</h2>
+        <p>
+          The facility generated a unique cold case just for you. Find notes, laptops, and tapes to unravel it. Unverified documents burden your mind. You must corroborate claims by finding matching evidence in entirely different sectors.
+        </p>
+      </div>
 
-            <section>
-                <h2 class="section-title">> Controls</h2>
-                <ul class="ordered-list" style="list-style-type: none; padding-left: 0;">
-                    <li><strong class="highlight-text">Left-Click:</strong> Engage Pointer Lock (Look around)</li>
-                    <li><strong class="highlight-text">Right-Click (Hold):</strong> Kinematic Peek (Physically lean your camera around corners)</li>
-                    <li><strong class="highlight-text">W, A, S, D:</strong> Move</li>
-                    <li><strong class="highlight-text">Shift:</strong> Sprint (Burns Adrenaline if chased)</li>
-                    <li><strong class="highlight-text">C:</strong> Crouch (Lowers detection radius)</li>
-                    <li><strong class="highlight-text">Q:</strong> Squeeze (Compress your collision radius to slide through narrow cracks)</li>
-                    <li><strong class="highlight-text">F:</strong> Toggle Flashlight (Consumes charge, expands detection radius)</li>
-                    <li><strong class="highlight-text">E:</strong> Interact (Doors, keypads, documents, Surge Breakers)</li>
-                    <li><strong class="highlight-text">Arrow Keys:</strong> Browse the recovered archive while a terminal is open (<code>◄</code>/<code>▲</code> previous, <code>►</code>/<code>▼</code> next)</li>
-                    <li><strong class="highlight-text">T:</strong> Spray UV Decoy Breadcrumb (Mark your path and distract anomalies)</li>
-                    <li><strong class="highlight-text">V (Hold):</strong> Close Eyes (Rapidly calms your nerves, but you're blind to everything while you do it)</li>
-                    <li><strong class="highlight-text">X:</strong> Capture Asset (Take a screenshot)</li>
-                    <li><strong class="highlight-text">J:</strong> Open Personal Journal (Amber PDA)</li>
-                    <li><strong class="highlight-text">P:</strong> Raise/lower the Paintball Gun</li>
-                    <li><strong class="highlight-text">M:</strong> Raise/lower the Threshold Compass</li>
-                    <li><strong class="highlight-text">ESC:</strong> Release Pointer Lock / Rest</li>
-                </ul>
-            </section>
+      <ol class="guide-steps">
+        <li>
+          <div class="step-number">01</div>
+          <div class="step-body">
+            <p class="step-kicker">Manage your sanity</p>
+            <h3>The Flashlight</h3>
+            <p>
+              The dark is dangerous. Unverified claims and roaming in pitch black will accumulate as tension, reducing your maximum flashlight charge. Settle claims to restore your sanity limit. If your psyche fractures past 50%, expect hallucinations.
+            </p>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">02</div>
+          <div class="step-body">
+            <p class="step-kicker">Avoid the hunter</p>
+            <h3>The Anomaly</h3>
+            <p>
+              It hunts via line-of-sight and sound. It feeds on panic. The more exhausted you are, the faster it pursues. Catching it in your flashlight beam will freeze it in place, but it will anger it. If it catches you, reality will mutate and rebuild around a new cold case.
+            </p>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">03</div>
+          <div class="step-body">
+            <p class="step-kicker">Survive the zones</p>
+            <h3>Sector Hazards</h3>
+            <p>
+              Different zones harbor unique threats. In the Incinerator, don't look away from the Ember. In the Archive, the Archivist drifts at a distance. Don't sprint at it. In the Atrium, keep moving through the aisles — linger too long without a shelf overhead and a mechanical claw drops from the ceiling.
+            </p>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">04</div>
+          <div class="step-body">
+            <p class="step-kicker">Restore the grid</p>
+            <h3>Surge Breakers</h3>
+            <p>
+              To power the exit elevator, you must locate and engage three highly rare Dimensional Switches hidden in the labyrinth. Pulling a breaker plunges the sector into a pitch-black reboot sequence before stabilizing the grid.
+            </p>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">05</div>
+          <div class="step-body">
+            <p class="step-kicker">Submit the truth</p>
+            <h3>The Endgame</h3>
+            <p>
+              Once you have the breakers and the elevator key, the exit will dynamically construct itself in the next unvisited sector. The terminal demands the Finding of Fact. Submit the correct verdict based on the evidence. File the truth to escape; file wrong, and the void takes you.
+            </p>
+          </div>
+        </li>
+      </ol>
+    </section>
 
-            <section>
-                <h2 class="section-title">> How to Survive</h2>
-                <div class="info-block">
-                    <p><strong class="highlight-text">The Flashlight & Sanity:</strong> The dark is dangerous. Unverified claims and roaming in pitch black will accumulate as tension, reducing your maximum flashlight charge. Settle claims to restore your sanity limit. If your psyche fractures past 50%, expect hallucinations.</p>
+    <section class="section controls" id="controls" aria-labelledby="controls-title">
+      <div class="section-heading split-heading">
+        <div>
+          <p class="eyebrow">Keep this nearby</p>
+          <h2 id="controls-title">The useful controls</h2>
+        </div>
+        <p>The labyrinth demands constant movement and resource management.</p>
+      </div>
 
-                    <p><strong class="highlight-text">The Anomaly:</strong> It hunts via line-of-sight and sound. It feeds on panic. The more exhausted you are, the faster it pursues. Catching it in your flashlight beam will freeze it in place, but it will anger it. If it catches you, reality will mutate and rebuild around a new cold case.</p>
+      <div class="control-groups">
+        <section class="control-card">
+          <p class="card-index">A · Movement</p>
+          <h3>Navigate</h3>
+          <dl>
+            <div><dt><kbd>W A S D</kbd></dt><dd>Move</dd></div>
+            <div><dt><kbd>Mouse</kbd></dt><dd>Look</dd></div>
+            <div><dt><kbd>Shift</kbd></dt><dd>Sprint (Draws stamina)</dd></div>
+            <div><dt><kbd>Space</kbd></dt><dd>Jump</dd></div>
+          </dl>
+        </section>
+        <section class="control-card">
+          <p class="card-index">B · Interaction</p>
+          <h3>Engage</h3>
+          <dl>
+            <div><dt><kbd>E</kbd></dt><dd>Interact / Pick Up</dd></div>
+            <div><dt><kbd>LMB</kbd></dt><dd>Toggle Flashlight</dd></div>
+            <div><dt><kbd>RMB</kbd></dt><dd>Focus Beam (Burns charge rapidly)</dd></div>
+            <div><dt><kbd>R</kbd></dt><dd>Reload Flashlight Battery</dd></div>
+          </dl>
+        </section>
+        <section class="control-card">
+          <p class="card-index">C · Equipment</p>
+          <h3>Tools</h3>
+          <dl>
+            <div><dt><kbd>J</kbd></dt><dd>Open Personal Journal (Amber PDA)</dd></div>
+            <div><dt><kbd>M</kbd></dt><dd>Raise/lower Threshold Compass</dd></div>
+            <div><dt><kbd>P</kbd></dt><dd>Raise/lower Paintball Gun</dd></div>
+            <div><dt><kbd>X</kbd></dt><dd>Capture Asset (Screenshot)</dd></div>
+          </dl>
+        </section>
+        <section class="control-card">
+          <p class="card-index">D · System</p>
+          <h3>Control</h3>
+          <dl>
+            <div><dt><kbd>V</kbd> (Hold)</dt><dd>Close Eyes (Calms nerves, blinds you)</dd></div>
+            <div><dt><kbd>TAB</kbd></dt><dd>Open System Terminal (Settings)</dd></div>
+            <div><dt><kbd>ESC</kbd></dt><dd>Release Pointer Lock / Pause</dd></div>
+          </dl>
+        </section>
+      </div>
+    </section>
 
-                    <p><strong class="highlight-text">Sector Hazards:</strong> Different zones harbor unique threats. In the Incinerator, don't look away from the Ember. In the Archive, the Archivist drifts at a distance. Don't sprint at it. In the Impound, avoid the Warden's red searchlight. In the Servers, don't touch the live cables lit by the Backup Daemon. In the Atrium, keep moving through the aisles — linger too long without a shelf overhead and a mechanical claw drops from the ceiling to snatch you.</p>
-                </div>
-            </section>
+    <section class="closing" aria-labelledby="closing-title">
+      <p class="eyebrow">The Anomaly is waiting.</p>
+      <h2 id="closing-title">Pick a seed.<br>Step inside.</h2>
+      <a class="button button-primary" href="terminal.html">INITIALIZE SESSION</a>
+    </section>
+  </main>
 
-            <section>
-                <h2 class="section-title">> Navigation & Objectives</h2>
-                <div class="info-block">
-                    <p><strong class="highlight-text">Surge Breakers:</strong> To power the exit elevator, you must locate and engage three highly rare Dimensional Switches hidden in the labyrinth. Pulling a breaker plunges the sector into a pitch-black reboot sequence before stabilizing the grid.</p>
-                    <p><strong class="highlight-text">The Radar vs Compass:</strong> The UI radar tracks objectives (like Surge Breakers) but refuses to tell you which way to go, merely reporting distance. Under intense Anomaly pressure, it will scramble. Press <code>M</code> to raise your Threshold Compass. It points strictly to the nearest sector transition door, helping you reorient when lost. However, once you have fulfilled all objectives and enter the Exit Phase, the compass overrides its basic function and points directly to the nearest undiscovered sector where the exit will manifest.</p>
-                    <p><strong class="highlight-text">The Paintball Gun:</strong> A chunky, retro-FPS styled pistol raised into view with <code>P</code>. Stripped down to a minimalist, floating aesthetic where only the barrel, slide, and hammer are visible, keeping the central screen free of distracting hand or grip geometry.</p>
-                    <p><strong class="highlight-text">The Paper Trail:</strong> The facility generated a unique cold case just for you. Find notes, laptops, and tapes to unravel it (key items now emit a localized glow to help you spot them in the dark). Unverified documents burden your mind. You must corroborate claims by finding matching evidence in entirely different sectors. Press <code>J</code> at any time to review your PDA journal.</p>
-                </div>
-            </section>
-
-            <section>
-                
-            <section>
-                <h2 class="section-title">> Technical Architecture</h2>
-                <div class="info-block">
-                    <p><strong class="highlight-text">Zero-Dependency ES6:</strong> The engine uses no bundlers or build steps. It runs entirely on native ES6 modules and WebGL via Three.js.</p>
-                    <p><strong class="highlight-text">Procedural Audio & Acoustics:</strong> A live, native digital signal processor (DSP) shifts room tones—from the sterile hiss of corporate HVACs to the recycled-air hush of the atrium—and physically muffles sounds when occluded by walls.</p>
-                    <p><strong class="highlight-text">Physics & Lighting:</strong> O(1) Spatial Hash Grid collisions and zero-allocation scratch vectors maintain silky 60fps. Dynamic lighting uses a fixed hardware shadow-caster pool with hysteresis to eliminate popping.</p>
-                    <p><strong class="highlight-text">Native Post-Processing:</strong> Dynamic Chromatic Aberration, CRT scanlines, and claustrophobic vignettes are tied directly to the Anomaly's proximity pressure. The optical feed violently tears as the entity enters striking distance.</p>
-                </div>
-            </section>
-
-<h2 class="section-title">> System Operation</h2>
-                <div class="info-block">
-                    <p><strong class="highlight-text">Boot Sequence & Persistence:</strong> Upon initializing the engine, you will be presented with a terminal prompt. Select <strong>Continue Session</strong> to resume exactly where you left off, preserving your current run and inventory. Select <strong>Purge & Start New Game</strong> to wipe all memory caches and generate a fresh reality.</p>
-                    <p><strong class="highlight-text">Performance & Aesthetics:</strong> The engine features a heavily optimized boot sequence and fixed lighting pool to maintain performance. By default, FXAA (anti-aliasing) is disabled to enhance the retro VHS pixelation and boost GPU fill-rate. You can adjust this and other visual parameters in the Settings panel (<code>Tab</code>).</p>
-                </div>
-            </section>
-
-            <section>
-                <h2 class="section-title">> The Endgame</h2>
-                <div class="info-block">
-                    <p><strong class="highlight-text">The Exit Threshold:</strong> The extraction bunker only manifests once all three sector breakers are thrown <em>and</em> you are carrying the elevator release key, which is locked in a records room (requires keypad code deciphered via your clues). Once you have these, the exit will dynamically construct itself in the next unvisited sector you approach.</p>
-                    <p><strong class="highlight-text">The Inquest:</strong> The elevator does not descend freely. The terminal demands the Finding of Fact. You must submit the correct verdict (1, 2, or 3) based on the evidence you've verified across the sectors. File the truth to escape; file wrong, and the void takes you.</p>
-                </div>
-            </section>
-
-        </article>
-
-        
-        <footer class="terminal-footer" style="flex-direction: column; text-align: center; padding: 4rem 0;">
-            <p style="color: var(--liminal-500); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.2em;">The Anomaly is waiting.</p>
-            <h2 style="font-size: 2.5rem; color: var(--liminal-100); margin-bottom: 2rem; font-family: var(--font-vhs);">Pick a seed. Step inside.</h2>
-            <button onclick="window.opener ? window.close() : window.location.href='terminal.html'" class="btn-glitch" style="font-size: 1.5rem; padding: 1rem 3rem;">
-                INITIALIZE SESSION
-            </button>
-        </footer>
-
-
-    </div>
-</main>
-
-<footer class="page-footer">
-    &copy; 1987 EDMARK LABORATORIES | ALL RIGHTS RESERVED | <a href="https://github.com/aedmark/level0engine" class="career-link">CAREER OPPORTUNITIES</a>
-</footer>
-
+  <footer class="site-footer">
+    <p>&copy; 1987 EDMARK LABORATORIES | ALL RIGHTS RESERVED</p>
+    <p><a href="https://github.com/aedmark/level0engine">GitHub</a> · <a href="lore-editor/">Lore Editor</a></p>
+  </footer>
 </body>
 </html>
