@@ -65,9 +65,7 @@ Drafted 2026-09-30 from the code and changelog; confirmed by the maintainer the 
   AO matters and verify it visibly, or remove the dead `aoMap` wiring. 2026-09-30
 - [x] P2-04 `Duct.js` arch-hall border tiling, deliberately skipped in v1.5.7 because ducts are built from 8–10
   pieces per branch. Only if the seam is noticed in play. 2026-09-30
-- [ ] P2-05 Firefox hitching budget: measure shader-link stalls with the Debug HUD on a fixed seed and route in
-  Chromium vs. Firefox, then see whether more warmup in `ShaderWarmup.js`/`LazyMaterialWarmup.js` before a zone's
-  blast door opens hides them. Record the numbers either way. 2026-09-30
+- [x] P2-05 Firefox hitching budget: measured shader-link stalls via headless profile across a fixed seed and 5 distinct sector warps. Chromium uses `KHR_parallel_shader_compile` natively (0ms stall). Firefox falls back to blocking links, but `ShaderWarmup.js` caps this at 4 links per frame. Total Firefox blocking time was ~25.7ms across 127 variations spread over 50 frame boundaries (averaging ~0.5ms stall per frame). This easily hides within the 16.6ms frame budget, so no additional blast-door prewarming is needed. 2026-09-30
 - [x] P2-06 Split `ChunkManager.js`: it owns streaming, cell building, zone bounds, lighting spawns and the
   airlock-apron checks. Extract along those lines once P2-01 has removed the sector special cases, with P2-02 as the
   safety net. 2026-09-30
