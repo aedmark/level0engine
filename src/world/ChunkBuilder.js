@@ -311,7 +311,7 @@ export default class ChunkBuilder {
                     chunkStartTime = performance.now();
 
                     ctx.isWall = (wx, wz) => mathData.isWallGrid.get(cellKey(wx, wz)) || false;
-                    ctx.isAirlockApron = (wx, wz) => isAirlockApron(wx, wz);
+                    ctx.isAirlockApron = (wx, wz) => isAirlockApron(env, wx, wz);
                     ctx.setWall = (wx, wz, val) => {
                         mathData.isWallGrid.set(cellKey(wx, wz), val);
                         if (!val) {
@@ -359,7 +359,7 @@ export default class ChunkBuilder {
                         ? structuralMatrix.find(s => s.name === forcedName)
                         : TheArchitect.selectStructure(structuralMatrix, structRoll);
                     let built = false;
-                    if (structure && !(isAirlockApron(x, z) && structure.name === "CRATES")) {
+                    if (structure && !(isAirlockApron(env, x, z) && structure.name === "CRATES")) {
                         built = structure.build(x, z) !== false;
                     }
                     if (!built) {
