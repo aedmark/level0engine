@@ -30,7 +30,7 @@ html = html.replace('<!-- DYNAMIC_PRELOADS -->', links);
 const buildDir = path.join(__dirname, 'build');
 if (!fs.existsSync(buildDir)) fs.mkdirSync(buildDir);
 
-const filesToCopy = ['engine.html', 'terminal.html', 'index.html', 'r160.js', 'jsep.min.js', 'purify.min.js', 'main.js', 'readme.html'];
+const filesToCopy = ['engine.html', 'terminal.html', 'index.html', 'site.css', 'r160.js', 'jsep.min.js', 'purify.min.js', 'main.js', 'readme.html'];
 const dirsToCopy = ['src', 'assets', 'data'];
 
 // The lore editor's reset baselines — never fetched by the shipped game, so they don't belong in the itch.io build.
