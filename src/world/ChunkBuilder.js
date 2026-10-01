@@ -1,3 +1,4 @@
+import SECTORS from './Sectors.js';
 
 import * as SectorPlacement from './SectorPlacement.js';
 import TheArchitect from '../core/TheArchitect.js';
@@ -57,6 +58,9 @@ export default class ChunkBuilder {
             }
             env.discoveredSectors.set(hash, activeSectorId);
             activeSector = sectorMatrix.find(s => s.id === activeSectorId);
+            if (activeSector && SECTORS[activeSector.id]) {
+                Object.assign(activeSector, SECTORS[activeSector.id]);
+            }
             if (activeSector && activeSector.ceilingHeight !== undefined) cHeight = activeSector.ceilingHeight;
             setMacroZone(env, hash, startX, startZ, activeSector);
             if (activeSector.hasMaze) {

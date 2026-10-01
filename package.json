@@ -1,6 +1,6 @@
 {
   "name": "level0engine",
-  "version": "1.5.8",
+  "version": "1.5.8.7",
   "description": "",
   "main": "index.html",
   "type": "module",
@@ -12,5 +12,8 @@
     "dompurify": "^3.4.14",
     "jsep": "^1.4.0",
     "marked": "^18.0.10"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
   }
 }
