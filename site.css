@@ -70,7 +70,7 @@ h1, h2, h3 {
 }
 
 h1 {
-  max-width: 11ch;
+  
   margin-bottom: 1.5rem;
   font-size: clamp(3.4rem, 8.5vw, 8.5rem);
   letter-spacing: -0.055em;
@@ -190,7 +190,7 @@ p { color: var(--muted); }
   z-index: 2;
   width: min(calc(100% - 3rem), 100%);
   margin: 0 auto;
-  padding: 10rem 0 7rem;
+  padding: 4rem 0 4rem;
 }
 
 .eyebrow,
@@ -295,7 +295,7 @@ p { color: var(--muted); }
 
 .section-heading { margin-bottom: clamp(3rem, 6vw, 5rem); }
 
-.section-heading h2 { max-width: 12ch; }
+
 
 .intro-grid {
   display: grid;
@@ -387,14 +387,14 @@ p { color: var(--muted); }
 
 .first-flight { width: min(calc(100% - 3rem), 80rem); }
 
-.flight-steps {
+.guide-steps {
   margin: 0;
   padding: 0;
   list-style: none;
   border-top: 1px dashed var(--line);
 }
 
-.flight-steps > li {
+.guide-steps > li {
   display: grid;
   grid-template-columns: 8rem 1fr;
   gap: clamp(1rem, 4vw, 4rem);
@@ -407,7 +407,7 @@ p { color: var(--muted); }
   font: 300 clamp(2.4rem, 5vw, 4.5rem)/1 'VT323', monospace;
 }
 
-.step-body { max-width: 49rem; }
+.step-body { max-width: 100%; }
 .step-body p:last-child { margin-bottom: 0; }
 
 kbd,
@@ -517,7 +517,7 @@ code { padding: .12em .3em; }
   image-rendering: pixelated;
 }
 
-.project-copy h2 { max-width: 10ch; }
+.project-copy h2 {  }
 .project-actions { margin-top: 2rem; }
 .text-link { padding: .6rem .2rem; font-size: .8rem; }
 
@@ -576,7 +576,7 @@ code { padding: .12em .3em; }
   border-bottom: 1px dashed var(--line);
 }
 
-.dev-diary h1 { max-width: 13ch; font-size: clamp(3rem, 8vw, 6.5rem); }
+.dev-diary h1 {  font-size: clamp(3rem, 8vw, 6.5rem); }
 .dev-diary h2 { margin-top: 4.5rem; font-size: clamp(2rem, 4vw, 3.4rem); }
 .dev-diary .date { color: var(--signal); font-family: ui-monospace, monospace; }
 .dev-diary li { margin-bottom: .5rem; color: var(--muted); }
@@ -615,7 +615,7 @@ code { padding: .12em .3em; }
   .section { width: min(calc(100% - 2rem), var(--measure)); }
   .gallery { grid-template-columns: 1fr; padding: 0 1rem; }
   .gallery-wide { grid-column: auto; }
-  .flight-steps > li { grid-template-columns: 3.5rem 1fr; }
+  .guide-steps > li { grid-template-columns: 3.5rem 1fr; }
   .control-card dl div { grid-template-columns: 1fr; gap: .35rem; }
   .project { width: min(calc(100% - 2rem), 100%); }
   .project-image,
