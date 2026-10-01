@@ -13,7 +13,7 @@ Changes: [CHANGELOG.md](CHANGELOG.md). Older sessions: [archive/](archive/README
 
 ## Current state
 
-_Last updated: 2026-09-30, session 5, on `master` after P3-04 (Lore Editor validation)._
+_Last updated: 2026-09-30, session 6, on `master` after P3-05 (Deepen thinnest pools)._
 
 **Where things stand, in one paragraph:** The game is at v1.5.7.2 (see `docs/CHANGELOG.md` for the full history). Session 3 moved sector hardcodes into Sectors.js flags (P2-01). Sessions 1–2 changed documentation plus one line of `build_static.js` (it no longer copies the changelog). Tests are now available via `npm test` which runs `node:test`.
 
@@ -37,7 +37,7 @@ _Last updated: 2026-09-30, session 5, on `master` after P3-04 (Lore Editor valid
 
 ## Next steps (in order)
 
-1. Phase 3 (starting with P3-05).
+1. Phase 4 (starting with P4-01).
 
 ## Open questions for maintainers
 
@@ -46,6 +46,14 @@ None open.
 ## Session log
 
 Newest first. Past 10 entries, move the oldest to `docs/archive/` and leave a pointer here.
+
+### Session 6: 2026-09-30: P3-05 Deepen the thinnest sector pools
+
+**Contributor:** Antigravity
+**Goal:** Complete P3-05 (Deepen the thinnest sector pools for Incinerator, Checkpoint, and Maintenance).
+**Done:** P3-05
+**Changed:** Added 2 ambient lore entries each to `data/lore.json` and `data/factory/lore.json` for the Incinerator, Checkpoint, and Maintenance sectors, raising their base ambient lore count to 5 each. Included references to established threads (`LOST`, `GEOMETRY`, `HUM`) and existing variables (`c.lead`, `WEEK`, `c.lost`).
+**Verified:** Syntax passes.
 
 ### Session 5: 2026-09-30: P3-04 Lore Editor save validation
 
