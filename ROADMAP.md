@@ -90,7 +90,7 @@ Drafted 2026-09-30 from the code and changelog; confirmed by the maintainer the 
 
 ## Phase 4: Quality: speed, robustness, browser parity
 
-- [ ] P4-01 Headless boot smoke test: load `engine.html` in headless Chromium, start a new game, walk a scripted path
+- [x] P4-01 Headless boot smoke test: load `engine.html` in headless Chromium, start a new game, walk a scripted path
   through each sector with Sector Warp, and fail on any console error. Needs Playwright as a dev dependency
   (maintainer approval). Found during P1-01, 2026-09-30
 - [x] P4-02 Frame-time budget in the smoke test: record frame times on a fixed seed and route and fail on a large
