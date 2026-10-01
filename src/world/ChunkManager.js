@@ -112,6 +112,10 @@ export default class ChunkManager {
         return this.shaderWarmup.warmMaterialVariants(materials, drainNow);
     }
 
+    _drainProgramLinks(budgetMs, stallMasked) {
+        return this.shaderWarmup._drainProgramLinks(budgetMs, stallMasked);
+    }
+
     _forgetMaterialPrograms(material) {
         return this.shaderWarmup._forgetMaterialPrograms(material);
     }
