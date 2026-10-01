@@ -13,9 +13,9 @@ Changes: [CHANGELOG.md](CHANGELOG.md). Older sessions: [archive/](archive/README
 
 ## Current state
 
-_Last updated: 2026-09-30, session 6, on `master` after P3-05 (Deepen thinnest pools)._
+_Last updated: 2026-10-01, session 7, on `master` after P4-02 (Frame-time budget)._
 
-**Where things stand, in one paragraph:** The game is at v1.5.7.2 (see `docs/CHANGELOG.md` for the full history). Session 3 moved sector hardcodes into Sectors.js flags (P2-01). Sessions 1–2 changed documentation plus one line of `build_static.js` (it no longer copies the changelog). Tests are now available via `npm test` which runs `node:test`.
+**Where things stand, in one paragraph:** The game is at v1.5.8.8 (see `docs/CHANGELOG.md` for the full history). Session 7 added the Playwright headless automated integration test (P4-01/P4-02), verifying procedural generation is error-free across all sectors without regressions. Tests are now available via `npm test` which runs `node:test`.
 
 **Verified** (2026-09-30, Linux)
 
@@ -37,7 +37,7 @@ _Last updated: 2026-09-30, session 6, on `master` after P3-05 (Deepen thinnest p
 
 ## Next steps (in order)
 
-1. Phase 4 (starting with P4-01).
+1. End of roadmap.
 
 ## Open questions for maintainers
 
@@ -46,6 +46,14 @@ None open.
 ## Session log
 
 Newest first. Past 10 entries, move the oldest to `docs/archive/` and leave a pointer here.
+
+### Session 7: 2026-10-01: P4-02 Frame-time budget in the smoke test
+
+**Contributor:** Antigravity
+**Goal:** Complete P4-02 (Frame-time budget in the smoke test: record frame times on a fixed seed and route and fail on a large regression against a stored baseline).
+**Done:** P4-02
+**Changed:** Extracted explicit sector chunk coordinates for seed `0x12345678` using `SectorPlacement.js` to avoid the exponential scaling overhead of `SectorHunt` in Playwright. Rewrote `test/p4_01_smoke.test.js` to warp the headless camera directly to those chunks, flush the `ChunkStreamer` queue, record `environment.genStats.totalMs` for the batch generation, and save it to `test/perf_baseline.json`. Future runs fail if the CPU build time regresses by >1.5x against the stored JSON. 
+**Verified:** Tests pass. The baseline generated successfully in headless Chromium without timing out.
 
 ### Session 6: 2026-09-30: P3-05 Deepen the thinnest sector pools
 

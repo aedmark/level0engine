@@ -1,3 +1,10 @@
+## [v1.5.8] - 2026-10-01
+
+_A baseline in the dark._
+
+- **[ENGINE] Automated Tests Timed Out Relying On Game Logic Built For Exploration (`test/p4_01_smoke.test.js`):** The automated sector warp test was relying on the in-game "SectorHunt" logic, which spiraled outward by physically moving the camera and waiting for tens of thousands of unused intermediate chunks to procedurally generate, causing the test to consistently time out after five minutes in headless Chromium. The test now sidesteps the game's exploration loop entirely by pre-calculating the exact chunk coordinates for all thirteen sectors using the raw procedural placement algorithms, warping the camera directly to them, and waiting only for the localized chunks to finish building.
+- **[ENGINE] Headless Tests Now Enforce A Strict CPU Generation Time Budget (`test/p4_01_smoke.test.js`, `test/perf_baseline.json`):** Procedural generation code changes can easily cause massive, silent CPU spikes that slow down the player experience. The headless smoke test now actively monitors `environment.genStats.totalMs` for every sector it visits, saves these generation times to a baseline file, and will explicitly fail the build if any sector's generation time regresses by >1.5x (and >50ms) against that baseline.
+
 ## [v1.5.7] - 2026-08-30
 
 _The Crevices Stop Fighting Themselves, The Arches Commit To Tile_
