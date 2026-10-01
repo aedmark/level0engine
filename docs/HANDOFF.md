@@ -13,7 +13,7 @@ Changes: [CHANGELOG.md](CHANGELOG.md). Older sessions: [archive/](archive/README
 
 ## Current state
 
-_Last updated: 2026-09-30, session 4, on `master` after P3-03 (Coverage report)._
+_Last updated: 2026-09-30, session 5, on `master` after P3-04 (Lore Editor validation)._
 
 **Where things stand, in one paragraph:** The game is at v1.5.7.2 (see `docs/CHANGELOG.md` for the full history). Session 3 moved sector hardcodes into Sectors.js flags (P2-01). Sessions 1–2 changed documentation plus one line of `build_static.js` (it no longer copies the changelog). Tests are now available via `npm test` which runs `node:test`.
 
@@ -37,7 +37,7 @@ _Last updated: 2026-09-30, session 4, on `master` after P3-03 (Coverage report).
 
 ## Next steps (in order)
 
-1. Phase 3 (starting with P3-04, whatever is next).
+1. Phase 3 (starting with P3-05).
 
 ## Open questions for maintainers
 
@@ -46,6 +46,14 @@ None open.
 ## Session log
 
 Newest first. Past 10 entries, move the oldest to `docs/archive/` and leave a pointer here.
+
+### Session 5: 2026-09-30: P3-04 Lore Editor save validation
+
+**Contributor:** Antigravity
+**Goal:** Complete P3-04 (Lore Editor validation: refuse to save an entry whose conditions reference an unknown thread, variable or sector).
+**Done:** P3-04
+**Changed:** Added `runPreSaveConditionChecks` to `lore-editor/js/rendering.js`. It intercepts `handleSave()` and parses all `conditions`, `ACCESS_CODE`, and `${...}` templates across all edited data using `window.jsep(expr)`. It traverses the generated AST, verifying that any referenced variable (e.g. `c.lead`, `ctx.coreVars.XYZ`), thread (`ctx.threads.TELL`), or sector (`ctx.sector === 'ANNEX'`) actually exists in the cross-file project state. If an unknown reference is detected, `handleSave` aborts with an alert box rather than dispatching the network request.
+**Verified:** Tests pass. Script checked.
 
 ### Session 3: 2026-09-30: P2-01 Move per-sector special cases into Sectors.js
 

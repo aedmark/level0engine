@@ -82,7 +82,7 @@ Drafted 2026-09-30 from the code and changelog; confirmed by the maintainer the 
   with the P3-01 sweep, and correct the README or the dealing to match. 2026-09-30
 - [x] P3-03 Coverage report in the Lore Editor: per sector and document type, how many entries exist against how
   many the generators can place, so authors see when pickups will fall back to generic text. 2026-09-30
-- [ ] P3-04 Lore Editor validation: refuse to save an entry whose conditions reference an unknown thread, variable or
+- [x] P3-04 Lore Editor validation: refuse to save an entry whose conditions reference an unknown thread, variable or
   sector, using the same `jsep` parse the game uses. 2026-09-30
 - [ ] P3-05 Deepen the thinnest sector pools. `data/lore.json` has 3 entries each for Incinerator, Checkpoint and
   Maintenance, against 7–8 for Clinic and Exit (counted 2026-09-30). Aim for at least 5 per sector, prioritised by the
