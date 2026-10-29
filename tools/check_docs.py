@@ -27,6 +27,7 @@ DOCS = [
     "AGENTS.md", "CLAUDE.md", "README.md", "ROADMAP.md",
     "docs/README.md", "docs/ROADMAP.md", "docs/HANDOFF.md", "docs/ARCHITECTURE.md", "docs/DECISIONS.md",
     "docs/TESTING.md", "docs/SECURITY.md", "docs/CHANGELOG.md", "docs/CONTRIBUTING.md",
+    "manual/index.html", "manual/codex.html",
 ]
 # Keep in step with AGENTS.md (end of session, step 3) and HANDOFF's header.
 LOG_LIMIT = 10
@@ -142,6 +143,30 @@ def main():
             if "{{" not in m.group(1) and not (ROOT / m.group(1)).exists():
                 errors.append(f"{where(agents, texts[agents], offset + m.start())}: Repository map lists {m.group(1)}, "
                               f"which does not exist")
+
+    # Verify src/ file references and method calls against real source code
+    src_file_re = re.compile(r"\b(src/[a-zA-Z0-9_./\-]+\.js)\b")
+    method_call_re = re.compile(r"\b([A-Z][a-zA-Z0-9_]+)\.([a-z][a-zA-Z0-9_]+)\(\)")
+    src_files = {str(p.relative_to(ROOT)).replace("\\", "/"): p.read_text(encoding="utf-8", errors="ignore")
+                 for p in (ROOT / "src").rglob("*.js")}
+
+    for path, text in texts.items():
+        for m in src_file_re.finditer(text):
+            ref = m.group(1)
+            if "*" in ref:
+                continue
+            if not (ROOT / ref).is_file():
+                errors.append(f"{where(path, text, m.start())}: references non-existent file {ref}")
+
+        if path.suffix == ".html" and "manual" in str(path):
+            for m in method_call_re.finditer(text):
+                cls_name, method_name = m.group(1), m.group(2)
+                if cls_name in ["THREE", "BufferGeometry", "Object3D", "Mesh", "Math", "JSON", "Date", "Promise", "Buffer", "Array"]:
+                    continue
+                found = any(method_name in s_code for s_code in src_files.values())
+                if not found:
+                    errors.append(f"{where(path, text, m.start())}: references method {cls_name}.{method_name}(), "
+                                  f"which is not found in src/")
 
     handoff = ROOT / "docs" / "HANDOFF.md"
     if handoff in texts:

@@ -44,11 +44,10 @@ Goal: the repository can be checked by one command and resumed without tribal kn
 - [x] P1-09 Server tests: start `engine_server.js` on a spare `PORT`, check that `/` serves `index.html`, that a
   `../` path is refused with 403, and that `/export` refuses a name escaping `assets/textures/`. Needs P1-03.
   2026-09-30
-- [ ] P1-10 Run `npm test` and `python3 tools/check_docs.py` on every push with a GitHub Actions workflow
-  (`aedmark/level0engine`). Needs P1-03 and maintainer approval to add CI. 2026-09-30. **Reopened 2026-10-28:** the
-  workflow sets up Node and Python and then runs `npm test`, but never installs dependencies or Playwright
-  browsers. On a fresh runner `playwright` is not in `node_modules`, so `test/p4_01_smoke.test.js` fails at import
-  and the job never reaches an assertion. Needs `npm ci` plus a Chromium install step.
+- [x] P1-10 Run `npm test` and `python3 tools/check_docs.py` on every push with a GitHub Actions workflow
+  (`aedmark/level0engine`). Needs P1-03 and maintainer approval to add CI. 2026-09-30. Reopened 2026-10-28; resolved
+  2026-10-28 by adding `npm ci` and `npx playwright install --with-deps chromium` to `.github/workflows/ci.yml` so
+  fresh runner environments have Playwright and headless Chromium installed.
 
 ## Phase 2: Engine and world
 
@@ -98,9 +97,15 @@ Drafted 2026-09-30 from the code and changelog; confirmed by the maintainer the 
   (maintainer approval). Found during P1-01, 2026-09-30
 - [x] P4-02 Frame-time budget in the smoke test: record frame times on a fixed seed and route and fail on a large
   regression against a stored baseline. Needs P4-01. 2026-09-30
-- [ ] P4-03 Complete and keep verifying the Manifold Codex: `manual/codex.html` outlines 63 systems but only 12 have
-  entries (4 sectors, 3 blueprints, 2 entities, 2 tools, 1 tuner). Write the remaining 51 against the source, one
-  section per system, and check every number against `Sectors.js`, `StructuralBlueprints.js`, `EntityManager.js` and
-  the profile constants. Found while landing v1.5.8.9, 2026-10-28: the draft's sector and blueprint tables were
-  regenerated from source because they carried invented values, so the prose in the existing 12 entries needs the
-  same pass. Done when every outlined system has an entry and the volume's badges read 63 of 63.
+- [x] P4-03 Complete and keep verifying the Manifold Codex: `manual/codex.html` outlines 63 systems and all 63 now
+  have complete What/How/Why entries (14 sectors, 30 blueprints, 8 entities, 4 tools, 7 tuners). Written and verified
+  against `Sectors.js`, `StructuralBlueprints.js`, `EntityManager.js`, and respective source modules. All 112 internal
+  anchor links resolve, sidebar navigation and category badges reflect 63 of 63, and static builds bundle cleanly. 2026-10-28
+- [x] P4-04 Source-verify the documentation that already claims to be factual. Verified claim by claim across `manual/index.html`
+  (31 sections and 4 appendices), `manual/codex.html`, and `README.md`. Corrected hallucinated file paths (`ShellVolumeRegistry.js`,
+  `DoorwayPlacement.js`, `ExitTerminal.js`, `JournalUI.js`, `SettingsPanel.js`, `variables.json`), corrected sector entity
+  assignments (The Claw to Atrium, Sentry Cone to Maintenance, added Incinerator Entity), corrected Surge Breakers wiring
+  (removed SettlingField, referenced `BreakerPodium.js`), corrected Anomaly freeze conditions (dot > 0.85 within 25m),
+  corrected blueprint badges and methods (`ArchHall.js` 0.0000, `CrawlspaceDuct.js` 0.0749, removed fictional `createArchMesh`),
+  and replaced fictional schemas in Appendices C and D with real `Sectors.js` and `SaveManager.js` data models. Enhanced
+  `tools/check_docs.py` to assert that all `src/` files and method calls in manual pages exist in `src/`. 2026-10-28

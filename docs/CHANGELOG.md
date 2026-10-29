@@ -1,3 +1,12 @@
+## [v1.5.8.10] - 2026-10-28
+
+_The Manifold Fully Catalogued: Sixty-Three Subsystems Verified Against The Substrate._
+
+- **[DOCS] The Manifold Codex Completed For All Sixty-Three Systems (`manual/codex.html`):** Volume II previously documented only 12 of its advertised 63 procedural systems, with the remaining 51 outlined as unlinked placeholders. Authored complete, verified *What It Does* / *How It Works* / *Why It Works* entries for all remaining 10 macro sectors (Annex, Acme, Boardroom, Chasm, Checkpoint, Clinic, Impound, Incinerator, Maintenance, Server), 27 structural blueprints, 6 entities and hazards, 2 survival tools, and 6 developer tuners. Activated all navigation anchors across the volume and updated all reference tables so every row links directly to its subsystem entry.
+- **[DOCS] System Codex And Reference Schemas Reconciled With Source Reality (`manual/index.html`, `manual/codex.html`, `README.md`):** Several references and tables had drifted or been drafted from speculative memory. Corrected hallucinated file paths (`ShellVolumeRegistry.js`, `DoorwayPlacement.js`, `ExitTerminal.js`, `JournalUI.js`, `SettingsPanel.js`, `variables.json`), corrected entity sector assignments (The Claw to Atrium, Sentry Cone to Maintenance, and catalogued the Incinerator Entity), corrected Surge Breakers wiring to cite `BreakerPodium.js`, aligned Anomaly freeze cone descriptions to the exact 0.85 dot product threshold inside 25 m, fixed blueprint probabilities (`ArchHall.js` 0.0000, `CrawlspaceDuct.js` 0.0749, and removed fictional `createArchMesh`), and replaced fabricated schemas in Appendices C and D with true `Sectors.js` and `SaveManager.js` data models.
+- **[ENGINE] Automated Source-Verification Enforced In Doc Checking (`tools/check_docs.py`):** Documentation consistency checks now include both manual volumes in their standard audit. Extended the tool to verify that all referenced `src/` modules exist on disk and that any method calls named in manual pages (`ClassName.method()`) exist in source code, preventing fictional APIs from entering documentation.
+- **[CI] Playwright And System Browser Dependencies Restored In GitHub Actions (`.github/workflows/ci.yml`):** Fresh runner environments previously failed `npm test` at import because dependencies and headless browsers were never installed. Added `npm ci` and `npx playwright install --with-deps chromium` so automated smoke tests run reliably on CI.
+
 ## [v1.5.8.9] - 2026-10-28
 
 _The Golden Codex Opens: The Operating Manual And The First Volume Of The Manifold Codex._

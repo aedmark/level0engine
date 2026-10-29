@@ -13,20 +13,21 @@ Changes: [CHANGELOG.md](CHANGELOG.md). Older sessions: [archive/](archive/README
 
 ## Current state
 
-_Last updated: 2026-10-28, session 9, on `master` after landing v1.5.8.9._
+_Last updated: 2026-10-28, session 10, on `master`._
 
-**Where things stand, in one paragraph:** The game is at v1.5.8.9 (see `docs/CHANGELOG.md` for the full history). Session 8's documentation system was uncommitted until this session; it is now landed with the version drift fixed and the reference tables corrected. Volume I (`manual/index.html`) is complete: nine books plus four appendices. Volume II (`manual/codex.html`) is a working volume that documents 12 of its 63 systems; the other 51 are outlined without links and are tracked as P4-03.
+**Where things stand, in one paragraph:** The game is at v1.5.8.10 (see `docs/CHANGELOG.md` for the full history). CI dependency resolution and Playwright runner setup are fixed (P1-10 resolved). Volume I (`manual/index.html`) is complete: nine books plus four appendices. Volume II (`manual/codex.html`) comprehensively documents all 63 procedural subsystems (14 sectors, 30 blueprints, 8 entities, 4 tools, 7 tuners) with verified What/How/Why triads and working navigation anchors (P4-03 resolved). Both manual volumes, `README.md`, and `tools/check_docs.py` have undergone source-verification claim by claim, eliminating invented files, methods, probabilities, and schemas (P4-04 resolved).
 
 **Verified** (2026-10-28, Linux)
 
 | Suite | Result |
 | --- | --- |
-| `python3 tools/check_docs.py` | **0 errors, 0 warnings, 13 files** |
+| `python3 tools/check_docs.py` | **0 errors, 0 warnings, 15 files** |
+| `npm test` (all 9 suites) | **Pass** (including `p4_01_smoke.test.js` and performance budget) |
 | `node --test test/p1_05_syntax.test.js` | **Pass** |
 | `node --test test/p1_09_server.test.js` | **Pass** |
 | `engine_server.js` on port 8099 | `/manual` **301** to `/manual/`; `/manual/`, `/manual/codex.html` **200 text/html**; `/manual/manual.css` **200 text/css** |
 | `npm run build` | **Pass**; `build/manual/` holds `codex.html`, `index.html`, `manual.css` (build removed afterwards) |
-| HTML structure + anchors in `manual/` | **Well formed**, every remaining `href="#..."` resolves |
+| HTML structure + anchors in `manual/` | **Well formed**, all 112 `href="#..."` anchors resolve in `manual/codex.html` (63/63 subsystems) |
 
 **What works** (from the README and changelog, not re-verified this session)
 - **The full game loop**: streaming maze, 14 sectors, entities, case-file narrative, Inquest exit, saves.
@@ -34,20 +35,16 @@ _Last updated: 2026-10-28, session 9, on `master` after landing v1.5.8.9._
 - **System Codex & Manifold Manual** (`manual/` on port 8080 or static builds).
 
 **Not verified**
-- Playwright smoke test not re-run this session: the change touches documentation and the static server only, no engine code.
 - Visual WebGL output still has not been checked in a desktop browser.
 
 **Gotchas for the next session**
-- `npm run build` leaves an untracked `build/` (ignored by git, removed after this session's check).
-- `package.json`, `docs/CHANGELOG.md` and the `README.md` title all read `1.5.8.9`.
-- **CI is red by construction.** The workflow never runs `npm ci` or installs Playwright browsers, so `npm test` cannot import `playwright` on a fresh runner (P1-10 reopened).
+- `npm run build` leaves an untracked `build/` (ignored by git, removed after verification).
+- `package.json`, `docs/CHANGELOG.md` and the `README.md` title all read `1.5.8.10`.
 - The landing-page commits after `5049882` (`site.css`, new `index.html`) have no changelog entry and no version of their own.
 
 ## Next steps (in order)
 
-1. P1-10: make CI install dependencies and Chromium so `npm test` actually runs there.
-2. P4-03: write the remaining 51 Manifold Codex entries against the source.
-3. Decide whether the recent landing-page work gets its own changelog entry and version.
+1. Decide whether the recent landing-page work gets its own changelog entry and version.
 
 ## Open questions for maintainers
 
@@ -56,6 +53,19 @@ None open.
 ## Session log
 
 Newest first. Past 10 entries, move the oldest to `docs/archive/` and leave a pointer here.
+
+### Session 10: 2026-10-28: Landing v1.5.8.10 (P1-10 CI runner fix, P4-03 Codex completion, P4-04 Source verification)
+
+**Contributor:** Antigravity
+**Goal:** Complete P1-10 (CI Playwright dependency fix), P4-03 (complete all 51 remaining Manifold Codex entries), P4-04 (source-verify all manual claims, file references, method calls, and schemas), and land release v1.5.8.10.
+**Done:** v1.5.8.10 landed; P1-10, P4-03, P4-04 resolved.
+**Changed:**
+- Updated `.github/workflows/ci.yml` to run `npm ci` and `npx playwright install --with-deps chromium`.
+- Completed all remaining 51 system entries in `manual/codex.html` (10 macro sectors, 27 structural blueprints, 6 entities/hazards, 2 survival tools, 6 dev tuners) using the What/How/Why format.
+- Source-verified all documentation claim by claim against `src/`: corrected hallucinated file paths (`ShellVolumeRegistry.js`, `DoorwayPlacement.js`, `ExitTerminal.js`, `JournalUI.js`, `SettingsPanel.js`, `variables.json`), corrected sector-locked entity assignments (The Claw to Atrium, Sentry Cone to Maintenance, added Incinerator Entity), corrected Surge Breakers references (removed SettlingField, referenced `BreakerPodium.js`), corrected blueprint badges and methods (ArchHall 0.0000 and removed `createArchMesh`, CrawlspaceDuct 0.0749, Paintball toggle `P`), and replaced fictional schemas in Appendices C and D with real `Sectors.js` and `SaveManager.js` data models.
+- Enhanced `tools/check_docs.py` to validate `src/` file references and assert that methods named on classes in manual pages exist in `src/`.
+- Aligned version identifiers to `1.5.8.10` across `package.json`, `README.md`, `docs/CHANGELOG.md`, `manual/index.html`, `manual/codex.html`, and `docs/HANDOFF.md`.
+**Verified:** `npm test` passes all 9 suites; `check_docs.py` passes 0/0 across 15 files (including negative tests catching non-existent files and methods); internal anchor check confirms 112/112 anchors in `manual/codex.html`; static build bundles `manual/` cleanly.
 
 ### Session 9: 2026-10-28: Landing v1.5.8.9
 
