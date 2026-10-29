@@ -97,6 +97,7 @@ task or handoff instead.
 | `assets/` | Static textures, fonts, and LTC tables |
 | `lore-editor/` | Standalone narrative editor and its server (port 3000) |
 | `engine_server.js` | Dev/static server (port 8080) with save endpoints |
+| `manual/` | Comprehensive HTML System Codex and Manifold Reference Manual |
 | `build_static.js` | `npm run build`: produces `build/` for itch.io |
 | `AGENTS.md` | Canonical agent instructions |
 | `ROADMAP.md` | Planned work with stable IDs |

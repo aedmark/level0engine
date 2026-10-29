@@ -228,6 +228,19 @@ const server = http.createServer((req, res) => {
         return res.end('403 Forbidden');
     }
 
+    try {
+        const checkStat = fs.statSync(filePath);
+        if (checkStat.isDirectory()) {
+            if (!route.endsWith('/')) {
+                res.writeHead(301, { 'Location': route + '/' });
+                return res.end();
+            }
+            filePath = path.join(filePath, 'index.html');
+        }
+    } catch (_) {
+        // File does not exist, fs.stat below will handle 404
+    }
+
     const extname = String(path.extname(filePath)).toLowerCase();
     const contentType = MIME_TYPES[extname] || 'application/octet-stream';
 

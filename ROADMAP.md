@@ -44,8 +44,11 @@ Goal: the repository can be checked by one command and resumed without tribal kn
 - [x] P1-09 Server tests: start `engine_server.js` on a spare `PORT`, check that `/` serves `index.html`, that a
   `../` path is refused with 403, and that `/export` refuses a name escaping `assets/textures/`. Needs P1-03.
   2026-09-30
-- [x] P1-10 Run `npm test` and `python3 tools/check_docs.py` on every push with a GitHub Actions workflow
-  (`aedmark/level0engine`). Needs P1-03 and maintainer approval to add CI. 2026-09-30
+- [ ] P1-10 Run `npm test` and `python3 tools/check_docs.py` on every push with a GitHub Actions workflow
+  (`aedmark/level0engine`). Needs P1-03 and maintainer approval to add CI. 2026-09-30. **Reopened 2026-10-28:** the
+  workflow sets up Node and Python and then runs `npm test`, but never installs dependencies or Playwright
+  browsers. On a fresh runner `playwright` is not in `node_modules`, so `test/p4_01_smoke.test.js` fails at import
+  and the job never reaches an assertion. Needs `npm ci` plus a Chromium install step.
 
 ## Phase 2: Engine and world
 
@@ -95,3 +98,9 @@ Drafted 2026-09-30 from the code and changelog; confirmed by the maintainer the 
   (maintainer approval). Found during P1-01, 2026-09-30
 - [x] P4-02 Frame-time budget in the smoke test: record frame times on a fixed seed and route and fail on a large
   regression against a stored baseline. Needs P4-01. 2026-09-30
+- [ ] P4-03 Complete and keep verifying the Manifold Codex: `manual/codex.html` outlines 63 systems but only 12 have
+  entries (4 sectors, 3 blueprints, 2 entities, 2 tools, 1 tuner). Write the remaining 51 against the source, one
+  section per system, and check every number against `Sectors.js`, `StructuralBlueprints.js`, `EntityManager.js` and
+  the profile constants. Found while landing v1.5.8.9, 2026-10-28: the draft's sector and blueprint tables were
+  regenerated from source because they carried invented values, so the prose in the existing 12 entries needs the
+  same pass. Done when every outlined system has an entry and the volume's badges read 63 of 63.

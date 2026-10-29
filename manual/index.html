@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Everything You Ever Wanted to Know About Level 0 Engine v1.5.8.9</title>
+    <link rel="stylesheet" href="manual.css">
+</head>
+<body>
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>🟨 Level 0 Engine</h1>
+            <span class="version-tag">System Codex • v1.5.8.9</span>
+            <p style="margin-top: 0.6rem; font-size: 0.85rem;"><a href="codex.html" style="color: var(--accent-cyan); text-decoration: none;">&rarr; Open The Manifold Codex (Catalog)</a></p>
+        </div>
+        <nav class="sidebar-nav">
+            <section>
+                <h3>Book I: Philosophy & Rules of Reality</h3>
+                <ul>
+                    <li><a href="#soul-of-the-backrooms" class="active">1. The Soul of the Backrooms</a></li>
+                    <li><a href="#zero-bundler-imperative">2. The Zero-Bundler Imperative</a></li>
+                    <li><a href="#determinism-as-law">3. Determinism as Law</a></li>
+                    <li><a href="#the-cold-case-truth">4. The Cold Case & Fact-Finding</a></li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Book II: Engine Room & Architecture</h3>
+                <ul>
+                    <li><a href="#streaming-maze">5. Julia Maze & Chunk Streaming</a></li>
+                    <li><a href="#lumengrid-lighting">6. LumenGrid & Shadow Hysteresis</a></li>
+                    <li><a href="#acoustic-engine">7. Web Audio DSP & Occlusion</a></li>
+                    <li><a href="#procedural-materials">8. Canvas Textures & Materials</a></li>
+                    <li><a href="#persistence-hal">9. Dual-Key LocalStorage HAL</a></li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Book III: Procedural Topography</h3>
+                <ul>
+                    <li><a href="#shell-volume-registry">10. Shell Volumes & Blast Doors</a></li>
+                    <li><a href="#fourteen-sectors">11. The 14 Macro Sectors Tour</a></li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Book IV: Survival Field Manual (How to Play)</h3>
+                <ul>
+                    <li><a href="#kinetic-flashlight">12. The Kinetic Flashlight</a></li>
+                    <li><a href="#paranoia-corroboration">13. Paranoia & Claim Corroboration</a></li>
+                    <li><a href="#somatic-movement">14. Somatic Movement & Compression</a></li>
+                    <li><a href="#navigation-tools">15. Compass, Paintball & PDA Journal</a></li>
+                    <li><a href="#inquest-escape">16. The Assembled Lock & Inquest Exit</a></li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Book V: Hazards, Entities & Phenomena</h3>
+                <ul>
+                    <li><a href="#the-anomaly">17. The Anomaly: Cone Freeze & Panic</a></li>
+                    <li><a href="#sector-entities">18. Sector-Locked Entities</a></li>
+                    <li><a href="#surge-breakers">19. Surge Breakers & Blackouts</a></li>
+                    <li><a href="#liminal-phenomena">20. Breaches, Cages & Ephemera</a></li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Book VI: Narrative & Story Engine</h3>
+                <ul>
+                    <li><a href="#story-engine">21. Seeded Narrative Dealing</a></li>
+                    <li><a href="#document-attachment">22. Prop Attachment & Evidence</a></li>
+                    <li><a href="#jsep-conditions">23. JSEP Logic & Safe Templating</a></li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Book VII: Developer Tooling & Lore Editor</h3>
+                <ul>
+                    <li><a href="#lore-editor-suite">24. The Lore Editor (Port 3000)</a></li>
+                    <li><a href="#pre-save-validation">25. AST Pre-Save Validation</a></li>
+                    <li><a href="#in-engine-tuners">26. In-Engine Atmosphere & Light Tuners</a></li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Book VIII: The Proving Ground</h3>
+                <ul>
+                    <li><a href="#automated-smoke-tests">27. Headless Playwright Smoke Tests</a></li>
+                    <li><a href="#frametime-budget">28. Frame-Time Baseline Budgets</a></li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Book IX: Contributor's Protocol</h3>
+                <ul>
+                    <li><a href="#engineering-conventions">29. Engineering Conventions & Invariants</a></li>
+                    <li><a href="#protected-areas">30. Protected Areas & Conventions</a></li>
+                    <li><a href="#workflow-agreement">31. Single-Maintainer Git Workflow</a></li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Technical Appendices</h3>
+                <ul>
+                    <li><a href="#controls-matrix">Appendix A: Master Controls Matrix</a></li>
+                    <li><a href="#debug-flags">Appendix B: URL Debug Flags & Cheats</a></li>
+                    <li><a href="#sectors-schema">Appendix C: Sectors.js Registry Schema</a></li>
+                    <li><a href="#storage-schema">Appendix D: Saved State Schema</a></li>
+                </ul>
+            </section>
+        </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="content">
+        <header>
+            <h1 class="doc-title">Everything You Ever Wanted to Know About Level 0 Engine</h1>
+            <p class="subtitle">The Definitive Architectural Codex, System Internals, Survival Field Manual, and Contributor Handbook</p>
+            <div class="badge-row">
+                <span class="badge amber">Engine v1.5.8.9</span>
+                <span class="badge cyan">Vanilla ES6 Modules</span>
+                <span class="badge emerald">Three.js r160 (Vendored)</span>
+                <span class="badge purple">Seeded Procedural Horror</span>
+                <span class="badge rose">Zero Bundlers / Zero npm</span>
+            </div>
+            <div class="callout info">
+                <div class="callout-title">The Three Inviolable Architectural Questions</div>
+                <p>
+                    In fidelity to the Level 0 Engineering Codex, every system, tool, and entity in this manual is evaluated through three lenses:
+                    <strong>What It Does</strong> (player behavior, visible manifestations, sensory feedback),
+                    <strong>How It Works</strong> (internal algorithms, web worker pipelines, DSP circuits, spatial indices), and
+                    <strong>Why It Works</strong> (psychological horror design, mathematical guarantees, and zero-allocation performance rules).
+                </p>
+            </div>
+        </header>
+
+        <hr class="divider">
+
+        <!-- BOOK I -->
+        <section id="book-1">
+            <h2 id="soul-of-the-backrooms">Book I: Systems Philosophy & Rules of Reality</h2>
+
+            <h3>1. The Soul of the Backrooms</h3>
+            <p>
+                In liminal fiction, the infinite yellow corridors of Level 0 are often mistaken for mere repetitive chaos. <strong>Level 0 Engine</strong> operates on a fundamentally different paradigm: <em>The facility has memory, bureaucratic decay, and mathematical logic.</em>
+            </p>
+            <p>
+                You are not wandering an abstract void; you are navigating a decommissioned corporate subterranean complex trapped in self-replicating spatial recursion. Fluorescent ballasts buzz at precise acoustic frequencies. Shift logs, coffee fund rosters, and disciplinary notices cling to desks and lockers. Behind every door lies not randomness, but a seeded deterministic world where truth can be excavated through careful fact-finding.
+            </p>
+
+            <div class="callout warning">
+                <div class="callout-title">The Core Axioms of Level 0</div>
+                <ol>
+                    <li><strong>No Bundlers, No Build Step for Development:</strong> The repository serves directly to the browser via ES6 modules. What you edit is immediately what executes.</li>
+                    <li><strong>Determinism Over Randomness:</strong> Every corridor, prop, document, and entity spawn is derived mathematically from a 32-bit seed. A single seed produces the exact same labyrinth across machines.</li>
+                    <li><strong>Hot Paths Never Allocate:</strong> The player tick, collision detection, and entity perception loops operate with preallocated scratch vectors. Zero garbage collection stuttering during moments of horror.</li>
+                    <li><strong>The Player is an Investigator, Not an Action Hero:</strong> Survival is attained through patience, kinetic battery management, stealth, and corroborating fragmented documentary claims.</li>
+                    <li><strong>Verified Means Observed:</strong> Claims are invalid until proven by automated headless browser smoke tests or in-engine diagnostic instrumentation.</li>
+                </ol>
+            </div>
+
+            <h3 id="zero-bundler-imperative">2. The Zero-Bundler Imperative</h3>
+            <p>
+                Modern web development frequently buries simple 3D experiences beneath brittle stacks of Webpack, Vite, Babel, and node_modules dependencies. Level 0 Engine rejects this ceremony.
+            </p>
+            <p>
+                All engine code runs as pure, un-transpiled <strong>ES6 modules</strong> loaded natively by modern browser engines. A lightweight Node HTTP server (<code>engine_server.js</code>) serves static files and injects cross-origin isolation headers. <code>THREE</code> is provided as a trusted global via locally vendored <code>r160.js</code> (Decision D-001). There is zero compilation time, zero bundler configuration drift, and zero risk of supply-chain package compromise.
+            </p>
+
+            <h3 id="determinism-as-law">3. Determinism as Law</h3>
+            <p>
+                In Level 0 Engine, pseudo-randomness is divided into two strict categories:
+            </p>
+            <ul>
+                <li><strong>Structural RNG (Seeded):</strong> Seeded by a 32-bit MurmurHash integer derived from the level string. This RNG generates the Julia-set wall topology, chooses macro sector bounds, selects structural blueprints, and deals narrative case-files from <code>data/*.json</code>. Replaying the same seed guarantees identical layouts.</li>
+                <li><strong>Cosmetic Noise (<code>Math.random()</code>):</strong> Reserved exclusively for ephemeral, non-reproducible visual and auditory effects: fluorescent bulb flicker jitter, film grain noise on canvas textures, and entity spawn micro-jitter.</li>
+            </ul>
+
+            <h3 id="the-cold-case-truth">4. The Cold Case & Fact-Finding</h3>
+            <p>
+                Unlike generic survival games with arbitrary keys, Level 0 centers on the <strong>Finding of Fact</strong>. Each seed generates a cold case surrounding a missing staff member. Documents scattered throughout the facility make specific documentary claims regarding rules, dates, and names.
+            </p>
+            <p>
+                Uncorroborated documents induce <em>Paranoia</em>, which physically degrades your kinetic flashlight's battery ceiling. To escape, the player must corroborate claims across disparate macro sectors, assemble the 4-digit PIN for the blast elevator, and submit the cold-case truth at the final Inquest Terminal.
+            </p>
+        </section>
+
+        <hr class="divider">
+
+        <!-- BOOK II -->
+        <section id="book-2">
+            <h2 id="boot-lifecycle">Book II: The Engine Room & Architecture</h2>
+
+            <p>
+                Level 0 Engine is structured into decoupled, single-responsibility ES6 modules connected through a centralized runtime orchestrator (<code>Environment.js</code>).
+            </p>
+
+            <pre><code>+-----------------------------------------------------------------------------------+
+|                                  BROWSER RUNTIME                                  |
+|                                                                                   |
+|   index.html  ==>  engine.html  ==>  r160.js (THREE Global) + purify.min.js       |
+|                                         |                                         |
+|                                         v                                         |
+|                                      main.js                                      |
+|                                         |                                         |
+|                                         v                                         |
+|                             src/core/Environment.js                               |
+|                                (THE ORCHESTRATOR)                                 |
+|                                         |                                         |
+|        +--------------------------------+--------------------------------+        |
+|        |                                |                                |        |
+|        v                                v                                v        |
+|  RenderEngine.js                ChunkManager.js                  PlayerController |
+|  - WebGLRenderer                - ChunkStreamer (Queue)          - SomaticInput   |
+|  - PostProcessing (CRT/Aberr)   - ChunkBuilder (Mesh)            - Flashlight     |
+|  - LumenGrid (Area Lights)      - ChunkWorker.js (Worker)        - Compass        |
+|        |                                |                                |        |
+|        +--------------------------------+--------------------------------+        |
+|                                         |                                         |
+|        +--------------------------------+--------------------------------+        |
+|        |                                |                                |        |
+|        v                                v                                v        |
+|  EntityManager.js               StoryEngine.js                   AcousticEngine   |
+|  - Anomaly (Roaming)            - data/*.json Dealing            - Web Audio DSP  |
+|  - Sector Entities              - CaseFiles & Clues              - Wall Occlusion |
+|  - SpatialHashGrid              - JSEP Condition Evaluator       - Foley / Mixer  |
++-----------------------------------------------------------------------------------+</code></pre>
+
+            <div class="triad-block" id="streaming-maze">
+                <h3>5. Julia Maze & Chunk Streaming Pipeline</h3>
+                <p><strong>Files:</strong> <code>src/world/ChunkManager.js</code>, <code>ChunkStreamer.js</code>, <code>ChunkBuilder.js</code>, <code>ChunkWorker.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        Dynamically streams an infinite 3D labyrinth around the player in fixed-size chunks (typically 16&times;16 cells), building and tearing down geometries in real time without dropping frames.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Offloaded Math:</strong> <code>ChunkStreamer</code> tracks the player's grid coordinates and calculates chunks within streaming radius. Requests are dispatched to <code>ChunkWorker.js</code> running on a separate Web Worker thread.</li>
+                        <li><strong>Julia Set Formulation:</strong> The worker computes wall topologies by iterating a 2D complex rational map. Cells where \(|z| > \text{threshold}\) collapse into walls, while interior coordinates carve out open hallways.</li>
+                        <li><strong>Geometry Synthesis:</strong> <code>ChunkBuilder</code> receives cell matrices from the worker, applies macro sector rules from <code>Sectors.js</code>, selects structural blueprints from <code>StructuralBlueprints.js</code>, and stitches meshes via <code>StructureKit.js</code>.</li>
+                        <li><strong>Batch Disposal:</strong> As chunks exit the streaming envelope, buffers, collision lines, and dynamic light instances are cleanly disposed of to reclaim GPU VRAM.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Offloading fractal computation to a web worker guarantees that the main JavaScript execution thread never hitches. The render loop maintains locked 60fps even as massive macro sectors materialize on the horizon.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="lumengrid-lighting">
+                <h3>6. LumenGrid & Shadow Hysteresis</h3>
+                <p><strong>Files:</strong> <code>src/aesthetics/LumenGrid.js</code>, <code>src/aesthetics/RectAreaLightUniforms.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        Manages the atmospheric illumination of Level 0, powering fluorescent ceiling panels, emergency strobe conduits, breaker blackout cascades, and cast shadows.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Ceiling Area Lights:</strong> Utilizes vendored <code>RectAreaLightUniformsLib</code> to simulate rectangular diffuse fixtures without the sharp artificial artifacts of point lights.</li>
+                        <li><strong>Fixed Shadow Caster Pool:</strong> Real-time shadows on mobile and integrated GPUs are expensive. LumenGrid maintains a strictly capped budget (e.g., 4 active shadow casters) allocated by proximity to the player camera.</li>
+                        <li><strong>Distance Hysteresis:</strong> Lights crossing the shadow-caster threshold utilize a 2-unit hysteresis buffer, preventing visible shadow popping when the player oscillates near a boundary.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Enforces hardware performance predictability. The engine achieves rich, claustrophobic volumetric atmosphere while respecting mobile WebGL texture unit and shadow map limits.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="acoustic-engine">
+                <h3>7. Web Audio DSP & Real-Time Occlusion</h3>
+                <p><strong>Files:</strong> <code>src/audio/AcousticEngine.js</code>, <code>Mixer.js</code>, <code>Foley.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        The auditory heart of Level 0. Synthesizes procedural room tones, footstep impacts, fluorescent hums, heartbeat adrenaline pumps, and physically muffles sound when blocked by walls.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Procedural Synthesis:</strong> Tone generators create layered sine, sawtooth, and filtered noise sources for the fluorescent hum (60Hz ground hum with micro-phase harmonics).</li>
+                        <li><strong>Raycast Occlusion Filter:</strong> When spatial audio sources (e.g. entity groans or radio static) emit, <code>AcousticEngine</code> casts rays through the <code>SpatialHashGrid</code> to the player. Each intersecting wall applies an exponential low-pass BiquadFilter, creating realistic wall dampening.</li>
+                        <li><strong>Exhaustion DSP:</strong> When the player sprint stamina or oxygen runs dry, a master dynamics compressor and low-pass filter squashes world audio, elevating internal bodily respiration and erratic heartbeats.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Horror relies more heavily on acoustics than visuals. Hearing an entity's muffled gait around two corners prompts genuine dread, informing player tactical decisions before visual contact occurs.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="procedural-materials">
+                <h3>8. Procedural Canvas Textures & Material Library</h3>
+                <p><strong>Files:</strong> <code>src/aesthetics/ProceduralTextureFactory.js</code>, <code>MaterialLibrary.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        Generates all wall, floor, ceiling, and metal textures dynamically at runtime via HTML5 Canvas 2D drawing routines, with zero network asset downloads.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Canvas Synthesis:</strong> <code>ProceduralTextureFactory</code> draws perlin noise, stained watermarks, worn wallpaper seams, subway tile grout, and acoustic tile perforations onto off-screen canvas elements.</li>
+                        <li><strong>Mipmap Generation:</strong> Canvases are converted to <code>THREE.CanvasTexture</code> instances with anisotropic filtering enabled, and cached in <code>MaterialLibrary.js</code>.</li>
+                        <li><strong>Static Fallback:</strong> If WebGL context creation constraints or dev tuners require it, textures can fall back to pre-baked PNGs in <code>assets/textures/</code>.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Shrinks initial page load to under 2 megabytes while eliminating HTTP request roundtrips. Every surface carries procedural variation, avoiding obvious tiling repetition.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="persistence-hal">
+                <h3>9. Dual-Key LocalStorage Persistence</h3>
+                <p><strong>Files:</strong> <code>src/system/SaveManager.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        Maintains player session progress, active cold-case leads, gathered document inventory, pulled surge breakers, and custom engine settings.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Dual-Key Safeguard:</strong> Before writing new game state to <code>localStorage['level0_state']</code>, <code>SaveManager</code> copies the existing state to <code>level0_state_backup</code>.</li>
+                        <li><strong>Integrity Check:</strong> On engine boot, JSON parsing is wrapped in strict try/catch blocks. If corruption is detected, the backup is automatically restored, and telemetry logs a warning.</li>
+                        <li><strong>Purge Mechanics:</strong> "Purge Memory" resets the session while preserving player settings; "Purge & Start New Game" restores baseline seed state.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Protects player progress against accidental browser closures, battery failures, or localStorage write crashes.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <hr class="divider">
+
+        <!-- BOOK III -->
+        <section id="book-3">
+            <h2 id="macro-topography">Book III: Procedural Topography & Macro-Sectors</h2>
+
+            <p>
+                The maze hierarchy operates in three distinct structural tiers:
+            </p>
+            <ul>
+                <li><strong>Macro Sectors:</strong> Large themed geographic zones (Archive, Atrium, Annex, etc.) spanning many contiguous chunks, defined by distinct wall palettes, fog colors, audio hums, and lighting profiles in <code>Sectors.js</code>.</li>
+                <li><strong>Chunks:</strong> The 16&times;16 streaming unit built by <code>ChunkWorker.js</code> and assembled by <code>ChunkBuilder.js</code>.</li>
+                <li><strong>Structural Blueprints:</strong> Architectural micro-features (Ducts, Arches, Crevices, Faraday Cages) placed within open cell spaces, registered with strict probability weights in <code>StructuralBlueprints.js</code>.</li>
+            </ul>
+
+            <div class="triad-block" id="shell-volume-registry">
+                <h3>10. Shell Volume Registry & True Blast Thresholds</h3>
+                <p><strong>Files:</strong> <code>src/world/ShellVolumeRegistry.js</code>, <code>src/world/AirlockApron.js</code>, <code>src/world/DoorwayPlacement.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        Governs the volumetric fog, acoustic transitions, and heavy mechanical blast doors that seal macro sectors from the surrounding Backrooms.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Boundary Sealing:</strong> Every macro sector is sealed by exactly one true blast threshold at its entry boundary.</li>
+                        <li><strong>Airlock Apron:</strong> <code>AirlockApron.js</code> bridges the transitional corridor, aligning subway tiles and corner pillar materials between sectors.</li>
+                        <li><strong>Volumetric Interpolation:</strong> As the player crosses the apron threshold, <code>AtmosphereManager</code> lerps fog color, density, and ambient lighting smoothly over 2.5 seconds, eliminating jarring visual pops.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Gives the player a palpable sense of entering a new hazardous subterranean biome, providing clear spatial landmarks in an infinite world.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="fourteen-sectors">
+                <h3>11. The 14 Macro Sectors Tour</h3>
+                <p><strong>Files:</strong> <code>src/world/sectors/*.js</code>, <code>src/world/Sectors.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        The facility comprises 14 distinct themed macro zones, each featuring custom architectural blueprints, ambient color schemes, and narrative props.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Sector</th>
+                                <th>Visual Identity</th>
+                                <th>Atmosphere & Fog</th>
+                                <th>Key Features</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>NORMAL</strong></td>
+                                <td>Classic Level 0 mono-yellow wallpaper, damp carpet</td>
+                                <td>Warm amber tint, moderate falloff</td>
+                                <td>Starting hub, foundational transitional corridors</td>
+                            </tr>
+                            <tr>
+                                <td><strong>ARCHIVE</strong></td>
+                                <td>Endless rows of steel file stacks, sorting tables</td>
+                                <td>Muted sepia dust fog</td>
+                                <td>Dense paper documents, Archivist entity presence</td>
+                            </tr>
+                            <tr>
+                                <td><strong>ATRIUM</strong></td>
+                                <td>Soaring vertical courtyards, skylights, railings</td>
+                                <td>Pale blue ethereal glow, low drag</td>
+                                <td>Multi-level verticality, echoed acoustic reverb</td>
+                            </tr>
+                            <tr>
+                                <td><strong>ANNEX</strong></td>
+                                <td>Low drop-ceiling sterile cubicles, fluorescent tubes</td>
+                                <td>Harsh institutional white haze</td>
+                                <td>Broken office amenities, cubicle mazes</td>
+                            </tr>
+                            <tr>
+                                <td><strong>ACME</strong></td>
+                                <td>High-voltage research wing, warning hazard stripes</td>
+                                <td>Electric cyan tint, ozone hum</td>
+                                <td>Prototype test chambers, breaker relays</td>
+                            </tr>
+                            <tr>
+                                <td><strong>BOARDROOM</strong></td>
+                                <td>Mahogany wall paneling, conference tables, drapes</td>
+                                <td>Deep burgundy shadow, dead silence</td>
+                                <td>Executive cold-case files, encrypted safes</td>
+                            </tr>
+                            <tr>
+                                <td><strong>CHASM</strong></td>
+                                <td>Sheer drop-offs, suspended steel catwalks</td>
+                                <td>Pitch black bottomless void</td>
+                                <td>Narrow footing, falling hazards, vast reverb</td>
+                            </tr>
+                            <tr>
+                                <td><strong>CHECKPOINT</strong></td>
+                                <td>Reinforced security gates, turnstiles, guard booths</td>
+                                <td>Cold slate grey, security strobes</td>
+                                <td>Warden entity patrols, keycard readers</td>
+                            </tr>
+                            <tr>
+                                <td><strong>CLINIC</strong></td>
+                                <td>Bleached ceramic tiles, gurneys, surgical lamps</td>
+                                <td>Sterile pale green wash</td>
+                                <td>Medical logs, biohazard quarantine lockers</td>
+                            </tr>
+                            <tr>
+                                <td><strong>EXIT</strong></td>
+                                <td>Reinforced blast bunker, airlock bulkheads</td>
+                                <td>Heavy emergency red floodlights</td>
+                                <td>The Inquest Terminal, final elevator airlock</td>
+                            </tr>
+                            <tr>
+                                <td><strong>IMPOUND</strong></td>
+                                <td>Chain-link fence cages, tagged evidence lockers</td>
+                                <td>Dirty amber sodium-vapor fog</td>
+                                <td>Seized artifacts, classified staff dossiers</td>
+                            </tr>
+                            <tr>
+                                <td><strong>INCINERATOR</strong></td>
+                                <td>Charred brick, floor grates over magma vents</td>
+                                <td>Thick red smoke, heat wave distortion</td>
+                                <td>Incinerator entity, burned record scraps</td>
+                            </tr>
+                            <tr>
+                                <td><strong>MAINTENANCE</strong></td>
+                                <td>Exposed steam pipes, concrete conduits, floor puddles</td>
+                                <td>Humid yellow condensation mist</td>
+                                <td>Crawlspace ducts, sump pumps, tight vents</td>
+                            </tr>
+                            <tr>
+                                <td><strong>SERVER</strong></td>
+                                <td>Towering server racks, blinking optical LEDs</td>
+                                <td>Deep cobalt blue, sub-zero chill</td>
+                                <td>Backup Daemon entity, mainframe terminals</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Diverse biomes prevent visual fatigue, give players cognitive maps of their exploration progress, and provide thematic contexts for cold-case evidence.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <hr class="divider">
+
+        <!-- BOOK IV -->
+        <section id="book-4">
+            <h2 id="kinetic-flashlight">Book IV: Survival Field Manual (How to Play)</h2>
+
+            <div class="triad-block">
+                <h3>12. The Kinetic Flashlight & Crank Physics</h3>
+                <p><strong>Files:</strong> <code>src/player/Flashlight.js</code>, <code>src/player/SomaticInput.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        Your primary survival instrument and psychological shield. The heavy flashlight illuminates dark corridors and freezes the Anomaly in its beam, but rapidly drains power.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Kinetic Charging:</strong> The flashlight has no disposable batteries. It is charged mechanically by <strong>sprinting</strong> (converting movement inertia) or by <strong>rapidly shaking the camera</strong> (cranking the dyno mechanism).</li>
+                        <li><strong>Parabolic Beam:</strong> Casts a focused central beam with quadratic distance attenuation and a wider subtle ambient cone.</li>
+                        <li><strong>Flicker Warning:</strong> When charge drops below 15%, the bulb begins irregular brownout flickers, reducing beam efficacy and triggering entity agitation.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Forces dynamic physical engagement. Recharging demands noisy, erratic actions (shaking or running) that risk attracting nearby entities, creating high-tension tactical dilemmas.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="paranoia-corroboration">
+                <h3>13. Paranoia & The Corroboration Loop</h3>
+                <p><strong>Files:</strong> <code>src/narrative/StoryEngine.js</code>, <code>src/player/PlayerController.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        A direct mechanical bridge connecting narrative discovery with player physical survival. Reading uncorroborated documents increases Paranoia, which places a hard cap on your maximum flashlight battery charge.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Unverified Claims:</strong> When you read a document making an uncorroborated claim (e.g. <em>"Rule 14 was enacted in 1984"</em>), paranoia ticks up, capping battery maximum to 80%, 60%, or lower.</li>
+                        <li><strong>Cross-Sector Corroboration:</strong> To bleed off paranoia and restore full battery capacity, you must explore and locate a <em>second document in a different macro sector</em> that corroborates the identical claim.</li>
+                        <li><strong>Resolution:</strong> Corroborated claims turn green in your PDA Journal (<code>J</code>), permanently dispelling paranoia and solidifying an objective truth for the Inquest.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Prevents lore from being treated as passive background decoration. Reading and understanding the narrative is a mandatory survival requirement.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="somatic-movement">
+                <h3>14. Somatic Movement, Exhaustion & Compression</h3>
+                <p><strong>Files:</strong> <code>src/player/PlayerController.js</code>, <code>src/system/SomaticController.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        Models realistic physical presence: inertia, footstep cadence, wall impacts, and squeezing through tight bottlenecks.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Wall Collisions & Camera Trauma:</strong> Crashing into walls at high speed jolts the camera with physics trauma, triggers a heavy dull thud, and rattles your flashlight.</li>
+                        <li><strong>Terminal Exhaustion:</strong> Sprinting burns oxygen twice as fast. When exhausted, the player stumbles, hearing muffled breathing DSP, while their hearing radius expands—making them easier for the Anomaly to detect.</li>
+                        <li><strong>Compression Mode (<code>Q</code>):</strong> Pressing <code>Q</code> lowers your camera and narrows collision extents, allowing you to compress through tight ductwork, collapsed crevices, and floor vents.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Grounds the player in a fragile physical body. You cannot simply sprint blindly through corridors without suffering disorientation and acoustic penalties.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="navigation-tools">
+                <h3>15. Navigation Tools: Compass, Paintball & PDA</h3>
+                <p><strong>Files:</strong> <code>src/player/Compass.js</code>, <code>src/player/PaintballGun.js</code>, <code>src/ui/JournalUI.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        A specialized triad of non-lethal navigation instruments designed to combat spatial disorientation in infinite geometry.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>The Threshold Compass (<code>M</code>):</strong> A magnetized brass instrument. Its needle points toward the nearest unvisited macro-sector blast door. Once all surge breakers are pulled, it redirects toward the newly spawned Exit Bunker.</li>
+                        <li><strong>Paintball Gun & UV Paint (<code>P</code>):</strong> Fires luminescent procedural paint splatters against walls and floors. Marks glow in the dark, allowing you to leave breadcrumb trails at confusing intersections.</li>
+                        <li><strong>The PDA Journal (<code>J</code>):</strong> Opens an in-game personal digital assistant with a virtual cursor to review discovered notes, active leads, and corroborated case facts.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Provides essential orienteering capabilities without breaking immersion with artificial mini-maps or immersion-shattering HUD overlays.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="inquest-escape">
+                <h3>16. The Assembled Lock & Inquest Escape</h3>
+                <p><strong>Files:</strong> <code>src/narrative/ExitTerminal.js</code>, <code>src/world/sectors/ExitSector.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        The ultimate victory condition of Level 0 Engine. Unlock the blast elevator, submit the Finding of Fact, and ascend to the surface.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>The 4-Digit Assembled Lock:</strong> The exit elevator door is sealed by a mechanical PIN assembled from three distinct clues scattered across the complex: the <em>Rule Number</em>, the <em>Enactment Year</em>, and the <em>Pen Color Code</em>.</li>
+                        <li><strong>The Finding of Fact:</strong> At the glowing green terminal inside the Exit Bunker, you are prompted to present the true sequence of events regarding the cold case.</li>
+                        <li><strong>The Elevator Ascent:</strong> Entering the correct PIN and fact finding activates the elevator winch, locking the doors and triggering the victory sequence.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Transforms escape into an intellectual triumph. Victory requires both physical mastery of the maze and mental mastery of its lore.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <hr class="divider">
+
+        <!-- BOOK V -->
+        <section id="book-5">
+            <h2 id="the-anomaly">Book V: Hazards, Entities & Phenomena</h2>
+
+            <div class="triad-block">
+                <h3>17. The Anomaly (The Roaming Predator)</h3>
+                <p><strong>Files:</strong> <code>src/entities/Anomaly.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        The default macro predator of Level 0. A fast, relentless entity that roams the halls hunting the player by acoustic signature and line-of-sight.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Acoustic Hearing Radius:</strong> Calculates player noise generation (sneaking: 2m, walking: 8m, sprinting: 20m, terminal exhaustion stumble: 35m).</li>
+                        <li><strong>The 30-Degree Light Cone Freeze:</strong> If the player turns to face the Anomaly and catches it directly within the central 30-degree cone of their kinetic flashlight, the Anomaly freezes in place, screeching with rage.</li>
+                        <li><strong>Rage Buildup:</strong> Freezing is temporary. Each second the beam holds it, the Anomaly accumulates rage. When your battery flickers out or you look away, it surges forward with increased velocity!</li>
+                        <li><strong>Proximity Aberration:</strong> As it approaches, the screen suffers severe chromatic aberration, audio crushing, and claustrophobic vignettes.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Inverts conventional horror tropes: facing the monster saves you, but locks you in a terrifying staredown while your flashlight battery drains towards zero.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="sector-entities">
+                <h3>18. Sector-Locked Entities</h3>
+                <p><strong>Files:</strong> <code>src/entities/*.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        Specialized entities bound to specific macro sectors, enforcing unique behavioral hazards.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ul>
+                        <li><strong>The Archivist (Archive Sector):</strong> Blind entity that patrols between file stacks, reacting aggressively to the sound of paper handling and shelf movement.</li>
+                        <li><strong>Backup Daemon (Server Sector):</strong> Dormant construct that re-awakens when server power switches or surge breakers are tripped.</li>
+                        <li><strong>The Claw (Maintenance Sector):</strong> Ceiling-mounted hazard that drops down in tight crawlspaces and ducts when players fail to crouch.</li>
+                        <li><strong>Sentry Cone (Checkpoint Sector):</strong> Sweeping robotic vision spotlights that trigger lockdown alarms if crossed.</li>
+                        <li><strong>The Warden (Impound Sector):</strong> Heavily armored patrol that methodically inspects locked evidence cages.</li>
+                    </ul>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Forces the player to adapt their survival strategies as they transition between different sector biomes.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="surge-breakers">
+                <h3>19. Surge Breakers & Blackout Cascades</h3>
+                <p><strong>Files:</strong> <code>src/world/blueprints/SettlingField.js</code>, <code>src/aesthetics/LumenGrid.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        Heavy high-voltage electrical levers found on walls. Pulling them with <code>E</code> disrupts local facility power, opening secured airlocks while plunging sectors into pitch blackness.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Blackout Cascade:</strong> Pulling the lever instantly shatters local fluorescent tubes with particle debris and sound FX.</li>
+                        <li><strong>Cascade Delay:</strong> Neighboring lights sequentially extinguish down the hall in a terrifying domino wave.</li>
+                        <li><strong>Emergency Reboot:</strong> After a timed blackout duration, emergency amber or red warning strobes initiate an irregular flicking reboot sequence.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Delivers visceral, player-initiated environmental shock. You must willingly plunge yourself into total darkness to progress through locked gates.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="liminal-phenomena">
+                <h3>20. Liminal Breaches, Faraday Cages & Ephemera</h3>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        Rare anomalous environmental fixtures providing sanctuary, spatial shortcuts, or atmospheric world-building.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ul>
+                        <li><strong>The Faraday Cage:</strong> A rare, copper-plated room blueprint completely shielded from entities. Step inside to recharge your flashlight, check your journal, and catch your breath in total safety.</li>
+                        <li><strong>Liminal Breaches:</strong> Procedural stairwells have a 25% chance to spawn as open breaches, allowing you to warp thousands of units across the grid without mutating the underlying seed.</li>
+                        <li><strong>Ephemera:</strong> Coffee funds, lost wedding rings, and shift schedules scattered near the Exit Bunker. They carry no claims or PIN digits—they are haunting human echoes of the missing workforce.</li>
+                    </ul>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Provides necessary moments of emotional reprieve (Faraday Cages) and deepens the tragic human context behind the corporate facility.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <hr class="divider">
+
+        <!-- BOOK VI -->
+        <section id="book-6">
+            <h2 id="story-engine">Book VI: Narrative & Story Engine</h2>
+
+            <div class="triad-block">
+                <h3>21. Seeded Narrative Dealing</h3>
+                <p><strong>Files:</strong> <code>src/narrative/StoryEngine.js</code>, <code>data/*.json</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        Generates a coherent, non-repeating cold-case mystery from thousands of narrative fragments stored in JSON data files.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Card Dealing:</strong> On level generation, <code>StoryEngine</code> creates a shuffled deck of clues, foreshadowing snippets, and lore logs seeded by the level seed.</li>
+                        <li><strong>Data Repositories:</strong> Draws from <code>clues.json</code>, <code>lore.json</code>, <code>foreshadow.json</code>, <code>finales.json</code>, and <code>ephemera.json</code>.</li>
+                        <li><strong>Placement:</strong> Distributes documents onto generated desks, file cabinets, and clipboards as chunks materialize around the player.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Ensures that no two runs tell the exact same story, while guaranteeing that essential clues required to assemble the PIN code are always placed in reachable sectors.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="document-attachment">
+                <h3>22. Prop Attachment & Evidence Types</h3>
+                <p><strong>Files:</strong> <code>src/narrative/NarrativeProps.js</code>, <code>CaseFiles.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        Spawns tangible 3D interactive props that carry written or recorded testimony.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ul>
+                        <li><strong>Sticky Notes & Paper Files:</strong> Simple paper notes fixed to walls and clipboards.</li>
+                        <li><strong>Rugged Laptops:</strong> Glowing screens displaying terminal email logs and staff memos.</li>
+                        <li><strong>Reel-to-Reel Tape Recorders:</strong> Interactive audio logs that play voice transcripts via text and muffled audio cues.</li>
+                    </ul>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Grounds narrative in physical space. Documents are not abstract UI popups, but tangible objects found sitting in the world.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="jsep-conditions">
+                <h3>23. JSEP Logic & Safe AST Templating</h3>
+                <p><strong>Files:</strong> <code>src/utils/SafeEval.js</code>, <code>lore-editor/js/rendering.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        Safely evaluates complex display conditions (e.g. <code>ctx.sector === 'ANNEX' && c.lead</code>) and templates variables into text without dangerous JavaScript <code>eval()</code> or <code>new Function()</code>.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Vendored JSEP:</strong> Expression strings are parsed into an Abstract Syntax Tree (AST) using vendored <code>jsep.min.js</code>.</li>
+                        <li><strong>AST Walk:</strong> <code>SafeEval.js</code> evaluates identifiers and operators against a sanitized context object.</li>
+                        <li><strong>XSS Sanitization:</strong> Before rendered text touches the DOM, it is passed through vendored <code>purify.min.js</code> (DOMPurify).</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Enforces complete security isolation (Decision D-001). Community lore expansions or user-edited JSON files cannot execute arbitrary JavaScript in the player's browser.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <hr class="divider">
+
+        <!-- BOOK VII -->
+        <section id="book-7">
+            <h2 id="lore-editor-suite">Book VII: Developer Tooling & The Lore Editor</h2>
+
+            <div class="triad-block">
+                <h3>24. The Standalone Lore Editor (Port 3000)</h3>
+                <p><strong>Files:</strong> <code>lore-editor/index.html</code>, <code>editor_server.js</code>, <code>coverage.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        A dedicated visual web application for authoring, editing, and validating the game's narrative JSON databases without touching engine code.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Dedicated Server:</strong> Launched via <code>./start_editor.sh</code> (Node server listening on port 3000).</li>
+                        <li><strong>Data Synchronization:</strong> Reads from and writes directly to <code>data/*.json</code> on disk.</li>
+                        <li><strong>Coverage Report:</strong> Features a built-in Coverage view aggregating total available entries per sector, warning writers when sector pools are running thin.</li>
+                        <li><strong>Factory Reset:</strong> Backed by <code>data/factory/</code> as an immutable reset baseline.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Empowers narrative writers and designers to expand the game's lore without needing 3D graphics or Three.js programming experience.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="pre-save-validation">
+                <h3>25. AST Pre-Save Validation</h3>
+                <p><strong>Files:</strong> <code>lore-editor/js/rendering.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        Intercepts Lore Editor saves and verifies that all conditions, variables, threads, and sector references exist, preventing broken entries from entering the game.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Pre-Save Hook:</strong> When the author clicks "Save", <code>runPreSaveConditionChecks</code> parses all condition expressions with JSEP.</li>
+                        <li><strong>Cross-File Audit:</strong> Verifies that every referenced variable exists in <code>variables.json</code>, every thread in <code>threads.json</code>, and every sector in <code>Sectors.js</code>.</li>
+                        <li><strong>Save Abort:</strong> If an unknown identifier is detected, saving is aborted with a clear diagnostic dialog.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Guarantees data integrity at the authoring boundary, catching typos before they can manifest as runtime errors during gameplay.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="in-engine-tuners">
+                <h3>26. In-Engine Atmosphere & Light Tuners</h3>
+                <p><strong>Files:</strong> <code>src/ui/AtmosphereTuner.js</code>, <code>LightTuner.js</code>, <code>SectorTunerFactory.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        Live, in-game developer sliders that allow real-time tuning of fog density, light intensity, and colors, with instant disk persistence.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Interactive UI:</strong> Pressing dev keys displays interactive sliders over the 3D viewport.</li>
+                        <li><strong>Disk Save:</strong> Clicking "Save to Disk" dispatches POST requests to <code>/save-light</code> or <code>/save-atmosphere</code> on <code>engine_server.js</code>.</li>
+                        <li><strong>Source Rewriting:</strong> The server parses and updates the source code of <code>Sectors.js</code> directly on disk!</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Eliminates the tedious loop of tweaking numbers in code, reloading, and checking. Lighting designers can sculpt the horror atmosphere directly inside the running scene.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <hr class="divider">
+
+        <!-- BOOK VIII -->
+        <section id="book-8">
+            <h2 id="testing-philosophy">Book VIII: The Proving Ground</h2>
+
+            <div class="callout info">
+                <div class="callout-title">"Verified Means Observed"</div>
+                <p>
+                    In Level 0 Engine, code that looks correct in a code review is not considered complete until it has been proven by automated observation in a real browser engine.
+                </p>
+            </div>
+
+            <div class="triad-block" id="automated-smoke-tests">
+                <h3>27. Headless Playwright Smoke Tests</h3>
+                <p><strong>Files:</strong> <code>test/p4_01_smoke.test.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        An automated headless Chromium integration suite that launches the game, traverses all 14 macro sectors, and verifies procedural generation is completely error-free.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Headless Boot:</strong> Spawns Chromium via Playwright, loads <code>http://localhost:8080/engine.html</code>, and monitors console errors.</li>
+                        <li><strong>Targeted Sector Warp:</strong> Extracts explicit chunk coordinates from <code>SectorPlacement.js</code> for fixed seed <code>0x12345678</code>. Warps camera to each sector and forces <code>ChunkStreamer</code> generation.</li>
+                        <li><strong>Assertion Matrix:</strong> Verifies that all meshes, materials, and lights compile without WebGL warnings or uncaught exceptions.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Guarantees that generator changes or sector refactors cannot silently introduce broken imports or geometry synthesis crashes.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="frametime-budget">
+                <h3>28. Frame-Time Baseline Budgets</h3>
+                <p><strong>Files:</strong> <code>test/perf_baseline.json</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        Enforces an automated CPU generation budget across all sectors to prevent performance regressions from creeping into the engine.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Timing Capture:</strong> During headless smoke runs, the test measures total milliseconds spent in <code>environment.genStats.totalMs</code>.</li>
+                        <li><strong>Baseline Comparison:</strong> Compares results against stored measurements in <code>test/perf_baseline.json</code>.</li>
+                        <li><strong>Regression Gate:</strong> If CPU generation time regresses by more than 1.5x against the baseline, the test suite fails automatically.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Keeps procedural generation lean and fast, ensuring low-end laptops and mobile browsers maintain silky 60fps performance.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <hr class="divider">
+
+        <!-- BOOK IX -->
+        <section id="book-9">
+            <h2 id="engineering-conventions">Book IX: Contributor's Protocol</h2>
+
+            <div class="triad-block">
+                <h3>29. Engineering Conventions & Invariants</h3>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        Strict software engineering rules governing all code contributions to the repository.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ul>
+                        <li><strong>No Per-Frame Allocations:</strong> Hot paths (player movement, entity pathfinding, spatial hash queries) must reuse preallocated scratch vectors. Never call <code>new THREE.Vector3()</code> inside render loops!</li>
+                        <li><strong>Pure ES6 Modules:</strong> Never add bundlers, transpilers, or Babel configurations.</li>
+                        <li><strong>THREE is a Global:</strong> Never write <code>import * as THREE from 'three'</code>. The global is supplied by <code>r160.js</code>.</li>
+                        <li><strong>Sum to 1.0000:</strong> Probabilities registered in <code>StructuralBlueprints.js</code> must sum to exactly <code>1.0000</code>.</li>
+                    </ul>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Preserves maximum performance, eliminates GC stuttering, and keeps the engine universally runnable in any browser without build tooling.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="protected-areas">
+                <h3>30. Protected Areas & Conventions</h3>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        Guards critical repository files against accidental modification.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Path / Area</th>
+                                <th>Rule</th>
+                                <th>Rationale</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>r160.js</code>, <code>jsep.min.js</code>, <code>purify.min.js</code></td>
+                                <td>Never edit by hand</td>
+                                <td>Vendored third-party libraries (Decision D-001)</td>
+                            </tr>
+                            <tr>
+                                <td><code>data/factory/</code></td>
+                                <td>Never edit without permission</td>
+                                <td>The Lore Editor's immutable factory-reset baseline</td>
+                            </tr>
+                            <tr>
+                                <td><code>build/</code></td>
+                                <td>Do not commit to git</td>
+                                <td>Output of <code>npm run build</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Maintains clean boundaries between project code, third-party libraries, and generated artifacts.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="workflow-agreement">
+                <h3>31. Single-Maintainer Git Workflow</h3>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        The process for landing changes directly on <code>master</code>.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li>Direct-to-master workflow managed by maintainer <strong>gordonk</strong>.</li>
+                        <li>Commit format uses the release version number (e.g. <code>1.5.8.8</code>).</li>
+                        <li>Before committing, run <code>python3 tools/check_docs.py</code> and <code>npm test</code>.</li>
+                        <li>Update <code>docs/CHANGELOG.md</code> and <code>docs/HANDOFF.md</code> with every functional change.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        Keeps git history concise, transparent, and aligned with release tags.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <hr class="divider">
+
+        <!-- APPENDICES -->
+        <section id="appendices">
+            <h2>Technical Appendices</h2>
+
+            <h3 id="controls-matrix">Appendix A: Master Controls & Keybindings Matrix</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Key / Input</th>
+                        <th>Action</th>
+                        <th>System / Subsystem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>W, A, S, D</code></td>
+                        <td>Move forward, strafe left, move backward, strafe right</td>
+                        <td><code>PlayerController.js</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>Mouse Movement</code></td>
+                        <td>First-person camera pitch and yaw</td>
+                        <td><code>PlayerController.js</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>Left Click</code></td>
+                        <td>Interact (pickup documents, pull breakers, use terminals, open doors)</td>
+                        <td><code>InteractionController.js</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>Shift</code></td>
+                        <td>Sprint (burns oxygen, recharges flashlight kinetically)</td>
+                        <td><code>PlayerController.js</code>, <code>Flashlight.js</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>Q</code></td>
+                        <td>Compress / Crouch (squeeze through tight ducts, crevices, vents)</td>
+                        <td><code>PlayerController.js</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>F</code></td>
+                        <td>Toggle Kinetic Flashlight on/off</td>
+                        <td><code>Flashlight.js</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>E</code></td>
+                        <td>Pull Surge Breakers / Activate Machinery</td>
+                        <td><code>InteractionController.js</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>M</code></td>
+                        <td>Raise Threshold Compass (points to nearest sector / exit bunker)</td>
+                        <td><code>Compass.js</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>J</code></td>
+                        <td>Open PDA Journal (review gathered lore, leads, virtual cursor)</td>
+                        <td><code>JournalUI.js</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>P</code></td>
+                        <td>Equip Paintball Gun (fire luminescent UV maze markers)</td>
+                        <td><code>PaintballGun.js</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>Tab</code></td>
+                        <td>Open Engine Settings Panel (aspect ratio, resolution, fog, seed)</td>
+                        <td><code>SettingsPanel.js</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>X</code></td>
+                        <td>Capture Clean Screenshot (PNG download)</td>
+                        <td><code>RenderEngine.js</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>`</code> (Backtick)</td>
+                        <td>Toggle Debug HUD (FPS, draw calls, active chunk coordinates)</td>
+                        <td><code>DebugHUD.js</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>G</code></td>
+                        <td>Toggle God Mode (Dev cheat: collision off, fly speed)</td>
+                        <td><code>PlayerController.js</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>Z</code></td>
+                        <td>Sector Warp (Dev cheat: cycle between macro sectors)</td>
+                        <td><code>Environment.js</code></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 id="debug-flags">Appendix B: URL Debug Flags & Parameters</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Query Flag</th>
+                        <th>Values</th>
+                        <th>Effect</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>?seed=&lt;str&gt;</code></td>
+                        <td>Any string</td>
+                        <td>Forces specific world generation seed on engine load</td>
+                    </tr>
+                    <tr>
+                        <td><code>?ssaodebug</code></td>
+                        <td><code>normal</code>, <code>ao</code></td>
+                        <td>Renders raw normal buffer or ambient occlusion buffer for debugging</td>
+                    </tr>
+                    <tr>
+                        <td><code>?logdepth</code></td>
+                        <td>Boolean toggle</td>
+                        <td>Enables logarithmic depth buffer for massive render view distances</td>
+                    </tr>
+                    <tr>
+                        <td><code>?nosound</code></td>
+                        <td>Boolean toggle</td>
+                        <td>Completely mutes and disables Web Audio AcousticEngine context</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 id="sectors-schema">Appendix C: Sectors.js Registry Schema</h3>
+            <pre><code>// src/world/Sectors.js schema structure:
+export const SECTORS = {
+    NORMAL: {
+        id: 'NORMAL',
+        name: 'The Normal Halls',
+        wallColor: 0xd8c37d,
+        fogColor: 0x988544,
+        fogNear: 1.0,
+        fogFar: 28.0,
+        lightColor: 0xffecc4,
+        lightIntensity: 1.2,
+        humFrequency: 60,
+        blueprints: ['StandardHall', 'Duct', 'AlcoveCorner', 'Vent']
+    },
+    ARCHIVE: { ... },
+    ATRIUM: { ... },
+    // 14 macro sectors defined
+};</code></pre>
+
+            <h3 id="storage-schema">Appendix D: Saved State Schema</h3>
+            <pre><code>// localStorage['level0_state'] JSON structure:
+{
+    "version": "1.5.8.8",
+    "seed": "0x12345678",
+    "player": {
+        "position": [12.4, 1.2, -45.8],
+        "rotation": [0.0, 1.57, 0.0],
+        "flashlightCharge": 0.85,
+        "paranoia": 0.20
+    },
+    "caseFile": {
+        "targetId": "STAFF_409",
+        "corroboratedClaims": ["RULE_14", "YEAR_1984"],
+        "assembledLockPin": ["1", "4", "8", null]
+    },
+    "world": {
+        "pulledBreakers": ["BREAKER_ACME_01", "BREAKER_ARCH_02"],
+        "visitedSectors": ["NORMAL", "ACME", "ARCHIVE"]
+    }
+}</code></pre>
+        </section>
+
+        <footer class="doc-footer">
+            <p>Level 0 Engine System Codex • v1.5.8.9 • Single Maintainer Architecture (gordonk)</p>
+            <p>Procedural Backrooms Engine built on Vanilla ES6 Modules & Vendored Three.js r160.</p>
+        </footer>
+    </main>
+
+</body>
+</html>

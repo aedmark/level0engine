@@ -17,6 +17,8 @@ to it instead of copying it.
 | `SECURITY.md` | Users and developers | Sensitive assets, trust boundaries, reporting, secure defaults | Full incident history |
 | `CONTRIBUTING.md` | Contributors | Setup, change, review, and submission workflow | Agent-only instructions |
 | `CHANGELOG.md` | Players | Released user-visible changes, per version | Commit-by-commit history |
+| `../manual/index.html` | Players and developers | Comprehensive System Codex and operating manual | Historical changelogs |
+| `../manual/codex.html` | Players and developers | Exhaustive reference for sectors, blueprints, entities | Narrative scripts |
 | `../lore-editor/HowTo.md` | Narrative authors | Using the Lore Editor | Engine internals |
 
 ## Update triggers

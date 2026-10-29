@@ -1,3 +1,11 @@
+## [v1.5.8.9] - 2026-10-28
+
+_The Golden Codex Opens: The Operating Manual And The First Volume Of The Manifold Codex._
+
+- **[DOCS] Comprehensive HTML System Codex and Manifold Reference Manual (`manual/index.html`, `manual/codex.html`, `manual/manual.css`):** Level 0 Engine's knowledge lived across the README, the changelog and the source, with no single place to read how the engine works or how to play it. Added a dual-volume, standalone, zero-dependency documentation set. Volume I (*Everything You Ever Wanted to Know About Level 0 Engine*) spans nine thematic books covering philosophy, the streaming maze pipeline, Web Audio DSP, player controls, the cold-case engine, the Lore Editor, the test suite and the contributor protocol. Volume II (*The Manifold Codex*) opens with 12 of its 63 systems - four sectors, three blueprints, two entities, two tools and one tuner - each in the *What It Does* / *How It Works* / *Why It Works* format. The unwritten systems stay visible in the volume's outline but are no longer links to anchors that do not exist, and completing them is tracked as P4-03.
+- **[DOCS] Codex Tables And Entry Details Checked Against The Source (`manual/codex.html`):** The draft volume's reference tables carried invented values: the sector table gave Maintenance The Claw (the Claw belongs to Atrium) and described Normal's fog as warm amber when `Sectors.js` registers grey `0xa6a6a6`, and the blueprint table listed 10 of 30 profiles with a wrong probability on every row. Both tables are now generated from `Sectors.js`, `EntityManager.js` and each blueprint's own `prob`, so they match what the code ships. The Anomaly's freeze is described as a 0.85 camera-forward dot product inside 25 m rather than "15 degrees and 18 metres", the nonexistent `LumenGrid.triggerBlackoutCascade()` is replaced with `InteractionController.triggerBreaker()` and its 25-35 second Maintenance restore, and the Faraday Cage is corrected to a 1x1 cell at `0.0014`.
+- **[ENGINE] Directory Index Resolution And Static Build Packaging (`engine_server.js`, `build_static.js`):** Visiting `/manual` or `/manual/` on the local server now cleanly resolves and serves `index.html` with directory 301 normalization, and `build_static.js` bundles `manual/` directly into itch.io export builds.
+
 ## [v1.5.8] - 2026-10-01
 
 _A baseline in the dark._

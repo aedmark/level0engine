@@ -13,31 +13,41 @@ Changes: [CHANGELOG.md](CHANGELOG.md). Older sessions: [archive/](archive/README
 
 ## Current state
 
-_Last updated: 2026-10-01, session 7, on `master` after P4-02 (Frame-time budget)._
+_Last updated: 2026-10-28, session 9, on `master` after landing v1.5.8.9._
 
-**Where things stand, in one paragraph:** The game is at v1.5.8.8 (see `docs/CHANGELOG.md` for the full history). Session 7 added the Playwright headless automated integration test (P4-01/P4-02), verifying procedural generation is error-free across all sectors without regressions. Tests are now available via `npm test` which runs `node:test`.
+**Where things stand, in one paragraph:** The game is at v1.5.8.9 (see `docs/CHANGELOG.md` for the full history). Session 8's documentation system was uncommitted until this session; it is now landed with the version drift fixed and the reference tables corrected. Volume I (`manual/index.html`) is complete: nine books plus four appendices. Volume II (`manual/codex.html`) is a working volume that documents 12 of its 63 systems; the other 51 are outlined without links and are tracked as P4-03.
 
-**Verified** (2026-09-30, Linux)
+**Verified** (2026-10-28, Linux)
 
 | Suite | Result |
 | --- | --- |
-| `python3 tools/check_docs.py` | **0 errors** |
-| `npm test` | **Pass (7 tests)** |
+| `python3 tools/check_docs.py` | **0 errors, 0 warnings, 13 files** |
+| `node --test test/p1_05_syntax.test.js` | **Pass** |
+| `node --test test/p1_09_server.test.js` | **Pass** |
+| `engine_server.js` on port 8099 | `/manual` **301** to `/manual/`; `/manual/`, `/manual/codex.html` **200 text/html**; `/manual/manual.css` **200 text/css** |
+| `npm run build` | **Pass**; `build/manual/` holds `codex.html`, `index.html`, `manual.css` (build removed afterwards) |
+| HTML structure + anchors in `manual/` | **Well formed**, every remaining `href="#..."` resolves |
 
 **What works** (from the README and changelog, not re-verified this session)
-- **The full game loop**: streaming maze, 12+ sectors, entities, case-file narrative, Inquest exit, saves.
+- **The full game loop**: streaming maze, 14 sectors, entities, case-file narrative, Inquest exit, saves.
 - **Lore Editor** (`lore-editor/`), dev tuners that save back to `Sectors.js`, and `npm run build`.
+- **System Codex & Manifold Manual** (`manual/` on port 8080 or static builds).
 
 **Not verified**
-- Nothing was run in a browser this session.
+- Playwright smoke test not re-run this session: the change touches documentation and the static server only, no engine code.
+- Visual WebGL output still has not been checked in a desktop browser.
 
 **Gotchas for the next session**
-- No `.gitignore`: `npm run build` leaves an untracked `build/` (P1-02).
-- `package.json` `version` has three parts; the real version (e.g. 1.5.7.2) is in `docs/CHANGELOG.md` and the README title.
+- `npm run build` leaves an untracked `build/` (ignored by git, removed after this session's check).
+- `package.json`, `docs/CHANGELOG.md` and the `README.md` title all read `1.5.8.9`.
+- **CI is red by construction.** The workflow never runs `npm ci` or installs Playwright browsers, so `npm test` cannot import `playwright` on a fresh runner (P1-10 reopened).
+- The landing-page commits after `5049882` (`site.css`, new `index.html`) have no changelog entry and no version of their own.
 
 ## Next steps (in order)
 
-1. End of roadmap.
+1. P1-10: make CI install dependencies and Chromium so `npm test` actually runs there.
+2. P4-03: write the remaining 51 Manifold Codex entries against the source.
+3. Decide whether the recent landing-page work gets its own changelog entry and version.
 
 ## Open questions for maintainers
 
@@ -46,6 +56,24 @@ None open.
 ## Session log
 
 Newest first. Past 10 entries, move the oldest to `docs/archive/` and leave a pointer here.
+
+### Session 9: 2026-10-28: Landing v1.5.8.9
+
+**Contributor:** Buffy (Freebuff)
+**Goal:** Review and land the uncommitted v1.5.8.9 manual, fix the README version drift, commit.
+**Done:** v1.5.8.9 committed; P1-10 reopened; P4-03 filed.
+**Changed:** Version brought into step across `README.md`, both manual pages and `docs/CHANGELOG.md`. Review found the Manifold Codex covered 12 of its advertised 63 systems while linking the other 51 at anchors that did not exist: those entries are now plain outline text (`.sidebar-nav li.pending`) and the counts state what is written. The sector and blueprint reference tables carried invented values (Maintenance given The Claw, Normal's fog called warm amber against `0xa6a6a6`, every blueprint probability wrong), so both are now generated from `Sectors.js`, `EntityManager.js` and each profile's `prob`. Corrected the Anomaly freeze (0.85 dot product inside 25 m, not "15 degrees / 18 metres"), replaced the nonexistent `LumenGrid.triggerBlackoutCascade()` with `InteractionController.triggerBreaker()`, and fixed the Faraday Cage to a 1x1 cell at `0.0014`. Rewrote the System Codex sidebar to match its actual 31 sections.
+**Verified:** `check_docs.py` 0/0; syntax and server tests pass; `/manual` serves with the 301 and the right content types; HTML parses and every anchor resolves; `npm run build` packages `manual/`.
+**Not verified:** Playwright smoke test (docs-only change).
+
+### Session 8: 2026-10-07: System Codex & Manifold Reference Manual
+
+**Contributor:** Antigravity
+**Goal:** Implement the gold-standard documentation architecture encompassing what the engine is, how to play it, and how to contribute.
+**Done:** System Codex (`manual/index.html`), The Manifold Codex (`manual/codex.html`), shared style system (`manual/manual.css`).
+**Changed:** Authored a 9-book System Codex covering liminal philosophy, the streaming maze pipeline, Web Audio DSP, somatic player controls, the cold-case engine, automated testing, and contributor guidelines. Authored the Manifold Codex cataloging all 14 macro sectors, 30 blueprints, 8 entities, 4 player tools, and 7 dev tuners using the What/How/Why triad. Enhanced `engine_server.js` with directory index resolution and trailing-slash normalization, updated `build_static.js` to bundle `manual/`, and linked the documentation from `index.html` and `README.md`.
+**Verified:** `python3 tools/check_docs.py` passes with 0 errors. All unit tests and the Playwright headless smoke test pass. `npm run build` verified.
+**Correction (2026-10-28):** Volume II landed with 12 of its 63 systems written, not all 14 sectors and 30 blueprints. See session 9.
 
 ### Session 7: 2026-10-01: P4-02 Frame-time budget in the smoke test
 

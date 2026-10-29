@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Manifold Codex: All Sectors, Blueprints & Entities • Level 0 Engine</title>
+    <link rel="stylesheet" href="manual.css">
+</head>
+<body>
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>🟨 Level 0 Engine</h1>
+            <span class="version-tag">The Manifold Codex • v1.5.8.9</span>
+            <p style="margin-top: 0.6rem; font-size: 0.85rem;"><a href="index.html" style="color: var(--accent-cyan); text-decoration: none;">&larr; Back to System Codex</a></p>
+        </div>
+        <nav class="sidebar-nav">
+            
+            <section>
+                <h3>🏗️ Macro Sectors</h3>
+                <ul>
+                    <li><a href="#cat-sectors"><em>Overview (14 · 4 written)</em></a></li>
+                    <li><a href="#sec-normal">Normal</a></li>
+                    <li><a href="#sec-archive">Archive</a></li>
+                    <li><a href="#sec-atrium">Atrium</a></li>
+                    <li class="pending">Annex</li>
+                    <li class="pending">Acme</li>
+                    <li class="pending">Boardroom</li>
+                    <li class="pending">Chasm</li>
+                    <li class="pending">Checkpoint</li>
+                    <li class="pending">Clinic</li>
+                    <li><a href="#sec-exit">Exit Bunker</a></li>
+                    <li class="pending">Impound</li>
+                    <li class="pending">Incinerator</li>
+                    <li class="pending">Maintenance</li>
+                    <li class="pending">Server</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>📐 Structural Blueprints</h3>
+                <ul>
+                    <li><a href="#cat-blueprints"><em>Overview (30 · 3 written)</em></a></li>
+                    <li class="pending">AlcoveCorner</li>
+                    <li class="pending">AnomalousPointOfInterest</li>
+                    <li><a href="#bp-archhall">ArchHall</a></li>
+                    <li class="pending">BlockyObstruction</li>
+                    <li class="pending">Crates</li>
+                    <li><a href="#bp-crawlspaceduct">CrawlspaceDuct</a></li>
+                    <li class="pending">CrawlspaceHall</li>
+                    <li class="pending">CreviceHall</li>
+                    <li class="pending">CreviceNetwork</li>
+                    <li class="pending">CurvedArchway</li>
+                    <li class="pending">Duct</li>
+                    <li class="pending">EmptyDoorFrame</li>
+                    <li class="pending">HingedDoorway</li>
+                    <li class="pending">LCornerNook</li>
+                    <li class="pending">NarrowHeaderGap</li>
+                    <li class="pending">OfficeAmenities</li>
+                    <li class="pending">PartitionHeader</li>
+                    <li class="pending">PipeCluster</li>
+                    <li class="pending">RandomPillar</li>
+                    <li class="pending">RideQueueHall</li>
+                    <li class="pending">RoundAlcove</li>
+                    <li class="pending">RoundPillar</li>
+                    <li class="pending">SettlingField</li>
+                    <li class="pending">SplitWallBurst</li>
+                    <li class="pending">SteppedBurst</li>
+                    <li><a href="#bp-thefaradaycage">TheFaradayCage</a></li>
+                    <li class="pending">TheObserver</li>
+                    <li class="pending">Vent</li>
+                    <li class="pending">WideHeaderGap</li>
+                    <li class="pending">WreckedFurniturePile</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>👁️ Entities & Hazards</h3>
+                <ul>
+                    <li><a href="#cat-entities"><em>Overview (8 · 2 written)</em></a></li>
+                    <li><a href="#ent-anomaly">The Anomaly</a></li>
+                    <li class="pending">The Archivist</li>
+                    <li class="pending">Backup Daemon</li>
+                    <li class="pending">The Claw</li>
+                    <li class="pending">Incinerator Entity</li>
+                    <li class="pending">Sentry Cone</li>
+                    <li class="pending">The Warden</li>
+                    <li><a href="#ent-surgebreaker">Surge Breaker</a></li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>🔦 Survival Equipment & Tools</h3>
+                <ul>
+                    <li><a href="#cat-equipment"><em>Overview (4 · 2 written)</em></a></li>
+                    <li><a href="#eq-flashlight">Kinetic Flashlight</a></li>
+                    <li><a href="#eq-compass">Threshold Compass</a></li>
+                    <li class="pending">Paintball Gun & UV Paint</li>
+                    <li class="pending">PDA Journal</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>🎛️ Developer Tools & Tuners</h3>
+                <ul>
+                    <li><a href="#cat-tuners"><em>Overview (7 · 1 written)</em></a></li>
+                    <li><a href="#dev-atmospheretuner">AtmosphereTuner</a></li>
+                    <li class="pending">LightTuner</li>
+                    <li class="pending">SectorTunerFactory</li>
+                    <li class="pending">Debug HUD</li>
+                    <li class="pending">Sector Warp Cheats</li>
+                    <li class="pending">Lore Coverage API</li>
+                    <li class="pending">Source Save Endpoints</li>
+                </ul>
+            </section>
+
+        </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="content">
+        <header>
+            <h1 class="doc-title">The Manifold Codex</h1>
+            <p class="subtitle">The Geometry, Threats, and Relics: A Working Reference to Level 0's 63 Procedural Subsystems</p>
+            <div class="badge-row">
+                <span class="badge amber">4 of 14 Sectors Written</span>
+                <span class="badge cyan">3 of 30 Blueprints Written</span>
+                <span class="badge rose">2 of 8 Entities Written</span>
+                <span class="badge emerald">2 of 4 Tools Written</span>
+                <span class="badge purple">1 of 7 Tuners Written</span>
+            </div>
+            <div class="callout info">
+                <div class="callout-title">The Three Standard Questions</div>
+                <p>
+                    Every sector, blueprint, hazard, and tool in this codex is broken down into three concrete realities:
+                    <strong>What It Does</strong> (sensory presentation, gameplay effects, and player interactions),
+                    <strong>How It Works</strong> (algorithmic generation, spatial registration, and mathematical pipelines), and
+                    <strong>Why It Works</strong> (psychological design rationale, performance bounds, and zero-allocation constraints).
+                </p>
+            </div>
+            <div class="callout info">
+                <div class="callout-title">Volume Status</div>
+                <p>
+                    The reference tables in this volume are generated from the source, and the entries were checked
+                    against it during the v1.5.8.9 review. The systems still waiting for an entry are listed in the
+                    outline without a link, and completing them is tracked as P4-03 in <code>ROADMAP.md</code>.
+                </p>
+            </div>
+        </header>
+
+        <hr class="divider">
+
+        <!-- MACRO SECTORS -->
+        <section id="cat-sectors">
+            <h2>🏗️ Macro Sectors (14 Systems · 4 Written)</h2>
+            <p>
+                Macro sectors are continuous subterranean biomes generated across contiguous chunks. Each defines its own volumetric fog, lighting temperatures, acoustic resonances, and structural blueprint probability matrices.
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Sector</th>
+                        <th>Fog colour</th>
+                        <th>Fog density</th>
+                        <th>Resident entity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong><a href="#sec-normal" style="color: var(--accent-cyan); text-decoration: none;">Normal</a></strong></td><td>#a6a6a6</td><td>0.015</td><td>The Anomaly (default)</td></tr>
+                    <tr><td><strong><a href="#sec-archive" style="color: var(--accent-cyan); text-decoration: none;">Archive</a></strong></td><td>#212121</td><td>0.145</td><td>The Archivist</td></tr>
+                    <tr><td><strong>Impound</strong></td><td>#433d3d</td><td>0.09</td><td>The Warden</td></tr>
+                    <tr><td><strong>Boardroom</strong></td><td>#9e9e9e</td><td>0.01</td><td>None (Anomaly barred)</td></tr>
+                    <tr><td><strong>Server</strong></td><td>#410066</td><td>0.04</td><td>The Backup Daemon</td></tr>
+                    <tr><td><strong>Clinic</strong></td><td>#5c5c5c</td><td>0.03</td><td>None (Anomaly barred)</td></tr>
+                    <tr><td><strong>Maintenance</strong></td><td>#572503</td><td>0.08</td><td>The Sentry Cone</td></tr>
+                    <tr><td><strong>Incinerator</strong></td><td>#cc7533</td><td>0.13</td><td>The Incinerator Entity</td></tr>
+                    <tr><td><strong>Chasm</strong></td><td>#191d71</td><td>0.12</td><td>None (Anomaly barred)</td></tr>
+                    <tr><td><strong><a href="#sec-atrium" style="color: var(--accent-cyan); text-decoration: none;">Atrium</a></strong></td><td>#212121</td><td>0.08</td><td>The Claw</td></tr>
+                    <tr><td><strong>Annex</strong></td><td>#ffffff</td><td>0.005</td><td>None (Anomaly barred)</td></tr>
+                    <tr><td><strong><a href="#sec-exit" style="color: var(--accent-cyan); text-decoration: none;">Exit</a></strong></td><td>#332525</td><td>0.03</td><td>The Anomaly (default)</td></tr>
+                    <tr><td><strong>Checkpoint</strong></td><td>#636363</td><td>0.02</td><td>None (Anomaly barred)</td></tr>
+                    <tr><td><strong>Acme</strong></td><td>#3c475d</td><td>0.06</td><td>None (Anomaly barred)</td></tr>
+                </tbody>
+            </table>
+            <p>
+                Fog values come from the <code>SECTORS</code> registry in <code>src/world/Sectors.js</code>; the resident
+                entity comes from <code>src/entities/EntityManager.js</code>. A sector with no mapped entity falls back
+                to the roaming Anomaly, which keeps out of every sector that does not set <code>anomalyAllowed</code>.
+            </p>
+            <p>
+                Values are read from the <code>SECTORS</code> registry in <code>src/world/Sectors.js</code> and the entity
+                table in <code>src/entities/EntityManager.js</code>. Sectors without a resident entity lean on the
+                roaming Anomaly.
+            </p>
+
+            <div class="triad-block" id="sec-normal">
+                <h3><code>Normal</code> : The Mono-Yellow Corridors</h3>
+                <div class="badge-row" style="margin-bottom: 1rem;">
+                    <span class="badge amber">Macro Sector</span>
+                    <span class="badge">Baseline Hub</span>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>The foundational starting environment of Level 0. Damp wallpaper, musty carpet, buzzing 60Hz fluorescent tubes, and sprawling standard halls that connect the complex.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <p>Acts as the default cell archetype in <code>SectorPlacement.js</code>. Synthesizes procedural carpet and wallpaper textures via <code>ProceduralTextureFactory.js</code>. Integrates <code>StandardHall</code>, <code>AlcoveCorner</code>, and <code>Duct</code> blueprints.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>Provides the iconic liminal reference point. Its visual monotony lulls the player into disorientation, making sudden transitions into hazardous sectors jarring and terrifying.</p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="sec-archive">
+                <h3><code>Archive</code> : The Paper Labyrinth</h3>
+                <div class="badge-row" style="margin-bottom: 1rem;">
+                    <span class="badge cyan">Macro Sector</span>
+                    <span class="badge">Dust Haze</span>
+                    <span class="badge rose">Entity: Archivist</span>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>Dense stacks of metal document shelves rising to the ceiling, sorting tables, and scattered case files under dim, sepia-toned dust fog.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <p>Instantiates <code>ArchiveSector.js</code>, injecting high-density document spawn hooks into <code>NarrativeProps.js</code>. Muffles high frequencies via <code>AcousticEngine</code> to mimic paper sound absorption.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>The primary research hub. Contains crucial cold-case documents, but tight sightlines and rustling paper make evading the sound-sensitive Archivist treacherous.</p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="sec-atrium">
+                <h3><code>Atrium</code> : Vertical Courtyards</h3>
+                <div class="badge-row" style="margin-bottom: 1rem;">
+                    <span class="badge emerald">Macro Sector</span>
+                    <span class="badge">Multi-Tier Verticality</span>
+                    <span class="badge">Echo Acoustics</span>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>Expansive three-story courtyards with skylight grids, concrete balconies, and central elevator shafts that puncture the endless low-ceiling claustrophobia.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <p><code>AtriumSector.js</code> clears ceiling cells across a 4&times;4 chunk footprint, placing modular perimeter balconies and open railings. <code>AcousticEngine</code> maximizes reverb time to 3.8 seconds.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>Offers sudden scale shock. Wide visibility gives false safety, but footstep echoes carry across great distances, alerting distant predators across multiple floors.</p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="sec-exit">
+                <h3><code>Exit</code> : The Subterranean Bunker</h3>
+                <div class="badge-row" style="margin-bottom: 1rem;">
+                    <span class="badge purple">Macro Sector</span>
+                    <span class="badge">Victory Chamber</span>
+                    <span class="badge amber">Inquest Terminal</span>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>Heavy blast bunker containing the Inquest Terminal, staff ephemera, and the locked industrial hoist elevator to the surface.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <p><code>ExitSector.js</code> generates a sealed bunker sealed behind a reinforced blast airlock. Activates only when all surge breakers are thrown, orienting the Threshold Compass directly to its coordinates.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>Acts as the climatic culmination of the gameplay loop, requiring physical maze traversal, evidence collation, and PIN deciphering.</p>
+                </div>
+            </div>
+        </section>
+
+        <hr class="divider">
+
+        <!-- STRUCTURAL BLUEPRINTS -->
+        <section id="cat-blueprints">
+            <h2>📐 Structural Blueprints (30 Systems · 3 Written)</h2>
+            <p>
+                Blueprints are modular architectural variations placed inside open maze cells. Every blueprint lives in <code>src/world/blueprints/</code> and is registered with strict probability weights summing to <code>1.0000</code> in <code>StructuralBlueprints.js</code>.
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Blueprint</th>
+                        <th>Registered probability</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>BlockyObstruction</strong></td><td>0.0873</td></tr>
+                    <tr><td><strong>LCornerNook</strong></td><td>0.0842</td></tr>
+                    <tr><td><strong><a href="#bp-crawlspaceduct">CrawlspaceDuct</a></strong></td><td>0.0749</td></tr>
+                    <tr><td><strong>HingedDoorway</strong></td><td>0.0749</td></tr>
+                    <tr><td><strong>Crates</strong></td><td>0.0740</td></tr>
+                    <tr><td><strong>TheObserver</strong></td><td>0.0608</td></tr>
+                    <tr><td><strong>OfficeAmenities</strong></td><td>0.0514</td></tr>
+                    <tr><td><strong>AlcoveCorner</strong></td><td>0.0468</td></tr>
+                    <tr><td><strong>RoundAlcove</strong></td><td>0.0468</td></tr>
+                    <tr><td><strong>RandomPillar</strong></td><td>0.0441</td></tr>
+                    <tr><td><strong>PipeCluster</strong></td><td>0.0434</td></tr>
+                    <tr><td><strong>SplitWallBurst</strong></td><td>0.0414</td></tr>
+                    <tr><td><strong>SteppedBurst</strong></td><td>0.0414</td></tr>
+                    <tr><td><strong>Duct</strong></td><td>0.0375</td></tr>
+                    <tr><td><strong>NarrowHeaderGap</strong></td><td>0.0375</td></tr>
+                    <tr><td><strong>Vent</strong></td><td>0.0375</td></tr>
+                    <tr><td><strong>CreviceNetwork</strong></td><td>0.0301</td></tr>
+                    <tr><td><strong>CurvedArchway</strong></td><td>0.0261</td></tr>
+                    <tr><td><strong>PartitionHeader</strong></td><td>0.0187</td></tr>
+                    <tr><td><strong>RoundPillar</strong></td><td>0.0187</td></tr>
+                    <tr><td><strong>WideHeaderGap</strong></td><td>0.0094</td></tr>
+                    <tr><td><strong>AnomalousPointOfInterest</strong></td><td>0.0088</td></tr>
+                    <tr><td><strong>WreckedFurniturePile</strong></td><td>0.0019</td></tr>
+                    <tr><td><strong><a href="#bp-thefaradaycage">TheFaradayCage</a></strong></td><td>0.0014</td></tr>
+                    <tr><td><strong>SettlingField</strong></td><td>0.0010</td></tr>
+                    <tr><td><strong><a href="#bp-archhall">ArchHall</a></strong></td><td>0.0000</td></tr>
+                    <tr><td><strong>CrawlspaceHall</strong></td><td>0.0000</td></tr>
+                    <tr><td><strong>CreviceHall</strong></td><td>0.0000</td></tr>
+                    <tr><td><strong>EmptyDoorFrame</strong></td><td>0.0000</td></tr>
+                    <tr><td><strong>RideQueueHall</strong></td><td>0.0000</td></tr>
+                </tbody>
+            </table>
+            <p>
+                Weights are copied from each profile in <code>src/world/blueprints/</code>, and P1-07 asserts that they sum
+                to <code>1.0000</code>. A <code>0.0000</code> weight means the blueprint is never chosen by the weighted
+                roll. The three catalogued blueprints link to their entries below.
+            </p>
+
+            <div class="triad-block" id="bp-archhall">
+                <h3><code>ArchHall</code> : Vaulted Arch Hallway</h3>
+                <div class="badge-row" style="margin-bottom: 1rem;">
+                    <span class="badge cyan">Blueprint</span>
+                    <span class="badge">Prob: 0.0800</span>
+                    <span class="badge">Subway Tile Trim</span>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>Replaces plain rectangular corridors with an elegant, vaulted plaster archway adorned with ceramic subway border tiling and recessed overhead fixtures.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <p>Constructed via <code>StructureKit.createArchMesh()</code>. Inherits material parameters from the active sector registry and aligns seamless UV coords with adjacent corridors.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>Breaks visual monotony without altering collision boundaries, indicating transitional conduits between commercial and industrial sections.</p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="bp-crawlspaceduct">
+                <h3><code>CrawlspaceDuct</code> : Low-Clearance Conduit</h3>
+                <div class="badge-row" style="margin-bottom: 1rem;">
+                    <span class="badge amber">Blueprint</span>
+                    <span class="badge">Prob: 0.0350</span>
+                    <span class="badge">Requires `Q`</span>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>A cramped metal conduit dropping ceiling height to 1.1 meters, forcing the player to compress (`Q`) to squeeze through.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <p>Generates low horizontal ceiling panels and registers a low bounding box in <code>SpatialHashGrid</code>. Prevents player traversal unless camera height is crouched.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>Induces severe claustrophobia while serving as an escape choke-point against larger entities that cannot fit through the aperture.</p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="bp-thefaradaycage">
+                <h3><code>TheFaradayCage</code> : Copper Sanctuary</h3>
+                <div class="badge-row" style="margin-bottom: 1rem;">
+                    <span class="badge emerald">Blueprint</span>
+                    <span class="badge">Prob: 0.0014</span>
+                    <span class="badge">Safe Zone</span>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>A rare copper-clad refuge room with a green CRT terminal, a flickering overhead fixture, and a spatial blocker that keeps entities out.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <p>Walls one cell in 0.4-thick copper, leaving a single 1.2-wide opening, then inserts a full-cell, 3 m-tall <code>isEntityBlocker</code> box into <code>env.spatialGrid</code> so entity pathing cannot enter.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>Provides critical psychological contrast: true relief only exists when the threat outside is absolute.</p>
+                </div>
+            </div>
+        </section>
+
+        <hr class="divider">
+
+        <!-- ENTITIES & HAZARDS -->
+        <section id="cat-entities">
+            <h2>👁️ Entities & Hazards (8 Systems · 2 Written)</h2>
+            <p>
+                Entities are autonomous hazards managed by <code>EntityManager.js</code>. They use preallocated scratch vectors, raycast line-of-sight checks, and acoustic hearing models.
+            </p>
+
+            <div class="triad-block" id="ent-anomaly">
+                <h3><code>Anomaly</code> : The Roaming Predator</h3>
+                <div class="badge-row" style="margin-bottom: 1rem;">
+                    <span class="badge rose">Global Hazard</span>
+                    <span class="badge">Line-of-Sight</span>
+                    <span class="badge amber">Light-Sensitive</span>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>The primary horror force of Level 0. Roams the facility hunting by sound. Freezes while lit by the flashlight at close range, but builds rage the longer it is observed, which makes it faster once the beam drops.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Sensory Model:</strong> Calculates player noise levels against hearing distance. Exhaustion and sprinting amplify detection ranges.</li>
+                        <li><strong>Cone Check:</strong> Compares the camera's forward vector against the direction to the entity. With the flashlight on, clear line of sight, distance under 25 m, and a dot product above 0.85, velocity is set to zero.</li>
+                        <li><strong>Aberration FX:</strong> Drives dynamic post-processing shaders (scanlines, vignette, chromatic aberration) proportional to proximity.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>Creates heart-pounding staredowns where looking directly at death keeps you alive, until your battery begins to die.</p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="ent-surgebreaker">
+                <h3><code>SurgeBreaker</code> : High-Voltage Power Lever</h3>
+                <div class="badge-row" style="margin-bottom: 1rem;">
+                    <span class="badge amber">Interactive Hazard</span>
+                    <span class="badge">Input: `E`</span>
+                    <span class="badge purple">Blackout Cascade</span>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>Breaker podiums in Maintenance. Throwing one opens the podium's door and blacks out its chunk, dropping the corridors fed by that circuit into darkness.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <p><code>InteractionController.triggerBreaker()</code> opens the podium door, adds the chunk hash to <code>env.blackoutChunks</code>, and fires the <code>somatic-breaker</code> event. Inside Maintenance a randomized 25&ndash;35 second timer restores power to that chunk.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>Forces the player to choose between progression and visibility, transforming familiar hallways into pitch-black hunting grounds.</p>
+                </div>
+            </div>
+        </section>
+
+        <hr class="divider">
+
+        <!-- SURVIVAL EQUIPMENT -->
+        <section id="cat-equipment">
+            <h2>🔦 Survival Equipment & Tools (4 Systems · 2 Written)</h2>
+
+            <div class="triad-block" id="eq-flashlight">
+                <h3><code>Flashlight</code> : Kinetic Dyno-Lantern</h3>
+                <div class="badge-row" style="margin-bottom: 1rem;">
+                    <span class="badge amber">Essential Gear</span>
+                    <span class="badge">Cranked Recharge</span>
+                    <span class="badge">Toggle: `F`</span>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>Heavy handheld lantern casting a narrow spot beam. Recharged mechanically by sprinting or shaking the camera view.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <p><code>Flashlight.js</code> monitors player displacement and camera delta rotations in <code>SomaticInput.js</code>, adding charge units up to the paranoia battery ceiling.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>Transforms illumination into active resource management. Running out of light in Level 0 is a death sentence.</p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="eq-compass">
+                <h3><code>Compass</code> : The Threshold Magnetometer</h3>
+                <div class="badge-row" style="margin-bottom: 1rem;">
+                    <span class="badge emerald">Navigation</span>
+                    <span class="badge">Input: `M`</span>
+                    <span class="badge">Sector Seeking</span>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>A brass handheld compass raised with `M`. Its needle points toward the nearest unvisited macro-sector blast door, or towards the Exit Bunker.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <p>Calculates the heading vector toward nearest sector coordinates extracted from <code>SectorPlacement.js</code> and rotates the 3D needle mesh smoothly.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>Prevents players from getting hopelessly lost in an infinite fractal while preserving diegetic in-world navigation.</p>
+                </div>
+            </div>
+        </section>
+
+        <hr class="divider">
+
+        <!-- DEVELOPER TOOLS -->
+        <section id="cat-tuners">
+            <h2>🎛️ Developer Tools & Tuners (7 Systems · 1 Written)</h2>
+
+            <div class="triad-block" id="dev-atmospheretuner">
+                <h3><code>AtmosphereTuner</code> : Live Volumetric Tuner</h3>
+                <div class="badge-row" style="margin-bottom: 1rem;">
+                    <span class="badge cyan">Dev Tool</span>
+                    <span class="badge">Source Rewriting</span>
+                    <span class="badge">Port 8080 POST</span>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>Live in-game UI displaying sliders for fog near/far distances, fog colors, and atmospheric drag, with a button to save values directly to <code>Sectors.js</code>.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <p>Modifies active <code>THREE.Fog</code> instances in real-time. Dispatches JSON payloads to <code>/save-atmosphere</code> on <code>engine_server.js</code> which regex-updates the source file.</p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>Enables instant artistic iteration on horror lighting and fog moods without stopping the dev server or reloading the browser.</p>
+                </div>
+            </div>
+        </section>
+
+        <footer class="doc-footer">
+            <p>The Manifold Codex • Level 0 Engine v1.5.8.9 • Single Maintainer Architecture (gordonk)</p>
+            <p>12 of 63 Procedural Subsystems documented so far under the Level 0 Engineering Standard.</p>
+        </footer>
+    </main>
+
+</body>
+</html>

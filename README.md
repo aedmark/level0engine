@@ -1,4 +1,4 @@
-# Level 0 Engine: Procedural Liminal Space Simulator v1.5.8
+# Level 0 Engine: Procedural Liminal Space Simulator v1.5.8.9
 
 <img src="./header.png">
 
@@ -36,6 +36,14 @@ But the elevator is locked. To use it, you must find the **Assembled Lock** code
 | `P` | Equip Paintball Gun / UV Paint |
 | `Tab` | Open Engine Settings Panel |
 | `X` | Capture Asset (Downloads a clean PNG screenshot) |
+
+---
+
+## 📚 Official Manual & The Manifold Codex
+
+For in-depth documentation following the Level 0 Engineering Standard:
+- **[Everything You Ever Wanted to Know About Level 0 Engine](manual/index.html)**: The exhaustive System Codex detailing philosophy, rendering architecture, Web Audio DSP, somatic player controls, the cold-case engine, automated testing, and contributor guidelines.
+- **[The Manifold Codex](manual/codex.html)**: The reference catalog for the engine's 14 Macro Sectors, 30 Structural Blueprints, 8 Entities & Hazards, survival gear, and developer tuners, with *What It Does*, *How It Works*, and *Why It Works* triads. The first volume covers 12 of those 63 systems; the rest are outlined but not yet written.
 
 ---
 
