@@ -50,6 +50,23 @@ confirmed the static build does not need it.
 **Decision:** Move it to `docs/CHANGELOG.md` and drop it from `build_static.js`'s copy list.
 **Consequences:** The itch.io build no longer contains the changelog. `tools/check_docs.py` scans it.
 
+## D-007 The landing page is a facility terminal, not a one-page product site  (2026-10-31, status: accepted)
+**Context:** The landing page used the same hero / feature-section / closing-CTA layout as a generic product site, and
+loaded Space Mono from Google Fonts. The game's own interface is EGA-era hardware: sixteen colours, bevelled windows,
+a terminal that asks for the Finding of Fact.
+**Decision:** `index.html` is an induction session in that hardware language: a dithered desk, a grey pull-down menu
+bar, and five double-bordered file windows (`BOOT.LOG`, `FACILITY.DOC`, `SURVIVAL.TXT`, `CONTROLS.KEY`, `EXIT.SYS`).
+All existing copy, controls and links are preserved. `site.css` uses the sixteen-colour EGA palette shared with the
+portfolio and Plainchant. Display type is VT323 from `assets/fonts/`; body text is the system monospace stack. The
+Google Fonts link is removed, so the page loads no network font.
+**Alternatives:** A dark editorial page in the portfolio's style (rejected: it does not carry the game's terminal
+fiction); one long scroll without window chrome (rejected: the file-per-concern structure is what makes the density
+legible).
+**Consequences:** Each section is a file, so a new section means a new window and a numbered bar; the page remains one
+HTML file and one stylesheet. `header.png` is the in-page capture, lazy-loaded; `screenshot.png` is no longer
+referenced by the landing page.
+**Review trigger:** If the manual or codex get the same treatment, or a new section no longer fits a file.
+
 ## Open questions
 
 - **Q-001** ~~Are the proposed goals and order for ROADMAP phases 2 and 3 right?~~ Answered 2026-09-30 by the

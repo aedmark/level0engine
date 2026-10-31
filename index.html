@@ -1,215 +1,266 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Level 0 Engine is a procedural liminal-space horror game running natively in the browser.">
-  <meta name="theme-color" content="#1a1811">
-  <title>Level 0 Engine — Procedural Liminal Horror</title>
-  <link href="assets/fonts/vt323.css" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="site.css">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Level 0 Engine — Procedural Liminal Horror</title>
+    <meta name="description" content="Level 0 Engine is a procedural liminal-space horror game running natively in the browser.">
+    <meta name="theme-color" content="#000000">
+    <link href="assets/fonts/vt323.css" rel="stylesheet">
+    <link rel="stylesheet" href="site.css">
 </head>
 <body>
-  <div class="window-title-bar">
-    <span class="window-title">C:\LEVEL0\ENGINE.EXE</span>
-    <span class="window-controls">[ - ] [ X ]</span>
-  </div>
 
-  <a class="skip-link" href="#main">Skip to the game</a>
+<a class="skip" href="#facility">Skip to the facility</a>
 
-  <header class="site-header">
-    <a class="wordmark" href="index.html" aria-label="Level 0 Engine home">
-      <span class="wordmark-main">LEVEL 0</span>
-      <span class="wordmark-mark">ENGINE</span>
-    </a>
-    <nav aria-label="Primary navigation">
-      <a href="#discover">Discover</a>
-      <a href="#how-to-survive">How to survive</a>
-      <a href="#controls">Controls</a>
-      <a href="manual/index.html">Manual</a>
-      <a class="nav-cta" href="https://github.com/aedmark/level0engine">Source</a>
-    </nav>
-  </header>
+<div class="window-bar">
+    <span class="window-name">C:\LEVEL0\ENGINE.EXE</span>
+    <span class="window-meta">FACILITY TERMINAL — READ ONLY</span>
+    <span class="window-controls" aria-hidden="true">[ □ ]</span>
+</div>
 
-  <main id="main">
-    <section class="hero" aria-labelledby="hero-title">
-      <div class="hero-image" role="img" aria-label="A dark, liminal office space illuminated only by a flashlight"></div>
-      <div class="hero-shade"></div>
-      <div class="hero-content">
-        <p class="eyebrow">Level 0 Engine · Procedural Liminal Horror</p>
-        <h1 id="hero-title">The dark is not empty.</h1>
-        <p class="hero-lede">
-          A procedural liminal-space horror game running natively in the browser on WebGL. 
-          The maze, textures, audio, and narrative are all generated at runtime from a seed.
-          Find the breakers, settle the truth, and escape before your sanity fractures.
-        </p>
-        <div class="hero-actions">
-          <a class="button button-primary" href="terminal.html">Initialize Session</a>
-          <a class="button button-quiet" href="manual/index.html">System Manual</a>
+<header class="site-head">
+    <div class="wrap">
+        <a class="brand" href="index.html" aria-label="Level 0 Engine home">Level 0 <span>Engine</span></a>
+        <nav aria-label="Primary navigation">
+            <a href="#discover">Discover</a>
+            <a href="#survival">How to survive</a>
+            <a href="#controls">Controls</a>
+            <a href="manual/index.html">Manual</a>
+            <a href="https://github.com/aedmark/level0engine">Source</a>
+        </nav>
+        <a class="btn primary" href="terminal.html">Initialize session</a>
+    </div>
+</header>
+
+<main>
+
+    <section class="panel" id="facility" aria-labelledby="facility-title">
+        <div class="window-bar">
+            <span class="window-name">BOOT.LOG</span>
+            <span class="window-meta">01 / 05 — START-UP</span>
+            <span class="window-controls" aria-hidden="true">[ □ ]</span>
         </div>
-      </div>
-      <p class="hero-caption">Zero-Dependency ES6 · Runs locally in the browser</p>
-    </section>
+        <div class="panel-body">
+            <p class="boot-log" aria-hidden="true">&gt; LEVEL 0 ENGINE ............... ONLINE
+&gt; SECTORS MOUNTED .............. 13 MACRO
+&gt; PROCEDURAL SEED .............. ACCEPTED
+&gt; HAZARDS ...................... ACTIVE
+&gt; ENTITY ....................... ROAMING
+&gt; EXIT ELEVATOR ................ UNPOWERED
+<span class="bad">! WARNING: SANITY INTEGRITY UNSTABLE</span>
+<span class="warn">&gt; FINDING OF FACT .............. PENDING</span></p>
 
-    <section class="signal-strip" aria-label="System status">
-      <p><strong>SYS.STATUS</strong><span>ONLINE</span></p>
-      <p><strong>SECTORS</strong><span>13 MACRO</span></p>
-      <p><strong>HAZARDS</strong><span>ACTIVE</span></p>
-      <p><strong>ENTITY</strong><span>ROAMING</span></p>
-    </section>
+            <p class="file-kicker">Level 0 Engine · Procedural Liminal Horror</p>
+            <h1 id="facility-title">The dark is not empty.</h1>
+            <p class="lede">A procedural liminal-space horror game running natively in the browser on WebGL. The maze, textures, audio, and narrative are all generated at runtime from a seed. Find the breakers, settle the truth, and escape before your sanity fractures.</p>
 
-    <section class="section discover" id="discover" aria-labelledby="discover-title">
-      <div class="section-heading split-heading">
-        <div>
-          <p class="eyebrow">Architecture & Engine</p>
-          <h2 id="discover-title">Built for the web, native to the browser.</h2>
+            <div class="actions">
+                <a class="btn primary" href="terminal.html">Initialize Session →</a>
+                <a class="btn" href="manual/index.html">System Manual</a>
+            </div>
+            <p class="hint">Zero-Dependency ES6 · Runs locally in the browser</p>
+
+            <div class="status-strip" aria-label="System status">
+                <p><b>SYS.STATUS</b><span>ONLINE</span></p>
+                <p><b>SECTORS</b><span>13 MACRO</span></p>
+                <p><b>HAZARDS</b><span>ACTIVE</span></p>
+                <p><b>ENTITY</b><span>ROAMING</span></p>
+            </div>
+
+            <p class="prompt">C:\LEVEL0&gt; <span class="cursor" aria-hidden="true"></span></p>
         </div>
-        <p>
-          The engine runs entirely on native ES6 modules and WebGL via Three.js. 
-          O(1) Spatial Hash Grid collisions and zero-allocation scratch vectors maintain silky 60fps,
-          while dynamic lighting uses a fixed hardware shadow-caster pool with hysteresis to eliminate popping.
-        </p>
-      </div>
-
-      <div class="gallery">
-        <figure class="gallery-item">
-          <img src="screenshot.png" alt="In-game screenshot of Level 0 Engine">
-          <figcaption>
-            <strong>Procedural Acoustics & Post-Processing</strong>
-            Dynamic Chromatic Aberration, CRT scanlines, and claustrophobic vignettes tied directly to the Anomaly's proximity pressure. Live DSP shifts room tones and physically muffles sounds when occluded by walls.
-          </figcaption>
-        </figure>
-      </div>
     </section>
 
-    <section class="section guide" id="how-to-survive" aria-labelledby="guide-title">
-      <div class="section-heading split-heading">
-        <div>
-          <p class="eyebrow">The rules of the labyrinth</p>
-          <h2 id="guide-title">How to survive</h2>
+    <section class="panel" id="discover" aria-labelledby="discover-title">
+        <div class="window-bar">
+            <span class="window-name">FACILITY.DOC</span>
+            <span class="window-meta">02 / 05 — ARCHITECTURE</span>
+            <span class="window-controls" aria-hidden="true">[ □ ]</span>
         </div>
-        <p>
-          The facility generated a unique cold case just for you. Find notes, laptops, and tapes to unravel it. Unverified documents burden your mind. You must corroborate claims by finding matching evidence in entirely different sectors.
-        </p>
-      </div>
+        <div class="panel-body">
+            <p class="file-kicker">Architecture &amp; Engine</p>
+            <h2 id="discover-title">Built for the web, native to the browser.</h2>
+            <p class="intro">The engine runs entirely on native ES6 modules and WebGL via Three.js. O(1) Spatial Hash Grid collisions and zero-allocation scratch vectors maintain silky 60fps, while dynamic lighting uses a fixed hardware shadow-caster pool with hysteresis to eliminate popping.</p>
 
-      <ol class="guide-steps">
-        <li>
-          <div class="step-number">0x01</div>
-          <div class="step-body">
-            <p class="step-kicker">Manage your sanity</p>
-            <h3>The Flashlight</h3>
-            <p>
-              The dark is dangerous. Unverified claims and roaming in pitch black will accumulate as tension, reducing your maximum flashlight charge. Settle claims to restore your sanity limit. If your psyche fractures past 50%, expect hallucinations.
-            </p>
-          </div>
-        </li>
-        <li>
-          <div class="step-number">0x02</div>
-          <div class="step-body">
-            <p class="step-kicker">Avoid the hunter</p>
-            <h3>The Anomaly</h3>
-            <p>
-              It hunts via line-of-sight and sound. It feeds on panic. The more exhausted you are, the faster it pursues. Catching it in your flashlight beam will freeze it in place, but it will anger it. If it catches you, reality will mutate and rebuild around a new cold case.
-            </p>
-          </div>
-        </li>
-        <li>
-          <div class="step-number">0x03</div>
-          <div class="step-body">
-            <p class="step-kicker">Survive the zones</p>
-            <h3>Sector Hazards</h3>
-            <p>
-              Different zones harbor unique threats. In the Incinerator, don't look away from the Ember. In the Archive, the Archivist drifts at a distance. Don't sprint at it. In the Atrium, keep moving through the aisles — linger too long without a shelf overhead and a mechanical claw drops from the ceiling.
-            </p>
-          </div>
-        </li>
-        <li>
-          <div class="step-number">0x04</div>
-          <div class="step-body">
-            <p class="step-kicker">Restore the grid</p>
-            <h3>Surge Breakers</h3>
-            <p>
-              To power the exit elevator, you must locate and engage three highly rare Dimensional Switches hidden in the labyrinth. Pulling a breaker plunges the sector into a pitch-black reboot sequence before stabilizing the grid.
-            </p>
-          </div>
-        </li>
-        <li>
-          <div class="step-number">0x05</div>
-          <div class="step-body">
-            <p class="step-kicker">Submit the truth</p>
-            <h3>The Endgame</h3>
-            <p>
-              Once you have the breakers and the elevator key, the exit will dynamically construct itself in the next unvisited sector. The terminal demands the Finding of Fact. Submit the correct verdict based on the evidence. File the truth to escape; file wrong, and the void takes you.
-            </p>
-          </div>
-        </li>
-      </ol>
-    </section>
+            <div class="facility-grid">
+                <table class="spec">
+                    <caption>Facility specification</caption>
+                    <tbody>
+                        <tr><th scope="row">Renderer</th><td>WebGL via Three.js</td></tr>
+                        <tr><th scope="row">Modules</th><td>Native ES6</td></tr>
+                        <tr><th scope="row">Collisions</th><td>O(1) spatial hash grid</td></tr>
+                        <tr><th scope="row">Performance</th><td>Zero-allocation scratch vectors, 60fps</td></tr>
+                        <tr><th scope="row">Lighting</th><td>Fixed shadow-caster pool with hysteresis</td></tr>
+                        <tr><th scope="row">Post</th><td>Chromatic aberration, CRT scanlines, vignette</td></tr>
+                        <tr><th scope="row">Audio</th><td>Live DSP, muffled through walls</td></tr>
+                        <tr><th scope="row">Install</th><td>None — runs locally in the browser</td></tr>
+                    </tbody>
+                </table>
 
-    <section class="section controls" id="controls" aria-labelledby="controls-title">
-      <div class="section-heading split-heading">
-        <div>
-          <p class="eyebrow">Keep this nearby</p>
-          <h2 id="controls-title">The useful controls</h2>
+                <figure class="capture">
+                    <div class="capture-frame">
+                        <span class="rec">REC</span>
+                        <img src="header.png" alt="A dark, liminal office space illuminated only by a flashlight" width="1694" height="952" loading="lazy" decoding="async">
+                    </div>
+                    <figcaption><b>Capture 01</b> — <span class="cap-title">Procedural Acoustics &amp; Post-Processing.</span> Dynamic Chromatic Aberration, CRT scanlines, and claustrophobic vignettes tied directly to the Anomaly's proximity pressure. Live DSP shifts room tones and physically muffles sounds when occluded by walls.</figcaption>
+                </figure>
+            </div>
         </div>
-        <p>The labyrinth demands constant movement and resource management.</p>
-      </div>
-
-      <div class="control-groups">
-        <section class="control-card">
-          <p class="card-index">A · Movement</p>
-          <h3>Navigate</h3>
-          <dl>
-            <div><dt><kbd>W A S D</kbd></dt><dd>Move</dd></div>
-            <div><dt><kbd>Mouse</kbd></dt><dd>Look</dd></div>
-            <div><dt><kbd>Shift</kbd></dt><dd>Sprint (Draws stamina)</dd></div>
-            <div><dt><kbd>Space</kbd></dt><dd>Jump</dd></div>
-          </dl>
-        </section>
-        <section class="control-card">
-          <p class="card-index">B · Interaction</p>
-          <h3>Engage</h3>
-          <dl>
-            <div><dt><kbd>E</kbd></dt><dd>Interact / Pick Up</dd></div>
-            <div><dt><kbd>LMB</kbd></dt><dd>Toggle Flashlight</dd></div>
-            <div><dt><kbd>RMB</kbd></dt><dd>Focus Beam (Burns charge rapidly)</dd></div>
-            <div><dt><kbd>R</kbd></dt><dd>Reload Flashlight Battery</dd></div>
-          </dl>
-        </section>
-        <section class="control-card">
-          <p class="card-index">C · Equipment</p>
-          <h3>Tools</h3>
-          <dl>
-            <div><dt><kbd>J</kbd></dt><dd>Open Personal Journal (Amber PDA)</dd></div>
-            <div><dt><kbd>M</kbd></dt><dd>Raise/lower Threshold Compass</dd></div>
-            <div><dt><kbd>P</kbd></dt><dd>Raise/lower Paintball Gun</dd></div>
-            <div><dt><kbd>X</kbd></dt><dd>Capture Asset (Screenshot)</dd></div>
-          </dl>
-        </section>
-        <section class="control-card">
-          <p class="card-index">D · System</p>
-          <h3>Control</h3>
-          <dl>
-            <div><dt><kbd>V</kbd> (Hold)</dt><dd>Close Eyes (Calms nerves, blinds you)</dd></div>
-            <div><dt><kbd>TAB</kbd></dt><dd>Open System Terminal (Settings)</dd></div>
-            <div><dt><kbd>ESC</kbd></dt><dd>Release Pointer Lock / Pause</dd></div>
-          </dl>
-        </section>
-      </div>
     </section>
 
-    <section class="closing" aria-labelledby="closing-title">
-      <p class="eyebrow">The Anomaly is waiting.</p>
-      <h2 id="closing-title">Pick a seed.<br>Step inside.</h2>
-      <a class="button button-primary" href="terminal.html">INITIALIZE SESSION</a>
-    </section>
-  </main>
+    <section class="panel" id="survival" aria-labelledby="survival-title">
+        <div class="window-bar">
+            <span class="window-name">SURVIVAL.TXT</span>
+            <span class="window-meta">03 / 05 — FIELD MANUAL</span>
+            <span class="window-controls" aria-hidden="true">[ □ ]</span>
+        </div>
+        <div class="panel-body">
+            <p class="file-kicker">The rules of the labyrinth</p>
+            <h2 id="survival-title">How to survive</h2>
+            <p class="intro">The facility generated a unique cold case just for you. Find notes, laptops, and tapes to unravel it. Unverified documents burden your mind. You must corroborate claims by finding matching evidence in entirely different sectors.</p>
 
-  <footer class="site-footer">
-    <p>&copy; 1987 EDMARK LABORATORIES | ALL RIGHTS RESERVED</p>
-    <p><a href="https://github.com/aedmark/level0engine">GitHub</a></p>
-  </footer>
+            <ol class="directives">
+                <li class="directive">
+                    <span class="dir-num" aria-hidden="true">0x01</span>
+                    <div class="dir-body">
+                        <p class="dir-kicker">Manage your sanity</p>
+                        <h3>The Flashlight</h3>
+                        <p>The dark is dangerous. Unverified claims and roaming in pitch black will accumulate as tension, reducing your maximum flashlight charge. Settle claims to restore your sanity limit. If your psyche fractures past 50%, expect hallucinations.</p>
+                    </div>
+                    <span class="dir-tag">Sanity</span>
+                </li>
+                <li class="directive hostile">
+                    <span class="dir-num" aria-hidden="true">0x02</span>
+                    <div class="dir-body">
+                        <p class="dir-kicker">Avoid the hunter</p>
+                        <h3>The Anomaly</h3>
+                        <p>It hunts via line-of-sight and sound. It feeds on panic. The more exhausted you are, the faster it pursues. Catching it in your flashlight beam will freeze it in place, but it will anger it. If it catches you, reality will mutate and rebuild around a new cold case.</p>
+                    </div>
+                    <span class="dir-tag">Entity</span>
+                </li>
+                <li class="directive hostile">
+                    <span class="dir-num" aria-hidden="true">0x03</span>
+                    <div class="dir-body">
+                        <p class="dir-kicker">Survive the zones</p>
+                        <h3>Sector Hazards</h3>
+                        <p>Different zones harbor unique threats. In the Incinerator, don't look away from the Ember. In the Archive, the Archivist drifts at a distance. Don't sprint at it. In the Atrium, keep moving through the aisles — linger too long without a shelf overhead and a mechanical claw drops from the ceiling.</p>
+                    </div>
+                    <span class="dir-tag">Sectors</span>
+                </li>
+                <li class="directive">
+                    <span class="dir-num" aria-hidden="true">0x04</span>
+                    <div class="dir-body">
+                        <p class="dir-kicker">Restore the grid</p>
+                        <h3>Surge Breakers</h3>
+                        <p>To power the exit elevator, you must locate and engage three highly rare Dimensional Switches hidden in the labyrinth. Pulling a breaker plunges the sector into a pitch-black reboot sequence before stabilizing the grid.</p>
+                    </div>
+                    <span class="dir-tag">Power</span>
+                </li>
+                <li class="directive">
+                    <span class="dir-num" aria-hidden="true">0x05</span>
+                    <div class="dir-body">
+                        <p class="dir-kicker">Submit the truth</p>
+                        <h3>The Endgame</h3>
+                        <p>Once you have the breakers and the elevator key, the exit will dynamically construct itself in the next unvisited sector. The terminal demands the Finding of Fact. Submit the correct verdict based on the evidence. File the truth to escape; file wrong, and the void takes you.</p>
+                    </div>
+                    <span class="dir-tag">Verdict</span>
+                </li>
+            </ol>
+
+            <div class="case" aria-label="Cold case summary">
+                <p><b>COLD CASE</b><span>GENERATED PER SESSION</span></p>
+                <p><b>EVIDENCE</b><span>CORROBORATE ACROSS SECTORS</span></p>
+                <p><b>FINDING OF FACT</b><span class="pending">PENDING</span></p>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel" id="controls" aria-labelledby="controls-title">
+        <div class="window-bar">
+            <span class="window-name">CONTROLS.KEY</span>
+            <span class="window-meta">04 / 05 — INPUT</span>
+            <span class="window-controls" aria-hidden="true">[ □ ]</span>
+        </div>
+        <div class="panel-body">
+            <p class="file-kicker">Keep this nearby</p>
+            <h2 id="controls-title">The useful controls</h2>
+            <p class="intro">The labyrinth demands constant movement and resource management.</p>
+
+            <div class="keys">
+                <section class="key-group" aria-labelledby="key-a">
+                    <p class="group-index">A · Movement</p>
+                    <h3 id="key-a">Navigate</h3>
+                    <dl>
+                        <div><dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>Move</dd></div>
+                        <div><dt><kbd>Mouse</kbd></dt><dd>Look</dd></div>
+                        <div><dt><kbd>Shift</kbd></dt><dd>Sprint (Draws stamina)</dd></div>
+                        <div><dt><kbd>Space</kbd></dt><dd>Jump</dd></div>
+                    </dl>
+                </section>
+
+                <section class="key-group" aria-labelledby="key-b">
+                    <p class="group-index">B · Interaction</p>
+                    <h3 id="key-b">Engage</h3>
+                    <dl>
+                        <div><dt><kbd>E</kbd></dt><dd>Interact / Pick Up</dd></div>
+                        <div><dt><kbd>LMB</kbd></dt><dd>Toggle Flashlight</dd></div>
+                        <div><dt><kbd>RMB</kbd></dt><dd>Focus Beam (Burns charge rapidly)</dd></div>
+                        <div><dt><kbd>R</kbd></dt><dd>Reload Flashlight Battery</dd></div>
+                    </dl>
+                </section>
+
+                <section class="key-group" aria-labelledby="key-c">
+                    <p class="group-index">C · Equipment</p>
+                    <h3 id="key-c">Tools</h3>
+                    <dl>
+                        <div><dt><kbd>J</kbd></dt><dd>Open Personal Journal (Amber PDA)</dd></div>
+                        <div><dt><kbd>M</kbd></dt><dd>Raise/lower Threshold Compass</dd></div>
+                        <div><dt><kbd>P</kbd></dt><dd>Raise/lower Paintball Gun</dd></div>
+                        <div><dt><kbd>X</kbd></dt><dd>Capture Asset (Screenshot)</dd></div>
+                    </dl>
+                </section>
+
+                <section class="key-group" aria-labelledby="key-d">
+                    <p class="group-index">D · System</p>
+                    <h3 id="key-d">Control</h3>
+                    <dl>
+                        <div><dt><kbd>V</kbd> (Hold)</dt><dd>Close Eyes (Calms nerves, blinds you)</dd></div>
+                        <div><dt><kbd>TAB</kbd></dt><dd>Open System Terminal (Settings)</dd></div>
+                        <div><dt><kbd>ESC</kbd></dt><dd>Release Pointer Lock / Pause</dd></div>
+                    </dl>
+                </section>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel" id="exit" aria-labelledby="exit-title">
+        <div class="window-bar">
+            <span class="window-name">EXIT.SYS</span>
+            <span class="window-meta">05 / 05 — FINAL CALL</span>
+            <span class="window-controls" aria-hidden="true">[ □ ]</span>
+        </div>
+        <div class="panel-body">
+            <p class="file-kicker">The Anomaly is waiting.</p>
+            <h2 id="exit-title">Pick a seed.<br>Step inside.</h2>
+            <div class="run">
+                <p class="run-copy">A new cold case is already being generated.</p>
+                <div class="actions">
+                    <a class="btn primary" href="terminal.html">Initialize Session →</a>
+                    <a class="btn" href="manual/index.html">Read the manual</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer class="site-foot">
+    <div class="wrap">
+        <p class="copyright">© 1987 Edmark Laboratories | All rights reserved</p>
+        <p class="foot-links"><a href="https://github.com/aedmark/level0engine">GitHub</a></p>
+    </div>
+</footer>
+
 </body>
 </html>

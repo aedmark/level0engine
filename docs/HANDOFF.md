@@ -13,9 +13,9 @@ Changes: [CHANGELOG.md](CHANGELOG.md). Older sessions: [archive/](archive/README
 
 ## Current state
 
-_Last updated: 2026-10-28, session 10, on `master`._
+_Last updated: 2026-10-31, session 11, on `master`._
 
-**Where things stand, in one paragraph:** The game is at v1.5.8.10 (see `docs/CHANGELOG.md` for the full history). CI dependency resolution and Playwright runner setup are fixed (P1-10 resolved). Volume I (`manual/index.html`) is complete: nine books plus four appendices. Volume II (`manual/codex.html`) comprehensively documents all 63 procedural subsystems (14 sectors, 30 blueprints, 8 entities, 4 tools, 7 tuners) with verified What/How/Why triads and working navigation anchors (P4-03 resolved). Both manual volumes, `README.md`, and `tools/check_docs.py` have undergone source-verification claim by claim, eliminating invented files, methods, probabilities, and schemas (P4-04 resolved).
+**Where things stand, in one paragraph:** The game is at v1.5.8.11 (see `docs/CHANGELOG.md` for the full history). CI dependency resolution and Playwright runner setup are fixed (P1-10 resolved). Volume I (`manual/index.html`) is complete: nine books plus four appendices. Volume II (`manual/codex.html`) comprehensively documents all 63 procedural subsystems (14 sectors, 30 blueprints, 8 entities, 4 tools, 7 tuners) with verified What/How/Why triads and working navigation anchors (P4-03 resolved). Both manual volumes, `README.md`, and `tools/check_docs.py` have undergone source-verification claim by claim, eliminating invented files, methods, probabilities, and schemas (P4-04 resolved). The landing page (`index.html`, `site.css`) is now an EGA facility terminal: a boot log and four file windows instead of the hero/feature/closing layout, with no network font (D-007). It is released as v1.5.8.11.
 
 **Verified** (2026-10-28, Linux)
 
@@ -29,6 +29,17 @@ _Last updated: 2026-10-28, session 10, on `master`._
 | `npm run build` | **Pass**; `build/manual/` holds `codex.html`, `index.html`, `manual.css` (build removed afterwards) |
 | HTML structure + anchors in `manual/` | **Well formed**, all 112 `href="#..."` anchors resolve in `manual/codex.html` (63/63 subsystems) |
 
+**Landing page verified** (2026-10-31, Linux, Chromium)
+
+| Check | Result |
+| --- | --- |
+| `python3 tools/check_docs.py` | **0 errors, 0 warnings, 15 files** |
+| `node --test` (8 suites, excluding the Playwright smoke) | **Pass 8/8** |
+| Landing page at 1440x1000, 390x844, 320x700 | Header, boot log, spec, directives, key map and closing fit; no horizontal overflow |
+| Local links, anchors and assets | All resolve (`terminal.html`, `manual/index.html`, `header.png`, every `#` anchor) |
+| `node --test test/p4_01_smoke.test.js` | **Pass**, 381 s (the 8 fast suites passed in a separate run) |
+| `npm run build` | **Pass**; `build/` held the new `index.html` and `site.css` (removed afterwards) |
+
 **What works** (from the README and changelog, not re-verified this session)
 - **The full game loop**: streaming maze, 14 sectors, entities, case-file narrative, Inquest exit, saves.
 - **Lore Editor** (`lore-editor/`), dev tuners that save back to `Sectors.js`, and `npm run build`.
@@ -39,12 +50,11 @@ _Last updated: 2026-10-28, session 10, on `master`._
 
 **Gotchas for the next session**
 - `npm run build` leaves an untracked `build/` (ignored by git, removed after verification).
-- `package.json`, `docs/CHANGELOG.md` and the `README.md` title all read `1.5.8.10`.
-- The landing-page commits after `5049882` (`site.css`, new `index.html`) have no changelog entry and no version of their own.
+- Version identifiers read `1.5.8.11` in `package.json`, `package-lock.json`, the `README.md` title, `docs/CHANGELOG.md`, both manual volumes and this file.
 
 ## Next steps (in order)
 
-1. Decide whether the recent landing-page work gets its own changelog entry and version.
+1. No roadmap items remain open (Phases 1-4 are complete). The next session should agree the next phase with the maintainer; the landing page and both manual volumes are current.
 
 ## Open questions for maintainers
 
@@ -53,6 +63,15 @@ None open.
 ## Session log
 
 Newest first. Past 10 entries, move the oldest to `docs/archive/` and leave a pointer here.
+
+### Session 11: 2026-10-31: The landing page becomes a facility terminal
+
+**Contributor:** Buffy (Freebuff)
+**Goal:** Replace the generic hero/feature/closing layout with a page whose form matches the game.
+**Done:** `index.html` and `site.css` rewritten as five numbered file windows on an EGA desk (`BOOT.LOG`, `FACILITY.DOC`, `SURVIVAL.TXT`, `CONTROLS.KEY`, `EXIT.SYS`). All copy, controls, links and the 1987 footer preserved. Space Mono and the Google Fonts request removed in favour of the vendored VT323 and the system monospace stack. Released as v1.5.8.11; D-007 recorded.
+**Verified:** `check_docs.py` 0 errors / 0 warnings across 15 files; all 9 suites pass (8 fast suites in one run, the Playwright smoke separately in 381 s); `npm run build` packages the new landing page; inspected at 1440x1000, 390x844 and 320x700 with no horizontal overflow; every local link and anchor resolves; no failed network requests.
+**Not verified:** the WebGL game visually (untouched); Firefox.
+**Next session should start with:** choosing the next roadmap phase with the maintainer; no items are open.
 
 ### Session 10: 2026-10-28: Landing v1.5.8.10 (P1-10 CI runner fix, P4-03 Codex completion, P4-04 Source verification)
 

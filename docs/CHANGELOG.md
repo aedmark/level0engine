@@ -1,3 +1,9 @@
+## [v1.5.8.11] - 2026-10-31
+
+_The Facility Opens Its Front Door: A Landing Page Built From Its Own Hardware._
+
+- **[SITE] The Landing Page Is Now An EGA Facility Terminal (`index.html`, `site.css`):** The homepage used the same hero / feature-section / closing-CTA sequence as a generic product site and loaded Space Mono from Google Fonts, so the first thing a visitor saw shared nothing with the game's EGA-era interface. Rebuilt the page as an induction terminal: a dithered desk, a grey DOS menu bar, and five numbered file windows (`BOOT.LOG`, `FACILITY.DOC`, `SURVIVAL.TXT`, `CONTROLS.KEY`, `EXIT.SYS`) carrying the existing hero copy, architecture table, five survival steps, four control groups and closing call. Every link and control is preserved. The Google Fonts request is gone in favour of the vendored VT323 and the system monospace stack, so the page loads no network font; `header.png` is now the lazy-loaded in-page capture. The design rationale is D-007.
+
 ## [v1.5.8.10] - 2026-10-28
 
 _The Manifold Fully Catalogued: Sixty-Three Subsystems Verified Against The Substrate._
