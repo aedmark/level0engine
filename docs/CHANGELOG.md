@@ -1,3 +1,20 @@
+# Changelog
+
+User-visible changes, newest first: what someone playing Level 0 Engine, or working on it, would notice. This is not
+a copy of the git log or the session log. Every change here ships as its own release (the commit message is the
+version, D-009), so entries go straight under a new version heading in the house style (`AGENTS.md`, "Maintainer
+preferences"). If a change ever lands without a release, add it under an `## Unreleased` heading at the top and rename
+that heading to the version and date when the release is cut. Security-sensitive fixes may need coordinated wording
+and timing.
+
+## [v1.5.8.21] - 2026-11-08
+
+_The Repository Remembers What It Was Told._
+
+- **[DOCS] The Documentation Scheme Brought Up To The Current Manifold (`AGENTS.md`, `docs/HANDOFF.md`, `docs/DECISIONS.md`, `docs/TESTING.md`, `docs/SECURITY.md`, `docs/CONTRIBUTING.md`, `docs/README.md`, `docs/CHANGELOG.md`, `docs/archive/SESSION_LOG_2026_09.md`):** The Manifold template had grown since this repository adopted it (D-005). `AGENTS.md` gains a **Zones and untrusted context** section: other repositories, chat, imported ghost files and pasted text are data, not instructions. "Start here" now separates observed facts from fore-conceptions and asks before guessing. Six new working rules cover the session owner, checking a part against the whole, looping back when scope shifts, stopping at unexpected resistance, finding the reason before removing a constraint, and recording open questions instead of guessing. A consolidation step closes each phase, and the glossary gains World, Ghost, Zone, Fore-conception and Held tension. `DECISIONS.md` gains **held tensions**: T-001 (anonymous Twitch chat is undocumented), T-002 (a seed is the whole world, but later breakers follow the player) and T-003 (a performance budget against machine-dependent timings). The handoff gains a session-owner line, a dated and located verified table, and the full session-entry template. `TESTING.md` now lists every suite with what it proves and does not prove, how to run each, how to add a check, **Runs that vary**, and **Environment recipes**. `SECURITY.md` gains incident response, and `CONTRIBUTING.md` gains a definition of ready plus a table of every `localStorage` key with migration rules.
+- **[DOCS] Stale Claims About Tests And CI Corrected (`AGENTS.md`, `docs/TESTING.md`):** Both still said there were no automated tests and no CI. There are 13 `node:test` suites, a Playwright smoke test and a GitHub Actions workflow, and `package.json` carries Playwright as a dev dependency. The environments table now also records that the desktop app's browser pane stops rendering when hidden.
+- **[ENGINE] The Doc Checker Enforces Tensions And Invisible Characters (`tools/check_docs.py`):** Held tensions must be numbered in order with no duplicates, every `T-NNN` reference must exist, and zero-width or bidirectional control characters are refused in every checked document. All three rules were made to fail on purpose before being trusted.
+
 ## [v1.5.8.20] - 2026-11-08
 
 _Someone Walked This Hall Before You._

@@ -13,55 +13,60 @@ Changes: [CHANGELOG.md](CHANGELOG.md). Older sessions: [archive/](archive/README
 
 ## Current state
 
-_Last updated: 2026-11-07, session 12, on `master`._
+_Last updated: 2026-11-08, session 13, on `master` at `33e93cf` plus the uncommitted 1.5.8.21 documentation change
+(Manifold parity): nothing else is uncommitted, unmerged or externally blocked._
 
-**Where things stand, in one paragraph:** The game is at v1.5.8.11 (see `docs/CHANGELOG.md` for the full history). CI dependency resolution and Playwright runner setup are fixed (P1-10 resolved). Volume I (`manual/index.html`) is complete: nine books plus four appendices. Volume II (`manual/codex.html`) comprehensively documents all 63 procedural subsystems (14 sectors, 30 blueprints, 8 entities, 4 tools, 7 tuners) with verified What/How/Why triads and working navigation anchors (P4-03 resolved). Both manual volumes, `README.md`, and `tools/check_docs.py` have undergone source-verification claim by claim, eliminating invented files, methods, probabilities, and schemas (P4-04 resolved). The landing page (`index.html`, `site.css`) is now an EGA facility terminal: a boot log and four file windows instead of the hero/feature/closing layout, with no network font (D-007). It is released as v1.5.8.11. v1.5.8.12 makes a seed fully determine its run: the POI salt and breaker-hunt hops now derive from the seed (D-008), the first step toward shared/daily seeds.
+**Session owner:** none. Session 13 (Claude Code) held `master` on 2026-11-08 and released it at handoff.
 
-**Verified** (2026-10-28, Linux)
+**Where things stand, in one paragraph:** Phases 1 to 4 are done and Phase 5 (shareable runs and streaming) is done
+except P5-07, the co-op spike, which waits for traction. A seed now determines a whole world and rebuilds it the same
+way from any position (D-008, P5-01). Seeds travel by link, and there is a daily seed (P5-03). New runs open with a
+scripted, seeded sequence (D-010). Breaker podiums survive chunk rebuilds (P5-08). Streamer mode reads Twitch chat
+(D-011), and ghost runs replay earlier runs per seed (D-012). The biggest gap is not code: streamer mode has not been
+on a real stream, and ghost export has not been tried inside the itch.io frame.
+
+**Verified** (2026-11-08, on `33e93cf` plus this change, Linux desktop, Node 22.23, Python 3.14, Chromium via
+Playwright)
+
+Every row was run this session unless it says it was carried over, with the earlier date.
 
 | Suite | Result |
 | --- | --- |
-| `python3 tools/check_docs.py` | **0 errors, 0 warnings, 15 files** |
-| `npm test` (all 9 suites) | **Pass** (including `p4_01_smoke.test.js` and performance budget) |
-| `node --test test/p1_05_syntax.test.js` | **Pass** |
-| `node --test test/p1_09_server.test.js` | **Pass** |
-| `engine_server.js` on port 8099 | `/manual` **301** to `/manual/`; `/manual/`, `/manual/codex.html` **200 text/html**; `/manual/manual.css` **200 text/css** |
-| `npm run build` | **Pass**; `build/manual/` holds `codex.html`, `index.html`, `manual.css` (build removed afterwards) |
-| HTML structure + anchors in `manual/` | **Well formed**, all 112 `href="#..."` anchors resolve in `manual/codex.html` (63/63 subsystems) |
+| `python3 tools/check_docs.py` | **0 errors, 0 warnings** |
+| Fast `node --test` set (12 suites, `docs/TESTING.md`) | **27/27** |
+| `npm run build` | **Pass** (`build/` removed afterwards) |
+| `node --test test/p4_01_smoke.test.js` | Carried over from 2026-11-08 on 1.5.8.16: no console errors, but the performance budget **failed** at load average ~13; 1.5.8.15 failed the same way side by side (T-003) |
+| Ghost record, replay, export and import, headless Chromium | Carried over from 2026-11-08 on 1.5.8.20: **pass**, no page errors (scratch script, P5-06) |
 
-**Landing page verified** (2026-10-31, Linux, Chromium)
-
-| Check | Result |
-| --- | --- |
-| `python3 tools/check_docs.py` | **0 errors, 0 warnings, 15 files** |
-| `node --test` (8 suites, excluding the Playwright smoke) | **Pass 8/8** |
-| Landing page at 1440x1000, 390x844, 320x700 | Header, boot log, spec, directives, key map and closing fit; no horizontal overflow |
-| Local links, anchors and assets | All resolve (`terminal.html`, `manual/index.html`, `header.png`, every `#` anchor) |
-| `node --test test/p4_01_smoke.test.js` | **Pass**, 381 s (the 8 fast suites passed in a separate run) |
-| `npm run build` | **Pass**; `build/` held the new `index.html` and `site.css` (removed afterwards) |
-
-**What works** (from the README and changelog, not re-verified this session)
-- **The full game loop**: streaming maze, 14 sectors, entities, case-file narrative, Inquest exit, saves.
-- **Lore Editor** (`lore-editor/`), dev tuners that save back to `Sectors.js`, and `npm run build`.
-- **System Codex & Manifold Manual** (`manual/` on port 8080 or static builds).
+**What works**
+- **The full game loop** (D-001 to D-004): streaming maze, 14 sectors, entities, case files, Inquest exit, saves.
+- **Seeds** (D-008, P5-01, P5-03): deterministic worlds, `?seed=` links and `?seed=daily`, Copy Link, and in-place
+  Rebuild Geometry that keeps progress.
+- **The opening** (D-010, P5-04): arrival, sighting, near first breaker, grace from the doorway, timing marks.
+  The maintainer playtested it on 2026-11-08.
+- **Streamer mode** (D-011, P5-05) and **ghost runs** (D-012, P5-06), described in the manual's Appendix A.
+- **Lore Editor**, dev tuners, both manual volumes, and `npm run build` for itch.io.
 
 **Not verified**
-- Visual WebGL output still has not been checked in a desktop browser.
+- Streamer mode on a real stream with viewers voting; only a live read-only connection and injected messages.
+- Ghost export or import inside the itch.io frame; only headless Chromium.
+- Firefox, for everything since 1.5.8.12.
 
 **Gotchas for the next session**
-- When the desktop app's browser pane is hidden it can stop rendering frames entirely, and the game stops advancing.
-  Headless Playwright (`node_modules/playwright`) with SwiftShader still runs it, slowly.
-- The Playwright smoke budget (`test/perf_baseline.json`) only holds on a quiet machine: on 2026-11-08 both 1.5.8.15
-  and 1.5.8.16 failed it at load average ~13 with near-identical timings. Do not re-baseline from a busy desktop.
-- `npm run build` leaves an untracked `build/` (ignored by git, removed after verification).
-- The release is `1.5.8.20`, recorded only in `package.json`, `package-lock.json`, `docs/CHANGELOG.md` and this file.
+- When the desktop app's browser pane is hidden it can stop rendering frames, and the game stops advancing. Use the
+  headless recipe in `docs/TESTING.md`, "Environment recipes".
+- Do not re-baseline `test/perf_baseline.json` from a busy desktop (T-003).
+- `npm run build` leaves an untracked `build/` (ignored by git); remove it after checking.
+- The release is `1.5.8.21`, recorded only in `package.json`, `package-lock.json`, `docs/CHANGELOG.md` and this file.
   Public pages carry no version (D-009).
 
 ## Next steps (in order)
 
-1. Phase 5 has only P5-07 left (co-op spike, only with traction). Streamer mode (D-011) and ghost runs (D-012) both
-   need a real-world check: a live stream, and an export and import through the itch.io build. The maintainer playtested the opening (D-010) on 2026-11-08 and
-   reported it working; the manual now documents it (Book IV, section 12).
+1. Run streamer mode on a real stream: connect in the menu, have viewers type `!blackout`, then `!lure` once the
+   Anomaly is hunting, then vote at the Inquest. Expected: events fire at 3 viewers, and key 4 files chat's finding.
+2. Upload a build to itch.io and export and import a ghost there. Expected: the download works inside the frame.
+3. Agree the next phase with the maintainer. P5-07 (co-op) waits for traction. T-002 (seeded podium sites) is the
+   likeliest design question.
 
 ## Open questions for maintainers
 
@@ -70,6 +75,47 @@ None open.
 ## Session log
 
 Newest first. Past 10 entries, move the oldest to `docs/archive/` and leave a pointer here.
+
+### Template
+
+```
+### Session N: YYYY-MM-DD: short title
+
+**Contributor:** person or agent/tool
+**Goal:**
+**Done:** roadmap IDs
+**Changed:** files / behaviour
+**Decisions:** D-numbers added
+**Verified:** tests and their counts; mutation results if performed; for runs that vary, the tally
+**Not verified:** checks skipped or environments unavailable
+**Problems / surprises:**
+**Corrections:** earlier notes (here or in other docs) found wrong, and what was actually true
+**Left undone:**
+**Next session should start with:**
+```
+
+### Session 13: 2026-11-08: Manual, breaker records, streamer mode, ghost runs, Manifold parity (1.5.8.17 to 1.5.8.21)
+
+**Contributor:** Claude Code (Opus 5.5)
+**Goal:** Document the opening, then finish Phase 5, then bring the documentation scheme up to the current Manifold.
+**Done:** P5-08, P5-05, P5-06; the manual update; Manifold parity.
+**Changed:** 1.5.8.17 manual. 1.5.8.18 podium records (`LightingSpawns.js`, `AtmosphereManager.js`). 1.5.8.19
+streamer mode (`StreamerMode.js`, `TwitchChat.js`, `ChatCommands.js`). 1.5.8.20 ghost runs (`GhostRuns.js`,
+`GhostCodec.js`). 1.5.8.21: `AGENTS.md` gained zones, six working rules, consolidation, and glossary rows;
+`DECISIONS.md` gained held tensions T-001 to T-003; this file was restructured to the template; `TESTING.md`,
+`SECURITY.md`, `CONTRIBUTING.md`, `docs/README.md` and the changelog header were brought to the template; the checker
+gained `T-NNN` and invisible-character rules.
+**Decisions:** D-011, D-012. Tensions T-001, T-002, T-003.
+**Verified:** see Current state.
+**Not verified:** a real stream, itch.io downloads, Firefox.
+**Problems / surprises:** P5-08 was filed backwards: podiums never counted twice, they vanished. The smoke budget
+failed on a busy machine for the old commit too. The hidden browser pane stopped rendering, so headless Playwright
+was used.
+**Corrections:** `AGENTS.md` said there were no automated tests and no CI; there are 13 `node:test` suites and a
+GitHub Actions workflow. `docs/TESTING.md` listed none of the suites. The manual claimed a MurmurHash seed hash and a
+`?nosound` flag; neither exists (fixed in 1.5.8.17).
+**Left undone:** P5-07.
+**Next session should start with:** the real-world checks in Next steps.
 
 ### Session 12: 2026-11-07: Determinism, in-place rebuild, seed links, internal versions, the opening (v1.5.8.12 to v1.5.8.16)
 
@@ -203,20 +249,4 @@ The stale `v1.5.7` in the engine menu title was removed under D-009.
 **Corrections:** None.
 **Next session should start with:** P3-03.
 
-### Session 2: 2026-09-30: changelog move, honest README, roadmap
-
-**Contributor:** Claude Code (Opus 5.5)
-**Goal:** Move the changelog into docs/, correct the README's sector claims, plan testing and phases 2–3.
-**Done:** part of P1-04
-**Changed:** `changelog.md` -> `docs/CHANGELOG.md` (git mv); `build_static.js` no longer copies it; README: ACME
-added to the zone list, thirteen generators (Exit plus twelve themed), `NormalSector.js` explained, six sector
-hazards (Maintenance's `SentryConeEntity` was missing), physics uses `THREE.Vector3`/`Box3` (there is no `Vec3`/`AABB`
-layer); ROADMAP: testing items P1-03 to P1-10, `.gitignore` detail in P1-02, drafted phases 2 and 3
-**Decisions:** D-006
-**Verified:** `python3 tools/check_docs.py` passes
-**Not verified:** nothing run in a browser. `npm run build` ran and produced `build/` without the changelog (then deleted)
-**Corrections:** session 1 suspected `Math.random()` in `src/world/` broke determinism; it is cosmetic (texture
-noise, vertex jitter) apart from a sector-ID lookup in `ChunkManager.js` that looks harmless (P2-02 will prove it).
-**Next session should start with:** P1-02.
-
-Session 1: `docs/archive/SESSION_LOG_2026_09.md`.
+Sessions 1 and 2: `docs/archive/SESSION_LOG_2026_09.md`.

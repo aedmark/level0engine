@@ -39,3 +39,18 @@ The shipped `build/` (itch.io) is static and has none of the server endpoints.
 ## Security verification
 
 No automated checks. The endpoint path checks are verified by reading the code only.
+
+## Incident response
+
+If active exploitation or a harmful shared artefact is suspected (a seed link, ghost file, or chat command that
+breaks or abuses the game, or a write endpoint reachable from outside `localhost`):
+
+1. Contain it: stop the engine and Lore Editor servers if they may be exposed, and pull the affected itch.io build
+   if players are at risk.
+2. Preserve evidence without copying sensitive data into the repository: note the link, file hash, or command, the
+   build version, and the browser.
+3. Notify the maintainer (gordonk) privately, as in "Report a vulnerability" above.
+4. Fix at the boundary that let it through (`SeedLink.sanitizeSeed`, `GhostCodec.parseGhostFile`,
+   `ChatCommands.parseCommand`, or the server's path checks), add a test that refuses the bad input, and ship a release.
+5. There are no credentials to rotate: the game stores no secrets, and Twitch chat is read anonymously (D-011). If
+   that changes, add rotation steps here.

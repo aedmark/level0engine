@@ -40,6 +40,9 @@ CURRENT_STATE_LINES = 80
 ITEM_RE = re.compile(r"\bP(\d+)-(\d+)\b")
 DECISION_RE = re.compile(r"\bD-(\d{3})\b")
 QUESTION_RE = re.compile(r"\bQ-(\d{3})\b")
+TENSION_RE = re.compile(r"\bT-(\d{3})\b")
+# Zero-width and bidirectional controls can hide text from a reviewer or reorder it on screen.
+INVISIBLE_RE = re.compile(r"[\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]")
 DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 LINK_RE = re.compile(r"\]\(([^)\s]+)\)|\b(?:href|src)=\"([^\"]+)\"")
 
@@ -98,7 +101,7 @@ def main():
                 items.update(m.group(1) for m in re.finditer(r"^- \[.\] (P\d+-\d+)\b", text, flags=re.M))
 
     decisions_path = ROOT / "docs" / "DECISIONS.md"
-    decisions, supersessions, questions = set(), [], set()
+    decisions, supersessions, questions, tensions = set(), [], set(), set()
     if decisions_path in texts:
         text, last = texts[decisions_path], 0
         for m in re.finditer(r"^## D-(\d{3})\b([^\n]*)", text, flags=re.M):
@@ -120,8 +123,20 @@ def main():
             if f"Q-{m.group(1)}" in questions:
                 errors.append(f"{where(decisions_path, text, m.start())}: Q-{m.group(1)} is used twice")
             questions.add(f"Q-{m.group(1)}")
+        last_t = 0
+        for m in re.finditer(r"^### T-(\d{3})\b", text, flags=re.M):
+            number = int(m.group(1))
+            if f"T-{m.group(1)}" in tensions:
+                errors.append(f"{where(decisions_path, text, m.start())}: T-{m.group(1)} is used twice")
+            elif number < last_t:
+                errors.append(f"{where(decisions_path, text, m.start())}: T-{m.group(1)} comes after T-{last_t:03d}")
+            tensions.add(f"T-{m.group(1)}")
+            last_t = max(last_t, number)
 
     for path, text in texts.items():
+        for m in INVISIBLE_RE.finditer(text):
+            errors.append(f"{where(path, text, m.start())}: invisible or bidirectional control character "
+                          f"U+{ord(m.group(0)):04X}")
         if roadmap is not None:
             for m in ITEM_RE.finditer(text):
                 if m.group(0) not in items:
@@ -133,6 +148,9 @@ def main():
             for m in QUESTION_RE.finditer(text):
                 if m.group(0) not in questions:
                     errors.append(f"{where(path, text, m.start())}: {m.group(0)} is not in DECISIONS.md's open questions")
+            for m in TENSION_RE.finditer(text):
+                if m.group(0) not in tensions:
+                    errors.append(f"{where(path, text, m.start())}: {m.group(0)} is not in DECISIONS.md's held tensions")
         for m in LINK_RE.finditer(text):
             target = (m.group(1) or m.group(2)).split("#")[0]
             if not target or "{{" in target or re.match(r"[a-z][a-z0-9+.-]*:", target):

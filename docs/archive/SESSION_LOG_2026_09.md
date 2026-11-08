@@ -1,6 +1,22 @@
 # Session log, September 2026
 
-Moved from `docs/HANDOFF.md` on 2026-11-07 when the log passed 10 entries.
+Moved from `docs/HANDOFF.md` when the log passed 10 entries: session 1 on 2026-11-07, session 2 on 2026-11-08.
+
+### Session 2: 2026-09-30: changelog move, honest README, roadmap
+
+**Contributor:** Claude Code (Opus 5.5)
+**Goal:** Move the changelog into docs/, correct the README's sector claims, plan testing and phases 2–3.
+**Done:** part of P1-04
+**Changed:** `changelog.md` -> `docs/CHANGELOG.md` (git mv); `build_static.js` no longer copies it; README: ACME
+added to the zone list, thirteen generators (Exit plus twelve themed), `NormalSector.js` explained, six sector
+hazards (Maintenance's `SentryConeEntity` was missing), physics uses `THREE.Vector3`/`Box3` (there is no `Vec3`/`AABB`
+layer); ROADMAP: testing items P1-03 to P1-10, `.gitignore` detail in P1-02, drafted phases 2 and 3
+**Decisions:** D-006
+**Verified:** `python3 tools/check_docs.py` passes
+**Not verified:** nothing run in a browser. `npm run build` ran and produced `build/` without the changelog (then deleted)
+**Corrections:** session 1 suspected `Math.random()` in `src/world/` broke determinism; it is cosmetic (texture
+noise, vertex jitter) apart from a sector-ID lookup in `ChunkManager.js` that looks harmless (P2-02 will prove it).
+**Next session should start with:** P1-02.
 
 ### Session 1: 2026-09-30: adopt the agent documentation scheme
 

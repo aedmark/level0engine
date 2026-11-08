@@ -12,7 +12,7 @@ to it instead of copying it.
 | `../ROADMAP.md` | Maintainers and contributors | Planned scope and status | Detailed implementation notes |
 | `HANDOFF.md` | The next work session | Current state, active context, immediate next steps | Permanent design rules |
 | `ARCHITECTURE.md` | Developers | System shape, interfaces, invariants, data flow | Chronological history |
-| `DECISIONS.md` | Future decision-makers | Rationale and alternatives for durable choices | Routine implementation detail |
+| `DECISIONS.md` | Future decision-makers | Rationale and alternatives for durable choices, plus held tensions | Routine implementation detail |
 | `TESTING.md` | Contributors and release owners | Verification commands, coverage boundaries, known pitfalls | A duplicate of current test results |
 | `SECURITY.md` | Users and developers | Sensitive assets, trust boundaries, reporting, secure defaults | Full incident history |
 | `CONTRIBUTING.md` | Contributors | Setup, change, review, and submission workflow | Agent-only instructions |
@@ -29,12 +29,24 @@ Update documents because a relevant fact changed, not merely because a session e
 | --- | --- |
 | User-visible behaviour | README if onboarding or controls changed; CHANGELOG |
 | Component, interface, dependency, or data-flow change | ARCHITECTURE |
-| Durable tradeoff or reversal | DECISIONS; mark the old decision superseded |
+| Durable tradeoff or reversal, or a tension held or resolved | DECISIONS; mark the old decision superseded, or resolve the held tension |
 | Test command, coverage, fixture, or environment change | TESTING |
-| Server endpoint, trust boundary, or sensitive data change | SECURITY |
+| Server endpoint, secret, trust boundary, sensitive data, or reporting-path change | SECURITY |
 | Work pauses with context another session needs | HANDOFF |
 | Contribution or release workflow change | CONTRIBUTING and, if agents are affected, AGENTS |
 | New planned work | ROADMAP, with origin and acceptance evidence |
+
+## Optional documents
+
+Create these only when the project needs them, and add them to the tables above:
+
+- `docs/GLOSSARY.md` when domain vocabulary outgrows the table in `AGENTS.md` ("Names and terms").
+- `docs/data/` for stored-data schemas (`level0_state`, `level0_ghosts`, the ghost file format) if they outgrow
+  `docs/ARCHITECTURE.md` and the manual's Appendix D.
+- `docs/runbooks/` for repeatable operational procedures, such as an itch.io release, each with prerequisites,
+  rollback, and verification.
+- `docs/incidents/` for sanitized incident reviews and follow-up actions.
+- `SUPPORT.md`, `CODE_OF_CONDUCT.md`, or a licensing or contributor policy if the project takes outside contributions.
 
 ## Style and evidence
 

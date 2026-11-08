@@ -156,6 +156,62 @@ walks through doors that are shut in your run.
 **Review trigger:** If players ask to race strangers' ghosts without trading files, which needs a server, or if
 itch.io blocks the download.
 
+## Held tensions
+
+A tension is two claims that are true and do not fit together yet. It is not an open question. An open question has
+an unknown answer; a held tension has two known answers and a price. Hold it only while the price of holding is
+lower than the price of choosing badly.
+
+Each tension names an owner, a review trigger, and the cost of holding both. A tension with no owner or no trigger is
+deleted at consolidation. A tension that survives review becomes a decision, with the losing claim recorded as an
+alternative.
+
+Format:
+
+```
+### T-NNN Title  (YYYY-MM-DD, status: held | resolved by D-MMM)
+**Owner:** ...
+**Claim A:** ...
+**Claim B:** ...
+**Why both hold:** ...
+**Cost of holding both:** ...
+**Review trigger:** ...
+```
+
+### T-001 No secrets against a documented chat API  (2026-11-08, status: held)
+**Owner:** gordonk.
+**Claim A:** Streamer mode should store no token and need no Twitch app, which the anonymous `justinfan` login gives
+(D-011).
+**Claim B:** Twitch documents only the signed-in form of the IRC endpoint and recommends EventSub; the anonymous login
+is long-standing but undocumented and could be withdrawn without notice.
+**Why both hold:** The anonymous login works today (verified live 2026-11-08) and keeps itch.io builds free of OAuth
+redirects; EventSub is the supported path.
+**Cost of holding both:** Streamer mode could stop receiving chat overnight. `TwitchChat.js` is the one class to swap.
+**Review trigger:** An anonymous join failing, a Twitch deprecation notice for IRC, or a streamer asking to post to chat.
+
+### T-002 A seed is the whole world against objectives that follow the player  (2026-11-08, status: held)
+**Owner:** gordonk.
+**Claim A:** A seed determines everything that shapes a run, and chunks build the same whatever the route (D-008,
+P5-01), so shared seeds, ghosts and rebuilds agree.
+**Claim B:** Breaker podiums after the first are planted three chunks ahead of the direction the player faces, and the
+exit-phase exit takes the first unvisited sector to load, so the objective keeps moving towards the player.
+**Why both hold:** Fixed objectives on an endless maze can end up hundreds of metres behind a player; following the
+player keeps the run playable. The opening's first podium and every recorded podium (P5-08) are already fixed.
+**Cost of holding both:** Two players on one seed can chase breakers in different places, so ghosts and chat compare
+routes to different targets after the first breaker.
+**Review trigger:** Ghost races or daily-seed comparisons that players call unfair, or a design for seeded podium sites.
+
+### T-003 A performance budget in CI against machine-dependent timings  (2026-11-08, status: held)
+**Owner:** gordonk.
+**Claim A:** The Playwright smoke test should fail on a large generation-time regression (P4-02), and CI runs it.
+**Claim B:** Generation times swing two to eight times with machine load: on 2026-11-08 both 1.5.8.15 and 1.5.8.16
+failed the stored baseline at load average 13 with near-identical timings.
+**Why both hold:** A budget catches real regressions on a quiet machine; a loaded desktop or a shared CI runner is not
+quiet.
+**Cost of holding both:** A red smoke run is ambiguous until it is compared side by side with the previous commit
+under the same load (`docs/TESTING.md`, "Runs that vary").
+**Review trigger:** A real regression slipping through, or CI failing the budget on an unchanged commit.
+
 ## Open questions
 
 - **Q-001** ~~Are the proposed goals and order for ROADMAP phases 2 and 3 right?~~ Answered 2026-09-30 by the

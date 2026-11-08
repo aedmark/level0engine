@@ -20,15 +20,40 @@ The workflow for human and automated contributors. Agent-specific standing instr
 
 Follow [TESTING.md](TESTING.md). Report the exact checks run and anything skipped.
 
-## Submit and release
+## Submit and review
 
-Work lands directly on `master`. Each release bumps the version, adds a `docs/CHANGELOG.md` entry in the house style
-(see AGENTS.md, "Maintainer preferences"), updates `package.json` version (versions stay internal, D-009), and is committed
-with the version number as the message. `npm run build` produces the itch.io upload in `build/`.
+Work lands directly on `master`; there are no branches or pull requests. Agents edit the working tree, and the
+maintainer reviews, commits and pushes unless they ask the agent to. Each release bumps the version, adds a
+`docs/CHANGELOG.md` entry in the house style (see AGENTS.md, "Maintainer preferences"), updates `package.json`
+version (versions stay internal, D-009), and is committed with the version number as the message. CI runs `npm test`
+and the doc checker on every push. `npm run build` produces the itch.io upload in `build/`.
 
-## Compatibility
+A change is ready when its scope is clear, the checks in `docs/TESTING.md` for the area pass (or their failure is
+explained, as with T-003), the player-visible and save-data impact is described, no sensitive data is present, and
+the documentation it invalidated has been updated.
 
-Save data in `localStorage` should survive an update; if a change breaks old saves, say so in the changelog.
+## Compatibility and migrations
+
+The game keeps everything a player has in `localStorage`, and an update must not lose it silently:
+
+| Key | Format | Owner |
+| --- | --- | --- |
+| `level0_state`, `level0_state_backup` | The save (manual Appendix D); a backup is written before every overwrite | `SaveManager.js` |
+| `level0_ghosts` | `{version: 1, seeds: {...}}` per-seed runs (D-012) | `GhostRuns.js` |
+| `level0_streamer`, `level0_ghost_show` | Streamer and ghost settings | `StreamerMode.js`, `GhostRuns.js` |
+| `level0_tutorial`, `level0_tutorial_unlocked`, `level0_hint_shake` | First-run flags | the opening (D-010) |
+| `level0_bindings` | Key bindings | `InputBindings.js` |
+
+Exported ghost files (`level0-ghost`, version 1) are read by other people's builds, so they are a format too.
+
+For a change to any of these:
+
+1. **Forward step:** read the old shape and convert it, or bump the version and keep a reader for the old one.
+   Never assume a key is present or well formed: treat stored data as untrusted on load, as `GhostRuns._store()` does.
+2. **Recovery:** say what a player loses if conversion fails (the save backup, the ghost cap, a reset setting) and
+   prefer dropping one entry to failing the boot.
+3. **Verification:** load the old shape in a browser (or a unit test) before release, and say in the changelog what
+   changed for existing players.
 
 ## Reporting security issues
 
