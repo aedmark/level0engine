@@ -48,56 +48,57 @@
             <section>
                 <h3>Book IV: Survival Field Manual (How to Play)</h3>
                 <ul>
-                    <li><a href="#kinetic-flashlight">12. The Kinetic Flashlight</a></li>
-                    <li><a href="#paranoia-corroboration">13. Paranoia & Claim Corroboration</a></li>
-                    <li><a href="#somatic-movement">14. Somatic Movement & Compression</a></li>
-                    <li><a href="#navigation-tools">15. Compass, Paintball & PDA Journal</a></li>
-                    <li><a href="#inquest-escape">16. The Assembled Lock & Inquest Exit</a></li>
+                    <li><a href="#the-opening">12. The Opening: Arrival &amp; First Minutes</a></li>
+                    <li><a href="#flashlight-crank">13. The Kinetic Flashlight</a></li>
+                    <li><a href="#paranoia-corroboration">14. Paranoia & Claim Corroboration</a></li>
+                    <li><a href="#somatic-movement">15. Somatic Movement & Compression</a></li>
+                    <li><a href="#navigation-tools">16. Compass, Paintball & PDA Journal</a></li>
+                    <li><a href="#inquest-escape">17. The Assembled Lock & Inquest Exit</a></li>
                 </ul>
             </section>
 
             <section>
                 <h3>Book V: Hazards, Entities & Phenomena</h3>
                 <ul>
-                    <li><a href="#the-anomaly">17. The Anomaly: Cone Freeze & Panic</a></li>
-                    <li><a href="#sector-entities">18. Sector-Locked Entities</a></li>
-                    <li><a href="#surge-breakers">19. Surge Breakers & Blackouts</a></li>
-                    <li><a href="#liminal-phenomena">20. Breaches, Cages & Ephemera</a></li>
+                    <li><a href="#the-anomaly">18. The Anomaly: Cone Freeze & Panic</a></li>
+                    <li><a href="#sector-entities">19. Sector-Locked Entities</a></li>
+                    <li><a href="#surge-breakers">20. Surge Breakers & Blackouts</a></li>
+                    <li><a href="#liminal-phenomena">21. Breaches, Cages & Ephemera</a></li>
                 </ul>
             </section>
 
             <section>
                 <h3>Book VI: Narrative & Story Engine</h3>
                 <ul>
-                    <li><a href="#story-engine">21. Seeded Narrative Dealing</a></li>
-                    <li><a href="#document-attachment">22. Prop Attachment & Evidence</a></li>
-                    <li><a href="#jsep-conditions">23. JSEP Logic & Safe Templating</a></li>
+                    <li><a href="#story-engine">22. Seeded Narrative Dealing</a></li>
+                    <li><a href="#document-attachment">23. Prop Attachment & Evidence</a></li>
+                    <li><a href="#jsep-conditions">24. JSEP Logic & Safe Templating</a></li>
                 </ul>
             </section>
 
             <section>
                 <h3>Book VII: Developer Tooling & Lore Editor</h3>
                 <ul>
-                    <li><a href="#lore-editor-suite">24. The Lore Editor (Port 3000)</a></li>
-                    <li><a href="#pre-save-validation">25. AST Pre-Save Validation</a></li>
-                    <li><a href="#in-engine-tuners">26. In-Engine Atmosphere & Light Tuners</a></li>
+                    <li><a href="#lore-editor-suite">25. The Lore Editor (Port 3000)</a></li>
+                    <li><a href="#pre-save-validation">26. AST Pre-Save Validation</a></li>
+                    <li><a href="#in-engine-tuners">27. In-Engine Atmosphere & Light Tuners</a></li>
                 </ul>
             </section>
 
             <section>
                 <h3>Book VIII: The Proving Ground</h3>
                 <ul>
-                    <li><a href="#automated-smoke-tests">27. Headless Playwright Smoke Tests</a></li>
-                    <li><a href="#frametime-budget">28. Frame-Time Baseline Budgets</a></li>
+                    <li><a href="#automated-smoke-tests">28. Headless Playwright Smoke Tests</a></li>
+                    <li><a href="#frametime-budget">29. Frame-Time Baseline Budgets</a></li>
                 </ul>
             </section>
 
             <section>
                 <h3>Book IX: Contributor's Protocol</h3>
                 <ul>
-                    <li><a href="#engineering-conventions">29. Engineering Conventions & Invariants</a></li>
-                    <li><a href="#protected-areas">30. Protected Areas & Conventions</a></li>
-                    <li><a href="#workflow-agreement">31. Single-Maintainer Git Workflow</a></li>
+                    <li><a href="#engineering-conventions">30. Engineering Conventions & Invariants</a></li>
+                    <li><a href="#protected-areas">31. Protected Areas & Conventions</a></li>
+                    <li><a href="#workflow-agreement">32. Single-Maintainer Git Workflow</a></li>
                 </ul>
             </section>
 
@@ -173,7 +174,9 @@
                 In Level 0 Engine, pseudo-randomness is divided into two strict categories:
             </p>
             <ul>
-                <li><strong>Structural RNG (Seeded):</strong> Seeded by a 32-bit MurmurHash integer derived from the level string. This RNG generates the Julia-set wall topology, chooses macro sector bounds, selects structural blueprints, and deals narrative case-files from <code>data/*.json</code>. Replaying the same seed guarantees identical layouts.</li>
+                <li><strong>Structural RNG (Seeded):</strong> The level string is folded into a 32-bit integer by a shift-and-subtract string hash (<code>Environment.generate()</code>). Everything that shapes a run derives from it: the Julia-set wall topology, macro sector placement, structural blueprints, the case file dealt from <code>data/*.json</code>, which Points of Interest appear, and how many each breaker hunt demands (<code>RunSeeds.js</code>). Replaying a seed replays the run.</li>
+                <li><strong>Route Independence:</strong> A chunk builds the same whatever route led to it and whichever neighbours loaded first. Breakers and Points of Interest are kept clear of the seed's spawn point, not of the live camera. Neighbouring sector airlocks are derived from their fixed positions (<code>AirlockLayout.js</code>) rather than read from sectors already built. That is what lets <strong>Rebuild Geometry</strong> restore the seed's world around you, and lets a shared link put two players in the same facility.</li>
+                <li><strong>Deliberate Exceptions:</strong> In the exit phase the exit appears in the first unvisited sector to load, so it is always somewhere you have not been. Breaker podiums after the first are planted ahead of the direction you are facing.</li>
                 <li><strong>Cosmetic Noise (<code>Math.random()</code>):</strong> Reserved exclusively for ephemeral, non-reproducible visual and auditory effects: fluorescent bulb flicker jitter, film grain noise on canvas textures, and entity spawn micro-jitter.</li>
             </ul>
 
@@ -517,8 +520,36 @@
         <section id="book-4">
             <h2 id="kinetic-flashlight">Book IV: Survival Field Manual (How to Play)</h2>
 
-            <div class="triad-block">
-                <h3>12. The Kinetic Flashlight & Crank Physics</h3>
+            <div class="triad-block" id="the-opening">
+                <h3>12. The Opening: Arrival, Sighting &amp; First Breaker</h3>
+                <p><strong>Files:</strong> <code>src/narrative/OpeningDirector.js</code>, <code>src/narrative/OpeningPlan.js</code>, <code>src/world/ElevatorSpawn.js</code></p>
+                <div class="triad-section">
+                    <span class="triad-label what">What It Does</span>
+                    <p>
+                        Every new run starts in an arrival car and plays a short scripted sequence. The car settles and the doors release. You glimpse something at the end of a hall. The objective comes online, and the first breaker is close enough to reach before the facility starts hunting you. A resumed save skips all of this and puts you back where you left off.
+                    </p>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label how">How It Works</span>
+                    <ol>
+                        <li><strong>Arrival:</strong> The car is lit at a quarter of normal ambient light, as emergency lighting. On a first run the flashlight starts half charged. The car rumbles, dings at 4.2 s, and releases its doors at 5 s. Returning players enter the override code from the maintenance note on the wall until the keypad remembers it.</li>
+                        <li><strong>The Objective Comes Online:</strong> The <code>RESTORE POWER</code> line and the POI signal stay hidden until you step out of the car.</li>
+                        <li><strong>The Sighting:</strong> When you step out, the director looks for open cells within 24 m of the car that have a straight sight line of at least 16 m, outside every sector. The one nearest the car wins. The first time you look down that corridor in the next 45 s, the Anomaly stands at its far end, 12 to 24 m away. After 1.8 s, or sooner if you close to 9 m, the lights stutter and it is gone. It cannot hurt you here: it is still in its grace period.</li>
+                        <li><strong>The First Breaker:</strong> The first hunt points straight at a breaker podium planted 28 to 56 m from the seed's spawn point. Later hunts may send you through 0 to 2 Points of Interest first, then to a podium placed further ahead.</li>
+                        <li><strong>Grace From The Doorway:</strong> The Anomaly's 90 s grace period does not start until you leave the car, so the first real hunt comes about a minute and a half after you step out, however long you spend reading.</li>
+                        <li><strong>Learning The Crank:</strong> The first time your flashlight dies, a one-time hint explains how to recharge it.</li>
+                    </ol>
+                </div>
+                <div class="triad-section">
+                    <span class="triad-label why">Why It Works</span>
+                    <p>
+                        The first minute decides whether a player, or a stream's audience, stays. The opening shows you the threat before it can reach you, then gives you a goal you can achieve quickly. The sighting is chosen from the layout around the car, not from your route, so everyone on a shared seed sees the same corridor. Each beat logs an <code>[OPENING]</code> timing mark to the console and to the Debug HUD's <code>OPEN</code> line, so the pacing can be measured on any seed.
+                    </p>
+                </div>
+            </div>
+
+            <div class="triad-block" id="flashlight-crank">
+                <h3>13. The Kinetic Flashlight & Crank Physics</h3>
                 <p><strong>Files:</strong> <code>src/player/Flashlight.js</code>, <code>src/player/SomaticInput.js</code></p>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
@@ -529,7 +560,7 @@
                 <div class="triad-section">
                     <span class="triad-label how">How It Works</span>
                     <ol>
-                        <li><strong>Kinetic Charging:</strong> The flashlight has no disposable batteries. It is charged mechanically by <strong>sprinting</strong> (converting movement inertia) or by <strong>rapidly shaking the camera</strong> (cranking the dyno mechanism).</li>
+                        <li><strong>Kinetic Charging:</strong> The flashlight has no disposable batteries. It is charged mechanically by <strong>sprinting</strong> (converting movement inertia) or by <strong>rapidly shaking the camera</strong> (cranking the dyno mechanism). It only charges while switched off, never past its ceiling of 100% minus accumulated paranoia, and not during the 10 s cooldown after it runs flat. A first run starts at 50%.</li>
                         <li><strong>Parabolic Beam:</strong> Casts a focused central beam with quadratic distance attenuation and a wider subtle ambient cone.</li>
                         <li><strong>Flicker Warning:</strong> When charge drops below 15%, the bulb begins irregular brownout flickers, reducing beam efficacy and triggering entity agitation.</li>
                     </ol>
@@ -543,7 +574,7 @@
             </div>
 
             <div class="triad-block" id="paranoia-corroboration">
-                <h3>13. Paranoia & The Corroboration Loop</h3>
+                <h3>14. Paranoia & The Corroboration Loop</h3>
                 <p><strong>Files:</strong> <code>src/narrative/StoryEngine.js</code>, <code>src/player/PlayerController.js</code></p>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
@@ -568,7 +599,7 @@
             </div>
 
             <div class="triad-block" id="somatic-movement">
-                <h3>14. Somatic Movement, Exhaustion & Compression</h3>
+                <h3>15. Somatic Movement, Exhaustion & Compression</h3>
                 <p><strong>Files:</strong> <code>src/player/PlayerController.js</code>, <code>src/system/SomaticController.js</code></p>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
@@ -593,7 +624,7 @@
             </div>
 
             <div class="triad-block" id="navigation-tools">
-                <h3>15. Navigation Tools: Compass, Paintball & PDA</h3>
+                <h3>16. Navigation Tools: Compass, Paintball & PDA</h3>
                 <p><strong>Files:</strong> <code>src/player/Compass.js</code>, <code>src/player/PaintballGun.js</code>, <code>src/entities/PaintballSystem.js</code>, <code>src/ui/JournalViewer.js</code></p>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
@@ -618,7 +649,7 @@
             </div>
 
             <div class="triad-block" id="inquest-escape">
-                <h3>16. The Assembled Lock & Inquest Escape</h3>
+                <h3>17. The Assembled Lock & Inquest Escape</h3>
                 <p><strong>Files:</strong> <code>src/ui/InquestController.js</code>, <code>src/world/sectors/ExitSector.js</code></p>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
@@ -650,7 +681,7 @@
             <h2 id="the-anomaly">Book V: Hazards, Entities & Phenomena</h2>
 
             <div class="triad-block">
-                <h3>17. The Anomaly (The Roaming Predator)</h3>
+                <h3>18. The Anomaly (The Roaming Predator)</h3>
                 <p><strong>Files:</strong> <code>src/entities/Anomaly.js</code></p>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
@@ -664,6 +695,7 @@
                         <li><strong>Acoustic Hearing Radius:</strong> Calculates player noise generation (sneaking: 2m, walking: 8m, sprinting: 20m, terminal exhaustion stumble: 35m).</li>
                         <li><strong>Direct Flashlight Observation Freeze:</strong> When illuminated by the active flashlight with clear line of sight, distance under 25 m, and a dot product above 0.85 (the central ~31.8&deg; forward cone), the Anomaly freezes in place, screeching with rage.</li>
                         <li><strong>Rage Buildup:</strong> Freezing is temporary. Each second the beam holds it, the Anomaly accumulates rage. When your battery flickers out or you look away, it surges forward with increased velocity!</li>
+                        <li><strong>Grace Period:</strong> After every reset (a new run, a respawn, or leaving a sector) the Anomaly waits 90 s before it hunts or hears anything. On a new run that clock starts when you step out of the arrival car. When it resumes prowling it reappears 40 to 55 m from you.</li>
                         <li><strong>Proximity Aberration:</strong> As it approaches, the screen suffers severe chromatic aberration, audio crushing, and claustrophobic vignettes.</li>
                     </ol>
                 </div>
@@ -676,7 +708,7 @@
             </div>
 
             <div class="triad-block" id="sector-entities">
-                <h3>18. Sector-Locked Entities</h3>
+                <h3>19. Sector-Locked Entities</h3>
                 <p><strong>Files:</strong> <code>src/entities/*.js</code></p>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
@@ -704,7 +736,7 @@
             </div>
 
             <div class="triad-block" id="surge-breakers">
-                <h3>19. Surge Breakers & Blackout Cascades</h3>
+                <h3>20. Surge Breakers & Blackout Cascades</h3>
                 <p><strong>Files:</strong> <code>src/world/BreakerPodium.js</code>, <code>src/world/sectors/MaintenanceSector.js</code>, <code>src/player/InteractionController.js</code></p>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
@@ -729,7 +761,7 @@
             </div>
 
             <div class="triad-block" id="liminal-phenomena">
-                <h3>20. Liminal Breaches, Faraday Cages & Ephemera</h3>
+                <h3>21. Liminal Breaches, Faraday Cages & Ephemera</h3>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
                     <p>
@@ -760,7 +792,7 @@
             <h2 id="story-engine">Book VI: Narrative & Story Engine</h2>
 
             <div class="triad-block">
-                <h3>21. Seeded Narrative Dealing</h3>
+                <h3>22. Seeded Narrative Dealing</h3>
                 <p><strong>Files:</strong> <code>src/narrative/StoryEngine.js</code>, <code>data/*.json</code></p>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
@@ -785,7 +817,7 @@
             </div>
 
             <div class="triad-block" id="document-attachment">
-                <h3>22. Prop Attachment & Evidence Types</h3>
+                <h3>23. Prop Attachment & Evidence Types</h3>
                 <p><strong>Files:</strong> <code>src/world/NarrativeProps.js</code>, <code>src/narrative/CaseFiles.js</code></p>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
@@ -810,7 +842,7 @@
             </div>
 
             <div class="triad-block" id="jsep-conditions">
-                <h3>23. JSEP Logic & Safe AST Templating</h3>
+                <h3>24. JSEP Logic & Safe AST Templating</h3>
                 <p><strong>Files:</strong> <code>src/utils/SafeEval.js</code>, <code>lore-editor/js/rendering.js</code></p>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
@@ -842,7 +874,7 @@
             <h2 id="lore-editor-suite">Book VII: Developer Tooling & The Lore Editor</h2>
 
             <div class="triad-block">
-                <h3>24. The Standalone Lore Editor (Port 3000)</h3>
+                <h3>25. The Standalone Lore Editor (Port 3000)</h3>
                 <p><strong>Files:</strong> <code>lore-editor/index.html</code>, <code>editor_server.js</code>, <code>coverage.js</code></p>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
@@ -868,7 +900,7 @@
             </div>
 
             <div class="triad-block" id="pre-save-validation">
-                <h3>25. AST Pre-Save Validation</h3>
+                <h3>26. AST Pre-Save Validation</h3>
                 <p><strong>Files:</strong> <code>lore-editor/js/rendering.js</code></p>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
@@ -893,7 +925,7 @@
             </div>
 
             <div class="triad-block" id="in-engine-tuners">
-                <h3>26. In-Engine Atmosphere & Light Tuners</h3>
+                <h3>27. In-Engine Atmosphere & Light Tuners</h3>
                 <p><strong>Files:</strong> <code>src/ui/AtmosphereTuner.js</code>, <code>LightTuner.js</code>, <code>SectorTunerFactory.js</code></p>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
@@ -932,7 +964,7 @@
             </div>
 
             <div class="triad-block" id="automated-smoke-tests">
-                <h3>27. Headless Playwright Smoke Tests</h3>
+                <h3>28. Headless Playwright Smoke Tests</h3>
                 <p><strong>Files:</strong> <code>test/p4_01_smoke.test.js</code></p>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
@@ -957,7 +989,7 @@
             </div>
 
             <div class="triad-block" id="frametime-budget">
-                <h3>28. Frame-Time Baseline Budgets</h3>
+                <h3>29. Frame-Time Baseline Budgets</h3>
                 <p><strong>Files:</strong> <code>test/perf_baseline.json</code></p>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
@@ -989,7 +1021,7 @@
             <h2 id="engineering-conventions">Book IX: Contributor's Protocol</h2>
 
             <div class="triad-block">
-                <h3>29. Engineering Conventions & Invariants</h3>
+                <h3>30. Engineering Conventions & Invariants</h3>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
                     <p>
@@ -1014,7 +1046,7 @@
             </div>
 
             <div class="triad-block" id="protected-areas">
-                <h3>30. Protected Areas & Conventions</h3>
+                <h3>31. Protected Areas & Conventions</h3>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
                     <p>
@@ -1059,7 +1091,7 @@
             </div>
 
             <div class="triad-block" id="workflow-agreement">
-                <h3>31. Single-Maintainer Git Workflow</h3>
+                <h3>32. Single-Maintainer Git Workflow</h3>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
                     <p>
@@ -1070,7 +1102,7 @@
                     <span class="triad-label how">How It Works</span>
                     <ol>
                         <li>Direct-to-master workflow managed by maintainer <strong>gordonk</strong>.</li>
-                        <li>Commit format uses the release version number (e.g. <code>1.5.8.9</code>).</li>
+                        <li>Commit format uses the release version number (e.g. <code>1.5.8.9</code>). Release numbers are internal (D-009): they live in <code>docs/CHANGELOG.md</code>, <code>package.json</code> and commit messages, never on public pages, and <code>tools/check_docs.py</code> enforces it.</li>
                         <li>Before committing, run <code>python3 tools/check_docs.py</code> and <code>npm test</code>.</li>
                         <li>Update <code>docs/CHANGELOG.md</code> and <code>docs/HANDOFF.md</code> with every functional change.</li>
                     </ol>
@@ -1156,6 +1188,16 @@
                         <td><code>Environment.js</code>, <code>UIManager.js</code></td>
                     </tr>
                     <tr>
+                        <td>Menu &rarr; <strong>Copy Link</strong></td>
+                        <td>Copy a link that starts this run's seed from the beginning (blackout and floor suffixes removed)</td>
+                        <td><code>SeedLink.js</code>, <code>main.js</code></td>
+                    </tr>
+                    <tr>
+                        <td>Menu &rarr; <strong>Rebuild Geometry</strong></td>
+                        <td>Rebuild the seed's world around you in place; position and run progress are kept</td>
+                        <td><code>Environment.js</code></td>
+                    </tr>
+                    <tr>
                         <td><code>X</code></td>
                         <td>Capture Clean Screenshot (PNG download)</td>
                         <td><code>RenderEngine.js</code></td>
@@ -1190,8 +1232,13 @@
                 <tbody>
                     <tr>
                         <td><code>?seed=&lt;str&gt;</code></td>
-                        <td>Any string</td>
-                        <td>Forces specific world generation seed on engine load</td>
+                        <td>Any string (64 characters at most)</td>
+                        <td>Starts a new run on this seed. Works on <code>terminal.html</code> and <code>engine.html</code>. If a different session is saved, the continue prompt offers to resume it or start the linked seed.</td>
+                    </tr>
+                    <tr>
+                        <td><code>?seed=daily</code></td>
+                        <td>Keyword</td>
+                        <td>Starts the daily seed: a five-card hand dealt from the UTC date, the same for everyone that day</td>
                     </tr>
                     <tr>
                         <td><code>?ssaodebug</code></td>
@@ -1202,11 +1249,6 @@
                         <td><code>?logdepth</code></td>
                         <td>Boolean toggle</td>
                         <td>Enables logarithmic depth buffer for massive render view distances</td>
-                    </tr>
-                    <tr>
-                        <td><code>?nosound</code></td>
-                        <td>Boolean toggle</td>
-                        <td>Completely mutes and disables Web Audio AcousticEngine context</td>
                     </tr>
                 </tbody>
             </table>

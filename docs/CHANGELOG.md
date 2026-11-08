@@ -1,3 +1,9 @@
+## [v1.5.8.17] - 2026-11-08
+
+_The Manual Learns How A Run Begins._
+
+- **[DOCS] The System Codex Catches Up With Seeds, Rebuilds And The Opening (`manual/index.html`, `manual/codex.html`):** Book IV gains **12. The Opening: Arrival, Sighting & First Breaker**, covering the five beats from D-010 with their real timings and distances, so Books IV to IX renumber to 13 to 32. **3. Determinism as Law** now names the actual seed hash: it had claimed MurmurHash, but the code uses a shift-and-subtract string hash. It also says what the seed covers since D-008 and why chunks are route-independent (P5-01), and lists the deliberate exceptions. The flashlight section now gives the charging rules (only while off, under the paranoia ceiling, not during the 10 s cooldown, 50% on a first run). The Anomaly section gains its 90 s grace period. Appendix A lists the menu's Copy Link and Rebuild Geometry. Appendix B describes `?seed=` as it really behaves, adds `?seed=daily`, and drops `?nosound`, a flag the engine never had. The Git workflow section notes that release numbers are internal (D-009). The Codex's Debug HUD entry mentions the new `OPEN` line.
+
 ## [v1.5.8.16] - 2026-11-07
 
 _Something Is Waiting At The End Of The Hall._
