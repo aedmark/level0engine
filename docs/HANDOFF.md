@@ -52,12 +52,13 @@ _Last updated: 2026-11-07, session 12, on `master`._
 - The Playwright smoke budget (`test/perf_baseline.json`) only holds on a quiet machine: on 2026-11-08 both 1.5.8.15
   and 1.5.8.16 failed it at load average ~13 with near-identical timings. Do not re-baseline from a busy desktop.
 - `npm run build` leaves an untracked `build/` (ignored by git, removed after verification).
-- The release is `1.5.8.18`, recorded only in `package.json`, `package-lock.json`, `docs/CHANGELOG.md` and this file.
+- The release is `1.5.8.19`, recorded only in `package.json`, `package-lock.json`, `docs/CHANGELOG.md` and this file.
   Public pages carry no version (D-009).
 
 ## Next steps (in order)
 
-1. P5-05 (streamer mode) is next in Phase 5; decide how to connect to Twitch chat first. The maintainer playtested the opening (D-010) on 2026-11-08 and
+1. P5-05 streamer mode shipped (v1.5.8.19, D-011). Phase 5 has P5-06 (ghost runs; decide how replays are stored and
+   shared first) and P5-07 (co-op spike, only with traction) left. The maintainer playtested the opening (D-010) on 2026-11-08 and
    reported it working; the manual now documents it (Book IV, section 12).
 
 ## Open questions for maintainers
@@ -77,7 +78,7 @@ Newest first. Past 10 entries, move the oldest to `docs/archive/` and leave a po
 P5-01 (seed-spawn suppression, per-Annex locked room, derived airlocks), P5-02 (in-place Rebuild Geometry).
 v1.5.8.14: P5-03 (`?seed=`, daily seed, Copy Link, landing-page seed field). v1.5.8.15: versions internal (D-009).
 v1.5.8.16: P5-04 scripted opening (D-010) plus the first-run softlock and stuck-signal fixes. v1.5.8.17: manual
-updated for all of the above. v1.5.8.18: P5-08 podium records.
+updated for all of the above. v1.5.8.18: P5-08 podium records. v1.5.8.19: P5-05 streamer mode.
 **Verified:** 8 fast `node --test` suites pass (9 tests); `check_docs.py` 0 errors, 0 warnings; in Chromium, two
 rebuilds of seed `7♠|K♥|2♣|9♦|A♠` from the origin gave identical salt, hops (1), POIs and wall count (2337), no
 console errors. v1.5.8.13: 8 fast suites pass (10 tests); in-place rebuilds from (6, 6) and (70, 40) matched mesh for
@@ -85,7 +86,7 @@ mesh in chunks `1,0`, `0,1`, `1,1`; `0,0` and `0,-1` (bordering the sector at `-
 carving; with derived airlocks every loaded chunk matched across rebuilds from (6, 6), (70, 40), (6, -60), and derived
 airlocks equalled built ones on four seeds. 11/11 fast tests. No console errors.
 **Not verified:** the Playwright smoke suite; `npm run build`; a full playthrough of the breaker hunt; Firefox.
-**Next session should start with:** P5-05 (decide the Twitch chat connection first). Known nit: Appendix C's code block overflows the manual by 20 px at
+**Next session should start with:** a real stream test of streamer mode, then P5-06. Known nit: Appendix C's code block overflows the manual by 20 px at
 1280 wide.
 The stale `v1.5.7` in the engine menu title was removed under D-009.
 

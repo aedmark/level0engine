@@ -116,6 +116,27 @@ any change to grace or to the Anomaly's visibility must keep the sighting workin
 **Review trigger:** If playtests or streams show the sighting missed (the `sighting missed` mark) on most seeds, or
 show players reaching the first hunt much earlier or later than about 90 s after leaving the car.
 
+## D-011 Streamer mode reads Twitch chat anonymously, and chat can only pick from fixed commands  (2026-11-08, status: accepted)
+**Context:** P5-05 lets a stream's chat vote on the Inquest and trigger events. Twitch offers anonymous read-only IRC
+over WebSocket, signed-in EventSub, native Predictions and Polls (which need sign-in and Affiliate status), and
+third-party bots. Signing in needs a registered Twitch app, a redirect or device-code flow, and a token to keep
+secret. Redirects are awkward on itch.io, where the page address changes with each upload.
+**Decision:** Read chat anonymously (`justinfan` login on `wss://irc-ws.chat.twitch.tv:443`) in `TwitchChat.js`.
+Chat text only selects fixed commands (`!1`-`!3` or `!vote N` while the Inquest is open, `!blackout`, `!lure`). It is
+never displayed, and neither are viewer names, because a streamer cannot vet either live. Votes are one per viewer,
+with the last vote winning, and the streamer files chat's finding with key 4; chat cannot file it on its own. An event
+needs at least 3 distinct viewers, or 10% of chatters active in the last two minutes, within 30 s. Events share a
+120 s cooldown. The game vetoes them during the opening, documents, the Inquest, loads and death, and vetoes a lure
+while the Anomaly is in grace.
+**Alternatives:** EventSub with device-code sign-in (deferred: needed only to post results back to chat); native
+Predictions (deferred: Affiliate-only and needs sign-in); a localhost bridge to a streamer's bot (deferred: helps only
+streamers running one).
+**Consequences:** Nothing secret is stored and nothing can be posted. Twitch documents only the signed-in form of the
+endpoint, so the anonymous login could be withdrawn; `TwitchChat` is the one class to swap for EventSub if it is.
+Verified live on 2026-11-08 against a public channel.
+**Review trigger:** If anonymous joins start failing, or streamers ask to have results posted to chat or to use
+Predictions.
+
 ## Open questions
 
 - **Q-001** ~~Are the proposed goals and order for ROADMAP phases 2 and 3 right?~~ Answered 2026-09-30 by the

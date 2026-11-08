@@ -1333,6 +1333,7 @@
         <button class="inquest-opt" id="inquest-opt-1" onclick="handleInquest(1)"></button>
         <button class="inquest-opt" id="inquest-opt-2" onclick="handleInquest(2)"></button>
         <div id="inquest-hint"></div>
+        <div id="inquest-chat" style="display: none; margin-top: 0.75rem; color: #b98aff; font-family: monospace; letter-spacing: 0.04em;"></div>
         <div id="inquest-result"></div>
         <div class="inquest-footer">[ 1 / 2 / 3 TO FILE — 'E' TO STEP BACK ]</div>
     </div>
@@ -1398,6 +1399,16 @@
 
         <button id="customize-controls-btn" class="btn" style="margin-bottom: 1rem; width: 100%; border-color: rgba(255,255,255,0.4);">CUSTOMIZE CONTROLS</button>
 
+        <label>Streamer Mode</label>
+        <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; cursor: pointer;">
+            <input type="checkbox" id="streamerToggle" style="width: auto; margin: 0;">
+            Show seed and chat panel; let Twitch chat vote and trigger events
+        </label>
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.25rem;">
+            <input type="text" id="streamerChannel" autocomplete="off" spellcheck="false" maxlength="25" placeholder="twitch channel name" style="margin-bottom: 0;">
+            <button id="streamerConnectBtn" class="btn" style="margin-bottom: 0; padding: 0.5rem; width: auto; white-space: nowrap;">Connect</button>
+        </div>
+        <div id="streamerStatus" style="font-family: monospace; font-size: 12px; opacity: 0.8; margin-bottom: 1rem;">CHAT OFF</div>
         <label>Display Format</label>
         <select id="aspectSelect">
             <option value="auto">Dynamic (Full Window)</option>

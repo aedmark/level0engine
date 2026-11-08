@@ -662,6 +662,7 @@
                     <ol>
                         <li><strong>The 4-Digit Assembled Lock:</strong> The exit elevator door is sealed by a mechanical PIN assembled from three distinct clues scattered across the complex: the <em>Rule Number</em>, the <em>Enactment Year</em>, and the <em>Pen Color Code</em>.</li>
                         <li><strong>The Finding of Fact:</strong> At the glowing green terminal inside the Exit Bunker, you are prompted to present the true sequence of events regarding the cold case.</li>
+                        <li><strong>Chat's Verdict (Streamer Mode):</strong> With streamer mode connected to a Twitch channel, viewers vote while the terminal is open with <code>!1</code>, <code>!2</code>, <code>!3</code> or <code>!vote N</code>, one vote each. The terminal shows the tally, and pressing <code>4</code> files chat's leading finding. A tie files nothing.</li>
                         <li><strong>The Elevator Ascent:</strong> Entering the correct PIN and fact finding activates the elevator winch, locking the doors and triggering the victory sequence.</li>
                     </ol>
                 </div>
@@ -1196,6 +1197,16 @@
                         <td>Menu &rarr; <strong>Rebuild Geometry</strong></td>
                         <td>Rebuild the seed's world around you in place; position and run progress are kept</td>
                         <td><code>Environment.js</code></td>
+                    </tr>
+                    <tr>
+                        <td>Menu &rarr; <strong>Streamer Mode</strong></td>
+                        <td>Show the seed and chat panel, read a Twitch channel's chat anonymously, and let chat vote on the Inquest (<code>!1</code>-<code>!3</code>) or trigger <code>!blackout</code> and <code>!lure</code></td>
+                        <td><code>StreamerMode.js</code>, <code>TwitchChat.js</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>4</code> (at the Inquest)</td>
+                        <td>File chat's leading finding (streamer mode only)</td>
+                        <td><code>StreamerMode.js</code></td>
                     </tr>
                     <tr>
                         <td><code>X</code></td>

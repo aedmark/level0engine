@@ -24,6 +24,7 @@ reproduction steps.
 | Editor expressions | Code execution | `jsep` / `SafeEval.js`, never `new Function` | narrative |
 | Save data | Player progress only; no personal data | `localStorage`, backup copy | SaveManager |
 | `?seed=` in shared links (`terminal.html`, `engine.html`) | Untrusted text from anyone's link: injection into the page, oversized input | `SeedLink.sanitizeSeed` strips control characters and caps at 64 characters; the value only reaches `input.value`, `textContent` and the seed hash, never `innerHTML`; `terminal.html` forwards only `seed`, URL-encoded | SeedLink |
+| Twitch chat in streamer mode (`TwitchChat.js`, `StreamerMode.js`) | Untrusted text from any viewer: injection, spam, one viewer or a raid steering the run, offensive names shown on stream | Anonymous read-only connection with no token stored. Channel names are validated (`^[A-Za-z0-9_]{3,25}$`). Lines over 2048 and messages over 200 characters are dropped. Text is matched only against fixed commands and never displayed, and viewer names are never shown. Votes are one per viewer. Events need distinct viewers scaled to active chat, and share a cooldown and game vetoes (D-011). | StreamerMode |
 
 The shipped `build/` (itch.io) is static and has none of the server endpoints.
 

@@ -1,3 +1,10 @@
+## [v1.5.8.19] - 2026-11-08
+
+_The Audience Gets A Vote._
+
+- **[ENGINE] Streamer Mode: A Seed And Chat Panel, Chat Votes On The Inquest, And Chat Events (`StreamerMode.js`, `TwitchChat.js`, `ChatCommands.js`, `engine.html`, `main.js`):** A new **Streamer Mode** block in the menu takes a Twitch channel name, connects, and remembers both. When it is on, a small panel in the bottom-left corner, sized for OBS capture, shows the run's seed, the chat connection, and progress towards chat events. Chat is read anonymously and read-only over Twitch's IRC WebSocket (D-011), so nothing is signed in, stored as a secret, or posted. While the Inquest is open, viewers vote with `!1`, `!2`, `!3` or `!vote N`, one vote each with the last one counting. The terminal shows the tally, and the streamer can press **4** to file chat's finding. `!blackout` cuts the lights for about two and a half seconds. `!lure` gives the Anomaly a scattered last-known position near the player, so it comes searching. Either needs at least three distinct viewers, or a tenth of active chatters, within 30 s, and the two share a two-minute cooldown. The game holds events back during the scripted opening, documents, the Inquest, loads and death, and holds a lure back while the Anomaly is in its grace period. Chat text and viewer names never reach the screen.
+- **[ENGINE] Chat Tests (`test/p5_05_chat.test.js`):** These cover IRC line parsing, the fixed command set and what it rejects, channel-name validation, one-vote-per-viewer tallies and ties, and event thresholds that scale with chat, expire and cool down.
+
 ## [v1.5.8.18] - 2026-11-08
 
 _The Breaker Is Still Where You Left It._

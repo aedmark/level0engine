@@ -24,6 +24,7 @@ import BootController from './src/ui/BootController.js';
 import ContinuePrompt from './src/ui/ContinuePrompt.js';
 import {seedFromSearch, runSeed, shareUrl} from './src/system/SeedLink.js';
 import OpeningDirector from './src/narrative/OpeningDirector.js';
+import StreamerMode from './src/ui/StreamerMode.js';
 
 const T_MODULES_READY = performance.now();
 
@@ -139,6 +140,8 @@ if (savedState) {
 }
 environment.updateChunks(engine.camera.position);
 bindCopySeedLink();
+environment.streamer = new StreamerMode({env: environment, player, acoustics, inquest});
+environment.streamer.bind();
 somatic.bindEvents();
 docViewer.bindEvents();
 keypad.bindEvents();

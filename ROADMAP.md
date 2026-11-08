@@ -155,9 +155,15 @@ run salt and breaker hunt seed-derived first.
   on a loaded desktop (load average about 13). The previous commit 1.5.8.15 failed the same way, side by side at about
   the same load, and its per-sector generation times were within about 15% of this build (IMPOUND 45.3 s against 45.2 s,
   EXIT 63.5 s against 66.5 s), so this change is not the cause. The budget needs a quiet machine. 2026-11-08
-- [ ] P5-05 Streamer mode: an OBS-friendly HUD toggle, and Twitch chat voting on the Inquest finding plus chat-triggered
-  events (a blackout, Anomaly attention). One-way input; no game state leaves the browser except the chat connection.
-  Needs a security note in `docs/SECURITY.md` for the chat boundary. 2026-11-07
+- [x] P5-05 Streamer mode. v1.5.8.19: an OBS-friendly seed and chat panel, chat votes on the Inquest (the streamer
+  files chat's finding with key 4), and `!blackout` and `!lure` events gated by distinct viewers, a cooldown and game
+  vetoes (D-011). The chat connection is anonymous and read-only (Twitch IRC WebSocket), chosen by the maintainer
+  2026-11-08 over signed-in EventSub, Predictions and bot bridges. Security note in `docs/SECURITY.md`. Evidence:
+  `test/p5_05_chat.test.js`; in the desktop app's Chromium pane, the game connected to a live public channel (2 real
+  messages in 6 s, panel and menu showing LIVE, setting saved). Injected messages then produced a correct tally that
+  ignored non-commands, key 4 filed finding [2], a blackout fired at 3 viewers and started the cooldown, and a lure
+  waited out the Anomaly's grace before sending it searching (last-known position 3.1 m away). Not verified: a real
+  stream with real viewers voting, and Firefox. 2026-11-08
 - [ ] P5-06 Ghost runs: record position every 250 ms against the seed and replay other runs as a translucent figure.
   Needs P5-01 so the world matches. 2026-11-07
 - [ ] P5-07 Real-time co-op spike: peers share only the seed; one host simulates entities. `EntityManager`, the Anomaly
