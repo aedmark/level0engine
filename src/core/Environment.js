@@ -1,3 +1,4 @@
+import {deriveRunSalt, deriveHuntState} from '../world/RunSeeds.js';
 import ChunkManager from '../world/ChunkManager.js';
 import AtmosphereManager from '../aesthetics/AtmosphereManager.js';
 import ProceduralTextureFactory from '../aesthetics/ProceduralTextureFactory.js';
@@ -489,8 +490,7 @@ export default class Environment {
         this.blackoutChunks.clear();
         this.observers = [];
         this._globalSwitches = [];
-        this.pointsOfInterest = [];        this._breakerHuntHops = this.interactionController.rollHuntHops();
-        this._runSalt32 = (Math.random() * 4294967296) >>> 0;
+        this.pointsOfInterest = [];
         this._macroChunkHashes = new Set();
         this._spawnElevator = null;
         this._placementCfg = null;
@@ -508,6 +508,11 @@ export default class Environment {
             this.baseSeed = ((this.baseSeed << 5) - this.baseSeed) + seedString.charCodeAt(i);
             this.baseSeed |= 0;
         }
+        // POI salt and breaker-hunt hops derive from the seed, not Math.random(), so a shared
+        // or daily seed deals every player the same anomalies and the same hunt (D-008).
+        this._runSalt32 = deriveRunSalt(this.baseSeed);
+        this._huntRngState = deriveHuntState(this.baseSeed);
+        this._breakerHuntHops = this.interactionController.rollHuntHops();
         
         this.player.coherence = 1.0;
         if (this.anomaly) this.anomaly.reset(32, 1.5, 32);

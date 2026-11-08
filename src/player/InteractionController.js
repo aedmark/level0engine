@@ -1,3 +1,4 @@
+import {nextHuntHops} from '../world/RunSeeds.js';
 import {releasePropLighting} from '../world/PropGlow.js';
 import {LEGACY_LIGHT_COMPENSATION} from '../world/Sectors.js';
 
@@ -780,10 +781,11 @@ export default class InteractionController {
 
 
     rollHuntHops() {
-        const r = Math.random();
-        if (r < 0.10) return 0;
-        if (r < 0.60) return 1;
-        return 2;
+        // Seed-keyed stream that advances once per breaker, so the Nth hunt of a seed is the
+        // same for everyone (D-008).
+        const {hops, state} = nextHuntHops(this.env._huntRngState);
+        this.env._huntRngState = state;
+        return hops;
     }
 
     beginBreakerScan(podium) {

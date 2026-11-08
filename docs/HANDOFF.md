@@ -13,9 +13,9 @@ Changes: [CHANGELOG.md](CHANGELOG.md). Older sessions: [archive/](archive/README
 
 ## Current state
 
-_Last updated: 2026-10-31, session 11, on `master`._
+_Last updated: 2026-11-07, session 12, on `master`._
 
-**Where things stand, in one paragraph:** The game is at v1.5.8.11 (see `docs/CHANGELOG.md` for the full history). CI dependency resolution and Playwright runner setup are fixed (P1-10 resolved). Volume I (`manual/index.html`) is complete: nine books plus four appendices. Volume II (`manual/codex.html`) comprehensively documents all 63 procedural subsystems (14 sectors, 30 blueprints, 8 entities, 4 tools, 7 tuners) with verified What/How/Why triads and working navigation anchors (P4-03 resolved). Both manual volumes, `README.md`, and `tools/check_docs.py` have undergone source-verification claim by claim, eliminating invented files, methods, probabilities, and schemas (P4-04 resolved). The landing page (`index.html`, `site.css`) is now an EGA facility terminal: a boot log and four file windows instead of the hero/feature/closing layout, with no network font (D-007). It is released as v1.5.8.11.
+**Where things stand, in one paragraph:** The game is at v1.5.8.11 (see `docs/CHANGELOG.md` for the full history). CI dependency resolution and Playwright runner setup are fixed (P1-10 resolved). Volume I (`manual/index.html`) is complete: nine books plus four appendices. Volume II (`manual/codex.html`) comprehensively documents all 63 procedural subsystems (14 sectors, 30 blueprints, 8 entities, 4 tools, 7 tuners) with verified What/How/Why triads and working navigation anchors (P4-03 resolved). Both manual volumes, `README.md`, and `tools/check_docs.py` have undergone source-verification claim by claim, eliminating invented files, methods, probabilities, and schemas (P4-04 resolved). The landing page (`index.html`, `site.css`) is now an EGA facility terminal: a boot log and four file windows instead of the hero/feature/closing layout, with no network font (D-007). It is released as v1.5.8.11. v1.5.8.12 makes a seed fully determine its run: the POI salt and breaker-hunt hops now derive from the seed (D-008), the first step toward shared/daily seeds.
 
 **Verified** (2026-10-28, Linux)
 
@@ -50,11 +50,13 @@ _Last updated: 2026-10-31, session 11, on `master`._
 
 **Gotchas for the next session**
 - `npm run build` leaves an untracked `build/` (ignored by git, removed after verification).
-- Version identifiers read `1.5.8.11` in `package.json`, `package-lock.json`, the `README.md` title, `docs/CHANGELOG.md`, both manual volumes and this file.
+- Version identifiers read `1.5.8.12` in `package.json`, `package-lock.json`, the `README.md` title, `docs/CHANGELOG.md`, both manual volumes and this file.
 
 ## Next steps (in order)
 
-1. No roadmap items remain open (Phases 1-4 are complete). The next session should agree the next phase with the maintainer; the landing page and both manual volumes are current.
+1. Agree the next phase with the maintainer. Candidates discussed in session 12: shareable seed cards and a daily seed,
+   Twitch chat voting on the Inquest, ghost runs, then real-time co-op. POIs within 30 units of the player's route still
+   become walls, so placement is route-dependent (D-008).
 
 ## Open questions for maintainers
 
@@ -63,6 +65,18 @@ None open.
 ## Session log
 
 Newest first. Past 10 entries, move the oldest to `docs/archive/` and leave a pointer here.
+
+### Session 12: 2026-11-07: Seeds fully determine a run (v1.5.8.12)
+
+**Contributor:** Claude Code (Opus 5.5)
+**Goal:** Make same-seed runs identical, as groundwork for shared and daily seeds.
+**Done:** `src/world/RunSeeds.js` derives the POI run salt and breaker-hunt stream from `baseSeed`; fixed the
+`env._rollHuntHops` fallback that did not exist; extended the P2-02 test; D-008 recorded; versions bumped.
+**Verified:** 8 fast `node --test` suites pass (9 tests); `check_docs.py` 0 errors, 0 warnings; in Chromium, two
+rebuilds of seed `7♠|K♥|2♣|9♦|A♠` from the origin gave identical salt, hops (1), POIs and wall count (2337), no
+console errors.
+**Not verified:** the Playwright smoke suite; `npm run build`; a full playthrough of the breaker hunt; Firefox.
+**Next session should start with:** choosing the next phase with the maintainer.
 
 ### Session 11: 2026-10-31: The landing page becomes a facility terminal
 
@@ -191,17 +205,4 @@ layer); ROADMAP: testing items P1-03 to P1-10, `.gitignore` detail in P1-02, dra
 noise, vertex jitter) apart from a sector-ID lookup in `ChunkManager.js` that looks harmless (P2-02 will prove it).
 **Next session should start with:** P1-02.
 
-### Session 1: 2026-09-30: adopt the agent documentation scheme
-
-**Contributor:** Claude Code (Opus 5.5)
-**Goal:** Retrofit the agent-template documentation scheme onto the existing project.
-**Done:** P1-01
-**Changed:** added AGENTS.md, CLAUDE.md, ROADMAP.md, docs/*, tools/check_docs.py; removed docs/agent-template/
-**Decisions:** D-001 to D-004 recorded retroactively; D-005 added
-**Verified:** `python3 tools/check_docs.py` passes
-**Not verified:** no code run; architecture claims come from reading the code and README
-**Problems / surprises:** the template's checker looked for an AGENTS.md "Layout" section while the template names it
-"Repository map"; the checker was changed to match.
-**Corrections:** README says twelve sector generators; there are fourteen sector files (P1-04).
-**Left undone:** P1-02 to P1-04, P4-01
-**Next session should start with:** Q-001, then P1-02.
+Session 1: `docs/archive/SESSION_LOG_2026_09.md`.

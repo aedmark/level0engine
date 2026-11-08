@@ -1,3 +1,10 @@
+## [v1.5.8.12] - 2026-11-07
+
+_One Seed, One Run: Every Player On A Seed Now Meets The Same Anomalies._
+
+- **[WORLD] Anomalous Points Of Interest And The Breaker Hunt Are Now Seed-Derived (`RunSeeds.js`, `Environment.js`, `InteractionController.js`, `AtmosphereManager.js`):** Two values that shape a run still came from `Math.random()`: the per-run salt that decides whether each anomalous point of interest spawns and which flavour it takes, and the number of point-of-interest hops the breaker hunt demands after each breaker. Two players on the same seed therefore met different anomalies and different hunts, which rules out shared seeds and daily challenges. Both now derive from the seed through pure helpers in the new `src/world/RunSeeds.js`, and the hunt stream advances once per breaker so the Nth hunt of a seed is the same for everyone. The salt used to be set before the seed was hashed; it now sits just after `baseSeed` is computed. `AtmosphereManager`'s fallback called a non-existent `env._rollHuntHops()` and would have thrown if it ever ran; it now calls `interactionController.rollHuntHops()`. The decision, and the route-dependent POI case it leaves open, is D-008.
+- **[ENGINE] Determinism Test Covers The Run Salt And Hunt Stream (`test/p2_02_reproducibility.test.js`):** The P2-02 test only compared the sector matrix order. It now also checks that the salt and hunt sequence repeat for a seed, differ across seeds, stay in range, and that neither call site has gone back to `Math.random()`.
+
 ## [v1.5.8.11] - 2026-10-31
 
 _The Facility Opens Its Front Door: A Landing Page Built From Its Own Hardware._

@@ -396,7 +396,7 @@ export default class AtmosphereManager {
                     }
                 }
             } else {
-                if (env._breakerHuntHops === undefined) env._breakerHuntHops = env._rollHuntHops();
+                if (env._breakerHuntHops === undefined) env._breakerHuntHops = env.interactionController.rollHuntHops();
                 let targetIsPoi = false;
                 
                 if (env._breakerHuntHops > 0 && env.pointsOfInterest && env.pointsOfInterest.length > 0) {

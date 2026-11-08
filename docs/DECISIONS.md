@@ -67,6 +67,19 @@ HTML file and one stylesheet. `header.png` is the in-page capture, lazy-loaded; 
 referenced by the landing page.
 **Review trigger:** If the manual or codex get the same treatment, or a new section no longer fits a file.
 
+## D-008 A seed fully determines a run, including anomalies and the breaker hunt  (2026-11-07, status: accepted)
+**Context:** Since v0.4.13 a per-run salt from `Math.random()` fed every anomalous point of interest, deliberately, so a
+replayed seed "keeps its maze but deals different anomalies". The breaker-hunt hop count also used `Math.random()`.
+Shared seeds, daily seeds, ghost runs and streamer challenges need everyone on a seed to play the same run.
+**Decision:** The run salt and the breaker-hunt stream derive from `baseSeed` (`src/world/RunSeeds.js`). Variety
+comes from choosing a new seed, which the default card-hand seed already does on every new game.
+**Alternatives:** Keep the random salt (rejected: breaks shared runs); seed-derived by default with a `?reroll` opt-in
+(rejected for now: no player asked for it).
+**Consequences:** Replaying a seed now replays its anomalies. Points of interest that would spawn within 30 units of
+the player still become walls, so POI placement can still differ with the route a player takes; that is not fixed.
+Cosmetic `Math.random()` (flicker, particles, spawn jitter) is unchanged.
+**Review trigger:** If players ask for same-maze, different-anomalies replays, add the `?reroll` flag.
+
 ## Open questions
 
 - **Q-001** ~~Are the proposed goals and order for ROADMAP phases 2 and 3 right?~~ Answered 2026-09-30 by the

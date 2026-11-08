@@ -57,7 +57,9 @@ dev tuners -> POST /save-light, /save-atmosphere -> rewrite Sectors.js on disk
 - `THREE` is a global; no bare `three` imports. Enforced by: nothing (convention; D-001).
 - Structural blueprint `prob` values sum to `1.0000`. Enforced by: a runtime console warning in
   `StructuralBlueprints.js`, not a test (P1-03).
-- The same seed produces the same layout. Enforced by: nothing yet (P2-02).
+- The same seed produces the same layout, points of interest and breaker hunt (D-008). Enforced by:
+  `test/p2_02_reproducibility.test.js` for the sector matrix, run salt and hunt stream; POIs near the player's
+  route can still differ.
 - Every zone is sealed by a single blast door on its true boundary, and fog follows the Shell Volume Registry.
   Enforced by: nothing automated.
 - Per-frame hot paths do not allocate. Enforced by: nothing automated.

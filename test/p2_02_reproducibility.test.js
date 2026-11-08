@@ -50,3 +50,32 @@ test('P2-02 ChunkManager determinism', async () => {
     
     assert.deepStrictEqual(m1.map(s=>s.id), m2.map(s=>s.id), "Sector matrix order should be deterministic");
 });
+
+test('P2-02 run salt and breaker hunt are seed-derived (D-008)', async () => {
+    const {deriveRunSalt, deriveHuntState, nextHuntHops} = await import('../src/world/RunSeeds.js');
+    const huntSequence = (seed, n) => {
+        let state = deriveHuntState(seed);
+        const out = [];
+        for (let i = 0; i < n; i++) {
+            const step = nextHuntHops(state);
+            out.push(step.hops);
+            state = step.state;
+        }
+        return out;
+    };
+    for (const seed of [0, 1, -1, 12345, -987654321, 0x7fffffff]) {
+        assert.strictEqual(deriveRunSalt(seed), deriveRunSalt(seed));
+        assert.deepStrictEqual(huntSequence(seed, 8), huntSequence(seed, 8));
+        for (const h of huntSequence(seed, 8)) assert.ok(h >= 0 && h <= 2);
+    }
+    // Different seeds should not collapse onto one salt.
+    const salts = new Set([1, 2, 3, 4, 5, 6, 7, 8].map(deriveRunSalt));
+    assert.strictEqual(salts.size, 8);
+
+    // Guard against a regression back to Math.random() at the two call sites.
+    const envSrc = fs.readFileSync(path.resolve('src/core/Environment.js'), 'utf8');
+    assert.ok(!/_runSalt32\s*=\s*\(?\s*Math\.random/.test(envSrc), 'run salt must not use Math.random');
+    const icSrc = fs.readFileSync(path.resolve('src/player/InteractionController.js'), 'utf8');
+    const body = icSrc.slice(icSrc.indexOf('rollHuntHops() {'), icSrc.indexOf('beginBreakerScan'));
+    assert.ok(!body.includes('Math.random'), 'rollHuntHops must not use Math.random');
+});
