@@ -68,10 +68,11 @@ export default class InteractionController {
             shouldOpen = false;
         }
         if (ud.tutorialLocked) {
-            if (env.player.flashlightBattery >= 100.0) {
+            // Released by the opening director (P5-04). It used to wait for a 100% kinetic charge, but the
+            // battery ceiling is 100 minus linguisticDarkMatter, so that could never be reached.
+            if (env.openingDoorReleased) {
                 ud.tutorialLocked = false;
                 env.tutorialActive = false;
-                ud.codeLocked = true;
                 if (ud.tutorialFixture) {
                     ud.tutorialFixture.isDead = false;
                     ud.tutorialFixture.baseIntensity = 0.8;

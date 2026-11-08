@@ -141,8 +141,20 @@ run salt and breaker hunt seed-derived first.
   on 2026-11-07, and a real click on Copy Link produced the right link through the prompt fallback (that pane refuses
   clipboard access). Not verified: the clipboard success path in a normal browser tab, Firefox, the purge path with a
   link (skipped so as not to wipe the pane's saved game and cached assets), and itch.io embedding. 2026-11-07
-- [ ] P5-04 Time to first scare: measure boot-to-control and control-to-first-threat on a few seeds, then decide whether
-  the opening sector and boot log need trimming for streams. 2026-11-07
+- [x] P5-04 Time to first scare, and a better opening. Measured 2026-11-07 in the desktop app's Chromium pane on seed
+  `7♠|K♥|2♣|9♦|A♠`: load to control took about 2.7 s (pre-engine 0.13 s, seven boot phases 1.8 s, fade 0.8 s), so boot
+  is not the problem. The first minutes were: a pitch-black first-run car, a softlockable charge gate, and no
+  guaranteed threat until a 90 s grace that started at world generation. v1.5.8.16 adds `OpeningDirector` with five
+  beats: arrival, a seeded corridor sighting, the objective reveal with a first podium 28-56 m away, grace held to the
+  doorway, and timing marks (D-010). Evidence: `test/p5_04_opening.test.js`; in the pane, a first run logged door +5.0 s,
+  exit +5.2 s and a sighting 13.5 m down a corridor near the car (screenshot taken). The cut then hid the Anomaly. The
+  signal read 27.8 m to the first podium, and restoring it moved the hunt to POIs. A returning run kept the code lock,
+  held grace at 90 and hid the objective. Not verified: real human timings (the exit was teleported and the first
+  threat forced), the look of the sighting at full size (the pane was hidden and small), how often a seed has no
+  qualifying corridor, and Firefox. Smoke test (`p4_01_smoke`): no console errors, but the performance budget failed
+  on a loaded desktop (load average about 13). The previous commit 1.5.8.15 failed the same way, side by side at about
+  the same load, and its per-sector generation times were within about 15% of this build (IMPOUND 45.3 s against 45.2 s,
+  EXIT 63.5 s against 66.5 s), so this change is not the cause. The budget needs a quiet machine. 2026-11-08
 - [ ] P5-05 Streamer mode: an OBS-friendly HUD toggle, and Twitch chat voting on the Inquest finding plus chat-triggered
   events (a blackout, Anomaly attention). One-way input; no game state leaves the browser except the chat connection.
   Needs a security note in `docs/SECURITY.md` for the chat boundary. 2026-11-07

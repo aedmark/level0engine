@@ -25,7 +25,8 @@ export default class PlayerController {
         this._groundFeetY = camera.position.y - 1.6;
         let isFirstTime = false;
         try { isFirstTime = !localStorage.getItem('level0_tutorial'); } catch(e) {}
-        this.flashlightBattery = isFirstTime ? 0.0 : 100.0;
+        // Half charged on a first run: enough to look around, and it runs down soon enough to teach charging.
+        this.flashlightBattery = isFirstTime ? 50.0 : 100.0;
         this.flashlightCooldownTimer = 0.0;
         this.baseRadius = 0.4;
         this.squeezeRadius = 0.12;
@@ -49,8 +50,18 @@ export default class PlayerController {
         this.objectiveUI.style.cssText = 'z-index: 100; pointer-events: none; text-transform: uppercase;';
         const renderArea = document.getElementById('screen-wrapper') || document.body;
         renderArea.appendChild(this.objectiveUI);
+        // Set by the opening director while the player is still in the arrival car (P5-04).
+        this.objectivesHidden = false;
         this.updateObjectives = (signalText = 'SCANNING...') => {
             if (this.objectives.escaped) return;
+            if (this.objectivesHidden) {
+                if (this._lastHidden) return;
+                this._lastHidden = true;
+                this._lastSignalText = null;
+                this.objectiveUI.innerHTML = '';
+                return;
+            }
+            this._lastHidden = false;
             if (this._lastSignalText === signalText && this._lastFixed === this.objectives.fixed &&
                 this._lastDepth === this.depth && this._lastBestDepth === this.bestDepth &&
                 this._lastKey === this.inventory.hasExitKey) return;

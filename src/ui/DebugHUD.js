@@ -54,6 +54,7 @@ export const DebugHUD = {
             `  dot ${(environment._glareDot ?? -1).toFixed(3)}` +
             `  dist ${Number.isFinite(environment._glareDist) ? environment._glareDist.toFixed(1) + 'm' : '-'}\n` +
             `OBJ   ${player.objectives.fixed}/${player.objectives.total}  COH ${(player.coherence * 100).toFixed(0)}%\n` +
+            `OPEN  ${environment.opening ? environment.opening.hudText() : '-'}\n` +
             `PERF  hitch ${this._hitches} (${this._genHitches} gen) worst ${(this._worstHitch * 1000).toFixed(0)}ms` +
             (environment.genStats ? `  chunk avg ${(environment.genStats.totalMs / environment.genStats.count).toFixed(1)}ms worst ${environment.genStats.worstMs.toFixed(1)}ms` : '');
     },

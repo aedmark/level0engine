@@ -232,8 +232,9 @@ export const spawnElevatorCar = (env, ctx, x, z, forcedExitIndex) => {
         env._registerInteractable(note, hash);
     }
     
-    const isDead = isFirstTime;
-    const initialIntensity = isFirstTime ? 0.0 : 0.8;
+    // A first run arrives under a dim emergency light rather than in total darkness (P5-04).
+    const isDead = false;
+    const initialIntensity = isFirstTime ? 0.25 : 0.8;
     let activeMat = env.baseBrokenLightMat.clone();
     activeMat.emissiveIntensity = initialIntensity;
     const panel = new THREE.Mesh(env.sharedPanelGeo, [

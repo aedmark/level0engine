@@ -95,6 +95,27 @@ such as `SECURE BOOT v1.4` in `terminal.html`, are allowed because the check onl
 **Review trigger:** If a public build needs a visible version for bug reports, show it in one place, such as the
 pause menu, driven from `package.json`.
 
+## D-010 A new run opens with a scripted, seeded sequence  (2026-11-07, status: accepted)
+**Context:** P5-04 measured the opening. Load to control took about 2.7 s, which was fine. A first-time player then
+woke in a pitch-black car with an empty flashlight, a red keypad that did nothing, and a note covering six mechanics.
+The car door waited for a 100% kinetic charge the battery ceiling could fall short of. Nothing frightening was
+guaranteed until the Anomaly's 90 s grace ran out, and that grace counted down while the player was still reading.
+**Decision:** `OpeningDirector` runs five beats on every new run. Beat 1, arrival: a dim car (a quarter of normal
+ambient), half a charge, a rumble and a ding, and on a first run the door releases on its own. Beat 2, the sighting:
+the Anomaly stands at the end of a corridor and vanishes when the lights stutter. Beat 3, the objective: it is hidden
+until the player steps out, and the first hunt goes to a podium 28-56 m from the seed spawn. Beat 4: grace is held
+until the doorway. Beat 5: timing marks go to the console and the debug HUD. The sighting spot comes from the layout
+around the car (the nearest open cell within 24 m with a 16 m+ straight run, outside sectors), not from the player's
+route, so a shared seed shows everyone the same corridor.
+**Alternatives:** Shortening the old tutorial text only (rejected: it left the dark car, the softlock and the empty
+first minutes); a random jump scare (rejected: not seeded, and it spends the Anomaly's menace before it can hunt).
+**Consequences:** The kinetic-charge lesson moves to a one-time hint when the flashlight first dies. Returning players
+still enter `0451` until the keypad remembers it. The sighting borrows the Anomaly mesh during its grace period, so
+any change to grace or to the Anomaly's visibility must keep the sighting working. Timing values live in
+`OpeningPlan.js` (`OPENING`).
+**Review trigger:** If playtests or streams show the sighting missed (the `sighting missed` mark) on most seeds, or
+show players reaching the first hunt much earlier or later than about 90 s after leaving the car.
+
 ## Open questions
 
 - **Q-001** ~~Are the proposed goals and order for ROADMAP phases 2 and 3 right?~~ Answered 2026-09-30 by the

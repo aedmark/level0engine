@@ -23,6 +23,7 @@ import RemapController from './src/ui/RemapController.js';
 import BootController from './src/ui/BootController.js';
 import ContinuePrompt from './src/ui/ContinuePrompt.js';
 import {seedFromSearch, runSeed, shareUrl} from './src/system/SeedLink.js';
+import OpeningDirector from './src/narrative/OpeningDirector.js';
 
 const T_MODULES_READY = performance.now();
 
@@ -105,6 +106,11 @@ if (!document.getElementById('seedInput').value) {
     document.getElementById('seedInput').value = saveManager.generateCardSeed();
 }
 environment.wantsElevatorSpawn = !savedState;
+// A new run gets the scripted opening (P5-04); a resumed save drops the player where they left off.
+environment.openingRun = !savedState;
+try { environment.openingFirstRun = !savedState && !localStorage.getItem('level0_tutorial'); } catch (e) { environment.openingFirstRun = false; }
+const opening = new OpeningDirector({env: environment, player, acoustics});
+environment.opening = opening;
 environment.elevatorAnchor = (savedState && savedState.elevator) || null;
 if (savedState && Array.isArray(savedState.consumed)) {
     environment.consumedProps = new Set(savedState.consumed);
@@ -344,6 +350,7 @@ function animate() {
         return;
     }
     player.update(delta, environment.spatialGrid);
+    opening.update(delta);
     compass.update(delta);
     flashlight.update(delta);
     paintballGun.update(delta);
@@ -477,6 +484,7 @@ async function compileSceneInGroups(engine, bootCtrl, leafBatchSize = COMPILE_LE
     animate();
 
     await bootCtrl.finish();
+    opening.start();
 })();
 
 // Copies a link that starts this run from the beginning. The live seed carries blackout and floor

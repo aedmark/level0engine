@@ -465,7 +465,11 @@ export default class AtmosphereManager {
                         }
                         
                         if (env._virtualBreaker) {
-                            if (env._virtualBreaker.spawned && env._virtualBreaker.mesh) {
+                            if (env._virtualBreaker.spawned && env._virtualBreaker.mesh && env._virtualBreaker.mesh.userData.active) {
+                                // Spent: let the next frame plant a fresh one. Without this the signal kept
+                                // pointing at the podium the player had just restored.
+                                env._virtualBreaker = null;
+                            } else if (env._virtualBreaker.spawned && env._virtualBreaker.mesh) {
                                 env._currentTargetSwitch = env._virtualBreaker.mesh;
                             } else {
                                 const dx = cameraPos.x - env._virtualBreaker.worldX;
@@ -528,7 +532,10 @@ export default class AtmosphereManager {
             }
             const row = SECTORS[activeSector];
             const sectorAmbient = row && row.ambient !== undefined ? row.ambient : DEFAULT_AMBIENT;
-            const targetAmbient = env.tutorialActive ? 0.0 : Math.max(MIN_AMBIENT, sectorAmbient * (1.0 - darknessPressure * 0.5)) * LEGACY_LIGHT_COMPENSATION;
+            const normalAmbient = Math.max(MIN_AMBIENT, sectorAmbient * (1.0 - darknessPressure * 0.5)) * LEGACY_LIGHT_COMPENSATION;
+            // The arrival car is lit almost entirely by ambient; zero left a first-time player in total
+            // darkness (P5-04). A quarter reads as emergency lighting until the doors release.
+            const targetAmbient = env.tutorialActive ? normalAmbient * 0.25 : normalAmbient;
 
             env.engine.ambientLight.intensity += (targetAmbient - env.engine.ambientLight.intensity) * 0.05;
 

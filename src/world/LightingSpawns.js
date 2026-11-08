@@ -7,6 +7,7 @@ import { CreviceHallProfile } from './blueprints/CreviceHall.js';
 import { RideQueueHallProfile } from './blueprints/RideQueueHall.js';
 import { ArchHallProfile } from './blueprints/ArchHall.js';
 import { isAirlockApron } from './AirlockApron.js';
+import { inFirstBreakerBand, localRandom } from '../narrative/OpeningPlan.js';
 
 const RECT_LIGHT_SIZE_MARGIN = 0.6;
 let _panelRectQuatFlat = null;
@@ -25,8 +26,15 @@ export function buildEmptyCell(manager, args, state) {
         let hasTallObstacle = false;
 
 
-        if (!state.spawnedVirtualBreaker && env._virtualBreaker && env._virtualBreaker.chunkHash === hash && !env._virtualBreaker.spawned) {
-            spawnBreakerPodium(env, ctx, x, z);
+        const vb = env._virtualBreaker;
+        // The opening's breaker waits for a cell in its band, and dresses itself from a local stream
+        // so the chunk's layout stream (and with it the rest of the seed's maze) is untouched.
+        const openingCellOk = !vb || !vb.opening || inFirstBreakerBand(x * env.cellSize, z * env.cellSize, env._seedSpawn);
+        if (!state.spawnedVirtualBreaker && vb && vb.chunkHash === hash && !vb.spawned && openingCellOk) {
+            const podiumCtx = vb.opening
+                ? {...ctx, random: localRandom((env.baseSeed ^ Math.imul(x, 73856093) ^ Math.imul(z, 19349663)) >>> 0)}
+                : ctx;
+            spawnBreakerPodium(env, podiumCtx, x, z);
             env._virtualBreaker.spawned = true;
             env._virtualBreaker.mesh = env.interactables[env.interactables.length - 1];
             state.spawnedVirtualBreaker = true;

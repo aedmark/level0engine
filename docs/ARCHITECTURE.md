@@ -30,7 +30,7 @@ machine.
 | Textures / materials / lights | `src/aesthetics/` | `ProceduralTextureFactory.js`, `MaterialLibrary.js`, `LumenGrid.js` | RenderEngine |
 | Entities | `src/entities/` | `EntityManager.js` | HazardUtils, SpatialHashGrid |
 | Player | `src/player/` | `PlayerController.js` | SomaticInput, InteractionController |
-| Narrative | `src/narrative/` | `StoryEngine.js` | `data/*.json`, CaseFiles |
+| Narrative | `src/narrative/` | `StoryEngine.js`, `OpeningDirector.js` (new-run opening, D-010) | `data/*.json`, CaseFiles, Anomaly, Environment |
 | Audio | `src/audio/` | `AcousticEngine.js` | Mixer, Foley |
 | UI / dev tuners | `src/ui/` | `UIManager.js`; `LightTuner.js`, `AtmosphereTuner.js` | server save endpoints |
 | Persistence / events | `src/system/` | `SaveManager.js`, `SomaticController.js`, `SeedLink.js` (shared and daily seeds) | `localStorage`, `?seed=` |

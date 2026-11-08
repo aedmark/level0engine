@@ -534,6 +534,20 @@ export default class Environment {
         const chunkW = 64;
         const home = this._pickSpawnChunk(0, 0);
         this._seedSpawn = {x: home.x * chunkW + 6, z: home.z * chunkW + 6};
+        if (this.openingRun && !this._openingPlanned && !inPlace) {
+            // Beat 3 of the opening (P5-04): the first hunt goes straight to a breaker podium planted
+            // in the spawn chunk, instead of a virtual breaker three chunks (about 190 m) ahead.
+            this._openingPlanned = true;
+            this._breakerHuntHops = 0;
+            this._virtualBreaker = {
+                chunkHash: `${home.x},${home.z}`,
+                worldX: this._seedSpawn.x,
+                worldZ: this._seedSpawn.z,
+                spawned: false,
+                mesh: null,
+                opening: true
+            };
+        }
 
         if (this.anomaly) this.anomaly.reset(32, 1.5, 32);
         if (inPlace) {
