@@ -61,6 +61,7 @@ export default class Environment {
         this.macroZones = new Map();
         this.discoveredSectors = new Map();
         this.pointsOfInterest = [];        this._breakerHuntHops = undefined;
+        this._seedSpawn = null;
         this.breakerScan = null;
         this._scanDir = new THREE.Vector3();
         this._scanAim = new THREE.Vector3();
@@ -248,7 +249,7 @@ export default class Environment {
             if (e.code === 'Tab') toggleMenu(e);
         });
         document.getElementById('generateBtn').addEventListener('click', () => {
-            this.generate();
+            this.generate({inPlace: true});
         });
         document.getElementById('teleportBtn').addEventListener('click', () => {
             const tx = parseFloat(document.getElementById('teleportX').value);
@@ -426,7 +427,14 @@ export default class Environment {
         return {x: cX, z: cZ};
     }
 
-    generate() {
+    // inPlace (the Rebuild Geometry button): rebuild the seed-default world around the player and
+    // keep their position and run progress. Boot, death, a rejected Inquest and ascension call it
+    // without options and still respawn at a chunk corner (P5-02).
+    generate({inPlace = false} = {}) {
+        const prevSeed = this.baseSeed;
+        const keptExitHash = this.dynamicExitHash;
+        const keptHuntState = this._huntRngState;
+        const keptHuntHops = this._breakerHuntHops;
         const flash = document.getElementById('flash-overlay');
         if (flash) {
             flash.style.transition = 'none';
@@ -482,7 +490,6 @@ export default class Environment {
         this.airlocks = [];
         this.macroZones.clear();
         this.discoveredSectors.clear();
-        this.lockedRoomSpawned = false;
         this.dynamicExitHash = null;
         this._annexChunkGrids = new Map();
         this.spatialGrid.clear();
@@ -511,13 +518,31 @@ export default class Environment {
         // POI salt and breaker-hunt hops derive from the seed, not Math.random(), so a shared
         // or daily seed deals every player the same anomalies and the same hunt (D-008).
         this._runSalt32 = deriveRunSalt(this.baseSeed);
-        this._huntRngState = deriveHuntState(this.baseSeed);
-        this._breakerHuntHops = this.interactionController.rollHuntHops();
-        
-        this.player.coherence = 1.0;
-        if (this.anomaly) this.anomaly.reset(32, 1.5, 32);
+        const keepProgress = inPlace && prevSeed === this.baseSeed;
+        if (keepProgress) {
+            // The hunt and the exit-phase exit chunk are run progress, not world: a rebuild must
+            // not hand back a fresh hunt or move an exit the player has already been shown.
+            this._huntRngState = keptHuntState;
+            this._breakerHuntHops = keptHuntHops;
+            this.dynamicExitHash = keptExitHash;
+        } else {
+            this._huntRngState = deriveHuntState(this.baseSeed);
+            this._breakerHuntHops = this.interactionController.rollHuntHops();
+        }
+        // Chunks suppress breakers and POIs near this point, never near the live camera, so a
+        // chunk builds the same whatever route or rebuild position produced it (P5-01).
         const chunkW = 64;
-        const spawn = this._pickSpawnChunk(
+        const home = this._pickSpawnChunk(0, 0);
+        this._seedSpawn = {x: home.x * chunkW + 6, z: home.z * chunkW + 6};
+
+        if (this.anomaly) this.anomaly.reset(32, 1.5, 32);
+        if (inPlace) {
+            // Safe-spawn tests the current point first, so the player only moves if the rebuilt
+            // world puts them inside geometry.
+            this.needsSafeSpawn = true;
+        } else {
+            this.player.coherence = 1.0;
+            const spawn = this._pickSpawnChunk(
                 Math.floor(this.camera.position.x / chunkW),
                 Math.floor(this.camera.position.z / chunkW)
             );
@@ -536,6 +561,7 @@ export default class Environment {
                     placement: null
                 };
             }
+        }
         if (this.elevatorAnchor && this.elevatorAnchor.seed !== this.baseSeed) {
             this.elevatorAnchor = null;
         }

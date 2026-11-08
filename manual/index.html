@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Everything You Ever Wanted to Know About Level 0 Engine v1.5.8.12</title>
+    <title>Everything You Ever Wanted to Know About Level 0 Engine v1.5.8.13</title>
     <link rel="stylesheet" href="manual.css">
 </head>
 <body>
@@ -12,7 +12,7 @@
     <aside class="sidebar">
         <div class="sidebar-header">
             <h1>🟨 Level 0 Engine</h1>
-            <span class="version-tag">System Codex • v1.5.8.12</span>
+            <span class="version-tag">System Codex • v1.5.8.13</span>
             <p style="margin-top: 0.6rem; font-size: 0.85rem;"><a href="codex.html" style="color: var(--accent-cyan); text-decoration: none;">&rarr; Open The Manifold Codex (Catalog)</a></p>
         </div>
         <nav class="sidebar-nav">
@@ -119,7 +119,7 @@
             <h1 class="doc-title">Everything You Ever Wanted to Know About Level 0 Engine</h1>
             <p class="subtitle">The Definitive Architectural Codex, System Internals, Survival Field Manual, and Contributor Handbook</p>
             <div class="badge-row">
-                <span class="badge amber">Engine v1.5.8.12</span>
+                <span class="badge amber">Engine v1.5.8.13</span>
                 <span class="badge cyan">Vanilla ES6 Modules</span>
                 <span class="badge emerald">Three.js r160 (Vendored)</span>
                 <span class="badge purple">Seeded Procedural Horror</span>
@@ -372,7 +372,7 @@
 
             <div class="triad-block" id="shell-volume-registry">
                 <h3>10. Zone Bounds & Blast Thresholds</h3>
-                <p><strong>Files:</strong> <code>src/world/ZoneBounds.js</code>, <code>src/world/AirlockApron.js</code>, <code>src/world/SectorPlacement.js</code>, <code>src/world/SetPieces.js</code></p>
+                <p><strong>Files:</strong> <code>src/world/ZoneBounds.js</code>, <code>src/world/AirlockApron.js</code>, <code>src/world/AirlockLayout.js</code>, <code>src/world/SectorPlacement.js</code>, <code>src/world/SetPieces.js</code></p>
                 <div class="triad-section">
                     <span class="triad-label what">What It Does</span>
                     <p>
@@ -383,7 +383,7 @@
                     <span class="triad-label how">How It Works</span>
                     <ol>
                         <li><strong>Boundary Sealing:</strong> Every macro sector is sealed by exactly one true blast threshold at its entry boundary.</li>
-                        <li><strong>Airlock Apron:</strong> <code>AirlockApron.js</code> bridges the transitional corridor, aligning subway tiles and corner pillar materials between sectors.</li>
+                        <li><strong>Airlock Apron:</strong> <code>AirlockApron.js</code> bridges the transitional corridor, aligning subway tiles and corner pillar materials between sectors. Every sector chunk has one airlock per side at a fixed cross-cell (<code>AirlockLayout.js</code>), so neighbouring maze chunks derive those positions from the seed instead of waiting for the sector to build.</li>
                         <li><strong>Volumetric Interpolation:</strong> As the player crosses the apron threshold, <code>AtmosphereManager</code> lerps fog color, density, and ambient lighting smoothly over 2.5 seconds, eliminating jarring visual pops.</li>
                     </ol>
                 </div>
@@ -1259,7 +1259,7 @@ export const SECTORS = {
         </section>
 
         <footer class="doc-footer">
-            <p>Level 0 Engine System Codex • v1.5.8.12 • Single Maintainer Architecture (gordonk)</p>
+            <p>Level 0 Engine System Codex • v1.5.8.13 • Single Maintainer Architecture (gordonk)</p>
             <p>Procedural Backrooms Engine built on Vanilla ES6 Modules & Vendored Three.js r160.</p>
         </footer>
     </main>

@@ -1,4 +1,5 @@
 import SECTORS from './Sectors.js';
+import {AIRLOCK_CROSS_CELL, AIRLOCK_CHAMBER_DEPTH, entranceSides, airlockDoorPositions} from './AirlockLayout.js';
 export default class SetPieces {
     constructor(env) {
         this.env = env;
@@ -429,24 +430,17 @@ export default class SetPieces {
 
     buildEntranceHallways(chunkGroup, hash, startX, startZ, sectorId, ctx, needsFloor, needsCeiling, maze) {
         const env = this.env;
-        const edge = env.chunkSize - 1;
-        const sides = [
-            {spansX: true, boundary: 0, dir: 1},
-            {spansX: true, boundary: edge, dir: -1},
-            {spansX: false, boundary: 0, dir: 1},
-            {spansX: false, boundary: edge, dir: -1}
-        ];
-        for (const side of sides) {
+        for (const side of entranceSides(env.chunkSize)) {
             const spansX = side.spansX;
             const outSign = side.dir === 1 ? -1 : 1;
             const cellAt = (local) => ({
-                x: startX + (spansX ? 7 : local),
-                z: startZ + (spansX ? local : 7)
+                x: startX + (spansX ? AIRLOCK_CROSS_CELL : local),
+                z: startZ + (spansX ? local : AIRLOCK_CROSS_CELL)
             });
             const outer = cellAt(side.boundary);
             const inDir = side.dir;
             let innerCellX = outer.x, innerCellZ = outer.z;
-            for (let cross = 7; cross <= 7; cross++) {
+            for (let cross = AIRLOCK_CROSS_CELL; cross <= AIRLOCK_CROSS_CELL; cross++) {
                 for (let depth = 0; depth <= 1; depth++) {
                     const lx = spansX ? cross : (side.boundary + inDir * depth);
                     const lz = spansX ? (side.boundary + inDir * depth) : cross;
@@ -708,14 +702,10 @@ export default class SetPieces {
             env.airlockSealMat = new THREE.MeshStandardMaterial({color: 0x111111, roughness: 0.9, metalness: 0.1});
         }
         const shellMat = env.stainlessMat || env.titaniumMat || env.metalMat;
-        const inSign = outSign * -1;
-        const chamberDepth = 2.8;
+        const chamberDepth = AIRLOCK_CHAMBER_DEPTH;
         const halfDepth = chamberDepth * 0.5;
         const fullDepth = chamberDepth + 0.7;
-        const outerX = dcx - (spansX ? 0 : inSign * halfDepth);
-        const outerZ = dcz - (spansX ? inSign * halfDepth : 0);
-        const innerX = dcx + (spansX ? 0 : inSign * halfDepth);
-        const innerZ = dcz + (spansX ? inSign * halfDepth : 0);
+        const {outerX, outerZ, innerX, innerZ} = airlockDoorPositions(dcx, dcz, spansX, outSign);
         const midX = dcx;
         const midZ = dcz;
         const CORRIDOR_HALF = 1.75;

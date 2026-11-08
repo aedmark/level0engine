@@ -76,7 +76,8 @@ comes from choosing a new seed, which the default card-hand seed already does on
 **Alternatives:** Keep the random salt (rejected: breaks shared runs); seed-derived by default with a `?reroll` opt-in
 (rejected for now: no player asked for it).
 **Consequences:** Replaying a seed now replays its anomalies. Points of interest that would spawn within 30 units of
-the player still become walls, so POI placement can still differ with the route a player takes; that is not fixed.
+the player still became walls, so POI placement could differ with the route; v1.5.8.13 measures that from the seed
+spawn instead (P5-01).
 Cosmetic `Math.random()` (flicker, particles, spawn jitter) is unchanged.
 **Review trigger:** If players ask for same-maze, different-anomalies replays, add the `?reroll` flag.
 

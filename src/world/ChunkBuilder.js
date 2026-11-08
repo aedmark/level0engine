@@ -4,7 +4,7 @@ import * as SectorPlacement from './SectorPlacement.js';
 import TheArchitect from '../core/TheArchitect.js';
 import { spawnElevatorCar } from './ElevatorSpawn.js';
 import { setMacroZone } from './ZoneBounds.js';
-import { isAirlockApron } from './AirlockApron.js';
+import { isAirlockApron, airlocksNear } from './AirlockApron.js';
 import { buildEmptyCell } from './LightingSpawns.js';
 
 const cellKey = (x, z) => x * (4194304 * 2) + z;
@@ -294,12 +294,8 @@ export default class ChunkBuilder {
                         };
                     }
 
-                    const airlocksCopy = env.airlocks ? env.airlocks.map(a => ({
-                        outerPos: {x: a.outerPos.x, z: a.outerPos.z},
-                        chamberCenter: {x: a.chamberCenter.x, z: a.chamberCenter.z},
-                        outSign: a.outSign,
-                        spansX: a.spansX
-                    })) : null;
+                    // Derived, not env.airlocks: the built list depends on which sectors loaded first (P5-01).
+                    const airlocksCopy = airlocksNear(env, chunkX, chunkZ);
 
                     const workerT0 = performance.now();
                     const mathData = await new Promise(resolve => {

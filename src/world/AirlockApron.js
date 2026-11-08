@@ -1,5 +1,26 @@
 import * as SectorPlacement from './SectorPlacement.js';
 import TheArchitect from '../core/TheArchitect.js';
+import {airlocksForMacroChunk} from './AirlockLayout.js';
+
+// Airlocks of every macro chunk in the 3x3 around (chunkX, chunkZ), derived from placement rather
+// than read from env.airlocks, which only holds sectors that have already built. Reading the built
+// list made a base chunk's maze depend on load order (P5-01). Cached per seed on the placement.
+export function airlocksNear(env, chunkX, chunkZ) {
+    const placement = SectorPlacement.placementConfig(env);
+    if (!placement.airlockCache) placement.airlockCache = new Map();
+    const key = `${chunkX},${chunkZ}`;
+    let list = placement.airlockCache.get(key);
+    if (list) return list;
+    list = [];
+    for (let dx = -1; dx <= 1; dx++) {
+        for (let dz = -1; dz <= 1; dz++) {
+            if (!SectorPlacement.isMacroChunk(placement, chunkX + dx, chunkZ + dz)) continue;
+            list.push(...airlocksForMacroChunk(chunkX + dx, chunkZ + dz, env.chunkSize, env.cellSize));
+        }
+    }
+    placement.airlockCache.set(key, list);
+    return list;
+}
 
 export function airlockApron(env, airlock) {
 
@@ -20,8 +41,8 @@ export function airlockApron(env, airlock) {
 
 export function isAirlockApron(env, x, z) {
 
-        const airlocks = env.airlocks;
-        if (airlocks) {
+        const airlocks = airlocksNear(env, Math.floor(x / env.chunkSize), Math.floor(z / env.chunkSize));
+        if (airlocks.length) {
             for (let i = 0; i < airlocks.length; i++) {
                 const {clearX, clearZ} = airlockApron(env, airlocks[i]);
                 if (clearX.indexOf(x) !== -1 && clearZ.indexOf(z) !== -1) return true;

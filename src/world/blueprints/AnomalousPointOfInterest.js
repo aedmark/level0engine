@@ -17,9 +17,9 @@ export const AnomalousPointOfInterestProfile = (env, ctx) => {
                     break;
                 }
             }
-            if (ctx.playerPos) {
-                const dxPlayer = cx - ctx.playerPos.x;
-                const dzPlayer = cz - ctx.playerPos.z;
+            if (ctx.seedSpawnPos) {
+                const dxPlayer = cx - ctx.seedSpawnPos.x;
+                const dzPlayer = cz - ctx.seedSpawnPos.z;
                 if (dxPlayer * dxPlayer + dzPlayer * dzPlayer < 900.0) {
                     tooClose = true;
                 }

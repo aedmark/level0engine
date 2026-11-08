@@ -152,9 +152,9 @@ export function buildEmptyCell(manager, args, state) {
                     break;
                 }
             }
-            if (ctx.playerPos) {
-                const dxPlayer = px - ctx.playerPos.x;
-                const dzPlayer = pz - ctx.playerPos.z;
+            if (ctx.seedSpawnPos) {
+                const dxPlayer = px - ctx.seedSpawnPos.x;
+                const dzPlayer = pz - ctx.seedSpawnPos.z;
                 if (dxPlayer * dxPlayer + dzPlayer * dzPlayer < 1600.0) {
                     isTooClose = true;
                 }

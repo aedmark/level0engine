@@ -69,7 +69,7 @@ export default class StructureKit {
             hash,
             chunkGroup,
             stagingMeshes,
-            playerPos: env.camera ? env.camera.position : null,
+            seedSpawnPos: env._seedSpawn || null,
             buildDefaultWall: (x, z) => {
                 const wall = helpers.buildWall(env.cellSize, env.cellSize, env.sharedWallMat);
                 wall.position.set(x * env.cellSize, 1.5, z * env.cellSize);

@@ -109,3 +109,43 @@ Drafted 2026-09-30 from the code and changelog; confirmed by the maintainer the 
   corrected blueprint badges and methods (`ArchHall.js` 0.0000, `CrawlspaceDuct.js` 0.0749, removed fictional `createArchMesh`),
   and replaced fictional schemas in Appendices C and D with real `Sectors.js` and `SaveManager.js` data models. Enhanced
   `tools/check_docs.py` to assert that all `src/` files and method calls in manual pages exist in `src/`. 2026-10-28
+
+## Phase 5: Shareable runs and streaming
+
+Goal: a seed is a run anyone can replay, share and watch, and the game gives streamers and their chat something to do
+together. Drafted 2026-11-07 from a conversation with the maintainer about streamer appeal; P2-02 and D-008 made the
+run salt and breaker hunt seed-derived first.
+
+- [x] P5-01 Chunks independent of player position and build order. v1.5.8.13: breaker and POI suppression measure from
+  the seed spawn (`env._seedSpawn`) instead of the live camera; every Annex rolls its own locked room instead of the
+  first one built; and base maze chunks derive neighbouring sector airlocks (`AirlockLayout.js`, `airlocksNear()`)
+  instead of reading `env.airlocks`, which only held sectors already built. Chosen over carving the apron after the
+  fact because airlocks sit at a fixed cross-cell on every side of every sector chunk, so derivation is exact.
+  Evidence: in Chromium on seed `7♠|K♥|2♣|9♦|A♠`, in-place rebuilds from (6, 6), (70, 40) and (6, -60) gave identical
+  meshes in every chunk loaded in both runs, including `0,0` and `0,-1` beside the sector at `-1,0`; derived airlocks
+  equal the built ones on four seeds including an Atrium. `test/p2_02_reproducibility.test.js` guards the pieces.
+  Not covered: a headless chunk fingerprint test (the builder needs WebGL); the exit-phase `dynamicExitHash` is still
+  first-come by design. Found 2026-11-07 while verifying D-008; done 2026-11-07.
+- [x] P5-02 "Rebuild Geometry" restores the seed-default world around the player. The button now calls
+  `generate({inPlace: true})`: position and facing kept (safe-spawn nudges only out of geometry; (70, 40) moved to
+  (66, 36) in the test above), coherence untouched, breaker-hunt stream and exit-phase exit chunk kept on an unchanged
+  seed; objectives and inventory were never reset by `generate()`. Boot, death, Inquest and ascension unchanged. With
+  P5-01 the rebuilt geometry matches the seed default. Maintainer request and choice ("world only, keep progress"),
+  2026-11-07
+- [ ] P5-03 Shareable seed cards and a daily seed: copy-to-clipboard seed (the default card-hand seed), a seed field on
+  the landing page, and a date-derived daily seed. 2026-11-07
+- [ ] P5-04 Time to first scare: measure boot-to-control and control-to-first-threat on a few seeds, then decide whether
+  the opening sector and boot log need trimming for streams. 2026-11-07
+- [ ] P5-05 Streamer mode: an OBS-friendly HUD toggle, and Twitch chat voting on the Inquest finding plus chat-triggered
+  events (a blackout, Anomaly attention). One-way input; no game state leaves the browser except the chat connection.
+  Needs a security note in `docs/SECURITY.md` for the chat boundary. 2026-11-07
+- [ ] P5-06 Ghost runs: record position every 250 ms against the seed and replay other runs as a translucent figure.
+  Needs P5-01 so the world matches. 2026-11-07
+- [ ] P5-07 Real-time co-op spike: peers share only the seed; one host simulates entities. `EntityManager`, the Anomaly
+  and the hazards assume one `player`/`camera` (about 65 references in `src/entities`), so scope the work before
+  committing to it. Any networking library needs maintainer approval. Do last, and only if P5-03 to P5-06 get
+  traction. 2026-11-07
+- [ ] P5-08 Spent breakers come back when their chunk rebuilds. Breaker state lives only on the podium mesh
+  (`podium.userData.active`), so a chunk that streams out and back, or a Rebuild Geometry, shows the breaker unfixed,
+  and `activateExitSwitch` counts it again. Persist spent breakers by world position for the run. Found 2026-11-07
+  while scoping P5-02.

@@ -50,13 +50,12 @@ _Last updated: 2026-11-07, session 12, on `master`._
 
 **Gotchas for the next session**
 - `npm run build` leaves an untracked `build/` (ignored by git, removed after verification).
-- Version identifiers read `1.5.8.12` in `package.json`, `package-lock.json`, the `README.md` title, `docs/CHANGELOG.md`, both manual volumes and this file.
+- Version identifiers read `1.5.8.13` in `package.json`, `package-lock.json`, the `README.md` title, `docs/CHANGELOG.md`, both manual volumes and this file.
 
 ## Next steps (in order)
 
-1. Agree the next phase with the maintainer. Candidates discussed in session 12: shareable seed cards and a daily seed,
-   Twitch chat voting on the Inquest, ghost runs, then real-time co-op. POIs within 30 units of the player's route still
-   become walls, so placement is route-dependent (D-008).
+1. P5-08: spent breakers revert and recount when their chunk rebuilds.
+2. The rest of Phase 5 in `ROADMAP.md`; P5-03 (shareable and daily seeds) is now unblocked.
 
 ## Open questions for maintainers
 
@@ -66,17 +65,21 @@ None open.
 
 Newest first. Past 10 entries, move the oldest to `docs/archive/` and leave a pointer here.
 
-### Session 12: 2026-11-07: Seeds fully determine a run (v1.5.8.12)
+### Session 12: 2026-11-07: Seeds fully determine a run; Rebuild Geometry in place (v1.5.8.12, v1.5.8.13)
 
 **Contributor:** Claude Code (Opus 5.5)
 **Goal:** Make same-seed runs identical, as groundwork for shared and daily seeds.
-**Done:** `src/world/RunSeeds.js` derives the POI run salt and breaker-hunt stream from `baseSeed`; fixed the
-`env._rollHuntHops` fallback that did not exist; extended the P2-02 test; D-008 recorded; versions bumped.
+**Done:** v1.5.8.12: `src/world/RunSeeds.js` derives the POI run salt and breaker-hunt stream from `baseSeed`; fixed the
+`env._rollHuntHops` fallback that did not exist; extended the P2-02 test; D-008 recorded. Phase 5 drafted. v1.5.8.13:
+P5-01 (seed-spawn suppression, per-Annex locked room, derived airlocks), P5-02 (in-place Rebuild Geometry).
 **Verified:** 8 fast `node --test` suites pass (9 tests); `check_docs.py` 0 errors, 0 warnings; in Chromium, two
 rebuilds of seed `7♠|K♥|2♣|9♦|A♠` from the origin gave identical salt, hops (1), POIs and wall count (2337), no
-console errors.
+console errors. v1.5.8.13: 8 fast suites pass (10 tests); in-place rebuilds from (6, 6) and (70, 40) matched mesh for
+mesh in chunks `1,0`, `0,1`, `1,1`; `0,0` and `0,-1` (bordering the sector at `-1,0`) did not, traced to airlock
+carving; with derived airlocks every loaded chunk matched across rebuilds from (6, 6), (70, 40), (6, -60), and derived
+airlocks equalled built ones on four seeds. 11/11 fast tests. No console errors.
 **Not verified:** the Playwright smoke suite; `npm run build`; a full playthrough of the breaker hunt; Firefox.
-**Next session should start with:** choosing the next phase with the maintainer.
+**Next session should start with:** P5-08 or P5-03, with the maintainer.
 
 ### Session 11: 2026-10-31: The landing page becomes a facility terminal
 

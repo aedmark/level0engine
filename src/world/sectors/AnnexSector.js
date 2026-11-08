@@ -142,8 +142,9 @@ const generateAnnexChunk = (env, hash, random) => {
     grid[13][7] = 0;
 
     let lockedRoomIndex = -1;
-    if (!env.lockedRoomSpawned && podConfigs.length > 0) {
-        env.lockedRoomSpawned = true;
+    // Every Annex rolls its own locked room. A run-wide "first Annex built" flag made the room,
+    // and every later draw from this chunk's stream, depend on load order (P5-01).
+    if (podConfigs.length > 0) {
         lockedRoomIndex = Math.floor(random() * podConfigs.length);
     }
 

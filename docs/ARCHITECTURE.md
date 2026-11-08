@@ -58,8 +58,8 @@ dev tuners -> POST /save-light, /save-atmosphere -> rewrite Sectors.js on disk
 - Structural blueprint `prob` values sum to `1.0000`. Enforced by: a runtime console warning in
   `StructuralBlueprints.js`, not a test (P1-03).
 - The same seed produces the same layout, points of interest and breaker hunt (D-008). Enforced by:
-  `test/p2_02_reproducibility.test.js` for the sector matrix, run salt and hunt stream; POIs near the player's
-  route can still differ.
+  `test/p2_02_reproducibility.test.js` for the sector matrix, run salt, hunt stream and the absence of camera-based
+  suppression and derived airlocks (P5-01). The exit-phase exit chunk is first-come by design.
 - Every zone is sealed by a single blast door on its true boundary, and fog follows the Shell Volume Registry.
   Enforced by: nothing automated.
 - Per-frame hot paths do not allocate. Enforced by: nothing automated.

@@ -79,3 +79,36 @@ test('P2-02 run salt and breaker hunt are seed-derived (D-008)', async () => {
     const body = icSrc.slice(icSrc.indexOf('rollHuntHops() {'), icSrc.indexOf('beginBreakerScan'));
     assert.ok(!body.includes('Math.random'), 'rollHuntHops must not use Math.random');
 });
+
+test('P5-01 chunk content does not read the live camera or build order', () => {
+    const read = (p) => fs.readFileSync(path.resolve(p), 'utf8');
+    const kit = read('src/world/StructureKit.js');
+    assert.ok(!/playerPos\s*:\s*env\.camera/.test(kit), 'chunk helpers must not expose the live camera position');
+    assert.ok(/seedSpawnPos\s*:\s*env\._seedSpawn/.test(kit), 'chunk helpers expose the seed spawn instead');
+    for (const p of ['src/world/LightingSpawns.js', 'src/world/blueprints/AnomalousPointOfInterest.js']) {
+        assert.ok(!read(p).includes('ctx.playerPos'), `${p} must suppress near the seed spawn, not the player`);
+    }
+    assert.ok(!read('src/world/sectors/AnnexSector.js').includes('lockedRoomSpawned'),
+        'the Annex locked room must not depend on which Annex chunk builds first');
+});
+
+test('P5-01 airlock layout is a pure function of chunk coordinates', async () => {
+    const {airlocksForMacroChunk, AIRLOCK_CROSS_CELL} = await import('../src/world/AirlockLayout.js');
+    const a = airlocksForMacroChunk(-1, 0, 16, 4);
+    assert.deepStrictEqual(a, airlocksForMacroChunk(-1, 0, 16, 4));
+    assert.strictEqual(a.length, 4, 'one airlock per chunk side');
+    for (const al of a) {
+        assert.strictEqual(al.chunkHash, '-1,0');
+        // The outer door sits half a chamber outward from the chamber centre, along the crossing axis.
+        const along = al.spansX ? al.outerPos.z - al.chamberCenter.z : al.outerPos.x - al.chamberCenter.x;
+        const across = al.spansX ? al.outerPos.x - al.chamberCenter.x : al.outerPos.z - al.chamberCenter.z;
+        assert.strictEqual(across, 0);
+        assert.ok(Math.abs(Math.abs(along) - 1.4) < 1e-9 && Math.sign(along) === al.outSign);
+        const crossCell = (al.spansX ? al.chamberCenter.x : al.chamberCenter.z) / 4 - (al.spansX ? -16 : 0);
+        assert.strictEqual(crossCell, AIRLOCK_CROSS_CELL);
+    }
+    // ChunkBuilder must feed the worker derived airlocks, not the load-order-dependent built list.
+    const builder = fs.readFileSync(path.resolve('src/world/ChunkBuilder.js'), 'utf8');
+    assert.ok(/airlocksCopy\s*=\s*airlocksNear\(/.test(builder));
+    assert.ok(!/airlocksCopy\s*=\s*env\.airlocks/.test(builder));
+});
