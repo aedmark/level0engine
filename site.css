@@ -570,6 +570,36 @@ kbd {
   text-transform: uppercase;
 }
 
+.seed-form {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 2px dashed var(--line-dim);
+}
+
+.seed-title { margin: 0 0 .9rem; color: var(--text); }
+
+.seed-row { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem 1rem; }
+
+.seed-label { color: var(--line); font: 700 .9rem/1 var(--mono); letter-spacing: .05em; }
+
+/* A sunken DOS field: the inverse of the raised .btn bevel. */
+.seed-input {
+  flex: 1 1 16rem;
+  min-width: 0;
+  padding: .55rem .7rem;
+  border-top: 2px solid var(--ega-dgray);
+  border-left: 2px solid var(--ega-dgray);
+  border-right: 2px solid var(--ega-white);
+  border-bottom: 2px solid var(--ega-white);
+  background: var(--ega-black);
+  color: var(--ega-yellow);
+  font: 400 .95rem/1.2 var(--mono);
+  caret-color: var(--ega-yellow);
+}
+
+.seed-input::placeholder { color: var(--muted); }
+.seed-input:focus-visible { outline: 2px dashed var(--highlight); outline-offset: 3px; }
+
 /* ---------- Footer ---------- */
 
 .site-foot {

@@ -241,6 +241,16 @@
                     <a class="btn" href="manual/index.html">Read the manual</a>
                 </div>
             </div>
+            <form class="seed-form" action="terminal.html" method="get" aria-labelledby="seed-form-title">
+                <p class="seed-title" id="seed-form-title">Have a seed? Everyone who enters it walks the same facility and the same case.</p>
+                <div class="seed-row">
+                    <label class="seed-label" for="seed-field">SEED&gt;</label>
+                    <input class="seed-input" id="seed-field" name="seed" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="e.g. ASYNC RESEARCH INSTITUTE" required>
+                    <button class="btn primary" type="submit">Open Seed →</button>
+                    <a class="btn" href="terminal.html?seed=daily">Today's Seed</a>
+                </div>
+                <p class="hint">Today's seed changes at midnight UTC. In the game, Tab → Copy Link shares the run you are on.</p>
+            </form>
         </div>
     </section>
 

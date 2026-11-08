@@ -132,8 +132,15 @@ run salt and breaker hunt seed-derived first.
   seed; objectives and inventory were never reset by `generate()`. Boot, death, Inquest and ascension unchanged. With
   P5-01 the rebuilt geometry matches the seed default. Maintainer request and choice ("world only, keep progress"),
   2026-11-07
-- [ ] P5-03 Shareable seed cards and a daily seed: copy-to-clipboard seed (the default card-hand seed), a seed field on
-  the landing page, and a date-derived daily seed. 2026-11-07
+- [x] P5-03 Shareable seed cards and a daily seed. v1.5.8.14: `?seed=` on `terminal.html` and `engine.html`,
+  `?seed=daily` (a five-card hand dealt from the UTC date), a link-aware continue prompt, a pause-menu Copy Link
+  button that shares the run's starting seed, and a seed field plus Today's Seed button on the landing page.
+  Evidence: `test/p5_03_seed_link.test.js`; in the desktop app's Chromium pane, the landing form opened
+  `terminal.html?seed=...` and the frame received it, the prompt named the linked seed when another save existed,
+  Continue resumed the save and removed `?seed` from both URLs, `?seed=daily` with no save started `3♦|4♦|4♣|A♥|9♣`
+  on 2026-11-07, and a real click on Copy Link produced the right link through the prompt fallback (that pane refuses
+  clipboard access). Not verified: the clipboard success path in a normal browser tab, Firefox, the purge path with a
+  link (skipped so as not to wipe the pane's saved game and cached assets), and itch.io embedding. 2026-11-07
 - [ ] P5-04 Time to first scare: measure boot-to-control and control-to-first-threat on a few seeds, then decide whether
   the opening sector and boot log need trimming for streams. 2026-11-07
 - [ ] P5-05 Streamer mode: an OBS-friendly HUD toggle, and Twitch chat voting on the Inquest finding plus chat-triggered

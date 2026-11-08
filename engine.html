@@ -1230,7 +1230,7 @@
             <div class="loading-header">
                 <span>[ EXISTING SOMATIC IMPRINT DETECTED ]</span>
             </div>
-            <p>A prior session was found in local memory. Resume where you left off, or wipe the manifold and start a new case? New Game clears all saved progress and cached assets — the engine will re-fetch and regenerate everything from scratch.</p>
+            <p id="continue-check-text">A prior session was found in local memory. Resume where you left off, or wipe the manifold and start a new case? New Game clears all saved progress and cached assets — the engine will re-fetch and regenerate everything from scratch.</p>
             <button id="continueGameBtn" class="btn">CONTINUE SESSION</button>
             <button id="newGameBtn" class="btn">PURGE &amp; START NEW GAME</button>
         </div>
@@ -1368,6 +1368,7 @@
         <label>Level Seed</label>
         <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
             <input type="text" id="seedInput" autocomplete="off" style="margin-bottom: 0;">
+            <button id="copySeedLinkBtn" class="btn" style="margin-bottom: 0; padding: 0.5rem; width: auto; white-space: nowrap;" title="Copy a link that starts this run's seed">Copy Link</button>
             <button id="forceWinBtn" class="btn" style="display: none; margin-bottom: 0; padding: 0.5rem; background: #225522; color: #fff; border: 1px solid #447744;">Force Win</button>
             <select id="sectorHuntSelect" class="btn" style="display: none; margin-bottom: 0; padding: 0.5rem;">
                 <option value="">Find Sector...</option>

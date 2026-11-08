@@ -22,10 +22,13 @@ import {LightTuner} from './src/ui/LightTuner.js';
 import RemapController from './src/ui/RemapController.js';
 import BootController from './src/ui/BootController.js';
 import ContinuePrompt from './src/ui/ContinuePrompt.js';
+import {seedFromSearch, runSeed, shareUrl} from './src/system/SeedLink.js';
 
 const T_MODULES_READY = performance.now();
 
-await ContinuePrompt.resolve();
+// ?seed= (or ?seed=daily) from a shared link; it only applies when no save is resumed (P5-03).
+const linkSeed = seedFromSearch(window.location.search, new Date());
+await ContinuePrompt.resolve(linkSeed);
 
 const T_PROMPT_DONE = performance.now();
 
@@ -95,6 +98,9 @@ const keypad = new KeypadController(player, acoustics, getStory);
 const inquest = new InquestController(player, acoustics, engine, environment, getStory, triggerAscension, triggerBlackout);
 const remapController = new RemapController();
 const savedState = saveManager.loadState();
+if (!savedState && linkSeed) {
+    document.getElementById('seedInput').value = linkSeed;
+}
 if (!document.getElementById('seedInput').value) {
     document.getElementById('seedInput').value = saveManager.generateCardSeed();
 }
@@ -126,6 +132,7 @@ if (savedState) {
     environment.needsSafeSpawn = false;
 }
 environment.updateChunks(engine.camera.position);
+bindCopySeedLink();
 somatic.bindEvents();
 docViewer.bindEvents();
 keypad.bindEvents();
@@ -471,3 +478,24 @@ async function compileSceneInGroups(engine, bootCtrl, leafBatchSize = COMPILE_LE
 
     await bootCtrl.finish();
 })();
+
+// Copies a link that starts this run from the beginning. The live seed carries blackout and floor
+// suffixes; the link names the run (runSeed). Clipboard access can be refused inside the terminal
+// iframe or on plain http, so fall back to a prompt the player can copy from.
+function bindCopySeedLink() {
+    const btn = document.getElementById('copySeedLinkBtn');
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+        const seed = runSeed(document.getElementById('seedInput').value);
+        if (!seed) return;
+        const url = shareUrl(window.location.href, seed);
+        const label = btn.textContent;
+        try {
+            await navigator.clipboard.writeText(url);
+            btn.textContent = 'Copied';
+        } catch (e) {
+            window.prompt('Copy this link to share the run:', url);
+        }
+        setTimeout(() => { btn.textContent = label; }, 1500);
+    });
+}

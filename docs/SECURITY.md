@@ -23,6 +23,7 @@ reproduction steps.
 | Narrative text rendered as HTML | XSS | DOMPurify before DOM injection | UI |
 | Editor expressions | Code execution | `jsep` / `SafeEval.js`, never `new Function` | narrative |
 | Save data | Player progress only; no personal data | `localStorage`, backup copy | SaveManager |
+| `?seed=` in shared links (`terminal.html`, `engine.html`) | Untrusted text from anyone's link: injection into the page, oversized input | `SeedLink.sanitizeSeed` strips control characters and caps at 64 characters; the value only reaches `input.value`, `textContent` and the seed hash, never `innerHTML`; `terminal.html` forwards only `seed`, URL-encoded | SeedLink |
 
 The shipped `build/` (itch.io) is static and has none of the server endpoints.
 

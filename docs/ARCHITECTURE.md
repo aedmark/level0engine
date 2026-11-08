@@ -33,7 +33,7 @@ machine.
 | Narrative | `src/narrative/` | `StoryEngine.js` | `data/*.json`, CaseFiles |
 | Audio | `src/audio/` | `AcousticEngine.js` | Mixer, Foley |
 | UI / dev tuners | `src/ui/` | `UIManager.js`; `LightTuner.js`, `AtmosphereTuner.js` | server save endpoints |
-| Persistence / events | `src/system/` | `SaveManager.js`, `SomaticController.js` | `localStorage` |
+| Persistence / events | `src/system/` | `SaveManager.js`, `SomaticController.js`, `SeedLink.js` (shared and daily seeds) | `localStorage`, `?seed=` |
 | Lore Editor | `lore-editor/` | `editor_server.js` (port 3000) | `data/`, `data/factory/` |
 | Release build | `build_static.js` | `npm run build` | writes `build/` |
 

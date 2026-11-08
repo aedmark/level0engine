@@ -1,3 +1,11 @@
+## [v1.5.8.14] - 2026-11-07
+
+_Bring A Friend: A Seed Now Travels By Link, And Everyone Gets The Same Case Each Day._
+
+- **[ENGINE] Shared Seed Links And A Daily Seed (`SeedLink.js`, `main.js`, `ContinuePrompt.js`, `terminal.html`, `engine.html`):** Since v1.5.8.12 a seed fully determines a run, but the only way to hand one to someone was to read out a string of card suits. `terminal.html?seed=...` and `engine.html?seed=...` now start that seed, and `?seed=daily` resolves to a five-card hand dealt from a deck shuffled by the UTC date, so everyone gets the same daily case whatever their time zone. The terminal page forwards only the seed into its engine frame, which it now sets from script so the frame loads once. A link only applies to a new session: if a different session is saved, the continue prompt names the linked seed and offers to resume the save (dropping `?seed` from both URLs so a reload does not ask again) or to purge and start the linked seed (New Game now keeps `?seed` through the purge reload instead of stripping the whole query). The pause menu gains a **Copy Link** button beside the seed. It copies a link to the run's starting seed, with blackout (`NULL`) and floor (`FL-n`) suffixes removed. Where the browser refuses clipboard access it falls back to a prompt the player can copy from; the iframe now allows `clipboard-write`. The URL is untrusted input: `sanitizeSeed` drops control characters and caps it at 64 characters, and the value only reaches `input.value`, `textContent` and the seed hash.
+- **[SITE] The Landing Page Takes A Seed (`index.html`, `site.css`):** `EXIT.SYS` now has a sunken DOS seed field that submits to `terminal.html?seed=` with no script, plus a **Today's Seed** button. The field is styled as the inverse of the raised button bevel.
+- **[ENGINE] Seed Link Tests (`test/p5_03_seed_link.test.js`):** These cover the daily seed being stable within a UTC day, changing across days and spreading across a year; URL sanitising and the `daily` keyword; stripping suffixes back to the run seed; and a share link round-tripping to the same seed.
+
 ## [v1.5.8.13] - 2026-11-07
 
 _Rebuild Means Rebuild: The World Returns To Its Seed And The Player Stays Put._

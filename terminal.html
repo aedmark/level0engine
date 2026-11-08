@@ -316,10 +316,18 @@
         <div class="iframe-wrapper">
             <iframe
                     id="engine-frame"
-                    src="engine.html"
                     title="Level 0 Engine Workspace"
-                    allow="fullscreen; autoplay"
+                    allow="fullscreen; autoplay; clipboard-write"
             ></iframe>
+            <script>
+                // Set src here rather than in markup so a shared ?seed= reaches the engine without a
+                // second load. Only the seed is forwarded; engine.html validates it (P5-03).
+                (function () {
+                    var seed = new URLSearchParams(window.location.search).get('seed');
+                    document.getElementById('engine-frame').src =
+                        'engine.html' + (seed ? '?seed=' + encodeURIComponent(seed) : '');
+                })();
+            </script>
         </div>
 
         <footer class="terminal-footer">
