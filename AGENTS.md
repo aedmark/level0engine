@@ -52,8 +52,9 @@ pushes unless they explicitly ask the agent to. Adding a dependency, deleting da
 - Default branch: `master`.
 - Working branch pattern: none in use; work lands on `master`.
 - Commit format: the release version as the message (e.g. `1.5.7.2`), matching the history. No roadmap IDs required.
-- Release/version scheme: `vMAJOR.MINOR.PATCH[.HOTFIX]`. Sources of truth: the top entry of `docs/CHANGELOG.md`, the
-  `README.md` title, and `package.json` `version` (which only carries three parts). Keep them in step.
+- Release/version scheme: `vMAJOR.MINOR.PATCH[.HOTFIX]`, internal only (D-009). Sources of truth: the top entry of
+  `docs/CHANGELOG.md` and `package.json` `version`; keep them in step. Never put a release number on a public page
+  (`README.md`, the HTML pages, `manual/`); `tools/check_docs.py` enforces this.
 
 Never force-push, rewrite shared history, publish, or rotate/delete production data without explicit permission.
 

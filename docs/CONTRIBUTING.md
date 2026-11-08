@@ -23,7 +23,7 @@ Follow [TESTING.md](TESTING.md). Report the exact checks run and anything skippe
 ## Submit and release
 
 Work lands directly on `master`. Each release bumps the version, adds a `docs/CHANGELOG.md` entry in the house style
-(see AGENTS.md, "Maintainer preferences"), updates the README title and `package.json` version, and is committed
+(see AGENTS.md, "Maintainer preferences"), updates `package.json` version (versions stay internal, D-009), and is committed
 with the version number as the message. `npm run build` produces the itch.io upload in `build/`.
 
 ## Compatibility

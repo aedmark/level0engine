@@ -81,6 +81,20 @@ spawn instead (P5-01).
 Cosmetic `Math.random()` (flicker, particles, spawn jitter) is unchanged.
 **Review trigger:** If players ask for same-maze, different-anomalies replays, add the `?reroll` flag.
 
+## D-009 Release numbers are internal  (2026-11-07, status: accepted)
+**Context:** The release number appeared in the `README.md` title, both manual volumes (title, header tag, badge,
+footer) and the engine menu, which still read `v1.5.7` several releases later. Keeping every copy in step was a chore,
+and players gain nothing from a four-part hotfix number.
+**Decision:** Versions stay internal: the top entry of `docs/CHANGELOG.md`, `package.json` `version`, commit messages
+and internal docs. Public pages (`README.md`, `index.html`, `engine.html`, `terminal.html`, `manual/`) carry no release
+number. `tools/check_docs.py` fails on a `vN.N.N` pattern in those pages.
+**Alternatives:** Keep versions public and add a check that they match (rejected: the maintainer prefers not to
+show them).
+**Consequences:** The changelog is the internal release record. In-fiction strings that are not release numbers,
+such as `SECURE BOOT v1.4` in `terminal.html`, are allowed because the check only matches three-part numbers.
+**Review trigger:** If a public build needs a visible version for bug reports, show it in one place, such as the
+pause menu, driven from `package.json`.
+
 ## Open questions
 
 - **Q-001** ~~Are the proposed goals and order for ROADMAP phases 2 and 3 right?~~ Answered 2026-09-30 by the

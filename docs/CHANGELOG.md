@@ -1,3 +1,9 @@
+## [v1.5.8.15] - 2026-11-07
+
+_The Facility Stops Announcing Its Build Number._
+
+- **[DOCS] Release Numbers Removed From Public Pages (`README.md`, `engine.html`, `manual/index.html`, `manual/codex.html`, `tools/check_docs.py`, `AGENTS.md`, `docs/CONTRIBUTING.md`):** The release number was printed in the README title, the manual volumes' titles, header tags, badge and footers, and the engine's pause menu, which still read `v1.5.7` several releases on because nobody bumped it. Versions are now internal (D-009): they live in this changelog, `package.json` and commit messages. `check_docs.py` now fails if a `vN.N.N` release number appears on a public page, and the version rules in `AGENTS.md` and `docs/CONTRIBUTING.md` no longer mention the README title.
+
 ## [v1.5.8.14] - 2026-11-07
 
 _Bring A Friend: A Seed Now Travels By Link, And Everyone Gets The Same Case Each Day._

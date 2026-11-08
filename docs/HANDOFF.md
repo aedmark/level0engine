@@ -50,7 +50,8 @@ _Last updated: 2026-11-07, session 12, on `master`._
 
 **Gotchas for the next session**
 - `npm run build` leaves an untracked `build/` (ignored by git, removed after verification).
-- Version identifiers read `1.5.8.14` in `package.json`, `package-lock.json`, the `README.md` title, `docs/CHANGELOG.md`, both manual volumes and this file.
+- The release is `1.5.8.15`, recorded only in `package.json`, `package-lock.json`, `docs/CHANGELOG.md` and this file.
+  Public pages carry no version (D-009).
 
 ## Next steps (in order)
 
@@ -81,7 +82,7 @@ carving; with derived airlocks every loaded chunk matched across rebuilds from (
 airlocks equalled built ones on four seeds. 11/11 fast tests. No console errors.
 **Not verified:** the Playwright smoke suite; `npm run build`; a full playthrough of the breaker hunt; Firefox.
 **Next session should start with:** P5-08, P5-04 or P5-05, with the maintainer.
-The engine menu still titles itself `LEVEL 0 ENGINE v1.5.7` (`engine.html`); noticed, not changed.
+The stale `v1.5.7` in the engine menu title was removed under D-009.
 
 ### Session 11: 2026-10-31: The landing page becomes a facility terminal
 

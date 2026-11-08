@@ -29,6 +29,10 @@ DOCS = [
     "docs/TESTING.md", "docs/SECURITY.md", "docs/CHANGELOG.md", "docs/CONTRIBUTING.md",
     "manual/index.html", "manual/codex.html",
 ]
+# Pages players and visitors see. Release numbers are internal (D-009): they live in docs/CHANGELOG.md,
+# package.json and commit messages, never on these pages.
+PUBLIC_PAGES = ["README.md", "index.html", "engine.html", "terminal.html", "manual/index.html", "manual/codex.html"]
+RELEASE_RE = re.compile(r"\bv\d+\.\d+\.\d+(?:\.\d+)?\b")
 # Keep in step with AGENTS.md (end of session, step 3) and HANDOFF's header.
 LOG_LIMIT = 10
 CURRENT_STATE_LINES = 80
@@ -194,6 +198,16 @@ def main():
         if current.count("\n") > CURRENT_STATE_LINES:
             warnings.append(f"docs/HANDOFF.md: Current state is {current.count(chr(10))} lines (limit "
                             f"{CURRENT_STATE_LINES}); move history to the session log")
+
+    if not template:
+        for name in PUBLIC_PAGES:
+            page = ROOT / name
+            if not page.is_file():
+                continue
+            text = read(page)
+            for m in RELEASE_RE.finditer(text):
+                errors.append(f"{where(page, text, m.start())}: release number {m.group(0)} on a public page "
+                              f"(versions are internal, D-009)")
 
     for line in errors:
         print(f"ERROR {line}")
