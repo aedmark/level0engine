@@ -164,8 +164,15 @@ run salt and breaker hunt seed-derived first.
   ignored non-commands, key 4 filed finding [2], a blackout fired at 3 viewers and started the cooldown, and a lure
   waited out the Anomaly's grace before sending it searching (last-known position 3.1 m away). Not verified: a real
   stream with real viewers voting, and Firefox. 2026-11-08
-- [ ] P5-06 Ghost runs: record position every 250 ms against the seed and replay other runs as a translucent figure.
-  Needs P5-01 so the world matches. 2026-11-07
+- [x] P5-06 Ghost runs. v1.5.8.20: each world is recorded as the player's path (0.25 s samples), stored per seed in
+  the browser, and replayed as a translucent figure. The game plays an imported ghost, then the best completed run,
+  then the last attempt. Runs can be exported and imported as files (D-012); the maintainer chose local storage plus
+  files and auto-showing the best run on 2026-11-08. Evidence: `test/p5_06_ghosts.test.js`, plus a headless Chromium
+  end-to-end script, run because the desktop pane was hidden and paused. It recorded a 12.2 s completed run (49
+  samples), replayed it as `best` on the next run of the seed, exported it through the menu as
+  `level0-ghost-GHOST_TEST_ONE-0m12s.json`, imported it back, and refused a tampered copy, with no page errors. A
+  screenshot shows the figure in a corridor on seed `7♠|K♥|2♣|9♦|A♠`. Not verified: downloads inside the itch.io
+  frame, Firefox, and a full human run. 2026-11-08
 - [ ] P5-07 Real-time co-op spike: peers share only the seed; one host simulates entities. `EntityManager`, the Anomaly
   and the hazards assume one `player`/`camera` (about 65 references in `src/entities`), so scope the work before
   committing to it. Any networking library needs maintainer approval. Do last, and only if P5-03 to P5-06 get

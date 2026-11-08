@@ -137,6 +137,25 @@ Verified live on 2026-11-08 against a public channel.
 **Review trigger:** If anonymous joins start failing, or streamers ask to have results posted to chat or to use
 Predictions.
 
+## D-012 Ghost runs are kept per seed in the browser and shared as files  (2026-11-08, status: accepted)
+**Context:** P5-06 replays an earlier run on the same seed as a translucent figure. The game is a static itch.io
+build with no server. The maintainer chose local storage plus file export and import over local-only storage or
+links, and chose to show the best run on a seed automatically.
+**Decision:** A ghost is one world: the exact live seed, so a deeper floor or the world after a blackout is its own
+ghost. Recording runs from control of a fresh world to the accepted Inquest (completed), death or page close (an
+attempt). It is never recorded after resuming a save, because the timing would not line up. Samples are taken every
+0.25 s of game time as decimetre deltas plus a yaw byte, with keyframes for teleports: about 5 bytes a sample, and at
+most an hour. The game plays an imported ghost first, then the best completed run, then the last attempt.
+`localStorage['level0_ghosts']` keeps the 16 most recently used seeds and drops the oldest if the browser runs out of
+room. Exported files are versioned JSON (`level0-ghost`, version 1), and imports are parsed as untrusted input.
+**Alternatives:** Local only (rejected: no way to share a run); runs packed into links (rejected: a long run is
+several KB, which chat apps truncate); a server or leaderboard (out of scope for a static build).
+**Consequences:** Sharing goes through a file: export, post it, import it, then Play Its Seed. Downloads from inside
+the itch.io frame depend on itch's sandbox, which is not verified. The figure is unlit and ignores collisions, so it
+walks through doors that are shut in your run.
+**Review trigger:** If players ask to race strangers' ghosts without trading files, which needs a server, or if
+itch.io blocks the download.
+
 ## Open questions
 
 - **Q-001** ~~Are the proposed goals and order for ROADMAP phases 2 and 3 right?~~ Answered 2026-09-30 by the

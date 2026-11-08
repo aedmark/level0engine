@@ -25,6 +25,7 @@ import ContinuePrompt from './src/ui/ContinuePrompt.js';
 import {seedFromSearch, runSeed, shareUrl} from './src/system/SeedLink.js';
 import OpeningDirector from './src/narrative/OpeningDirector.js';
 import StreamerMode from './src/ui/StreamerMode.js';
+import GhostRuns from './src/system/GhostRuns.js';
 
 const T_MODULES_READY = performance.now();
 
@@ -112,6 +113,8 @@ environment.openingRun = !savedState;
 try { environment.openingFirstRun = !savedState && !localStorage.getItem('level0_tutorial'); } catch (e) { environment.openingFirstRun = false; }
 const opening = new OpeningDirector({env: environment, player, acoustics});
 environment.opening = opening;
+const ghosts = new GhostRuns({env: environment, player, resumed: !!savedState});
+environment.ghosts = ghosts;
 environment.elevatorAnchor = (savedState && savedState.elevator) || null;
 if (savedState && Array.isArray(savedState.consumed)) {
     environment.consumedProps = new Set(savedState.consumed);
@@ -142,6 +145,7 @@ environment.updateChunks(engine.camera.position);
 bindCopySeedLink();
 environment.streamer = new StreamerMode({env: environment, player, acoustics, inquest});
 environment.streamer.bind();
+ghosts.bind();
 somatic.bindEvents();
 docViewer.bindEvents();
 keypad.bindEvents();
@@ -354,6 +358,7 @@ function animate() {
     }
     player.update(delta, environment.spatialGrid);
     opening.update(delta);
+    ghosts.update(delta);
     compass.update(delta);
     flashlight.update(delta);
     paintballGun.update(delta);

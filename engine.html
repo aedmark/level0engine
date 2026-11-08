@@ -1409,6 +1409,19 @@
             <button id="streamerConnectBtn" class="btn" style="margin-bottom: 0; padding: 0.5rem; width: auto; white-space: nowrap;">Connect</button>
         </div>
         <div id="streamerStatus" style="font-family: monospace; font-size: 12px; opacity: 0.8; margin-bottom: 1rem;">CHAT OFF</div>
+        <label>Ghost Runs</label>
+        <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; cursor: pointer;">
+            <input type="checkbox" id="ghostToggle" checked style="width: auto; margin: 0;">
+            Show a ghost of your best run (or an imported one) on this seed
+        </label>
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.25rem; flex-wrap: wrap;">
+            <button id="ghostExportBtn" class="btn" style="margin-bottom: 0; padding: 0.5rem; width: auto; white-space: nowrap;">Export Ghost</button>
+            <label class="btn" style="margin-bottom: 0; padding: 0.5rem; width: auto; white-space: nowrap; cursor: pointer;">
+                Import Ghost<input type="file" id="ghostImportInput" accept=".json,application/json" style="display: none;">
+            </label>
+            <button id="ghostPlaySeedBtn" class="btn" style="display: none; margin-bottom: 0; padding: 0.5rem; width: auto; white-space: nowrap;">Play Its Seed</button>
+        </div>
+        <div id="ghostStatus" style="font-family: monospace; font-size: 12px; opacity: 0.8; margin-bottom: 1rem;"></div>
         <label>Display Format</label>
         <select id="aspectSelect">
             <option value="auto">Dynamic (Full Window)</option>

@@ -1,3 +1,10 @@
+## [v1.5.8.20] - 2026-11-08
+
+_Someone Walked This Hall Before You._
+
+- **[ENGINE] Ghost Runs: Race Your Best Run, Or Someone Else's, On The Same Seed (`GhostRuns.js`, `GhostCodec.js`, `engine.html`, `main.js`):** Each world, meaning each exact live seed, is now recorded as the player's path: every 0.25 s of game time, from the moment the player takes control until the Inquest is accepted, the player dies, or the page closes. Starting that seed again shows a pale, see-through figure walking the earlier route, with a small `GHOST BEST m:ss` line under the battery. The game plays an imported ghost first, then your fastest completed run, then your last attempt. A new **Ghost Runs** block in the menu toggles the figure, exports the current seed's ghost as a small JSON file, and imports one: it is checked, stored against its seed, and **Play Its Seed** opens that seed. Runs are stored compactly (decimetre deltas, a yaw byte, and keyframes for teleports, about 5 bytes a sample), capped at an hour each and at the 16 most recently used seeds. A resumed save is not recorded, because its timing would not match. Imported files are untrusted (see `docs/SECURITY.md`). The design is D-012.
+- **[ENGINE] Ghost Tests (`test/p5_06_ghosts.test.js`):** These cover a sample round trip to within a decimetre and a yaw step across a 5 km teleport, interpolation that snaps across teleports and ends with the run, a file round trip and twelve kinds of rejected file, and the rules for choosing, filing and pruning stored runs.
+
 ## [v1.5.8.19] - 2026-11-08
 
 _The Audience Gets A Vote._

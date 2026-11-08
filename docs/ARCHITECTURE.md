@@ -50,6 +50,7 @@ dev tuners -> POST /save-light, /save-atmosphere -> rewrite Sectors.js on disk
 | `data/*.json` | Lore Editor, hand edits | `StoryEngine` | Shape defined by the editor; `data/factory/` is the reset baseline |
 | `localStorage['level0_state']` | `SaveManager` | `SaveManager` | A backup copy is written to `level0_state_backup` before overwrite |
 | `localStorage['level0_streamer']` | `StreamerMode` | `StreamerMode` | `{enabled, channel}`; the channel is validated on load |
+| `localStorage['level0_ghosts']` | `GhostRuns` | `GhostRuns` | Per-seed `{best, last, imported}` runs, capped at 16 seeds (D-012) |
 | `THREE` global | `r160.js` | every module | three.js r160 API; no module imports of `three` |
 | `SECTORS` table | `Sectors.js` / `/save-*` endpoints | generators, audio, fog | The server rewrites this file textually |
 
