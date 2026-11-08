@@ -1,3 +1,10 @@
+## [v1.5.8.18] - 2026-11-08
+
+_The Breaker Is Still Where You Left It._
+
+- **[WORLD] Breaker Podiums Survive Their Chunk Being Rebuilt (`LightingSpawns.js`, `InteractionController.js`, `AtmosphereManager.js`, `Environment.js`):** Objective podiums are planted at run time (the virtual breaker), not by the seeded layout, and only once. When a podium's chunk streamed out, because the player walked more than a chunk away, or was rebuilt by Rebuild Geometry, it never came back. If it had not been restored yet, the POI signal pointed at bare floor for the rest of the run, and the objective could not be finished. That included the opening's first breaker. Every podium is now recorded for the run by cell (`env._podiumRecords`), and a chunk build restores its recorded podiums, spent or not. Restoring one marks its record spent, so it can never count twice. The signal drops a target whose chunk has unloaded: a detached chunk group still parents its meshes, so the check compares against `activeChunks`. While the chunk is away, the signal keeps pointing at where the podium stands. Podiums now dress themselves from a local random stream, so a chunk builds the same with or without one. A blackout, a rejected Inquest or an ascension changes the seed and resets the objectives, so those clear the records.
+- **[ENGINE] Podium Record Guard (`test/p5_04_opening.test.js`):** This fails if a podium spawn goes back to drawing from the chunk's layout stream, or if restoring a podium stops marking its record spent.
+
 ## [v1.5.8.17] - 2026-11-08
 
 _The Manual Learns How A Run Begins._

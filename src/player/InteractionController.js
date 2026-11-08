@@ -844,6 +844,9 @@ export default class InteractionController {
 
     activateExitSwitch(podium) {
         const env = this.env;
+        // Spent survives the podium's chunk being rebuilt, so it cannot be restored (and counted) twice.
+        const record = env._podiumRecords && env._podiumRecords.get(podium.userData.podiumKey);
+        if (record) record.spent = true;
         env.player.objectives.fixed++;
         env.player.updateObjectives();
         env._breakerHuntHops = this.rollHuntHops();

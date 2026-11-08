@@ -164,7 +164,11 @@ run salt and breaker hunt seed-derived first.
   and the hazards assume one `player`/`camera` (about 65 references in `src/entities`), so scope the work before
   committing to it. Any networking library needs maintainer approval. Do last, and only if P5-03 to P5-06 get
   traction. 2026-11-07
-- [ ] P5-08 Spent breakers come back when their chunk rebuilds. Breaker state lives only on the podium mesh
-  (`podium.userData.active`), so a chunk that streams out and back, or a Rebuild Geometry, shows the breaker unfixed,
-  and `activateExitSwitch` counts it again. Persist spent breakers by world position for the run. Found 2026-11-07
-  while scoping P5-02.
+- [x] P5-08 Spent breakers come back when their chunk rebuilds. On inspection the reverse was true: objective podiums
+  are planted once (a `spawned` flag), so a chunk that streamed out or was rebuilt came back without its podium, and
+  the POI signal pointed at bare floor for the rest of the run, the opening's first breaker included. Nothing could
+  count twice. v1.5.8.18 records every podium for the run (`env._podiumRecords`) and restores it, spent or not, on
+  chunk build. Evidence in the desktop app's Chromium pane on seed `7♠|K♥|2♣|9♦|A♠`: the opening podium at cell
+  (0, 9) vanished with chunk `0,0` at 330 m away, returned as a rebuilt object that the signal retargeted (27.8 m).
+  After restoring it, it came back spent, with the count still 1 and a rescan refused. It survived Rebuild Geometry,
+  and a seed change cleared the records. Found 2026-11-07 while scoping P5-02; fixed 2026-11-08.

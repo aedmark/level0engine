@@ -438,7 +438,10 @@ export default class AtmosphereManager {
                 }
                 
                 if (!targetIsPoi) {
-                    if (env._currentTargetSwitch && env._currentTargetSwitch.userData.active) {
+                    // Not live means its chunk unloaded (the chunk group is only detached, so the podium still
+                    // has a parent); drop it so the rebuilt podium is picked up instead.
+                    const isLive = (m) => !!m.parent && env.activeChunks.get(m.userData.chunkHash) === m.parent;
+                    if (env._currentTargetSwitch && (env._currentTargetSwitch.userData.active || !isLive(env._currentTargetSwitch))) {
                         env._currentTargetSwitch = null;
                     }
                     
@@ -469,8 +472,14 @@ export default class AtmosphereManager {
                                 // Spent: let the next frame plant a fresh one. Without this the signal kept
                                 // pointing at the podium the player had just restored.
                                 env._virtualBreaker = null;
-                            } else if (env._virtualBreaker.spawned && env._virtualBreaker.mesh) {
+                            } else if (env._virtualBreaker.spawned && env._virtualBreaker.mesh && isLive(env._virtualBreaker.mesh)) {
                                 env._currentTargetSwitch = env._virtualBreaker.mesh;
+                            } else if (env._virtualBreaker.spawned && env._virtualBreaker.record) {
+                                // Its chunk is unloaded; keep pointing at where it stands until it rebuilds.
+                                const r = env._virtualBreaker.record;
+                                const dx = cameraPos.x - r.x * env.cellSize;
+                                const dz = cameraPos.z - r.z * env.cellSize;
+                                nearestDistSq = dx * dx + dz * dz;
                             } else {
                                 const dx = cameraPos.x - env._virtualBreaker.worldX;
                                 const dz = cameraPos.z - env._virtualBreaker.worldZ;

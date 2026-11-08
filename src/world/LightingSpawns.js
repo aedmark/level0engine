@@ -27,16 +27,36 @@ export function buildEmptyCell(manager, args, state) {
 
 
         const vb = env._virtualBreaker;
-        // The opening's breaker waits for a cell in its band, and dresses itself from a local stream
-        // so the chunk's layout stream (and with it the rest of the seed's maze) is untouched.
+        // Podiums dress themselves from a local stream so the chunk's layout stream is untouched: a
+        // chunk then rebuilds the same with or without its podium, which the record below relies on.
+        const podiumCtx = () => ({...ctx, random: localRandom((env.baseSeed ^ Math.imul(x, 73856093) ^ Math.imul(z, 19349663)) >>> 0)});
+        const record = env._podiumRecords && env._podiumRecords.get(`${x},${z}`);
+        if (record && record.chunkHash === hash) {
+            // A podium planted earlier this run. Podiums are not part of the seeded layout, so without
+            // this a chunk that streamed out (or a Rebuild Geometry) came back without it, and the POI
+            // signal pointed at bare floor for the rest of the run (P5-08).
+            spawnBreakerPodium(env, podiumCtx(), x, z);
+            const mesh = env.interactables[env.interactables.length - 1];
+            mesh.userData.podiumKey = `${x},${z}`;
+            mesh.userData.active = record.spent;
+            record.mesh = mesh;
+            if (vb && vb.record === record) vb.mesh = mesh;
+            state.spawnedVirtualBreaker = true;
+            hasTallObstacle = true;
+        }
+        // The opening's breaker waits for a cell in its band.
         const openingCellOk = !vb || !vb.opening || inFirstBreakerBand(x * env.cellSize, z * env.cellSize, env._seedSpawn);
         if (!state.spawnedVirtualBreaker && vb && vb.chunkHash === hash && !vb.spawned && openingCellOk) {
-            const podiumCtx = vb.opening
-                ? {...ctx, random: localRandom((env.baseSeed ^ Math.imul(x, 73856093) ^ Math.imul(z, 19349663)) >>> 0)}
-                : ctx;
-            spawnBreakerPodium(env, podiumCtx, x, z);
+            spawnBreakerPodium(env, podiumCtx(), x, z);
+            const mesh = env.interactables[env.interactables.length - 1];
+            const key = `${x},${z}`;
+            mesh.userData.podiumKey = key;
+            if (!env._podiumRecords) env._podiumRecords = new Map();
+            const rec = {chunkHash: hash, x, z, spent: false, mesh};
+            env._podiumRecords.set(key, rec);
             env._virtualBreaker.spawned = true;
-            env._virtualBreaker.mesh = env.interactables[env.interactables.length - 1];
+            env._virtualBreaker.mesh = mesh;
+            env._virtualBreaker.record = rec;
             state.spawnedVirtualBreaker = true;
             hasTallObstacle = true;
         }

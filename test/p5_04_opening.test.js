@@ -42,3 +42,14 @@ test('P5-04 the tutorial door no longer waits on a full kinetic charge', () => {
     assert.ok(block.includes('env.openingDoorReleased'));
     assert.ok(!block.includes('flashlightBattery >= 100'), 'the battery ceiling can sit below 100, which softlocked the car');
 });
+
+test('P5-08 podiums are recorded for the run and never draw from the chunk layout stream', () => {
+    const src = fs.readFileSync(path.resolve('src/world/LightingSpawns.js'), 'utf8');
+    const calls = src.match(/spawnBreakerPodium\(env, [^,]+, x, z\)/g) || [];
+    assert.ok(calls.length >= 2, 'both the restore and the first plant spawn a podium');
+    for (const c of calls) assert.ok(c.includes('podiumCtx()'), `${c} must use the local stream, not ctx`);
+    assert.ok(src.includes('env._podiumRecords.get(') && src.includes('record.spent'), 'chunk builds restore recorded podiums');
+    const ic = fs.readFileSync(path.resolve('src/player/InteractionController.js'), 'utf8');
+    const act = ic.slice(ic.indexOf('activateExitSwitch(podium) {'), ic.indexOf('activateExitSwitch(podium) {') + 400);
+    assert.ok(act.includes('record.spent = true'), 'restoring a podium marks its record spent');
+});
